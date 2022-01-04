@@ -267,9 +267,19 @@ export class FnDef extends BaseNode {
 	private constructor(
 		typeVars: string[],
 		public param: Record<string, Node>,
+		public readonly optionalPos: number,
+		public readonly rest: {name: string; node: Node} | undefined,
 		public body: Node
 	) {
 		super()
+
+		if (
+			optionalPos < 0 ||
+			values(param).length < optionalPos ||
+			optionalPos % 1 !== 0
+		) {
+			throw new Error('Invalid optionalPos: ' + optionalPos)
+		}
 
 		this.typeVars = fromPairs(typeVars.map(name => [name, Val.typeVar(name)]))
 	}
@@ -304,7 +314,7 @@ export class FnDef extends BaseNode {
 
 	print = (): string => {
 		const typeVars = printTypeVars(this.typeVars)
-		const param = printParam(this.param)
+		const param = printParam(this.param, this.optionalPos, this.rest)
 		const body = this.body.print()
 
 		return `(=> ${typeVars}${param} ${body})`
@@ -314,17 +324,36 @@ export class FnDef extends BaseNode {
 		this.type === ast.type &&
 		isEqualArray(keys(this.typeVars), keys(ast.typeVars)) &&
 		isEqualDict(this.param, ast.param, isSame) &&
+		this.optionalPos === ast.optionalPos &&
+		isEqualRest(this.rest, ast.rest) &&
 		isSame(this.body, ast.body)
 
 	clone = (): FnDef =>
-		FnDef.of(
-			values(this.typeVars).map(tv => tv.name),
-			mapValues(this.param, clone),
-			this.body.clone()
-		)
+		FnDef.of({
+			typeVars: values(this.typeVars).map(tv => tv.name),
+			param: mapValues(this.param, clone),
+			optionalPos: this.optionalPos,
+			rest: this.rest
+				? {...this.rest, node: this.rest.node.clone()}
+				: undefined,
+			body: this.body.clone(),
+		})
 
-	static of(typeVars: string[], param: FnDef['param'], body: Node) {
-		const fn = new FnDef(typeVars, param, body)
+	static of({
+		typeVars = [],
+		param = {},
+		optionalPos,
+		rest,
+		body,
+	}: {
+		typeVars?: string[]
+		param?: FnDef['param']
+		optionalPos?: number
+		rest?: FnDef['rest']
+		body: Node
+	}) {
+		const _optionalPos = optionalPos ?? values(param).length
+		const fn = new FnDef(typeVars ?? [], param, _optionalPos, rest, body)
 		values(param).forEach(p => setParent(p, fn))
 		setParent(body, fn)
 		return fn
@@ -339,6 +368,8 @@ export class FnTypeDef extends BaseNode {
 	private constructor(
 		typeVars: string[],
 		public param: Record<string, Node>,
+		public readonly optionalPos: number,
+		public readonly rest: {name?: string; node: Node} | undefined,
 		public out: Node
 	) {
 		super()
@@ -356,7 +387,7 @@ export class FnTypeDef extends BaseNode {
 
 	print = (): string => {
 		const typeVars = printTypeVars(this.typeVars)
-		const param = printParam(this.param)
+		const param = printParam(this.param, this.optionalPos, this.rest)
 		const out = this.out.print()
 		return `(-> ${typeVars}${param} ${out})`
 	}
@@ -365,34 +396,52 @@ export class FnTypeDef extends BaseNode {
 		this.type === ast.type &&
 		isEqualArray(keys(this.typeVars), keys(ast.typeVars)) &&
 		isEqualDict(this.param, ast.param, isSame) &&
-		isSame(this.out, this.out)
+		this.optionalPos === ast.optionalPos &&
+		isEqualRest(this.rest, ast.rest) &&
+		isSame(this.out, ast.out)
 
 	clone = (): FnTypeDef =>
-		FnTypeDef.from(
-			values(this.typeVars).map(tv => tv.name),
-			mapValues(this.param, clone),
-			this.out.clone()
-		)
+		FnTypeDef.of({
+			typeVars: values(this.typeVars).map(tv => tv.name),
+			param: mapValues(this.param, clone),
+			optionalPos: this.optionalPos,
+			rest: this.rest,
+			out: this.out.clone(),
+		})
 
-	static of(typeVars: string[], param: Node | Node[], out: Node) {
-		const paramArr = [param].flat()
-		const pairs = paramArr.map((p, i) => [i, p] as const)
-		const paramDict = Object.fromEntries(pairs)
+	static of({
+		typeVars = [],
+		param = {},
+		optionalPos,
+		rest,
+		out,
+	}: {
+		typeVars?: string[]
+		param?: FnTypeDef['param'] | Node[]
+		optionalPos?: number
+		rest?: FnTypeDef['rest']
+		out: Node
+	}) {
+		const _optionalPos = optionalPos ?? values(param).length
+		const _param = Array.isArray(param)
+			? fromPairs(param.map((p, i) => [i, p]))
+			: param
 
-		const fnType = new FnTypeDef(typeVars, paramDict, out)
+		const fnType = new FnTypeDef(typeVars, _param, _optionalPos, rest, out)
 
-		paramArr.forEach(p => setParent(p, fnType))
+		forOwn(_param, p => setParent(p, fnType))
 		setParent(out, fnType)
 
 		return fnType
 	}
+}
 
-	static from(typeVars: string[], param: Record<string, Node>, out: Node) {
-		const fnType = new FnTypeDef(typeVars, param, out)
-		forOwn(param, p => setParent(p, fnType))
-		setParent(out, fnType)
-		return fnType
-	}
+function isEqualRest(a: FnTypeDef['rest'], b: FnTypeDef['rest']) {
+	return nullishEqual(
+		a,
+		b,
+		(a, b) => a.name === b.name && isSame(a.node, b.node)
+	)
 }
 
 function printTypeVars(typeVars: Record<string, Val.TypeVar>): string {
@@ -401,20 +450,38 @@ function printTypeVars(typeVars: Record<string, Val.TypeVar>): string {
 	return '<' + es.join(' ') + '> '
 }
 
-function printParam(param: Record<string, Node>) {
+function printParam(
+	param: Record<string, Node>,
+	optionalPos: number,
+	rest?: {name?: string; node: Node}
+) {
 	const params = entries(param)
 
 	const canOmitBracket =
 		params.length === 1 &&
-		!(params[0][1].type === 'VecLiteral' && params[0][1].items.length === 0)
+		!(params[0][1].type === 'VecLiteral' && params[0][1].items.length === 0) &&
+		optionalPos === params.length &&
+		!rest
 
-	const paramStr = params.map(printNamedNode).join(' ')
+	const paramStr = params.map(printNamedNode)
 
-	return canOmitBracket ? paramStr : '[' + paramStr + ']'
+	const restStr = rest
+		? ['...' + (rest.name ? rest.name + ':' : '') + rest.node.print()]
+		: []
 
-	function printNamedNode([name, ty]: [string, Node]) {
-		if (/^[0-9]+$/.test(name)) return ty.print()
-		return name + ':' + ty.print()
+	const content = [...paramStr, restStr].join(' ')
+
+	return canOmitBracket ? content : '[' + content + ']'
+
+	function printNamedNode([name, ty]: [string, Node], index: number) {
+		const optionalMark = optionalPos <= index ? '?' : ''
+
+		if (/^[0-9]+$/.test(name)) {
+			// No label
+			return ty.print() + optionalMark
+		} else {
+			return name + optionalMark + ':' + ty.print()
+		}
 	}
 }
 

@@ -304,9 +304,20 @@ export class Fn extends BaseValue implements IFnLike {
 		if (!this.body) {
 			return Ast.value(this)
 		}
-		const typeVars = [...getTypeVars(this.fnType)].map(tv => tv.name)
-		const param = mapValues(this.fnType.param, p => p.toAst())
-		return Ast.fn(typeVars, param, this.body.clone())
+
+		const {fnType} = this
+
+		const typeVars = [...getTypeVars(fnType)].map(tv => tv.name)
+		const param = mapValues(fnType.param, p => p.toAst())
+		return Ast.fn({
+			typeVars,
+			param,
+			optionalPos: fnType.optionalPos,
+			rest: fnType.rest
+				? {name: fnType.rest.name ?? '', node: fnType.rest.value.toAst()}
+				: undefined,
+			body: this.body.clone(),
+		})
 	}
 
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
@@ -324,7 +335,7 @@ export class FnType extends BaseValue implements IFnType {
 	private constructor(
 		public readonly param: Record<string, Value>,
 		public readonly optionalPos: number,
-		public readonly rest: Value | undefined,
+		public readonly rest: {name?: string; value: Value} | undefined,
 		public readonly out: Value
 	) {
 		super()
@@ -332,8 +343,9 @@ export class FnType extends BaseValue implements IFnType {
 			optionalPos < 0 ||
 			values(param).length < optionalPos ||
 			optionalPos % 1 !== 0
-		)
+		) {
 			throw new Error('Invalid optionalPos: ' + optionalPos)
+		}
 	}
 
 	fnType = this
@@ -345,37 +357,45 @@ export class FnType extends BaseValue implements IFnType {
 	toAst = (): Ast.FnTypeDef => {
 		const param = mapValues(this.param, p => p.toAst())
 		const out = this.out.toAst()
-		return Ast.fnTypeFrom([], param, out)
+		return Ast.fnType({param, out})
 	}
 
 	isEqualTo = (v: Value) =>
 		super.isEqualTo(v) ||
 		(this.type === v.type &&
+			isEqualArray(values(this.param), values(v.param), isEqual) &&
 			this.optionalPos === v.optionalPos &&
-			nullishEqual(this.rest, v.rest, isEqual) &&
-			isEqual(this.out, v.out) &&
-			isEqualArray(values(this.param), values(v.param), isEqual))
+			nullishEqual(
+				this.rest,
+				v.rest,
+				(a, b) => a.name === b.name && isEqual(a.value, b.value)
+			) &&
+			isEqual(this.out, v.out))
 
 	isSubtypeOf = (v: Value): boolean => {
 		if (this.superType.isSubtypeOf(v)) return true
 		if (v.type === 'UnionType') return v.isSupertypeOf(this)
 		if (v.type !== 'FnType') return false
 
-		const tParam = Vec.of(values(this.param), this.optionalPos, this.rest)
-		const eParam = Vec.of(values(v.param), v.optionalPos, v.rest)
+		const tParam = Vec.of(
+			values(this.param),
+			this.optionalPos,
+			this.rest?.value
+		)
+		const eParam = Vec.of(values(v.param), v.optionalPos, v.rest?.value)
 
 		return isSubtype(eParam, tParam) && isSubtype(this.out, v.out)
 	}
 
 	static of({
-		param,
-		rest = undefined,
+		param = {},
 		optionalPos,
+		rest = undefined,
 		out,
 	}: {
-		param: Record<string, Value>
+		param?: Record<string, Value>
 		optionalPos?: number
-		rest?: Value | undefined
+		rest?: FnType['rest']
 		out: Value
 	}) {
 		const _optionalPos = optionalPos ?? values(param).length

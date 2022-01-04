@@ -259,7 +259,9 @@ export class Unifier {
 			}
 			case 'FnType': {
 				const param = mapValues(val.param, p => this.substitute(p, unshadow))
-				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
+				const rest = val.rest
+					? {...val.rest, value: this.substitute(val.rest.value, unshadow)}
+					: undefined
 				const out = this.substitute(val.out, unshadow)
 				return fnType({param, rest, out})
 			}

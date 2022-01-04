@@ -49,7 +49,6 @@ export const scope = Scope.of
 export const tryCatch = TryCatch.of
 export const fn = FnDef.of
 export const fnType = FnTypeDef.of
-export const fnTypeFrom = FnTypeDef.from
 export const vec = VecLiteral.of
 export const dict = DictLiteral.of
 export const dictFrom = DictLiteral.from

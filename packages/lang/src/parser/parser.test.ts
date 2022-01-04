@@ -4,7 +4,7 @@ import {
 	dict,
 	dictFrom,
 	fn,
-	fnTypeFrom,
+	fnType,
 	id,
 	isSame,
 	never,
@@ -131,34 +131,46 @@ describe('parsing dictionary', () => {
 })
 
 describe('parsing function definition', () => {
-	testParsing('(=> [x:Num] x)', fn([], {x: Num}, x))
-	testParsing('(=> [x : Num y : Bool] x)', fn([], {x: Num, y: Bool}, x))
-	testParsing('(=>[]_)', fn([], {}, all()))
-	testParsing('(=>[]())', fn([], {}, unit()))
-	testParsing('(=> [] (+ 1 2))', fn([], {}, call(id('+'), num(1), num(2))))
-	testParsing('(=> [] (=> [] 1))', fn([], {}, fn([], {}, num(1))))
-	testParsing('(=> <T> [x:T] x)', fn(['T'], {x: id('T')}, x))
-	testParsing('(=> <T U> [x:T] x)', fn(['T', 'U'], {x: id('T')}, x))
-	testParsing('(=> <> [] Num)', fn([], {}, Num))
+	testParsing('(=> [x:Num] x)', fn({param: {x: Num}, body: x}))
+	testParsing(
+		'(=> [x : Num y : Bool] x)',
+		fn({param: {x: Num, y: Bool}, body: x})
+	)
+	testParsing('(=>[]_)', fn({param: {}, body: all()}))
+	testParsing('(=>[]())', fn({body: unit()}))
+	testParsing('(=> [] (+ 1 2))', fn({body: call(id('+'), num(1), num(2))}))
+	testParsing('(=> [] (=> [] 1))', fn({body: fn({body: num(1)})}))
+	testParsing(
+		'(=> <T> [x:T] x)',
+		fn({typeVars: ['T'], param: {x: id('T')}, body: x})
+	)
+	testParsing(
+		'(=> <T U> [x:T] x)',
+		fn({typeVars: ['T', 'U'], param: {x: id('T')}, body: x})
+	)
+	testParsing('(=> <> [] Num)', fn({body: Num}))
 	testErrorParsing('(=> <1> [] Num)')
 })
 
 describe('parsing function type', () => {
-	testParsing('(-> [[...x]] x)', fnTypeFrom([], {0: vec([], 0, x)}, x))
-	testParsing('(-> [_] _)', fnTypeFrom([], {0: all()}, all()))
-	testParsing('(-> [[]] ())', fnTypeFrom([], {0: vec()}, unit()))
-	testParsing('(-> [] z)', fnTypeFrom([], {}, z))
-	testParsing('(-> [] [])', fnTypeFrom([], {}, vec()))
-	testParsing('(-> [x] z)', fnTypeFrom([], {0: x}, z))
-	testParsing('(-> [x y] z)', fnTypeFrom([], {0: x, 1: y}, z))
-	testParsing('(-> [x y z] w)', fnTypeFrom([], {0: x, 1: y, 2: z}, w))
-	testParsing('(-> [[x y]] z)', fnTypeFrom([], {0: vec([x, y])}, z))
-	testParsing('(-> [x:x] z)', fnTypeFrom([], {x}, z))
-	testParsing('(-> [x:x y] z)', fnTypeFrom([], {x, 1: y}, z))
-	testParsing('(-> <T> [x:T] T)', fnTypeFrom(['T'], {x: id('T')}, id('T')))
+	testParsing('(-> [[...x]] x)', fnType({param: [vec([], 0, x)], out: x}))
+	testParsing('(-> [_] _)', fnType({param: [all()], out: all()}))
+	testParsing('(-> [[]] ())', fnType({param: [vec()], out: unit()}))
+	testParsing('(-> [] z)', fnType({out: z}))
+	testParsing('(-> [] [])', fnType({out: vec()}))
+	testParsing('(-> [x] z)', fnType({param: [x], out: z}))
+	testParsing('(-> [x y] z)', fnType({param: [x, y], out: z}))
+	testParsing('(-> [x y z] w)', fnType({param: [x, y, z], out: w}))
+	testParsing('(-> [[x y]] z)', fnType({param: [vec([x, y])], out: z}))
+	testParsing('(-> [x:x] z)', fnType({param: {x}, out: z}))
+	testParsing('(-> [x:x y] z)', fnType({param: {x, 1: y}, out: z}))
+	testParsing(
+		'(-> <T> [x:T] T)',
+		fnType({typeVars: ['T'], param: {x: id('T')}, out: id('T')})
+	)
 	testParsing(
 		'(-> <T U> [x:T] T)',
-		fnTypeFrom(['T', 'U'], {x: id('T')}, id('T'))
+		fnType({typeVars: ['T', 'U'], param: {x: id('T')}, out: id('T')})
 	)
 	testErrorParsing('(-> <> [] Num)')
 	testErrorParsing('(-> <1> [] Num)')
