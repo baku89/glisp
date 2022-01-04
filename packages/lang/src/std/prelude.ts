@@ -30,7 +30,7 @@ function defn(
 		? (...args) => withLog(f(...args))
 		: (...args) => withLog(f(...args.map(a => a())))
 
-	const fn = Val.fn(fnType.param, fnType.out, _f)
+	const fn = Val.fnFrom(fnType, _f)
 
 	return Ast.value(fn)
 }
@@ -86,9 +86,9 @@ PreludeScope.defs({
 		else return Val.num(x.value.length)
 	}),
 	range: defn(
-		'(-> [start:Num end:Num] [...Num])',
-		(start: Val.Num, end: Val.Num) =>
-			Val.vec(range(start.value, end.value).map(Val.num))
+		'(-> [start:Num end:Num step?:Num] [...Num])',
+		(start: Val.Num, end: Val.Num, step: Val.Num) =>
+			Val.vec(range(start.value, end.value, step.value).map(Val.num))
 	),
 	gcd: defn(
 		'(-> [x:Num y:Num] Num)',

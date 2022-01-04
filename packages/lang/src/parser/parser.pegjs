@@ -10,7 +10,22 @@
 
 		return [as, bs]
 	}
+
 	const fromPairs = Object.fromEntries
+
+	function getOptionalPos(optionalFlags) {
+		let optionalPos = undefined
+		
+		for (let i = 0; i < optionalFlags.length; i++) {
+			if (optionalFlags[i]) {
+				if (optionalPos === undefined) optionalPos = i
+			} else {
+				if (optionalPos !== undefined) return null
+			}
+		}
+
+		return optionalPos
+	}
 }}
 
 {
@@ -64,55 +79,65 @@ Call "function application" = "(" _ fn:Node _ args:(@Node _)* ")"
 Fn "function" =
 	"(" _ "=>" _ typeVars:FnTypeVars? param:FnParam body:Node _ ")"
 	{
+		const [paramEntries, optionalFlags] = zip(param)
+
 		typeVars ??= undefined
-		return Ast.fn({typeVars, param, body})
+		param = fromPairs(paramEntries)
+		const optionalPos = getOptionalPos(optionalFlags)
+
+		if (optionalPos === null) {
+			throw new Error('A required parameter cannot follow an optional parameter')
+		}
+
+		return Ast.fn({typeVars, param, optionalPos, body})
 	}
 
 FnParam =
-	"[" _ pairs:NamedNode* "]" _ { return fromPairs(pairs) } /
-	pair:NamedNode _             { return fromPairs([pair]) }
+	"[" _ @(@NamedNode _)* "]" _ /
+	entry:NamedNode _            { return [entry] }
 
 FnType "function type" =
 	"(" _ "->" _ typeVars:FnTypeVars? param:FnTypeParam out:Node _ ")"
 	{
+		const [paramEntries, optionalFlags] = zip(param)
+
 		typeVars ??= undefined
-		param = fromPairs(param.map(([name, type], i) => [name ?? i, type]))
-		return Ast.fnType({typeVars, param, out})
+		param = fromPairs(paramEntries.map(([name, node], i) => [name ?? i, node]))
+		const optionalPos = getOptionalPos(optionalFlags)
+
+		if (optionalPos === null) {
+			throw new Error('A required parameter cannot follow an optional parameter')
+		}
+
+		return Ast.fnType({typeVars, param, optionalPos, out})
 	}
 
 FnTypeParam =
-	"[" _ params:FnTypeParamEntry* "]" _ { return params } /
-	param:FnTypeParamEntry _             { return [param] }
+	"[" _ @FnTypeParamEntry* "]" _ /
+	entry:FnTypeParamEntry _       { return [entry] }
 
 FnTypeParamEntry =
-	NamedNode /
-	type:Node _ { return [null, type] }
+	@NamedNode _ /
+	node:Node optional:"?"? _ { return [[null, node], optional] }
 
+NamedNode = id:Identifier _ optional:"?"? ":" _ node:Node
+	{
+		return [[id.name, node], optional]
+	}
+	
 FnTypeVars = "<" _ typeVars:(@$([a-zA-Z] [a-zA-Z0-9]*) _)* ">" _
 	{
 		return typeVars
-	}
-
-NamedNode = sym:Identifier _ ":" _ value:Node _
-	{
-		return [sym.name, value]
 	}
 
 Vec "vector" =
 	"[" _ itemsWithOptionalFlag:(@Node @"?"? _)* rest:Rest? "]"
 	{
 		const [items, optionalFlags] = zip(itemsWithOptionalFlag)
-
-		let optionalPos = undefined
+		const optionalPos = getOptionalPos(optionalFlags)
 		
-		for (let i = 0; i < optionalFlags.length; i++) {
-			if (optionalFlags[i]) {
-				if (optionalPos === undefined)
-					optionalPos = i
-			} else {
-				if (optionalPos !== undefined) 
-					throw new Error('A required item cannot follow an optional item')
-			}
+		if (optionalPos === null) {
+			throw new Error('A required item cannot follow an optional item')
 		}
 
 		return Ast.vec(items, optionalPos, rest)

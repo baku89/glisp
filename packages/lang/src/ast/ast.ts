@@ -309,7 +309,23 @@ export class FnDef extends BaseNode {
 
 		const [out, lo] = this.body.infer(innerEnv).asTuple
 
-		return withLog(Val.fnType({param, out}), ...lp, ...lo)
+		let rest: Val.FnType['rest'], lr: Set<Log>
+		if (this.rest) {
+			const [value, _lr] = this.rest.node.eval(env).asTuple
+			rest = {name: this.rest.name, value}
+			lr = _lr
+		} else {
+			lr = new Set()
+		}
+
+		const fnType = Val.fnType({
+			param,
+			optionalPos: this.optionalPos,
+			rest,
+			out,
+		})
+
+		return withLog(fnType, ...lp, ...lr, ...lo)
 	}
 
 	print = (): string => {
@@ -379,8 +395,26 @@ export class FnTypeDef extends BaseNode {
 
 	protected forceEval = (env: Env): WithLog => {
 		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
+
+		let rest: Val.FnType['rest'], lr: Set<Log>
+		if (this.rest) {
+			const [value, _lr] = this.rest.node.eval(env).asTuple
+			rest = {name: this.rest.name, value}
+			lr = _lr
+		} else {
+			lr = new Set()
+		}
+
 		const [out, lo] = this.out.eval(env).asTuple
-		return withLog(Val.fnType({param, out}), ...lp, ...lo)
+
+		const fnType = Val.fnType({
+			param,
+			optionalPos: this.optionalPos,
+			rest,
+			out,
+		})
+
+		return withLog(fnType, ...lp, ...lr, ...lo)
 	}
 
 	protected forceInfer = () => withLog(Val.all)
@@ -460,7 +494,6 @@ function printParam(
 	const canOmitBracket =
 		params.length === 1 &&
 		!(params[0][1].type === 'VecLiteral' && params[0][1].items.length === 0) &&
-		optionalPos === params.length &&
 		!rest
 
 	const paramStr = params.map(printNamedNode)
@@ -469,7 +502,7 @@ function printParam(
 		? ['...' + (rest.name ? rest.name + ':' : '') + rest.node.print()]
 		: []
 
-	const content = [...paramStr, restStr].join(' ')
+	const content = [...paramStr, ...restStr].join(' ')
 
 	return canOmitBracket ? content : '[' + content + ']'
 
@@ -648,13 +681,13 @@ export class Call extends BaseNode {
 
 		// Length-check of arguments
 		const lenArgs = this.args.length
-		const lenParams = params.length
+		const lenParams = callee.fnType.optionalPos
 
-		if (lenArgs !== lenParams) {
+		if (lenArgs < lenParams) {
 			argLog.push({
 				level: 'error',
 				ref: this,
-				reason: `Expected ${lenParams} arguments, but got ${lenArgs}`,
+				reason: `Expected ${lenParams} arguments, but got ${lenArgs}.`,
 			})
 		}
 

@@ -164,6 +164,7 @@ describe('parsing function type', () => {
 	testParsing('(-> [[x y]] z)', fnType({param: [vec([x, y])], out: z}))
 	testParsing('(-> [x:x] z)', fnType({param: {x}, out: z}))
 	testParsing('(-> [x:x y] z)', fnType({param: {x, 1: y}, out: z}))
+
 	testParsing(
 		'(-> <T> [x:T] T)',
 		fnType({typeVars: ['T'], param: {x: id('T')}, out: id('T')})
@@ -174,6 +175,12 @@ describe('parsing function type', () => {
 	)
 	testErrorParsing('(-> <> [] Num)')
 	testErrorParsing('(-> <1> [] Num)')
+
+	testParsing('(-> x? y)', fnType({param: [x], optionalPos: 0, out: y}))
+	testParsing('(-> [x?] y)', fnType({param: [x], optionalPos: 0, out: y}))
+	testParsing('(-> x?:x y)', fnType({param: {x}, optionalPos: 0, out: y}))
+	testParsing('(-> [x?:x] y)', fnType({param: {x}, optionalPos: 0, out: y}))
+	testParsing('(-> [x y?] z)', fnType({param: [x, y], optionalPos: 1, out: z}))
 })
 
 function testParsing(input: string, expected: Node) {
