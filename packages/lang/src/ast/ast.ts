@@ -620,7 +620,12 @@ export class Call extends BaseNode {
 		const [ty, log] = this.callee.infer(env).asTuple
 		if (!('fnType' in ty)) return withLog(ty, ...log)
 
-		if (ty.fnType.isTypeCtor) {
+		/**
+		 * A function type whose return type equals to All is type constructor
+		 * (e.g. 'struct' function), so it should be evaluated to infer a type of
+		 * the expression
+		 */
+		if (ty.fnType.out.isEqualTo(Val.all)) {
 			return this.eval(env)
 		}
 

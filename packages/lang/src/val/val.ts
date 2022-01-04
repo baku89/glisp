@@ -327,11 +327,7 @@ export class FnType extends BaseValue implements IFnType {
 	readonly type = 'FnType' as const
 	superType = All.instance
 
-	private constructor(
-		public param: Record<string, Value>,
-		public out: Value,
-		public isTypeCtor = false
-	) {
+	private constructor(public param: Record<string, Value>, public out: Value) {
 		super()
 	}
 

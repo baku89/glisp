@@ -10,23 +10,21 @@ import * as Val from '../val'
 function defn(
 	type: string,
 	f: (...args: Ast.Arg<any>[]) => Val.Value,
-	options?: {isTypeCtor?: boolean; lazy?: true}
+	options?: {lazy?: true}
 ): Ast.ValueContainer
 function defn(
 	type: string,
 	f: (...args: any[]) => Val.Value,
-	options?: {isTypeCtor?: boolean; lazy?: false}
+	options?: {lazy?: false}
 ): Ast.ValueContainer
 function defn(
 	type: string,
 	f: (...args: any[]) => Val.Value,
-	{isTypeCtor = false, lazy = false} = {}
+	{lazy = false} = {}
 ) {
 	const fnType = parse(type, PreludeScope).eval().result
 
 	if (fnType.type !== 'FnType') throw new Error('Not a fnType:' + type)
-
-	fnType.isTypeCtor = isTypeCtor
 
 	const _f: Val.IFn = lazy
 		? (...args) => withLog(f(...args))
@@ -125,8 +123,7 @@ PreludeScope.defs({
 	),
 	struct: defn(
 		'(-> [name:Str param:{..._}] _)',
-		(name: Val.Str, {items}: Val.Dict) => Val.structType(name.value, items),
-		{isTypeCtor: true}
+		(name: Val.Str, {items}: Val.Dict) => Val.structType(name.value, items)
 	),
 	fnType: defn('(-> f:_ _)', (f: Val.Value) => ('fnType' in f ? f.fnType : f)),
 	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Val.Value, t: Val.Value) =>
