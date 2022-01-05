@@ -47,14 +47,14 @@ PreludeScope.defs({
 	throw: defn('(-> reason:_ Never)', (reason: Val.Str) => {
 		throw new Error(reason.value)
 	}),
-	'|': defn('(-> <T> [x:T y:T] T)', (t1: Val.Value, t2: Val.Value) =>
-		Val.unionType(t1, t2)
+	'|': defn('(-> [...types:_] _)', (...types: Val.Value[]) =>
+		Val.unionType(...types)
 	),
-	'+': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) =>
-		Val.num(a.value + b.value)
+	'+': defn('(-> [...xs:Num] Num)', (...xs: Val.Num[]) =>
+		Val.num(xs.reduce((sum, x) => sum + x.value, 0))
 	),
-	'*': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) =>
-		Val.num(a.value * b.value)
+	'*': defn('(-> [...xs:Num] Num)', (...xs: Val.Num[]) =>
+		Val.num(xs.reduce((prod, x) => prod * x.value, 1))
 	),
 	'/': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) => {
 		if (b.value === 0) throw new Error('Divided by zero')
@@ -69,8 +69,8 @@ PreludeScope.defs({
 	'<': defn('(-> [x:Num y:Num] Bool)', (x: Val.Num, y: Val.Num) =>
 		Val.bool(x.value < y.value)
 	),
-	'==': defn('(-> [x:_ y:_] Bool)', (x: Val.Num, y: Val.Num) =>
-		Val.bool(x.isEqualTo(y))
+	'==': defn('(-> [...xs:_] Bool)', (x: Val.Value, y: Val.Value) =>
+		Val.bool(Val.isEqual(x, y))
 	),
 	if: defn(
 		'(-> <T> [test:Bool then:T else:T] T)',
@@ -162,8 +162,6 @@ const = (=> <T> x:T (=> [] x))
 first = (=> <T> coll:[...T] (coll 0))
 
 id = (=> <T> x:T x)
-
-sum = (=> xs:[...Num] (reduce + xs 0))
 
 neg = (=> x:Num (* x -1))
 

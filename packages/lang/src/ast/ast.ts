@@ -95,6 +95,11 @@ export class Identifier extends BaseNode {
 				// Situation A. While normal evaluation
 				if (this.name in ref.param) {
 					return Writer.of({node: ref.param[this.name], mode: 'param'})
+				} else if (ref.rest && this.name === ref.rest.name) {
+					// Rest parameter
+					const [rest, lr] = ref.rest.node.eval(env).asTuple
+					const node = ValueContainer.of(Val.vec([], undefined, rest))
+					return Writer.of({node, mode: 'param'}, ...lr)
 				}
 			} else {
 				// Situation B. In a context of function appliction
@@ -289,6 +294,10 @@ export class FnDef extends BaseNode {
 
 		const fn: Val.IFn = (...args: Arg[]) => {
 			const arg = fromPairs(zip(names, args))
+			if (this.rest) {
+				const restArgs = args.slice(names.length)
+				arg[this.rest.name] = () => Val.vec(restArgs.map(a => a()))
+			}
 			const innerEnv = env.extend(arg)
 			return this.body.eval(innerEnv)
 		}
@@ -301,13 +310,8 @@ export class FnDef extends BaseNode {
 	}
 
 	protected forceInfer = (env: Env): WithLog<Val.FnType> => {
+		// Infer parameter types by simply evaluating 'em
 		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
-
-		const arg = mapValues(param, p => () => p)
-
-		const innerEnv = env.extend(arg)
-
-		const [out, lo] = this.body.infer(innerEnv).asTuple
 
 		let rest: Val.FnType['rest'], lr: Set<Log>
 		if (this.rest) {
@@ -317,6 +321,17 @@ export class FnDef extends BaseNode {
 		} else {
 			lr = new Set()
 		}
+
+		// Then, infer the function body
+		const arg = mapValues(param, p => () => p)
+		if (rest) {
+			const {name: restName, value: restValue} = rest
+			arg[restName as any] = () => Val.vec([], undefined, restValue)
+		}
+
+		const innerEnv = env.extend(arg)
+
+		const [out, lo] = this.body.infer(innerEnv).asTuple
 
 		const fnType = Val.fnType({
 			param,
@@ -658,10 +673,13 @@ export class Call extends BaseNode {
 		const params = values(fnType.param)
 
 		const shadowedArgs = this.args
-			.slice(0, params.length)
+			.slice(0, fnType.rest ? this.args.length : params.length)
 			.map(a => shadowTypeVars(a.infer(env).result))
 
-		const unifier = new Unifier([Val.vec(params), '>=', Val.vec(shadowedArgs)])
+		const paramsType = Val.vec(params, fnType.optionalPos, fnType.rest?.value)
+		const argsType = Val.vec(shadowedArgs)
+
+		const unifier = new Unifier([paramsType, '>=', argsType])
 
 		return [unifier, shadowedArgs]
 	}
@@ -686,13 +704,13 @@ export class Call extends BaseNode {
 
 		// Length-check of arguments
 		const lenArgs = this.args.length
-		const lenParams = callee.fnType.optionalPos
+		const lenRequiredParams = callee.fnType.optionalPos
 
-		if (lenArgs < lenParams) {
+		if (lenArgs < lenRequiredParams) {
 			argLog.push({
 				level: 'error',
 				ref: this,
-				reason: `Expected ${lenParams} arguments, but got ${lenArgs}.`,
+				reason: `Expected ${lenRequiredParams} arguments, but got ${lenArgs}.`,
 			})
 		}
 
@@ -706,25 +724,59 @@ export class Call extends BaseNode {
 			const aTy = unifiedArgs[i] ?? Val.unit
 			const name = names[i]
 
-			if (!Val.isSubtype(aTy, pTy)) {
+			if (Val.isSubtype(aTy, pTy)) {
+				// Type matched
+				return () => {
+					const [a, la] = this.args[i].eval(env).asTuple
+					argLog.push(...la)
+					return a
+				}
+			} else {
+				// Type mismatched
 				if (aTy.type !== 'Unit') {
 					argLog.push({
 						level: 'error',
 						ref: this,
 						reason:
 							`Argument '${name}' expects type: ${pTy.print()}, ` +
-							`but got: ${aTy.print()}`,
+							`but got: ${aTy.print()}.`,
 					})
 				}
 				return () => pTy.defaultValue
 			}
-
-			return () => {
-				const [a, la] = this.args[i].eval(env).asTuple
-				argLog.push(...la)
-				return a
-			}
 		})
+
+		// For rest argument
+		if (callee.fnType.rest) {
+			const pTy = callee.fnType.rest.value
+			// NOTE: Should handle non-labeled rest parameter
+			const name = callee.fnType.rest.name ?? '(no name)'
+
+			for (let i = unifiedParams.length; i < this.args.length; i++) {
+				const aTy = unifiedArgs[i]
+
+				if (Val.isSubtype(aTy, pTy)) {
+					// Type matched
+					args.push(() => {
+						const [a, la] = this.args[i].eval(env).asTuple
+						argLog.push(...la)
+						return a
+					})
+				} else {
+					// Type mismatched
+					if (aTy.type !== 'Unit') {
+						argLog.push({
+							level: 'error',
+							ref: this,
+							reason:
+								`Rest argument '${name}' expects type: ${pTy.print()}, ` +
+								`but got: ${aTy.print()}.`,
+						})
+					}
+					args.push(() => pTy.defaultValue)
+				}
+			}
+		}
 
 		// Call the function
 		let result: Val.Value, callLog: Set<Log | Omit<Log, 'ref'>>

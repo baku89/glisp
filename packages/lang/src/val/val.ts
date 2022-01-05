@@ -412,12 +412,15 @@ export class FnType extends BaseValue implements IFnType {
 	}
 }
 
-export class Vec extends BaseValue implements IFnLike {
+export class Vec<TItems extends Value = Value>
+	extends BaseValue
+	implements IFnLike
+{
 	readonly type = 'Vec' as const
 	readonly superType = All.instance
 
 	private constructor(
-		public readonly items: Value[],
+		public readonly items: TItems[],
 		public readonly optionalPos: number,
 		public rest?: Value
 	) {
@@ -478,7 +481,7 @@ export class Vec extends BaseValue implements IFnLike {
 		return true
 	}
 
-	get isType() {
+	get isType(): boolean {
 		return (
 			!!this.rest ||
 			this.optionalPos < this.items.length ||

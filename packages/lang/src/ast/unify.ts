@@ -174,11 +174,14 @@ export class Unifier {
 		 * tp -> to R up -> uo
 		 */
 		if (t.type === 'FnType' && 'fnType' in u) {
-			const tParam = vec(values(t.param))
-			const uParam = vec(values(u.fnType.param))
+			const tf = t
+			const uf = u.fnType
 
-			const tOut = t.out
-			const uOut = u.fnType.out
+			const tParam = vec(values(tf.param), tf.optionalPos, tf.rest?.value)
+			const uParam = vec(values(uf.param), uf.optionalPos, uf.rest?.value)
+
+			const tOut = tf.out
+			const uOut = uf.out
 
 			const cParam: Const = [tParam, Ri, uParam]
 			const cOut: Const = [tOut, R, uOut]

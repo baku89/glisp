@@ -20,7 +20,6 @@ describe('functions in the prelude module', () => {
 
 	testEval('(inc 10)', '11')
 	testEval('(dec 10)', '9')
-	testEval('(sum [1 2 3 4])', '10')
 	testEval('(sqrt 25)', '5')
 	testEval('(hypot 3 4)', '5')
 	testEval('(id 10)', '10')
