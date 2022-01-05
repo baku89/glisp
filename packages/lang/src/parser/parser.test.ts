@@ -84,9 +84,9 @@ describe('parsing call expressions', () => {
 })
 
 describe('parsing scope', () => {
-	testParsing('(let x = 1 x)', scope({x: num(1)}, x))
-	testParsing('(let x = 1)', scope({x: num(1)}))
-	testParsing('(let x = (let x = 1))', scope({x: scope({x: num(1)})}))
+	testParsing('(let x: 1 x)', scope({x: num(1)}, x))
+	testParsing('(let x: 1)', scope({x: num(1)}))
+	testParsing('(let x: (let x: 1))', scope({x: scope({x: num(1)})}))
 	testParsing('(let (let 1))', scope({}, scope({}, num(1))))
 	testParsing('(let)', scope({}))
 })
