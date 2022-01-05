@@ -8,7 +8,7 @@ export function parse(
 	const node: Ast.Node | undefined = parser.parse(str, {Ast})
 	if (!node) return Ast.call()
 
-	if ('parent' in node) node.parent = parent
+	Ast.setParent(node, parent)
 
 	return node
 }

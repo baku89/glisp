@@ -943,9 +943,10 @@ export class TryCatch extends BaseNode {
 	}
 }
 
-export function setParent(node: Node, parent: Node) {
-	if ('parent' in node) {
-		node.parent = parent
+export function setParent(node: Node, parent: Node | null) {
+	node.parent = parent
+	if (node.valueMeta?.defaultValue) {
+		node.valueMeta.defaultValue.parent = parent
 	}
 }
 
