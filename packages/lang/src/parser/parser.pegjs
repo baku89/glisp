@@ -214,11 +214,11 @@ _ "delimiter" = Whitespace* (Comment? Newline Whitespace*)*
 
 Comment = ";" (!Newline .)*
 
-Punctuation = [()[\]{}:`"?.;]
+Punctuation = [()[\]{}:`"?.;^@#~\\]
 
 Newline = [\n\r]
 
-Whitespace = [ \t]
+Whitespace = [ \t,]
 
 Digit = [0-9]
 

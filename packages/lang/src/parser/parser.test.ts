@@ -43,7 +43,7 @@ describe('parsing symbols', () => {
 	run('BAR', 'BAR')
 	run('true1', 'true1')
 	run('abc123 ', 'abc123')
-	run('+-*/&|<=>_', '+-*/&|<=>_')
+	run('+-*&|<=>_', '+-*&|<=>_')
 	run('変数', '変数')
 	run('🍡', '🍡')
 	// run('`a symbol with spaces`', 'a symbol with spaces')
