@@ -31,9 +31,7 @@ function invRelation(op: Relation): Relation {
 
 export const getTypeVars = createFoldFn(
 	{
-		TypeVar(ty) {
-			return new Set([ty])
-		},
+		TypeVar: ty => new Set([ty]),
 	},
 	new Set<TypeVar>(),
 	union
