@@ -16,6 +16,10 @@ export class Writer<T, L> {
 		return new Writer(f(this.result), this.log)
 	}
 
+	public write(...logs: L[]) {
+		return new Writer(this.result, new Set([...this.log, ...logs]))
+	}
+
 	public static of<T, L>(result: T, ...log: L[]) {
 		return new Writer(result, new Set(log))
 	}
