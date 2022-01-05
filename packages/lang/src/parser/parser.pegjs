@@ -13,18 +13,46 @@
 
 	const fromPairs = Object.fromEntries
 
-	function getOptionalPos(optionalFlags) {
+	function getOptionalPos(optionalFlags, label) {
 		let optionalPos = undefined
 		
 		for (let i = 0; i < optionalFlags.length; i++) {
 			if (optionalFlags[i]) {
-				if (optionalPos === undefined) optionalPos = i
+				if (optionalPos === undefined) {
+					optionalPos = i
+				}
 			} else {
-				if (optionalPos !== undefined) return null
+				if (optionalPos !== undefined) {
+					throw new Error(
+						`A required ${label} cannot follow an optional ${label}`
+					)
+				}
 			}
 		}
 
 		return optionalPos
+	}
+
+	function checkDuplicatedKey(keys, label) {
+		const set = new Set()
+		for (const key of keys) {
+			if (typeof key !== 'string') continue
+
+			if (set.has(key)) {
+				throw new Error(`Duplicated ${label} '${key}'.`)
+			}
+			set.add(key)
+		}
+	}
+
+	function parseRestParameter(rest) {
+		if (!rest) return
+
+		const [[name, node], optional] = rest
+
+		if (optional) throw new Error('A rest parameter cannot be marked optional')
+
+		return {name, node}
 	}
 }}
 
@@ -97,20 +125,13 @@ Fn "function definition" =
 		typeVars ??= undefined
 		param = fromPairs(paramEntries)
 
-		const optionalPos = getOptionalPos(optionalFlags)
-		if (optionalPos === null) {
-			throw new Error('A required parameter cannot follow an optional parameter')
-		}
+		const optionalPos = getOptionalPos(optionalFlags, 'parameter')
 
-		let rest
-		if (_rest) {
-			const [[name, node], optional] = _rest
-			rest = {name, node}
+		const rest = parseRestParameter(_rest)
 
-			if (optional) {
-				throw new Error('A rest parameter cannot be marked optional')
-			}
-		}
+		const paramNames = [...paramEntries.map(([name]) => name)]
+		if (rest) paramNames.push(rest.name)
+		checkDuplicatedKey(paramNames, 'parameter')
 
 		return Ast.fn({typeVars, param, optionalPos, rest, body})
 	}
@@ -134,20 +155,13 @@ FnType "function type definition" =
 		typeVars ??= undefined
 		param = fromPairs(paramEntries.map(([name, node], i) => [name ?? i, node]))
 		
-		const optionalPos = getOptionalPos(optionalFlags)
-		if (optionalPos === null) {
-			throw new Error('A required parameter cannot follow an optional parameter')
-		}
+		const optionalPos = getOptionalPos(optionalFlags, 'parameter')
 
-		let rest
-		if (_rest) {
-			const [[name, node], optional] = _rest
-			rest = {name, node}
+		const rest = parseRestParameter(_rest)
 
-			if (optional) {
-				throw new Error('A rest parameter cannot be marked optional')
-			}
-		}
+		const paramNames = [...paramEntries.map(([name]) => name)]
+		if (rest) paramNames.push(rest.name)
+		checkDuplicatedKey(paramNames, 'parameter')
 		
 		return Ast.fnType({typeVars, param, optionalPos, rest, out})
 	}
@@ -177,23 +191,23 @@ Vec "vector" =
 	"[" _ entries:(@Node @"?"? _)* rest:("..." @Node _)? "]"
 	{
 		const [items, optionalFlags] = zip(entries)
-		const optionalPos = getOptionalPos(optionalFlags)
-		
-		if (optionalPos === null) {
-			throw new Error('A required item cannot follow an optional item')
-		}
+		const optionalPos = getOptionalPos(optionalFlags, 'item',)
 
 		return Ast.vec(items, optionalPos, rest)
 	}
 
 Dict "dictionary" = "{" _ entries:DictEntry* rest:("..." @Node _)? "}"
 	{
+		const keys = entries.map(([key]) => key)
+		checkDuplicatedKey(keys)
+
 		const items = {}
 		const optionalKeys = new Set()
 		for (const [key, value, optional] of entries) {
 			items[key] = value
 			if (optional) optionalKeys.add(key)
 		}
+
 		return Ast.dict(items, optionalKeys, rest)
 	}
 
