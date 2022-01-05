@@ -137,47 +137,45 @@ PreludeScope.defs({
 
 PreludeScope.defs(
 	parseModule(`
-not = (=> x:Bool (nand x x))
-or  = (=> [x:Bool y:Bool] (nand (not x) (not y)))
+not: (=> x:Bool (nand x x))
+or:  (=> [x:Bool y:Bool] (nand (not x) (not y)))
 
-<= = (=> [x:Num y:Num] (or (== x y) (< x y)))
->  = (=> [x:Num y:Num] (< y x))
->= = (=> [x:Num y:Num] (<= y x))
+<=: (=> [x:Num y:Num] (or (== x y) (< x y)))
+>: (=> [x:Num y:Num] (< y x))
+>=: (=> [x:Num y:Num] (<= y x))
 
-inc = (=> x:Num (+ x 1))
+inc: (=> x:Num (+ x 1))
 
-dec = (=> x:Num (- x 1))
+dec: (=> x:Num (- x 1))
 
-isEven = (=> x:Num (== (mod x 2) 0))
+isEven: (=> x:Num (== (mod x 2) 0))
 
-compose = (=> <T U V>
-	[f:(-> T U)
-	 g:(-> U V)] 
-	(=> x:T (g (f x))))
+compose: (=> <T U V> [f:(-> T U) g:(-> U V)] 
+             (=> x:T (g (f x))))
 
-twice = (=> <T> f:(-> T T) (compose f f))
+twice: (=> <T> f:(-> T T) (compose f f))
 
-const = (=> <T> x:T (=> [] x))
+const: (=> <T> x:T (=> [] x))
 
-first = (=> <T> coll:[...T] (coll 0))
+first: (=> <T> coll:[...T] (coll 0))
 
-id = (=> <T> x:T x)
+id: (=> <T> x:T x)
 
-neg = (=> x:Num (* x -1))
+neg: (=> x:Num (* x -1))
 
-- = (=> [...xs:Num]
-        (let l = (len xs)
-           (if (== l 0) 0
-               (if (== l 1) (neg (xs 0))
-                   (+ (xs 0) (neg (reduce + (rest xs) 0)))))))
+-: (=> [...xs:Num]
+       (let l: (len xs)
+            (if (== l 0) 0
+                (if (== l 1) (neg (xs 0))
+                    (+ (xs 0) (neg (reduce + (rest xs) 0)))))))
 
-sqrt = (=> x:Num (if (<= 0 x)
-                     (** x 0.5)
-                     (throw "Negative number")))
+sqrt: (=> x:Num (if (<= 0 x)
+                    (** x 0.5)
+                    (throw "Negative number")))
 
-square = (=> x:Num (** x 2))
-hypot  = (=> [x:Num y:Num] (sqrt (+ (* x x) (* y y))))
-PI = 3.1415926535897932384626433832795028841971693993
+square: (=> x:Num (** x 2))
+hypot:  (=> [x:Num y:Num] (sqrt (+ (* x x) (* y y))))
+PI: 3.1415926535897932384626433832795028841971693993
 
 `)
 )

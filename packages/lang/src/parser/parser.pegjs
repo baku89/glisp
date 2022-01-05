@@ -195,7 +195,7 @@ DictKey = (!End .)+
 		return Ast.str(text())
 	}
 
-Scope "scope" = "(" _ "let" _ pairs:(@Identifier _ "=" _ @Node _)* out:Node? _ ")"
+Scope "scope" = "(" _ "let" _ pairs:(@Identifier ":" _ @Node _)* out:Node? _ ")"
 	{
 		const vars = {}
 		for (const [{name}, value] of pairs) {

@@ -31,8 +31,8 @@ describe('evaluating literals', () => {
 	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
 	testEval('{a?:Num ...Str}', dict({a: NumType}, ['a'], StrType))
 	testEval('(-> [Num] Num)', fnType({param: {0: NumType}, out: NumType}))
-	testEval('(let a = 10 a)', num(10))
-	testEval('(let a = (let a = 20 a) a)', num(20))
+	testEval('(let a: 10 a)', num(10))
+	testEval('(let a: (let a: 20 a) a)', num(20))
 })
 
 describe('evaluating function definition', () => {
@@ -41,21 +41,23 @@ describe('evaluating function definition', () => {
 	testEval('((=> [x:Num] (+ x 1)) 10)', '11')
 	testEval(
 		`
-(let add = (=> [x:Num] (=> [y:Num] (+ x y)))
+(let add: (=> [x:Num] (=> [y:Num] (+ x y)))
      ((add 2) 3))
 `,
 		'5'
 	)
 	testEval(
 		`
-(let f = (=> [x:Num] (let x = 20 x))
+(let f: (=> [x:Num] (let x: 20 x))
      (f 5))
 `,
 		'20'
 	)
 	testEval(
 		`
-(let f = (=> [x:Num] (let x = 100 (=> [y:Num] (+ x y))))
+(let f: (=> [x:Num]
+            (let x: 100
+                 (=> [y:Num] (+ x y))))
      ((f 2) 3))
 `,
 		'103'
@@ -102,9 +104,9 @@ describe('inferring expression type', () => {
 
 	test('(-> [Num] Num)', '_')
 
-	test('(let a = Num a)', '_')
-	test('(let a = 10)', '()')
-	test('(let a = (+ 1 2) b = a b)', 'Num')
+	test('(let a: Num a)', '_')
+	test('(let a: 10)', '()')
+	test('(let a: (+ 1 2) b: a b)', 'Num')
 
 	test('((=> <T> [x:T] x) 4)', '4')
 	test('((=> <T> [x:T] x) (+ 1 2))', 'Num')

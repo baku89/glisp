@@ -5,7 +5,6 @@ describe('functions in the prelude module', () => {
 	testEval('(+ 1 2)', '3')
 	testEval('(* 1 2)', '2')
 	testEval('(< 1 2)', 'true')
-	testEval('(let a = 10 a)', '10')
 	testEval('(if true 1 false)', '1')
 	testEval('(< 4 (if true 1 2))', 'false')
 	testEval('(not true)', 'false')
