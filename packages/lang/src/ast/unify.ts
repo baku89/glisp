@@ -251,44 +251,50 @@ export class Unifier {
 		return this.#addConsts(...cs)
 	}
 
-	substitute = (val: Value, unshadow = false): Value => {
-		if (this.#isEmpty) return val
-		if (val.type !== 'Fn' && !val.isType) return val
+	substitute = (value: Value, unshadow = false): Value => {
+		if (this.#isEmpty) return value
+		if (value.type !== 'Fn' && !value.isType) return value
 
-		switch (val.type) {
+		switch (value.type) {
 			case 'TypeVar': {
-				const v = this.#lowers.get(val) ?? this.#uppers.get(val) ?? val
+				const v = this.#lowers.get(value) ?? this.#uppers.get(value) ?? value
 				return unshadow && v.type === 'TypeVar' ? v.unshadow() : v
 			}
 			case 'FnType': {
-				const param = mapValues(val.param, p => this.substitute(p, unshadow))
-				const rest = val.rest
-					? {...val.rest, value: this.substitute(val.rest.value, unshadow)}
+				const param = mapValues(value.param, p => this.substitute(p, unshadow))
+				const rest = value.rest
+					? {...value.rest, value: this.substitute(value.rest.value, unshadow)}
 					: undefined
-				const out = this.substitute(val.out, unshadow)
+				const out = this.substitute(value.out, unshadow)
 				return fnType({param, rest, out})
 			}
 			case 'UnionType': {
-				const types = val.types.map(ty => this.substitute(ty, unshadow))
+				const types = value.types.map(ty => this.substitute(ty, unshadow))
 				return unionType(...types)
 			}
 			case 'Fn':
 				return fnFrom(
-					this.substitute(val.superType, unshadow) as FnType,
-					val.fn
+					this.substitute(value.superType, unshadow) as FnType,
+					value.fn
 				)
 			case 'Vec': {
-				const items = val.items.map(it => this.substitute(it, unshadow))
-				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
-				return vec(items, val.optionalPos, rest)
+				const items = value.items.map(it => this.substitute(it, unshadow))
+				const rest = value.rest
+					? this.substitute(value.rest, unshadow)
+					: undefined
+				return vec(items, value.optionalPos, rest)
 			}
 			case 'Dict': {
-				const items = mapValues(val.items, it => this.substitute(it, unshadow))
-				const rest = val.rest ? this.substitute(val.rest, unshadow) : undefined
-				return dict(items, val.optionalKeys, rest)
+				const items = mapValues(value.items, it =>
+					this.substitute(it, unshadow)
+				)
+				const rest = value.rest
+					? this.substitute(value.rest, unshadow)
+					: undefined
+				return dict(items, value.optionalKeys, rest)
 			}
 			default:
-				return val
+				return value
 		}
 	}
 

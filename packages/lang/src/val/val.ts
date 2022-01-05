@@ -56,9 +56,7 @@ abstract class BaseValue {
 
 	abstract defaultValue: Atomic
 
-	isEqualTo(val: Value): boolean {
-		return this === val
-	}
+	abstract isEqualTo(value: Value): boolean
 
 	isSubtypeOf = (ty: Value): boolean => {
 		if (ty.type === 'UnionType') return ty.isSupertypeOf(this)
@@ -72,7 +70,7 @@ abstract class BaseValue {
 	abstract toAst(): Ast.Node
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	withDefault = (defaultValue: Atomic) => this as Value
+	withDefault = (defaultValue: Atomic): Value => this as Value
 
 	isInstance = (value: Value): boolean => {
 		return !value.isType && value.isSubtypeOf(this as any)
@@ -98,6 +96,8 @@ export class Unit extends BaseValue {
 
 	defaultValue = this
 
+	isEqualTo = (value: Value) => this.type === value.type
+
 	toAst = () => Ast.call()
 
 	static instance = new Unit()
@@ -111,6 +111,8 @@ export class All extends BaseValue {
 	defaultValue: Atomic = Unit.instance
 
 	toAst = () => Ast.all()
+
+	isEqualTo = (value: Value) => this.type === value.type
 
 	isSubtypeOf = this.isEqualTo
 
@@ -134,6 +136,8 @@ export class Never extends BaseValue {
 
 	toAst = () => Ast.never()
 
+	isEqualTo = (value: Value) => this.type === value.type
+
 	isSubtypeOf = () => true
 
 	static instance = new Never()
@@ -149,11 +153,10 @@ export class Prim<T = any> extends BaseValue {
 
 	toAst = (): Ast.Node => Ast.value(this)
 
-	isEqualTo = (val: Value) =>
-		super.isEqualTo(val) ||
-		(this.type === val.type &&
-			this.value === val.value &&
-			isEqual(this.superType, val.superType))
+	isEqualTo = (value: Value) =>
+		this.type === value.type &&
+		this.value === value.value &&
+		isEqual(this.superType, value.superType)
 
 	static from<T>(ty: PrimType, value: T) {
 		return new Prim<T>(ty, value)
@@ -188,8 +191,8 @@ export class PrimType<T = any> extends BaseValue {
 	// TODO: fix this
 	toAst = () => Ast.id(this.name)
 
-	isEqualTo = (v: Value) =>
-		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
+	isEqualTo = (value: Value) =>
+		this.type === value.type && this.name === value.name
 
 	of(value: T): Prim<T> {
 		return Prim.from(this, value)
@@ -204,8 +207,8 @@ export class PrimType<T = any> extends BaseValue {
 		return primType
 	}
 
-	isInstance = (e: Value): e is Prim<T> =>
-		e.type === 'Prim' && e.isSubtypeOf(this)
+	isInstance = (value: Value): value is Prim<T> =>
+		value.type === 'Prim' && value.isSubtypeOf(this)
 
 	static ofLiteral(name: string, defaultValue: Prim) {
 		const primType = new PrimType(name)
@@ -241,11 +244,10 @@ export class Enum extends BaseValue {
 	// TODO: fix this
 	toAst = () => Ast.id(this.name)
 
-	isEqualTo = (v: Value) =>
-		super.isEqualTo(v) ||
-		(this.type === v.type &&
-			this.name === v.name &&
-			this.superType.isEqualTo(v.superType))
+	isEqualTo = (value: Value) =>
+		this.type === value.type &&
+		this.name === value.name &&
+		this.superType.isEqualTo(value.superType)
 
 	static of(name: string) {
 		return new Enum(name)
@@ -268,8 +270,8 @@ export class EnumType extends BaseValue {
 	// TODO: fix this
 	toAst = () => Ast.id(this.name)
 
-	isEqualTo = (v: Value) =>
-		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
+	isEqualTo = (value: Value) =>
+		this.type === value.type && this.name === value.name
 
 	getEnum = (label: string) => {
 		const en = this.types.find(t => t.name === label)
@@ -277,7 +279,8 @@ export class EnumType extends BaseValue {
 		return en
 	}
 
-	isInstance = (e: Value): e is Enum => e.type === 'Enum' && e.isSubtypeOf(this)
+	isInstance = (value: Value): value is Enum =>
+		value.type === 'Enum' && value.isSubtypeOf(this)
 
 	withDefault = (defaultValue: Atomic) => {
 		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
@@ -312,6 +315,8 @@ export class TypeVar extends BaseValue {
 
 	toAst = () => Ast.id(this.name)
 
+	isEqualTo = (value: Value) => this === value
+
 	shadow = (): TypeVar => {
 		return new TypeVar(this.name, this)
 	}
@@ -339,6 +344,8 @@ export class Fn extends BaseValue implements IFnLike {
 	fnType = this.superType
 
 	defaultValue = this
+
+	isEqualTo = (value: Value) => this === value
 
 	toAst = (): Ast.Node => {
 		if (!this.body) {
@@ -413,31 +420,34 @@ export class FnType extends BaseValue implements IFnType {
 		})
 	}
 
-	isEqualTo = (v: Value) =>
-		super.isEqualTo(v) ||
-		(this.type === v.type &&
-			isEqualArray(values(this.param), values(v.param), isEqual) &&
-			this.optionalPos === v.optionalPos &&
-			nullishEqual(
-				this.rest,
-				v.rest,
-				(a, b) => a.name === b.name && isEqual(a.value, b.value)
-			) &&
-			isEqual(this.out, v.out))
+	isEqualTo = (value: Value) =>
+		this.type === value.type &&
+		isEqualArray(values(this.param), values(value.param), isEqual) &&
+		this.optionalPos === value.optionalPos &&
+		nullishEqual(
+			this.rest,
+			value.rest,
+			(a, b) => a.name === b.name && isEqual(a.value, b.value)
+		) &&
+		isEqual(this.out, value.out)
 
-	isSubtypeOf = (v: Value): boolean => {
-		if (this.superType.isSubtypeOf(v)) return true
-		if (v.type === 'UnionType') return v.isSupertypeOf(this)
-		if (v.type !== 'FnType') return false
+	isSubtypeOf = (value: Value): boolean => {
+		if (this.superType.isSubtypeOf(value)) return true
+		if (value.type === 'UnionType') return value.isSupertypeOf(this)
+		if (value.type !== 'FnType') return false
 
 		const tParam = Vec.of(
 			values(this.param),
 			this.optionalPos,
 			this.rest?.value
 		)
-		const eParam = Vec.of(values(v.param), v.optionalPos, v.rest?.value)
+		const eParam = Vec.of(
+			values(value.param),
+			value.optionalPos,
+			value.rest?.value
+		)
 
-		return isSubtype(eParam, tParam) && isSubtype(this.out, v.out)
+		return isSubtype(eParam, tParam) && isSubtype(this.out, value.out)
 	}
 
 	isInstance!: (value: Value) => value is Fn
@@ -502,12 +512,11 @@ export class Vec<TItems extends Value = Value>
 		return Ast.vec(items, this.optionalPos, this.rest?.toAst())
 	}
 
-	isEqualTo = (v: Value) =>
-		super.isEqualTo(v) ||
-		(this.type === v.type &&
-			isEqualArray(this.items, v.items, isEqual) &&
-			this.optionalPos === v.optionalPos &&
-			nullishEqual(this.rest, v.rest, isEqual))
+	isEqualTo = (value: Value) =>
+		this.type === value.type &&
+		isEqualArray(this.items, value.items, isEqual) &&
+		this.optionalPos === value.optionalPos &&
+		nullishEqual(this.rest, value.rest, isEqual)
 
 	private *asIterator(): Generator<Value, void, boolean> {
 		for (const it of this.items) {
@@ -520,25 +529,25 @@ export class Vec<TItems extends Value = Value>
 		}
 	}
 
-	isSubtypeOf = (v: Value): boolean => {
-		if (this.superType.isSubtypeOf(v)) return true
-		if (v.type === 'UnionType') return v.isSupertypeOf(this)
-		if (v.type !== 'Vec') return false
+	isSubtypeOf = (value: Value): boolean => {
+		if (this.superType.isSubtypeOf(value)) return true
+		if (value.type === 'UnionType') return value.isSupertypeOf(this)
+		if (value.type !== 'Vec') return false
 
-		if (this.optionalPos < v.optionalPos) return false
+		if (this.optionalPos < value.optionalPos) return false
 
 		const tIter = this.asIterator()
 
 		let i = 0
-		for (const vi of v.items) {
+		for (const vi of value.items) {
 			const ti = tIter.next().value
-			if (!ti && v.optionalPos <= i++) break
+			if (!ti && value.optionalPos <= i++) break
 			if (!ti || !isSubtype(ti, vi)) return false
 		}
 
-		if (v.rest) {
+		if (value.rest) {
 			for (let ti; (ti = tIter.next(true).value); ) {
-				if (!isSubtype(ti, v.rest)) return false
+				if (!isSubtype(ti, value.rest)) return false
 			}
 		}
 
@@ -613,23 +622,22 @@ export class Dict extends BaseValue {
 		return Ast.dict(items, this.optionalKeys, this.rest?.toAst())
 	}
 
-	isEqualTo = (v: Value) =>
-		super.isEqualTo(v) ||
-		(this.type === v.type &&
-			isEqualDict(this.items, v.items, isEqual) &&
-			isEqualSet(this.optionalKeys, v.optionalKeys) &&
-			nullishEqual(this.rest, v.rest, isEqual))
+	isEqualTo = (value: Value) =>
+		this.type === value.type &&
+		isEqualDict(this.items, value.items, isEqual) &&
+		isEqualSet(this.optionalKeys, value.optionalKeys) &&
+		nullishEqual(this.rest, value.rest, isEqual)
 
-	isSubtypeOf = (v: Value): boolean => {
-		if (this.superType.isSubtypeOf(v)) return true
-		if (v.type === 'UnionType') return v.isSupertypeOf(this)
-		if (v.type !== 'Dict') return false
+	isSubtypeOf = (value: Value): boolean => {
+		if (this.superType.isSubtypeOf(value)) return true
+		if (value.type === 'UnionType') return value.isSupertypeOf(this)
+		if (value.type !== 'Dict') return false
 
-		const tKeys = keys(v.items)
+		const tKeys = keys(value.items)
 
 		for (const k of tKeys) {
-			const vi = v.items[k]
-			if (v.#isRequredKey(k)) {
+			const vi = value.items[k]
+			if (value.#isRequredKey(k)) {
 				const sv = this.#isRequredKey(k) ? this.items[k] : false
 				if (!sv || !isSubtype(sv, vi)) return false
 			} else {
@@ -638,13 +646,13 @@ export class Dict extends BaseValue {
 			}
 		}
 
-		if (v.rest) {
+		if (value.rest) {
 			const sKeys = keys(this.items)
 			const extraKeys = difference(sKeys, tKeys)
 			for (const k of extraKeys) {
-				if (!isSubtype(this.items[k], v.rest)) return false
+				if (!isSubtype(this.items[k], value.rest)) return false
 			}
-			if (this.rest && !isSubtype(this.rest, v.rest)) return false
+			if (this.rest && !isSubtype(this.rest, value.rest)) return false
 		}
 
 		return true
@@ -695,11 +703,10 @@ export class Struct extends BaseValue {
 		return Ast.call(fn, ...items)
 	}
 
-	isEqualTo = (v: Value) =>
-		super.isEqualTo(v) ||
-		(this.type === v.type &&
-			isEqual(this.superType, v.superType) &&
-			isEqualArray(this.items, v.items, isEqual))
+	isEqualTo = (value: Value) =>
+		this.type === value.type &&
+		isEqual(this.superType, value.superType) &&
+		isEqualArray(this.items, value.items, isEqual)
 
 	static of(ctor: StructType, items: Value[]) {
 		return new Struct(ctor, items)
@@ -734,8 +741,8 @@ export class StructType extends BaseValue implements IFnLike {
 	// TODO: Fix this
 	toAst = () => Ast.id(this.name)
 
-	isEqualTo = (v: Value) =>
-		super.isEqualTo(v) || (this.type === v.type && this.name === v.name)
+	isEqualTo = (value: Value) =>
+		this.type === value.type && this.name === value.name
 
 	of(...items: Value[]) {
 		return Struct.of(this, items)
@@ -776,15 +783,14 @@ export class UnionType extends BaseValue {
 		return Ast.call(Ast.id('|'), ...types)
 	}
 
-	isEqualTo = (v: Value): boolean =>
-		super.isEqualTo(v) ||
-		(this.type === v.type &&
-			differenceWith(this.types, v.types, isEqual).length === 0)
+	isEqualTo = (value: Value): boolean =>
+		this.type === value.type &&
+		differenceWith(this.types, value.types, isEqual).length === 0
 
-	isSubtypeOf = (e: Value): boolean => {
-		if (this.superType.isSubtypeOf(e)) return true
+	isSubtypeOf = (type: Value): boolean => {
+		if (this.superType.isSubtypeOf(type)) return true
 
-		const types: Value[] = e.type === 'UnionType' ? e.types : [e]
+		const types: Value[] = type.type === 'UnionType' ? type.types : [type]
 		return this.types.every(s => types.some(s.isSubtypeOf))
 	}
 

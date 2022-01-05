@@ -46,7 +46,7 @@ export abstract class BaseNode {
 
 	protected abstract forceInfer(env: Env): WithLog
 
-	abstract isSameTo(ast: Node): boolean
+	abstract isSameTo(node: Node): boolean
 
 	abstract clone(): Node
 
@@ -149,7 +149,7 @@ export class Identifier extends BaseNode {
 
 	print = () => this.name
 
-	isSameTo = (ast: Node) => this.type === ast.type && this.name === ast.name
+	isSameTo = (node: Node) => this.type === node.type && this.name === node.name
 
 	clone = () => Identifier.of(this.name)
 
@@ -175,7 +175,8 @@ export class ValueContainer<V extends Val.Value = Val.Value> extends BaseNode {
 		return `<value container of ${this.value.type}>`
 	}
 
-	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
+	isSameTo = (node: Node) =>
+		this.type === node.type && this.value === node.value
 
 	clone = () => ValueContainer.of(this.value)
 
@@ -190,7 +191,7 @@ export class AllKeyword extends BaseNode {
 	protected forceEval = () => withLog(Val.all)
 	protected forceInfer = () => withLog(Val.all)
 	print = () => '_'
-	isSameTo = (ast: Node) => this.type === ast.type
+	isSameTo = (node: Node) => this.type === node.type
 	clone = () => AllKeyword.of()
 
 	static of() {
@@ -204,7 +205,7 @@ export class NeverKeyword extends BaseNode {
 	protected forceEval = () => withLog(Val.never)
 	protected forceInfer = () => withLog(Val.all)
 	print = () => 'Never'
-	isSameTo = (ast: Node) => this.type === ast.type
+	isSameTo = (node: Node) => this.type === node.type
 	clone = () => NeverKeyword.of()
 
 	static of() {
@@ -222,7 +223,8 @@ export class NumLiteral extends BaseNode {
 	protected forceEval = () => withLog(Val.num(this.value))
 	protected forceInfer = () => withLog(Val.num(this.value))
 	print = () => this.value.toString()
-	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
+	isSameTo = (node: Node) =>
+		this.type === node.type && this.value === node.value
 	clone = () => NumLiteral.of(this.value)
 
 	static of(value: number) {
@@ -238,10 +240,14 @@ export class StrLiteral extends BaseNode {
 	}
 
 	protected forceEval = () => withLog(Val.str(this.value))
+
 	protected forceInfer = () => withLog(Val.str(this.value))
 
 	print = () => '"' + this.value + '"'
-	isSameTo = (ast: Node) => this.type === ast.type && this.value === ast.value
+
+	isSameTo = (node: Node) =>
+		this.type === node.type && this.value === node.value
+
 	clone = () => StrLiteral.of(this.value)
 
 	static of(value: string) {
@@ -336,13 +342,13 @@ export class FnDef extends BaseNode {
 		return `(=> ${typeVars}${param} ${body})`
 	}
 
-	isSameTo = (ast: Node) =>
-		this.type === ast.type &&
-		isEqualArray(keys(this.typeVars), keys(ast.typeVars)) &&
-		isEqualDict(this.param, ast.param, isSame) &&
-		this.optionalPos === ast.optionalPos &&
-		isEqualRest(this.rest, ast.rest) &&
-		isSame(this.body, ast.body)
+	isSameTo = (node: Node) =>
+		this.type === node.type &&
+		isEqualArray(keys(this.typeVars), keys(node.typeVars)) &&
+		isEqualDict(this.param, node.param, isSame) &&
+		this.optionalPos === node.optionalPos &&
+		isEqualRest(this.rest, node.rest) &&
+		isSame(this.body, node.body)
 
 	clone = (): FnDef =>
 		FnDef.of({
@@ -430,13 +436,13 @@ export class FnTypeDef extends BaseNode {
 		return `(-> ${typeVars}${param} ${out})`
 	}
 
-	isSameTo = (ast: Node): boolean =>
-		this.type === ast.type &&
-		isEqualArray(keys(this.typeVars), keys(ast.typeVars)) &&
-		isEqualDict(this.param, ast.param, isSame) &&
-		this.optionalPos === ast.optionalPos &&
-		isEqualRest(this.rest, ast.rest) &&
-		isSame(this.out, ast.out)
+	isSameTo = (node: Node): boolean =>
+		this.type === node.type &&
+		isEqualArray(keys(this.typeVars), keys(node.typeVars)) &&
+		isEqualDict(this.param, node.param, isSame) &&
+		this.optionalPos === node.optionalPos &&
+		isEqualRest(this.rest, node.rest) &&
+		isSame(this.out, node.out)
 
 	clone = (): FnTypeDef =>
 		FnTypeDef.of({
@@ -557,10 +563,10 @@ export class VecLiteral extends BaseNode {
 		return '[' + [...items, ...rest].join(' ') + ']'
 	}
 
-	isSameTo = (ast: Node): boolean =>
-		this.type === ast.type &&
-		isEqualArray(this.items, ast.items, isSame) &&
-		this.optionalPos === ast.optionalPos &&
+	isSameTo = (node: Node): boolean =>
+		this.type === node.type &&
+		isEqualArray(this.items, node.items, isSame) &&
+		this.optionalPos === node.optionalPos &&
 		nullishEqual(this.rest, this.rest, isSame)
 
 	clone = (): VecLiteral =>
@@ -612,11 +618,11 @@ export class DictLiteral extends BaseNode {
 		return '{' + [...items, ...rest].join(' ') + '}'
 	}
 
-	isSameTo = (ast: Node): boolean =>
-		this.type === ast.type &&
-		isEqualDict(this.items, ast.items, isSame) &&
-		isEqualSet(this.optionalKeys, ast.optionalKeys) &&
-		nullishEqual(this.rest, ast.rest, isSame)
+	isSameTo = (node: Node): boolean =>
+		this.type === node.type &&
+		isEqualDict(this.items, node.items, isSame) &&
+		isEqualSet(this.optionalKeys, node.optionalKeys) &&
+		nullishEqual(this.rest, node.rest, isSame)
 
 	clone = (): DictLiteral =>
 		DictLiteral.of(
@@ -813,8 +819,8 @@ export class Call extends BaseNode {
 		return '(' + [callee, ...args].join(' ') + ')'
 	}
 
-	isSameTo = (ast: Node) =>
-		this.type === ast.type && isEqualArray(this.args, ast.args, isSame)
+	isSameTo = (node: Node) =>
+		this.type === node.type && isEqualArray(this.args, node.args, isSame)
 
 	clone = (): Call => Call.of(this.callee, ...this.args.map(clone))
 
@@ -845,10 +851,10 @@ export class Scope extends BaseNode {
 		return '(let ' + [...vars, ...out].join(' ') + ')'
 	}
 
-	isSameTo = (ast: Node) =>
-		this.type === ast.type &&
-		nullishEqual(this.out, ast.out, isSame) &&
-		isEqualDict(this.vars, ast.vars, isSame)
+	isSameTo = (node: Node) =>
+		this.type === node.type &&
+		nullishEqual(this.out, node.out, isSame) &&
+		isEqualDict(this.vars, node.vars, isSame)
 
 	clone = (): Scope => Scope.of(mapValues(this.vars, clone), this.out?.clone())
 
@@ -858,12 +864,12 @@ export class Scope extends BaseNode {
 		return scope
 	}
 
-	def(name: string, exp: Node) {
+	def(name: string, node: Node) {
 		if (name in this.vars)
 			throw new Error(`Variable '${name}' is already defined`)
 
-		setParent(exp, this)
-		this.vars[name] = exp
+		setParent(node, this)
+		this.vars[name] = node
 
 		return this
 	}
@@ -920,10 +926,10 @@ export class TryCatch extends BaseNode {
 		return `(try ${block} ${handler})`
 	}
 
-	isSameTo = (ast: Node): boolean =>
-		this.type === ast.type &&
-		isSame(this.block, ast.block) &&
-		nullishEqual(this.handler, ast.handler, isSame)
+	isSameTo = (node: Node): boolean =>
+		this.type === node.type &&
+		isSame(this.block, node.block) &&
+		nullishEqual(this.handler, node.handler, isSame)
 
 	clone = (): TryCatch => TryCatch.of(this.block.clone(), this.handler.clone())
 
@@ -937,9 +943,9 @@ export class TryCatch extends BaseNode {
 	}
 }
 
-export function setParent(exp: Node, parent: Node) {
-	if ('parent' in exp) {
-		exp.parent = parent
+export function setParent(node: Node, parent: Node) {
+	if ('parent' in node) {
+		node.parent = parent
 	}
 }
 
@@ -947,10 +953,10 @@ export function isSame(a: Node, b: Node): boolean {
 	return a.isSameTo(b)
 }
 
-export function print(n: Node) {
-	return n.print()
+export function print(node: Node) {
+	return node.print()
 }
 
-export function clone(n: Node) {
-	return n.clone()
+export function clone(node: Node) {
+	return node.clone()
 }

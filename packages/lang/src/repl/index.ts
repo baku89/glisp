@@ -14,7 +14,7 @@ const IO = Val.primType('IO', () => {
 	return
 })
 
-const defaultExp = Ast.call()
+const defaultNode = Ast.call()
 
 function printLog({level, reason, ref}: Log) {
 	let header: string
@@ -31,7 +31,7 @@ function printLog({level, reason, ref}: Log) {
 	}
 
 	const content = header + ' ' + reason
-	const loc = ref !== defaultExp ? chalk.gray('\n    at ' + ref.print()) : ''
+	const loc = ref !== defaultNode ? chalk.gray('\n    at ' + ref.print()) : ''
 
 	return content + loc
 }
@@ -58,24 +58,24 @@ function startRepl() {
 	repl.start({
 		prompt: chalk.bold.gray('> '),
 		eval(input, context, file, cb) {
-			let exp: Ast.Node = defaultExp
+			let node: Ast.Node = defaultNode
 
 			// Parse
 			try {
-				exp = parse(input, replScope)
+				node = parse(input, replScope)
 			} catch (err) {
 				if (!(err instanceof Error)) throw err
 				const r = withLog(Val.unit, {
 					level: 'error',
 					reason: err.message,
-					ref: exp,
+					ref: node,
 				})
 				cb(null, r)
 			}
 
 			// Eval
 			try {
-				const evaluated = exp.eval()
+				const evaluated = node.eval()
 
 				if (IO.isInstance(evaluated.result)) {
 					evaluated.result.value()
@@ -86,7 +86,7 @@ function startRepl() {
 				const r = withLog(Val.unit, {
 					level: 'error',
 					reason: err instanceof Error ? err.message : 'Run-time error',
-					ref: err instanceof GlispError ? err.ref : exp,
+					ref: err instanceof GlispError ? err.ref : node,
 				})
 				cb(null, r)
 			}

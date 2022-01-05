@@ -150,8 +150,8 @@ describe('checking type or atom', () => {
 
 	function test(input: string, isType: boolean) {
 		it(input + ' is ' + (isType ? 'type' : 'an atom'), () => {
-			const exp = evaluate(parse(input))
-			expect(exp.isType).toBe(isType)
+			const node = evaluate(parse(input))
+			expect(node.isType).toBe(isType)
 		})
 	}
 })

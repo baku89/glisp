@@ -31,10 +31,10 @@ export function testEval(
 	const eStr = typeof expected === 'string' ? expected : expected.print()
 
 	test(`${iStr} evaluates to ${eStr}`, () => {
-		const exp = parse(input)
+		const node = parse(input)
 		const expectedVal = parse(input).eval().result
 
-		const {result, log} = exp.eval()
+		const {result, log} = node.eval()
 		if (!result.isEqualTo(expectedVal)) {
 			throw new Error('Got=' + result.print())
 		}
