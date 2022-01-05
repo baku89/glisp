@@ -9,6 +9,7 @@ import {
 } from 'lodash'
 
 import * as Ast from '../ast'
+import type {PrintOptions} from '../ast/ast'
 import {getTypeVars} from '../ast/unify'
 import {Log, withLog} from '../log'
 import {isEqualArray} from '../util/isEqualArray'
@@ -89,7 +90,7 @@ abstract class BaseValue {
 		return !value.isType && value.isSubtypeOf(this as any)
 	}
 
-	print = () => this.toAst().print()
+	print = (options?: PrintOptions) => this.toAst().print(options)
 }
 
 export type IFn = (...params: Ast.Arg<any>[]) => Writer<Value, Omit<Log, 'ref'>>

@@ -36,6 +36,10 @@ interface ValueMeta {
 	defaultValue?: Node
 }
 
+export interface PrintOptions {
+	omitMeta?: boolean
+}
+
 export abstract class BaseNode {
 	abstract readonly type: string
 
@@ -45,13 +49,13 @@ export abstract class BaseNode {
 		return this
 	}
 
-	abstract printExceptMeta(): string
+	abstract printExceptMeta(options: PrintOptions): string
 
-	print = (): string => {
-		let node = this.printExceptMeta()
+	print = (options: PrintOptions = {}): string => {
+		let node = this.printExceptMeta(options)
 
-		if (this.valueMeta?.defaultValue) {
-			node += '^{' + this.valueMeta.defaultValue.print() + '}'
+		if (options.omitMeta && this.valueMeta?.defaultValue) {
+			node += '^{' + this.valueMeta.defaultValue.print(options) + '}'
 		}
 
 		return node
@@ -207,9 +211,9 @@ export class ValueContainer<V extends Val.Value = Val.Value> extends BaseNode {
 
 	protected forceInfer = () => withLog(this.value.isType ? Val.all : this.value)
 
-	printExceptMeta = () => {
+	printExceptMeta = (options: PrintOptions) => {
 		const ast = this.value.toAst()
-		if (ast.type !== this.type) return ast.print()
+		if (ast.type !== this.type) return ast.print(options)
 		return `<value container of ${this.value.type}>`
 	}
 
@@ -372,10 +376,10 @@ export class FnDef extends BaseNode {
 		return withLog(fnType, ...lp, ...lr, ...lo)
 	}
 
-	printExceptMeta = (): string => {
+	printExceptMeta = (options: PrintOptions): string => {
 		const typeVars = printTypeVars(this.typeVars)
-		const param = printParam(this.param, this.optionalPos, this.rest)
-		const body = this.body.print()
+		const param = printParam(this.param, this.optionalPos, this.rest, options)
+		const body = this.body.print(options)
 
 		return `(=> ${typeVars}${param} ${body})`
 	}
@@ -467,10 +471,10 @@ export class FnTypeDef extends BaseNode {
 
 	protected forceInfer = () => withLog(Val.all)
 
-	printExceptMeta = (): string => {
+	printExceptMeta = (options: PrintOptions): string => {
 		const typeVars = printTypeVars(this.typeVars)
-		const param = printParam(this.param, this.optionalPos, this.rest)
-		const out = this.out.print()
+		const param = printParam(this.param, this.optionalPos, this.rest, options)
+		const out = this.out.print(options)
 		return `(-> ${typeVars}${param} ${out})`
 	}
 
@@ -536,7 +540,8 @@ function printTypeVars(typeVars: Record<string, Val.TypeVar>): string {
 function printParam(
 	param: Record<string, Node>,
 	optionalPos: number,
-	rest?: {name?: string; node: Node}
+	rest: {name?: string; node: Node} | undefined,
+	options: PrintOptions
 ) {
 	const params = entries(param)
 
@@ -548,7 +553,7 @@ function printParam(
 	const paramStr = params.map(printNamedNode)
 
 	const restStr = rest
-		? ['...' + (rest.name ? rest.name + ':' : '') + rest.node.print()]
+		? ['...' + (rest.name ? rest.name + ':' : '') + rest.node.print(options)]
 		: []
 
 	const content = [...paramStr, ...restStr].join(' ')
@@ -560,9 +565,9 @@ function printParam(
 
 		if (/^[0-9]+$/.test(name)) {
 			// No label
-			return ty.print() + optionalMark
+			return ty.print(options) + optionalMark
 		} else {
-			return name + optionalMark + ':' + ty.print()
+			return name + optionalMark + ':' + ty.print(options)
 		}
 	}
 }
@@ -594,10 +599,12 @@ export class VecLiteral extends BaseNode {
 		return withLog(Val.vec(items), ...log)
 	}
 
-	printExceptMeta = (): string => {
+	printExceptMeta = (options: PrintOptions): string => {
 		const op = this.optionalPos
-		const items = this.items.map((it, i) => it.print() + (op <= i ? '?' : ''))
-		const rest = this.rest ? ['...' + this.rest.print()] : []
+		const items = this.items.map(
+			(it, i) => it.print(options) + (op <= i ? '?' : '')
+		)
+		const rest = this.rest ? ['...' + this.rest.print(options)] : []
 		return '[' + [...items, ...rest].join(' ') + ']'
 	}
 
@@ -648,11 +655,11 @@ export class DictLiteral extends BaseNode {
 		return withLog(Val.dict(items), ...logs)
 	}
 
-	printExceptMeta = (): string => {
+	printExceptMeta = (options: PrintOptions): string => {
 		const items = entries(this.items).map(
-			([k, v]) => k + (this.#isOptional(k) ? '?' : '') + ': ' + v.print()
+			([k, v]) => k + (this.#isOptional(k) ? '?' : '') + ': ' + v.print(options)
 		)
-		const rest = this.rest ? ['...' + this.rest.print()] : []
+		const rest = this.rest ? ['...' + this.rest.print(options)] : []
 		return '{' + [...items, ...rest].join(' ') + '}'
 	}
 
@@ -749,11 +756,11 @@ export class Call extends BaseNode {
 		const unifiedArgs = shadowedArgs.map(a => unifier.substitute(a))
 
 		// Check types of args and cast them to default if necessary
-		const args = unifiedParams.map((pTy, i) => {
-			const aTy = unifiedArgs[i] ?? Val.unit
+		const args = unifiedParams.map((pType, i) => {
+			const aType = unifiedArgs[i] ?? Val.unit
 			const name = names[i]
 
-			if (Val.isSubtype(aTy, pTy)) {
+			if (Val.isSubtype(aType, pType)) {
 				// Type matched
 				return () => {
 					const [a, la] = this.args[i].eval(env).asTuple
@@ -762,29 +769,32 @@ export class Call extends BaseNode {
 				}
 			} else {
 				// Type mismatched
-				if (aTy.type !== 'Unit') {
+				if (aType.type !== 'Unit') {
+					const p = pType.print({omitMeta: true})
+					const a = aType.print({omitMeta: true})
+					const d = pType.defaultValue.print({omitMeta: true})
 					argLog.push({
 						level: 'error',
 						ref: this,
 						reason:
-							`Argument '${name}' expects type: ${pTy.print()}, ` +
-							`but got: ${aTy.print()}.`,
+							`Argument '${name}' expects type: ${p}, but got: ${a}. ` +
+							`Uses a default value ${d} instead`,
 					})
 				}
-				return () => pTy.defaultValue
+				return () => pType.defaultValue
 			}
 		})
 
 		// For rest argument
 		if (callee.fnType.rest) {
-			const pTy = callee.fnType.rest.value
+			const pType = callee.fnType.rest.value
 			// NOTE: Should handle non-labeled rest parameter
 			const name = callee.fnType.rest.name ?? '(no name)'
 
 			for (let i = unifiedParams.length; i < this.args.length; i++) {
-				const aTy = unifiedArgs[i]
+				const aType = unifiedArgs[i]
 
-				if (Val.isSubtype(aTy, pTy)) {
+				if (Val.isSubtype(aType, pType)) {
 					// Type matched
 					args.push(() => {
 						const [a, la] = this.args[i].eval(env).asTuple
@@ -793,18 +803,20 @@ export class Call extends BaseNode {
 					})
 				} else {
 					// Type mismatched
-					if (aTy.type !== 'Unit') {
-						const p = pTy.print()
-						const a = aTy.print()
+					if (aType.type !== 'Unit') {
+						const p = pType.print({omitMeta: true})
+						const a = aType.print({omitMeta: true})
+						const d = pType.defaultValue.print({omitMeta: true})
 						argLog.push({
 							level: 'error',
 							ref: this,
 							reason:
 								`Rest argument '${name}' expects type: ${p}, ` +
-								`but got: ${a}.`,
+								`but got: ${a}. ` +
+								`Uses a default value ${d} instead.`,
 						})
 					}
-					args.push(() => pTy.defaultValue)
+					args.push(() => pType.defaultValue)
 				}
 			}
 		}
@@ -850,11 +862,11 @@ export class Call extends BaseNode {
 		return withLog(unifier.substitute(ty.fnType.out, true), ...log)
 	}
 
-	printExceptMeta = (): string => {
+	printExceptMeta = (options: PrintOptions): string => {
 		if (!this.callee) return '()'
 
-		const callee = this.callee.print()
-		const args = this.args.map(a => a.print())
+		const callee = this.callee.print(options)
+		const args = this.args.map(a => a.print(options))
 
 		return '(' + [callee, ...args].join(' ') + ')'
 	}
@@ -884,9 +896,11 @@ export class Scope extends BaseNode {
 
 	protected forceEval = (env: Env) => this.out?.eval(env) ?? Writer.of(Val.unit)
 
-	printExceptMeta = (): string => {
-		const vars = entries(this.vars).map(([k, v]) => k + ' = ' + v.print())
-		const out = this.out ? [this.out.print()] : []
+	printExceptMeta = (options: PrintOptions): string => {
+		const vars = entries(this.vars).map(
+			([k, v]) => k + ' = ' + v.print(options)
+		)
+		const out = this.out ? [this.out.print(options)] : []
 
 		return '(let ' + [...vars, ...out].join(' ') + ')'
 	}
@@ -960,9 +974,9 @@ export class TryCatch extends BaseNode {
 		return withLog(Val.unionType(block, handler), ...lb, ...lh)
 	}
 
-	printExceptMeta = (): string => {
-		const block = this.block.print()
-		const handler = this.handler.print()
+	printExceptMeta = (options: PrintOptions): string => {
+		const block = this.block.print(options)
+		const handler = this.handler.print(options)
 		return `(try ${block} ${handler})`
 	}
 
@@ -994,8 +1008,8 @@ export function isSame(a: Node, b: Node): boolean {
 	return a.isSameTo(b)
 }
 
-export function print(node: Node) {
-	return node.print()
+export function print(node: Node, options?: PrintOptions) {
+	return node.print(options)
 }
 
 export function clone(node: Node) {
