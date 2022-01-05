@@ -39,6 +39,9 @@ export const PreludeScope = Ast.scope({
 	Num: Ast.value(Val.NumType),
 	Str: Ast.value(Val.StrType),
 	Bool: Ast.value(Val.BoolType),
+	'|': defn('(-> [...types:_] _)', (...types: Val.Value[]) =>
+		Val.unionType(...types)
+	),
 })
 
 PreludeScope.defs({
@@ -47,9 +50,6 @@ PreludeScope.defs({
 	throw: defn('(-> reason:_ Never)', (reason: Val.Str) => {
 		throw new Error(reason.value)
 	}),
-	'|': defn('(-> [...types:_] _)', (...types: Val.Value[]) =>
-		Val.unionType(...types)
-	),
 	'+': defn('(-> [...xs:Num] Num)', (...xs: Val.Num[]) =>
 		Val.num(xs.reduce((sum, x) => sum + x.value, 0))
 	),
@@ -165,7 +165,11 @@ id = (=> <T> x:T x)
 
 neg = (=> x:Num (* x -1))
 
-- = (=> [x:Num y:Num] (+ x (neg y)))
+- = (=> [...xs:Num]
+        (let l = (len xs)
+           (if (== l 0) 0
+               (if (== l 1) (neg (xs 0))
+                   (+ (xs 0) (neg (reduce + (rest xs) 0)))))))
 
 sqrt = (=> x:Num (if (<= 0 x)
                      (** x 0.5)
