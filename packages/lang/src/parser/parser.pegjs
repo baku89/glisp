@@ -37,12 +37,24 @@ Program = _ exp:Node _ Comment?
 		return exp
 	}
 
-Node "node" =
+Node = node:NodeContent valueMeta:(_ "^" _ @ValueMeta)?
+	{
+		if (valueMeta) {
+			node.valueMeta = valueMeta
+		}
+		return node
+	}
+
+NodeContent =
 	Unit / Never / All /
 	Num / Str / Identifier /
 	Fn / FnType / Scope / TryCatch / Call /
 	Vec / Dict
-	
+
+ValueMeta = "{" _ defaultValue:Node _ "}"
+	{
+		return {defaultValue}
+	}
 
 Reserved = "_" / "Never" / "..." / "=>" / "->" / "let" / "try" / "catch"
 
