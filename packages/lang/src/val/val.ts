@@ -477,7 +477,7 @@ export class FnType extends BaseValue implements IFnType {
 	}
 }
 
-export class Vec<TItems extends Value = Value>
+export class Vec<TItems extends Value[] = Value[]>
 	extends BaseValue
 	implements IFnLike
 {
@@ -485,7 +485,7 @@ export class Vec<TItems extends Value = Value>
 	readonly superType = All.instance
 
 	private constructor(
-		public readonly items: TItems[],
+		public readonly items: TItems,
 		public readonly optionalPos: number,
 		public rest?: Value
 	) {
@@ -583,17 +583,23 @@ export class Vec<TItems extends Value = Value>
 		return vecType
 	}
 
-	static of(items: Value[] = [], optionalPos?: number, rest?: Value) {
+	static of<TItems extends Value[]>(
+		items: TItems = [] as any,
+		optionalPos?: number,
+		rest?: Value
+	) {
 		return new Vec(items, optionalPos ?? items.length, rest)
 	}
 }
 
-export class Dict extends BaseValue {
+export class Dict<
+	TItems extends Record<string, Value> = Record<string, Value>
+> extends BaseValue {
 	readonly type = 'Dict' as const
 	superType = All.instance
 
 	private constructor(
-		public readonly items: Record<string, Value>,
+		public readonly items: TItems,
 		public readonly optionalKeys: Set<string>,
 		public readonly rest?: Value
 	) {
@@ -658,7 +664,7 @@ export class Dict extends BaseValue {
 		return true
 	}
 
-	get isType() {
+	get isType(): boolean {
 		return (
 			!!this.rest ||
 			this.optionalKeys.size > 0 ||
@@ -679,12 +685,12 @@ export class Dict extends BaseValue {
 		return dictType
 	}
 
-	static of(
-		items: Record<string, Value>,
+	static of<TItems extends Record<string, Value>>(
+		items: TItems,
 		optionalKeys: Iterable<string> = [],
 		rest?: Value
 	) {
-		return new Dict(items, new Set(optionalKeys), rest)
+		return new Dict<TItems>(items, new Set(optionalKeys), rest)
 	}
 }
 
