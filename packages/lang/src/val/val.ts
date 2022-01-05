@@ -116,7 +116,7 @@ export class All extends BaseValue {
 
 	isSubtypeOf = this.isEqualTo
 
-	withDefault = (defaultValue: Atomic) => {
+	withDefault = (defaultValue: Atomic): Value => {
 		const all = new All()
 		all.defaultValue = defaultValue
 		return all
@@ -198,7 +198,7 @@ export class PrimType<T = any> extends BaseValue {
 		return Prim.from(this, value)
 	}
 
-	withDefault = (defaultValue: Atomic) => {
+	withDefault = (defaultValue: Atomic): Value => {
 		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
 
 		const primType = new PrimType(this.name)
@@ -282,7 +282,7 @@ export class EnumType extends BaseValue {
 	isInstance = (value: Value): value is Enum =>
 		value.type === 'Enum' && value.isSubtypeOf(this)
 
-	withDefault = (defaultValue: Atomic) => {
+	withDefault = (defaultValue: Atomic): Value => {
 		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
 
 		const enumType = new EnumType(this.name, this.types)
@@ -452,7 +452,7 @@ export class FnType extends BaseValue implements IFnType {
 
 	isInstance!: (value: Value) => value is Fn
 
-	withDefault = (defaultValue: Atomic) => {
+	withDefault = (defaultValue: Atomic): Value => {
 		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
 
 		const fnType = new FnType(this.param, this.optionalPos, this.rest, this.out)
@@ -574,7 +574,7 @@ export class Vec<TItems extends Value[] = Value[]>
 
 	isInstance!: (value: Value) => value is Vec
 
-	withDefault = (defaultValue: Atomic) => {
+	withDefault = (defaultValue: Atomic): Value => {
 		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
 
 		const vecType = Vec.of(this.items, this.optionalPos, this.rest)
@@ -674,7 +674,7 @@ export class Dict<
 
 	isInstance!: (value: Value) => value is Dict
 
-	withDefault = (defaultValue: Atomic) => {
+	withDefault = (defaultValue: Atomic): Value => {
 		if (!this.isType) return this
 
 		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
@@ -803,7 +803,7 @@ export class UnionType extends BaseValue {
 	isSupertypeOf = (s: Pick<Value, 'isSubtypeOf'>) =>
 		this.types.some(s.isSubtypeOf)
 
-	withDefault = (defaultValue: Atomic) => {
+	withDefault = (defaultValue: Atomic): Value => {
 		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
 
 		const unionType = new UnionType(this.types)
