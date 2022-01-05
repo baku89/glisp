@@ -2,7 +2,6 @@ import {
 	all,
 	call,
 	dict,
-	dictFrom,
 	fn,
 	fnType,
 	id,
@@ -115,10 +114,10 @@ describe('parsing dictionary', () => {
 	testParsing('{   }', dict({}))
 	testParsing('{a: A b: B}', dict({a: id('A'), b: id('B')}))
 	testParsing('{a: {a: 1}}', dict({a: dict({a: num(1)})}))
-	testParsing('{a?:1}', dictFrom({a: num(1)}, ['a']))
+	testParsing('{a?:1}', dict({a: num(1)}, ['a']))
 	testParsing(
 		'{a?:1 b:2 ...c}',
-		dictFrom(
+		dict(
 			{
 				a: num(1),
 				b: num(2),

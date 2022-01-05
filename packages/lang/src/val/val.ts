@@ -529,7 +529,7 @@ export class Dict extends BaseValue {
 
 	toAst = (): Ast.DictLiteral => {
 		const items = mapValues(this.items, it => it.toAst())
-		return Ast.dictFrom(items, this.optionalKeys, this.rest?.toAst())
+		return Ast.dict(items, this.optionalKeys, this.rest?.toAst())
 	}
 
 	isEqualTo = (v: Value) =>

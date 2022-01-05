@@ -182,7 +182,7 @@ Dict "dictionary" = "{" _ entries:DictEntry* rest:("..." @Node _)? "}"
 			items[key] = value
 			if (optional) optionalKeys.add(key)
 		}
-		return Ast.dictFrom(items, optionalKeys, rest)
+		return Ast.dict(items, optionalKeys, rest)
 	}
 
 DictEntry = key:(Str / DictKey) optional:"?"? ":" _ value:Node _

@@ -619,17 +619,13 @@ export class DictLiteral extends BaseNode {
 		nullishEqual(this.rest, ast.rest, isSame)
 
 	clone = (): DictLiteral =>
-		DictLiteral.from(
+		DictLiteral.of(
 			mapValues(this.items, clone),
 			this.optionalKeys,
 			this.rest?.clone()
 		)
 
-	static of(items: Record<string, Node>) {
-		return DictLiteral.from(items)
-	}
-
-	static from(
+	static of(
 		items: Record<string, Node>,
 		optionalKeys: Iterable<string> = [],
 		rest?: Node
