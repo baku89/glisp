@@ -63,7 +63,7 @@ Frac/*: (=> [x:Frac y:Frac]
 Frac/scale: (=> [r:Frac s:Num]
                 (Frac/fromNum (* (r "num") s) (r "den")))
 
-Frac/neg = (=> r:Frac (Frac/scale r -1))
+Frac/neg: (=> r:Frac (Frac/scale r -1))
 `)
 )
 
