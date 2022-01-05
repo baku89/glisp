@@ -16,7 +16,6 @@ export type Node = LeafNode | InnerNode
 export type LeafNode =
 	| Identifier
 	| ValueContainer
-	| UnitLiteral
 	| AllKeyword
 	| NeverKeyword
 	| NumLiteral
@@ -82,7 +81,7 @@ export class Identifier extends BaseNode {
 				reason: 'Variable not bound: ' + this.name,
 			}
 
-			return Writer.of({node: UnitLiteral.of()}, log)
+			return Writer.of({node: Call.of()}, log)
 		}
 
 		if (ref.type === 'Scope') {
@@ -182,20 +181,6 @@ export class ValueContainer<V extends Val.Value = Val.Value> extends BaseNode {
 
 	static of<V extends Val.Value = Val.Value>(value: V) {
 		return new ValueContainer(value)
-	}
-}
-
-export class UnitLiteral extends BaseNode {
-	readonly type = 'UnitLiteral' as const
-
-	protected forceEval = () => withLog(Val.unit)
-	protected forceInfer = () => withLog(Val.unit)
-	print = () => '()'
-	isSameTo = (ast: Node) => this.type === ast.type
-	clone = () => UnitLiteral.of()
-
-	static of() {
-		return new UnitLiteral()
 	}
 }
 
@@ -659,11 +644,13 @@ export class DictLiteral extends BaseNode {
 export class Call extends BaseNode {
 	readonly type = 'Call' as const
 
-	private constructor(public callee: Node, public args: Node[]) {
+	private constructor(public callee?: Node, public args: Node[] = []) {
 		super()
 	}
 
 	#unify(env: Env): [Unifier, Val.Value[]] {
+		if (!this.callee) throw new Error('Cannot unify unit literal')
+
 		const calleeType = this.callee.infer(env).result
 
 		if (!('fnType' in calleeType)) return [new Unifier(), []]
@@ -685,6 +672,8 @@ export class Call extends BaseNode {
 	}
 
 	protected forceEval = (env: Env): WithLog => {
+		if (!this.callee) return withLog(Val.unit)
+
 		// Evaluate the function itself at first
 		const [callee, calleeLog] = this.callee.eval(env).asTuple
 
@@ -801,6 +790,8 @@ export class Call extends BaseNode {
 	}
 
 	protected forceInfer = (env: Env): WithLog => {
+		if (!this.callee) return this.forceEval(env)
+
 		const [ty, log] = this.callee.infer(env).asTuple
 		if (!('fnType' in ty)) return withLog(ty, ...log)
 
@@ -818,10 +809,12 @@ export class Call extends BaseNode {
 	}
 
 	print = (): string => {
-		const fn = this.callee.print()
+		if (!this.callee) return '()'
+
+		const callee = this.callee.print()
 		const args = this.args.map(a => a.print())
 
-		return '(' + [fn, ...args].join(' ') + ')'
+		return '(' + [callee, ...args].join(' ') + ')'
 	}
 
 	isSameTo = (ast: Node) =>
@@ -829,9 +822,9 @@ export class Call extends BaseNode {
 
 	clone = (): Call => Call.of(this.callee, ...this.args.map(clone))
 
-	static of(callee: Node, ...args: Node[]) {
+	static of(callee?: Node, ...args: Node[]) {
 		const app = new Call(callee, args)
-		setParent(callee, app)
+		if (callee) setParent(callee, app)
 		args.forEach(a => setParent(a, app))
 		return app
 	}

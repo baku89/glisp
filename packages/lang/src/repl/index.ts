@@ -14,7 +14,7 @@ const IO = Val.primType('IO', () => {
 	return
 })
 
-const defaultExp = Ast.unit()
+const defaultExp = Ast.call()
 
 function printLog({level, reason, ref}: Log) {
 	let header: string

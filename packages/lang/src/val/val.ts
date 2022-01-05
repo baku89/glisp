@@ -87,7 +87,7 @@ export class Unit extends BaseValue {
 	superType!: All
 	defaultValue = this
 
-	toAst = () => Ast.unit()
+	toAst = () => Ast.call()
 
 	static instance = new Unit()
 }

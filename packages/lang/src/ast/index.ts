@@ -10,7 +10,6 @@ import {
 	Scope,
 	StrLiteral,
 	TryCatch,
-	UnitLiteral,
 	ValueContainer,
 	VecLiteral,
 } from './ast'
@@ -23,7 +22,6 @@ export {isSame, print, setParent, clone} from './ast'
 export {
 	Identifier,
 	ValueContainer,
-	UnitLiteral,
 	AllKeyword,
 	NeverKeyword,
 	NumLiteral,
@@ -39,7 +37,6 @@ export {
 
 export const id = Identifier.of
 export const value = ValueContainer.of
-export const unit = UnitLiteral.of
 export const all = AllKeyword.of
 export const never = NeverKeyword.of
 export const num = NumLiteral.of

@@ -12,7 +12,6 @@ import {
 	num,
 	scope,
 	str,
-	unit,
 	vec,
 } from '../ast'
 import {parse} from '.'
@@ -32,8 +31,8 @@ describe('parsing literals', () => {
 	testParsing('true', id('true'))
 	testParsing('"hello"', str('hello'))
 	testParsing('"hello, world"', str('hello, world'))
-	testParsing(' () ', unit())
-	testParsing(' (  \t   ) ', unit())
+	testParsing(' () ', call())
+	testParsing(' (  \t   ) ', call())
 	testParsing(' _ ', all())
 	testParsing('Never', never())
 })
@@ -78,7 +77,7 @@ describe('parsing call expressions', () => {
 	testParsing('(+ 1 2)', call(id('+'), num(1), num(2)))
 	testParsing('(* 1 2)', call(id('*'), num(1), num(2)))
 	testParsing('(x _)', call(x, all()))
-	testParsing('(x ())', call(x, unit()))
+	testParsing('(x ())', call(x, call()))
 	testParsing('(x)', call(x))
 	testParsing('(0 false)', call(num(1), id('false')))
 	testParsing('((true) x)', call(call(id('true')), x))
@@ -139,7 +138,7 @@ describe('parsing function definition', () => {
 		fn({param: {x: Num, y: Bool}, body: x})
 	)
 	testParsing('(=>[]_)', fn({param: {}, body: all()}))
-	testParsing('(=>[]())', fn({body: unit()}))
+	testParsing('(=>[]())', fn({body: call()}))
 	testParsing('(=> [] (+ 1 2))', fn({body: call(id('+'), num(1), num(2))}))
 	testParsing('(=> [] (=> [] 1))', fn({body: fn({body: num(1)})}))
 
@@ -166,7 +165,7 @@ describe('parsing function definition', () => {
 describe('parsing function type', () => {
 	testParsing('(-> [[...x]] x)', fnType({param: [vec([], 0, x)], out: x}))
 	testParsing('(-> [_] _)', fnType({param: [all()], out: all()}))
-	testParsing('(-> [[]] ())', fnType({param: [vec()], out: unit()}))
+	testParsing('(-> [[]] ())', fnType({param: [vec()], out: call()}))
 	testParsing('(-> [] z)', fnType({out: z}))
 	testParsing('(-> [] [])', fnType({out: vec()}))
 	testParsing('(-> [x] z)', fnType({param: [x], out: z}))

@@ -46,7 +46,7 @@ Node "node" =
 
 Reserved = "_" / "Never" / "..." / "=>" / "->" / "let" / "try" / "catch"
 
-Unit = "(" _ ")" { return Ast.unit() }
+Unit = "(" _ ")" { return Ast.call() }
 
 All = "_" { return Ast.all() }
 

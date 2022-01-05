@@ -6,7 +6,7 @@ export function parse(
 	parent: Ast.InnerNode | null = null
 ): Ast.Node {
 	const node: Ast.Node | undefined = parser.parse(str, {Ast})
-	if (!node) return Ast.unit()
+	if (!node) return Ast.call()
 
 	if ('parent' in node) node.parent = parent
 
