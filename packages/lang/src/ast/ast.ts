@@ -32,15 +32,30 @@ export type InnerNode =
 
 export type Arg<T extends Val.Value = Val.Value> = () => T
 
+interface ValueMeta {
+	defaultValue?: Node
+}
+
 export abstract class BaseNode {
 	abstract readonly type: string
+
 	parent: Node | null = null
 
 	protected constructor() {
 		return this
 	}
 
-	abstract print(): string
+	abstract printExceptMeta(): string
+
+	print = (): string => {
+		let node = this.printExceptMeta()
+
+		if (this.valueMeta?.defaultValue) {
+			node += '^{' + this.valueMeta.defaultValue.print() + '}'
+		}
+
+		return node
+	}
 
 	protected abstract forceEval(env: Env): WithLog
 
@@ -50,8 +65,33 @@ export abstract class BaseNode {
 
 	abstract clone(): Node
 
+	valueMeta?: ValueMeta
+
+	#forceEvalWithMeta = (env: Env): WithLog => {
+		const valueWithLog = this.forceEval(env)
+
+		if (this.valueMeta?.defaultValue) {
+			const [value, lv] = valueWithLog.asTuple
+			const [defaultValue, ldv] = this.valueMeta.defaultValue.eval(env).asTuple
+
+			if (!value.isInstance(defaultValue)) {
+				return valueWithLog.write({
+					level: 'warn',
+					ref: this as any,
+					reason:
+						`Cannot use ${defaultValue.print()} ` +
+						`as a default value of ${value.print()}`,
+				})
+			}
+
+			return withLog(value.withDefault(defaultValue), ...lv, ...ldv)
+		}
+
+		return valueWithLog
+	}
+
 	eval(env = Env.global) {
-		return env.memoizeEval(this, this.forceEval)
+		return env.memoizeEval(this, this.#forceEvalWithMeta)
 	}
 
 	infer(env = Env.global) {
@@ -126,11 +166,9 @@ export class Identifier extends BaseNode {
 
 	protected forceEval = (env: Env): WithLog => {
 		return this.#resolve(this.parent, env).bind(({node, mode}) => {
-			const value = node.eval(env)
+			const result = node.eval(env)
 
-			return mode === 'param'
-				? withLog(value.result.defaultValue, ...value.log)
-				: value
+			return mode === 'param' ? result.fmap(v => v.defaultValue) : result
 		})
 	}
 
@@ -147,7 +185,7 @@ export class Identifier extends BaseNode {
 		}
 	}
 
-	print = () => this.name
+	printExceptMeta = () => this.name
 
 	isSameTo = (node: Node) => this.type === node.type && this.name === node.name
 
@@ -169,7 +207,7 @@ export class ValueContainer<V extends Val.Value = Val.Value> extends BaseNode {
 
 	protected forceInfer = () => withLog(this.value.isType ? Val.all : this.value)
 
-	print = () => {
+	printExceptMeta = () => {
 		const ast = this.value.toAst()
 		if (ast.type !== this.type) return ast.print()
 		return `<value container of ${this.value.type}>`
@@ -190,7 +228,7 @@ export class AllKeyword extends BaseNode {
 
 	protected forceEval = () => withLog(Val.all)
 	protected forceInfer = () => withLog(Val.all)
-	print = () => '_'
+	printExceptMeta = () => '_'
 	isSameTo = (node: Node) => this.type === node.type
 	clone = () => AllKeyword.of()
 
@@ -204,7 +242,7 @@ export class NeverKeyword extends BaseNode {
 
 	protected forceEval = () => withLog(Val.never)
 	protected forceInfer = () => withLog(Val.all)
-	print = () => 'Never'
+	printExceptMeta = () => 'Never'
 	isSameTo = (node: Node) => this.type === node.type
 	clone = () => NeverKeyword.of()
 
@@ -222,7 +260,7 @@ export class NumLiteral extends BaseNode {
 
 	protected forceEval = () => withLog(Val.num(this.value))
 	protected forceInfer = () => withLog(Val.num(this.value))
-	print = () => this.value.toString()
+	printExceptMeta = () => this.value.toString()
 	isSameTo = (node: Node) =>
 		this.type === node.type && this.value === node.value
 	clone = () => NumLiteral.of(this.value)
@@ -243,7 +281,7 @@ export class StrLiteral extends BaseNode {
 
 	protected forceInfer = () => withLog(Val.str(this.value))
 
-	print = () => '"' + this.value + '"'
+	printExceptMeta = () => '"' + this.value + '"'
 
 	isSameTo = (node: Node) =>
 		this.type === node.type && this.value === node.value
@@ -334,7 +372,7 @@ export class FnDef extends BaseNode {
 		return withLog(fnType, ...lp, ...lr, ...lo)
 	}
 
-	print = (): string => {
+	printExceptMeta = (): string => {
 		const typeVars = printTypeVars(this.typeVars)
 		const param = printParam(this.param, this.optionalPos, this.rest)
 		const body = this.body.print()
@@ -429,7 +467,7 @@ export class FnTypeDef extends BaseNode {
 
 	protected forceInfer = () => withLog(Val.all)
 
-	print = (): string => {
+	printExceptMeta = (): string => {
 		const typeVars = printTypeVars(this.typeVars)
 		const param = printParam(this.param, this.optionalPos, this.rest)
 		const out = this.out.print()
@@ -556,7 +594,7 @@ export class VecLiteral extends BaseNode {
 		return withLog(Val.vec(items), ...log)
 	}
 
-	print = (): string => {
+	printExceptMeta = (): string => {
 		const op = this.optionalPos
 		const items = this.items.map((it, i) => it.print() + (op <= i ? '?' : ''))
 		const rest = this.rest ? ['...' + this.rest.print()] : []
@@ -610,7 +648,7 @@ export class DictLiteral extends BaseNode {
 		return withLog(Val.dict(items), ...logs)
 	}
 
-	print = (): string => {
+	printExceptMeta = (): string => {
 		const items = entries(this.items).map(
 			([k, v]) => k + (this.#isOptional(k) ? '?' : '') + ': ' + v.print()
 		)
@@ -756,12 +794,14 @@ export class Call extends BaseNode {
 				} else {
 					// Type mismatched
 					if (aTy.type !== 'Unit') {
+						const p = pTy.print()
+						const a = aTy.print()
 						argLog.push({
 							level: 'error',
 							ref: this,
 							reason:
-								`Rest argument '${name}' expects type: ${pTy.print()}, ` +
-								`but got: ${aTy.print()}.`,
+								`Rest argument '${name}' expects type: ${p}, ` +
+								`but got: ${a}.`,
 						})
 					}
 					args.push(() => pTy.defaultValue)
@@ -810,7 +850,7 @@ export class Call extends BaseNode {
 		return withLog(unifier.substitute(ty.fnType.out, true), ...log)
 	}
 
-	print = (): string => {
+	printExceptMeta = (): string => {
 		if (!this.callee) return '()'
 
 		const callee = this.callee.print()
@@ -844,7 +884,7 @@ export class Scope extends BaseNode {
 
 	protected forceEval = (env: Env) => this.out?.eval(env) ?? Writer.of(Val.unit)
 
-	print = (): string => {
+	printExceptMeta = (): string => {
 		const vars = entries(this.vars).map(([k, v]) => k + ' = ' + v.print())
 		const out = this.out ? [this.out.print()] : []
 
@@ -920,7 +960,7 @@ export class TryCatch extends BaseNode {
 		return withLog(Val.unionType(block, handler), ...lb, ...lh)
 	}
 
-	print = (): string => {
+	printExceptMeta = (): string => {
 		const block = this.block.print()
 		const handler = this.handler.print()
 		return `(try ${block} ${handler})`

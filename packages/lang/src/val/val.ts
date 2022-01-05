@@ -55,6 +55,7 @@ abstract class BaseValue {
 	abstract superType: Value
 
 	abstract defaultValue: Atomic
+	abstract readonly initialDefaultValue: Atomic
 
 	abstract isEqualTo(value: Value): boolean
 
@@ -64,13 +65,25 @@ abstract class BaseValue {
 	}
 
 	get isType(): boolean {
-		return isType(this as Value)
+		return isType(this as any)
 	}
 
-	abstract toAst(): Ast.Node
+	protected abstract toAstExceptMeta(): Ast.Node
+
+	toAst = (): Ast.Node => {
+		const node = this.toAstExceptMeta()
+
+		if (!isEqual(this.defaultValue, this.initialDefaultValue)) {
+			node.valueMeta = {
+				defaultValue: this.defaultValue.toAst(),
+			}
+		}
+
+		return node
+	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	withDefault = (defaultValue: Atomic): Value => this as Value
+	withDefault = (defaultValue: Atomic): Value => this as any
 
 	isInstance = (value: Value): boolean => {
 		return !value.isType && value.isSubtypeOf(this as any)
@@ -95,10 +108,11 @@ export class Unit extends BaseValue {
 	superType!: All
 
 	defaultValue = this
+	initialDefaultValue = this
 
 	isEqualTo = (value: Value) => this.type === value.type
 
-	toAst = () => Ast.call()
+	toAstExceptMeta = () => Ast.call()
 
 	static instance = new Unit()
 }
@@ -109,8 +123,9 @@ export class All extends BaseValue {
 	superType = this
 
 	defaultValue: Atomic = Unit.instance
+	initialDefaultValue = Unit.instance
 
-	toAst = () => Ast.all()
+	toAstExceptMeta = () => Ast.all()
 
 	isEqualTo = (value: Value) => this.type === value.type
 
@@ -133,8 +148,9 @@ export class Never extends BaseValue {
 	superType = All.instance
 
 	defaultValue = this
+	initialDefaultValue = this
 
-	toAst = () => Ast.never()
+	toAstExceptMeta = () => Ast.never()
 
 	isEqualTo = (value: Value) => this.type === value.type
 
@@ -145,13 +161,15 @@ export class Never extends BaseValue {
 
 export class Prim<T = any> extends BaseValue {
 	readonly type = 'Prim' as const
-	defaultValue = this
 
 	protected constructor(public superType: PrimType, public value: T) {
 		super()
 	}
 
-	toAst = (): Ast.Node => Ast.value(this)
+	defaultValue = this
+	initialDefaultValue = this
+
+	toAstExceptMeta = (): Ast.Node => Ast.value(this)
 
 	isEqualTo = (value: Value) =>
 		this.type === value.type &&
@@ -164,7 +182,7 @@ export class Prim<T = any> extends BaseValue {
 }
 
 export class Num extends Prim<number> {
-	toAst = () => Ast.num(this.value)
+	toAstExceptMeta = () => Ast.num(this.value)
 
 	static of(value: number) {
 		return new Num(NumType, value)
@@ -172,7 +190,7 @@ export class Num extends Prim<number> {
 }
 
 export class Str extends Prim<string> {
-	toAst = () => Ast.str(this.value)
+	toAstExceptMeta = () => Ast.str(this.value)
 
 	static of(value: string) {
 		return new Str(StrType, value)
@@ -182,14 +200,16 @@ export class Str extends Prim<string> {
 export class PrimType<T = any> extends BaseValue {
 	readonly type = 'PrimType' as const
 	superType = All.instance
-	defaultValue!: Num | Str | Prim
 
 	private constructor(private readonly name: string) {
 		super()
 	}
 
+	defaultValue!: Num | Str | Prim
+	initialDefaultValue!: Num | Str | Prim
+
 	// TODO: fix this
-	toAst = () => Ast.id(this.name)
+	toAstExceptMeta = () => Ast.id(this.name)
 
 	isEqualTo = (value: Value) =>
 		this.type === value.type && this.name === value.name
@@ -203,6 +223,7 @@ export class PrimType<T = any> extends BaseValue {
 
 		const primType = new PrimType(this.name)
 		primType.defaultValue = defaultValue
+		primType.initialDefaultValue = this.initialDefaultValue
 
 		return primType
 	}
@@ -212,15 +233,20 @@ export class PrimType<T = any> extends BaseValue {
 
 	static ofLiteral(name: string, defaultValue: Prim) {
 		const primType = new PrimType(name)
-		primType.defaultValue = defaultValue
+
+		primType.defaultValue = primType.initialDefaultValue = defaultValue
+
 		defaultValue.superType = primType
+
 		return primType
 	}
 
 	static of<T>(name: string, defaultValue: T) {
 		const primType = new PrimType<T>(name)
 		const d = Prim.from(primType, defaultValue)
-		primType.defaultValue = d
+
+		primType.defaultValue = primType.initialDefaultValue = d
+
 		return primType
 	}
 }
@@ -240,9 +266,10 @@ export class Enum extends BaseValue {
 	}
 
 	defaultValue = this
+	initialDefaultValue = this
 
 	// TODO: fix this
-	toAst = () => Ast.id(this.name)
+	toAstExceptMeta = () => Ast.id(this.name)
 
 	isEqualTo = (value: Value) =>
 		this.type === value.type &&
@@ -266,9 +293,10 @@ export class EnumType extends BaseValue {
 	}
 
 	defaultValue = this.types[0]
+	initialDefaultValue = this.types[0]
 
 	// TODO: fix this
-	toAst = () => Ast.id(this.name)
+	toAstExceptMeta = () => Ast.id(this.name)
 
 	isEqualTo = (value: Value) =>
 		this.type === value.type && this.name === value.name
@@ -312,8 +340,9 @@ export class TypeVar extends BaseValue {
 	}
 
 	defaultValue = Unit.instance
+	initialDefaultValue = Unit.instance
 
-	toAst = () => Ast.id(this.name)
+	toAstExceptMeta = () => Ast.id(this.name)
 
 	isEqualTo = (value: Value) => this === value
 
@@ -344,10 +373,11 @@ export class Fn extends BaseValue implements IFnLike {
 	fnType = this.superType
 
 	defaultValue = this
+	initialDefaultValue = this
 
 	isEqualTo = (value: Value) => this === value
 
-	toAst = (): Ast.Node => {
+	toAstExceptMeta = (): Ast.Node => {
 		if (!this.body) {
 			return Ast.value(this)
 		}
@@ -401,13 +431,14 @@ export class FnType extends BaseValue implements IFnType {
 
 	#defaultValue?: Fn
 	get defaultValue() {
-		if (!this.#defaultValue) {
-			this.#defaultValue = Fn.from(this, () => withLog(this.out.defaultValue))
-		}
-		return this.#defaultValue
+		return (this.#defaultValue ??= this.initialDefaultValue)
 	}
 
-	toAst = (): Ast.FnTypeDef => {
+	get initialDefaultValue(): Fn {
+		return Fn.from(this, () => withLog(this.out.defaultValue))
+	}
+
+	toAstExceptMeta = (): Ast.FnTypeDef => {
 		const rest = this.rest
 			? {name: this.rest.name, node: this.rest.value.toAst()}
 			: undefined
@@ -495,19 +526,19 @@ export class Vec<TItems extends Value[] = Value[]>
 	}
 
 	#defaultValue?: Vec
-	get defaultValue(): Vec {
-		if (!this.#defaultValue) {
-			const items = this.items
-				.slice(0, this.optionalPos)
-				.map(it => it.defaultValue)
-
-			this.#defaultValue = Vec.of(items)
-		}
-
-		return this.#defaultValue
+	get defaultValue() {
+		return (this.#defaultValue ??= this.initialDefaultValue)
 	}
 
-	toAst = (): Ast.Node => {
+	get initialDefaultValue(): Vec {
+		const items = this.items
+			.slice(0, this.optionalPos)
+			.map(it => it.defaultValue)
+
+		return Vec.of(items)
+	}
+
+	toAstExceptMeta = (): Ast.Node => {
 		const items = this.items.map(it => it.toAst())
 		return Ast.vec(items, this.optionalPos, this.rest?.toAst())
 	}
@@ -611,19 +642,19 @@ export class Dict<
 	}
 
 	#defaultValue?: Dict
-	get defaultValue(): Dict {
-		if (!this.#defaultValue) {
-			const itemEntries = entries(this.items)
-				.filter(([k]) => this.#isRequredKey(k))
-				.map(([k, v]) => [k, v.defaultValue])
-
-			this.#defaultValue = Dict.of(fromPairs(itemEntries))
-		}
-
-		return this.#defaultValue
+	get defaultValue() {
+		return (this.#defaultValue ??= this.initialDefaultValue)
 	}
 
-	toAst = (): Ast.DictLiteral => {
+	get initialDefaultValue(): Dict {
+		const itemEntries = entries(this.items)
+			.filter(([k]) => this.#isRequredKey(k))
+			.map(([k, v]) => [k, v.defaultValue])
+
+		return Dict.of(fromPairs(itemEntries))
+	}
+
+	toAstExceptMeta = (): Ast.DictLiteral => {
 		const items = mapValues(this.items, it => it.toAst())
 		return Ast.dict(items, this.optionalKeys, this.rest?.toAst())
 	}
@@ -702,8 +733,9 @@ export class Struct extends BaseValue {
 	}
 
 	defaultValue = this
+	initialDefaultValue = this
 
-	toAst = (): Ast.Node => {
+	toAstExceptMeta = (): Ast.Node => {
 		const items = this.items.map(it => it.toAst())
 		const fn = this.superType.toAst()
 		return Ast.call(fn, ...items)
@@ -731,13 +763,13 @@ export class StructType extends BaseValue implements IFnLike {
 	}
 
 	#defaultValue?: Struct
-	get defaultValue(): Struct {
-		if (!this.#defaultValue) {
-			const items = values(this.param).map(p => p.defaultValue)
-			this.#defaultValue = Struct.of(this, items)
-		}
+	get defaultValue() {
+		return (this.#defaultValue ??= this.initialDefaultValue)
+	}
 
-		return this.#defaultValue
+	get initialDefaultValue(): Struct {
+		const items = values(this.param).map(p => p.defaultValue)
+		return Struct.of(this, items)
 	}
 
 	fnType: FnType = FnType.of({param: this.param, out: this})
@@ -745,7 +777,7 @@ export class StructType extends BaseValue implements IFnLike {
 	fn = (...items: Ast.Arg[]) => withLog(this.of(...items.map(i => i())))
 
 	// TODO: Fix this
-	toAst = () => Ast.id(this.name)
+	toAstExceptMeta = () => Ast.id(this.name)
 
 	isEqualTo = (value: Value) =>
 		this.type === value.type && this.name === value.name
@@ -780,11 +812,12 @@ export class UnionType extends BaseValue {
 	}
 
 	#defaultValue!: Atomic
-	get defaultValue(): Atomic {
-		return (this.#defaultValue ??= this.types[0].defaultValue)
+	get defaultValue() {
+		return (this.#defaultValue ??= this.initialDefaultValue)
 	}
+	initialDefaultValue: Atomic = this.types[0].defaultValue
 
-	toAst = (): Ast.Call => {
+	toAstExceptMeta = (): Ast.Call => {
 		const types = this.types.map(ty => ty.toAst())
 		return Ast.call(Ast.id('|'), ...types)
 	}
