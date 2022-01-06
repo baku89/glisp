@@ -19,7 +19,8 @@
 	},
 	"license": "MIT",
 	"dependencies": {
-		"lodash": "^4.17.21"
+		"lodash": "^4.17.21",
+		"typescript-memoize": "^1.1.0"
 	},
 	"devDependencies": {
 		"@types/jest": "^27.0.2",

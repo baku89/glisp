@@ -6,6 +6,7 @@
 		"allowJs": true,
 		"moduleResolution": "node",
 		"esModuleInterop": true,
+		"experimentalDecorators": true,
 		"inlineSourceMap": true,
 		"baseUrl": ".",
 		"outDir": "lib",

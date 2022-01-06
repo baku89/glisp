@@ -7,6 +7,7 @@ import {
 	mapValues,
 	values,
 } from 'lodash'
+import {Memoize} from 'typescript-memoize'
 
 import * as Ast from '../ast'
 import type {PrintOptions} from '../ast/ast'
@@ -684,6 +685,7 @@ export class Vec<TItems extends Value[] = Value[]>
 		return true
 	}
 
+	@Memoize()
 	get isType(): boolean {
 		return (
 			!!this.rest ||
@@ -692,17 +694,23 @@ export class Vec<TItems extends Value[] = Value[]>
 		)
 	}
 
-	readonly fnType = FnType.of({
-		param: {index: NumType},
-		out: unionType(...this.items),
-	})
+	@Memoize()
+	get fnType() {
+		return FnType.of({
+			param: {index: NumType},
+			out: unionType(...this.items),
+		})
+	}
 
-	fn: IFn = (index: Ast.Arg<Num>) => {
-		const ret = this.items[index().value]
-		if (ret === undefined) {
-			throw new Error('Index out of range')
+	@Memoize()
+	get fn(): IFn {
+		return (index: Ast.Arg<Num>) => {
+			const ret = this.items[index().value]
+			if (ret === undefined) {
+				throw new Error('Index out of range')
+			}
+			return withLog(ret)
 		}
-		return withLog(ret)
 	}
 
 	isTypeFor!: (value: Value) => value is Vec
@@ -806,6 +814,7 @@ export class Dict<
 		return true
 	}
 
+	@Memoize()
 	get isType(): boolean {
 		return (
 			!!this.rest ||
