@@ -53,12 +53,32 @@ PreludeScope.defs({
 	'+': defn('(-> [...xs:Num] Num)', (...xs: Val.Num[]) =>
 		Val.num(xs.reduce((sum, x) => sum + x.value, 0))
 	),
+	'-': defn('(-> [...xs:Num^1] Num)', (...xs: Val.Num[]) => {
+		switch (xs.length) {
+			case 0:
+				return Val.num(0)
+			case 1:
+				return Val.num(-xs[0].value)
+			default:
+				return Val.num(
+					xs.slice(1).reduce((prev, x) => prev - x.value, xs[0].value)
+				)
+		}
+	}),
 	'*': defn('(-> [...xs:Num^1] Num)', (...xs: Val.Num[]) =>
 		Val.num(xs.reduce((prod, x) => prod * x.value, 1))
 	),
-	'/': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) => {
-		if (b.value === 0) throw new Error('Divided by zero')
-		return Val.num(a.value / b.value)
+	'/': defn('(-> [...xs:Num^1] Num)', (...xs: Val.Num[]) => {
+		switch (xs.length) {
+			case 0:
+				return Val.num(1)
+			case 1:
+				return Val.num(1 / xs[0].value)
+			default:
+				return Val.num(
+					xs.slice(1).reduce((prev, x) => prev / x.value, xs[0].value)
+				)
+		}
 	}),
 	'**': defn('(-> [x:Num a:Num^1] Num)', (x: Val.Num, a: Val.Num) =>
 		Val.num(Math.pow(x.value, a.value))
@@ -78,15 +98,35 @@ PreludeScope.defs({
 			Val.isEqual(test(), Val.True) ? then() : _else(),
 		{lazy: true}
 	),
-	nand: defn('(-> [x:Bool y:Bool] Bool)', (x: Val.Enum, y: Val.Enum) =>
-		Val.bool(!(x === Val.True && y === Val.True))
+	and: defn(
+		'(-> [...xs:Bool^true] Bool)',
+		(...xs: Ast.Arg<Val.Enum>[]) => {
+			for (const x of xs) {
+				if (x().isEqualTo(Val.False)) return Val.bool(false)
+			}
+			return Val.bool(true)
+		},
+		{lazy: true}
+	),
+	or: defn(
+		'(-> [...xs:Bool^false] Bool)',
+		(...xs: Ast.Arg<Val.Enum>[]) => {
+			for (const x of xs) {
+				if (x().isEqualTo(Val.True)) return Val.bool(true)
+			}
+			return Val.bool(false)
+		},
+		{lazy: true}
+	),
+	not: defn('(-> x:Bool Bool)', (x: Val.Enum) =>
+		Val.bool(x.isEqualTo(Val.False))
 	),
 	len: defn('(-> x:(| Str [..._]) Num)', (x: Val.Str | Val.Vec) => {
 		if (x.type === 'Vec') return Val.num(x.items.length)
 		else return Val.num(x.value.length)
 	}),
 	range: defn(
-		'(-> [start:Num end:Num step?:Num] [...Num])',
+		'(-> [start:Num end:Num step?:Num^1] [...Num])',
 		(start: Val.Num, end: Val.Num, step: Val.Num) =>
 			Val.vec(range(start.value, end.value, step.value).map(Val.num))
 	),
@@ -125,6 +165,14 @@ PreludeScope.defs({
 		'(-> [name:Str param:{..._}] _)',
 		(name: Val.Str, {items}: Val.Dict) => Val.structType(name.value, items)
 	),
+	enum: defn(
+		'(-> [name:Str ...label:Str] _)',
+		(name: Val.Str, ...labels: Val.Str[]) =>
+			Val.enumType(
+				name.value,
+				labels.map(l => l.value)
+			)
+	),
 	fnType: defn('(-> f:_ _)', (f: Val.Value) => ('fnType' in f ? f.fnType : f)),
 	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Val.Value, t: Val.Value) =>
 		Val.bool(s.isSubtypeOf(t))
@@ -137,10 +185,6 @@ PreludeScope.defs({
 
 PreludeScope.defs(
 	parseModule(`
-not: (=> x:Bool (nand x x))
-or:  (=> [x:Bool y:Bool] (nand (not x) (not y)))
-and: (=> [x:Bool^true y:Bool^true] (not (nand x y)))
-
 <=: (=> [x:Num y:Num] (or (== x y) (< x y)))
 >: (=> [x:Num y:Num] (< y x))
 >=: (=> [x:Num y:Num] (<= y x))
@@ -161,14 +205,6 @@ const: (=> <T> x:T (=> [] x))
 first: (=> <T> coll:[...T] (coll 0))
 
 id: (=> <T> x:T x)
-
-neg: (=> x:Num (* x -1))
-
--: (=> [...xs:Num]
-       (let l: (len xs)
-            (if (== l 0) 0
-                (if (== l 1) (neg (xs 0))
-                    (+ (xs 0) (neg (reduce + (rest xs) 0)))))))
 
 sqrt: (=> x:Num (if (<= 0 x)
                     (** x 0.5)
