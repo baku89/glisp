@@ -83,7 +83,7 @@ export abstract class BaseNode {
 			const [value, lv] = valueWithLog.asTuple
 			const [defaultValue, ldv] = this.valueMeta.defaultValue.eval(env).asTuple
 
-			if (!value.isInstance(defaultValue)) {
+			if (!value.isTypeFor(defaultValue)) {
 				return valueWithLog.write({
 					level: 'warn',
 					ref: this as any,

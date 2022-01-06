@@ -77,7 +77,7 @@ function startRepl() {
 			try {
 				const evaluated = node.eval()
 
-				if (IO.isInstance(evaluated.result)) {
+				if (IO.isTypeFor(evaluated.result)) {
 					evaluated.result.value()
 				}
 

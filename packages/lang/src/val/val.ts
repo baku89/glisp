@@ -86,7 +86,7 @@ abstract class BaseValue {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	ofDefault = (defaultValue: Atomic): Value => this as any
 
-	isInstance = (value: Value): boolean => {
+	isTypeFor = (value: Value): boolean => {
 		return !value.isType && value.isSubtypeOf(this as any)
 	}
 
@@ -220,7 +220,7 @@ export class PrimType<T = any> extends BaseValue {
 	}
 
 	ofDefault = (defaultValue: Atomic): Value => {
-		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
+		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
 		const primType = new PrimType(this.name)
 		primType.defaultValue = defaultValue
@@ -229,7 +229,7 @@ export class PrimType<T = any> extends BaseValue {
 		return primType
 	}
 
-	isInstance = (value: Value): value is Prim<T> =>
+	isTypeFor = (value: Value): value is Prim<T> =>
 		value.type === 'Prim' && value.isSubtypeOf(this)
 
 	static ofLiteral(name: string, defaultValue: Prim) {
@@ -308,11 +308,11 @@ export class EnumType extends BaseValue {
 		return en
 	}
 
-	isInstance = (value: Value): value is Enum =>
+	isTypeFor = (value: Value): value is Enum =>
 		value.type === 'Enum' && value.isSubtypeOf(this)
 
 	ofDefault = (defaultValue: Atomic): Value => {
-		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
+		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
 		const enumType = new EnumType(this.name, this.types)
 		enumType.defaultValue = defaultValue
@@ -482,10 +482,10 @@ export class FnType extends BaseValue implements IFnType {
 		return isSubtype(eParam, tParam) && isSubtype(this.out, value.out)
 	}
 
-	isInstance!: (value: Value) => value is Fn
+	isTypeFor!: (value: Value) => value is Fn
 
 	ofDefault = (defaultValue: Atomic): Value => {
-		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
+		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
 		const fnType = new FnType(this.param, this.optionalPos, this.rest, this.out)
 		fnType.#defaultValue = defaultValue
@@ -604,10 +604,10 @@ export class Vec<TItems extends Value[] = Value[]>
 		return withLog(ret)
 	}
 
-	isInstance!: (value: Value) => value is Vec
+	isTypeFor!: (value: Value) => value is Vec
 
 	ofDefault = (defaultValue: Atomic): Value => {
-		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
+		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
 		const vecType = Vec.of(this.items, this.optionalPos, this.rest)
 		vecType.#defaultValue = defaultValue
@@ -704,12 +704,12 @@ export class Dict<
 		)
 	}
 
-	isInstance!: (value: Value) => value is Dict
+	isTypeFor!: (value: Value) => value is Dict
 
 	ofDefault = (defaultValue: Atomic): Value => {
 		if (!this.isType) return this
 
-		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
+		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
 		const dictType = Dict.of(this.items, this.optionalKeys, this.rest)
 		dictType.#defaultValue = defaultValue
@@ -787,10 +787,10 @@ export class StructType extends BaseValue implements IFnLike {
 		return Struct.of(this, items)
 	}
 
-	isInstance!: (value: Value) => value is Struct
+	isTypeFor!: (value: Value) => value is Struct
 
 	ofDefault = (defaultValue: Atomic): Value => {
-		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
+		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
 		const structType = StructType.of(this.name, this.param)
 		structType.#defaultValue = defaultValue
@@ -838,7 +838,7 @@ export class UnionType extends BaseValue {
 		this.types.some(s.isSubtypeOf)
 
 	ofDefault = (defaultValue: Atomic): Value => {
-		if (!this.isInstance(defaultValue)) throw new Error('Invalid default value')
+		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
 		const unionType = new UnionType(this.types)
 		unionType.#defaultValue = defaultValue

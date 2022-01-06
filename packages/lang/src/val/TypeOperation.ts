@@ -73,7 +73,7 @@ export function differenceType(original: Value, ...types: Value[]) {
 		}
 
 		// Sから当核の列挙値すべてを消しておく
-		remove(sTypes, sty => sty.type === 'Enum' && oty.isInstance(sty))
+		remove(sTypes, sty => sty.type === 'Enum' && oty.isTypeFor(sty))
 
 		return restEnums
 	})
