@@ -83,6 +83,8 @@ NodeContent =
 ValueMeta =
 	"(" _ defaultValue:(@Node !":" _)? fields:(@DictKey ":" _ @Node _)* ")"
 	{
+		checkDuplicatedKey(fields.map(([key]) => key), 'key')
+
 		defaultValue ??= undefined
 		fields = fields.length > 0 ? Ast.dict(fromPairs(fields)) : undefined
 
@@ -135,7 +137,7 @@ Fn "function definition" =
 
 		const rest = parseRestParameter(_rest)
 
-		const paramNames = [...paramEntries.map(([name]) => name)]
+		const paramNames = paramEntries.map(([name]) => name)
 		if (rest) paramNames.push(rest.name)
 		checkDuplicatedKey(paramNames, 'parameter')
 
@@ -165,7 +167,7 @@ FnType "function type definition" =
 
 		const rest = parseRestParameter(_rest)
 
-		const paramNames = [...paramEntries.map(([name]) => name)]
+		const paramNames = paramEntries.map(([name]) => name)
 		if (rest) paramNames.push(rest.name)
 		checkDuplicatedKey(paramNames, 'parameter')
 		
