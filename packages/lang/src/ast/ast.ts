@@ -71,6 +71,11 @@ export abstract class BaseNode {
 
 	valueMeta?: ValueMeta
 
+	withValueMeta(valueMeta?: ValueMeta) {
+		this.valueMeta = valueMeta
+		return this
+	}
+
 	#forceEvalWithMeta = (env: Env): WithLog => {
 		const valueWithLog = this.forceEval(env)
 
