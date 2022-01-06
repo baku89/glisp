@@ -68,9 +68,10 @@ Program = _ exp:Node _ Comment?
 Node = node:NodeContent valueMeta:(_ "^" _ @ValueMeta)?
 	{
 		if (valueMeta) {
-			node.valueMeta = valueMeta
+			return node.setValueMeta(valueMeta)
+		} else {
+			return node
 		}
-		return node
 	}
 
 NodeContent =
@@ -79,10 +80,15 @@ NodeContent =
 	Fn / FnType / Scope / TryCatch / Call /
 	Vec / Dict
 
-ValueMeta = "(" _ defaultValue:Node _ ")"
+ValueMeta =
+	"(" _ defaultValue:(@Node !":" _)? fields:(@DictKey ":" _ @Node _)* ")"
 	{
-		return {defaultValue}
-	}
+		defaultValue ??= undefined
+		fields = fields.length > 0 ? Ast.dict(fromPairs(fields)) : undefined
+
+		return {defaultValue, fields}
+	} /
+	defaultValue:Node { return {defaultValue} }
 
 Reserved = "_" / "Never" / "..." / "=>" / "->" / "let" / "try" / "catch"
 
@@ -211,15 +217,15 @@ Dict "dictionary" = "{" _ entries:DictEntry* rest:("..." @Node _)? "}"
 		return Ast.dict(items, optionalKeys, rest)
 	}
 
-DictEntry = key:(Str / DictKey) optional:"?"? ":" _ value:Node _
+DictEntry = key:DictKey optional:"?"? ":" _ value:Node _
 	{
-		return [key.value, value, optional]
+		return [key, value, optional]
 	}
 
-DictKey = (!End .)+
-	{
-		return Ast.str(text())
-	}
+// TODO: Why not allowing reserved words for key?
+DictKey =
+	id:Identifier {return id.name } /
+	str: Str {return str.value }
 
 Scope "scope" = "(" _ "let" _ pairs:(@Identifier ":" _ @Node _)* out:Node? _ ")"
 	{

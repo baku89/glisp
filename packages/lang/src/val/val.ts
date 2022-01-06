@@ -58,6 +58,8 @@ abstract class BaseValue {
 	abstract defaultValue: Atomic
 	abstract readonly initialDefaultValue: Atomic
 
+	meta?: Dict
+
 	abstract isEqualTo(value: Value): boolean
 
 	isSubtypeOf = (ty: Value): boolean => {
@@ -74,10 +76,19 @@ abstract class BaseValue {
 	toAst = (): Ast.Node => {
 		const node = this.toAstExceptMeta()
 
-		if (!isEqual(this.defaultValue, this.initialDefaultValue)) {
-			node.valueMeta = {
-				defaultValue: this.defaultValue.toAst(),
-			}
+		const hasDefaultValueChanged = !isEqual(
+			this.defaultValue,
+			this.initialDefaultValue
+		)
+
+		if (hasDefaultValueChanged || this.meta) {
+			const defaultValue = hasDefaultValueChanged
+				? this.defaultValue.toAst()
+				: undefined
+
+			const fields = this.meta?.toAst()
+
+			return node.setValueMeta({defaultValue, fields})
 		}
 
 		return node
@@ -135,6 +146,7 @@ export class All extends BaseValue {
 	ofDefault = (defaultValue: Atomic): Value => {
 		const all = new All()
 		all.defaultValue = defaultValue
+		all.meta = this.meta
 		return all
 	}
 
@@ -225,6 +237,7 @@ export class PrimType<T = any> extends BaseValue {
 		const primType = new PrimType(this.name)
 		primType.defaultValue = defaultValue
 		primType.initialDefaultValue = this.initialDefaultValue
+		primType.meta = this.meta
 
 		return primType
 	}
@@ -316,6 +329,7 @@ export class EnumType extends BaseValue {
 
 		const enumType = new EnumType(this.name, this.types)
 		enumType.defaultValue = defaultValue
+		enumType.meta = this.meta
 
 		return enumType
 	}
@@ -489,6 +503,7 @@ export class FnType extends BaseValue implements IFnType {
 
 		const fnType = new FnType(this.param, this.optionalPos, this.rest, this.out)
 		fnType.#defaultValue = defaultValue
+		fnType.meta = this.meta
 
 		return fnType
 	}
@@ -611,6 +626,7 @@ export class Vec<TItems extends Value[] = Value[]>
 
 		const vecType = Vec.of(this.items, this.optionalPos, this.rest)
 		vecType.#defaultValue = defaultValue
+		vecType.meta = this.meta
 
 		return vecType
 	}
@@ -659,6 +675,8 @@ export class Dict<
 		const items = mapValues(this.items, it => it.toAst())
 		return Ast.dict(items, this.optionalKeys, this.rest?.toAst())
 	}
+
+	toAst!: () => Ast.DictLiteral
 
 	isEqualTo = (value: Value) =>
 		this.type === value.type &&
@@ -713,6 +731,7 @@ export class Dict<
 
 		const dictType = Dict.of(this.items, this.optionalKeys, this.rest)
 		dictType.#defaultValue = defaultValue
+		dictType.meta = this.meta
 
 		return dictType
 	}
@@ -794,6 +813,7 @@ export class StructType extends BaseValue implements IFnLike {
 
 		const structType = StructType.of(this.name, this.param)
 		structType.#defaultValue = defaultValue
+		structType.meta = this.meta
 
 		return structType
 	}
@@ -842,6 +862,7 @@ export class UnionType extends BaseValue {
 
 		const unionType = new UnionType(this.types)
 		unionType.#defaultValue = defaultValue
+		unionType.meta = this.meta
 
 		return unionType
 	}

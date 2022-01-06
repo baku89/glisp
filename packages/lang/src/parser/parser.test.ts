@@ -193,17 +193,19 @@ describe('parsing function type', () => {
 })
 
 describe('parsing value metadata', () => {
-	testParsing('0^(0)', num(0).withValueMeta({defaultValue: num(0)}))
-	testParsing('0 \n^\t(0)', num(0).withValueMeta({defaultValue: num(0)}))
+	testParsing('0^0', num(0).setValueMeta({defaultValue: num(0)}))
+	testParsing('0^(0)', num(0).setValueMeta({defaultValue: num(0)}))
+	testParsing('0 \n^\t(0)', num(0).setValueMeta({defaultValue: num(0)}))
 
-	testParsing('_^("hello")', all().withValueMeta({defaultValue: str('hello')}))
-	testParsing('()^(())', call().withValueMeta({defaultValue: call()}))
+	testParsing('_^("hello")', all().setValueMeta({defaultValue: str('hello')}))
+	testParsing('()^(())', call().setValueMeta({defaultValue: call()}))
 
 	testParsing(
 		'Bool^(true)',
-		id('Bool').withValueMeta({defaultValue: id('true')})
+		id('Bool').setValueMeta({defaultValue: id('true')})
 	)
 
+	testErrorParsing('Bool^true^true')
 	testErrorParsing('Bool^(true)^(true)')
 })
 

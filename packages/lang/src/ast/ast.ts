@@ -30,11 +30,9 @@ export type InnerNode =
 	| VecLiteral
 	| DictLiteral
 
-export type Arg<T extends Val.Value = Val.Value> = () => T
+export type ParentNode = InnerNode | ValueMeta
 
-interface ValueMeta {
-	defaultValue?: Node
-}
+export type Arg<T extends Val.Value = Val.Value> = () => T
 
 export interface PrintOptions {
 	omitMeta?: boolean
@@ -43,19 +41,19 @@ export interface PrintOptions {
 export abstract class BaseNode {
 	abstract readonly type: string
 
-	parent: Node | null = null
+	parent: ParentNode | null = null
 
 	protected constructor() {
 		return this
 	}
 
-	abstract printExceptMeta(options: PrintOptions): string
+	protected abstract printExceptMeta(options: PrintOptions): string
 
 	print = (options: PrintOptions = {}): string => {
 		let node = this.printExceptMeta(options)
 
-		if (options.omitMeta && this.valueMeta?.defaultValue) {
-			node += '^(' + this.valueMeta.defaultValue.print(options) + ')'
+		if (!options.omitMeta && this.valueMeta) {
+			node += this.valueMeta.print(options)
 		}
 
 		return node
@@ -65,35 +63,55 @@ export abstract class BaseNode {
 
 	protected abstract forceInfer(env: Env): WithLog
 
-	abstract isSameTo(node: Node): boolean
+	protected abstract isSameExceptMetaTo(node: Node): boolean
+
+	isSameTo = (node: Node): boolean => {
+		return (
+			this.isSameExceptMetaTo(node) &&
+			nullishEqual(
+				this.valueMeta?.defaultValue,
+				node.valueMeta?.defaultValue,
+				isSame
+			) &&
+			nullishEqual(this.valueMeta?.fields, node.valueMeta?.fields, isSame)
+		)
+	}
 
 	abstract clone(): Node
 
 	valueMeta?: ValueMeta
 
-	withValueMeta(valueMeta?: ValueMeta) {
-		this.valueMeta = valueMeta
+	setValueMeta(valueMeta: {defaultValue?: Node; fields?: DictLiteral} = {}) {
+		this.valueMeta = new ValueMeta(
+			this as any,
+			valueMeta.defaultValue,
+			valueMeta.fields
+		)
 		return this
 	}
 
 	#forceEvalWithMeta = (env: Env): WithLog => {
 		const valueWithLog = this.forceEval(env)
 
-		if (this.valueMeta?.defaultValue) {
+		if (this.valueMeta) {
 			const [value, lv] = valueWithLog.asTuple
-			const [defaultValue, ldv] = this.valueMeta.defaultValue.eval(env).asTuple
+			const [{defaultValue, meta}, ldv] = this.valueMeta.eval(env).asTuple
 
-			if (!value.isTypeFor(defaultValue)) {
-				return valueWithLog.write({
-					level: 'warn',
-					ref: this as any,
-					reason:
-						`Cannot use ${defaultValue.print()} ` +
-						`as a default value of ${value.print()}`,
-				})
+			value.meta = meta
+
+			if (defaultValue) {
+				if (!value.isTypeFor(defaultValue)) {
+					return valueWithLog.write({
+						level: 'warn',
+						ref: this as any,
+						reason:
+							`Cannot use ${defaultValue.print()} ` +
+							`as a default value of ${value.print()}`,
+					})
+				}
+
+				return withLog(value.ofDefault(defaultValue), ...lv, ...ldv)
 			}
-
-			return withLog(value.ofDefault(defaultValue), ...lv, ...ldv)
 		}
 
 		return valueWithLog
@@ -118,7 +136,7 @@ export class Identifier extends BaseNode {
 	}
 
 	#resolve(
-		ref: Node | null,
+		ref: Node | ValueMeta | null,
 		env: Env
 	): Writer<{node: Node; mode?: 'param' | 'arg' | 'TypeVar'}, Log> {
 		if (!ref) {
@@ -138,6 +156,7 @@ export class Identifier extends BaseNode {
 				return Writer.of({node: ref.vars[this.name]})
 			}
 		}
+
 		if (ref.type === 'FnDef') {
 			if (env.isGlobal) {
 				// Situation A. While normal evaluation
@@ -159,6 +178,7 @@ export class Identifier extends BaseNode {
 				env = env.pop()
 			}
 		}
+
 		// Resolve typeVars
 		if (ref.type === 'FnDef' || ref.type === 'FnTypeDef') {
 			if (this.name in ref.typeVars) {
@@ -167,6 +187,11 @@ export class Identifier extends BaseNode {
 					mode: 'TypeVar',
 				})
 			}
+		}
+
+		// On meta
+		if (ref.type === 'ValueMeta') {
+			return this.#resolve(ref.attachedTo, env)
 		}
 
 		// Resolve with parent node recursively
@@ -194,9 +219,10 @@ export class Identifier extends BaseNode {
 		}
 	}
 
-	printExceptMeta = () => this.name
+	protected printExceptMeta = () => this.name
 
-	isSameTo = (node: Node) => this.type === node.type && this.name === node.name
+	protected isSameExceptMetaTo = (node: Node) =>
+		this.type === node.type && this.name === node.name
 
 	clone = () => Identifier.of(this.name)
 
@@ -216,13 +242,13 @@ export class ValueContainer<V extends Val.Value = Val.Value> extends BaseNode {
 
 	protected forceInfer = () => withLog(this.value.isType ? Val.all : this.value)
 
-	printExceptMeta = (options: PrintOptions) => {
+	protected printExceptMeta = (options: PrintOptions) => {
 		const ast = this.value.toAst()
 		if (ast.type !== this.type) return ast.print(options)
 		return `<value container of ${this.value.type}>`
 	}
 
-	isSameTo = (node: Node) =>
+	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type && this.value === node.value
 
 	clone = () => ValueContainer.of(this.value)
@@ -237,8 +263,8 @@ export class AllKeyword extends BaseNode {
 
 	protected forceEval = () => withLog(Val.all)
 	protected forceInfer = () => withLog(Val.all)
-	printExceptMeta = () => '_'
-	isSameTo = (node: Node) => this.type === node.type
+	protected printExceptMeta = () => '_'
+	protected isSameExceptMetaTo = (node: Node) => this.type === node.type
 	clone = () => AllKeyword.of()
 
 	static of() {
@@ -251,8 +277,8 @@ export class NeverKeyword extends BaseNode {
 
 	protected forceEval = () => withLog(Val.never)
 	protected forceInfer = () => withLog(Val.all)
-	printExceptMeta = () => 'Never'
-	isSameTo = (node: Node) => this.type === node.type
+	protected printExceptMeta = () => 'Never'
+	protected isSameExceptMetaTo = (node: Node) => this.type === node.type
 	clone = () => NeverKeyword.of()
 
 	static of() {
@@ -269,8 +295,8 @@ export class NumLiteral extends BaseNode {
 
 	protected forceEval = () => withLog(Val.num(this.value))
 	protected forceInfer = () => withLog(Val.num(this.value))
-	printExceptMeta = () => this.value.toString()
-	isSameTo = (node: Node) =>
+	protected printExceptMeta = () => this.value.toString()
+	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type && this.value === node.value
 	clone = () => NumLiteral.of(this.value)
 
@@ -290,9 +316,9 @@ export class StrLiteral extends BaseNode {
 
 	protected forceInfer = () => withLog(Val.str(this.value))
 
-	printExceptMeta = () => '"' + this.value + '"'
+	protected printExceptMeta = () => '"' + this.value + '"'
 
-	isSameTo = (node: Node) =>
+	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type && this.value === node.value
 
 	clone = () => StrLiteral.of(this.value)
@@ -381,7 +407,7 @@ export class FnDef extends BaseNode {
 		return withLog(fnType, ...lp, ...lr, ...lo)
 	}
 
-	printExceptMeta = (options: PrintOptions): string => {
+	protected printExceptMeta = (options: PrintOptions): string => {
 		const typeVars = printTypeVars(this.typeVars)
 		const param = printParam(this.param, this.optionalPos, this.rest, options)
 		const body = this.body.print(options)
@@ -389,7 +415,7 @@ export class FnDef extends BaseNode {
 		return `(=> ${typeVars}${param} ${body})`
 	}
 
-	isSameTo = (node: Node) =>
+	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type &&
 		isEqualArray(keys(this.typeVars), keys(node.typeVars)) &&
 		isEqualDict(this.param, node.param, isSame) &&
@@ -476,14 +502,14 @@ export class FnTypeDef extends BaseNode {
 
 	protected forceInfer = () => withLog(Val.all)
 
-	printExceptMeta = (options: PrintOptions): string => {
+	protected printExceptMeta = (options: PrintOptions): string => {
 		const typeVars = printTypeVars(this.typeVars)
 		const param = printParam(this.param, this.optionalPos, this.rest, options)
 		const out = this.out.print(options)
 		return `(-> ${typeVars}${param} ${out})`
 	}
 
-	isSameTo = (node: Node): boolean =>
+	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
 		isEqualArray(keys(this.typeVars), keys(node.typeVars)) &&
 		isEqualDict(this.param, node.param, isSame) &&
@@ -604,7 +630,7 @@ export class VecLiteral extends BaseNode {
 		return withLog(Val.vec(items), ...log)
 	}
 
-	printExceptMeta = (options: PrintOptions): string => {
+	protected printExceptMeta = (options: PrintOptions): string => {
 		const op = this.optionalPos
 		const items = this.items.map(
 			(it, i) => it.print(options) + (op <= i ? '?' : '')
@@ -613,7 +639,7 @@ export class VecLiteral extends BaseNode {
 		return '[' + [...items, ...rest].join(' ') + ']'
 	}
 
-	isSameTo = (node: Node): boolean =>
+	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
 		isEqualArray(this.items, node.items, isSame) &&
 		this.optionalPos === node.optionalPos &&
@@ -651,6 +677,8 @@ export class DictLiteral extends BaseNode {
 		return withLog(Val.dict(items, this.optionalKeys, rest), ...li, ...lr)
 	}
 
+	eval!: (env?: Env) => WithLog<Val.Dict>
+
 	protected forceInfer = (env: Env): WithLog => {
 		if (this.optionalKeys.size > 0 || this.rest) return withLog(Val.all)
 
@@ -660,7 +688,7 @@ export class DictLiteral extends BaseNode {
 		return withLog(Val.dict(items), ...logs)
 	}
 
-	printExceptMeta = (options: PrintOptions): string => {
+	protected printExceptMeta = (options: PrintOptions): string => {
 		const items = entries(this.items).map(
 			([k, v]) => k + (this.#isOptional(k) ? '?' : '') + ': ' + v.print(options)
 		)
@@ -668,7 +696,7 @@ export class DictLiteral extends BaseNode {
 		return '{' + [...items, ...rest].join(' ') + '}'
 	}
 
-	isSameTo = (node: Node): boolean =>
+	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
 		isEqualDict(this.items, node.items, isSame) &&
 		isEqualSet(this.optionalKeys, node.optionalKeys) &&
@@ -867,7 +895,7 @@ export class Call extends BaseNode {
 		return withLog(unifier.substitute(ty.fnType.out, true), ...log)
 	}
 
-	printExceptMeta = (options: PrintOptions): string => {
+	protected printExceptMeta = (options: PrintOptions): string => {
 		if (!this.callee) return '()'
 
 		const callee = this.callee.print(options)
@@ -876,7 +904,7 @@ export class Call extends BaseNode {
 		return '(' + [callee, ...args].join(' ') + ')'
 	}
 
-	isSameTo = (node: Node) =>
+	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type && isEqualArray(this.args, node.args, isSame)
 
 	clone = (): Call => Call.of(this.callee, ...this.args.map(clone))
@@ -901,7 +929,7 @@ export class Scope extends BaseNode {
 
 	protected forceEval = (env: Env) => this.out?.eval(env) ?? Writer.of(Val.unit)
 
-	printExceptMeta = (options: PrintOptions): string => {
+	protected printExceptMeta = (options: PrintOptions): string => {
 		const vars = entries(this.vars).map(
 			([k, v]) => k + ' = ' + v.print(options)
 		)
@@ -910,7 +938,7 @@ export class Scope extends BaseNode {
 		return '(let ' + [...vars, ...out].join(' ') + ')'
 	}
 
-	isSameTo = (node: Node) =>
+	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type &&
 		nullishEqual(this.out, node.out, isSame) &&
 		isEqualDict(this.vars, node.vars, isSame)
@@ -979,13 +1007,13 @@ export class TryCatch extends BaseNode {
 		return withLog(Val.unionType(block, handler), ...lb, ...lh)
 	}
 
-	printExceptMeta = (options: PrintOptions): string => {
+	protected printExceptMeta = (options: PrintOptions): string => {
 		const block = this.block.print(options)
 		const handler = this.handler.print(options)
 		return `(try ${block} ${handler})`
 	}
 
-	isSameTo = (node: Node): boolean =>
+	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
 		isSame(this.block, node.block) &&
 		nullishEqual(this.handler, node.handler, isSame)
@@ -1002,11 +1030,62 @@ export class TryCatch extends BaseNode {
 	}
 }
 
-export function setParent(node: Node, parent: Node | null) {
-	node.parent = parent
-	if (node.valueMeta?.defaultValue) {
-		node.valueMeta.defaultValue.parent = parent
+class ValueMeta {
+	readonly type = 'ValueMeta'
+
+	public fields?: DictLiteral
+
+	public constructor(
+		public attachedTo: Node,
+		public defaultValue?: Node,
+		fields?: DictLiteral
+	) {
+		if (fields && keys(fields.items).length > 0) {
+			this.fields = fields
+
+			fields.parent = this
+		}
+
+		if (defaultValue) defaultValue.parent = this
 	}
+
+	print = (options: PrintOptions) => {
+		const fields = this.fields?.print(options).slice(1, -1) ?? ''
+
+		const hasNoFields = fields === ''
+
+		if (!this.defaultValue && fields === '') {
+			return ''
+		}
+
+		const defaultValue = this.defaultValue
+			? [this.defaultValue.print(options)]
+			: []
+
+		if (hasNoFields) {
+			return '^' + defaultValue.join('')
+		} else {
+			return '^(' + [...defaultValue, fields].join(' ') + ')'
+		}
+	}
+
+	eval = (env: Env) => {
+		const [defaultValue, ld] = this.defaultValue?.eval(env).asTuple ?? [
+			undefined,
+			new Set<Log>(),
+		]
+
+		const [meta, lf] = this.fields?.eval(env).asTuple ?? [
+			undefined,
+			new Set<Log>(),
+		]
+
+		return Writer.of({defaultValue, meta}, ...ld, ...lf)
+	}
+}
+
+export function setParent(node: Node, parent: ParentNode | null) {
+	node.parent = parent
 }
 
 export function isSame(a: Node, b: Node): boolean {
