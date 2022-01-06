@@ -93,7 +93,7 @@ export abstract class BaseNode {
 				})
 			}
 
-			return withLog(value.withDefault(defaultValue), ...lv, ...ldv)
+			return withLog(value.ofDefault(defaultValue), ...lv, ...ldv)
 		}
 
 		return valueWithLog
