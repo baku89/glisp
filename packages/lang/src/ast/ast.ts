@@ -55,7 +55,7 @@ export abstract class BaseNode {
 		let node = this.printExceptMeta(options)
 
 		if (options.omitMeta && this.valueMeta?.defaultValue) {
-			node += '^{' + this.valueMeta.defaultValue.print(options) + '}'
+			node += '^(' + this.valueMeta.defaultValue.print(options) + ')'
 		}
 
 		return node

@@ -79,7 +79,7 @@ NodeContent =
 	Fn / FnType / Scope / TryCatch / Call /
 	Vec / Dict
 
-ValueMeta = "{" _ defaultValue:Node _ "}"
+ValueMeta = "(" _ defaultValue:Node _ ")"
 	{
 		return {defaultValue}
 	}

@@ -53,14 +53,14 @@ PreludeScope.defs({
 	'+': defn('(-> [...xs:Num] Num)', (...xs: Val.Num[]) =>
 		Val.num(xs.reduce((sum, x) => sum + x.value, 0))
 	),
-	'*': defn('(-> [...xs:Num^{1}] Num)', (...xs: Val.Num[]) =>
+	'*': defn('(-> [...xs:Num^(1)] Num)', (...xs: Val.Num[]) =>
 		Val.num(xs.reduce((prod, x) => prod * x.value, 1))
 	),
 	'/': defn('(-> [x:Num y:Num] Num)', (a: Val.Num, b: Val.Num) => {
 		if (b.value === 0) throw new Error('Divided by zero')
 		return Val.num(a.value / b.value)
 	}),
-	'**': defn('(-> [x:Num a:Num^{1}] Num)', (x: Val.Num, a: Val.Num) =>
+	'**': defn('(-> [x:Num a:Num^(1)] Num)', (x: Val.Num, a: Val.Num) =>
 		Val.num(Math.pow(x.value, a.value))
 	),
 	mod: defn('(-> [x:Num y:Num] Num)', (x: Val.Num, y: Val.Num) =>
@@ -139,7 +139,7 @@ PreludeScope.defs(
 	parseModule(`
 not: (=> x:Bool (nand x x))
 or:  (=> [x:Bool y:Bool] (nand (not x) (not y)))
-and: (=> [x:Bool^{true} y:Bool^{true}] (not (nand x y)))
+and: (=> [x:Bool^(true) y:Bool^(true)] (not (nand x y)))
 
 <=: (=> [x:Num y:Num] (or (== x y) (< x y)))
 >: (=> [x:Num y:Num] (< y x))
