@@ -39,7 +39,7 @@ describe('subtyping', () => {
 	test('()', '0', '!=')
 	test('()', '_', '<')
 
-	// Atom, TyAtom
+	// Prim, PrimType
 	test('1', '1', '=')
 	test('1', 'Num', '<')
 	// run('1', Val.NumType.extends('1'), true)

@@ -168,7 +168,7 @@ export class Unifier {
 
 		/**
 		 * tp R' up /\ to R tp
-		 *--------------------- ST-TyFn
+		 *--------------------- ST-FnType
 		 * tp -> to R up -> uo
 		 */
 		if (t.type === 'FnType' && 'fnType' in u) {

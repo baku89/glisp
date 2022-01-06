@@ -58,7 +58,7 @@ export function differenceType(original: Value, ...types: Value[]) {
 	const sTypes = asUnion(unionType(...types))
 
 	/**
-	 * OにTyEnumが含まれる時、引き算をする。Bool - true = false になるように
+	 * OにEnumTypeが含まれる時、引き算をする。Bool - true = false になるように
 	 */
 	oTypes = oTypes.flatMap((oty): Value[] => {
 		if (oty.type !== 'EnumType') return [oty]
