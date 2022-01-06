@@ -1,34 +1,51 @@
 import {range} from 'lodash'
 
 import * as Ast from '../ast'
-import {withLog} from '../log'
+import {Log, withLog} from '../log'
 import {parseModule} from '../parser'
 import {parse} from '../parser'
 import {Writer} from '../util/Writer'
 import * as Val from '../val'
 
-function defn(
-	type: string,
-	f: (...args: Ast.Arg<any>[]) => Val.Value,
-	options?: {lazy?: true}
-): Ast.ValueContainer
-function defn(
-	type: string,
-	f: (...args: any[]) => Val.Value,
-	options?: {lazy?: false}
-): Ast.ValueContainer
-function defn(
-	type: string,
-	f: (...args: any[]) => Val.Value,
-	{lazy = false} = {}
-) {
+interface Defn {
+	(
+		type: string,
+		f: (...args: Ast.Arg<any>[]) => Val.Value,
+		options?: {lazy?: true; writeLog?: false}
+	): Ast.ValueContainer
+	(
+		type: string,
+		f: (...args: any[]) => Val.Value,
+		options?: {lazy?: false; writeLog?: false}
+	): Ast.ValueContainer
+	(
+		type: string,
+		f: Val.IFn,
+		options?: {lazy?: true; writeLog?: true}
+	): Ast.ValueContainer
+	(
+		type: string,
+		f: (...args: any[]) => ReturnType<Val.IFn>,
+		options?: {lazy?: false; writeLog?: true}
+	): Ast.ValueContainer
+}
+
+const defn: Defn = (type, f, {lazy = false, writeLog = false} = {}) => {
 	const fnType = parse(type, PreludeScope).eval().result
 
 	if (fnType.type !== 'FnType') throw new Error('Not a fnType:' + type)
 
-	const _f: Val.IFn = lazy
-		? (...args) => withLog(f(...args))
-		: (...args) => withLog(f(...args.map(a => a())))
+	let _f: Val.IFn
+
+	if (writeLog) {
+		_f = lazy
+			? (f as Val.IFn)
+			: (...args) => f(...args.map(a => a())) as ReturnType<Val.IFn>
+	} else {
+		_f = lazy
+			? (...args) => withLog(f(...args) as Val.Value)
+			: (...args) => withLog(f(...args.map(a => a())) as Val.Value)
+	}
 
 	const fn = Val.fnFrom(fnType, _f)
 
@@ -50,6 +67,15 @@ PreludeScope.defs({
 	throw: defn('(-> reason:_ Never)', (reason: Val.Str) => {
 		throw new Error(reason.value)
 	}),
+	log: defn(
+		'(-> <T> [value:T level:(| "error" "warn" "info") reason:Str] T)',
+		(value: Val.Value, level: Val.Str, reason: Val.Str) =>
+			Writer.of(value, {
+				level: level.value as Log['level'],
+				reason: reason.value,
+			}),
+		{writeLog: true}
+	),
 	'+': defn('(-> [...xs:Num] Num)', (...xs: Val.Num[]) =>
 		Val.num(xs.reduce((sum, x) => sum + x.value, 0))
 	),
@@ -208,7 +234,7 @@ id: (=> <T> x:T x)
 
 sqrt: (=> x:Num (if (<= 0 x)
                     (** x 0.5)
-                    (throw "Negative number")))
+                    (log 0 "warn" "Negative number")))
 
 square: (=> x:Num (** x 2))
 hypot:  (=> [x:Num y:Num] (sqrt (+ (* x x) (* y y))))
