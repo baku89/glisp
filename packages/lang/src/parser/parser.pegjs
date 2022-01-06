@@ -92,7 +92,7 @@ ValueMeta =
 	} /
 	defaultValue:Node { return {defaultValue} }
 
-Reserved = "_" / "Never" / "..." / "=>" / "->" / "let" / "try" / "catch"
+Reserved = "_" / "Never" / "=>" / "->" / "let" / "try"
 
 Unit = "(" _ ")" { return Ast.call() }
 
