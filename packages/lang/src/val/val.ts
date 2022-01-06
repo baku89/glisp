@@ -528,8 +528,13 @@ export class FnType extends BaseValue implements IFnType {
 		return (this.#defaultValue ??= this.initialDefaultValue)
 	}
 
+	#initialDefaultValue?: Fn
 	get initialDefaultValue(): Fn {
-		return Fn.from(this, () => withLog(this.out.defaultValue))
+		if (!this.#initialDefaultValue) {
+			const fn = Fn.from(this, () => withLog(this.out.defaultValue))
+			this.#initialDefaultValue = fn
+		}
+		return this.#initialDefaultValue
 	}
 
 	toAstExceptMeta = (): Ast.FnTypeDef => {
@@ -588,6 +593,7 @@ export class FnType extends BaseValue implements IFnType {
 	protected clone = () => {
 		const value = new FnType(this.param, this.optionalPos, this.rest, this.out)
 		value.#defaultValue = this.#defaultValue
+		value.#initialDefaultValue = this.#initialDefaultValue
 		value.meta = this.meta
 		return value
 	}
