@@ -93,28 +93,35 @@ export abstract class BaseNode {
 	#forceEvalWithMeta = (env: Env): WithLog => {
 		const valueWithLog = this.forceEval(env)
 
-		if (this.valueMeta) {
-			const [value, lv] = valueWithLog.asTuple
-			const [{defaultValue, meta}, ldv] = this.valueMeta.eval(env).asTuple
+		if (!this.valueMeta) {
+			return valueWithLog
+		}
 
-			value.meta = meta
+		// Set value metadata
+		const [_value, lv] = valueWithLog.asTuple
+		const [{defaultValue, meta}, ldv] = this.valueMeta.eval(env).asTuple
 
-			if (defaultValue) {
-				if (!value.isTypeFor(defaultValue)) {
-					return valueWithLog.write({
-						level: 'warn',
-						ref: this as any,
-						reason:
-							`Cannot use ${defaultValue.print()} ` +
-							`as a default value of ${value.print()}`,
-					})
-				}
+		let value = _value
 
-				return withLog(value.ofDefault(defaultValue), ...lv, ...ldv)
+		if (defaultValue) {
+			if (value.isTypeFor(defaultValue)) {
+				value = value.ofDefault(defaultValue)
+			} else {
+				ldv.add({
+					level: 'warn',
+					ref: this as any,
+					reason:
+						`Cannot use ${defaultValue.print()} ` +
+						`as a default value of ${value.print()}`,
+				})
 			}
 		}
 
-		return valueWithLog
+		if (meta) {
+			value = value.withMeta(meta)
+		}
+
+		return withLog(value, ...lv, ...ldv)
 	}
 
 	eval(env = Env.global) {

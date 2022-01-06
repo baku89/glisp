@@ -97,11 +97,19 @@ abstract class BaseValue {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	ofDefault = (defaultValue: Atomic): Value => this as any
 
+	withMeta = (meta: Dict) => {
+		const value = this.clone()
+		value.meta = meta
+		return value
+	}
+
 	isTypeFor = (value: Value): boolean => {
 		return !value.isType && value.isSubtypeOf(this as any)
 	}
 
 	print = (options?: PrintOptions) => this.toAst().print(options)
+
+	protected abstract clone(): Value
 }
 
 export type IFn = (...params: Ast.Arg<any>[]) => Writer<Value, Omit<Log, 'ref'>>
@@ -117,14 +125,20 @@ interface IFnLike extends IFnType {
 export class Unit extends BaseValue {
 	readonly type = 'Unit' as const
 
-	superType!: All
+	readonly superType!: All
 
-	defaultValue = this
-	initialDefaultValue = this
+	readonly defaultValue = this
+	readonly initialDefaultValue = this
 
 	isEqualTo = (value: Value) => this.type === value.type
 
 	toAstExceptMeta = () => Ast.call()
+
+	protected clone = () => {
+		const value = new Unit()
+		value.meta = this.meta
+		return value
+	}
 
 	static instance = new Unit()
 }
@@ -132,10 +146,14 @@ export class Unit extends BaseValue {
 export class All extends BaseValue {
 	readonly type = 'All' as const
 
-	superType = this
+	readonly superType = this
 
-	defaultValue: Atomic = Unit.instance
-	initialDefaultValue = Unit.instance
+	#defaultValue?: Atomic
+	get defaultValue() {
+		return (this.#defaultValue ??= Unit.instance)
+	}
+
+	readonly initialDefaultValue = Unit.instance
 
 	toAstExceptMeta = () => Ast.all()
 
@@ -144,24 +162,30 @@ export class All extends BaseValue {
 	isSubtypeOf = this.isEqualTo
 
 	ofDefault = (defaultValue: Atomic): Value => {
-		const all = new All()
-		all.defaultValue = defaultValue
-		all.meta = this.meta
-		return all
+		const value = this.clone()
+		value.#defaultValue = defaultValue
+		return value
+	}
+
+	protected clone = () => {
+		const value = new All()
+		value.#defaultValue = this.#defaultValue
+		value.meta = this.meta
+		return value
 	}
 
 	static instance = new All()
 }
 
-Unit.prototype.superType = All.instance
+;(Unit.prototype.superType as Unit['superType']) = All.instance
 
 export class Never extends BaseValue {
 	readonly type = 'Never' as const
 
-	superType = All.instance
+	readonly superType = All.instance
 
-	defaultValue = this
-	initialDefaultValue = this
+	readonly defaultValue = this
+	readonly initialDefaultValue = this
 
 	toAstExceptMeta = () => Ast.never()
 
@@ -169,18 +193,27 @@ export class Never extends BaseValue {
 
 	isSubtypeOf = () => true
 
+	protected clone = () => {
+		const value = new Never()
+		value.meta = this.meta
+		return value
+	}
+
 	static instance = new Never()
 }
 
 export class Prim<T = any> extends BaseValue {
 	readonly type = 'Prim' as const
 
-	protected constructor(public superType: PrimType, public value: T) {
+	protected constructor(
+		public readonly superType: PrimType,
+		public readonly value: T
+	) {
 		super()
 	}
 
-	defaultValue = this
-	initialDefaultValue = this
+	readonly defaultValue = this
+	readonly initialDefaultValue = this
 
 	toAstExceptMeta = (): Ast.Node => Ast.value(this)
 
@@ -188,6 +221,12 @@ export class Prim<T = any> extends BaseValue {
 		this.type === value.type &&
 		this.value === value.value &&
 		isEqual(this.superType, value.superType)
+
+	protected clone = () => {
+		const value = new Prim(this.superType, this.value)
+		value.meta = this.meta
+		return value
+	}
 
 	static from<T>(ty: PrimType, value: T) {
 		return new Prim<T>(ty, value)
@@ -212,14 +251,22 @@ export class Str extends Prim<string> {
 
 export class PrimType<T = any> extends BaseValue {
 	readonly type = 'PrimType' as const
-	superType = All.instance
 
 	private constructor(private readonly name: string) {
 		super()
 	}
 
-	defaultValue!: Num | Str | Prim
-	initialDefaultValue!: Num | Str | Prim
+	readonly superType = All.instance
+
+	#defaultValue!: Num | Str | Prim
+	get defaultValue() {
+		return (this.#defaultValue ??= this.#initialDefaultValue)
+	}
+
+	#initialDefaultValue!: Num | Str | Prim
+	get initialDefaultValue() {
+		return this.#initialDefaultValue
+	}
 
 	// TODO: fix this
 	toAstExceptMeta = () => Ast.id(this.name)
@@ -234,12 +281,17 @@ export class PrimType<T = any> extends BaseValue {
 	ofDefault = (defaultValue: Atomic): Value => {
 		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
-		const primType = new PrimType(this.name)
-		primType.defaultValue = defaultValue
-		primType.initialDefaultValue = this.initialDefaultValue
-		primType.meta = this.meta
+		const value = this.clone()
+		value.#defaultValue = defaultValue
+		return value
+	}
 
-		return primType
+	protected clone = () => {
+		const value = new PrimType(this.name)
+		value.#defaultValue = this.defaultValue
+		value.#initialDefaultValue = this.#initialDefaultValue
+		value.meta = this.meta
+		return value
 	}
 
 	isTypeFor = (value: Value): value is Prim<T> =>
@@ -248,9 +300,8 @@ export class PrimType<T = any> extends BaseValue {
 	static ofLiteral(name: string, defaultValue: Prim) {
 		const primType = new PrimType(name)
 
-		primType.defaultValue = primType.initialDefaultValue = defaultValue
-
-		defaultValue.superType = primType
+		primType.#defaultValue = primType.#initialDefaultValue = defaultValue
+		;(defaultValue.superType as Prim['superType']) = primType
 
 		return primType
 	}
@@ -259,17 +310,17 @@ export class PrimType<T = any> extends BaseValue {
 		const primType = new PrimType<T>(name)
 		const d = Prim.from(primType, defaultValue)
 
-		primType.defaultValue = primType.initialDefaultValue = d
+		primType.#defaultValue = primType.#initialDefaultValue = d
 
 		return primType
 	}
 }
 
 export const NumType = PrimType.ofLiteral('Num', Num.of(0))
-export const StrType = PrimType.ofLiteral('Str', Str.of(''))
+;(Num.prototype.superType as Num['superType']) = NumType
 
-Num.prototype.superType = NumType
-Str.prototype.superType = StrType
+export const StrType = PrimType.ofLiteral('Str', Str.of(''))
+;(Str.prototype.superType as Str['superType']) = StrType
 
 export class Enum extends BaseValue {
 	readonly type = 'Enum' as const
@@ -279,8 +330,8 @@ export class Enum extends BaseValue {
 		super()
 	}
 
-	defaultValue = this
-	initialDefaultValue = this
+	readonly defaultValue = this
+	readonly initialDefaultValue = this
 
 	// TODO: fix this
 	toAstExceptMeta = () => Ast.id(this.name)
@@ -289,6 +340,12 @@ export class Enum extends BaseValue {
 		this.type === value.type &&
 		this.name === value.name &&
 		this.superType.isEqualTo(value.superType)
+
+	protected clone = () => {
+		const value = new Enum(this.name)
+		value.meta = this.meta
+		return value
+	}
 
 	static of(name: string) {
 		return new Enum(name)
@@ -306,8 +363,12 @@ export class EnumType extends BaseValue {
 		super()
 	}
 
-	defaultValue = this.types[0]
-	initialDefaultValue = this.types[0]
+	#defaultValue?: Enum
+	get defaultValue() {
+		return (this.#defaultValue ??= this.types[0])
+	}
+
+	readonly initialDefaultValue = this.types[0]
 
 	// TODO: fix this
 	toAstExceptMeta = () => Ast.id(this.name)
@@ -327,11 +388,16 @@ export class EnumType extends BaseValue {
 	ofDefault = (defaultValue: Atomic): Value => {
 		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
-		const enumType = new EnumType(this.name, this.types)
-		enumType.defaultValue = defaultValue
-		enumType.meta = this.meta
+		const value = this.clone()
+		value.#defaultValue = defaultValue
+		return value
+	}
 
-		return enumType
+	protected clone = () => {
+		const value = new EnumType(this.name, this.types)
+		value.#defaultValue = this.#defaultValue
+		value.meta = this.meta
+		return value
 	}
 
 	static of(name: string, labels: string[]) {
@@ -339,7 +405,6 @@ export class EnumType extends BaseValue {
 
 		const types = labels.map(Enum.of)
 		const enumType = new EnumType(name, types)
-		enumType.defaultValue = types[0]
 		types.forEach(t => (t.superType = enumType))
 
 		return enumType
@@ -350,16 +415,23 @@ export class TypeVar extends BaseValue {
 	readonly type = 'TypeVar' as const
 	readonly superType = All.instance
 
-	private constructor(public name: string, public readonly original?: TypeVar) {
+	private constructor(
+		public readonly name: string,
+		public readonly original?: TypeVar
+	) {
 		super()
 	}
 
-	defaultValue = Unit.instance
-	initialDefaultValue = Unit.instance
+	readonly defaultValue = Unit.instance
+	readonly initialDefaultValue = Unit.instance
 
 	toAstExceptMeta = () => Ast.id(this.name)
 
 	isEqualTo = (value: Value) => this === value
+
+	protected clone = () => {
+		throw new Error('TypeVar cannot be cloned')
+	}
 
 	shadow = (): TypeVar => {
 		return new TypeVar(this.name, this)
@@ -378,17 +450,17 @@ export class Fn extends BaseValue implements IFnLike {
 	readonly type = 'Fn' as const
 
 	private constructor(
-		public superType: FnType,
-		public fn: IFn,
-		public body?: Ast.Node
+		public readonly superType: FnType,
+		public readonly fn: IFn,
+		public readonly body?: Ast.Node
 	) {
 		super()
 	}
 
-	fnType = this.superType
+	readonly fnType = this.superType
 
-	defaultValue = this
-	initialDefaultValue = this
+	readonly defaultValue = this
+	readonly initialDefaultValue = this
 
 	isEqualTo = (value: Value) => this === value
 
@@ -414,6 +486,12 @@ export class Fn extends BaseValue implements IFnLike {
 		})
 	}
 
+	protected clone = () => {
+		const value = new Fn(this.superType, this.fn, this.body)
+		value.meta = this.meta
+		return value
+	}
+
 	static of(param: Record<string, Value>, out: Value, fn: IFn) {
 		return new Fn(FnType.of({param, out}), fn)
 	}
@@ -424,7 +502,7 @@ export class Fn extends BaseValue implements IFnLike {
 
 export class FnType extends BaseValue implements IFnType {
 	readonly type = 'FnType' as const
-	superType = All.instance
+	readonly superType = All.instance
 
 	private constructor(
 		public readonly param: Record<string, Value>,
@@ -442,7 +520,7 @@ export class FnType extends BaseValue implements IFnType {
 		}
 	}
 
-	fnType = this
+	readonly fnType = this
 
 	#defaultValue?: Fn
 	get defaultValue() {
@@ -501,11 +579,16 @@ export class FnType extends BaseValue implements IFnType {
 	ofDefault = (defaultValue: Atomic): Value => {
 		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
-		const fnType = new FnType(this.param, this.optionalPos, this.rest, this.out)
-		fnType.#defaultValue = defaultValue
-		fnType.meta = this.meta
+		const value = this.clone()
+		value.#defaultValue = defaultValue
+		return value
+	}
 
-		return fnType
+	protected clone = () => {
+		const value = new FnType(this.param, this.optionalPos, this.rest, this.out)
+		value.#defaultValue = this.#defaultValue
+		value.meta = this.meta
+		return value
 	}
 
 	static of({
@@ -534,7 +617,7 @@ export class Vec<TItems extends Value[] = Value[]>
 	private constructor(
 		public readonly items: TItems,
 		public readonly optionalPos: number,
-		public rest?: Value
+		public readonly rest?: Value
 	) {
 		super()
 		if (optionalPos < 0 || items.length < optionalPos || optionalPos % 1 !== 0)
@@ -609,7 +692,10 @@ export class Vec<TItems extends Value[] = Value[]>
 		)
 	}
 
-	fnType = FnType.of({param: {index: NumType}, out: unionType(...this.items)})
+	readonly fnType = FnType.of({
+		param: {index: NumType},
+		out: unionType(...this.items),
+	})
 
 	fn: IFn = (index: Ast.Arg<Num>) => {
 		const ret = this.items[index().value]
@@ -624,11 +710,16 @@ export class Vec<TItems extends Value[] = Value[]>
 	ofDefault = (defaultValue: Atomic): Value => {
 		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
-		const vecType = Vec.of(this.items, this.optionalPos, this.rest)
-		vecType.#defaultValue = defaultValue
-		vecType.meta = this.meta
+		const value = this.clone()
+		value.#defaultValue = defaultValue
+		return value
+	}
 
-		return vecType
+	protected clone = () => {
+		const value = new Vec(this.items, this.optionalPos, this.rest)
+		value.#defaultValue = this.#defaultValue
+		value.meta = this.meta
+		return value
 	}
 
 	static of<TItems extends Value[]>(
@@ -644,7 +735,6 @@ export class Dict<
 	TItems extends Record<string, Value> = Record<string, Value>
 > extends BaseValue {
 	readonly type = 'Dict' as const
-	superType = All.instance
 
 	private constructor(
 		public readonly items: TItems,
@@ -653,6 +743,8 @@ export class Dict<
 	) {
 		super()
 	}
+
+	readonly superType = All.instance
 
 	#isRequredKey(key: string) {
 		return key in this.items && !this.optionalKeys.has(key)
@@ -725,15 +817,18 @@ export class Dict<
 	isTypeFor!: (value: Value) => value is Dict
 
 	ofDefault = (defaultValue: Atomic): Value => {
-		if (!this.isType) return this
-
 		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
-		const dictType = Dict.of(this.items, this.optionalKeys, this.rest)
-		dictType.#defaultValue = defaultValue
-		dictType.meta = this.meta
+		const value = this.clone()
+		value.#defaultValue = defaultValue
+		return value
+	}
 
-		return dictType
+	protected clone = () => {
+		const value = new Dict(this.items, this.optionalKeys, this.rest)
+		value.#defaultValue = this.#defaultValue
+		value.meta = this.meta
+		return value
 	}
 
 	static of<TItems extends Record<string, Value>>(
@@ -748,12 +843,15 @@ export class Dict<
 export class Struct extends BaseValue {
 	readonly type = 'Struct' as const
 
-	private constructor(public superType: StructType, public items: Value[]) {
+	private constructor(
+		public readonly superType: StructType,
+		public readonly items: Value[]
+	) {
 		super()
 	}
 
-	defaultValue = this
-	initialDefaultValue = this
+	readonly defaultValue = this
+	readonly initialDefaultValue = this
 
 	toAstExceptMeta = (): Ast.Node => {
 		const items = this.items.map(it => it.toAst())
@@ -766,6 +864,12 @@ export class Struct extends BaseValue {
 		isEqual(this.superType, value.superType) &&
 		isEqualArray(this.items, value.items, isEqual)
 
+	protected clone = () => {
+		const value = new Struct(this.superType, this.items)
+		value.meta = this.meta
+		return value
+	}
+
 	static of(ctor: StructType, items: Value[]) {
 		return new Struct(ctor, items)
 	}
@@ -776,8 +880,8 @@ export class StructType extends BaseValue implements IFnLike {
 	superType = All.instance
 
 	private constructor(
-		public name: string,
-		public param: Record<string, Value>
+		public readonly name: string,
+		public readonly param: Record<string, Value>
 	) {
 		super()
 	}
@@ -811,11 +915,16 @@ export class StructType extends BaseValue implements IFnLike {
 	ofDefault = (defaultValue: Atomic): Value => {
 		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
-		const structType = StructType.of(this.name, this.param)
-		structType.#defaultValue = defaultValue
-		structType.meta = this.meta
+		const value = this.clone()
+		value.#defaultValue = defaultValue
+		return value
+	}
 
-		return structType
+	protected clone = () => {
+		const value = new StructType(this.name, this.param)
+		value.#defaultValue = this.#defaultValue
+		value.meta = this.meta
+		return value
 	}
 
 	static of(name: string, param: Record<string, Value>) {
@@ -860,11 +969,16 @@ export class UnionType extends BaseValue {
 	ofDefault = (defaultValue: Atomic): Value => {
 		if (!this.isTypeFor(defaultValue)) throw new Error('Invalid default value')
 
-		const unionType = new UnionType(this.types)
-		unionType.#defaultValue = defaultValue
-		unionType.meta = this.meta
+		const value = this.clone()
+		value.#defaultValue = defaultValue
+		return value
+	}
 
-		return unionType
+	protected clone = () => {
+		const value = new UnionType(this.types)
+		value.#defaultValue = this.#defaultValue
+		value.meta = this.meta
+		return value
 	}
 
 	static fromTypesUnsafe(types: UnitableType[]) {
