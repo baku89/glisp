@@ -192,6 +192,21 @@ describe('parsing function type', () => {
 	testParsing('(-> [x y?] z)', fnType({param: [x, y], optionalPos: 1, out: z}))
 })
 
+describe('parsing value metadata', () => {
+	testParsing('0^(0)', num(0).withValueMeta({defaultValue: num(0)}))
+	testParsing('0 \n^\t(0)', num(0).withValueMeta({defaultValue: num(0)}))
+
+	testParsing('_^("hello")', all().withValueMeta({defaultValue: str('hello')}))
+	testParsing('()^(())', call().withValueMeta({defaultValue: call()}))
+
+	testParsing(
+		'Bool^(true)',
+		id('Bool').withValueMeta({defaultValue: id('true')})
+	)
+
+	testErrorParsing('Bool^(true)^(true)')
+})
+
 function testParsing(input: string, expected: Node) {
 	test(`parsing '${input}' to be ${expected.print()}`, () => {
 		const result = parse(input)
