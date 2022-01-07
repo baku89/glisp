@@ -112,7 +112,12 @@ ValueMeta =
 
 Reserved = "_" / "Never" / "=>" / "->" / "let" / "try"
 
-Unit = "(" _ ")" { return Ast.call() }
+Unit = "(" d:_ ")"
+{
+	const call = Ast.call()
+	call.extras = {delimiters: [d]}
+	return call
+}
 
 All = "_" { return Ast.all() }
 
@@ -128,8 +133,12 @@ Identifier "identifier" =
 
 Num "number" = [+-]? (Digit* ".")? Digit+
 	{
-		const v = parseFloat(text())
-		return Ast.num(v)
+		const raw = text()
+		const v = parseFloat(raw)
+		
+		const num = Ast.num(v)
+		num.extras = {raw}
+		return num
 	}
 
 Str "string" = '"' value:$(!'"' .)* '"'
@@ -143,7 +152,9 @@ Call "function application" = "(" d0:_ fn:Node d1:__ argsAndDs:(Node __)* ")"
 
 		const delimiters = [d0, d1, ...ds]
 
-		return Ast.call(fn, ...args)
+		const call = Ast.call(fn, ...args)
+		call.extras = {delimiters}
+		return call
 	}
 
 Fn "function definition" =
@@ -223,11 +234,13 @@ Vec "vector" =
 		const [items, optionalFlags, ds] = zip(entries)
 		const [rest, dsr] = restAndDs ?? [undefined, []]
 
-		const delimiters = [d0, ...ds, ...dsr]
-
 		const optionalPos = getOptionalPos(optionalFlags, 'item')
 
-		return Ast.vec(items, optionalPos, rest)
+		const delimiters = [d0, ...ds, ...dsr]
+
+		const vec = Ast.vec(items, optionalPos, rest)
+		vec.extras = {delimiters}
+		return vec
 	}
 
 Dict "dictionary" = "{"
@@ -250,7 +263,9 @@ Dict "dictionary" = "{"
 
 		delimiters.push(...dsr)
 
-		return Ast.dict(items, optionalKeys, rest)
+		const dict = Ast.dict(items, optionalKeys, rest)
+		dict.extras = {delimiters}
+		return dict
 	}
 
 DictEntry = key:DictKey optional:"?"? ":" d0:_ value:Node d1:__
@@ -264,22 +279,31 @@ DictKey =
 	str: Str      {return str.value }
 
 Scope "scope" =
-	"(" _ "let" __ pairs:(@Identifier ":" _ @Node __)* out:Node? _ ")"
+	"(" d0:_ "let" __ pairs:(@Identifier ":" @_ @Node @__)* out:Node? dl:_ ")"
 	{
 		const vars = {}
+		const delimiters = [d0]
 
-		for (const [{name}, value] of pairs) {
+		for (const [{name}, da, value, db] of pairs) {
 			if (name in vars) throw new Error(`Duplicated symbol name: '${name}'`)
 
 			vars[name] = value
+
+			delimiters.push(da, db)
 		}
 
-		return Ast.scope(vars, out ?? null)
+		delimiters.push(dl)
+
+		const scope = Ast.scope(vars, out ?? null)
+		scope.extras = {delimiters}
+		return scope
 	}
 
-TryCatch = "(" _ "try" __ block:Node __ handler:Node _ ")"
+TryCatch = "(" d0:_ "try" d1:__ block:Node d2:__ handler:Node d3:_ ")"
 	{
-		return Ast.tryCatch(block, handler)
+		const tryCatch = Ast.tryCatch(block, handler)
+		tryCatch.extras = {delimiters: [d0, d1, d2, d3]}
+		return tryCatch
 	}
 
 _ "delimiter" = Whitespace* (Comment? Newline Whitespace*)*

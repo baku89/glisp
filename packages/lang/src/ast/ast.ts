@@ -3,6 +3,7 @@ import ordinal from 'ordinal'
 
 import {GlispError} from '../GlispError'
 import {Log, WithLog, withLog} from '../log'
+import {insertDelimiters} from '../util/insertDelimiters'
 import {isEqualArray} from '../util/isEqualArray'
 import {isEqualDict} from '../util/isEqualDict'
 import {isEqualSet} from '../util/isEqualSet'
@@ -309,11 +310,23 @@ export class NumLiteral extends BaseNode {
 	}
 
 	protected forceEval = () => withLog(Val.num(this.value))
+
 	protected forceInfer = () => withLog(Val.num(this.value))
-	protected printExceptMeta = () => this.value.toString()
+
+	protected printExceptMeta = () => {
+		if (!this.extras) {
+			this.extras = {raw: this.value.toString()}
+		}
+
+		return this.extras.raw
+	}
+
 	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type && this.value === node.value
+
 	clone = () => NumLiteral.of(this.value)
+
+	extras?: {raw: string}
 
 	static of(value: number) {
 		return new NumLiteral(value)
@@ -646,13 +659,28 @@ export class VecLiteral extends BaseNode {
 	}
 
 	protected printExceptMeta = (options: PrintOptions): string => {
-		const op = this.optionalPos
+		if (!this.extras) {
+			const elementsCount = this.items.length + (this.rest ? 1 : 0)
+
+			const delimiters =
+				elementsCount === 0
+					? ['']
+					: ['', ...Array(elementsCount - 1).fill(' '), '']
+
+			this.extras = {delimiters}
+		}
+
 		const items = this.items.map(
-			(it, i) => it.print(options) + (op <= i ? '?' : '')
+			(it, i) => it.print(options) + (this.optionalPos <= i ? '?' : '')
 		)
 		const rest = this.rest ? ['...' + this.rest.print(options)] : []
-		return '[' + [...items, ...rest].join(' ') + ']'
+
+		const [d0, ...dRest] = this.extras.delimiters
+
+		return '[' + d0 + insertDelimiters([...items, ...rest], dRest) + ']'
 	}
+
+	extras?: {delimiters: string[]}
 
 	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
@@ -704,12 +732,30 @@ export class DictLiteral extends BaseNode {
 	}
 
 	protected printExceptMeta = (options: PrintOptions): string => {
-		const items = entries(this.items).map(
-			([k, v]) => k + (this.#isOptional(k) ? '?' : '') + ': ' + v.print(options)
-		)
+		const itemEntries = entries(this.items)
+
+		if (!this.extras) {
+			const tokensCount = itemEntries.length * 2 + (this.rest ? 1 : 0)
+			const delimiters =
+				tokensCount === 0 ? [''] : ['', ...Array(tokensCount - 1).fill(' '), '']
+			this.extras = {delimiters}
+		}
+
+		const itemTokens = entries(this.items)
+			.map(([key, value]) => {
+				const optionalMark = this.#isOptional(key) ? '?' : ''
+				return [`${key}${optionalMark}:`, value.print(options)]
+			})
+			.flat()
+
 		const rest = this.rest ? ['...' + this.rest.print(options)] : []
-		return '{' + [...items, ...rest].join(' ') + '}'
+
+		const [d0, ...dRest] = this.extras.delimiters
+
+		return '{' + d0 + insertDelimiters([...itemTokens, ...rest], dRest) + '}'
 	}
+
+	extras?: {delimiters: string[]}
 
 	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
@@ -913,13 +959,27 @@ export class Call extends BaseNode {
 	}
 
 	protected printExceptMeta = (options: PrintOptions): string => {
-		if (!this.callee) return '()'
+		if (!this.extras) {
+			if (!this.callee) {
+				this.extras = {delimiters: ['']}
+			} else {
+				const elementsCount = 1 + this.args.length
+				const delimiters = ['', ...Array(elementsCount - 1).fill(' '), '']
+				this.extras = {delimiters}
+			}
+		}
+
+		const [d0, ...dRest] = this.extras.delimiters
+
+		if (!this.callee) return '(' + d0 + ')'
 
 		const callee = this.callee.print(options)
 		const args = this.args.map(a => a.print(options))
 
-		return '(' + [callee, ...args].join(' ') + ')'
+		return '(' + d0 + insertDelimiters([callee, ...args], dRest) + ')'
 	}
+
+	extras?: {delimiters: string[]}
 
 	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type && isEqualArray(this.args, node.args, isSame)
@@ -950,13 +1010,24 @@ export class Scope extends BaseNode {
 	protected forceEval = (env: Env) => this.out?.eval(env) ?? Writer.of(Val.unit)
 
 	protected printExceptMeta = (options: PrintOptions): string => {
-		const vars = entries(this.vars).map(
-			([k, v]) => k + ' = ' + v.print(options)
-		)
+		const varEntries = entries(this.vars)
+
+		if (!this.extras) {
+			const tokenCount = varEntries.length * 2 + (this.out ? 1 : 0)
+			const delimiters =
+				tokenCount === 0 ? [''] : ['', ...Array(tokenCount - 1).fill(' '), '']
+			this.extras = {delimiters}
+		}
+
+		const vars = varEntries.map(([k, v]) => [k + ':', v.print(options)]).flat()
 		const out = this.out ? [this.out.print(options)] : []
 
-		return '(let ' + [...vars, ...out].join(' ') + ')'
+		const [d0, ...dRest] = this.extras.delimiters
+
+		return '(let' + d0 + insertDelimiters([...vars, ...out], dRest) + ')'
 	}
+
+	extras?: {delimiters: string[]}
 
 	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type &&
@@ -1028,10 +1099,18 @@ export class TryCatch extends BaseNode {
 	}
 
 	protected printExceptMeta = (options: PrintOptions): string => {
+		if (!this.extras) {
+			this.extras = {delimiters: ['', ' ', ' ', '']}
+		}
+
 		const block = this.block.print(options)
 		const handler = this.handler.print(options)
-		return `(try ${block} ${handler})`
+		const [d0, d1, d2, d3] = this.extras.delimiters
+
+		return `(${d0}try${d1}${block}${d2}${handler}${d3})`
 	}
+
+	extras?: {delimiters: string[]}
 
 	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
