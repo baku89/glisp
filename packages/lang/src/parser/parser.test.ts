@@ -150,7 +150,7 @@ describe('parsing function definition', () => {
 		'(=> <T U> [x:T] x)',
 		fn({typeVars: ['T', 'U'], param: {x: id('T')}, body: x})
 	)
-	testParsing('(=> <> [] Num)', fn({body: Num}))
+	testParsing('(=> <> [] Num)', fn({typeVars: [], body: Num}))
 	testErrorParsing('(=> <1> [] Num)')
 
 	// functions with rest parameter

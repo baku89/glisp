@@ -221,7 +221,14 @@ FnTypeParamEntry =
 	@NamedNode __ /
 	node:Node optional:"?"? __ { return [[null, node], optional] }
 
-TypeVars = "<" _ @(@$([a-zA-Z] [a-zA-Z0-9]*) _)* ">" __
+TypeVars = "<" d0:_ namesAndDs:($([a-zA-Z] [a-zA-Z0-9]*) _)* ">" __
+	{
+		const [names, ds] = zip(namesAndDs)
+
+		const typeVars = new Ast.TypeVarsDef(names)
+		typeVars.extras = {delimiters: [d0, ...ds]}
+		return typeVars
+	}
 
 NamedNode = id:Identifier optional:"?"? ":" _ node:Node
 	{

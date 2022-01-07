@@ -197,9 +197,10 @@ export class Identifier extends BaseNode {
 
 		// Resolve typeVars
 		if (ref.type === 'FnDef' || ref.type === 'FnTypeDef') {
-			if (this.name in ref.typeVars) {
+			const tv = ref.typeVars?.get(this.name)
+			if (tv) {
 				return Writer.of({
-					node: ValueContainer.of(ref.typeVars[this.name]),
+					node: ValueContainer.of(tv),
 					mode: 'TypeVar',
 				})
 			}
@@ -359,10 +360,8 @@ export class StrLiteral extends BaseNode {
 export class FnDef extends BaseNode {
 	readonly type = 'FnDef' as const
 
-	readonly typeVars: Record<string, Val.TypeVar>
-
 	private constructor(
-		typeVars: string[],
+		public typeVars: TypeVarsDef | undefined,
 		public readonly param: Record<string, Node>,
 		public readonly optionalPos: number,
 		public readonly rest: {name: string; node: Node} | undefined,
@@ -377,8 +376,6 @@ export class FnDef extends BaseNode {
 		) {
 			throw new Error('Invalid optionalPos: ' + optionalPos)
 		}
-
-		this.typeVars = fromPairs(typeVars.map(name => [name, Val.typeVar(name)]))
 	}
 
 	protected forceEval = (env: Env): WithLog => {
@@ -436,7 +433,7 @@ export class FnDef extends BaseNode {
 	}
 
 	protected printExceptMeta = (options: PrintOptions): string => {
-		const typeVars = printTypeVars(this.typeVars)
+		const typeVars = this.typeVars?.print() ?? ''
 		const param = printParam(this.param, this.optionalPos, this.rest, options)
 		const body = this.body.print(options)
 
@@ -445,7 +442,7 @@ export class FnDef extends BaseNode {
 
 	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type &&
-		isEqualArray(keys(this.typeVars), keys(node.typeVars)) &&
+		nullishEqual(this.typeVars, node.typeVars, TypeVarsDef.isSame) &&
 		isEqualDict(this.param, node.param, isSame) &&
 		this.optionalPos === node.optionalPos &&
 		isEqualRest(this.rest, node.rest) &&
@@ -453,7 +450,7 @@ export class FnDef extends BaseNode {
 
 	clone = (): FnDef =>
 		FnDef.of({
-			typeVars: values(this.typeVars).map(tv => tv.name),
+			typeVars: this.typeVars?.clone(),
 			param: mapValues(this.param, clone),
 			optionalPos: this.optionalPos,
 			rest: this.rest
@@ -463,13 +460,13 @@ export class FnDef extends BaseNode {
 		})
 
 	static of({
-		typeVars = [],
+		typeVars,
 		param = {},
 		optionalPos,
 		rest,
 		body,
 	}: {
-		typeVars?: string[]
+		typeVars?: string[] | TypeVarsDef
 		param?: FnDef['param']
 		optionalPos?: number
 		rest?: FnDef['rest']
@@ -477,7 +474,13 @@ export class FnDef extends BaseNode {
 	}) {
 		const _optionalPos = optionalPos ?? values(param).length
 
-		const fn = new FnDef(typeVars ?? [], param, _optionalPos, rest, body)
+		const _typeVars = !typeVars
+			? undefined
+			: Array.isArray(typeVars)
+			? new TypeVarsDef(typeVars)
+			: typeVars
+
+		const fn = new FnDef(_typeVars, param, _optionalPos, rest, body)
 
 		values(param).forEach(p => setParent(p, fn))
 		if (rest) setParent(rest.node, fn)
@@ -490,18 +493,14 @@ export class FnDef extends BaseNode {
 export class FnTypeDef extends BaseNode {
 	readonly type = 'FnTypeDef' as const
 
-	typeVars: Record<string, Val.TypeVar>
-
 	private constructor(
-		typeVars: string[],
+		public readonly typeVars: TypeVarsDef | undefined,
 		public readonly param: Record<string, Node>,
 		public readonly optionalPos: number,
 		public readonly rest: {name?: string; node: Node} | undefined,
 		public out: Node
 	) {
 		super()
-
-		this.typeVars = fromPairs(typeVars.map(name => [name, Val.typeVar(name)]))
 	}
 
 	protected forceEval = (env: Env): WithLog => {
@@ -531,7 +530,7 @@ export class FnTypeDef extends BaseNode {
 	protected forceInfer = () => withLog(Val.all)
 
 	protected printExceptMeta = (options: PrintOptions): string => {
-		const typeVars = printTypeVars(this.typeVars)
+		const typeVars = this.typeVars?.print() ?? ''
 		const param = printParam(this.param, this.optionalPos, this.rest, options)
 		const out = this.out.print(options)
 		return `(-> ${typeVars}${param} ${out})`
@@ -539,7 +538,7 @@ export class FnTypeDef extends BaseNode {
 
 	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
-		isEqualArray(keys(this.typeVars), keys(node.typeVars)) &&
+		nullishEqual(this.typeVars, node.typeVars, TypeVarsDef.isSame) &&
 		isEqualDict(this.param, node.param, isSame) &&
 		this.optionalPos === node.optionalPos &&
 		isEqualRest(this.rest, node.rest) &&
@@ -547,7 +546,7 @@ export class FnTypeDef extends BaseNode {
 
 	clone = (): FnTypeDef =>
 		FnTypeDef.of({
-			typeVars: values(this.typeVars).map(tv => tv.name),
+			typeVars: this.typeVars?.clone(),
 			param: mapValues(this.param, clone),
 			optionalPos: this.optionalPos,
 			rest: this.rest,
@@ -555,13 +554,13 @@ export class FnTypeDef extends BaseNode {
 		})
 
 	static of({
-		typeVars = [],
+		typeVars,
 		param = {},
 		optionalPos,
 		rest,
 		out,
 	}: {
-		typeVars?: string[]
+		typeVars?: string[] | TypeVarsDef
 		param?: FnTypeDef['param'] | Node[]
 		optionalPos?: number
 		rest?: FnTypeDef['rest']
@@ -572,7 +571,13 @@ export class FnTypeDef extends BaseNode {
 			? fromPairs(param.map((p, i) => [i, p]))
 			: param
 
-		const fnType = new FnTypeDef(typeVars, _param, _optionalPos, rest, out)
+		const _typeVars = !typeVars
+			? undefined
+			: Array.isArray(typeVars)
+			? new TypeVarsDef(typeVars)
+			: typeVars
+
+		const fnType = new FnTypeDef(_typeVars, _param, _optionalPos, rest, out)
 
 		forOwn(_param, p => setParent(p, fnType))
 		if (rest) setParent(rest.node, fnType)
@@ -582,18 +587,43 @@ export class FnTypeDef extends BaseNode {
 	}
 }
 
+export class TypeVarsDef {
+	readonly typeVars: Record<string, Val.TypeVar>
+
+	constructor(readonly names: string[]) {
+		this.typeVars = fromPairs(names.map(name => [name, Val.typeVar(name)]))
+	}
+
+	get = (name: string): Val.TypeVar | undefined => this.typeVars[name]
+
+	print = () => {
+		if (!this.extras) {
+			const tokensCount = this.names.length
+			const delimiters =
+				tokensCount === 0 ? [''] : ['', ...Array(tokensCount - 1).fill(' '), '']
+			this.extras = {delimiters}
+		}
+
+		const [d0, ...dRest] = this.extras.delimiters
+
+		return '<' + d0 + insertDelimiters(this.names, dRest) + '>'
+	}
+
+	extras?: {delimiters: string[]}
+
+	clone = () => new TypeVarsDef(this.names)
+
+	static isSame(a: TypeVarsDef, b: TypeVarsDef) {
+		return isEqualArray(a.names, b.names)
+	}
+}
+
 function isEqualRest(a: FnTypeDef['rest'], b: FnTypeDef['rest']) {
 	return nullishEqual(
 		a,
 		b,
 		(a, b) => a.name === b.name && isSame(a.node, b.node)
 	)
-}
-
-function printTypeVars(typeVars: Record<string, Val.TypeVar>): string {
-	const es = keys(typeVars)
-	if (es.length === 0) return ''
-	return '<' + es.join(' ') + '> '
 }
 
 function printParam(

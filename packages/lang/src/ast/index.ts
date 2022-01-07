@@ -10,6 +10,7 @@ import {
 	Scope,
 	StrLiteral,
 	TryCatch,
+	TypeVarsDef,
 	ValueContainer,
 	VecLiteral,
 } from './ast'
@@ -31,6 +32,7 @@ export {
 	TryCatch,
 	FnDef,
 	FnTypeDef,
+	TypeVarsDef,
 	VecLiteral,
 	DictLiteral,
 }
