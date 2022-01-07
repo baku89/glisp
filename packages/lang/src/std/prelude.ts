@@ -64,9 +64,6 @@ export const PreludeScope = Ast.scope({
 PreludeScope.defs({
 	true: Ast.value(Val.True),
 	false: Ast.value(Val.False),
-	throw: defn('(-> reason:_ Never)', (reason: Val.Str) => {
-		throw new Error(reason.value)
-	}),
 	log: defn(
 		'(-> <T> [value:T level:(| "error" "warn" "info") reason:Str] T)',
 		(value: Val.Value, level: Val.Str, reason: Val.Str) =>
