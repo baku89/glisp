@@ -65,13 +65,20 @@ Program = _ exp:Node _ Comment?
 		return exp
 	}
 
-Node = node:NodeContent valueMeta:(_ "^" _ @ValueMeta)?
+Node =
+	node:NodeContent
+	valueMeta:(_ "^" _ @ValueMeta)?
+	nodeMeta:(_ "#" _ @Dict)?
 	{
 		if (valueMeta) {
-			return node.setValueMeta(valueMeta)
-		} else {
-			return node
+			node.setValueMeta(valueMeta)
 		}
+
+		if (nodeMeta) {
+			node.setNodeMeta(nodeMeta)
+		}
+		
+		return node
 	}
 
 NodeContent =

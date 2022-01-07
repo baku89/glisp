@@ -31,7 +31,7 @@ export type InnerNode =
 	| VecLiteral
 	| DictLiteral
 
-export type ParentNode = InnerNode | ValueMeta
+export type ParentNode = InnerNode | ValueMeta | NodeMeta
 
 export type Arg<T extends Val.Value = Val.Value> = () => T
 
@@ -53,8 +53,13 @@ export abstract class BaseNode {
 	print = (options: PrintOptions = {}): string => {
 		let node = this.printExceptMeta(options)
 
-		if (!options.omitMeta && this.valueMeta) {
-			node += this.valueMeta.print(options)
+		if (!options.omitMeta) {
+			if (this.#valueMeta) {
+				node += this.#valueMeta.print(options)
+			}
+			if (this.#nodeMeta) {
+				node += this.#nodeMeta.print(options)
+			}
 		}
 
 		return node
@@ -69,21 +74,17 @@ export abstract class BaseNode {
 	isSameTo = (node: Node): boolean => {
 		return (
 			this.isSameExceptMetaTo(node) &&
-			nullishEqual(
-				this.valueMeta?.defaultValue,
-				node.valueMeta?.defaultValue,
-				isSame
-			) &&
-			nullishEqual(this.valueMeta?.fields, node.valueMeta?.fields, isSame)
+			nullishEqual(this.#valueMeta, node.#valueMeta, ValueMeta.isSame) &&
+			nullishEqual(this.#nodeMeta, node.#nodeMeta, NodeMeta.isSame)
 		)
 	}
 
 	abstract clone(): Node
 
-	valueMeta?: ValueMeta
+	#valueMeta?: ValueMeta
 
 	setValueMeta(valueMeta: {defaultValue?: Node; fields?: DictLiteral} = {}) {
-		this.valueMeta = new ValueMeta(
+		this.#valueMeta = new ValueMeta(
 			this as any,
 			valueMeta.defaultValue,
 			valueMeta.fields
@@ -91,16 +92,22 @@ export abstract class BaseNode {
 		return this
 	}
 
+	#nodeMeta?: NodeMeta
+	setNodeMeta(fields: DictLiteral) {
+		this.#nodeMeta = new NodeMeta(this as any, fields)
+		return this
+	}
+
 	#forceEvalWithMeta = (env: Env): WithLog => {
 		const valueWithLog = this.forceEval(env)
 
-		if (!this.valueMeta) {
+		if (!this.#valueMeta) {
 			return valueWithLog
 		}
 
 		// Set value metadata
 		const [_value, lv] = valueWithLog.asTuple
-		const [{defaultValue, meta}, ldv] = this.valueMeta.eval(env).asTuple
+		const [{defaultValue, meta}, ldv] = this.#valueMeta.eval(env).asTuple
 
 		let value = _value
 
@@ -144,7 +151,7 @@ export class Identifier extends BaseNode {
 	}
 
 	#resolve(
-		ref: Node | ValueMeta | null,
+		ref: Node | ValueMeta | NodeMeta | null,
 		env: Env
 	): Writer<{node: Node; mode?: 'param' | 'arg' | 'TypeVar'}, Log> {
 		if (!ref) {
@@ -198,7 +205,7 @@ export class Identifier extends BaseNode {
 		}
 
 		// On meta
-		if (ref.type === 'ValueMeta') {
+		if (ref.type === 'ValueMeta' || ref.type === 'NodeMeta') {
 			return this.#resolve(ref.attachedTo, env)
 		}
 
@@ -1044,7 +1051,7 @@ export class TryCatch extends BaseNode {
 }
 
 class ValueMeta {
-	readonly type = 'ValueMeta'
+	readonly type = 'ValueMeta' as const
 
 	public fields?: DictLiteral
 
@@ -1094,6 +1101,29 @@ class ValueMeta {
 		]
 
 		return Writer.of({defaultValue, meta}, ...ld, ...lf)
+	}
+
+	static isSame(a: ValueMeta, b: ValueMeta) {
+		return (
+			nullishEqual(a.defaultValue, b.defaultValue, isSame) &&
+			nullishEqual(a.fields, b.fields, isSame)
+		)
+	}
+}
+
+class NodeMeta {
+	readonly type = 'NodeMeta' as const
+
+	constructor(public attachedTo: Node, public fields: DictLiteral) {}
+
+	eval = this.fields.eval
+
+	print = (options: PrintOptions) => {
+		return '#' + this.fields.print(options)
+	}
+
+	static isSame(a: NodeMeta, b: NodeMeta) {
+		return isSame(a.fields, b.fields)
 	}
 }
 

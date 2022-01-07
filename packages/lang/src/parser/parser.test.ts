@@ -192,7 +192,7 @@ describe('parsing function type', () => {
 	testParsing('(-> [x y?] z)', fnType({param: [x, y], optionalPos: 1, out: z}))
 })
 
-describe('parsing value metadata', () => {
+describe('parsing metadata', () => {
 	testParsing('0^0', num(0).setValueMeta({defaultValue: num(0)}))
 	testParsing('0^(0)', num(0).setValueMeta({defaultValue: num(0)}))
 	testParsing('0 \n^\t(0)', num(0).setValueMeta({defaultValue: num(0)}))
@@ -207,6 +207,24 @@ describe('parsing value metadata', () => {
 
 	testErrorParsing('Bool^true^true')
 	testErrorParsing('Bool^(true)^(true)')
+
+	testParsing(
+		'layer#{collapsed: true}',
+		id('layer').setNodeMeta(dict({collapsed: id('true')}))
+	)
+
+	testParsing(
+		'Num^(0 label: "number")#{prop: "A"}',
+		id('Num')
+			.setValueMeta({
+				defaultValue: num(0),
+				fields: dict({label: str('number')}),
+			})
+			.setNodeMeta(dict({prop: str('A')}))
+	)
+
+	testErrorParsing('layer#{}#{}')
+	testErrorParsing('Num#{}^0')
 })
 
 function testParsing(input: string, expected: Node) {
