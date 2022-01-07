@@ -569,18 +569,18 @@ export class FnType extends BaseValue implements IFnType {
 		if (value.type === 'UnionType') return value.isSupertypeOf(this)
 		if (value.type !== 'FnType') return false
 
-		const tParam = Vec.of(
+		const thisParam = Vec.of(
 			values(this.param),
 			this.optionalPos,
 			this.rest?.value
 		)
-		const eParam = Vec.of(
+		const valueParam = Vec.of(
 			values(value.param),
 			value.optionalPos,
 			value.rest?.value
 		)
 
-		return isSubtype(eParam, tParam) && isSubtype(this.out, value.out)
+		return isSubtype(valueParam, thisParam) && isSubtype(this.out, value.out)
 	}
 
 	isTypeFor!: (value: Value) => value is Fn
@@ -692,15 +692,6 @@ export class Vec<TItems extends Value[] = Value[]>
 		}
 
 		return true
-	}
-
-	@Memoize()
-	get isType(): boolean {
-		return (
-			!!this.rest ||
-			this.optionalPos < this.items.length ||
-			this.items.some(isType)
-		)
 	}
 
 	@Memoize()
@@ -821,15 +812,6 @@ export class Dict<
 		}
 
 		return true
-	}
-
-	@Memoize()
-	get isType(): boolean {
-		return (
-			!!this.rest ||
-			this.optionalKeys.size > 0 ||
-			values(this.items).some(isType)
-		)
 	}
 
 	isTypeFor!: (value: Value) => value is Dict
@@ -1014,7 +996,7 @@ export function isSubtype(a: Value, b: Value): boolean {
 	return a.isSubtypeOf(b)
 }
 
-const or = (...xs: boolean[]) => xs.reduce(x => x)
+const or = (...xs: boolean[]) => xs.some(x => x)
 
 const isType = createFoldFn(
 	{
