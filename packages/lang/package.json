@@ -20,6 +20,7 @@
 	"license": "MIT",
 	"dependencies": {
 		"lodash": "^4.17.21",
+		"ordinal": "^1.0.3",
 		"typescript-memoize": "^1.1.0"
 	},
 	"devDependencies": {

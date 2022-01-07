@@ -1,4 +1,5 @@
 import {entries, forOwn, fromPairs, keys, mapValues, values} from 'lodash'
+import ordinal from 'ordinal'
 
 import {GlispError} from '../GlispError'
 import {Log, WithLog, withLog} from '../log'
@@ -810,6 +811,7 @@ export class Call extends BaseNode {
 			} else {
 				// Type mismatched
 				if (aType.type !== 'Unit') {
+					const ord = ordinal(i + 1)
 					const p = pType.print({omitMeta: true})
 					const a = aType.print({omitMeta: true})
 					const d = pType.defaultValue.print({omitMeta: true})
@@ -817,8 +819,9 @@ export class Call extends BaseNode {
 						level: 'error',
 						ref: this,
 						reason:
-							`Argument '${name}' expects type: ${p}, but got: ${a}. ` +
-							`Uses a default value ${d} instead`,
+							`${ord} argument '${name}' expects type: ${p}, ` +
+							`but got: ${a}. ` +
+							`Uses a default value ${d} instead.`,
 					})
 				}
 				return () => pType.defaultValue
