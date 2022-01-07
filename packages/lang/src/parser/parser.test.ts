@@ -94,9 +94,9 @@ describe('parsing vector', () => {
 	testParsing('\t[   ]  ', vec())
 	testParsing('[    1   \t]', vec([num(1)]))
 	testParsing('[1 2 3]', vec([num(1), num(2), num(3)]))
-	testParsing('[1[2]3   ]', vec([num(1), vec([num(2)]), num(3)]))
+	testParsing('[1 [2] 3]', vec([num(1), vec([num(2)]), num(3)]))
 	testParsing(
-		'[(+)false(+)+]',
+		'[(+) false (+) +]',
 		vec([call(id('+')), id('false'), call(id('+')), id('+')])
 	)
 	testParsing('[...1]', vec([], 0, num(1)))
@@ -136,8 +136,8 @@ describe('parsing function definition', () => {
 		'(=> [x: Num y: Bool] x)',
 		fn({param: {x: Num, y: Bool}, body: x})
 	)
-	testParsing('(=>[]_)', fn({param: {}, body: all()}))
-	testParsing('(=>[]())', fn({body: call()}))
+	testParsing('(=> [] _)', fn({param: {}, body: all()}))
+	testParsing('(=> [] ())', fn({body: call()}))
 	testParsing('(=> [] (+ 1 2))', fn({body: call(id('+'), num(1), num(2))}))
 	testParsing('(=> [] (=> [] 1))', fn({body: fn({body: num(1)})}))
 

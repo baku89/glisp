@@ -2,13 +2,15 @@
 	function zip(coll) {
 		const as = []
 		const bs = []
+		const cs = []
 
-		for (const [a, b] of coll) {
+		for (const [a, b, c] of coll) {
 			as.push(a)
 			bs.push(b)
+			cs.push(c)
 		}
 
-		return [as, bs]
+		return [as, bs, cs]
 	}
 
 	const fromPairs = Object.fromEntries
@@ -54,6 +56,15 @@
 
 		return {name, node}
 	}
+
+	function checkDelimitersNotEmpty(delimiters) {
+		for (const d of delimiters) {
+			if (d === '') {
+				throw new Error('A delimiter between elements cannot be empty')
+			}
+		}
+	}
+
 }}
 
 {
@@ -88,7 +99,7 @@ NodeContent =
 	Vec / Dict
 
 ValueMeta =
-	"(" _ defaultValue:(@Node !":" _)? fields:(@DictKey ":" _ @Node _)* ")"
+	"(" _ defaultValue:(@Node !":" __)? fields:(@DictKey ":" _ @Node __)* ")"
 	{
 		checkDuplicatedKey(fields.map(([key]) => key), 'key')
 
@@ -126,13 +137,17 @@ Str "string" = '"' value:$(!'"' .)* '"'
 		return Ast.str(value)
 	}
 
-Call "function application" = "(" _ fn:Node _ args:(@Node _)* ")"
+Call "function application" = "(" d0:_ fn:Node d1:__ argsAndDs:(Node __)* ")"
 	{
+		const [args, ds] = zip(argsAndDs)
+
+		const delimiters = [d0, d1, ...ds]
+
 		return Ast.call(fn, ...args)
 	}
 
 Fn "function definition" =
-	"(" _ "=>" _ typeVars:TypeVars? param:FnParam body:Node _ ")"
+	"(" _ "=>" __ typeVars:TypeVars? param:FnParam __ body:Node _ ")"
 	{
 		const {entries, rest: _rest} = param
 		const [paramEntries, optionalFlags] = zip(entries)
@@ -154,15 +169,15 @@ Fn "function definition" =
 FnParam = FnParamMulti / FnParamSingle
 	
 FnParamMulti =
-	"[" _ entries:(@NamedNode _)* rest:("..." @NamedNode _)? "]" _
+	"[" _ entries:(@NamedNode __)* rest:("..." @NamedNode _)? "]"
 	{
 		return {entries, rest}
 	}
 
-FnParamSingle = entry:NamedNode _ { return {entries: [entry]} }
+FnParamSingle = entry:NamedNode { return {entries: [entry]} }
 
 FnType "function type definition" =
-	"(" _ "->" _ typeVars:TypeVars? param:FnTypeParam out:Node _ ")"
+	"(" _ "->" __ typeVars:TypeVars? param:FnTypeParam out:Node _ ")"
 	{
 		const {entries, rest: _rest} = param
 		const [paramEntries, optionalFlags] = zip(entries)
@@ -184,18 +199,18 @@ FnType "function type definition" =
 FnTypeParam = FnTypeParamMulti / FnTypeParamSingle
  
 FnTypeParamMulti =
-	"[" _ entries:FnTypeParamEntry* rest:("..." @FnTypeParamEntry _)? "]" _
+	"[" _ entries:FnTypeParamEntry* rest:("..." @FnTypeParamEntry _)? "]" __
 	{
 		return {entries, rest}
 	}
 
-FnTypeParamSingle = entry:FnTypeParamEntry _ { return {entries: [entry]} }
+FnTypeParamSingle = entry:FnTypeParamEntry { return {entries: [entry]} }
 
 FnTypeParamEntry =
-	@NamedNode _ /
-	node:Node optional:"?"? _ { return [[null, node], optional] }
+	@NamedNode __ /
+	node:Node optional:"?"? __ { return [[null, node], optional] }
 
-TypeVars = "<" _ @(@$([a-zA-Z] [a-zA-Z0-9]*) _)* ">" _
+TypeVars = "<" _ @(@$([a-zA-Z] [a-zA-Z0-9]*) _)* ">" __
 
 NamedNode = id:Identifier optional:"?"? ":" _ node:Node
 	{
@@ -203,55 +218,82 @@ NamedNode = id:Identifier optional:"?"? ":" _ node:Node
 	}
 
 Vec "vector" =
-	"[" _ entries:(@Node @"?"? _)* rest:("..." @Node _)? "]"
+	"[" d0:_ entries:(Node "?"? __)* restAndDs:("..." @Node @_)? "]"
 	{
-		const [items, optionalFlags] = zip(entries)
-		const optionalPos = getOptionalPos(optionalFlags, 'item',)
+		const [items, optionalFlags, ds] = zip(entries)
+		const [rest, dsr] = restAndDs ?? [undefined, []]
+
+		const delimiters = [d0, ...ds, ...dsr]
+
+		const optionalPos = getOptionalPos(optionalFlags, 'item')
 
 		return Ast.vec(items, optionalPos, rest)
 	}
 
-Dict "dictionary" = "{" _ entries:DictEntry* rest:("..." @Node _)? "}"
+Dict "dictionary" = "{"
+	d0:_ entries:DictEntry* restAndDs:("..." @Node @_)? "}"
 	{
-		const keys = entries.map(([key]) => key)
-		checkDuplicatedKey(keys)
-
 		const items = {}
 		const optionalKeys = new Set()
-		for (const [key, value, optional] of entries) {
+		const [rest, dsr] = restAndDs ?? [undefined, []]
+
+		const delimiters = [d0]
+
+		for (const [key, value, optional, ds] of entries) {
+			if (key in items) throw new Error(`Duplicated key: '${key}'`)
+
 			items[key] = value
 			if (optional) optionalKeys.add(key)
+
+			delimiters.push(...ds)
 		}
+
+		delimiters.push(...dsr)
 
 		return Ast.dict(items, optionalKeys, rest)
 	}
 
-DictEntry = key:DictKey optional:"?"? ":" _ value:Node _
+DictEntry = key:DictKey optional:"?"? ":" d0:_ value:Node d1:__
 	{
-		return [key, value, optional]
+		return [key, value, optional, [d0, d1]]
 	}
 
 // TODO: Why not allowing reserved words for key?
 DictKey =
 	id:Identifier {return id.name } /
-	str: Str {return str.value }
+	str: Str      {return str.value }
 
-Scope "scope" = "(" _ "let" _ pairs:(@Identifier ":" _ @Node _)* out:Node? _ ")"
+Scope "scope" =
+	"(" _ "let" __ pairs:(@Identifier ":" _ @Node __)* out:Node? _ ")"
 	{
 		const vars = {}
+
 		for (const [{name}, value] of pairs) {
-			if (name in vars) throw new Error('Duplicated symbol name: ' + name)
+			if (name in vars) throw new Error(`Duplicated symbol name: '${name}'`)
+
 			vars[name] = value
 		}
+
 		return Ast.scope(vars, out ?? null)
 	}
 
-TryCatch = "(" _ "try" _ block:Node _ handler:Node _ ")"
+TryCatch = "(" _ "try" __ block:Node __ handler:Node _ ")"
 	{
 		return Ast.tryCatch(block, handler)
 	}
 
 _ "delimiter" = Whitespace* (Comment? Newline Whitespace*)*
+	{
+		return text()
+	}
+
+__ "non-zero length delimiter" =
+	_ &[)\]}] /
+	d:_
+	{
+		if (d === '')
+			throw new Error('A Delimiter between elements needs to be non-zero length')
+	}
 
 Comment = ";" (!Newline .)*
 
