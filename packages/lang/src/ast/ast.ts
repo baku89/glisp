@@ -41,11 +41,11 @@ export interface PrintOptions {
 export abstract class BaseNode {
 	abstract readonly type: string
 
-	parent: ParentNode | null = null
-
 	protected constructor() {
 		return this
 	}
+
+	parent: ParentNode | null = null
 
 	protected abstract printExceptMeta(options: PrintOptions): string
 
@@ -138,7 +138,7 @@ export abstract class BaseNode {
 export class Identifier extends BaseNode {
 	readonly type = 'Identifier' as const
 
-	private constructor(public name: string) {
+	private constructor(public readonly name: string) {
 		super()
 	}
 
@@ -342,7 +342,7 @@ export class FnDef extends BaseNode {
 
 	private constructor(
 		typeVars: string[],
-		public param: Record<string, Node>,
+		public readonly param: Record<string, Node>,
 		public readonly optionalPos: number,
 		public readonly rest: {name: string; node: Node} | undefined,
 		public body: Node
@@ -473,7 +473,7 @@ export class FnTypeDef extends BaseNode {
 
 	private constructor(
 		typeVars: string[],
-		public param: Record<string, Node>,
+		public readonly param: Record<string, Node>,
 		public readonly optionalPos: number,
 		public readonly rest: {name?: string; node: Node} | undefined,
 		public out: Node
@@ -614,8 +614,8 @@ export class VecLiteral extends BaseNode {
 	readonly type = 'VecLiteral' as const
 
 	private constructor(
-		public items: Node[],
-		public optionalPos: number,
+		public readonly items: Node[],
+		public readonly optionalPos: number,
 		public rest?: Node
 	) {
 		super()
@@ -667,8 +667,8 @@ export class DictLiteral extends BaseNode {
 	readonly type = 'DictLiteral' as const
 
 	private constructor(
-		public items: Record<string, Node>,
-		public optionalKeys: Set<string>,
+		public readonly items: Record<string, Node>,
+		public readonly optionalKeys: Set<string>,
 		public rest?: Node
 	) {
 		super()
@@ -731,7 +731,7 @@ export class DictLiteral extends BaseNode {
 export class Call extends BaseNode {
 	readonly type = 'Call' as const
 
-	private constructor(public callee?: Node, public args: Node[] = []) {
+	private constructor(public callee?: Node, public readonly args: Node[] = []) {
 		super()
 	}
 
@@ -927,7 +927,10 @@ export class Call extends BaseNode {
 export class Scope extends BaseNode {
 	readonly type = 'Scope' as const
 
-	private constructor(public vars: Record<string, Node>, public out?: Node) {
+	private constructor(
+		public readonly vars: Record<string, Node>,
+		public out?: Node
+	) {
 		super()
 	}
 

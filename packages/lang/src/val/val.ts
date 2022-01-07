@@ -54,9 +54,9 @@ abstract class BaseValue {
 
 	abstract readonly type: string
 
-	abstract superType: Value
+	abstract readonly superType: Value
 
-	abstract defaultValue: Atomic
+	abstract readonly defaultValue: Atomic
 	abstract readonly initialDefaultValue: Atomic
 
 	meta?: Dict
@@ -68,6 +68,7 @@ abstract class BaseValue {
 		return this.isEqualTo(ty) || this.superType.isSubtypeOf(ty)
 	}
 
+	@Memoize()
 	get isType(): boolean {
 		return isType(this as any)
 	}
@@ -325,11 +326,12 @@ export const StrType = PrimType.ofLiteral('Str', Str.of(''))
 
 export class Enum extends BaseValue {
 	readonly type = 'Enum' as const
-	superType!: EnumType
 
 	private constructor(public readonly name: string) {
 		super()
 	}
+
+	readonly superType!: EnumType
 
 	readonly defaultValue = this
 	readonly initialDefaultValue = this
@@ -355,7 +357,6 @@ export class Enum extends BaseValue {
 
 export class EnumType extends BaseValue {
 	readonly type = 'EnumType' as const
-	superType = All.instance
 
 	private constructor(
 		public readonly name: string,
@@ -363,6 +364,8 @@ export class EnumType extends BaseValue {
 	) {
 		super()
 	}
+
+	readonly superType = All.instance
 
 	#defaultValue?: Enum
 	get defaultValue() {
@@ -406,7 +409,7 @@ export class EnumType extends BaseValue {
 
 		const types = labels.map(Enum.of)
 		const enumType = new EnumType(name, types)
-		types.forEach(t => (t.superType = enumType))
+		types.forEach(t => ((t.superType as Enum['superType']) = enumType))
 
 		return enumType
 	}
