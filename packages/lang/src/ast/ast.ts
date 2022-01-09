@@ -3,7 +3,6 @@ import ordinal from 'ordinal'
 
 import {GlispError} from '../GlispError'
 import {Log, WithLog, withLog} from '../log'
-import {insertDelimiters} from '../util/insertDelimiters'
 import {isEqualArray} from '../util/isEqualArray'
 import {isEqualDict} from '../util/isEqualDict'
 import {isEqualSet} from '../util/isEqualSet'
@@ -12,6 +11,7 @@ import {Writer} from '../util/Writer'
 import {zip} from '../util/zip'
 import * as Val from '../val'
 import {Env} from './env'
+import {createListDelimiters, insertDelimiters} from './PrintUtil'
 import {shadowTypeVars, Unifier} from './unify'
 
 export type Node = LeafNode | InnerNode
@@ -414,8 +414,8 @@ export class FnDef extends BaseNode {
 		// Then, infer the function body
 		const arg = mapValues(param, p => () => p)
 		if (rest) {
-			const {name: restName, value: restValue} = rest
-			arg[restName as any] = () => Val.vec([], undefined, restValue)
+			const {name, value} = rest
+			arg[name as any] = () => Val.vec([], undefined, value)
 		}
 
 		const innerEnv = env.extend(arg)
@@ -433,12 +433,23 @@ export class FnDef extends BaseNode {
 	}
 
 	protected printExceptMeta = (options: PrintOptions): string => {
-		const typeVars = this.typeVars?.print() ?? ''
+		if (!this.extras) {
+			const tokensCount = this.typeVars ? 4 : 3
+			const delimiters = createListDelimiters(tokensCount)
+
+			this.extras = {delimiters}
+		}
+
+		const typeVars = this.typeVars ? [this.typeVars.print()] : []
 		const param = printParam(this.param, this.optionalPos, this.rest, options)
 		const body = this.body.print(options)
 
-		return `(=> ${typeVars}${param} ${body})`
+		const elements = ['=>', ...typeVars, param, body]
+
+		return '(' + insertDelimiters(elements, this.extras.delimiters) + ')'
 	}
+
+	extras?: {delimiters: string[]}
 
 	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type &&
@@ -530,11 +541,23 @@ export class FnTypeDef extends BaseNode {
 	protected forceInfer = () => withLog(Val.all)
 
 	protected printExceptMeta = (options: PrintOptions): string => {
-		const typeVars = this.typeVars?.print() ?? ''
+		if (!this.extras) {
+			const tokensCount = this.typeVars ? 4 : 3
+			const delimiters = createListDelimiters(tokensCount)
+
+			this.extras = {delimiters}
+		}
+
+		const typeVars = this.typeVars ? [this.typeVars.print()] : []
 		const param = printParam(this.param, this.optionalPos, this.rest, options)
 		const out = this.out.print(options)
-		return `(-> ${typeVars}${param} ${out})`
+
+		const elements = ['->', ...typeVars, param, out]
+
+		return '(' + insertDelimiters(elements, this.extras.delimiters) + ')'
 	}
+
+	extras?: {delimiters: string[]}
 
 	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
@@ -598,15 +621,11 @@ export class TypeVarsDef {
 
 	print = () => {
 		if (!this.extras) {
-			const tokensCount = this.names.length
-			const delimiters =
-				tokensCount === 0 ? [''] : ['', ...Array(tokensCount - 1).fill(' '), '']
+			const delimiters = createListDelimiters(this.names.length)
 			this.extras = {delimiters}
 		}
 
-		const [d0, ...dRest] = this.extras.delimiters
-
-		return '<' + d0 + insertDelimiters(this.names, dRest) + '>'
+		return '<' + insertDelimiters(this.names, this.extras.delimiters) + '>'
 	}
 
 	extras?: {delimiters: string[]}
@@ -691,11 +710,7 @@ export class VecLiteral extends BaseNode {
 	protected printExceptMeta = (options: PrintOptions): string => {
 		if (!this.extras) {
 			const elementsCount = this.items.length + (this.rest ? 1 : 0)
-
-			const delimiters =
-				elementsCount === 0
-					? ['']
-					: ['', ...Array(elementsCount - 1).fill(' '), '']
+			const delimiters = createListDelimiters(elementsCount)
 
 			this.extras = {delimiters}
 		}
@@ -705,9 +720,9 @@ export class VecLiteral extends BaseNode {
 		)
 		const rest = this.rest ? ['...' + this.rest.print(options)] : []
 
-		const [d0, ...dRest] = this.extras.delimiters
+		const {delimiters} = this.extras
 
-		return '[' + d0 + insertDelimiters([...items, ...rest], dRest) + ']'
+		return '[' + insertDelimiters([...items, ...rest], delimiters) + ']'
 	}
 
 	extras?: {delimiters: string[]}
@@ -766,8 +781,8 @@ export class DictLiteral extends BaseNode {
 
 		if (!this.extras) {
 			const tokensCount = itemEntries.length * 2 + (this.rest ? 1 : 0)
-			const delimiters =
-				tokensCount === 0 ? [''] : ['', ...Array(tokensCount - 1).fill(' '), '']
+			const delimiters = createListDelimiters(tokensCount)
+
 			this.extras = {delimiters}
 		}
 
@@ -780,9 +795,9 @@ export class DictLiteral extends BaseNode {
 
 		const rest = this.rest ? ['...' + this.rest.print(options)] : []
 
-		const [d0, ...dRest] = this.extras.delimiters
+		const {delimiters} = this.extras
 
-		return '{' + d0 + insertDelimiters([...itemTokens, ...rest], dRest) + '}'
+		return '{' + insertDelimiters([...itemTokens, ...rest], delimiters) + '}'
 	}
 
 	extras?: {delimiters: string[]}
@@ -993,20 +1008,21 @@ export class Call extends BaseNode {
 			if (!this.callee) {
 				this.extras = {delimiters: ['']}
 			} else {
-				const elementsCount = 1 + this.args.length
-				const delimiters = ['', ...Array(elementsCount - 1).fill(' '), '']
+				const elementsCount = (this.callee ? 1 : 0) + this.args.length
+				const delimiters = createListDelimiters(elementsCount)
+
 				this.extras = {delimiters}
 			}
 		}
 
-		const [d0, ...dRest] = this.extras.delimiters
-
-		if (!this.callee) return '(' + d0 + ')'
+		if (!this.callee) return '(' + this.extras.delimiters[0] + ')'
 
 		const callee = this.callee.print(options)
 		const args = this.args.map(a => a.print(options))
 
-		return '(' + d0 + insertDelimiters([callee, ...args], dRest) + ')'
+		const {delimiters} = this.extras
+
+		return '(' + insertDelimiters([callee, ...args], delimiters) + ')'
 	}
 
 	extras?: {delimiters: string[]}
@@ -1043,18 +1059,18 @@ export class Scope extends BaseNode {
 		const varEntries = entries(this.vars)
 
 		if (!this.extras) {
-			const tokenCount = varEntries.length * 2 + (this.out ? 1 : 0)
-			const delimiters =
-				tokenCount === 0 ? [''] : ['', ...Array(tokenCount - 1).fill(' '), '']
+			const tokensCount = 1 + varEntries.length * 2 + (this.out ? 1 : 0)
+			const delimiters = createListDelimiters(tokensCount)
+
 			this.extras = {delimiters}
 		}
 
 		const vars = varEntries.map(([k, v]) => [k + ':', v.print(options)]).flat()
 		const out = this.out ? [this.out.print(options)] : []
 
-		const [d0, ...dRest] = this.extras.delimiters
+		const {delimiters} = this.extras
 
-		return '(let' + d0 + insertDelimiters([...vars, ...out], dRest) + ')'
+		return '(' + insertDelimiters(['let', ...vars, ...out], delimiters) + ')'
 	}
 
 	extras?: {delimiters: string[]}

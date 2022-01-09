@@ -146,9 +146,9 @@ Str "string" = '"' value:$(!'"' .)* '"'
 		return Ast.str(value)
 	}
 
-Call "function application" = "(" d0:_ fn:Node d1:__ argsAndDs:(Node __)* ")"
+Call "function application" = "(" d0:_ fn:Node d1:__ argsDs:(Node __)* ")"
 	{
-		const [args, ds] = zip(argsAndDs)
+		const [args, ds] = zip(argsDs)
 
 		const delimiters = [d0, d1, ...ds]
 
@@ -158,12 +158,12 @@ Call "function application" = "(" d0:_ fn:Node d1:__ argsAndDs:(Node __)* ")"
 	}
 
 Fn "function definition" =
-	"(" _ "=>" __ typeVars:TypeVars? param:FnParam __ body:Node _ ")"
+	"(" d0:_ "=>" d1:__ typeVarsDs:(TypeVars __)? param:FnParam d3:__ body:Node d4:_ ")"
 	{
 		const {entries, rest: _rest} = param
 		const [paramEntries, optionalFlags] = zip(entries)
 
-		typeVars ??= undefined
+		const [typeVars, d2] = typeVarsDs ?? [undefined, undefined]
 		param = fromPairs(paramEntries)
 
 		const optionalPos = getOptionalPos(optionalFlags, 'parameter')
@@ -174,7 +174,9 @@ Fn "function definition" =
 		if (rest) paramNames.push(rest.name)
 		checkDuplicatedKey(paramNames, 'parameter')
 
-		return Ast.fn({typeVars, param, optionalPos, rest, body})
+		const fn = Ast.fn({typeVars, param, optionalPos, rest, body})
+		fn.extras = {delimiters: [d0, d1, ...(d2 ? [d2] : []), d3, d4]}
+		return fn
 	}
 
 FnParam = FnParamMulti / FnParamSingle
@@ -188,12 +190,12 @@ FnParamMulti =
 FnParamSingle = entry:NamedNode { return {entries: [entry]} }
 
 FnType "function type definition" =
-	"(" _ "->" __ typeVars:TypeVars? param:FnTypeParam out:Node _ ")"
+	"(" d0:_ "->" d1:__ typeVarsDs:(TypeVars __)? param:FnTypeParam d3:__ out:Node d4:_ ")"
 	{
 		const {entries, rest: _rest} = param
 		const [paramEntries, optionalFlags] = zip(entries)
 
-		typeVars ??= undefined
+		const [typeVars, d2] = typeVarsDs ?? [undefined, undefined]
 		param = fromPairs(paramEntries.map(([name, node], i) => [name ?? i, node]))
 		
 		const optionalPos = getOptionalPos(optionalFlags, 'parameter')
@@ -204,13 +206,15 @@ FnType "function type definition" =
 		if (rest) paramNames.push(rest.name)
 		checkDuplicatedKey(paramNames, 'parameter')
 		
-		return Ast.fnType({typeVars, param, optionalPos, rest, out})
+		const fnType = Ast.fnType({typeVars, param, optionalPos, rest, out})
+		fnType.extras = {delimiters: [d0, d1, ...(d2 ? [d2] : []), d3, d4]}
+		return fnType
 	}
 
 FnTypeParam = FnTypeParamMulti / FnTypeParamSingle
  
 FnTypeParamMulti =
-	"[" _ entries:FnTypeParamEntry* rest:("..." @FnTypeParamEntry _)? "]" __
+	"[" _ entries:(@FnTypeParamEntry __)* rest:("..." @FnTypeParamEntry _)? "]"
 	{
 		return {entries, rest}
 	}
@@ -218,12 +222,12 @@ FnTypeParamMulti =
 FnTypeParamSingle = entry:FnTypeParamEntry { return {entries: [entry]} }
 
 FnTypeParamEntry =
-	@NamedNode __ /
-	node:Node optional:"?"? __ { return [[null, node], optional] }
+	@NamedNode /
+	node:Node optional:"?"? { return [[null, node], optional] }
 
-TypeVars = "<" d0:_ namesAndDs:($([a-zA-Z] [a-zA-Z0-9]*) _)* ">" __
+TypeVars = "<" d0:_ namesDs:($([a-zA-Z] [a-zA-Z0-9]*) _)* ">"
 	{
-		const [names, ds] = zip(namesAndDs)
+		const [names, ds] = zip(namesDs)
 
 		const typeVars = new Ast.TypeVarsDef(names)
 		typeVars.extras = {delimiters: [d0, ...ds]}
@@ -236,10 +240,10 @@ NamedNode = id:Identifier optional:"?"? ":" _ node:Node
 	}
 
 Vec "vector" =
-	"[" d0:_ entries:(Node "?"? __)* restAndDs:("..." @Node @_)? "]"
+	"[" d0:_ entries:(Node "?"? __)* restDs:("..." @Node @_)? "]"
 	{
 		const [items, optionalFlags, ds] = zip(entries)
-		const [rest, dsr] = restAndDs ?? [undefined, []]
+		const [rest, dsr] = restDs ?? [undefined, []]
 
 		const optionalPos = getOptionalPos(optionalFlags, 'item')
 
@@ -251,11 +255,11 @@ Vec "vector" =
 	}
 
 Dict "dictionary" = "{"
-	d0:_ entries:DictEntry* restAndDs:("..." @Node @_)? "}"
+	d0:_ entries:DictEntry* restDs:("..." @Node @_)? "}"
 	{
 		const items = {}
 		const optionalKeys = new Set()
-		const [rest, dsr] = restAndDs ?? [undefined, []]
+		const [rest, dsr] = restDs ?? [undefined, []]
 
 		const delimiters = [d0]
 
@@ -319,11 +323,13 @@ _ "delimiter" = Whitespace* (Comment? Newline Whitespace*)*
 	}
 
 __ "non-zero length delimiter" =
-	_ &[)\]}] /
-	d:_
+	(
+		Whitespace+ (Comment? Newline Whitespace*)* /
+		Whitespace* (Comment? Newline Whitespace*)+ /
+		Whitespace* &[)\]}>]
+	)
 	{
-		if (d === '')
-			throw new Error('A Delimiter between elements needs to be non-zero length')
+		return text()
 	}
 
 Comment = ";" (!Newline .)*
