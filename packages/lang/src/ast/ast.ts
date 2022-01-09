@@ -32,7 +32,7 @@ export type InnerNode =
 	| VecLiteral
 	| DictLiteral
 
-export type ParentNode = InnerNode | ValueMeta | NodeMeta
+export type ParentNode = InnerNode | ValueMeta | NodeMeta | ParamDef
 
 export type Arg<T extends Val.Value = Val.Value> = () => T
 
@@ -151,7 +151,7 @@ export class Identifier extends BaseNode {
 	}
 
 	#resolve(
-		ref: Node | ValueMeta | NodeMeta | null,
+		ref: Node | ValueMeta | NodeMeta | ParamDef | null,
 		env: Env
 	): Writer<{node: Node; mode?: 'param' | 'arg' | 'TypeVar'}, Log> {
 		if (!ref) {
@@ -175,13 +175,10 @@ export class Identifier extends BaseNode {
 		if (ref.type === 'FnDef') {
 			if (env.isGlobal) {
 				// Situation A. While normal evaluation
-				if (this.name in ref.param) {
-					return Writer.of({node: ref.param[this.name], mode: 'param'})
-				} else if (ref.rest && this.name === ref.rest.name) {
-					// Rest parameter
-					const [rest, lr] = ref.rest.node.eval(env).asTuple
-					const node = ValueContainer.of(Val.vec([], undefined, rest))
-					return Writer.of({node, mode: 'param'}, ...lr)
+				const res = ref.param.get(this.name, env)
+				if (res) {
+					const [node, l] = res.asTuple
+					return Writer.of({node, mode: 'param'}, ...l)
 				}
 			} else {
 				// Situation B. In a context of function appliction
@@ -189,9 +186,9 @@ export class Identifier extends BaseNode {
 				if (arg) {
 					return Writer.of({node: ValueContainer.of(arg()), mode: 'arg'})
 				}
-				// If no corresponding arg has found for the fn, pop the env.
-				env = env.pop()
 			}
+			// If no corresponding arg has found for the fn, pop the env.
+			env = env.pop()
 		}
 
 		// Resolve typeVars
@@ -208,6 +205,10 @@ export class Identifier extends BaseNode {
 		// On meta
 		if (ref.type === 'ValueMeta' || ref.type === 'NodeMeta') {
 			return this.#resolve(ref.attachedTo, env)
+		}
+
+		if (ref.type === 'ParamDef') {
+			return this.#resolve(ref.parent, env)
 		}
 
 		// Resolve with parent node recursively
@@ -361,30 +362,20 @@ export class FnDef extends BaseNode {
 
 	private constructor(
 		public typeVars: TypeVarsDef | undefined,
-		public readonly param: Record<string, Node>,
-		public readonly optionalPos: number,
-		public readonly rest: {name: string; node: Node} | undefined,
+		public readonly param: ParamDef,
 		public body: Node
 	) {
 		super()
-
-		if (
-			optionalPos < 0 ||
-			values(param).length < optionalPos ||
-			optionalPos % 1 !== 0
-		) {
-			throw new Error('Invalid optionalPos: ' + optionalPos)
-		}
 	}
 
 	protected forceEval = (env: Env): WithLog => {
-		const names = keys(this.param)
+		const {names, restName} = this.param.getNames()
 
 		const fn: Val.IFn = (...args: Arg[]) => {
 			const arg = fromPairs(zip(names, args))
-			if (this.rest) {
+			if (restName) {
 				const restArgs = args.slice(names.length)
-				arg[this.rest.name] = () => Val.vec(restArgs.map(a => a()))
+				arg[restName] = () => Val.vec(restArgs.map(a => a()))
 			}
 			const innerEnv = env.extend(arg)
 			return this.body.eval(innerEnv)
@@ -399,16 +390,7 @@ export class FnDef extends BaseNode {
 
 	protected forceInfer = (env: Env): WithLog<Val.FnType> => {
 		// Infer parameter types by simply evaluating 'em
-		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
-
-		let rest: Val.FnType['rest'], lr: Set<Log>
-		if (this.rest) {
-			const [value, _lr] = this.rest.node.eval(env).asTuple
-			rest = {name: this.rest.name, value}
-			lr = _lr
-		} else {
-			lr = new Set()
-		}
+		const [{param, rest}, lp] = this.param.eval(env).asTuple
 
 		// Then, infer the function body
 		const arg = mapValues(param, p => () => p)
@@ -423,12 +405,12 @@ export class FnDef extends BaseNode {
 
 		const fnType = Val.fnType({
 			param,
-			optionalPos: this.optionalPos,
+			optionalPos: this.param.optionalPos,
 			rest,
 			out,
 		})
 
-		return withLog(fnType, ...lp, ...lr, ...lo)
+		return withLog(fnType, ...lp, ...lo)
 	}
 
 	protected printExceptMeta = (options: PrintOptions): string => {
@@ -440,7 +422,7 @@ export class FnDef extends BaseNode {
 		}
 
 		const typeVars = this.typeVars ? [this.typeVars.print()] : []
-		const param = printParam(this.param, this.optionalPos, this.rest, options)
+		const param = this.param.print(options)
 		const body = this.body.print(options)
 
 		const elements = ['=>', ...typeVars, param, body]
@@ -453,50 +435,37 @@ export class FnDef extends BaseNode {
 	protected isSameExceptMetaTo = (node: Node) =>
 		this.type === node.type &&
 		nullishEqual(this.typeVars, node.typeVars, TypeVarsDef.isSame) &&
-		isEqualDict(this.param, node.param, isSame) &&
-		this.optionalPos === node.optionalPos &&
-		isEqualRest(this.rest, node.rest) &&
+		ParamDef.isSame(this.param, node.param) &&
 		isSame(this.body, node.body)
 
 	clone = (): FnDef =>
 		FnDef.of({
 			typeVars: this.typeVars?.clone(),
-			param: mapValues(this.param, clone),
-			optionalPos: this.optionalPos,
-			rest: this.rest
-				? {...this.rest, node: this.rest.node.clone()}
-				: undefined,
+			param: this.param.clone(),
 			body: this.body.clone(),
 		})
 
 	static of({
 		typeVars,
-		param = {},
-		optionalPos,
-		rest,
+		param = ParamDef.of(),
 		body,
 	}: {
 		typeVars?: string[] | TypeVarsDef
-		param?: FnDef['param']
-		optionalPos?: number
-		rest?: FnDef['rest']
+		param?: ParamDef | Record<string, Node>
 		body: Node
 	}) {
-		const _optionalPos = optionalPos ?? values(param).length
-
 		const _typeVars = !typeVars
 			? undefined
 			: Array.isArray(typeVars)
 			? new TypeVarsDef(typeVars)
 			: typeVars
 
-		const fn = new FnDef(_typeVars, param, _optionalPos, rest, body)
+		const _param = param instanceof ParamDef ? param : ParamDef.of(param)
 
-		values(param).forEach(p => setParent(p, fn))
-		if (rest) setParent(rest.node, fn)
-		setParent(body, fn)
-
-		return fn
+		const fnDef = new FnDef(_typeVars, _param, body)
+		_param.parent = fnDef
+		body.parent = fnDef
+		return fnDef
 	}
 }
 
@@ -505,36 +474,25 @@ export class FnTypeDef extends BaseNode {
 
 	private constructor(
 		public readonly typeVars: TypeVarsDef | undefined,
-		public readonly param: Record<string, Node>,
-		public readonly optionalPos: number,
-		public readonly rest: {name?: string; node: Node} | undefined,
+		public readonly param: ParamDef,
 		public out: Node
 	) {
 		super()
 	}
 
 	protected forceEval = (env: Env): WithLog => {
-		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
-
-		let rest: Val.FnType['rest'], lr: Set<Log>
-		if (this.rest) {
-			const [value, _lr] = this.rest.node.eval(env).asTuple
-			rest = {name: this.rest.name, value}
-			lr = _lr
-		} else {
-			lr = new Set()
-		}
+		const [{param, rest}, lp] = this.param.eval(env).asTuple
 
 		const [out, lo] = this.out.eval(env).asTuple
 
 		const fnType = Val.fnType({
 			param,
-			optionalPos: this.optionalPos,
+			optionalPos: this.param.optionalPos,
 			rest,
 			out,
 		})
 
-		return withLog(fnType, ...lp, ...lr, ...lo)
+		return withLog(fnType, ...lp, ...lo)
 	}
 
 	protected forceInfer = () => withLog(Val.all)
@@ -548,7 +506,7 @@ export class FnTypeDef extends BaseNode {
 		}
 
 		const typeVars = this.typeVars ? [this.typeVars.print()] : []
-		const param = printParam(this.param, this.optionalPos, this.rest, options)
+		const param = this.param.print(options)
 		const out = this.out.print(options)
 
 		const elements = ['->', ...typeVars, param, out]
@@ -561,51 +519,164 @@ export class FnTypeDef extends BaseNode {
 	protected isSameExceptMetaTo = (node: Node): boolean =>
 		this.type === node.type &&
 		nullishEqual(this.typeVars, node.typeVars, TypeVarsDef.isSame) &&
-		isEqualDict(this.param, node.param, isSame) &&
-		this.optionalPos === node.optionalPos &&
-		isEqualRest(this.rest, node.rest) &&
+		ParamDef.isSame(this.param, node.param) &&
 		isSame(this.out, node.out)
 
 	clone = (): FnTypeDef =>
 		FnTypeDef.of({
 			typeVars: this.typeVars?.clone(),
-			param: mapValues(this.param, clone),
-			optionalPos: this.optionalPos,
-			rest: this.rest,
+			param: this.param.clone(),
 			out: this.out.clone(),
 		})
 
 	static of({
 		typeVars,
-		param = {},
-		optionalPos,
-		rest,
+		param = ParamDef.of(),
 		out,
 	}: {
 		typeVars?: string[] | TypeVarsDef
-		param?: FnTypeDef['param'] | Node[]
-		optionalPos?: number
-		rest?: FnTypeDef['rest']
+		param?: ParamDef | Record<string, Node> | Node[]
 		out: Node
 	}) {
-		const _optionalPos = optionalPos ?? values(param).length
-		const _param = Array.isArray(param)
-			? fromPairs(param.map((p, i) => [i, p]))
-			: param
-
 		const _typeVars = !typeVars
 			? undefined
 			: Array.isArray(typeVars)
 			? new TypeVarsDef(typeVars)
 			: typeVars
 
-		const fnType = new FnTypeDef(_typeVars, _param, _optionalPos, rest, out)
+		const _param = param instanceof ParamDef ? param : ParamDef.of(param)
 
-		forOwn(_param, p => setParent(p, fnType))
-		if (rest) setParent(rest.node, fnType)
-		setParent(out, fnType)
+		const fnTypeDef = new FnTypeDef(_typeVars, _param, out)
+		_param.parent = fnTypeDef
+		out.parent = fnTypeDef
+		return fnTypeDef
+	}
+}
 
-		return fnType
+export class ParamDef {
+	readonly type = 'ParamDef' as const
+	parent!: FnDef | FnTypeDef
+
+	private constructor(
+		public param: Record<string, Node>,
+		public optionalPos: number,
+		public rest?: {name?: string; node: Node}
+	) {}
+
+	eval = (env: Env) => {
+		// Infer parameter types by simply evaluating 'em
+		const [param, lp] = Writer.mapValues(this.param, p => p.eval(env)).asTuple
+
+		let rest: Val.FnType['rest'], lr: Set<Log>
+		if (this.rest) {
+			const [value, _lr] = this.rest.node.eval(env).asTuple
+			rest = {name: this.rest.name, value}
+			lr = _lr
+		} else {
+			lr = new Set()
+		}
+
+		return Writer.of({param, rest}, ...lp, ...lr)
+	}
+
+	print = (options: PrintOptions) => {
+		const params = entries(this.param)
+		const {optionalPos, rest} = this
+
+		const paramStrs = params.map(printNamedNode)
+		const restStrs = rest
+			? ['...' + (rest.name ? rest.name + ':' : '') + rest.node.print(options)]
+			: []
+
+		if (!this.extras) {
+			const tokensCount = params.length + (rest ? 1 : 0)
+			const delimiters = createListDelimiters(tokensCount)
+			this.extras = {delimiters}
+		}
+
+		const {delimiters} = this.extras
+
+		return '[' + insertDelimiters([...paramStrs, ...restStrs], delimiters) + ']'
+
+		function printNamedNode([name, ty]: [string, Node], index: number) {
+			const optionalMark = optionalPos <= index ? '?' : ''
+
+			if (/^[0-9]+$/.test(name)) {
+				// No label
+				return ty.print(options) + optionalMark
+			} else {
+				return name + optionalMark + ':' + ty.print(options)
+			}
+		}
+	}
+
+	extras?: {delimiters: string[]}
+
+	clone = () => {
+		return new ParamDef(
+			mapValues(this.param, clone),
+			this.optionalPos,
+			this.rest
+				? {name: this.rest.name, node: this.rest.node.clone()}
+				: undefined
+		)
+	}
+
+	getNames = () => {
+		return {
+			names: keys(this.param),
+			restName: this.rest?.name,
+		}
+	}
+
+	get = (name: string, env: Env) => {
+		if (name in this.param) {
+			return Writer.of<Node, Log>(this.param[name])
+		}
+		if (this.rest && this.rest.name === name) {
+			const [rest, lr] = this.rest.node.eval(env).asTuple
+			const node = ValueContainer.of(Val.vec([], undefined, rest))
+			return Writer.of(node, ...lr)
+		}
+	}
+
+	static of(
+		param: Record<string, Node> | Node[] = {},
+		optionalPos?: number,
+		rest?: {name?: string; node: Node}
+	) {
+		if (!optionalPos) optionalPos = values(param).length
+
+		if (
+			optionalPos < 0 ||
+			values(param).length < optionalPos ||
+			optionalPos % 1 !== 0
+		) {
+			throw new Error('Invalid optionalPos: ' + optionalPos)
+		}
+
+		const _param = Array.isArray(param)
+			? fromPairs(param.map((p, i) => [i, p]))
+			: param
+
+		const paramDef = new ParamDef(_param, optionalPos, rest)
+
+		forOwn(_param, p => (p.parent = paramDef))
+		if (rest) rest.node.parent = paramDef
+
+		return paramDef
+	}
+
+	static isSame(a: ParamDef, b: ParamDef) {
+		return (
+			isEqualDict(a.param, b.param, isSame) &&
+			a.optionalPos === b.optionalPos &&
+			nullishEqual(
+				a.rest,
+				b.rest,
+				(a, b) => a.name === b.name && isSame(a.node, b.node)
+			)
+		)
 	}
 }
 
@@ -633,42 +704,6 @@ export class TypeVarsDef {
 
 	static isSame(a: TypeVarsDef, b: TypeVarsDef) {
 		return isEqualArray(a.names, b.names)
-	}
-}
-
-function isEqualRest(a: FnTypeDef['rest'], b: FnTypeDef['rest']) {
-	return nullishEqual(
-		a,
-		b,
-		(a, b) => a.name === b.name && isSame(a.node, b.node)
-	)
-}
-
-function printParam(
-	param: Record<string, Node>,
-	optionalPos: number,
-	rest: {name?: string; node: Node} | undefined,
-	options: PrintOptions
-) {
-	const params = entries(param)
-
-	const paramStr = params.map(printNamedNode)
-
-	const restStr = rest
-		? ['...' + (rest.name ? rest.name + ':' : '') + rest.node.print(options)]
-		: []
-
-	return '[' + [...paramStr, ...restStr].join(' ') + ']'
-
-	function printNamedNode([name, ty]: [string, Node], index: number) {
-		const optionalMark = optionalPos <= index ? '?' : ''
-
-		if (/^[0-9]+$/.test(name)) {
-			// No label
-			return ty.print(options) + optionalMark
-		} else {
-			return name + optionalMark + ':' + ty.print(options)
-		}
 	}
 }
 

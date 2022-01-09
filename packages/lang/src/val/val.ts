@@ -483,9 +483,7 @@ export class Fn extends BaseValue implements IFnLike {
 
 		return Ast.fn({
 			typeVars,
-			param,
-			optionalPos: fnType.optionalPos,
-			rest,
+			param: Ast.param(param, fnType.optionalPos, rest),
 			body: this.body.clone(),
 		})
 	}
@@ -545,10 +543,10 @@ export class FnType extends BaseValue implements IFnType {
 			? {name: this.rest.name, node: this.rest.value.toAst()}
 			: undefined
 
+		const param = mapValues(this.param, p => p.toAst())
+
 		return Ast.fnType({
-			param: mapValues(this.param, p => p.toAst()),
-			optionalPos: this.optionalPos,
-			rest,
+			param: Ast.param(param, this.optionalPos, rest),
 			out: this.out.toAst(),
 		})
 	}

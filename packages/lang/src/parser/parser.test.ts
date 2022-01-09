@@ -10,6 +10,7 @@ import {
 	Node,
 	NodeMeta,
 	num,
+	param,
 	scope,
 	str,
 	ValueMeta,
@@ -137,7 +138,7 @@ describe('parsing function definition', () => {
 		'(=> [x: Num y: Bool] x)',
 		fn({param: {x: Num, y: Bool}, body: x})
 	)
-	testParsing('(=> [] _)', fn({param: {}, body: all()}))
+	testParsing('(=> [] _)', fn({body: all()}))
 	testParsing('(=> [] ())', fn({body: call()}))
 	testParsing('(=> [] (+ 1 2))', fn({body: call(id('+'), num(1), num(2))}))
 	testParsing('(=> [] (=> [] 1))', fn({body: fn({body: num(1)})}))
@@ -155,10 +156,13 @@ describe('parsing function definition', () => {
 	testErrorParsing('(=> <1> [] Num)')
 
 	// functions with rest parameter
-	testParsing('(=> [...x:x] y)', fn({rest: {name: 'x', node: x}, body: y}))
+	testParsing(
+		'(=> [...x:x] y)',
+		fn({param: param(undefined, undefined, {name: 'x', node: x}), body: y})
+	)
 	testParsing(
 		'(=> [x:x ...y:y] z)',
-		fn({param: {x}, rest: {name: 'y', node: y}, body: z})
+		fn({param: param({x}, undefined, {name: 'y', node: y}), body: z})
 	)
 })
 
@@ -186,10 +190,10 @@ describe('parsing function type', () => {
 	testErrorParsing('(-> <> [] Num)')
 	testErrorParsing('(-> <1> [] Num)')
 
-	testParsing('(-> [x?] y)', fnType({param: [x], optionalPos: 0, out: y}))
-	testParsing('(-> [x?:x] y)', fnType({param: {x}, optionalPos: 0, out: y}))
-	testParsing('(-> [x?:x] y)', fnType({param: {x}, optionalPos: 0, out: y}))
-	testParsing('(-> [x y?] z)', fnType({param: [x, y], optionalPos: 1, out: z}))
+	testParsing('(-> [x?] y)', fnType({param: param([x], 0), out: y}))
+	testParsing('(-> [x?:x] y)', fnType({param: param({x}, 0), out: y}))
+	testParsing('(-> [x?:x] y)', fnType({param: param({x}, 0), out: y}))
+	testParsing('(-> [x y?] z)', fnType({param: param([x, y], 1), out: z}))
 })
 
 describe('parsing metadata', () => {

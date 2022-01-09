@@ -7,6 +7,7 @@ import {
 	Identifier,
 	NeverKeyword,
 	NumLiteral,
+	ParamDef,
 	Scope,
 	StrLiteral,
 	TryCatch,
@@ -35,6 +36,7 @@ export {
 	FnDef,
 	FnTypeDef,
 	TypeVarsDef,
+	ParamDef,
 	VecLiteral,
 	DictLiteral,
 }
@@ -48,7 +50,10 @@ export const str = StrLiteral.of
 export const call = Call.of
 export const scope = Scope.of
 export const tryCatch = TryCatch.of
+
 export const fn = FnDef.of
 export const fnType = FnTypeDef.of
+export const param = ParamDef.of
+
 export const vec = VecLiteral.of
 export const dict = DictLiteral.of
