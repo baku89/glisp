@@ -216,9 +216,9 @@ describe('default values of types', () => {
 	test('{a?:Num ...Str}', '{}')
 
 	test('(-> [] Num)', '0', true)
-	test('(-> Num Bool)', 'false', true)
-	test('(-> <T> T T)', '()', true)
-	test('(-> _ ())', '()', true)
+	test('(-> [Num] Bool)', 'false', true)
+	test('(-> <T> [T] T)', '()', true)
+	test('(-> [_] ())', '()', true)
 
 	test('Num^PI', 'PI')
 	test('Bool^true', 'true')

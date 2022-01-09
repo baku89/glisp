@@ -141,10 +141,10 @@ PreludeScope.defs({
 		},
 		{lazy: true}
 	),
-	not: defn('(-> x:Bool Bool)', (x: Val.Enum) =>
+	not: defn('(-> [x:Bool] Bool)', (x: Val.Enum) =>
 		Val.bool(x.isEqualTo(Val.False))
 	),
-	len: defn('(-> x:(| Str [..._]) Num)', (x: Val.Str | Val.Vec) => {
+	len: defn('(-> [x:(| Str [..._])] Num)', (x: Val.Str | Val.Vec) => {
 		if (x.type === 'Vec') return Val.num(x.items.length)
 		else return Val.num(x.value.length)
 	}),
@@ -161,11 +161,11 @@ PreludeScope.defs({
 			return gcd
 		})()
 	),
-	rest: defn('(-> <T> coll:[...T] [...T])', (coll: Val.Vec) =>
+	rest: defn('(-> <T> [coll:[...T]] [...T])', (coll: Val.Vec) =>
 		Val.vec(coll.items.slice(1))
 	),
 	map: defn(
-		'(-> <T U> [f: (-> T U) coll:[...T]] [...U])',
+		'(-> <T U> [f: (-> [T] U) coll:[...T]] [...U])',
 		(f: Val.Fn, coll: Val.Vec) => {
 			const [items] = Writer.map(coll.items, i => f.fn(() => i)).asTuple
 			return Val.vec(items)
@@ -196,11 +196,15 @@ PreludeScope.defs({
 				labels.map(l => l.value)
 			)
 	),
-	fnType: defn('(-> f:_ _)', (f: Val.Value) => ('fnType' in f ? f.fnType : f)),
-	isSubtype: defn('(-> [x:_ y:_] Bool)', (s: Val.Value, t: Val.Value) =>
-		Val.bool(s.isSubtypeOf(t))
+	fnType: defn('(-> [f:_] _)', (f: Val.Value) =>
+		'fnType' in f ? f.fnType : f
 	),
-	show: defn('(-> _ Str)', (v: Val.Value) => Val.str(v.print())),
+	isSubtype: defn('(-> [x:_ y:_] Bool)', (x: Val.Value, y: Val.Value) =>
+		Val.bool(x.isSubtypeOf(y))
+	),
+	show: defn('(-> [value:_] Str)', (value: Val.Value) =>
+		Val.str(value.print())
+	),
 	'++': defn('(-> [a:Str b:Str] Str)', (a: Val.Str, b: Val.Str) =>
 		Val.str(a.value + b.value)
 	),
@@ -212,28 +216,28 @@ PreludeScope.defs(
 >: (=> [x:Num y:Num] (< y x))
 >=: (=> [x:Num y:Num] (<= y x))
 
-inc: (=> x:Num (+ x 1))
+inc: (=> [x:Num] (+ x 1))
 
-dec: (=> x:Num (- x 1))
+dec: (=> [x:Num] (- x 1))
 
-isEven: (=> x:Num (== (mod x 2) 0))
+isEven: (=> [x:Num] (== (mod x 2) 0))
 
-compose: (=> <T U V> [f:(-> T U) g:(-> U V)] 
-             (=> x:T (g (f x))))
+compose: (=> <T U V> [f:(-> [T] U) g:(-> [U] V)] 
+             (=> [x:T] (g (f x))))
 
-twice: (=> <T> f:(-> T T) (compose f f))
+twice: (=> <T> [f:(-> [T] T)] (compose f f))
 
-const: (=> <T> x:T (=> [] x))
+const: (=> <T> [x:T] (=> [] x))
 
-first: (=> <T> coll:[...T] (coll 0))
+first: (=> <T> [coll:[...T]] (coll 0))
 
-id: (=> <T> x:T x)
+id: (=> <T> [x:T] x)
 
-sqrt: (=> x:Num (if (<= 0 x)
-                    (** x 0.5)
-                    (log 0 "warn" "Negative number")))
+sqrt: (=> [x:Num] (if (<= 0 x)
+                      (** x 0.5)
+                      (log 0 "warn" "Negative number")))
 
-square: (=> x:Num (** x 2))
+square: (=> [x:Num] (** x 2))
 hypot:  (=> [x:Num y:Num] (sqrt (+ (* x x) (* y y))))
 PI: 3.1415926535897932384626433832795028841971693993
 

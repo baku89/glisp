@@ -216,16 +216,12 @@ Fn "function definition" =
 		fn.extras = {delimiters: [d0, d1, ...(d2 ? [d2] : []), d3, d4]}
 		return fn
 	}
-
-FnParam = FnParamMulti / FnParamSingle
 	
-FnParamMulti =
+FnParam =
 	"[" _ entries:(@NamedNode __)* rest:("..." @NamedNode _)? "]"
 	{
 		return {entries, rest}
 	}
-
-FnParamSingle = entry:NamedNode { return {entries: [entry]} }
 
 FnType "function type definition" =
 	"(" d0:_ "->" d1:__ typeVarsDs:(TypeVars __)? param:FnTypeParam d3:__ out:Node d4:_ ")"
@@ -248,16 +244,12 @@ FnType "function type definition" =
 		fnType.extras = {delimiters: [d0, d1, ...(d2 ? [d2] : []), d3, d4]}
 		return fnType
 	}
-
-FnTypeParam = FnTypeParamMulti / FnTypeParamSingle
  
-FnTypeParamMulti =
+FnTypeParam =
 	"[" _ entries:(@FnTypeParamEntry __)* rest:("..." @FnTypeParamEntry _)? "]"
 	{
 		return {entries, rest}
 	}
-
-FnTypeParamSingle = entry:FnTypeParamEntry { return {entries: [entry]} }
 
 FnTypeParamEntry =
 	@NamedNode /

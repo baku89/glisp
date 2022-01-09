@@ -62,7 +62,7 @@ describe('evaluating function definition', () => {
 `,
 		'103'
 	)
-	testEval('((=> f:(-> Num Num) (f 1)) id)', '1')
+	testEval('((=> [f:(-> [Num] Num)] (f 1)) id)', '1')
 })
 
 describe('run-time error handling', () => {

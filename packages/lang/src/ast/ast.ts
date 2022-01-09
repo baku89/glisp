@@ -652,20 +652,13 @@ function printParam(
 ) {
 	const params = entries(param)
 
-	const canOmitBracket =
-		params.length === 1 &&
-		!(params[0][1].type === 'VecLiteral' && params[0][1].items.length === 0) &&
-		!rest
-
 	const paramStr = params.map(printNamedNode)
 
 	const restStr = rest
 		? ['...' + (rest.name ? rest.name + ':' : '') + rest.node.print(options)]
 		: []
 
-	const content = [...paramStr, ...restStr].join(' ')
-
-	return canOmitBracket ? content : '[' + content + ']'
+	return '[' + [...paramStr, ...restStr].join(' ') + ']'
 
 	function printNamedNode([name, ty]: [string, Node], index: number) {
 		const optionalMark = optionalPos <= index ? '?' : ''
