@@ -196,16 +196,17 @@ describe('parsing function type', () => {
 
 describe('parsing metadata', () => {
 	testParsing('0^0', num(0).setValueMeta(new ValueMeta(num(0))))
-	testParsing('0^(0)', num(0).setValueMeta(new ValueMeta(num(0))))
-	testParsing('0 \n^\t(0)', num(0).setValueMeta(new ValueMeta(num(0))))
+	testParsing('0^{0}', num(0).setValueMeta(new ValueMeta(num(0))))
+	testParsing('0 \n^\t{0}', num(0).setValueMeta(new ValueMeta(num(0))))
 
-	testParsing('_^("hello")', all().setValueMeta(new ValueMeta(str('hello'))))
-	testParsing('()^(())', call().setValueMeta(new ValueMeta(call())))
+	testParsing('_^{"hello"}', all().setValueMeta(new ValueMeta(str('hello'))))
+	testParsing('()^{{}}', call().setValueMeta(new ValueMeta(dict())))
+	testParsing('()^{}', call().setValueMeta(new ValueMeta()))
 
-	testParsing('Bool^(true)', id('Bool').setValueMeta(new ValueMeta(id('true'))))
+	testParsing('Bool^{true}', id('Bool').setValueMeta(new ValueMeta(id('true'))))
 
 	testErrorParsing('Bool^true^true')
-	testErrorParsing('Bool^(true)^(true)')
+	testErrorParsing('Bool^{true}^{true}')
 
 	testParsing(
 		'layer#{collapsed: true}',
@@ -213,7 +214,7 @@ describe('parsing metadata', () => {
 	)
 
 	testParsing(
-		'Num^(0 label: "number")#{prop: "A"}',
+		'Num^{0 label: "number"}#{prop: "A"}',
 		id('Num')
 			.setValueMeta(new ValueMeta(num(0), dict({label: str('number')})))
 			.setNodeMeta(new NodeMeta(dict({prop: str('A')})))
@@ -227,7 +228,10 @@ function testParsing(input: string, expected: Node) {
 	test(`parsing '${input}' to be ${expected.print()}`, () => {
 		const result = parse(input)
 		if (!isSame(result, expected)) {
-			throw new Error('Got=' + result.print())
+			throw new Error('Not as same as expected, got=' + result.print())
+		}
+		if (result.print() !== input) {
+			throw new Error(`Doesn't store CST properly, got='${result.print()}'`)
 		}
 	})
 }

@@ -815,7 +815,7 @@ export class DictLiteral extends BaseNode {
 		)
 
 	static of(
-		items: Record<string, Node>,
+		items: Record<string, Node> = {},
 		optionalKeys: Iterable<string> = [],
 		rest?: Node
 	) {
@@ -1014,7 +1014,10 @@ export class Call extends BaseNode {
 			}
 		}
 
-		if (!this.callee) return '(' + this.extras.delimiters[0] + ')'
+		// Print unit literal
+		if (!this.callee) {
+			return '(' + this.extras.delimiters[0] + ')'
+		}
 
 		const callee = this.callee.print(options)
 		const args = this.args.map(a => a.print(options))
@@ -1217,7 +1220,7 @@ export class ValueMeta {
 		let meta: string
 		if (innerDelimiters) {
 			const elements = [...defaultValue, ...fields]
-			meta = '(' + insertDelimiters(elements, innerDelimiters) + ')'
+			meta = '{' + insertDelimiters(elements, innerDelimiters) + '}'
 		} else {
 			meta = defaultValue[0]
 		}
@@ -1228,11 +1231,15 @@ export class ValueMeta {
 	extras?: {
 		delimiters: string[]
 
-		// ^( _ defaultValue __ <fields>)
-		// ^( _ defaultValue _ )
-		// ^defaultValue
-		// ^( _ <fields>)
-		// ^( _ )
+		/**
+		 * Stores delimiters inside brackets.
+		 * Becomes undefined when brackes are omitted.
+		 * ^{_defaultValue__<fields>}
+		 * ^{_defaultValue_}
+		 * ^defaultValue
+		 * ^{_ <fields>}
+		 * ^{_}
+		 **/
 		innerDelimiters?: string[]
 	}
 

@@ -112,7 +112,7 @@ NodeContent =
 	Vec / Dict
 
 ValueMeta =
-	d0:_ "^" d1:_ "(" di0:_ defaultValueDi1:(@Node !":" @__)? fields:ValueMetaFields ")"
+	d0:_ "^" d1:_ "{" di0:_ defaultValueDi1:(@Node !":" @__)? fields:ValueMetaFields "}"
 	{
 		const [defaultValue, di1] = defaultValueDi1 ?? [undefined, undefined]
 
@@ -139,7 +139,7 @@ ValueMetaFields = entries:(@DictKey ":" @_ @Node @__)*
 		checkDuplicatedKey(keys, 'key')
 
 		const dict = Ast.dict(fromPairs(unzip([keys, nodes])))
-		dict.extras = {delimiters: unzip([ds0, ds1]).flat()}
+		dict.extras = {delimiters: ['', ...unzip([ds0, ds1]).flat()]}
 		return dict
 	}
 
@@ -328,10 +328,10 @@ DictKey =
 	str: Str      {return str.value }
 
 Scope "scope" =
-	"(" d0:_ "let" __ pairs:(@Identifier ":" @_ @Node @__)* out:Node? dl:_ ")"
+	"(" d0:_ "let" d1:__ pairs:(@Identifier ":" @_ @Node @__)* out:Node? dl:_ ")"
 	{
 		const vars = {}
-		const delimiters = [d0]
+		const delimiters = [d0, d1]
 
 		for (const [{name}, da, value, db] of pairs) {
 			if (name in vars) throw new Error(`Duplicated symbol name: '${name}'`)
