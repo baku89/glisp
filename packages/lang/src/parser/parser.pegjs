@@ -364,7 +364,7 @@ __ "non-zero length delimiter" =
 	(
 		Whitespace+ (Comment? Newline Whitespace*)* /
 		Whitespace* (Comment? Newline Whitespace*)+ /
-		Whitespace* &[)\]}>]
+		Whitespace* &[)\]}]
 	)
 	{
 		return text()
