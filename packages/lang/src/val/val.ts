@@ -509,7 +509,7 @@ export class FnType extends BaseValue implements IFnType {
 	private constructor(
 		public readonly param: Record<string, Value>,
 		public readonly optionalPos: number,
-		public readonly rest: {name?: string; value: Value} | undefined,
+		public readonly rest: {name: string; value: Value} | undefined,
 		public readonly out: Value
 	) {
 		super()

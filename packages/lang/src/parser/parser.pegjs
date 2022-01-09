@@ -204,6 +204,16 @@ Fn "function definition" =
 		fn.extras = {delimiters: [d0, d1, ...(d2 ? [d2] : []), d3, d4]}
 		return fn
 	}
+
+FnType "function type definition" =
+	"(" d0:_ "->" d1:__ typeVarsDs:(TypeVars __)? param:FnParam d3:__ out:Node d4:_ ")"
+	{
+		const [typeVars, d2] = typeVarsDs ?? [undefined, undefined]
+
+		const fnType = Ast.fnType({typeVars, param, out})
+		fnType.extras = {delimiters: [d0, d1, ...(d2 ? [d2] : []), d3, d4]}
+		return fnType
+	}
 	
 FnParam =
 	"[" d0:_ entries:(NamedNode __)* rest:("..." @NamedNode @_)? "]"
@@ -226,43 +236,6 @@ FnParam =
 		param.extras = {delimiters: [d0, ...d1s, ...d2s]}
 		return param
 	}
-
-FnType "function type definition" =
-	"(" d0:_ "->" d1:__ typeVarsDs:(TypeVars __)? param:FnTypeParam d3:__ out:Node d4:_ ")"
-	{
-		const [typeVars, d2] = typeVarsDs ?? [undefined, undefined]
-
-		const fnType = Ast.fnType({typeVars, param, out})
-		fnType.extras = {delimiters: [d0, d1, ...(d2 ? [d2] : []), d3, d4]}
-		return fnType
-	}
- 
-FnTypeParam =
-	"[" d0:_ entries:(FnTypeParamEntry __)* rest:("..." @FnTypeParamEntry @_)? "]"
-	{
-		let optionalFlags, d1s, d2s
-
-		;[entries, d1s] = zip(entries)
-		;[entries, optionalFlags] = zip(entries)
-		entries = entries.map(([name, node], i) => [name ?? i, node])
-		;[rest, d2s] = rest ?? [undefined, []]
-
-		const paramDict = fromPairs(entries)
-		const optionalPos = getOptionalPos(optionalFlags, 'parameter')
-		rest = parseRestParameter(rest)
-
-		const paramNames = entries.map(([name]) => name)
-		if (rest) paramNames.push(rest.name)
-		checkDuplicatedKey(paramNames, 'parameter')
-
-		const param = Ast.param(paramDict, optionalPos, rest)
-		param.extras = {delimiters: [d0, ...d1s, ...d2s]}
-		return param
-	}
-
-FnTypeParamEntry =
-	@NamedNode /
-	node:Node optional:"?"? { return [[null, node], optional] }
 
 TypeVars = "<" d0:_ namesDs:($([a-zA-Z] [a-zA-Z0-9]*) _)* ">"
 	{

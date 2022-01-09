@@ -167,17 +167,17 @@ describe('parsing function definition', () => {
 })
 
 describe('parsing function type', () => {
-	testParsing('(-> [[...x]] x)', fnType({param: [vec([], 0, x)], out: x}))
-	testParsing('(-> [_] _)', fnType({param: [all()], out: all()}))
-	testParsing('(-> [[]] ())', fnType({param: [vec()], out: call()}))
+	testParsing('(-> [a:[...x]] x)', fnType({param: {a: vec([], 0, x)}, out: x}))
+	testParsing('(-> [x:_] _)', fnType({param: {x: all()}, out: all()}))
+	testParsing('(-> [x:[]] ())', fnType({param: {x: vec()}, out: call()}))
 	testParsing('(-> [] z)', fnType({out: z}))
 	testParsing('(-> [] [])', fnType({out: vec()}))
-	testParsing('(-> [x] z)', fnType({param: [x], out: z}))
-	testParsing('(-> [x y] z)', fnType({param: [x, y], out: z}))
-	testParsing('(-> [x y z] w)', fnType({param: [x, y, z], out: w}))
-	testParsing('(-> [[x y]] z)', fnType({param: [vec([x, y])], out: z}))
 	testParsing('(-> [x:x] z)', fnType({param: {x}, out: z}))
-	testParsing('(-> [x:x y] z)', fnType({param: {x, 1: y}, out: z}))
+	testParsing('(-> [x:x y:y] z)', fnType({param: {x, y}, out: z}))
+	testParsing('(-> [x:x y:y z:z] w)', fnType({param: {x, y, z}, out: w}))
+	testParsing('(-> [a:[x y]] z)', fnType({param: {a: vec([x, y])}, out: z}))
+	testParsing('(-> [x:x] z)', fnType({param: {x}, out: z}))
+	testParsing('(-> [x:x y:y] z)', fnType({param: {x, y}, out: z}))
 
 	testParsing(
 		'(-> <T> [x:T] T)',
@@ -190,10 +190,10 @@ describe('parsing function type', () => {
 	testErrorParsing('(-> <> [] Num)')
 	testErrorParsing('(-> <1> [] Num)')
 
-	testParsing('(-> [x?] y)', fnType({param: param([x], 0), out: y}))
 	testParsing('(-> [x?:x] y)', fnType({param: param({x}, 0), out: y}))
 	testParsing('(-> [x?:x] y)', fnType({param: param({x}, 0), out: y}))
-	testParsing('(-> [x y?] z)', fnType({param: param([x, y], 1), out: z}))
+	testParsing('(-> [x?:x] y)', fnType({param: param({x}, 0), out: y}))
+	testParsing('(-> [x:x y?:y] z)', fnType({param: param({x, y}, 1), out: z}))
 })
 
 describe('parsing metadata', () => {

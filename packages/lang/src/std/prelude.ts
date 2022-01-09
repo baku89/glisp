@@ -165,14 +165,14 @@ PreludeScope.defs({
 		Val.vec(coll.items.slice(1))
 	),
 	map: defn(
-		'(-> <T U> [f: (-> [T] U) coll:[...T]] [...U])',
+		'(-> <T U> [f: (-> [t:T] U) coll:[...T]] [...U])',
 		(f: Val.Fn, coll: Val.Vec) => {
 			const [items] = Writer.map(coll.items, i => f.fn(() => i)).asTuple
 			return Val.vec(items)
 		}
 	),
 	reduce: defn(
-		'(-> <T U> [f: (-> [U T] U) coll: [...T] initial: U] U)',
+		'(-> <T U> [f: (-> [u:U t:T] U) coll: [...T] initial: U] U)',
 		(f: Val.Fn, coll: Val.Vec, initial: Val.Value) => {
 			return coll.items.reduce(
 				(prev: Val.Value, curt: Val.Value) =>
@@ -222,10 +222,10 @@ dec: (=> [x:Num] (- x 1))
 
 isEven: (=> [x:Num] (== (mod x 2) 0))
 
-compose: (=> <T U V> [f:(-> [T] U) g:(-> [U] V)] 
+compose: (=> <T U V> [f:(-> [t:T] U) g:(-> [u:U] V)] 
              (=> [x:T] (g (f x))))
 
-twice: (=> <T> [f:(-> [T] T)] (compose f f))
+twice: (=> <T> [f:(-> [t:T] T)] (compose f f))
 
 const: (=> <T> [x:T] (=> [] x))
 

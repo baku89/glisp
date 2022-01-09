@@ -30,7 +30,7 @@ describe('evaluating literals', () => {
 	testEval('[0]', vec([num(0)]))
 	testEval('{a:1 b:2}', dict({a: num(1), b: num(2)}))
 	testEval('{a?:Num ...Str}', dict({a: NumType}, ['a'], StrType))
-	testEval('(-> [Num] Str)', fnType({param: {0: NumType}, out: StrType}))
+	testEval('(-> [x:Num] Str)', fnType({param: {x: NumType}, out: StrType}))
 	testEval('(let a: 10 a)', num(10))
 	testEval('(let a: (let a: 20 a) a)', num(20))
 })
@@ -62,7 +62,7 @@ describe('evaluating function definition', () => {
 `,
 		'103'
 	)
-	testEval('((=> [f:(-> [Num] Num)] (f 1)) id)', '1')
+	testEval('((=> [f:(-> [x:Num] Num)] (f 1)) id)', '1')
 })
 
 describe('run-time error handling', () => {
@@ -70,7 +70,7 @@ describe('run-time error handling', () => {
 })
 
 describe('resolving identifier', () => {
-	testEval('(let X: Num (-> [X:X] X))', '(-> [Num] Num)')
+	testEval('(let X: Num (-> [X:X] X))', '(-> [X:Num] Num)')
 })
 
 describe('inferring expression type', () => {
@@ -101,12 +101,12 @@ describe('inferring expression type', () => {
 	test('[(+ 1 2)]', '[Num]')
 
 	test('(=> [] 5)', '(-> [] 5)')
-	test('(=> [x:Num] "foo")', '(-> [Num] "foo")')
-	test('(=> [x:Num] x)', '(-> [Num] Num)')
-	test('(=> [x:(+ 1 2)] (+ x 4))', '(-> [3] Num)')
-	test('(=> [x:_] Num)', '(-> [_] _)')
+	test('(=> [x:Num] "foo")', '(-> [x:Num] "foo")')
+	test('(=> [x:Num] x)', '(-> [x:Num] Num)')
+	test('(=> [x:(+ 1 2)] (+ x 4))', '(-> [x:3] Num)')
+	test('(=> [x:_] Num)', '(-> [x:_] _)')
 
-	test('(-> [Num] Num)', '_')
+	test('(-> [x:Num] Num)', '_')
 
 	test('(let a: Num a)', '_')
 	test('(let a: 10)', '()')
@@ -114,8 +114,8 @@ describe('inferring expression type', () => {
 
 	test('((=> <T> [x:T] x) 4)', '4')
 	test('((=> <T> [x:T] x) (+ 1 2))', 'Num')
-	test('((=> <T> [f:(-> [T] T)] f) inc)', '(-> [Num] Num)')
-	test('((=> <T> [f:(-> [T] T)] (=> [x:T] (f x))) inc)', '(-> [Num] Num)')
+	test('((=> <T> [f:(-> [t:T] T)] f) inc)', '(-> [t:Num] Num)')
+	test('((=> <T> [f:(-> [t:T] T)] (=> [x:T] (f x))) inc)', '(-> [t:Num] Num)')
 	test('(try 1 2)', '(| 1 2)')
 
 	function test(input: string, expected: string) {

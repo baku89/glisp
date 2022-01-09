@@ -535,7 +535,7 @@ export class FnTypeDef extends BaseNode {
 		out,
 	}: {
 		typeVars?: string[] | TypeVarsDef
-		param?: ParamDef | Record<string, Node> | Node[]
+		param?: ParamDef | Record<string, Node>
 		out: Node
 	}) {
 		const _typeVars = !typeVars
@@ -560,7 +560,7 @@ export class ParamDef {
 	private constructor(
 		public param: Record<string, Node>,
 		public optionalPos: number,
-		public rest?: {name?: string; node: Node}
+		public rest?: {name: string; node: Node}
 	) {}
 
 	eval = (env: Env) => {
@@ -600,13 +600,7 @@ export class ParamDef {
 
 		function printNamedNode([name, ty]: [string, Node], index: number) {
 			const optionalMark = optionalPos <= index ? '?' : ''
-
-			if (/^[0-9]+$/.test(name)) {
-				// No label
-				return ty.print(options) + optionalMark
-			} else {
-				return name + optionalMark + ':' + ty.print(options)
-			}
+			return name + optionalMark + ':' + ty.print(options)
 		}
 	}
 
@@ -641,9 +635,9 @@ export class ParamDef {
 	}
 
 	static of(
-		param: Record<string, Node> | Node[] = {},
+		param: Record<string, Node> = {},
 		optionalPos?: number,
-		rest?: {name?: string; node: Node}
+		rest?: {name: string; node: Node}
 	) {
 		if (!optionalPos) optionalPos = values(param).length
 
@@ -655,13 +649,9 @@ export class ParamDef {
 			throw new Error('Invalid optionalPos: ' + optionalPos)
 		}
 
-		const _param = Array.isArray(param)
-			? fromPairs(param.map((p, i) => [i, p]))
-			: param
+		const paramDef = new ParamDef(param, optionalPos, rest)
 
-		const paramDef = new ParamDef(_param, optionalPos, rest)
-
-		forOwn(_param, p => (p.parent = paramDef))
+		forOwn(param, p => (p.parent = paramDef))
 		if (rest) rest.node.parent = paramDef
 
 		return paramDef
