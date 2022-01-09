@@ -3,14 +3,27 @@
 		const as = []
 		const bs = []
 		const cs = []
+		const ds = []
 
-		for (const [a, b, c] of coll) {
+		for (const [a, b, c, d] of coll) {
 			as.push(a)
 			bs.push(b)
 			cs.push(c)
+			ds.push(d)
 		}
 
-		return [as, bs, cs]
+		return [as, bs, cs, ds]
+	}
+
+	function unzip([as, bs]) {
+		const unzipped = []
+		const len = as.length
+
+		for (let i = 0; i < len; i++) {
+			unzipped.push([as[i], bs[i]])
+		}
+
+		return unzipped
 	}
 
 	const fromPairs = Object.fromEntries
@@ -78,7 +91,7 @@ Program = _ exp:Node _ Comment?
 
 Node =
 	node:NodeContent
-	valueMeta:(_ "^" _ @ValueMeta)?
+	valueMeta:ValueMeta?
 	nodeMeta:NodeMeta?
 	{
 		if (valueMeta) {
@@ -99,16 +112,36 @@ NodeContent =
 	Vec / Dict
 
 ValueMeta =
-	"(" _ defaultValue:(@Node !":" __)? fields:(@DictKey ":" _ @Node __)* ")"
+	d0:_ "^" d1:_ "(" di0:_ defaultValueDi1:(@Node !":" @__)? fields:ValueMetaFields ")"
 	{
-		checkDuplicatedKey(fields.map(([key]) => key), 'key')
+		const [defaultValue, di1] = defaultValueDi1 ?? [undefined, undefined]
 
-		defaultValue ??= undefined
-		fields = fields.length > 0 ? Ast.dict(fromPairs(fields)) : undefined
-
-		return {defaultValue, fields}
+		const valueMeta = new Ast.ValueMeta(defaultValue, fields)
+		valueMeta.extras = {
+			delimiters: [d0, d1],
+			innerDelimiters: [di0, ...(di1 ? [di1] : [])]
+		}
+		return valueMeta
 	} /
-	defaultValue:Node { return {defaultValue} }
+	d0:_ "^" d1:_ defaultValue:Node
+	{
+		const valueMeta = new Ast.ValueMeta(defaultValue)
+		valueMeta.extras = {delimiters: [d0, d1]}
+		return valueMeta
+	}
+
+ValueMetaFields = entries:(@DictKey ":" @_ @Node @__)*
+	{
+		if (!entries) return undefined
+
+		const [keys, ds0, nodes, ds1] = zip(entries)
+
+		checkDuplicatedKey(keys, 'key')
+
+		const dict = Ast.dict(fromPairs(unzip([keys, nodes])))
+		dict.extras = {delimiters: unzip([ds0, ds1]).flat()}
+		return dict
+	}
 
 NodeMeta = d0:_ "#" d1:_ fields:Dict
 	{

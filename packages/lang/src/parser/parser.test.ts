@@ -12,6 +12,7 @@ import {
 	num,
 	scope,
 	str,
+	ValueMeta,
 	vec,
 } from '../ast'
 import {parse} from '.'
@@ -194,17 +195,14 @@ describe('parsing function type', () => {
 })
 
 describe('parsing metadata', () => {
-	testParsing('0^0', num(0).setValueMeta({defaultValue: num(0)}))
-	testParsing('0^(0)', num(0).setValueMeta({defaultValue: num(0)}))
-	testParsing('0 \n^\t(0)', num(0).setValueMeta({defaultValue: num(0)}))
+	testParsing('0^0', num(0).setValueMeta(new ValueMeta(num(0))))
+	testParsing('0^(0)', num(0).setValueMeta(new ValueMeta(num(0))))
+	testParsing('0 \n^\t(0)', num(0).setValueMeta(new ValueMeta(num(0))))
 
-	testParsing('_^("hello")', all().setValueMeta({defaultValue: str('hello')}))
-	testParsing('()^(())', call().setValueMeta({defaultValue: call()}))
+	testParsing('_^("hello")', all().setValueMeta(new ValueMeta(str('hello'))))
+	testParsing('()^(())', call().setValueMeta(new ValueMeta(call())))
 
-	testParsing(
-		'Bool^(true)',
-		id('Bool').setValueMeta({defaultValue: id('true')})
-	)
+	testParsing('Bool^(true)', id('Bool').setValueMeta(new ValueMeta(id('true'))))
 
 	testErrorParsing('Bool^true^true')
 	testErrorParsing('Bool^(true)^(true)')
@@ -217,10 +215,7 @@ describe('parsing metadata', () => {
 	testParsing(
 		'Num^(0 label: "number")#{prop: "A"}',
 		id('Num')
-			.setValueMeta({
-				defaultValue: num(0),
-				fields: dict({label: str('number')}),
-			})
+			.setValueMeta(new ValueMeta(num(0), dict({label: str('number')})))
 			.setNodeMeta(new NodeMeta(dict({prop: str('A')})))
 	)
 

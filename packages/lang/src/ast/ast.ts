@@ -84,19 +84,17 @@ export abstract class BaseNode {
 
 	#valueMeta?: ValueMeta
 
-	setValueMeta(valueMeta: {defaultValue?: Node; fields?: DictLiteral} = {}) {
-		this.#valueMeta = new ValueMeta(
-			this as any,
-			valueMeta.defaultValue,
-			valueMeta.fields
-		)
+	setValueMeta(meta: ValueMeta) {
+		this.#valueMeta = meta
+		this.#valueMeta.attachedTo = this as any
 		return this
 	}
 
 	#nodeMeta?: NodeMeta
+
 	setNodeMeta(meta: NodeMeta) {
 		this.#nodeMeta = meta
-		meta.attachedTo = this as any
+		this.#nodeMeta.attachedTo = this as any
 		return this
 	}
 
@@ -1176,43 +1174,66 @@ export class TryCatch extends BaseNode {
 	}
 }
 
-class ValueMeta {
+export class ValueMeta {
 	readonly type = 'ValueMeta' as const
 
 	public fields?: DictLiteral
 
-	public constructor(
-		public attachedTo: Node,
-		public defaultValue?: Node,
-		fields?: DictLiteral
-	) {
+	public constructor(public defaultValue?: Node, fields?: DictLiteral) {
 		if (fields && keys(fields.items).length > 0) {
 			this.fields = fields
-
 			fields.parent = this
 		}
 
 		if (defaultValue) defaultValue.parent = this
 	}
 
+	public attachedTo!: Node
+
 	print = (options: PrintOptions) => {
-		const fields = this.fields?.print(options).slice(1, -1) ?? ''
+		if (!this.extras) {
+			const delimiters = ['', '']
 
-		const hasNoFields = fields === ''
+			let innerDelimiters: string[] | undefined
+			if (this.defaultValue) {
+				if (this.fields) {
+					innerDelimiters = ['', ' ']
+				}
+			} else {
+				innerDelimiters = ['']
+			}
 
-		if (!this.defaultValue && fields === '') {
-			return ''
+			this.extras = {delimiters, innerDelimiters}
 		}
 
 		const defaultValue = this.defaultValue
 			? [this.defaultValue.print(options)]
 			: []
 
-		if (hasNoFields) {
-			return '^' + defaultValue.join('')
+		const fields = this.fields ? [this.fields.print(options).slice(1, -1)] : []
+
+		const {delimiters, innerDelimiters} = this.extras
+
+		let meta: string
+		if (innerDelimiters) {
+			const elements = [...defaultValue, ...fields]
+			meta = '(' + insertDelimiters(elements, innerDelimiters) + ')'
 		} else {
-			return '^(' + [...defaultValue, fields].join(' ') + ')'
+			meta = defaultValue[0]
 		}
+
+		return insertDelimiters(['^', meta], delimiters)
+	}
+
+	extras?: {
+		delimiters: string[]
+
+		// ^( _ defaultValue __ <fields>)
+		// ^( _ defaultValue _ )
+		// ^defaultValue
+		// ^( _ <fields>)
+		// ^( _ )
+		innerDelimiters?: string[]
 	}
 
 	eval = (env: Env) => {

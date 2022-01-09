@@ -7,14 +7,17 @@ export function createListDelimiters(count: number): string[] {
 }
 
 export function insertDelimiters(elements: string[], delimiters: string[]) {
-	if (elements.length + 1 !== delimiters.length) {
+	if (
+		elements.length + 1 !== delimiters.length &&
+		elements.length !== delimiters.length
+	) {
 		throw new Error('Invalid length of delimiters')
 	}
 
 	let str = delimiters[0]
 
 	for (let i = 0; i < elements.length; i++) {
-		str += elements[i] + delimiters[i + 1]
+		str += elements[i] + (delimiters[i + 1] ?? '')
 	}
 
 	return str

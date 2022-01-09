@@ -17,7 +17,7 @@ import {
 
 export {Node, LeafNode, InnerNode, Arg} from './ast'
 
-export {NodeMeta} from './ast'
+export {ValueMeta, NodeMeta} from './ast'
 
 export {isSame, print, setParent, clone} from './ast'
 

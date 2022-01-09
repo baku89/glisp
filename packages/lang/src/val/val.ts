@@ -90,7 +90,7 @@ abstract class BaseValue {
 
 			const fields = this.meta?.toAst()
 
-			return node.setValueMeta({defaultValue, fields})
+			return node.setValueMeta(new Ast.ValueMeta(defaultValue, fields))
 		}
 
 		return node
