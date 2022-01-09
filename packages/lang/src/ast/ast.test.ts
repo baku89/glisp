@@ -69,6 +69,10 @@ describe('run-time error handling', () => {
 	testEval('(try ([] 0) 1)', '1', true)
 })
 
+describe('resolving identifier', () => {
+	testEval('(let X: Num (-> [X:X] X))', '(-> [Num] Num)')
+})
+
 describe('inferring expression type', () => {
 	test('_', '_')
 	test('Never', '_')
