@@ -8,6 +8,7 @@ import {
 	isSame,
 	never,
 	Node,
+	NodeMeta,
 	num,
 	scope,
 	str,
@@ -210,7 +211,7 @@ describe('parsing metadata', () => {
 
 	testParsing(
 		'layer#{collapsed: true}',
-		id('layer').setNodeMeta(dict({collapsed: id('true')}))
+		id('layer').setNodeMeta(new NodeMeta(dict({collapsed: id('true')})))
 	)
 
 	testParsing(
@@ -220,7 +221,7 @@ describe('parsing metadata', () => {
 				defaultValue: num(0),
 				fields: dict({label: str('number')}),
 			})
-			.setNodeMeta(dict({prop: str('A')}))
+			.setNodeMeta(new NodeMeta(dict({prop: str('A')})))
 	)
 
 	testErrorParsing('layer#{}#{}')

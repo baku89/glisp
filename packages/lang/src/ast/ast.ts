@@ -94,8 +94,9 @@ export abstract class BaseNode {
 	}
 
 	#nodeMeta?: NodeMeta
-	setNodeMeta(fields: DictLiteral) {
-		this.#nodeMeta = new NodeMeta(this as any, fields)
+	setNodeMeta(meta: NodeMeta) {
+		this.#nodeMeta = meta
+		meta.attachedTo = this as any
 		return this
 	}
 
@@ -1236,15 +1237,27 @@ class ValueMeta {
 	}
 }
 
-class NodeMeta {
+export class NodeMeta {
 	readonly type = 'NodeMeta' as const
 
-	constructor(public attachedTo: Node, public fields: DictLiteral) {}
+	public attachedTo!: Node
+
+	constructor(
+		public fields: DictLiteral,
+		public extras?: {delimiters: string[]}
+	) {}
 
 	eval = this.fields.eval
 
 	print = (options: PrintOptions) => {
-		return '#' + this.fields.print(options)
+		if (!this.extras) {
+			this.extras = {delimiters: ['', '']}
+		}
+
+		const fields = this.fields.print(options)
+		const [d0, d1] = this.extras.delimiters
+
+		return d0 + '#' + d1 + fields
 	}
 
 	static isSame(a: NodeMeta, b: NodeMeta) {

@@ -79,7 +79,7 @@ Program = _ exp:Node _ Comment?
 Node =
 	node:NodeContent
 	valueMeta:(_ "^" _ @ValueMeta)?
-	nodeMeta:(_ "#" _ @Dict)?
+	nodeMeta:NodeMeta?
 	{
 		if (valueMeta) {
 			node.setValueMeta(valueMeta)
@@ -109,6 +109,11 @@ ValueMeta =
 		return {defaultValue, fields}
 	} /
 	defaultValue:Node { return {defaultValue} }
+
+NodeMeta = d0:_ "#" d1:_ fields:Dict
+	{
+		return new Ast.NodeMeta(fields, {delimiters: [d0, d1]})
+	}
 
 Reserved = "_" / "Never" / "=>" / "->" / "let" / "try"
 
