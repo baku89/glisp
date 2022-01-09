@@ -198,7 +198,6 @@ Call "function application" = "(" d0:_ fn:Node d1:__ argsDs:(Node __)* ")"
 Fn "function definition" =
 	"(" d0:_ "=>" d1:__ typeVarsDs:(TypeVars __)? param:FnParam d3:__ body:Node d4:_ ")"
 	{
-
 		const [typeVars, d2] = typeVarsDs ?? [undefined, undefined]
 
 		const fn = Ast.fn({typeVars, param, body})
@@ -207,13 +206,15 @@ Fn "function definition" =
 	}
 	
 FnParam =
-	"[" _ entries:(@NamedNode __)* rest:("..." @NamedNode _)? "]"
+	"[" d0:_ entries:(NamedNode __)* rest:("..." @NamedNode @_)? "]"
 	{
-		let optionalFlags
+		let optionalFlags, d1s, d2s
 
+		;[entries, d1s] = zip(entries)
 		;[entries, optionalFlags] = zip(entries)
+		;[rest, d2s] = rest ?? [undefined, []]
 
-		const param = fromPairs(entries)
+		const paramDict = fromPairs(entries)
 		const optionalPos = getOptionalPos(optionalFlags, 'parameter')
 		rest = parseRestParameter(rest)
 	
@@ -221,7 +222,9 @@ FnParam =
 		if (rest) paramNames.push(rest.name)
 		checkDuplicatedKey(paramNames, 'parameter')
 
-		return Ast.param(param, optionalPos, rest)
+		const param = Ast.param(paramDict, optionalPos, rest) 
+		param.extras = {delimiters: [d0, ...d1s, ...d2s]}
+		return param
 	}
 
 FnType "function type definition" =
@@ -235,14 +238,16 @@ FnType "function type definition" =
 	}
  
 FnTypeParam =
-	"[" d0:_ entries:(@FnTypeParamEntry __)* rest:("..." @FnTypeParamEntry _)? "]"
+	"[" d0:_ entries:(FnTypeParamEntry __)* rest:("..." @FnTypeParamEntry @_)? "]"
 	{
-		let optionalFlags
+		let optionalFlags, d1s, d2s
 
+		;[entries, d1s] = zip(entries)
 		;[entries, optionalFlags] = zip(entries)
 		entries = entries.map(([name, node], i) => [name ?? i, node])
+		;[rest, d2s] = rest ?? [undefined, []]
 
-		const param = fromPairs(entries)
+		const paramDict = fromPairs(entries)
 		const optionalPos = getOptionalPos(optionalFlags, 'parameter')
 		rest = parseRestParameter(rest)
 
@@ -250,7 +255,9 @@ FnTypeParam =
 		if (rest) paramNames.push(rest.name)
 		checkDuplicatedKey(paramNames, 'parameter')
 
-		return Ast.param(param, optionalPos, rest)
+		const param = Ast.param(paramDict, optionalPos, rest)
+		param.extras = {delimiters: [d0, ...d1s, ...d2s]}
+		return param
 	}
 
 FnTypeParamEntry =
