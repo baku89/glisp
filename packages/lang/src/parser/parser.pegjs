@@ -84,7 +84,7 @@
 	const Ast = options.Ast
 }
 
-Program = _ exp:Node _ Comment?
+Program = _ exp:Node _
 	{
 		return exp
 	}
@@ -323,7 +323,7 @@ TryCatch = "(" d0:_ "try" d1:__ block:Node d2:__ handler:Node d3:_ ")"
 		return tryCatch
 	}
 
-_ "delimiter" = Whitespace* (Comment? Newline Whitespace*)*
+_ "delimiter" = Whitespace* (Comment? Newline Whitespace*)* (Comment EOF)?
 	{
 		return text()
 	}
