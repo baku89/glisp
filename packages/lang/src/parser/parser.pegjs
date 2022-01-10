@@ -112,21 +112,15 @@ NodeContent =
 	Vec / Dict
 
 ValueMeta =
-	d0:_ "^" d1:_ "{" di0:_ defaultValueDi1:(@Node !":" @__)? fields:ValueMetaFields "}"
+	d:_ "^{" di0:_ defaultValueDi1:(@Node !":" @__)? fields:ValueMetaFields "}"
 	{
 		const [defaultValue, di1] = defaultValueDi1 ?? [undefined, undefined]
 
 		const valueMeta = new Ast.ValueMeta(defaultValue, fields)
 		valueMeta.extras = {
-			delimiters: [d0, d1],
+			delimiter: d,
 			innerDelimiters: [di0, ...(di1 ? [di1] : [])]
 		}
-		return valueMeta
-	} /
-	d0:_ "^" d1:_ defaultValue:Node
-	{
-		const valueMeta = new Ast.ValueMeta(defaultValue)
-		valueMeta.extras = {delimiters: [d0, d1]}
 		return valueMeta
 	}
 
@@ -143,9 +137,9 @@ ValueMetaFields = entries:(@DictKey ":" @_ @Node @__)*
 		return dict
 	}
 
-NodeMeta = d0:_ "#" d1:_ fields:Dict
+NodeMeta = d:_ "#" fields:Dict
 	{
-		return new Ast.NodeMeta(fields, {delimiters: [d0, d1]})
+		return new Ast.NodeMeta(fields, {delimiter: [d]})
 	}
 
 Reserved = "_" / "Never" / "=>" / "->" / "let" / "try"

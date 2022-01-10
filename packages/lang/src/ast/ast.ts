@@ -1213,18 +1213,15 @@ export class ValueMeta {
 
 	print = (options: PrintOptions) => {
 		if (!this.extras) {
-			const delimiters = ['', '']
+			let innerDelimiters: string[]
 
-			let innerDelimiters: string[] | undefined
 			if (this.defaultValue) {
-				if (this.fields) {
-					innerDelimiters = ['', ' ']
-				}
+				innerDelimiters = this.fields ? ['', ' '] : ['', '']
 			} else {
 				innerDelimiters = ['']
 			}
 
-			this.extras = {delimiters, innerDelimiters}
+			this.extras = {delimiter: '', innerDelimiters}
 		}
 
 		const defaultValue = this.defaultValue
@@ -1233,32 +1230,23 @@ export class ValueMeta {
 
 		const fields = this.fields ? [this.fields.print(options).slice(1, -1)] : []
 
-		const {delimiters, innerDelimiters} = this.extras
+		const {delimiter, innerDelimiters} = this.extras
 
-		let meta: string
-		if (innerDelimiters) {
-			const elements = [...defaultValue, ...fields]
-			meta = '{' + insertDelimiters(elements, innerDelimiters) + '}'
-		} else {
-			meta = defaultValue[0]
-		}
-
-		return insertDelimiters(['^', meta], delimiters)
+		const elements = [...defaultValue, ...fields]
+		return delimiter + '^{' + insertDelimiters(elements, innerDelimiters) + '}'
 	}
 
 	extras?: {
-		delimiters: string[]
+		delimiter: string
 
 		/**
 		 * Stores delimiters inside brackets.
-		 * Becomes undefined when brackes are omitted.
 		 * ^{_defaultValue__<fields>}
 		 * ^{_defaultValue_}
-		 * ^defaultValue
 		 * ^{_ <fields>}
 		 * ^{_}
 		 **/
-		innerDelimiters?: string[]
+		innerDelimiters: string[]
 	}
 
 	eval = (env: Env) => {
@@ -1290,20 +1278,19 @@ export class NodeMeta {
 
 	constructor(
 		public fields: DictLiteral,
-		public extras?: {delimiters: string[]}
+		public extras?: {delimiter: string}
 	) {}
 
 	eval = this.fields.eval
 
 	print = (options: PrintOptions) => {
 		if (!this.extras) {
-			this.extras = {delimiters: ['', '']}
+			this.extras = {delimiter: ''}
 		}
 
 		const fields = this.fields.print(options)
-		const [d0, d1] = this.extras.delimiters
 
-		return d0 + '#' + d1 + fields
+		return this.extras.delimiter + '#' + fields
 	}
 
 	static isSame(a: NodeMeta, b: NodeMeta) {

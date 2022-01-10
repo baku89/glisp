@@ -220,11 +220,11 @@ describe('default values of types', () => {
 	test('(-> <T> [t:T] T)', '()', true)
 	test('(-> [x:_] ())', '()', true)
 
-	test('Num^PI', 'PI')
-	test('Bool^true', 'true')
-	test('_^"hello"', '"hello"')
-	test('()^(())', '()')
-	test('()^()', '()')
+	test('Num^{PI}', 'PI')
+	test('Bool^{true}', 'true')
+	test('_^{"hello"}', '"hello"')
+	test('()^{()}', '()')
+	test('()^{}', '()')
 
 	function test(input: string, expected: string, fn = false) {
 		const eStr = fn ? `(=> [] ${expected})` : expected

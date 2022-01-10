@@ -197,9 +197,9 @@ describe('parsing function type', () => {
 })
 
 describe('parsing metadata', () => {
-	testParsing('0^0', num(0).setValueMeta(new ValueMeta(num(0))))
 	testParsing('0^{0}', num(0).setValueMeta(new ValueMeta(num(0))))
-	testParsing('0 \n^\t{0}', num(0).setValueMeta(new ValueMeta(num(0))))
+	testParsing('0^{0}', num(0).setValueMeta(new ValueMeta(num(0))))
+	testParsing('0 \n^{0}', num(0).setValueMeta(new ValueMeta(num(0))))
 
 	testParsing('_^{"hello"}', all().setValueMeta(new ValueMeta(str('hello'))))
 	testParsing('()^{{}}', call().setValueMeta(new ValueMeta(dict())))
@@ -210,6 +210,7 @@ describe('parsing metadata', () => {
 	testErrorParsing('Bool^true^true')
 	testErrorParsing('Bool^{true}^{true}')
 
+	testParsing('layer#{}', id('layer').setNodeMeta(new NodeMeta(dict())))
 	testParsing(
 		'layer#{collapsed: true}',
 		id('layer').setNodeMeta(new NodeMeta(dict({collapsed: id('true')})))
