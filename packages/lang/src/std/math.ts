@@ -15,7 +15,7 @@ Vec2/+: (=> [x:Vec2 y:Vec2]
 
 Vec2/-: (=> [x:Vec2 y:Vec2] (Vec2/+ x (Vec2/neg y)))
 
-Vec2/map: (=> [f:(-> [Num] Num) v:Vec2]
+Vec2/map: (=> [f:(-> [e:Num] Num) v:Vec2]
               (Vec2 (f (v "x"))
                     (f (v "y"))))
 
