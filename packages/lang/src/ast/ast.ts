@@ -1237,10 +1237,13 @@ export class ValueMeta {
 	}
 
 	extras?: {
+		/** Stores a delimiter between a expression and the caret symbol ('^')
+		 * (+ 1 2)_^{metadata}
+		 */
 		delimiter: string
 
 		/**
-		 * Stores delimiters inside brackets.
+		 * Stores delimiters inside braces.
 		 * ^{_defaultValue__<fields>}
 		 * ^{_defaultValue_}
 		 * ^{_ <fields>}
