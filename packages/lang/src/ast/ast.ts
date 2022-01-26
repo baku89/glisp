@@ -945,9 +945,7 @@ export class Call extends BaseNode {
 
 		// For rest argument
 		if (callee.fnType.rest) {
-			const pType = callee.fnType.rest.value
-			// NOTE: Should handle non-labeled rest parameter
-			const name = callee.fnType.rest.name ?? '(no name)'
+			const {name, value: pType} = callee.fnType.rest
 
 			for (let i = unifiedParams.length; i < this.args.length; i++) {
 				const aType = unifiedArgs[i]
