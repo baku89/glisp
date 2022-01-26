@@ -224,15 +224,15 @@ export class Identifier extends BaseNode {
 	}
 
 	protected forceInfer = (env: Env): WithLog => {
-		const {node, mode} = this.#resolve(this.parent, env).result
+		const resolved = this.#resolve(this.parent, env)
 
-		if (mode) {
+		if (resolved.result.mode) {
 			// In cases such as inferring `x` in `(=> [x:(+ 1 2)] x)`,
 			// The type of parameter `(+ 1 2)` needs to be *evaluated*
-			return node.eval(env)
+			return resolved.result.node.eval(env)
 		} else {
 			// othersise, infer it as usual
-			return node.infer(env)
+			return resolved.bind(({node}) => node.infer(env))
 		}
 	}
 
@@ -851,27 +851,29 @@ export class Call extends BaseNode {
 		super()
 	}
 
-	#unify(env: Env): [Unifier, Val.Value[]] {
+	#unify(env: Env): [Unifier, Val.Value[], Set<Log>] {
 		if (!this.callee) throw new Error('Cannot unify unit literal')
 
-		const calleeType = this.callee.infer(env).result
+		const [calleeType, calleeLog] = this.callee.infer(env).asTuple
 
-		if (!('fnType' in calleeType)) return [new Unifier(), []]
+		if (!('fnType' in calleeType)) return [new Unifier(), [], calleeLog]
 
 		const fnType = calleeType.fnType
 
 		const params = values(fnType.param)
+		const args = fnType.rest ? this.args : this.args.slice(0, params.length)
 
-		const shadowedArgs = this.args
-			.slice(0, fnType.rest ? this.args.length : params.length)
-			.map(a => shadowTypeVars(a.infer(env).result))
+		const [shadowedArgs, argLog] = Writer.map(args, a => {
+			const [inferred, log] = a.infer(env).asTuple
+			return withLog(shadowTypeVars(inferred), ...log)
+		}).asTuple
 
 		const paramsType = Val.vec(params, fnType.optionalPos, fnType.rest?.value)
 		const argsType = Val.vec(shadowedArgs)
 
 		const unifier = new Unifier([paramsType, '>=', argsType])
 
-		return [unifier, shadowedArgs]
+		return [unifier, shadowedArgs, new Set([...calleeLog, ...argLog])]
 	}
 
 	protected forceEval = (env: Env): WithLog => {
@@ -890,26 +892,25 @@ export class Call extends BaseNode {
 		}
 
 		// Start function application
-		const argLog: Log[] = []
 		const names = keys(callee.fnType.param)
 		const params = values(callee.fnType.param)
+
+		// Unify FnType and args
+		const [unifier, shadowedArgs, argLog] = this.#unify(env)
+		const unifiedParams = params.map(p => unifier.substitute(p))
+		const unifiedArgs = shadowedArgs.map(a => unifier.substitute(a))
 
 		// Length-check of arguments
 		const lenArgs = this.args.length
 		const lenRequiredParams = callee.fnType.optionalPos
 
 		if (lenArgs < lenRequiredParams) {
-			argLog.push({
+			argLog.add({
 				level: 'error',
 				ref: this,
 				reason: `Expected ${lenRequiredParams} arguments, but got ${lenArgs}.`,
 			})
 		}
-
-		// Unify FnType and args
-		const [unifier, shadowedArgs] = this.#unify(env)
-		const unifiedParams = params.map(p => unifier.substitute(p))
-		const unifiedArgs = shadowedArgs.map(a => unifier.substitute(a))
 
 		// Check types of args and cast them to default if necessary
 		const args = unifiedParams.map((pType, i) => {
@@ -920,7 +921,7 @@ export class Call extends BaseNode {
 				// Type matched
 				return () => {
 					const [a, la] = this.args[i].eval(env).asTuple
-					argLog.push(...la)
+					la.forEach(l => argLog.add(l))
 					return a
 				}
 			} else {
@@ -930,7 +931,7 @@ export class Call extends BaseNode {
 					const p = pType.print({omitMeta: true})
 					const a = aType.print({omitMeta: true})
 					const d = pType.defaultValue.print({omitMeta: true})
-					argLog.push({
+					argLog.add({
 						level: 'error',
 						ref: this,
 						reason:
@@ -954,7 +955,7 @@ export class Call extends BaseNode {
 					// Type matched
 					args.push(() => {
 						const [a, la] = this.args[i].eval(env).asTuple
-						argLog.push(...la)
+						la.forEach(l => argLog.add(l))
 						return a
 					})
 				} else {
@@ -963,7 +964,7 @@ export class Call extends BaseNode {
 						const p = pType.print({omitMeta: true})
 						const a = aType.print({omitMeta: true})
 						const d = pType.defaultValue.print({omitMeta: true})
-						argLog.push({
+						argLog.add({
 							level: 'error',
 							ref: this,
 							reason:
