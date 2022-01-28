@@ -7,6 +7,7 @@ import {isEqualArray} from '../util/isEqualArray'
 import {isEqualDict} from '../util/isEqualDict'
 import {isEqualSet} from '../util/isEqualSet'
 import {nullishEqual} from '../util/nullishEqual'
+import {union} from '../util/SetOperation'
 import {Writer} from '../util/Writer'
 import {zip} from '../util/zip'
 import * as Val from '../val'
@@ -873,7 +874,7 @@ export class Call extends BaseNode {
 
 		const unifier = new Unifier([paramsType, '>=', argsType])
 
-		return [unifier, shadowedArgs, new Set([...calleeLog, ...argLog])]
+		return [unifier, shadowedArgs, union(calleeLog, argLog)]
 	}
 
 	protected forceEval = (env: Env): WithLog => {
