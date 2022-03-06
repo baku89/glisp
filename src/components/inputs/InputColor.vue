@@ -242,7 +242,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../style/common.styl'
+@import '~@/components/style/common.styl'
 
 .InputColor
 	position relative

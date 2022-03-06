@@ -124,7 +124,7 @@ export default defineComponent({
 </script>
 
 <style lang="stylus">
-@import '../style/common.styl'
+@import '~@/components/style/common.styl'
 
 .MalInputRect2d
 	display flex
