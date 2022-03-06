@@ -1,22 +1,18 @@
 <template>
 	<ul class="Menu">
-		<div class="AppHeader__menu">
-			<ul>
-				<li
-					v-for="{name, label, icon, exec} in menu"
-					:key="name"
-					@mouseup="doAction(exec)"
-				>
-					<SvgIcon class="icon" mode="block" v-html="icon || ''" />
-					{{ label || name }}
-				</li>
-			</ul>
-		</div>
+		<li
+			v-for="{name, label, icon, exec} in menu"
+			:key="name"
+			@mouseup="doAction(exec)"
+		>
+			<SvgIcon class="icon" mode="block" v-html="icon" />
+			{{ label || name }}
+		</li>
 	</ul>
 </template>
 
 <script lang="ts">
-import {defineComponent, PropType} from 'vue-demi'
+import {defineComponent, PropType} from 'vue'
 
 import SvgIcon from './SvgIcon.vue'
 
@@ -60,8 +56,7 @@ export default defineComponent({
 	color base16('05')
 	user-select none
 
-	ul
-		padding $input-horiz-margin 0
+	padding ($input-horiz-margin * .5) 0
 
 	li
 		display grid
