@@ -207,7 +207,7 @@ export default defineComponent({
 			& > span
 				margin-left 1em
 				color base16('04')
-				font-monospace()
+				font-numeric()
 
 	&__accent-preview
 		display inline-block

@@ -205,7 +205,7 @@ export default defineComponent({
 		tooltip()
 		z-index 1001
 		transform translate(-50%, -50%)
-		font-monospace()
+		font-numeric()
 		position fixed
 
 		.arrows

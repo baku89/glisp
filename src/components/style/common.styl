@@ -17,6 +17,10 @@ font-ui()
 font-text()
 	font-family 'Commissioner', YuGothic, 'Yu Gothic Medium', 'Yu Gothic', sans-serif
 
+font-numeric()
+	font-ui()
+	font-variant-numeric tabular-nums
+
 base16(name, opacity = 1)
 	varName = '--base' + name
 
@@ -110,7 +114,7 @@ input-overlay()
 
 	.label
 		font-size 1em
-		font-monospace()
+		font-numeric()
 		fill base16('accent')
 
 absolute-fill()

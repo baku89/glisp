@@ -230,8 +230,8 @@ html, body
 			width 1.3em
 
 		& > .zoom-factor
-			width 4ch
-			font-monospace()
+			width 5ch
+			font-numeric()
 			text-align right
 
 	&__viewport
