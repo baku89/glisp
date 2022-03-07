@@ -82,6 +82,8 @@ export default defineComponent({
 .SidePane
 	overflow hidden
 	display flex
+	align-items stretch
+	touch-action none
 
 	&__main
 		flex-grow 1
@@ -145,7 +147,9 @@ export default defineComponent({
 	&__side
 		position relative
 		overflow hidden
+		display flex
+		align-items stretch
 
 		&-content
-			padding 1.8em
+			flex-grow 1
 </style>
