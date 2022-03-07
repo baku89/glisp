@@ -42,7 +42,7 @@ const PageSettings = {
 		entry: 'src/pages/haptics/index.ts',
 		template: 'src/pages/template.html',
 	},
-	raster: {
+	megei: {
 		entry: 'src/pages/raster/index.ts',
 		template: 'src/pages/template.html',
 	},

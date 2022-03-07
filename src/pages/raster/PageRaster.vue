@@ -1,12 +1,18 @@
 <template>
 	<div class="PageRaster">
 		<AppHeader :menu="globalMenu">
-			<template #left>
+			<!-- <template #left>
 				<AppHeaderBreadcumb :items="[{label: 'Raster'}]" />
-			</template>
+			</template> -->
 			<template #center>
 				<div class="PageRaster__document-title">
-					{{ documentName }}
+					<button @click="showHelp = true">
+						<SvgIcon class="icon"
+							><path d="M16 14 L16 23 M16 8 L16 10" />
+							<circle cx="16" cy="16" r="14"
+						/></SvgIcon>
+						Help 遊び方
+					</button>
 				</div>
 			</template>
 			<template #right>
@@ -65,6 +71,18 @@
 			</template>
 		</SidePane>
 	</div>
+	<div
+		class="PageRaster__help"
+		:class="{show: showHelp}"
+		@click="showHelp = false"
+	>
+		<div class="content">
+			<SvgIcon nonStrokeScaling="true" class="close"
+				><path d="M2 30 L30 2 M30 30 L2 2"
+			/></SvgIcon>
+			<Markdown :source="help" />
+		</div>
+	</div>
 	<div class="PageRaster__bg" />
 </template>
 
@@ -74,6 +92,7 @@ import _ from 'lodash'
 import {defineComponent, onMounted, provide, ref} from 'vue'
 
 import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
+import Markdown from '@/components/layouts/Markdown'
 import {MenuItem} from '@/components/layouts/Menu.vue'
 import SidePane from '@/components/layouts/SidePane.vue'
 import SvgIcon from '@/components/layouts/SvgIcon.vue'
@@ -82,8 +101,8 @@ import {readImageAsDataURL} from '@/lib/promise'
 import {createStore} from '@/lib/store'
 
 import BrushSettings from './BrushSettings.vue'
+import Help from './help.md'
 import PaneBrushParams from './PaneBrushParams.vue'
-import {useModuleApp} from './stores/app'
 import useModuleViewport from './stores/viewport'
 import ToolSelector from './ToolSelector.vue'
 import useLoadActions from './use-load-actions'
@@ -100,6 +119,7 @@ export default defineComponent({
 		SidePane,
 		SvgIcon,
 		Zoomable,
+		Markdown,
 	},
 	setup() {
 		useScheme()
@@ -109,8 +129,9 @@ export default defineComponent({
 
 		const documentName = ref('Untitled')
 
+		const help = ref(Help)
+
 		const store = createStore({
-			app: useModuleApp(),
 			viewport: useModuleViewport(),
 		})
 		provide('store', store)
@@ -148,11 +169,11 @@ export default defineComponent({
 		})
 
 		const globalMenu = [
-			'viewport.openImage',
-			{name: 'viewport.downloadImage', payload: {name: documentName.value}},
-			'viewport.resetBuiltinBrushes',
+			// 'viewport.openImage',
+			// {name: 'viewport.downloadImage', payload: {name: documentName.value}},
+			// 'viewport.resetBuiltinBrushes',
+			'viewport.reload',
 			'viewport.fitTransformToScreen',
-			'app.reload',
 		]
 
 		const toolSelectorContextmenu: MenuItem[] = [
@@ -176,6 +197,8 @@ export default defineComponent({
 		const currentBrushName = store.getState('viewport.currentBrushName')
 		const brushes = store.getState('viewport.brushes')
 
+		const showHelp = ref(false)
+
 		return {
 			getState: store.getState,
 			commit: store.commit,
@@ -191,6 +214,8 @@ export default defineComponent({
 			onDropFile,
 			globalMenu,
 			toLabel: _.startCase,
+			help,
+			showHelp,
 		}
 	},
 })
@@ -219,6 +244,12 @@ html, body
 	&__document-title
 		font-size 1.3em
 		line-height calc((var(--height) / 1.3))
+
+		button:hover
+			padding 0 .4em
+			background base16('02')
+			color base16('accent')
+
 
 	&__screen-info
 		display flex
@@ -273,4 +304,32 @@ html, body
 		border 1px solid $color-frame
 		border-radius $popup-round
 		glass-bg('pane')
+
+
+	&__help
+		position fixed
+		inset 0
+		z-index 10000
+		background base16('00', .9)
+		backdrop-filter blur(3px)
+		visibility hidden
+
+		&.show
+			visibility visible
+
+
+		.content
+			position absolute
+			inset 5em
+			margin 1.8em
+			padding 1.8em
+			glass-bg('pane')
+			color base16('06')
+			border 1px solid $color-frame
+			border-radius $popup-round
+
+		.close
+			position absolute
+			top 1.8em
+			right 1.8em
 </style>
