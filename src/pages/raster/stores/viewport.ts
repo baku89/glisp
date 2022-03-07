@@ -491,7 +491,7 @@ export default function useModuleViewport(): StoreModule {
 				exec: setupElements,
 			},
 			loadImage: {
-				label: 'Load Iamge',
+				label: 'Load Image',
 				exec: loadImage,
 			},
 			openImage: {
