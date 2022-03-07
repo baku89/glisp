@@ -70,10 +70,9 @@ module.exports = {
 	devServer: {
 		writeToDisk: true,
 	},
-	filenameHashing: false,
 	configureWebpack: {
 		plugins: [
-			new WorkerPlugin(),
+			// new WorkerPlugin(),
 			new MonacoEditorWebpackPlugin({
 				languages: ['javascript', 'yaml', 'xml'],
 			}),
