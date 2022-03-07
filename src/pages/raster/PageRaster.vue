@@ -83,6 +83,7 @@ import {createStore} from '@/lib/store'
 
 import BrushSettings from './BrushSettings.vue'
 import PaneBrushParams from './PaneBrushParams.vue'
+import {useModuleApp} from './stores/app'
 import useModuleViewport from './stores/viewport'
 import ToolSelector from './ToolSelector.vue'
 import useLoadActions from './use-load-actions'
@@ -109,6 +110,7 @@ export default defineComponent({
 		const documentName = ref('Untitled')
 
 		const store = createStore({
+			app: useModuleApp(),
 			viewport: useModuleViewport(),
 		})
 		provide('store', store)
@@ -150,6 +152,7 @@ export default defineComponent({
 			{name: 'viewport.downloadImage', payload: {name: documentName.value}},
 			'viewport.resetBuiltinBrushes',
 			'viewport.fitTransformToScreen',
+			'app.reload',
 		]
 
 		const toolSelectorContextmenu: MenuItem[] = [
