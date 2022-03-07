@@ -52,11 +52,15 @@ export default function useDraggable(
 	const enabled = options.enabled ?? ref(true)
 
 	function setup(el: HTMLElement) {
-		el.addEventListener('mousedown', onMousedown)
+		el.addEventListener('pointerdown', onPointerDown)
 
-		function updatePosAndOrigin(e: MouseEvent) {
-			const movement = vec2.fromValues(e.movementX, e.movementY)
-			drag.pos = vec2.add(vec2.create(), drag.pos, movement)
+		function updatePosAndOrigin(e: PointerEvent) {
+			if ('movementX' in e) {
+				const movement = vec2.fromValues(e.movementX, e.movementY)
+				drag.pos = vec2.add(vec2.create(), drag.pos, movement)
+			} else {
+				drag.pos = vec2.fromValues(e.clientX, e.clientY)
+			}
 
 			const {left, top, right, bottom} = el.getBoundingClientRect()
 
@@ -68,7 +72,7 @@ export default function useDraggable(
 			drag.left = left
 		}
 
-		function onMousedown(e: MouseEvent) {
+		function onPointerDown(e: PointerEvent) {
 			// Ignore non-left click
 			if (!enabled.value || e.button !== 0) {
 				return
@@ -88,12 +92,12 @@ export default function useDraggable(
 				options.onDrag && options.onDrag(drag)
 			}
 
-			window.addEventListener('mousemove', onMousedrag)
-			window.addEventListener('mouseup', onMouseup, {once: true})
+			window.addEventListener('pointermove', onPointerDrag)
+			window.addEventListener('pointerup', onPointerUp, {once: true})
 		}
 
 		function startDrag() {
-			if (options.lockPointer) {
+			if (options.lockPointer && 'requestPointerLock' in el) {
 				el.requestPointerLock()
 			}
 
@@ -101,7 +105,7 @@ export default function useDraggable(
 			options.onDragStart && options.onDragStart(drag)
 		}
 
-		function onMousedrag(e: MouseEvent) {
+		function onPointerDrag(e: PointerEvent) {
 			updatePosAndOrigin(e)
 			drag.delta = vec2.sub(vec2.create(), drag.pos, drag.prevPos)
 
@@ -118,8 +122,8 @@ export default function useDraggable(
 			drag.prevPos = vec2.clone(drag.pos)
 		}
 
-		function onMouseup() {
-			if (options.lockPointer) {
+		function onPointerUp() {
+			if (options.lockPointer && 'exitPointerLock' in document) {
 				document.exitPointerLock()
 			}
 			if (drag.isDragging) {
@@ -134,7 +138,7 @@ export default function useDraggable(
 			drag.pos = vec2.create()
 			drag.startPos = vec2.create()
 			drag.delta = vec2.create()
-			window.removeEventListener('mousemove', onMousedrag)
+			window.removeEventListener('pointermove', onPointerDrag)
 		}
 	}
 

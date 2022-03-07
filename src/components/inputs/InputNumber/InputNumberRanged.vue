@@ -171,13 +171,18 @@ export default defineComponent({
 
 		// Handle Pointerlock
 		watch([showTweakLabel, tweaking], ([isOutside, tweaking]) => {
-			if (tweaking && isOutside) {
-				inputEl.value?.requestPointerLock()
+			if (
+				tweaking &&
+				isOutside &&
+				inputEl.value &&
+				'requestPointerLock' in inputEl.value
+			) {
+				inputEl.value.requestPointerLock()
 			}
 		})
 
 		watch(tweaking, tweaking => {
-			if (!tweaking) document.exitPointerLock()
+			if (!tweaking && 'exitPointerLock' in document) document.exitPointerLock()
 		})
 
 		const sliderStyle = computed(() => {
