@@ -284,7 +284,6 @@ $right-arrow-width = 1em
 		tooltip()
 		padding 0
 		border 1px solid $color-frame
-		user-select none
 
 	&__option .style-default
 		padding 0 0.4rem

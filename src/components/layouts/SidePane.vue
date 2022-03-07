@@ -81,7 +81,6 @@ export default defineComponent({
 
 .SidePane
 	overflow hidden
-	touch-action none
 	display flex
 
 	&__main

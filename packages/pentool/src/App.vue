@@ -545,7 +545,6 @@ input[type=text], input[type=number]
 	top 0.5rem
 	left @top
 	font-size 0.5 * SIZE
-	user-select none
 
 	&__tools
 		display flex

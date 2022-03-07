@@ -62,7 +62,6 @@ export default defineComponent({
 	width 15rem
 	color SELECTION
 	font-size 0.9rem
-	user-select none
 
 	&__param
 		position relative

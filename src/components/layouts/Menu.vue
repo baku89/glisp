@@ -54,7 +54,6 @@ export default defineComponent({
 	glass-bg('pane')
 	width max-content
 	color base16('05')
-	user-select none
 
 	padding ($input-horiz-margin * .5) 0
 
