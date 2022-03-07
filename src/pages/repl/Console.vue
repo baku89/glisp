@@ -75,8 +75,9 @@ export default defineComponent({
 	emits: ['setup', 'update:onError'],
 	setup(props) {
 		const code = ref('')
-		const editorInstance =
-			shallowRef<null | ReturnType<typeof Editor.create>>(null)
+		const editorInstance = shallowRef<null | ReturnType<typeof Editor.create>>(
+			null
+		)
 
 		const results = ref<Result[]>([])
 
