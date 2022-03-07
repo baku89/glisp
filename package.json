@@ -125,7 +125,7 @@
 		"vue": "^3.2.31",
 		"vue-cli-plugin-electron-builder": "~2.1.1",
 		"vue-cli-plugin-yaml": "^1.0.2",
-		"vuedraggable": "^4.0.3",
+		"vuedraggable": "4.1.0",
 		"webmidi": "^2.5.2",
 		"webpack-copy-plugin": "^0.0.4",
 		"worker-plugin": "^5.0.1",

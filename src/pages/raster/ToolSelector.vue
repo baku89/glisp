@@ -3,7 +3,11 @@
 		<Draggable
 			tag="ul"
 			v-model="toolEntries"
-			v-bind="{animation: 100, ghostClass: 'ghost'}"
+			ghost-class="ghost"
+			:animation="100"
+			:touchStartThreshold="10"
+			:delayOnTouchOnly="true"
+			:delay="300"
 			itemKey="name"
 		>
 			<template #item="{element: {name, tool}, index}">

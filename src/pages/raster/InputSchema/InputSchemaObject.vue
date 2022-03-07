@@ -11,7 +11,11 @@
 		/>
 		<template v-if="schema.additionalProperties">
 			<Draggable
-				v-bind="{animation: 50, ghostClass: 'ghost'}"
+				ghost-class="ghost"
+				:animation="500"
+				:touchStartThreshold="10"
+				:delayOnTouchOnly="true"
+				:delay="300"
 				v-model="additionals"
 				itemKey="key"
 			>
