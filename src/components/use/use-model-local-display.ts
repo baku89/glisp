@@ -102,8 +102,6 @@ export default function useModelLocalDisplay<T>({
 		() => {
 			if (props.updateOnBlur) return
 
-			console.log('display.value')
-
 			const parsed = parse(display.value)
 
 			if (isSome(parsed)) {
