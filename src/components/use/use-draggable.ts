@@ -20,6 +20,7 @@ interface DraggableOptions {
 	disableClick?: boolean
 	lockPointer?: boolean
 	enabled?: Ref<boolean>
+	pointerType?: PointerEvent['pointerType'][]
 	onClick?: () => void
 	onDrag?: (drag: DragData) => void
 	onDragStart?: (drag: DragData) => void
@@ -74,7 +75,11 @@ export default function useDraggable(
 
 		function onPointerDown(e: PointerEvent) {
 			// Ignore non-left click
-			if (!enabled.value || e.button !== 0) {
+			if (
+				!enabled.value ||
+				e.button !== 0 ||
+				(options.pointerType && !options.pointerType.includes(e.pointerType))
+			) {
 				return
 			}
 

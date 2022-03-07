@@ -35,7 +35,7 @@ export default function useModuleViewport(): StoreModule {
 		pos: absoluteCursorPos,
 		left: viewportLeft,
 		top: viewportTop,
-	} = useDraggable(viewportEl as any)
+	} = useDraggable(viewportEl as any, {pointerType: ['mouse', 'pen']})
 
 	const transform = ref(mat2d.create())
 	const transformTween = ref<gsap.core.Tween | null>(null)

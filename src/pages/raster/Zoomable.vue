@@ -5,10 +5,9 @@
 <script lang="ts">
 import {templateRef} from '@vueuse/core'
 import {mat2d, vec2} from 'gl-matrix'
-import {defineComponent, PropType} from 'vue'
+import {defineComponent, PropType, watch} from 'vue'
 
 import useGesture from '@/components/use/use-gesture'
-
 export default defineComponent({
 	name: 'Zoomable',
 	props: {
@@ -89,6 +88,138 @@ export default defineComponent({
 				context.emit('update:transform', xform)
 			},
 		})
+
+		// For touch screen
+		if (navigator.maxTouchPoints > 0) {
+			watch(el, el => {
+				if (!el || !(el instanceof HTMLElement)) return
+
+				let firstTouchId: number | null = null
+				let secondTouchId: number | null = null
+
+				let prevTouches: Touch[]
+
+				el.addEventListener('touchstart', e => {
+					console.log('start', e.changedTouches, e.touches)
+
+					prevTouches = [...e.touches]
+
+					const touch = e.changedTouches[0]
+					if ((touch as any).touchType !== 'direct') return
+
+					if (firstTouchId === null) {
+						firstTouchId = e.changedTouches[0].identifier
+					} else if (secondTouchId === null) {
+						secondTouchId = e.changedTouches[0].identifier
+					}
+				})
+
+				el.addEventListener('touchmove', e => {
+					console.log('move', e.changedTouches, e.touches)
+
+					const touches = [...e.touches]
+
+					if (firstTouchId !== null && secondTouchId === null) {
+						// Translate
+						const ct = touches.find(t => t.identifier === firstTouchId)
+						const pt = prevTouches.find(t => t.identifier === firstTouchId)
+
+						if (!ct || !pt) throw new Error()
+
+						const delta = vec2.fromValues(
+							ct.clientX - pt.clientX,
+							ct.clientY - pt.clientY
+						)
+
+						const xform = mat2d.clone(props.transform)
+
+						vec2.scale(delta, delta, 1 / Math.hypot(xform[0], xform[1]))
+
+						mat2d.translate(xform, xform, delta)
+
+						context.emit('update:transform', xform)
+					} else if (firstTouchId !== null && secondTouchId !== null) {
+						// Translate / Scale / Rotate
+						const pt0 = prevTouches.find(t => t.identifier === firstTouchId)
+						const pt1 = prevTouches.find(t => t.identifier === secondTouchId)
+						const ct0 = touches.find(t => t.identifier === firstTouchId)
+						const ct1 = touches.find(t => t.identifier === secondTouchId)
+
+						if (!ct0 || !ct1 || !pt0 || !pt1) throw new Error()
+
+						const xform = mat2d.clone(props.transform)
+						const xformInv = mat2d.invert(mat2d.create(), xform)
+
+						const p0 = vec2.transformMat2d(
+							vec2.create(),
+							vec2.fromValues(pt0.clientX, pt0.clientY),
+							xformInv
+						)
+						const p1 = vec2.transformMat2d(
+							vec2.create(),
+							vec2.fromValues(pt1.clientX, pt1.clientY),
+							xformInv
+						)
+						const c0 = vec2.transformMat2d(
+							vec2.create(),
+							vec2.fromValues(ct0.clientX, ct0.clientY),
+							xformInv
+						)
+						const c1 = vec2.transformMat2d(
+							vec2.create(),
+							vec2.fromValues(ct1.clientX, ct1.clientY),
+							xformInv
+						)
+
+						const vp = vec2.sub(vec2.create(), p1, p0)
+						const vc = vec2.sub(vec2.create(), c1, c0)
+
+						const scale = vec2.len(vc) / vec2.len(vp)
+
+						mat2d.translate(xform, xform, c0)
+						mat2d.scale(xform, xform, vec2.fromValues(scale, scale))
+						mat2d.translate(xform, xform, vec2.negate(vec2.create(), p0))
+						context.emit('update:transform', xform)
+					}
+
+					prevTouches = touches
+				})
+
+				el.addEventListener('touchend', e => {
+					console.log('end', e.changedTouches, e.touches)
+
+					const changedTouches = [...e.changedTouches]
+
+					if (firstTouchId !== null && secondTouchId === null) {
+						// one finger to zero
+						const hasReleased = changedTouches.find(
+							t => t.identifier === firstTouchId
+						)
+
+						if (hasReleased) {
+							firstTouchId = null
+						}
+					} else if (firstTouchId !== null && secondTouchId !== null) {
+						// second to one
+						const releasedFirst = changedTouches.find(
+							t => t.identifier === firstTouchId
+						)
+						const releasedSecond = changedTouches.find(
+							t => t.identifier === secondTouchId
+						)
+
+						if (releasedFirst && releasedSecond) {
+							firstTouchId = secondTouchId = null
+						} else if (releasedFirst && !releasedSecond) {
+							firstTouchId = secondTouchId
+							secondTouchId = null
+						} else if (!releasedFirst && releasedSecond) {
+							secondTouchId = null
+						}
+					}
+				})
+			})
+		}
 	},
 })
 </script>
