@@ -19,6 +19,7 @@ interface DragData {
 interface DraggableOptions {
 	disableClick?: boolean
 	lockPointer?: boolean
+	enabled?: Ref<boolean>
 	onClick?: () => void
 	onDrag?: (drag: DragData) => void
 	onDragStart?: (drag: DragData) => void
@@ -48,7 +49,7 @@ export default function useDraggable(
 		isDragging: false,
 	}) as DragData
 
-	const disabled = ref(false)
+	const enabled = options.enabled ?? ref(true)
 
 	function setup(el: HTMLElement) {
 		el.addEventListener('mousedown', onMousedown)
@@ -69,7 +70,7 @@ export default function useDraggable(
 
 		function onMousedown(e: MouseEvent) {
 			// Ignore non-left click
-			if (disabled.value || e.button !== 0) {
+			if (!enabled.value || e.button !== 0) {
 				return
 			}
 
@@ -148,5 +149,5 @@ export default function useDraggable(
 		{immediate: true, flush: 'post'}
 	)
 
-	return {...toRefs(drag), disabled}
+	return toRefs(drag)
 }

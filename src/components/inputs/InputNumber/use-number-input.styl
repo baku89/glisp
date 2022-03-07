@@ -4,14 +4,13 @@ use-number()
 	position relative
 	color base16('06')
 	font-numeric()
-	cursor col-resize
 
 	&__input
 		input()
 		padding 0 0.4em
 		width 100%
 		text-align right
-		pointer-events none
+		cursor col-resize
 
 		~/.tweaking &
 			box-shadow 0 0 0 1px base16('accent')

@@ -57,8 +57,8 @@ export default defineComponent({
 	setup(props, {emit}) {
 		const {display, displayInvalid} = useModelLocalDisplay({
 			props,
-			read: some,
-			show: _.identity,
+			parse: some,
+			print: _.identity,
 			emit,
 			validate: props.validator,
 		})

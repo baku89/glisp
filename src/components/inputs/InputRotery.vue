@@ -110,11 +110,11 @@ export default defineComponent({
 		const {local, display} = useModelLocalDisplay({
 			props,
 			emit,
-			show(rad) {
+			print(rad) {
 				const deg = (rad / PI) * 180
 				return deg.toFixed(1) + '°'
 			},
-			read: v => some(parseFloat(v)),
+			parse: v => some(parseFloat(v)),
 			validate: props.validator,
 		})
 

@@ -1,18 +1,11 @@
 <template>
-	<div
-		class="InputNumberUnranged"
-		:class="{tweaking}"
-		ref="dragEl"
-		v-bind="$attrs"
-	>
+	<div class="InputNumberUnranged" :class="{tweaking}" v-bind="$attrs">
 		<input
 			class="InputNumberUnranged__input"
 			:class="{invalid: displayInvalid}"
 			type="text"
 			:value="display"
-			@focus="onFocus"
-			@blur="onBlur"
-			@keydown="onKeydown"
+			@input="display = $event.target.value"
 			ref="inputEl"
 		/>
 	</div>
@@ -39,9 +32,8 @@ import {defineComponent, PropType, ref} from 'vue'
 
 import useDraggable from '@/components/use/use-draggable'
 import {Validator} from '@/lib/fp'
-import {roundFixed} from '@/utils'
 
-import useNumberInput from './use-number-input'
+import {useNumberInput} from './use-number-input'
 
 export default defineComponent({
 	name: 'InputNumberUnranged',
@@ -65,7 +57,6 @@ export default defineComponent({
 	},
 	emit: ['update:modelValue'],
 	setup(props, {emit}) {
-		const dragEl = ref<null | HTMLInputElement>(null)
 		const inputEl = ref<null | HTMLInputElement>(null)
 
 		let startValue = ref(0)
@@ -74,17 +65,22 @@ export default defineComponent({
 		let tweakStartValue = 0
 		let tweakStartPos = 0
 
+		const tweakEnabled = ref(true)
+
 		const {
 			isDragging: tweaking,
 			pos,
 			origin,
-			disabled: tweakDisabled,
-		} = useDraggable(dragEl, {
+		} = useDraggable(inputEl, {
 			lockPointer: true,
+			enabled: tweakEnabled,
 			onClick() {
+				console.log('onClick')
+				tweakEnabled.value = false
 				inputEl.value?.select()
 			},
 			onDragStart() {
+				console.log('onDragStart')
 				startValue.value = props.modelValue
 				tweakSpeedChanged.value = true
 			},
@@ -99,10 +95,11 @@ export default defineComponent({
 				const inc = (delta / 5) * tweakSpeed.value
 				const val = tweakStartValue + inc
 
-				local.set(roundFixed(val, props.precision))
+				local.set(val)
 			},
 			onDragEnd() {
-				local.confirm()
+				local.conform()
+				inputEl.value?.blur()
 			},
 		})
 
@@ -111,9 +108,6 @@ export default defineComponent({
 			display,
 			displayInvalid,
 			overlayLabel,
-			onFocus,
-			onBlur,
-			onKeydown,
 			tweakSpeedChanged,
 			tweakSpeed,
 			tweakLabelClass,
@@ -122,16 +116,14 @@ export default defineComponent({
 		} = useNumberInput(
 			props,
 			startValue,
+			tweakEnabled,
 			tweaking,
-			tweakDisabled,
 			pos,
-			dragEl,
 			inputEl,
 			emit
 		)
 
 		return {
-			dragEl,
 			inputEl,
 
 			tweaking,
@@ -143,9 +135,6 @@ export default defineComponent({
 			display,
 			displayInvalid,
 			overlayLabel,
-			onFocus,
-			onBlur,
-			onKeydown,
 		}
 	},
 	inheritAttrs: false,
