@@ -69,6 +69,8 @@ module.exports = {
 	productionSourceMap: false,
 	devServer: {
 		writeToDisk: true,
+		hot: false,
+		liveReload: false,
 	},
 	configureWebpack: {
 		plugins: [
@@ -101,6 +103,10 @@ module.exports = {
 		},
 	},
 	chainWebpack: config => {
+		// Disable HMR
+		// https://stackoverflow.com/questions/51844289/turn-off-hot-reload-on-project-started-with-vue-cli-3-webpack-4-15-1
+		config.plugins.delete('hmr')
+
 		// Add environment specific variables
 		config.plugin('define').tap(args => {
 			args[0] = {...args[0], __PAGES__: JSON.stringify(PagesToBuild.slice(1))}
