@@ -109,6 +109,7 @@ export default defineComponent({
 			string: 'Hello',
 			code: `(+ 1 2)`,
 			number: 0,
+			scalar: 0,
 			angle: 0,
 			boolean: true,
 			colorSpace: 'svh',
@@ -136,6 +137,13 @@ export default defineComponent({
 					min: 0,
 					max: 100,
 					validator: v => some(_.clamp(v, 0, 100)),
+				},
+				scalar: {
+					type: 'number',
+				},
+				Seed: {
+					type: 'number',
+					ui: 'seed',
 				},
 				angle: {
 					type: 'number',
