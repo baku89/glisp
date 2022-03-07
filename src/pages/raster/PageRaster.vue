@@ -77,7 +77,7 @@
 		@click="showHelp = false"
 	>
 		<div class="content">
-			<SvgIcon nonStrokeScaling="true" class="close"
+			<SvgIcon :nonStrokeScaling="true" class="close"
 				><path d="M2 30 L30 2 M30 30 L2 2"
 			/></SvgIcon>
 			<Markdown :source="help" />
@@ -327,9 +327,19 @@ html, body
 			color base16('06')
 			border 1px solid $color-frame
 			border-radius $popup-round
+			overflow scroll
+			-webkit-overflow-scrolling touch
+
 
 		.close
 			position absolute
 			top 1.8em
 			right 1.8em
+
+		img
+			width 23%
+			display inline-block
+			margin-right 1em
+			margin-bottom 1em
+			vertical-align top
 </style>

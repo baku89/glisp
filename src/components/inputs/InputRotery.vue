@@ -132,7 +132,7 @@ export default defineComponent({
 			pos,
 		} = useDraggable(el, {
 			disableClick: true,
-			lockPointer: true,
+			// lockPointer: true,
 			onDragStart({pos, origin}) {
 				if (tweakMode.value === 'absolute') {
 					const p = vec2.sub(vec2.create(), pos, origin)

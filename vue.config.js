@@ -155,6 +155,7 @@ module.exports = {
 					{from: 'assets/logo.png', to: '.'},
 					{from: 'assets/codicon.ttf', to: '.'},
 					{from: 'docs', to: './docs'},
+					{from: 'src/pages/raster/samples', to: './samples'},
 				],
 			},
 		])

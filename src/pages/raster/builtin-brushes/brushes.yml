@@ -401,7 +401,7 @@ directional-blur:
       type: 'slider'
       default: 0.005
       min: 0
-      max: .02
+      max: .2
 
 sharpen:
   label: Sharpen (シャープ)
