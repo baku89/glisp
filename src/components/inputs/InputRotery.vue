@@ -1,14 +1,10 @@
 <template>
-	<button
-		class="InputRotery"
-		:class="{tweaking, 'tweak-absolute': tweakMode === 'absolute'}"
-		ref="el"
-		v-bind="$attrs"
-	>
+	<button class="InputRotery" :class="{tweaking}" ref="el" v-bind="$attrs">
 		<SvgIcon mode="block" class="InputRotery__rotery">
 			<circle class="InputRotery__circle" cx="16" cy="16" r="16" />
 			<line
 				class="InputRotery__scale"
+				:class="{'tweak-absolute': tweakMode === 'absolute'}"
 				@mouseenter="tweakMode = 'absolute'"
 				@mouseleave="!tweaking && (tweakMode = 'relative')"
 				:style="{
@@ -171,7 +167,7 @@ export default defineComponent({
 			},
 			onDragEnd() {
 				tweakMode.value = 'relative'
-				local.confirm()
+				local.conform()
 			},
 		})
 
@@ -337,7 +333,7 @@ export default defineComponent({
 		z-index 1
 
 	&:focus:not(:hover):not(.tweaking)
-		background base16('01')
+		background base16('02')
 		transition transform 0.1s cubic-bezier(0.25, 0.1, 0, 1), background 0.1s ease 0.1s
 
 	&__rotery
@@ -350,8 +346,11 @@ export default defineComponent({
 		transform scale(3)
 
 	&__circle
-		fill base16('accent')
+		fill base16('06')
 		stroke none
+
+		&:hover, &.tweaking
+			fill base16('accent') !important
 
 		~/.tweak-absolute &
 			fill base16('01')

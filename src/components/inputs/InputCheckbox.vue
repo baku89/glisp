@@ -93,11 +93,14 @@ export default defineComponent({
 		color base16('06')
 		text-align center
 		line-height $input-height
-		opacity 0
 		pointer-events none
+		stroke-dasharray 32
+		stroke-dashoffset 32
+		transition all .05s ease
 
 	&__input:checked + &__frame > &__checkmark
-		opacity 1
+		stroke-dashoffset 0
+
 
 	// Hover and Focus
 	&:hover &__frame

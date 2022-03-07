@@ -93,7 +93,7 @@ export default defineComponent({
 	height $input-height
 	border-radius $input-round
 	background-size 100% 100%
-	color base16('accent')
+	color base16('06')
 	text-align center
 	cursor pointer
 
@@ -104,5 +104,5 @@ export default defineComponent({
 		transition transform 0.3s cubic-bezier(0.19, 1.6, 0.42, 1)
 
 	&:hover, &:focus
-		background base16('01')
+		background base16('02')
 </style>

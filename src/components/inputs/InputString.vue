@@ -12,8 +12,8 @@
 		:style="inputStyle"
 		@focus="onFocus"
 		@input="display = $event.target.value"
-		@blur="confirm"
-		@keypress.enter="confirm"
+		@blur="conform"
+		@keypress.enter="conform"
 	/>
 </template>
 
@@ -80,8 +80,8 @@ export default defineComponent({
 			}
 		}
 
-		function confirm() {
-			display.confirm()
+		function conform() {
+			display.conform()
 		}
 
 		return {
@@ -89,7 +89,7 @@ export default defineComponent({
 			displayInvalid,
 			inputStyle,
 			onFocus,
-			confirm,
+			conform,
 		}
 	},
 })
