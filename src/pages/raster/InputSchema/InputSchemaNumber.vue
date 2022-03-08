@@ -11,6 +11,7 @@
 import {computed, defineComponent, PropType} from 'vue'
 
 import InputNumber from '@/components/inputs/InputNumber'
+import InputRotery from '@/components/inputs/InputRotery.vue'
 import InputSeed from '@/components/inputs/InputSeed.vue'
 
 import {SchemaNumber} from './type'
@@ -18,7 +19,7 @@ import {SchemaNumber} from './type'
 export default defineComponent({
 	name: 'InputSchemaNumber',
 	components: {
-		angle: InputNumber,
+		angle: InputRotery,
 		number: InputNumber,
 		seed: InputSeed,
 	},

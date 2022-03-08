@@ -6,6 +6,7 @@
 		<div class="SidePane__splitter" :class="{collapsed}" ref="splitterEl" />
 		<div class="SidePane__side" :style="{width: `${sideWidth}px`}">
 			<div
+				v-show="!collapsed"
 				class="SidePane__side-content"
 				:style="{minWidth: `${minWidth}px`}"
 				v-bind="sideAttr"

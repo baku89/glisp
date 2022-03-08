@@ -117,7 +117,7 @@ export default function useDraggable(
 			if (!drag.isDragging) {
 				// Determine whether dragging has start
 				const d = vec2.dist(drag.startPos, drag.pos)
-				if (d <= 2) {
+				if (d <= (navigator.maxTouchPoints > 0 ? 6 : 2)) {
 					return
 				}
 				startDrag()

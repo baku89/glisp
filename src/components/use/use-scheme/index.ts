@@ -47,7 +47,7 @@ const Presets = Object.fromEntries(Base16List.map(base16ToStaticColors))
 
 export default function useScheme() {
 	const basePreset = useLocalStorage('uiBasePreset', 'Nord')
-	const baseAccentName = useLocalStorage('uiBaseAccentName', '07')
+	const baseAccentName = useLocalStorage('uiBaseAccentName', '0D')
 
 	const colors: Colors = reactive({
 		...Presets[basePreset.value],

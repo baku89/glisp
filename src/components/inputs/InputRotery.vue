@@ -101,7 +101,7 @@ export default defineComponent({
 		},
 		updateOnBlur: {
 			type: Boolean,
-			default: false,
+			default: true,
 		},
 	},
 	emits: ['update:modelValue'],
@@ -162,7 +162,6 @@ export default defineComponent({
 				const alignedPos = vec2.rotate(vec2.create(), p, [0, 0], -prevAngle)
 				const delta = Math.atan2(alignedPos[1], alignedPos[0])
 				tweakRawLocal += delta
-
 				local.set(tweakRawLocal)
 			},
 			onDragEnd() {
