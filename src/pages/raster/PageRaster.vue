@@ -190,7 +190,7 @@ export default defineComponent({
 
 		const globalMenu = [
 			// 'viewport.openImage',
-			// {name: 'viewport.downloadImage', payload: {name: documentName.value}},
+			{name: 'viewport.downloadImage', payload: {name: documentName.value}},
 			// 'viewport.resetBuiltinBrushes',
 			'viewport.reload',
 			'viewport.fitTransformToScreen',
