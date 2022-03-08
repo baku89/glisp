@@ -656,8 +656,12 @@ export default function useModuleViewport(): StoreModule {
 				label: 'Reload App',
 				icon: '<path d="M29 16 C29 22 24 29 16 29 8 29 3 22 3 16 3 10 8 3 16 3 21 3 25 6 27 9 M20 10 L27 9 28 2" />',
 				exec() {
-					brushes.value = {...brushes.value, ...BuiltinBrushes}
-					window.location.href = 'https://niu.design/megei'
+					localStorage.clear()
+					if (location.href.includes('glisp')) {
+						window.location.href = 'https://niu.design/megei'
+					} else {
+						window.location.reload()
+					}
 				},
 			},
 		},

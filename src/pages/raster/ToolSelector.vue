@@ -32,7 +32,7 @@
 				</li>
 			</template>
 		</Draggable>
-		<button class="ToolSelector__new" @click="duplicateCurrentTool">
+		<button v-if="isPC" class="ToolSelector__new" @click="duplicateCurrentTool">
 			<SvgIcon mode="block" class="icon">
 				<path d="M16 2 L16 30 M2 16 L30 16" />
 			</SvgIcon>
@@ -150,6 +150,7 @@ export default defineComponent({
 			items,
 			contextmenuIndex,
 			contextmenuItems,
+			isPC: navigator.maxTouchPoints === 0,
 		}
 	},
 })
@@ -195,7 +196,7 @@ $size = 3em
 		&:not(.active):hover
 			color base16('accent')
 
-		&:not(.contextmenu):hover
+		&:not(.contextmenu):hover, &:not(.contextmenu).active
 			.ToolSelector__label
 				margin-left 0.5em
 				opacity 1 !important

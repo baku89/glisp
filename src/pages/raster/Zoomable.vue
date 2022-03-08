@@ -124,7 +124,10 @@ export default defineComponent({
 						const ct = touches.find(t => t.identifier === firstTouchId)
 						const pt = prevTouches.find(t => t.identifier === firstTouchId)
 
-						if (!ct || !pt) throw new Error()
+						if (!ct || !pt) {
+							firstTouchId = secondTouchId = null
+							return
+						}
 
 						const delta = vec2.fromValues(
 							ct.clientX - pt.clientX,
@@ -145,7 +148,10 @@ export default defineComponent({
 						const ct0 = touches.find(t => t.identifier === firstTouchId)
 						const ct1 = touches.find(t => t.identifier === secondTouchId)
 
-						if (!ct0 || !ct1 || !pt0 || !pt1) throw new Error()
+						if (!ct0 || !ct1 || !pt0 || !pt1) {
+							firstTouchId = secondTouchId = null
+							return
+						}
 
 						const xform = mat2d.clone(props.transform)
 						const xformInv = mat2d.invert(mat2d.create(), xform)

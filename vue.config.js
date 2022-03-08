@@ -83,6 +83,7 @@ module.exports = {
 			globalObject: 'globalThis',
 			filename: '[name].js',
 		},
+		devtool: 'inline-source-map',
 		/*
 		entry: {
 			'lib/core': path.join(__dirname, 'src/mal-lib/core.ts'),

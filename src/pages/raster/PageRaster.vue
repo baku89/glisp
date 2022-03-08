@@ -1,12 +1,13 @@
 <template>
 	<div class="PageRaster">
 		<AppHeader :menu="globalMenu">
-			<!-- <template #left>
-				<AppHeaderBreadcumb :items="[{label: 'Raster'}]" />
-			</template> -->
+			<template #left>
+				<!-- <AppHeaderBreadcumb :items="[{label: 'Raster'}]" /> -->
+				<button class="gmenu-button" @click="reloadApp">Reload</button>
+			</template>
 			<template #center>
 				<div class="PageRaster__document-title">
-					<button @click="showHelp = true">
+					<button class="gmenu-button" @click="showHelp = true">
 						<SvgIcon class="icon"
 							><path d="M16 14 L16 23 M16 8 L16 10" />
 							<circle cx="16" cy="16" r="14"
@@ -32,6 +33,7 @@
 			uid="globalSidePane"
 			:mainAttr="{class: 'PageRaster__viewport'}"
 			:sideAttr="{class: 'PageRaster__control'}"
+			:defaultWidth="sideBarDefaultWidth"
 		>
 			<template #main>
 				<Zoomable
@@ -81,6 +83,24 @@
 				><path d="M2 30 L30 2 M30 30 L2 2"
 			/></SvgIcon>
 			<Markdown :source="help" />
+			<div
+				style="
+					display: grid;
+					gap: 1em;
+					grid-auto-flow: row dense;
+					grid-template-columns: 1fr 1fr 1fr;
+				"
+			>
+				<img src="./samples/3.png" />
+				<img src="./samples/4.png" />
+				<img src="./samples/disp_blue.png" />
+				<img src="./samples/disp_cloud.png" />
+				<img src="./samples/disp_navy.png" />
+				<img src="./samples/disp_red.png" />
+				<img src="./samples/disp_yellow.png" />
+				<img src="./samples/1.jpg" />
+				<img src="./samples/2.png" />
+			</div>
 		</div>
 	</div>
 	<div class="PageRaster__bg" />
@@ -238,6 +258,8 @@ export default defineComponent({
 			toLabel: _.startCase,
 			help,
 			showHelp,
+			sideBarDefaultWidth,
+			reloadApp,
 		}
 	},
 })
@@ -263,12 +285,14 @@ html, body
 		background base16('00')
 		inset 0
 
-	&__document-title
+	// &__document-title
+
+	.gmenu-button
+		padding 0 .4em
 		font-size 1.3em
 		line-height calc((var(--height) / 1.3))
 
-		button:hover
-			padding 0 .4em
+		&:hover
 			background base16('02')
 			color base16('accent')
 
@@ -357,11 +381,4 @@ html, body
 			position absolute
 			top 1.8em
 			right 1.8em
-
-		img
-			width 23%
-			display inline-block
-			margin-right 1em
-			margin-bottom 1em
-			vertical-align top
 </style>
