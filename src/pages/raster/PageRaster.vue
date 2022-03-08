@@ -199,6 +199,28 @@ export default defineComponent({
 
 		const showHelp = ref(false)
 
+		const sideBarDefaultWidth = ref(
+			navigator.maxTouchPoints > 0 ? 0 : undefined
+		)
+
+		function reloadApp() {
+			store.commit('viewport.reload', null)
+		}
+
+		// Auto-reload
+		let timer: any
+		function startAutoReloadTimer() {
+			if (timer) clearTimeout(timer)
+
+			timer = setTimeout(() => {
+				store.commit('viewport.reload', null)
+			}, 1000 * 60 * 2)
+		}
+
+		window.addEventListener('pointerdown', startAutoReloadTimer)
+		window.addEventListener('pointermove', startAutoReloadTimer)
+		startAutoReloadTimer()
+
 		return {
 			getState: store.getState,
 			commit: store.commit,
