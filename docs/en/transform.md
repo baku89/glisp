@@ -43,10 +43,10 @@ AfterEffects' anchor-point transformation can be defined as follows.
 ;; with respect to the pivot (20, 20),
 ;; the center of the square
 (transform
- (mat2d/* (pivot [20 20]
-                 (translate [0 0])
-                 (rotate (deg 60))
-                 (scale [1 1.5])))
+ (pivot [20 20]
+        (translate [0 0])
+        (rotate (deg 60))
+        (scale [1 1.5]))
  (style (fill "crimson")
   (rect [0 0 40 40])))
 ```
@@ -54,11 +54,11 @@ AfterEffects' anchor-point transformation can be defined as follows.
 `pivot` function can be replaced by two translate functions:
 
 ```clojure
-(mat2d/* (translate [-20 -20]) ;; move the anchor point to the origin
+(mat2d/* (translate [20 20]) ;; revert
          (mat2d/*  (translate [0 0])
                    (rotate (deg 60))
                    (scale [1 1.5]))
-         (translate [20 20])) ;; revert
+         (translate [-20 -20])) ;; move the anchor point to the origin
 ```
 
 While editing motion graphics, empty objects have to be nested in a hierarchy for a sophisticated motion that cannot be expressed by a single-layer transformation, for example, to move a shape, then to rotate and to move again. Nevertheless, Glisp allows you to achieve such an operation within a single transform UI without a redundant hierarchical structure.
