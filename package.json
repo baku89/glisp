@@ -55,7 +55,7 @@
 		"delaunator": "^4.0.1",
 		"docsify-cli": "^4.4.3",
 		"earcut": "^2.2.2",
-		"electron": "^11.5.0",
+		"electron": "^18.3.7",
 		"eslint": "^6.7.2",
 		"eslint-plugin-prettier": "^3.1.1",
 		"eslint-plugin-vue": "^6.2.2",
