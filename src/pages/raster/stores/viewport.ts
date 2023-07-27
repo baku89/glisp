@@ -658,7 +658,7 @@ export default function useModuleViewport(): StoreModule {
 				exec() {
 					localStorage.clear()
 					if (location.href.includes('glisp')) {
-						window.location.href = 'https://niu.design/megei'
+						window.location.href = 'https://glisp.app/megei'
 					} else {
 						window.location.reload()
 					}
