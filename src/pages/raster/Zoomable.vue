@@ -100,8 +100,6 @@ export default defineComponent({
 				let prevTouches: Touch[]
 
 				el.addEventListener('touchstart', e => {
-					console.log('start', e.changedTouches, e.touches)
-
 					prevTouches = [...e.touches]
 
 					const touch = e.changedTouches[0]
@@ -115,8 +113,6 @@ export default defineComponent({
 				})
 
 				el.addEventListener('touchmove', e => {
-					console.log('move', e.changedTouches, e.touches)
-
 					const touches = [...e.touches]
 
 					if (firstTouchId !== null && secondTouchId === null) {
@@ -192,8 +188,6 @@ export default defineComponent({
 				})
 
 				el.addEventListener('touchend', e => {
-					console.log('end', e.changedTouches, e.touches)
-
 					const changedTouches = [...e.changedTouches]
 
 					if (firstTouchId !== null && secondTouchId === null) {

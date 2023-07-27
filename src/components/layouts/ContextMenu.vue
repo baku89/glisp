@@ -24,7 +24,7 @@ export default defineComponent({
 		},
 	},
 	setup(props) {
-		const placement = ref([0, 0])
+		const placement = ref([0, 0] as [number, number])
 
 		const opened = ref(false)
 

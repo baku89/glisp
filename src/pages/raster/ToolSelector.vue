@@ -130,7 +130,6 @@ export default defineComponent({
 								toolCount > 1
 									? tools[Math.min(index + 1, toolCount - 1)].name
 									: null
-							console.log('newValue', newValue)
 							context.emit('update:modelValue', newValue)
 						}
 

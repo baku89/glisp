@@ -108,10 +108,11 @@
 
 <script lang="ts">
 import {templateRef} from '@vueuse/core'
+import type {mat2d} from 'gl-matrix'
 import _ from 'lodash'
 import {defineComponent, onMounted, provide, ref} from 'vue'
 
-import AppHeader, {AppHeaderBreadcumb} from '@/components/AppHeader'
+import AppHeader from '@/components/AppHeader'
 import Markdown from '@/components/layouts/Markdown'
 import {MenuItem} from '@/components/layouts/Menu.vue'
 import SidePane from '@/components/layouts/SidePane.vue'
@@ -134,7 +135,6 @@ export default defineComponent({
 		BrushSettings,
 		ToolSelector,
 		AppHeader,
-		AppHeaderBreadcumb,
 		PaneBrushParams,
 		SidePane,
 		SvgIcon,
@@ -180,7 +180,6 @@ export default defineComponent({
 		}
 
 		useLoadActions(store)
-
 		onMounted(() => {
 			store.commit('viewport.setupElements', {
 				viewport: viewportEl.value,
@@ -191,7 +190,7 @@ export default defineComponent({
 		const globalMenu = [
 			// 'viewport.openImage',
 			{name: 'viewport.downloadImage', payload: {name: documentName.value}},
-			// 'viewport.resetBuiltinBrushes',
+			'viewport.resetBuiltinBrushes',
 			'viewport.reload',
 			'viewport.fitTransformToScreen',
 		]
@@ -209,13 +208,13 @@ export default defineComponent({
 			},
 		]
 
-		const viewportTransform = store.getState('viewport.transform')
-		const canvasSize = store.getState('viewport.canvasSize')
-		const zoomFactor = store.getState('viewport.zoomFactor')
+		const viewportTransform = store.getState<mat2d>('viewport.transform')
+		const canvasSize = store.getState<[number, number]>('viewport.canvasSize')
+		const zoomFactor = store.getState<number>('viewport.zoomFactor')
 		const currentBrush = store.getState('viewport.currentBrush')
 		const brushParams = store.getState('viewport.brushParams')
-		const currentBrushName = store.getState('viewport.currentBrushName')
-		const brushes = store.getState('viewport.brushes')
+		const currentBrushName = store.getState<string>('viewport.currentBrushName')
+		const brushes = store.getState<Record<string, any>>('viewport.brushes')
 
 		const showHelp = ref(false)
 
