@@ -440,7 +440,8 @@ export default function useModuleViewport(): StoreModule {
 				depth: false,
 				premultipliedAlpha: false,
 			},
-			extensions: ['OES_texture_float', 'OES_texture_float_linear'],
+			// NOTE: Temporarily disabled since iPad OS 16 doesn't support this
+			extensions: ['OES_texture_float' /*, 'OES_texture_float_linear'*/],
 			canvas,
 		})
 		regl.value = _regl
@@ -455,9 +456,11 @@ export default function useModuleViewport(): StoreModule {
 
 			// Unsafe code
 			const colorTex = ((f as any).color as Regl.Texture2D[])[0]
+
+			// NOTE: Temporarily disabled since iPad OS 16 doesn't support this
 			colorTex({
-				mag: 'linear',
-				min: 'linear',
+				// mag: 'linear',
+				// min: 'linear',
 				width: colorTex.width,
 				height: colorTex.height,
 				type: colorTex.type,
