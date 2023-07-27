@@ -10,38 +10,38 @@ const MonacoEditorWebpackPlugin = require('monaco-editor-webpack-plugin')
 PagesToBuild.unshift('index')
 
 const PageSettings = {
-	index: {
-		entry: 'src/pages/index/index.ts',
-		template: 'src/pages/template.html',
-	},
-	app: {
-		entry: 'src/pages/app/index.ts',
-		template: 'public/app.html',
-	},
-	embed: {
-		entry: 'src/pages/embed/index.ts',
-		template: 'src/pages/embed/embed.html',
-	},
-	ui: {
-		entry: 'src/pages/ui/index.ts',
-		template: 'src/pages/template.html',
-	},
-	repl: {
-		entry: 'src/pages/repl/index.ts',
-		template: 'src/pages/template.html',
-	},
-	easing: {
-		entry: 'src/pages/easing/index.ts',
-		template: 'src/pages/template.html',
-	},
-	'color-space': {
-		entry: 'src/pages/color-space/index.ts',
-		template: 'src/pages/template.html',
-	},
-	haptics: {
-		entry: 'src/pages/haptics/index.ts',
-		template: 'src/pages/template.html',
-	},
+	// index: {
+	// 	entry: 'src/pages/index/index.ts',
+	// 	template: 'src/pages/template.html',
+	// },
+	// app: {
+	// 	entry: 'src/pages/app/index.ts',
+	// 	template: 'public/app.html',
+	// },
+	// embed: {
+	// 	entry: 'src/pages/embed/index.ts',
+	// 	template: 'src/pages/embed/embed.html',
+	// },
+	// ui: {
+	// 	entry: 'src/pages/ui/index.ts',
+	// 	template: 'src/pages/template.html',
+	// },
+	// repl: {
+	// 	entry: 'src/pages/repl/index.ts',
+	// 	template: 'src/pages/template.html',
+	// },
+	// easing: {
+	// 	entry: 'src/pages/easing/index.ts',
+	// 	template: 'src/pages/template.html',
+	// },
+	// 'color-space': {
+	// 	entry: 'src/pages/color-space/index.ts',
+	// 	template: 'src/pages/template.html',
+	// },
+	// haptics: {
+	// 	entry: 'src/pages/haptics/index.ts',
+	// 	template: 'src/pages/template.html',
+	// },
 	megei: {
 		entry: 'src/pages/raster/index.ts',
 		template: 'src/pages/template.html',
@@ -68,7 +68,6 @@ module.exports = {
 	publicPath: './',
 	productionSourceMap: false,
 	devServer: {
-		writeToDisk: true,
 		hot: false,
 		liveReload: false,
 	},
