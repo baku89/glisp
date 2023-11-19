@@ -1,4 +1,4 @@
-import {toRefs, reactive, Ref} from '@vue/composition-api'
+import {toRefs, reactive, Ref} from 'vue'
 import hotkeys from 'hotkeys-js'
 import keycode from 'keycode'
 import AppScope from '@/scopes/app'

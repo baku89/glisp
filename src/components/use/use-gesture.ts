@@ -1,5 +1,4 @@
-import {Ref, onMounted} from '@vue/composition-api'
-import isElectron from 'is-electron'
+import {Ref, onMounted} from 'vue'
 import hotkeys from 'hotkeys-js'
 
 interface UseGestureOptions {
@@ -87,24 +86,6 @@ export default function useGesture(
 					document.documentElement.style.cursor = 'default'
 				}
 			})
-
-			// Rotation (only enabled in macos electron)
-			if (options.onRotate && isElectron()) {
-				const onRotate = options.onRotate
-				const ipc = eval("require('electron').ipcRenderer")
-				let pageX = 0,
-					pageY = 0
-
-				window.addEventListener('mousemove', e => {
-					pageX = e.pageX
-					pageY = e.pageY
-				})
-
-				ipc.on('rotate-gesture', (e: any, rotation: number) => {
-					// const {x, y} = GetCursorPosition()
-					onRotate({rotation, pageX, pageY})
-				})
-			}
 		}
 	})
 }

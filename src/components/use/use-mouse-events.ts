@@ -1,4 +1,4 @@
-import {Ref, onUnmounted, ref, onMounted, unref} from '@vue/composition-api'
+import {Ref, onUnmounted, ref, onMounted, unref} from 'vue'
 import {getHTMLElement} from '@/utils'
 
 export default function useMouseEvents(

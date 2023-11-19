@@ -33,7 +33,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref} from '@vue/composition-api'
+import {defineComponent, ref} from 'vue'
 
 export default defineComponent({
 	name: 'WindowTitleButtons',
@@ -44,30 +44,6 @@ export default defineComponent({
 		},
 	},
 	setup() {
-		const {remote} = eval("require('electron')") as {
-			remote: Electron.Remote
-		}
-
-		const win = remote.getCurrentWindow()
-
-		function onClickMin() {
-			win.minimize()
-		}
-
-		function onClickMax() {
-			win.maximize()
-		}
-
-		function onClickRestore() {
-			win.unmaximize()
-		}
-
-		function onClickClose() {
-			win.close()
-		}
-
-		const maximized = ref(win.isMaximized())
-
 		function onToggleMaxRestoreButtons() {
 			maximized.value = win.isMaximized()
 		}

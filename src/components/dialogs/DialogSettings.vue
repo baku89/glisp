@@ -2,14 +2,18 @@
 	<div class="DialogSettings">
 		<div class="DialogSettings__header">
 			<div class="DialogSettings__name">Settings</div>
-			<button class="DialogSettings__header-button" @click="resetSettings">Reset</button>
+			<button class="DialogSettings__header-button" @click="resetSettings">
+				Reset
+			</button>
 		</div>
 		<div class="DialogSettings__editor">
 			<GlispEditor v-model="code" />
 			<div
 				class="DialogSettings__error-indicator"
 				:class="{error: hasParseError}"
-			>{{ hasParseError ? '!' : '✓' }}</div>
+			>
+				{{ hasParseError ? '!' : '✓' }}
+			</div>
 		</div>
 		<div class="DialogSettings__buttons">
 			<button class="button" @click="$emit('close')">Cancel</button>
@@ -20,12 +24,11 @@
 
 <script lang="ts">
 import Vue from 'vue'
-import {defineComponent, ref, computed} from '@vue/composition-api'
+import {defineComponent, ref, computed} from 'vue'
 import {readStr} from '@/mal'
 import GlispEditor from '@/components/GlispEditor/GlispEditor2.vue'
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const DEFAULT_SETTINGS = require('raw-loader!@/default-settings.glisp')
+const DEFAULT_SETTINGS = require('@/default-settings.glisp?raw')
 	.default as string
 
 export default defineComponent({

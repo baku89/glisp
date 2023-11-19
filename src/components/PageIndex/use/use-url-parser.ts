@@ -47,7 +47,7 @@ export default function useURLParser(
 		} else {
 			code =
 				localStorage.getItem('saved_code') ||
-				require('raw-loader!@/default-canvas.glisp').default // eslint-disable-line @typescript-eslint/no-var-requires
+				require('@/default-canvas.glisp?raw').default
 		}
 
 		return code

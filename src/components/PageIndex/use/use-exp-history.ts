@@ -1,6 +1,6 @@
 import {MalNode, getName, MalVal, MalError, isKeyword} from '@/mal/types'
 
-import {Ref, ref} from '@vue/composition-api'
+import {Ref, ref} from 'vue'
 import {NonReactive} from '@/utils'
 import {reconstructTree} from '@/mal/reader'
 import AppScope from '@/scopes/app'

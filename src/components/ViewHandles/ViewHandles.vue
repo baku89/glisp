@@ -123,7 +123,7 @@ import {
 	SetupContext,
 	Ref,
 	toRef,
-} from '@vue/composition-api'
+} from 'vue'
 import AppScope from '@/scopes/app'
 import useHandle from './use-handle'
 

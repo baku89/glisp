@@ -25,7 +25,7 @@ import {
 	ref,
 	Ref,
 	watch,
-} from '@vue/composition-api'
+} from 'vue'
 
 const INPUT_LINE_HEIGHT_REM = 1.8
 

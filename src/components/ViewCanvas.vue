@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, Ref, onMounted, watch, ref} from '@vue/composition-api'
+import {defineComponent, Ref, onMounted, watch, ref} from 'vue'
 
 import {MalVal, MalError} from '@/mal/types'
 import {printer} from '@/mal/printer'

@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, SetupContext} from '@vue/composition-api'
+import {defineComponent, computed, SetupContext} from 'vue'
 import {MalVal, isList, isSymbol, isNode} from '@/mal/types'
 import printExp from '@/mal/printer'
 import {NonReactive, nonReactive} from '@/utils'

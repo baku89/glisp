@@ -70,9 +70,9 @@ class Reader {
 
 	public endOffset(pos = this._index): number {
 		const token = this.tokens[pos]
-		return (token !== undefined
-			? (token[1] as number) + token[0].length
-			: this.strlen) as number
+		return (
+			token !== undefined ? (token[1] as number) + token[0].length : this.strlen
+		) as number
 	}
 
 	public prevEndOffset(): number {
@@ -82,7 +82,8 @@ class Reader {
 
 function tokenize(str: string, saveStr = false) {
 	// eslint-disable-next-line no-useless-escape
-	const re = /[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
+	const re =
+		/[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
 	let match = null
 	const spaceRe = /^[\s,]*/
 	let spaceMatch = null,

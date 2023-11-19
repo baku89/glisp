@@ -33,8 +33,7 @@ import ClickOutside from 'vue-click-outside'
 import GlobalSubmenu from './GlobalSubmenu.vue'
 import WindowTitleButtons from './WindowTitleButtons.vue'
 import ConsoleScope from '@/scopes/console'
-import isElectron from 'is-electron'
-import {defineComponent, ref, Ref} from '@vue/composition-api'
+import {defineComponent, ref, Ref} from 'vue'
 import AppScope from '@/scopes/app'
 import {isVector, MalVal} from '@/mal/types'
 
@@ -60,11 +59,7 @@ export default defineComponent({
 		)
 
 		const titleBar = ref(
-			isElectron()
-				? platform.value === 'darwin'
-					? 'macos'
-					: 'frameless'
-				: null
+				null
 		)
 
 		function onClose() {

@@ -14,7 +14,7 @@ import {
 	watch,
 	SetupContext,
 	PropType,
-} from '@vue/composition-api'
+} from 'vue'
 import ace from 'brace'
 
 import {setupEditor} from './setup'

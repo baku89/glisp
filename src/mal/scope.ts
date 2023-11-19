@@ -121,7 +121,7 @@ export default class Scope<T> {
 
 			if (err instanceof MalError) {
 				printer.error(err)
-			} else {
+			} else if (err instanceof Error) {
 				printer.error(err.stack)
 			}
 
@@ -135,7 +135,7 @@ export default class Scope<T> {
 		} catch (err) {
 			if (err instanceof MalError) {
 				printer.error(err)
-			} else {
+			} else if (err instanceof Error) {
 				printer.error(err.stack)
 			}
 			return undefined

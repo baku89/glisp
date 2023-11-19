@@ -33,7 +33,7 @@ import {
 	SetupContext,
 	Ref,
 	ref,
-} from '@vue/composition-api'
+} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalNode, MalVal, MalSeq, cloneExp} from '@/mal/types'
 import {reconstructTree} from '@/mal/reader'

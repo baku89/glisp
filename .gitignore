@@ -25,5 +25,5 @@ yarn-error.log*
 *.sln
 *.sw?
 
-#Electron-builder output
-/dist_electron
+# Vue PWA
+dev-dist

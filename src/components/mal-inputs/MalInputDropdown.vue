@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext} from '@vue/composition-api'
+import {defineComponent, SetupContext} from 'vue'
 import {NonReactive, nonReactive} from '@/utils'
 import {MalVal} from '@/mal/types'
 import {PropType} from 'vue'

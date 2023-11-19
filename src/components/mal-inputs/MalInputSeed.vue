@@ -14,7 +14,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, SetupContext} from '@vue/composition-api'
+import {defineComponent, SetupContext} from 'vue'
 import MalInputNumber from './MalInputNumber.vue'
 import {InputSeed} from '@/components/inputs'
 import {MalSeq, MalSymbol, MalVal} from '@/mal/types'

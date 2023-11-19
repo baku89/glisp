@@ -3,9 +3,13 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, onMounted, ref, Ref} from '@vue/composition-api'
+import {defineComponent, onMounted, ref, Ref} from 'vue'
 import {printer} from '@/mal/printer'
 import ConsoleScope from '../scopes/console'
+
+import $ from 'jquery'
+;(window as any).jQuery = (window as any).$ = $
+
 import 'jq-console'
 
 const MAX_HISTORY_LENGTH = 1000

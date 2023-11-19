@@ -15,20 +15,6 @@ const TOMORROW = {
 	'--purple': '#8959a8',
 }
 
-// const TOMORROW_NIGHT = {
-// 	'--currentline': '#282a2e',
-// 	'--selection': '#373b41',
-// 	'--foreground': '#c5c8c6',
-// 	'--comment': '#969896',
-// 	'--red': '#cc6666',
-// 	'--orange': '#de935f',
-// 	'--yellow': '#f0c674',
-// 	'--green': '#b5bd68',
-// 	'--aqua': '#8abeb7',
-// 	'--blue': '#81a2be',
-// 	'--purple': '#b294bb'
-// }
-
 const TOMORROW_NIGHT_BRIGHT = {
 	'--background': '#000000',
 	'--currentline': '#2a2a2a',
@@ -43,21 +29,6 @@ const TOMORROW_NIGHT_BRIGHT = {
 	'--blue': '#7aa6da',
 	'--purple': '#c397d8',
 }
-
-// const TOMORROW_NIGHT_EIGHTIES = {
-// 	'--background': '#2d2d2d',
-// 	'--currentline': '#393939',
-// 	'--selection': '#515151',
-// 	'--foreground': '#cccccc',
-// 	'--comment': '#999999',
-// 	'--red': '#f2777a',
-// 	'--orange': '#f99157',
-// 	'--yellow': '#ffcc66',
-// 	'--green': '#99cc99',
-// 	'--aqua': '#66cccc',
-// 	'--blue': '#6699cc',
-// 	'--purple': '#cc99cc'
-// }
 
 export interface Theme {
 	dark: boolean

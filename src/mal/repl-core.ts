@@ -105,8 +105,7 @@ const Exports = [
 		setMeta(
 			() => null,
 			convertJSObjectToMalMap({
-				doc:
-					'Creates a variable which can be changed by the bidirectional evaluation',
+				doc: 'Creates a variable which can be changed by the bidirectional evaluation',
 				params: [
 					{label: 'Symbol', type: 'symbol'},
 					{label: 'Value', type: 'any'},
@@ -166,8 +165,7 @@ const Exports = [
 		setMeta(
 			() => null,
 			convertJSObjectToMalMap({
-				doc:
-					'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
+				doc: 'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
 				params: [{label: 'Form', type: 'exp'}],
 			})
 		),

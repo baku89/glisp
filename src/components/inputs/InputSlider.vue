@@ -21,7 +21,7 @@ import {
 	Ref,
 	PropType,
 	toRef,
-} from '@vue/composition-api'
+} from 'vue'
 import {useDraggable, useKeyboardState} from '../use'
 import useNumberInput from './use-number-input'
 

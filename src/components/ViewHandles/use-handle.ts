@@ -19,14 +19,7 @@ import {
 	createList as L,
 	MalNode,
 } from '@/mal/types'
-import {
-	reactive,
-	computed,
-	Ref,
-	onBeforeMount,
-	SetupContext,
-	toRefs,
-} from '@vue/composition-api'
+import {reactive, computed, Ref, onBeforeMount, SetupContext, toRefs} from 'vue'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 import {vec2, mat2d} from 'gl-matrix'
 import {NonReactive} from '@/utils'
@@ -327,9 +320,10 @@ export default function useHandle(
 				newParams = retParams
 			} else if (isVector(replace)) {
 				newParams = [...unevaluatedParams]
-				const pairs = (typeof replace[0] === 'number'
-					? [(replace as any) as [number, MalVal]]
-					: ((replace as any) as [number, MalVal][])
+				const pairs = (
+					typeof replace[0] === 'number'
+						? [replace as any as [number, MalVal]]
+						: (replace as any as [number, MalVal][])
 				).map(
 					([si, e]) =>
 						[si < 0 ? newParams.length + si : si, e] as [number, MalVal]

@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from '@vue/composition-api'
+import {defineComponent} from 'vue'
 import {Chrome as ColorPicker} from 'vue-color'
 import Popper from 'vue-popperjs'
 

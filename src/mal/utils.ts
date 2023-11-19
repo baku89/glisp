@@ -354,9 +354,10 @@ export function reverseEval(
 						newParams = params
 					} else if (isVector(replace)) {
 						newParams = [...originalParams]
-						const pairs = (typeof replace[0] === 'number'
-							? [(replace as any) as [number, MalVal]]
-							: ((replace as any) as [number, MalVal][])
+						const pairs = (
+							typeof replace[0] === 'number'
+								? [replace as any as [number, MalVal]]
+								: (replace as any as [number, MalVal][])
 						).map(
 							([si, e]) =>
 								[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
@@ -497,9 +498,10 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 			newParams = [...params]
 		} else if (isVector(replace)) {
 			newParams = [...originalParams]
-			const pairs = (typeof replace[0] === 'number'
-				? [(replace as any) as [number, MalVal]]
-				: ((replace as any) as [number, MalVal][])
+			const pairs = (
+				typeof replace[0] === 'number'
+					? [replace as any as [number, MalVal]]
+					: (replace as any as [number, MalVal][])
 			).map(
 				([si, e]) =>
 					[si < 0 ? newParams.length + si : si, e] as [number, MalVal]

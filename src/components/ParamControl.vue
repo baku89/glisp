@@ -47,7 +47,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, computed, SetupContext} from '@vue/composition-api'
+import {defineComponent, computed, SetupContext} from 'vue'
 import {
 	MalSeq,
 	MalVal,

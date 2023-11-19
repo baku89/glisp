@@ -1,4 +1,3 @@
-/* eslint-ignore @typescript-eslint/no-use-before-define */
 import {vec2, mat2d} from 'gl-matrix'
 import Bezier from 'bezier-js'
 import svgpath from 'svgpath'
@@ -14,7 +13,6 @@ import {
 	assocBang,
 	isMap,
 	createList as L,
-	isVector,
 } from '@/mal/types'
 import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
@@ -26,8 +24,6 @@ import {
 	convertToPath2D,
 	getSVGPathData,
 } from '@/path-utils'
-import {net} from 'electron'
-import {nextTick} from 'vue/types/umd'
 
 const EPSILON = 1e-5
 

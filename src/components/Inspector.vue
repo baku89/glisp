@@ -35,7 +35,6 @@ import {
 	MalVal,
 	isList,
 	isSymbol,
-	keywordFor as K,
 	MalNode,
 	MalSymbol,
 	isNode,
@@ -49,7 +48,7 @@ import ParamControl from './ParamControl.vue'
 import Inspectors from '@/components/inspectors'
 import {NonReactive, nonReactive} from '@/utils'
 import {getFnInfo, copyDelimiters, getMapValue} from '@/mal/utils'
-import {defineComponent, computed, SetupContext} from '@vue/composition-api'
+import {defineComponent, computed, SetupContext} from 'vue'
 
 interface Props {
 	exp: NonReactive<MalNode>

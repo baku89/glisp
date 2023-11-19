@@ -1,11 +1,11 @@
 import ace from 'brace'
-import './define-glisp-mode'
 import {useResizeSensor} from '@/components/use'
 import ConsoleScope from '@/scopes/console'
 
 // require('brace/theme/tomorrow')
 // require('brace/theme/tomorrow_night')
-require('brace/mode/clojure')
+import 'brace/mode/clojure'
+import './define-glisp-mode'
 
 function setupSettings(editor: ace.Editor) {
 	editor.$blockScrolling = Infinity

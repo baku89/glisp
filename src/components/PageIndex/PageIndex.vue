@@ -58,17 +58,16 @@
 						:class="{active: i === activeModeIndex}"
 						@click="activeModeIndex = i"
 					>
-						<span
-							class="icon"
-							v-if="handlers.icon.type === 'character'"
-						>{{handlers.icon.value}}</span>
+						<span class="icon" v-if="handlers.icon.type === 'character'">{{
+							handlers.icon.value
+						}}</span>
 						<i
 							class="icon"
 							v-else-if="handlers.icon.type === 'fontawesome'"
 							:class="handlers.icon.value"
 						/>
 
-						<span class="label">{{handlers.label}}</span>
+						<span class="label">{{ handlers.label }}</span>
 					</button>
 				</div>
 			</Pane>
@@ -90,7 +89,9 @@
 							class="PageIndex__console-toggle"
 							:class="{error: hasError}"
 							@click="compact = !compact"
-						>{{ hasError ? '!' : '✓' }}</button>
+						>
+							{{ hasError ? '!' : '✓' }}
+						</button>
 						<Console :compact="compact" @setup="onSetupConsole" />
 					</div>
 				</div>
@@ -113,8 +114,7 @@ import {
 	Ref,
 	onMounted,
 	toRef,
-} from '@vue/composition-api'
-import {useOnResize} from 'vue-composable'
+} from 'vue'
 
 import GlobalMenu from '@/components/GlobalMenu'
 import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
@@ -123,6 +123,8 @@ import Console from '@/components/Console.vue'
 import Inspector from '@/components/Inspector.vue'
 import ViewHandles from '@/components/ViewHandles'
 import PaneLayers from '@/components/PaneLayers.vue'
+
+import {useElementSize} from '@vueuse/core'
 
 import {printExp} from '@/mal'
 import {
@@ -140,7 +142,6 @@ import ConsoleScope from '@/scopes/console'
 import {computeTheme, Theme, isValidColorString} from '@/theme'
 import {mat2d} from 'gl-matrix'
 import {useRem} from '@/components/use'
-import AppScope from '@/scopes/app'
 import {
 	replaceExp,
 	watchExpOnReplace,
@@ -206,7 +207,7 @@ export default defineComponent({
 
 		const rem = useRem()
 
-		const {width: windowWidth} = useOnResize(document.body)
+		const {width: windowWidth} = useElementSize(document.body)
 
 		const ui = reactive({
 			compact: true,

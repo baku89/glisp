@@ -96,8 +96,6 @@ The project adopts Vue-CLI.
 - _Build_: `yarn build`
 - _Lint_: `yarn lint`
 - _Preview the documentaiton_: `yarn doc:serve`
-- _Launch the electron app for development_: `yarn electron:serve`
-- _Build the Electron app_: `yarn electron:build`
 
 ## LICENSE
 

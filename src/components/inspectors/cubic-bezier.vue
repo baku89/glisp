@@ -43,7 +43,7 @@ import {
 	Ref,
 	computed,
 	toRefs,
-} from '@vue/composition-api'
+} from 'vue'
 import {MalVal, isList, getEvaluated, cloneExp} from '@/mal/types'
 import {NonReactive, nonReactive, clamp} from '@/utils'
 import {useResizeSensor, useDraggable, useRem} from '@/components/use'

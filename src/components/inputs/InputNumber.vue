@@ -13,7 +13,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, ref, Ref, PropType, toRef} from '@vue/composition-api'
+import {defineComponent, ref, Ref, PropType, toRef} from 'vue'
 import {useDraggable, useKeyboardState} from '../use'
 import useNumberInput from './use-number-input'
 

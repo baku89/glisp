@@ -22,9 +22,8 @@
 		"types": ["webpack-env", "jquery", "node"],
 		"typeRoots": ["node_modules/@types", "src"],
 		"paths": {
-			"*": ["./src/@types/*"],
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": ["src/**/*.{ts,vue}", "tests/**/*.{ts,vue}"]
+	"include": ["src/**/*.ts", "tests/**/*.ts"]
 }
