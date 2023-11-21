@@ -54,16 +54,16 @@ import {computed} from 'vue'
 import {
 	cloneExpr,
 	createList,
+	Expr,
+	ExprSeq,
+	ExprSymbol,
 	getEvaluated,
 	isList,
 	isSymbolFor,
 	isVector,
-	ExprSeq,
-	ExprSymbol,
-	Expr,
+	reverseEval,
 	symbolFor,
-} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+} from '@/glisp'
 
 interface Props {
 	value: ExprSeq | ExprSymbol

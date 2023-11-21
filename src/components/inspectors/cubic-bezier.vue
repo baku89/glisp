@@ -40,7 +40,7 @@ import {clamp} from 'lodash'
 import {computed, Ref, ref, toRef} from 'vue'
 
 import {useDraggable, useRem, useResizeSensor} from '@/components/use'
-import {cloneExpr, getEvaluated, Expr} from '@/glisp/types'
+import {cloneExpr, Expr, getEvaluated} from '@/glisp'
 
 interface Props {
 	exp: Expr[]

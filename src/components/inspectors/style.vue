@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import {computed, ref} from 'vue'
 
-import {markParent} from '@/glisp/reader'
 import {
 	cloneExpr,
 	createList as L,
-	isVector,
-	ExprSeq,
 	Expr,
+	ExprSeq,
+	isVector,
+	markParent,
 	symbolFor as S,
-} from '@/glisp/types'
+} from '@/glisp'
 import {getParamLabel} from '@/utils'
 
 interface Props {

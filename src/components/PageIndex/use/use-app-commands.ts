@@ -1,42 +1,40 @@
 import {Ref} from 'vue'
 
-import {readStr} from '@/glisp'
-import printExp from '@/glisp/printer'
-import {markParent} from '@/glisp/reader'
 import {
+	applyParamModifier,
 	cloneExpr,
+	copyDelimiters,
 	createList as L,
+	deleteExp,
 	expandExp,
+	Expr,
+	ExprColl,
+	ExprMap,
+	ExprSeq,
+	generateExpAbsPath,
 	getEvaluated,
+	getExpByPath,
+	getFnInfo,
+	getMapValue,
 	getMeta,
 	getName,
+	getParent,
+	GlispError,
+	isColl,
 	isFunc,
 	isList,
-	isColl,
 	isSeq,
 	isSymbol,
 	isSymbolFor,
 	isVector,
 	keywordFor as K,
-	GlispError,
-	ExprMap,
-	ExprColl,
-	ExprSeq,
-	Expr,
+	markParent,
+	printExpr,
+	readStr,
+	replaceExpr,
 	symbolFor as S,
 	symbolFor,
-	getParent,
-} from '@/glisp/types'
-import {
-	applyParamModifier,
-	copyDelimiters,
-	deleteExp,
-	generateExpAbsPath,
-	getExpByPath,
-	getFnInfo,
-	getMapValue,
-	replaceExpr,
-} from '@/glisp/utils'
+} from '@/glisp'
 import AppScope from '@/scopes/app'
 import ViewScope from '@/scopes/view'
 
@@ -114,7 +112,7 @@ export default function useAppCommands({
 		markParent(newExp)
 
 		// Insert
-		const newActiveExp = cloneExpr(_activeExp)
+		const newActiveExp = cloneExpr(_activeExp) as ExprSeq
 		newActiveExp.push(newExp)
 		copyDelimiters(newActiveExp, activeExp)
 
@@ -236,7 +234,7 @@ export default function useAppCommands({
 			throw new GlispError('No selection')
 		}
 		if (!isList(wrapper)) {
-			throw new GlispError(`${printExp(wrapper)} is not a list`)
+			throw new GlispError(`${printExpr(wrapper)} is not a list`)
 		}
 
 		const exp = activeExp.value
@@ -312,7 +310,7 @@ export default function useAppCommands({
 			throw new GlispError('No selection')
 		}
 
-		const code = printExp(activeExp.value)
+		const code = printExpr(activeExp.value)
 
 		navigator.clipboard.writeText(code)
 
@@ -337,7 +335,7 @@ export default function useAppCommands({
 			;[outer, index] = [_outer, _index]
 		}
 
-		const newOuter = cloneExpr(outer)
+		const newOuter = cloneExpr(outer) as ExprSeq
 
 		navigator.clipboard.readText().then((str: string) => {
 			const exp = readStr(str)

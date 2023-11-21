@@ -18,9 +18,14 @@
 import {computed} from 'vue'
 
 import {InputBoolean} from '@/components/inputs'
-import {markParent} from '@/glisp/reader'
-import {getEvaluated, ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+import {
+	Expr,
+	ExprSeq,
+	ExprSymbol,
+	getEvaluated,
+	markParent,
+	reverseEval,
+} from '@/glisp'
 
 import ExprSelectButton from './ExprSelectButton.vue'
 

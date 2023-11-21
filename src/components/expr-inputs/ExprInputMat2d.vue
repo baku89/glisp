@@ -68,8 +68,7 @@
 import {toRef} from 'vue'
 
 import {useNumericVectorUpdator} from '@/components/use'
-import {ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+import {Expr, ExprSeq, ExprSymbol, reverseEval} from '@/glisp'
 
 interface Props {
 	value: ExprSeq | ExprSymbol

@@ -1,8 +1,7 @@
 import {vec2} from 'linearly'
 import {Ref} from 'vue'
 
-import {isColl, isSeq, ExprColl, Expr} from '@/glisp/types'
-import {generateExpAbsPath} from '@/glisp/utils'
+import {Expr, ExprColl, generateExpAbsPath, isColl, isSeq} from '@/glisp'
 import AppScope from '@/scopes/app'
 
 import {HitDetector} from './hit-detector'

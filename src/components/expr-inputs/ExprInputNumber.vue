@@ -38,14 +38,17 @@ import {computed} from 'vue'
 import {readStr} from '@/glisp'
 import {
 	createList as L,
-	getEvaluated,
-	isList,
-	keywordFor as K,
+	Expr,
 	ExprSeq,
 	ExprSymbol,
-	Expr,
-} from '@/glisp/types'
-import {getFn, getFnInfo, getMapValue, reverseEval} from '@/glisp/utils'
+	getEvaluated,
+	getFn,
+	getFnInfo,
+	getMapValue,
+	isList,
+	keywordFor as K,
+	reverseEval,
+} from '@/glisp'
 
 import ExprSelectButton from './ExprSelectButton.vue'
 interface Props {

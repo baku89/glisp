@@ -54,26 +54,26 @@
 import {computed} from 'vue'
 
 import * as ExprInputComponents from '@/components/expr-inputs'
-import {convertExprCollToJSObject, markParent} from '@/glisp/reader'
-import {
-	generateSchemaParamLabel,
-	generateUISchema,
-	Schema,
-	SchemaVector,
-	updateParamsByUISchema,
-} from '@/glisp/schema'
 import {
 	cloneExpr,
+	convertExprCollToJSObject,
 	createList as L,
+	Expr,
+	ExprFn,
+	ExprSeq,
+	generateSchemaParamLabel,
+	generateUISchema,
+	getFnInfo,
+	getMapValue,
 	isColl,
 	keywordFor as K,
 	keywordFor,
-	ExprFn,
-	ExprSeq,
-	Expr,
+	markParent,
+	Schema,
+	SchemaVector,
 	symbolFor,
-} from '@/glisp/types'
-import {getFnInfo, getMapValue} from '@/glisp/utils'
+	updateParamsByUISchema,
+} from '@/glisp'
 
 interface Props {
 	exp: ExprSeq

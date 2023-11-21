@@ -31,7 +31,7 @@
 import {defineComponent, Ref, ref} from 'vue'
 import ClickOutside from 'vue-click-outside'
 
-import {isVector, Expr} from '@/glisp/types'
+import {Expr, isVector} from '@/glisp'
 import AppScope from '@/scopes/app'
 import ConsoleScope from '@/scopes/console'
 

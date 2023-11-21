@@ -9,8 +9,7 @@ import {mat2d} from 'linearly'
 import {onMounted, Ref, ref, watch} from 'vue'
 
 import {useResizeSensor} from '@/components/use'
-import {printer} from '@/glisp/printer'
-import {GlispError, Expr} from '@/glisp/types'
+import {Expr, GlispError, printer} from '@/glisp'
 import createCanvasRender, {
 	CanvasRendererType,
 } from '@/renderer/canvas-renderer'

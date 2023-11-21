@@ -1,6 +1,6 @@
 import C2S from 'canvas2svg'
 
-import {Expr} from '@/glisp/types'
+import {Expr} from '@/glisp'
 
 import renderToContext from './render-to-context'
 

@@ -1,7 +1,13 @@
 import {Ref, ref} from 'vue'
 
-import {markParent} from '@/glisp/reader'
-import {getName, isKeyword, GlispError, ExprColl, Expr} from '@/glisp/types'
+import {
+	Expr,
+	ExprColl,
+	getName,
+	GlispError,
+	isKeyword,
+	markParent,
+} from '@/glisp'
 import AppScope from '@/scopes/app'
 
 type Commit = [ExprColl, Set<string>]

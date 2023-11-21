@@ -1,27 +1,15 @@
-import printExp from './printer'
+import {M_DELIMITERS, M_ISLIST, M_ISSUGAR} from './symbols'
 import {
 	assocBang,
 	createList as L,
-	getName,
-	isMap,
-	isColl,
-	isSeq,
-	isSymbol,
-	keywordFor,
-	M_DELIMITERS,
-	M_ISLIST,
-	M_ISSUGAR,
-	M_PARENT,
-	GlispError,
-	ExprMap,
-	ExprColl,
-	ExprSeq,
 	Expr,
+	ExprMap,
+	ExprSeq,
+	GlispError,
+	keywordFor,
 	symbolFor as S,
-	isList,
-	getParent as getParent,
 } from './types'
-import {findElementIndex, getDelimiters, getElementStrs} from './utils'
+import {markParent} from './utils'
 
 const S_QUOTE = S('quote')
 const S_QUASIQUOTE = S('quasiquote')
@@ -318,171 +306,9 @@ function readForm(reader: Reader): any {
 	return val
 }
 
-export function getRangeOfExpr(
-	expr: ExprColl,
-	root: ExprColl
-): [begin: number, end: number] | null {
-	function calcOffset(expr: ExprColl): number {
-		const parent = getParent(expr)
-
-		if (!parent) {
-			throw new Error('root is not a parent')
-		}
-
-		if (parent === root) {
-			return 0
-		}
-
-		let offset = calcOffset(parent)
-
-		const delimiters = getDelimiters(parent)
-		const elmStrs = getElementStrs(parent)
-
-		const index = 0
-
-		if (isSeq(parent)) {
-			offset = isList(parent) && parent[M_ISSUGAR] ? 0 : 1
-			offset += delimiters.slice(0, index + 1).join('').length
-			offset += elmStrs.slice(0, index).join('').length
-		} else if (isMap(parent)) {
-			const index = findElementIndex(expr, parent)
-			offset +=
-				'{'.length +
-				delimiters.slice(0, (index + 1) * 2).join('').length +
-				elmStrs.slice(0, index * 2 + 1).join('').length
-		}
-
-		return offset
-	}
-
-	const expLength = printExp(expr).length
-	const offset = calcOffset(expr)
-
-	return [offset, offset + expLength]
-}
-
-export function findExpByRange(
-	expr: Expr,
-	start: number,
-	end: number
-): ExprColl | null {
-	if (!isColl(expr)) {
-		// If Atom
-		return null
-	}
-
-	// Creates a caches of children at the same time calculating length of exp
-	const expLen = printExp(expr).length
-
-	if (!(0 <= start && end <= expLen)) {
-		// Does not fit within the exp
-		return null
-	}
-
-	if (isSeq(expr)) {
-		// Sequential
-
-		// Add the length of open-paren
-		let offset = isList(expr) && expr[M_ISSUGAR] ? 0 : 1
-		const delimiters = getDelimiters(expr)
-		const elmStrs = getElementStrs(expr)
-
-		// Search Children
-		for (let i = 0; i < expr.length; i++) {
-			const child = expr[i]
-			offset += delimiters[i].length
-
-			const ret = findExpByRange(child, start - offset, end - offset)
-			if (ret !== null) {
-				return ret
-			}
-
-			// For #() syntaxtic sugar
-			if (i < elmStrs.length) {
-				offset += elmStrs[i].length
-			}
-		}
-	} else if (isMap(expr)) {
-		// Hash Map
-
-		let offset = 1 // length of '{'
-
-		const keys = Object.keys(expr)
-		const delimiters = getDelimiters(expr)
-		const elmStrs = getElementStrs(expr)
-
-		// Search Children
-		for (let i = 0; i < keys.length; i++) {
-			const child = expr[keys[i]]
-
-			// Offsets
-			offset +=
-				delimiters[i * 2].length + // delimiter before key
-				elmStrs[i * 2].length + // key
-				delimiters[i * 2 + 1].length // delimiter between key and value
-
-			const ret = findExpByRange(child, start - offset, end - offset)
-			if (ret !== null) {
-				return ret
-			}
-
-			offset += elmStrs[i * 2 + 1].length
-		}
-	}
-
-	return expr
-}
-
-export function convertJSObjectToExprMap(obj: any): Expr {
-	if (Array.isArray(obj)) {
-		const ret = obj.map(v => convertJSObjectToExprMap(v))
-		return ret
-	} else if (isSymbol(obj) || obj instanceof Function) {
-		return obj
-	} else if (obj instanceof Object) {
-		const ret = {} as ExprMap
-		for (const [key, value] of Object.entries(obj)) {
-			ret[keywordFor(key)] = convertJSObjectToExprMap(value)
-		}
-		return ret
-	} else {
-		return obj
-	}
-}
-
-export function convertExprCollToJSObject(exp: Expr): any {
-	if (isMap(exp)) {
-		const ret: {[Key: string]: Expr} = {}
-		for (const [key, value] of Object.entries(exp)) {
-			const jsKey = getName(key)
-			ret[jsKey] = convertExprCollToJSObject(value)
-		}
-		return ret
-	} else if (isSeq(exp)) {
-		return (exp as Expr[]).map(e => convertExprCollToJSObject(e))
-	} else {
-		return exp
-	}
-}
-
 export class BlankException extends Error {}
 
-export function markParent(exp: Expr) {
-	if (!isColl(exp)) {
-		return
-	}
-
-	const children = isSeq(exp) ? exp : Object.values(exp)
-
-	for (const child of children) {
-		if (isColl(child)) {
-			child[M_PARENT] = exp
-		}
-		markParent(child)
-	}
-}
-
-export default function readStr(str: string): Expr {
+export function readStr(str: string): Expr {
 	const tokens = tokenize(str) as string[]
 	if (tokens.length === 0) {
 		throw new BlankException()

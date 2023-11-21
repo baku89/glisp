@@ -1,6 +1,6 @@
 import chroma from 'chroma-js'
 
-import {createList as L, Expr, symbolFor as S} from '@/glisp/types'
+import {createList as L, Expr, symbolFor as S} from '@/glisp'
 
 const Exports = [
 	[

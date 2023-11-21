@@ -6,17 +6,17 @@ import {OffsetOptions, PaperOffset} from 'paperjs-offset'
 import svgpath from 'svgpath'
 import Voronoi from 'voronoi'
 
-import printExp from '@/glisp/printer'
 import {
 	assocBang,
 	createList as L,
 	createVector,
+	Expr,
+	GlispError,
 	isMap,
 	keywordFor as K,
-	GlispError,
-	Expr,
+	printExpr,
 	symbolFor as S,
-} from '@/glisp/types'
+} from '@/glisp'
 import {
 	convertToPath2D,
 	getSVGPathData,
@@ -178,7 +178,7 @@ function dragAnchor(path: PathType, index: number, delta: vec2) {
 	if (draggingSeg[0] === K_C) {
 		// Anchor itself
 		origAnchor = vec2.clone(draggingSeg[3] as vec2)
-		const anchor = vec2.add(vec2.create(), origAnchor, delta)
+		const anchor = vec2.add(origAnchor, delta)
 		draggingSeg[3] = anchor
 
 		// In Handle
@@ -187,7 +187,7 @@ function dragAnchor(path: PathType, index: number, delta: vec2) {
 		draggingSeg[2] = inHandle
 	} else {
 		origAnchor = vec2.clone(draggingSeg[1] as vec2)
-		const anchor = vec2.add(vec2.create(), origAnchor, delta)
+		const anchor = vec2.add(origAnchor, delta)
 		draggingSeg[1] = anchor
 	}
 
@@ -233,7 +233,7 @@ function dragHandle(
 
 	if (type === K('handle-in')) {
 		const origInHandle = vec2.clone(draggingSeg[2] as vec2)
-		const inHandle = vec2.add(vec2.create(), origInHandle, delta)
+		const inHandle = vec2.add(origInHandle, delta)
 		draggingSeg[2] = inHandle
 
 		// Out handle
@@ -258,32 +258,24 @@ function dragHandle(
 		if (nextIndex !== null && segs[nextIndex][0] === K_C) {
 			const anchor = draggingSeg[3] as vec2
 			const outHandle = vec2.clone(segs[nextIndex][1] as vec2)
-			const outHandleDir = vec2.sub(vec2.create(), outHandle, anchor)
+			const outHandleDir = vec2.sub(outHandle, anchor)
 
 			const isSmooth =
-				Math.abs(
-					vec2.angle(
-						vec2.sub(vec2.create(), anchor, origInHandle),
-						outHandleDir
-					)
-				) < EPSILON
+				Math.abs(vec2.angle(vec2.sub(anchor, origInHandle), outHandleDir)) <
+				EPSILON
 
 			if (isSmooth) {
-				const dir = vec2.normalize(
-					vec2.create(),
-					vec2.sub(vec2.create(), anchor, inHandle)
-				)
+				const dir = vec2.normalize(vec2.sub(anchor, inHandle))
 				const scale =
 					vec2.dist(anchor, inHandle) / vec2.dist(anchor, origInHandle)
 				const len = vec2.len(outHandleDir) * scale
 
-				segs[nextIndex][1] = vec2.scaleAndAdd(vec2.create(), anchor, dir, len)
+				segs[nextIndex][1] = vec2.scaleAndAdd(anchor, dir, len)
 			}
 		}
 	} else if (type === K('handle-out')) {
-		console.log('handle-out')
 		const origOutHandle = vec2.clone(draggingSeg[1] as vec2)
-		const outHandle = vec2.add(vec2.create(), origOutHandle, delta)
+		const outHandle = vec2.add(origOutHandle, delta)
 		draggingSeg[1] = outHandle
 
 		// In handle
@@ -310,26 +302,19 @@ function dragHandle(
 		if (prevIndex !== null && segs[prevIndex][0] === K_C) {
 			const anchor = segs[prevIndex][3] as vec2
 			const inHandle = vec2.clone(segs[prevIndex][2] as vec2)
-			const inHandleDir = vec2.sub(vec2.create(), inHandle, anchor)
+			const inHandleDir = vec2.sub(inHandle, anchor)
 
 			const isSmooth =
-				Math.abs(
-					vec2.angle(
-						vec2.sub(vec2.create(), anchor, origOutHandle),
-						inHandleDir
-					)
-				) < EPSILON
+				Math.abs(vec2.angle(vec2.sub(anchor, origOutHandle), inHandleDir)) <
+				EPSILON
 
 			if (isSmooth) {
-				const dir = vec2.normalize(
-					vec2.create(),
-					vec2.sub(vec2.create(), anchor, outHandle)
-				)
+				const dir = vec2.normalize(vec2.sub(anchor, outHandle))
 				const scale =
 					vec2.dist(anchor, outHandle) / vec2.dist(anchor, origOutHandle)
 				const len = vec2.len(inHandleDir) * scale
 
-				segs[prevIndex][2] = vec2.scaleAndAdd(vec2.create(), anchor, dir, len)
+				segs[prevIndex][2] = vec2.scaleAndAdd(anchor, dir, len)
 			}
 		}
 	}
@@ -362,7 +347,7 @@ function toBeziers(path: PathType) {
 				ret.push(K_L, s, ...args, ...args)
 				break
 			default:
-				throw new Error(`Invalid d-path command: ${printExp(cmd)}`)
+				throw new Error(`Invalid d-path command: ${printExpr(cmd)}`)
 		}
 	}
 	return ret
@@ -415,7 +400,7 @@ function pathTransform(transform: mat2d, path: PathType) {
 		if (typeof pt === 'string') {
 			return pt
 		} else {
-			return vec2.transformMat2d(vec2.create(), pt as vec2, transform)
+			return vec2.transformMat2d(pt as vec2, transform)
 		}
 	})
 

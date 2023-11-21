@@ -1,5 +1,5 @@
-import {convertJSObjectToExprMap} from './reader'
 import {GlispError} from './types'
+import {convertJSObjectToExprMap} from './utils'
 
 export default {
 	resolveJS(str: string): [any, any] {

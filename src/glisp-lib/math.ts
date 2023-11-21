@@ -2,7 +2,7 @@ import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
 import hull from 'hull.js'
 
-import {createList as L, Expr, symbolFor as S} from '@/glisp/types'
+import {createList as L, Expr, symbolFor as S} from '@/glisp'
 import {partition} from '@/utils'
 
 const Exports = [

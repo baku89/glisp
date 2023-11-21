@@ -13,7 +13,7 @@ import {
 import {setupEditor} from './setup'
 import {convertToAceRange, getEditorSelection} from './utils'
 
-type Range = [start: number, end: number]
+type Range = readonly [start: number, end: number]
 
 interface Props {
 	value: string

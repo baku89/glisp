@@ -1,15 +1,15 @@
-import {printExp} from '@/glisp'
-import {printer} from '@/glisp/printer'
 import {
-	getMeta,
-	isFunc,
-	isSymbol,
-	GlispError,
+	Expr,
 	ExprFn,
 	ExprMap,
-	Expr,
-} from '@/glisp/types'
-import {getMapValue} from '@/glisp/utils'
+	getMapValue,
+	getMeta,
+	GlispError,
+	isFunc,
+	isSymbol,
+	printer,
+	printExpr,
+} from '@/glisp'
 import ConsoleScope from '@/scopes/console'
 
 export default function useDialogCommand() {
@@ -17,7 +17,7 @@ export default function useDialogCommand() {
 
 	ConsoleScope.def('show-command-dialog', (f: Expr) => {
 		if (f === undefined || !isSymbol(f)) {
-			throw new GlispError(`${printExp(f)} is not a symbol`)
+			throw new GlispError(`${printExpr(f)} is not a symbol`)
 		}
 
 		// Retrieve default parameters

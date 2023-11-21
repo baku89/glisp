@@ -14,7 +14,7 @@
 import Tq from 'tweeq'
 import {computed} from 'vue'
 
-import {getName, ExprSeq, ExprSymbol, symbolFor} from '@/glisp/types'
+import {ExprSeq, ExprSymbol, getName, symbolFor} from '@/glisp'
 
 interface Props {
 	value: string | ExprSeq | ExprSymbol

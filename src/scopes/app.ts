@@ -1,7 +1,6 @@
 import Mousetrap from 'mousetrap'
 
-import Scope from '@/glisp/scope'
-import {isList, GlispError, Expr} from '@/glisp/types'
+import {Expr, GlispError, isList, Scope} from '@/glisp'
 
 import ConsoleScope from './console'
 import ReplScope from './repl'

@@ -1,26 +1,23 @@
 import {mapValues} from 'lodash'
 
 import Env from './env'
+import {
+	M_AST,
+	M_DELIMITERS,
+	M_ENV,
+	M_EVAL,
+	M_EXPAND,
+	M_ISLIST,
+	M_ISMACRO,
+	M_ISSUGAR,
+	M_META,
+	M_PARAMS,
+	M_PARENT,
+	M_TYPE,
+} from './symbols'
 import {getDelimiters} from './utils'
 
 export type ExprJSFn = (...args: Expr[]) => Expr
-
-export const M_META = Symbol.for('meta')
-export const M_AST = Symbol.for('ast')
-export const M_ENV = Symbol.for('env')
-export const M_PARAMS = Symbol.for('params')
-export const M_ISMACRO = Symbol.for('ismacro')
-export const M_ISLIST = Symbol.for('islist')
-export const M_TYPE = Symbol.for('type')
-
-export const M_EVAL = Symbol.for('eval')
-export const M_PARENT = Symbol.for('outer')
-export const M_PARENT_INDEX = Symbol.for('outer-key')
-export const M_EXPAND = Symbol.for('expand')
-
-// Stores string repsentation
-export const M_ISSUGAR = Symbol('issugar')
-export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of list/map
 
 export type ExprBind = (
 	| ExprSymbol
@@ -194,7 +191,7 @@ export function getType(obj: any): ExprType {
 			return isMacro ? 'macro' : 'fn'
 		}
 		case 'string':
-			switch ((obj as string)[0]) {
+			switch (obj[0]) {
 				case KEYWORD_PREFIX:
 					return 'keyword'
 				default:

@@ -1,12 +1,12 @@
-import printExp from '@/glisp/printer'
 import {
+	Expr,
+	ExprMap,
+	GlispError,
 	isKeyword,
 	isMap,
 	keywordFor as K,
-	GlispError,
-	ExprMap,
-	Expr,
-} from '@/glisp/types'
+	printExpr,
+} from '@/glisp'
 import {iterateSegment, PathType} from '@/path-utils'
 import {partition} from '@/utils'
 
@@ -127,7 +127,7 @@ export default function renderToContext(
 						break
 					}
 					default:
-						throw new GlispError(`Unknown rendering command ${printExp(cmd)}`)
+						throw new GlispError(`Unknown rendering command ${printExpr(cmd)}`)
 				}
 			}
 		}
@@ -159,7 +159,7 @@ export default function renderToContext(
 					ctx.closePath()
 					break
 				default: {
-					throw new GlispError(`Invalid d-path command: ${printExp(c)}`)
+					throw new GlispError(`Invalid d-path command: ${printExpr(c)}`)
 				}
 			}
 		}

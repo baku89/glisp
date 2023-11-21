@@ -64,18 +64,18 @@ import {computed, ComputedRef} from 'vue'
 import {InputColor, InputDropdown} from '@/components/inputs'
 import {
 	createList as L,
+	Expr,
+	ExprSeq,
 	getEvaluated,
 	getType,
 	isList,
 	isSymbol,
-	ExprSeq,
-	Expr,
+	reverseEval,
 	symbolFor as S,
-} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+} from '@/glisp'
 
-import ExprSelectButton from './ExprSelectButton.vue'
 import ExprInputNumber from './ExprInputNumber.vue'
+import ExprSelectButton from './ExprSelectButton.vue'
 
 type ColorMode = 'hex' | 'rgb' | 'hsl' | 'exp'
 

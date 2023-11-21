@@ -3,7 +3,7 @@ import 'jq-console'
 
 import {onMounted, Ref, ref} from 'vue'
 
-import {printer} from '@/glisp/printer'
+import {printer} from '@/glisp'
 import ConsoleScope from '@/scopes/console'
 
 defineProps<{

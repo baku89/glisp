@@ -2,14 +2,16 @@
 import {computed} from 'vue'
 
 import {
+	copyDelimiters,
+	Expr,
+	ExprColl,
+	ExprSymbol,
+	getFnInfo,
+	getMapValue,
 	getParent,
 	isList,
 	isSymbol,
-	ExprColl,
-	ExprSymbol,
-	Expr,
-} from '@/glisp/types'
-import {copyDelimiters, getFnInfo, getMapValue} from '@/glisp/utils'
+} from '@/glisp'
 
 import ParamControl from './ParamControl.vue'
 

@@ -21,8 +21,7 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {getEvaluated, ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+import {Expr, ExprSeq, ExprSymbol, getEvaluated, reverseEval} from '@/glisp'
 
 interface Props {
 	value: number | ExprSeq | ExprSymbol

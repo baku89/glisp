@@ -1,21 +1,20 @@
 import {getParamLabel} from '@/utils'
 
-import {convertExprCollToJSObject} from './reader'
+import {M_PARAMS} from './symbols'
 import {
 	assocBang,
 	createList,
+	Expr,
+	ExprFn,
+	ExprSeq,
+	ExprSymbol,
 	getEvaluated,
 	getType,
 	isExprFn,
 	keywordFor as K,
-	M_PARAMS,
-	ExprFn,
-	ExprSeq,
-	ExprSymbol,
-	Expr,
 	symbolFor,
 } from './types'
-import {getStructType} from './utils'
+import {convertExprCollToJSObject, getStructType} from './utils'
 
 interface SchemaBase {
 	type: string

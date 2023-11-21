@@ -2,32 +2,27 @@
 
 import {capital} from 'case'
 
-import {printExp} from '.'
 import Env from './env'
+import {M_AST, M_ENV, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
 import {
-	createList as L,
 	createExprFn,
+	createList as L,
 	ExpandType,
+	Expr,
+	ExprBind,
+	ExprFnThis,
+	ExprMap,
 	getType,
+	GlispError,
+	isExprFn,
 	isFunc,
 	isList,
-	isExprFn,
 	isMap,
 	isSeq,
 	isSymbol,
 	isSymbolFor,
 	isVector,
-	M_AST,
-	M_ENV,
-	M_ISMACRO,
-	M_PARAMS,
-	ExprBind,
-	GlispError,
-	ExprFnThis,
-	ExprMap,
-	Expr,
 	symbolFor as S,
-	M_EXPAND,
 } from './types'
 
 const S_DO = S('do')
@@ -106,11 +101,7 @@ function evalAtom(this: void | ExprFnThis, exp: Expr, env: Env) {
 	}
 }
 
-export default function evaluate(
-	this: void | ExprFnThis,
-	exp: Expr,
-	env: Env
-): Expr {
+export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 	let counter = 0
 	while (counter++ < 1e6) {
 		if (!isList(exp)) {
@@ -133,7 +124,7 @@ export default function evaluate(
 
 		if (!isSymbol(first) && !isFunc(first)) {
 			throw new GlispError(
-				`${capital(getType(first))} ${printExp(
+				`${capital(getType(first))} ${printExpr(
 					first
 				)} is not a function. First element of list always should be a function.`
 			)

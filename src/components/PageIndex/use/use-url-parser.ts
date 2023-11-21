@@ -1,6 +1,5 @@
 import DefaultCanvasCode from '@/default-canvas.glisp?raw'
-import {readStr} from '@/glisp'
-import {isColl, GlispError, ExprColl} from '@/glisp/types'
+import {ExprColl, GlispError, isColl, readStr} from '@/glisp'
 
 import {toSketchCode} from '../utils'
 

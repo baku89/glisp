@@ -16,8 +16,8 @@
 		</div>
 		<ParamControl
 			:exp="exp"
-			@input="$emit('input', $event)"
-			@select="$emit('select', $event)"
+			@input="emit('input', [$event])"
+			@select="emit('select', [$event])"
 		/>
 	</div>
 </template>
@@ -31,10 +31,10 @@ import {useDraggable} from '@/components/use'
 import {
 	assocBang,
 	cloneExpr,
+	Expr,
 	getEvaluated,
 	keywordFor as K,
-	Expr,
-} from '@/glisp/types'
+} from '@/glisp'
 
 const K_START = K('start'),
 	K_DURATION = K('duration'),
@@ -81,7 +81,7 @@ const normalizedPosition = computed(() =>
 function updateTime(newTime: number) {
 	const exp = cloneExpr(props.exp)
 	;(exp[2] as number) = newTime
-	emit('input', exp)
+	emit('input', [exp])
 }
 
 // Seek

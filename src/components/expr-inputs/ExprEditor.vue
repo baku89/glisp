@@ -14,18 +14,21 @@
 import {computed, Ref, ref} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
-import printExp, {printer} from '@/glisp/printer'
-import readStr, {findExpByRange, getRangeOfExpr} from '@/glisp/reader'
-import {BlankException} from '@/glisp/reader'
 import {
-	getType,
-	isList,
-	isColl,
-	M_DELIMITERS,
-	ExprColl,
+	BlankException,
 	Expr,
+	ExprColl,
+	findExpByRange,
+	getDelimiters,
+	getRangeOfExpr,
+	getType,
+	isColl,
+	isList,
+	printer,
+	printExpr,
+	readStr,
 	symbolFor,
-} from '@/glisp/types'
+} from '@/glisp'
 
 type EditMode = 'node' | 'elements' | 'params'
 
@@ -57,11 +60,8 @@ const preText = computed(() => {
 		case 'node':
 			return ''
 		case 'params': {
-			return (
-				'(' +
-				(exp as ExprColl)[M_DELIMITERS][0] +
-				(exp as ExprColl)[M_ELMSTRS][0]
-			)
+			if (!isList(exp)) throw new Error('Invalid params')
+			return '(' + getDelimiters(exp)[0] + printExpr(exp[0])
 		}
 		case 'elements': {
 			switch (getType(exp)) {
@@ -108,7 +108,7 @@ const endsDelimiter = computed(() => {
 
 // Exp -> Code Conversion
 const code = computed(() => {
-	const ret = printExp(props.exp)
+	const ret = printExpr(props.exp)
 
 	switch (props.editMode) {
 		case 'node':
@@ -135,7 +135,7 @@ const activeRange = computed(() => {
 			return [
 				start - preText.value.length - endsDelimiter.value.length,
 				end - preText.value.length - endsDelimiter.value.length,
-			]
+			] as const
 		}
 	}
 	return null

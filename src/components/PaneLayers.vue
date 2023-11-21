@@ -1,8 +1,7 @@
 <script lang="ts" setup>
 import {computed, Ref, ref} from 'vue'
 
-import {markParent} from '@/glisp/reader'
-import {cloneExpr, ExprColl, ExprSeq, Expr} from '@/glisp/types'
+import {cloneExpr, Expr, ExprColl, ExprSeq, markParent} from '@/glisp'
 
 import ViewExpTree from './ViewExpTree.vue'
 

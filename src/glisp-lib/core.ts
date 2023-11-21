@@ -1,12 +1,16 @@
 import seedrandom from 'seedrandom'
 
-import printExp from '@/glisp/printer'
 import {
 	assocBang,
 	cloneExpr,
 	createList as L,
+	Expr,
+	ExprAtom,
+	ExprFn,
+	ExprMap,
 	getMeta,
 	getType,
+	GlispError,
 	isKeyword,
 	isList,
 	isMap,
@@ -15,15 +19,11 @@ import {
 	isSymbol,
 	isVector,
 	keywordFor,
-	ExprAtom,
-	GlispError,
-	ExprFn,
-	ExprMap,
-	Expr,
+	printExpr,
 	setMeta,
 	symbolFor as S,
 	withMeta,
-} from '@/glisp/types'
+} from '@/glisp'
 import {partition} from '@/utils'
 
 const Exports = [
@@ -142,7 +142,7 @@ const Exports = [
 			if (isSeq(a)) {
 				return a.slice(start, end)
 			} else {
-				throw new GlispError(`[slice] ${printExp(a)} is not an array`)
+				throw new GlispError(`[slice] ${printExpr(a)} is not an array`)
 			}
 		},
 	],
@@ -183,7 +183,7 @@ const Exports = [
 	[
 		'join',
 		(separator: string, coll: Expr[]) =>
-			coll.map(v => printExp(v)).join(separator),
+			coll.map(v => printExpr(v)).join(separator),
 	],
 
 	// Map
@@ -223,8 +223,8 @@ const Exports = [
 	],
 
 	// String
-	['pr-str', (...a: Expr[]) => a.map(e => printExp(e)).join(' ')],
-	['str', (...a: Expr[]) => a.map(e => printExp(e)).join('')],
+	['pr-str', (...a: Expr[]) => a.map(e => printExpr(e)).join(' ')],
+	['str', (...a: Expr[]) => a.map(e => printExpr(e)).join('')],
 	['subs', (a: string, from: number, to?: number) => a.substr(from, to)],
 
 	// Meta

@@ -2,13 +2,13 @@ import {computed, Ref} from 'vue'
 
 import {
 	cloneExpr,
-	getEvaluated,
-	isVector,
+	Expr,
 	ExprSeq,
 	ExprSymbol,
-	Expr,
-} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+	getEvaluated,
+	isVector,
+	reverseEval,
+} from '@/glisp'
 
 /**
  * Refs and event handles for ExprInputVec2, Rect2d, Mat2d

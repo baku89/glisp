@@ -14,7 +14,7 @@
 <script lang="ts">
 import {defineComponent, PropType} from 'vue'
 
-import {Expr} from '@/glisp/types'
+import {Expr} from '@/glisp'
 
 export default defineComponent({
 	name: 'GlobalSubmenu',

@@ -10,7 +10,7 @@
 <script lang="ts" setup>
 import {PropType} from 'vue'
 
-import {Expr} from '@/glisp/types'
+import {Expr} from '@/glisp'
 
 interface Props {
 	value: Expr

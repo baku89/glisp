@@ -1,4 +1,4 @@
-import {keywordFor as K, ExprMap, Expr} from '@/glisp/types'
+import {Expr, ExprMap, keywordFor as K} from '@/glisp'
 
 import renderToContext from '../render-to-context'
 import {ViewerSettings} from './index'

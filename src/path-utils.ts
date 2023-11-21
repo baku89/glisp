@@ -1,12 +1,6 @@
 import {mat2d, vec2} from 'linearly'
 
-import {
-	isKeyword,
-	isVector,
-	keywordFor as K,
-	GlispError,
-	Expr,
-} from '@/glisp/types'
+import {Expr, GlispError, isKeyword, isVector, keywordFor as K} from '@/glisp'
 
 const K_PATH = K('path')
 

@@ -195,7 +195,6 @@
 ;; 	bindingEnv.set(
 ;; 		S('*transform*'),
 ;; 		mat2d.mul(
-;; 			mat2d.create(),
 ;; 			env.get(S('*transform*')) as mat2d,
 ;; 			matrix as mat2d
 ;; 		) as Expr[]

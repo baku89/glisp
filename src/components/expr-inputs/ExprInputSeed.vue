@@ -14,8 +14,7 @@
 </template>
 
 <script lang="ts" setup>
-import {ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+import {Expr, ExprSeq, ExprSymbol, reverseEval} from '@/glisp'
 
 interface Props {
 	value: number | ExprSeq | ExprSymbol

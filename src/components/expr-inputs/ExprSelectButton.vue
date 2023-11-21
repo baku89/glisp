@@ -13,8 +13,7 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import printExp from '@/glisp/printer'
-import {isList, isColl, isSymbol, Expr} from '@/glisp/types'
+import {Expr, isColl, isList, isSymbol, printExpr} from '@/glisp'
 
 interface Props {
 	value: Expr
@@ -44,10 +43,10 @@ const str = computed(() => {
 		if (props.compact) {
 			return ''
 		} else {
-			return `${printExp((props.value as Expr[])[0])}`
+			return `${printExpr((props.value as Expr[])[0])}`
 		}
 	} else {
-		return printExp(props.value)
+		return printExpr(props.value)
 	}
 })
 

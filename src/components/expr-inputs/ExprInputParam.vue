@@ -19,9 +19,15 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {convertExprCollToJSObject} from '@/glisp/reader'
-import {cloneExpr, getEvaluated, getMeta, ExprSeq, Expr} from '@/glisp/types'
-import {getMapValue} from '@/glisp/utils'
+import {
+	cloneExpr,
+	convertExprCollToJSObject,
+	Expr,
+	ExprSeq,
+	getEvaluated,
+	getMapValue,
+	getMeta,
+} from '@/glisp'
 
 interface Props {
 	value: ExprSeq

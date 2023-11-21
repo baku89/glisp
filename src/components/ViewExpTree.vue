@@ -61,18 +61,17 @@
 <script lang="ts" setup>
 import {computed, ref} from 'vue'
 
-import {printExp} from '@/glisp'
-import {markParent} from '@/glisp/reader'
 import {
 	cloneExpr,
+	Expr,
+	ExprColl,
+	ExprSeq,
 	getType,
 	isList,
 	isMap,
 	isVector,
-	ExprColl,
-	ExprSeq,
-	Expr,
-} from '@/glisp/types'
+	markParent,
+} from '@/glisp'
 
 interface Icon {
 	type: 'fontawesome' | 'text' | 'serif'
@@ -124,7 +123,7 @@ const labelInfo = computed(() => {
 
 	if (isList(exp)) {
 		return {
-			label: exp[0] ? printExp(exp[0]) : '<empty>',
+			label: exp[0] ? printExpr(exp[0]) : '<empty>',
 			clickable: props.mode === 'node',
 			expandable: props.mode === 'node',
 			editable: true,
@@ -136,7 +135,7 @@ const labelInfo = computed(() => {
 		} as LabelInfo
 	} else if (isVector(exp)) {
 		return {
-			label: printExp(exp),
+			label: printExpr(exp),
 			clickable: true,
 			expandable: false,
 			editable: true,
@@ -145,7 +144,7 @@ const labelInfo = computed(() => {
 		} as LabelInfo
 	} else if (isMap(exp)) {
 		return {
-			label: printExp(exp),
+			label: printExpr(exp),
 			clickable: true,
 			expandable: false,
 			editable: true,
@@ -154,7 +153,7 @@ const labelInfo = computed(() => {
 		} as LabelInfo
 	} else {
 		return {
-			label: printExp(exp, false),
+			label: printExpr(exp, false),
 			clickable: false,
 			expandable: false,
 			editable: false,

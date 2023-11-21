@@ -1,9 +1,10 @@
 import {vsprintf} from 'sprintf-js'
 
 import interop from './interop'
-import printExp, {printer} from './printer'
-import readStr, {convertJSObjectToExprMap} from './reader'
-import {GlispError, Expr, setMeta, symbolFor as S} from './types'
+import {printer, printExpr} from './printer'
+import {readStr} from './reader'
+import {Expr, GlispError, setMeta, symbolFor as S} from './types'
+import {convertJSObjectToExprMap} from './utils'
 
 // String functions
 export const slurp = (() => {
@@ -44,20 +45,20 @@ const Exports = [
 	[
 		'prn',
 		(...a: Expr[]) => {
-			printer.log(...a.map(e => printExp(e)))
+			printer.log(...a.map(e => printExpr(e)))
 			return null
 		},
 	],
 	[
 		'print-str',
 		(...a: Expr[]) => {
-			return a.map(e => printExp(e)).join(' ')
+			return a.map(e => printExpr(e)).join(' ')
 		},
 	],
 	[
 		'println',
 		(...a: Expr[]) => {
-			printer.log(...a.map(e => printExp(e)))
+			printer.log(...a.map(e => printExpr(e)))
 			return null
 		},
 	],

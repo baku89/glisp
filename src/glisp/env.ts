@@ -1,16 +1,16 @@
-import {printExp} from '.'
+import {printExpr} from './printer'
 import {
+	Expr,
+	ExprBind,
+	ExprMap,
+	ExprSeq,
+	ExprSymbol,
 	getType,
+	GlispError,
 	isMap,
 	isSeq,
 	isSymbol,
 	keywordFor,
-	ExprBind,
-	GlispError,
-	ExprMap,
-	ExprSeq,
-	ExprSymbol,
-	Expr,
 	symbolFor,
 } from './types'
 
@@ -96,7 +96,7 @@ export default class Env {
 						// List Destruction
 						if (!isSeq(exp)) {
 							throw new GlispError(
-								`[${this.name}] The destruction parameter ${printExp(
+								`[${this.name}] The destruction parameter ${printExpr(
 									bind
 								)} is not specified as sequence`
 							)
@@ -109,7 +109,7 @@ export default class Env {
 						// Hashmap destruction
 						if (!isMap(exp)) {
 							throw new GlispError(
-								`[${this.name}] The destruction parameter '${printExp(
+								`[${this.name}] The destruction parameter '${printExpr(
 									bind
 								)}'} is not specified as map`
 							)

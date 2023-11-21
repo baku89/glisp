@@ -1,5 +1,6 @@
 import readlineSync from 'readline-sync'
-import Scope from '@/glisp/scope'
+
+import {Scope} from '@/glisp'
 
 const replScope = new Scope()
 
@@ -14,9 +15,10 @@ if (typeof process !== 'undefined' && 2 < process.argv.length) {
 
 replScope.REP(`(str "Glisp [" *host-language* "]")`)
 
+// eslint-disable-next-line no-constant-condition
 while (true) {
 	const line = readlineSync.question('glisp> ')
-	if (line == null) {
+	if (line === null) {
 		break
 	}
 	if (line === '') {

@@ -1,37 +1,37 @@
 import {mat2d} from 'linearly'
 
+import ConsoleScope from '@/scopes/console'
+
+import {generateDefaultDelimiters, printExpr} from './printer'
+import {M_DELIMITERS, M_ISSUGAR, M_PARENT} from './symbols'
 import {
 	cloneExpr,
 	createList as L,
+	Expr,
+	ExprColl,
+	ExprFn,
+	ExprJSFn,
+	ExprMap,
+	ExprSeq,
+	ExprSymbol,
+	ExprType,
+	getEvaluated,
 	getMeta,
+	getName,
 	getParent as getParent,
 	getType,
+	isColl,
 	isFunc,
 	isList,
 	isMap,
-	isColl,
 	isSeq,
 	isSymbol,
 	isSymbolFor,
 	isVector,
 	keywordFor as K,
 	keywordFor,
-	M_DELIMITERS,
-	ExprFn,
-	ExprJSFn,
-	ExprMap,
-	ExprColl,
-	ExprSeq,
-	ExprSymbol,
-	ExprType,
-	Expr,
 	symbolFor as S,
-	getEvaluated,
-} from '@/glisp/types'
-import ConsoleScope from '@/scopes/console'
-
-import {markParent} from './reader'
-import printExpr, {generateDefaultDelimiters} from './printer'
+} from './types'
 
 /**
  * [1 2], [:path :M [1 2]]のような特殊な形式を検出する
@@ -124,6 +124,8 @@ export function generateExpAbsPath(expr: ExprColl) {
 		path = index + '/' + path
 		expr = parent
 	}
+
+	throw new Error('Cannot find the root')
 }
 
 /**
@@ -497,14 +499,14 @@ export function applyParamModifier(modifier: Expr, originalParams: Expr[]) {
 
 export function getFn(exp: Expr) {
 	if (!isList(exp)) {
-		//throw new GlispError(`${printExp(exp)} is not a function application`)
+		//throw new GlispError(`${printExpr(exp)} is not a function application`)
 		return undefined
 	}
 
 	const first = getEvaluated(exp[0])
 
 	if (!isFunc(first)) {
-		// throw new Error(`${printExp(exp[0])} is not a function`)
+		// throw new Error(`${printExpr(exp[0])} is not a function`)
 		return undefined
 	}
 
@@ -587,4 +589,164 @@ export function findElementIndex(expr: Expr, parent: ExprColl) {
 	}
 
 	return index
+}
+
+export function markParent(exp: Expr) {
+	if (!isColl(exp)) {
+		return
+	}
+
+	const children = isSeq(exp) ? exp : Object.values(exp)
+
+	for (const child of children) {
+		if (isColl(child)) {
+			child[M_PARENT] = exp
+		}
+		markParent(child)
+	}
+}
+
+export function convertJSObjectToExprMap(obj: any): Expr {
+	if (Array.isArray(obj)) {
+		return obj.map(v => convertJSObjectToExprMap(v))
+	} else if (isSymbol(obj) || obj instanceof Function) {
+		return obj
+	} else if (obj instanceof Object) {
+		const ret = {} as ExprMap
+		for (const [key, value] of Object.entries(obj)) {
+			ret[keywordFor(key)] = convertJSObjectToExprMap(value)
+		}
+		return ret
+	} else {
+		return obj
+	}
+}
+
+export function convertExprCollToJSObject(exp: Expr): any {
+	if (isMap(exp)) {
+		const ret: {[Key: string]: Expr} = {}
+		for (const [key, value] of Object.entries(exp)) {
+			const jsKey = getName(key)
+			ret[jsKey] = convertExprCollToJSObject(value)
+		}
+		return ret
+	} else if (isSeq(exp)) {
+		return (exp as Expr[]).map(e => convertExprCollToJSObject(e))
+	} else {
+		return exp
+	}
+}
+export function findExpByRange(
+	expr: Expr,
+	start: number,
+	end: number
+): ExprColl | null {
+	if (!isColl(expr)) {
+		// If Atom
+		return null
+	}
+
+	// Creates a caches of children at the same time calculating length of exp
+	const expLen = printExpr(expr).length
+
+	if (!(0 <= start && end <= expLen)) {
+		// Does not fit within the exp
+		return null
+	}
+
+	if (isSeq(expr)) {
+		// Sequential
+
+		// Add the length of open-paren
+		let offset = isList(expr) && expr[M_ISSUGAR] ? 0 : 1
+		const delimiters = getDelimiters(expr)
+		const elmStrs = getElementStrs(expr)
+
+		// Search Children
+		for (let i = 0; i < expr.length; i++) {
+			const child = expr[i]
+			offset += delimiters[i].length
+
+			const ret = findExpByRange(child, start - offset, end - offset)
+			if (ret !== null) {
+				return ret
+			}
+
+			// For #() syntaxtic sugar
+			if (i < elmStrs.length) {
+				offset += elmStrs[i].length
+			}
+		}
+	} else if (isMap(expr)) {
+		// Hash Map
+
+		let offset = 1 // length of '{'
+
+		const keys = Object.keys(expr)
+		const delimiters = getDelimiters(expr)
+		const elmStrs = getElementStrs(expr)
+
+		// Search Children
+		for (let i = 0; i < keys.length; i++) {
+			const child = expr[keys[i]]
+
+			// Offsets
+			offset +=
+				delimiters[i * 2].length + // delimiter before key
+				elmStrs[i * 2].length + // key
+				delimiters[i * 2 + 1].length // delimiter between key and value
+
+			const ret = findExpByRange(child, start - offset, end - offset)
+			if (ret !== null) {
+				return ret
+			}
+
+			offset += elmStrs[i * 2 + 1].length
+		}
+	}
+
+	return expr
+}
+
+export function getRangeOfExpr(
+	expr: ExprColl,
+	root: ExprColl
+): [begin: number, end: number] | null {
+	function calcOffset(expr: ExprColl): number {
+		const parent = getParent(expr)
+
+		if (!parent) {
+			throw new Error('root is not a parent')
+		}
+
+		if (parent === root) {
+			return 0
+		}
+
+		let offset = calcOffset(parent)
+
+		const delimiters = getDelimiters(parent)
+		const elmStrs = getElementStrs(parent)
+
+		const index = 0
+
+		if (isSeq(parent)) {
+			offset = isList(parent) && parent[M_ISSUGAR] ? 0 : 1
+			offset += delimiters.slice(0, index + 1).join('').length
+			offset += elmStrs.slice(0, index).join('').length
+		} else if (isMap(parent)) {
+			const index = findElementIndex(expr, parent)
+			offset +=
+				'{'.length +
+				delimiters.slice(0, (index + 1) * 2).join('').length +
+				elmStrs.slice(0, index * 2 + 1).join('').length
+		}
+
+		return offset
+	}
+
+	const expLength = printExpr(expr).length
+	const offset = calcOffset(expr)
+
+	return [offset, offset + expLength]
 }

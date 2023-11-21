@@ -1,14 +1,10 @@
 <script lang="ts" setup>
 import 'normalize.css'
 
-import {Ref, computed, ref, watch} from 'vue'
+import {computed, Ref, ref, watch} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
-import ViewCanvas from '@/components/ViewCanvas.vue'
-import {printExp, readStr} from '@/glisp'
-import {printer} from '@/glisp/printer'
-import {BlankException} from '@/glisp/reader'
-import {Expr} from '@/glisp/types'
+import {BlankException, Expr, printer, printExpr, readStr} from '@/glisp'
 import ConsoleScope from '@/scopes/console'
 import ViewScope from '@/scopes/view'
 import {computeTheme} from '@/theme'
@@ -89,7 +85,7 @@ watch(
 	() => exp.value,
 	() => {
 		if (exp.value) {
-			code.value = printExp(exp.value).slice(OFFSET_START, -OFFSET_END)
+			code.value = printExpr(exp.value).slice(OFFSET_START, -OFFSET_END)
 		} else {
 			code.value = ''
 		}
@@ -128,14 +124,14 @@ watch(
 				:value="code"
 				cssStyle="line-height: 1.5"
 				@input="code = $event"
-			/>
+			/>1
 		</div>
 		<div class="PageEmbed__viewer">
-			<ViewCanvas
+			<!-- <ViewCanvas
 				:exp="viewExp"
 				:guide-color="guideColor"
 				@render="hasRenderError = !$event"
-			/>
+			/> -->
 		</div>
 		<a class="PageEmbed__open-editor" :href="editorURL" target="_blank">
 			<i class="fas fa-external-link-alt"></i>

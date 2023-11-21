@@ -14,7 +14,7 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {getName, keywordFor, ExprSeq, ExprSymbol} from '@/glisp/types'
+import {ExprSeq, ExprSymbol, getName, keywordFor} from '@/glisp'
 
 interface Props {
 	value: string | ExprSeq | ExprSymbol

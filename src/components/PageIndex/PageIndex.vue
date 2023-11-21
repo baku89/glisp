@@ -7,30 +7,27 @@ import {useElementSize} from '@vueuse/core'
 import {mat2d} from 'linearly'
 import {Pane, Splitpanes} from 'splitpanes'
 import {useTweeq} from 'tweeq'
+import Tq from 'tweeq'
 import {computed, onMounted, reactive, Ref, ref, watch, watchEffect} from 'vue'
 
 import Console from '@/components/Console.vue'
-import Tq from 'tweeq'
-import Inspector from '@/components/Inspector.vue'
 import ExprExpEditor from '@/components/expr-inputs/ExprEditor.vue'
+import Inspector from '@/components/Inspector.vue'
 import PaneLayers from '@/components/PaneLayers.vue'
 import {useRem} from '@/components/use'
 import ViewHandles from '@/components/ViewHandles'
-import {printExp} from '@/glisp'
-import {markParent} from '@/glisp/reader'
 import {
 	createList as L,
-	isColl,
+	Expr,
 	ExprAtom,
 	ExprColl,
-	Expr,
-	symbolFor as S,
-} from '@/glisp/types'
-import {
+	isColl,
+	markParent,
 	replaceExpr,
+	symbolFor as S,
 	unwatchExpOnReplace,
 	watchExpOnReplace,
-} from '@/glisp/utils'
+} from '@/glisp'
 import ConsoleScope from '@/scopes/console'
 import ViewScope from '@/scopes/view'
 import {computeTheme, isValidColorString} from '@/theme'
@@ -218,7 +215,7 @@ function onResizeSplitpanes(sizes: {min: number; max: number; size: number}[]) {
 // Save code
 watch(exp, exp => {
 	if (exp) {
-		const code = printExp(exp)
+		const code = printExpr(exp)
 		const sketch = code.slice(OFFSET_START, -OFFSET_END)
 		localStorage.setItem('saved_code', sketch)
 		ConsoleScope.def('*sketch*', sketch)

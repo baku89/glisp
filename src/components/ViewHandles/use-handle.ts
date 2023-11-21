@@ -1,27 +1,25 @@
 import {mat2d, vec2} from 'linearly'
 import {computed, onBeforeMount, Ref, ref} from 'vue'
 
-import {markParent} from '@/glisp/reader'
 import {
+	computeExpTransform,
+	copyDelimiters,
 	createList as L,
+	Expr,
+	ExprColl,
+	ExprMap,
+	ExprSeq,
 	getEvaluated,
+	getFnInfo,
+	getMapValue,
 	isMap,
 	isVector,
 	keywordFor as K,
 	malEquals,
-	ExprMap,
-	ExprColl,
-	ExprSeq,
-	Expr,
-} from '@/glisp/types'
-import {
-	computeExpTransform,
-	copyDelimiters,
-	getFnInfo,
-	getMapValue,
+	markParent,
 	replaceExpr,
 	reverseEval,
-} from '@/glisp/utils'
+} from '@/glisp'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 
 interface ClassList {

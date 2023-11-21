@@ -1,9 +1,9 @@
 import Env from './env'
-import evaluate from './eval'
-import printExp, {printer} from './printer'
-import readStr, {BlankException} from './reader'
+import {evaluate} from './eval'
+import {printer, printExpr} from './printer'
+import {BlankException, readStr} from './reader'
 import ReplCore, {slurp} from './repl-core'
-import {GlispError, Expr, symbolFor as S} from './types'
+import {Expr, GlispError, symbolFor as S} from './types'
 
 const normalizeURL = (url: string, basename: string) => {
 	return new URL(url, basename).href
@@ -87,7 +87,7 @@ export default class Scope<T> {
 	public REP(str: string): void {
 		const ret = this.readEval(str)
 		if (ret !== undefined) {
-			printer.return(printExp(ret))
+			printer.return(printExpr(ret))
 		}
 	}
 

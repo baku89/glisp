@@ -3,10 +3,7 @@ import {computed, Ref, ref} from 'vue'
 import VueMarkdown from 'vue-markdown'
 
 import ParamControl from '@/components/ParamControl.vue'
-import {printExp} from '@/glisp'
-import {printer} from '@/glisp/printer'
-import {getMeta, ExprFn, ExprSymbol, Expr} from '@/glisp/types'
-import {getMapValue} from '@/glisp/utils'
+import {Expr, ExprFn, ExprSymbol, getMapValue, getMeta, printer} from '@/glisp'
 import ConsoleScope from '@/scopes/console'
 
 interface Props {
@@ -30,7 +27,7 @@ function onInput(newExp: Expr) {
 
 function onClickExecute() {
 	emit('close')
-	const command = printExp(editExp.value)
+	const command = printExpr(editExp.value)
 
 	// Show the executed command in the console and add it to the history
 	printer.pseudoExecute(command)

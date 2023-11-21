@@ -2,8 +2,14 @@ import {mat2d, vec2} from 'linearly'
 import {computed, Ref, ref, watch} from 'vue'
 
 import useMouseEvents from '@/components/use/use-mouse-events'
-import {convertExprCollToJSObject} from '@/glisp/reader'
-import {assocBang, isMap, keywordFor, ExprAtom, ExprMap} from '@/glisp/types'
+import {
+	assocBang,
+	convertExprCollToJSObject,
+	ExprAtom,
+	ExprMap,
+	isMap,
+	keywordFor,
+} from '@/glisp'
 import AppScope from '@/scopes/app'
 import ConsoleScope from '@/scopes/console'
 import {getHTMLElement} from '@/utils'

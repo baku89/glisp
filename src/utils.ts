@@ -1,8 +1,7 @@
 import Case from 'case'
 import {Ref, unref} from 'vue'
 
-import printExp from '@/glisp/printer'
-import {isKeyword, Expr} from '@/glisp/types'
+import {Expr, isKeyword} from '@/glisp'
 
 export function replaceRange(
 	s: string,
@@ -22,7 +21,7 @@ export function replaceRange(
  * @param exp A bind expression
  */
 export function getParamLabel(exp: Expr) {
-	const str = isKeyword(exp) ? exp.slice(1) : printExp(exp)
+	const str = isKeyword(exp) ? exp.slice(1) : printExpr(exp)
 	return str.length === 1 ? str : Case.capital(str)
 }
 

@@ -1,15 +1,15 @@
 import {vec2} from 'linearly'
 
 import {
+	Expr,
+	ExprMap,
+	ExprSeq,
 	getEvaluated,
 	isKeyword,
 	isList,
 	isVector,
 	keywordFor as K,
-	ExprMap,
-	ExprSeq,
-	Expr,
-} from '@/glisp/types'
+} from '@/glisp'
 import {convertToPath2D, PathType} from '@/path-utils'
 
 const K_PATH = K('path'),

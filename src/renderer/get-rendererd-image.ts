@@ -1,6 +1,6 @@
 import {mat2d} from 'linearly'
 
-import {Expr} from '@/glisp/types'
+import {Expr} from '@/glisp'
 
 import createCanvasRender, {CanvasRendererType} from './canvas-renderer'
 

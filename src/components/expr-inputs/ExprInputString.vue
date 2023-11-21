@@ -11,7 +11,7 @@
 			:validator="validator"
 			:class="{exp: isExp}"
 			:multiline="multiline"
-			@input="onInput"
+			@update:modelValue="onInput"
 			@end-tweak="emit('end-tweak')"
 		/>
 	</div>
@@ -21,9 +21,14 @@
 import Tq from 'tweeq'
 import {computed} from 'vue'
 
-import {markParent} from '@/glisp/reader'
-import {getEvaluated, ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+import {
+	Expr,
+	ExprSeq,
+	ExprSymbol,
+	getEvaluated,
+	markParent,
+	reverseEval,
+} from '@/glisp'
 
 import ExprSelectButton from './ExprSelectButton.vue'
 

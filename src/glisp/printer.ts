@@ -1,4 +1,7 @@
+import {M_AST, M_ISMACRO, M_ISSUGAR, M_PARAMS} from './symbols'
 import {
+	Expr,
+	ExprList as ExprList,
 	isAtom,
 	isFunc,
 	isKeyword,
@@ -6,12 +9,6 @@ import {
 	isMap,
 	isSeq as isVector,
 	isSymbol,
-	M_AST,
-	M_ISMACRO,
-	M_ISSUGAR,
-	M_PARAMS,
-	Expr,
-	ExprList as ExprList,
 } from './types'
 import {getDelimiters, insertDelimiters} from './utils'
 
@@ -77,63 +74,63 @@ export function getSugarPrefix(exp: ExprList): string | null {
 	return sugarSymbol
 }
 
-export default function printExp(exp: Expr): string {
-	const isExpList = isList(exp)
-	const isExpVector = isVector(exp)
+export function printExpr(expr: Expr): string {
+	const isExpList = isList(expr)
+	const isExpVector = isVector(expr)
 
 	let elmStrs: string[] | undefined
 
-	if (isExpList || isMap(exp)) {
+	if (isExpList || isMap(expr)) {
 		// Collection
 		// Check if there's a syntactic sugar
 		if (isExpList) {
-			const sugarPrefix = getSugarPrefix(exp)
+			const sugarPrefix = getSugarPrefix(expr)
 
 			if (sugarPrefix) {
-				elmStrs = [sugarPrefix, ...exp.slice(1).map(printExp)]
+				elmStrs = [sugarPrefix, ...expr.slice(1).map(printExpr)]
 			}
 		}
 
 		if (!elmStrs) {
 			if (isExpVector) {
-				elmStrs = exp.map(printExp)
+				elmStrs = expr.map(printExpr)
 			} else {
-				elmStrs = Object.entries(exp).flat().map(printExp)
+				elmStrs = Object.entries(expr).flat().map(printExpr)
 			}
 		}
 
-		const delimiters = getDelimiters(exp)
+		const delimiters = getDelimiters(expr)
 
 		const content = insertDelimiters(elmStrs, delimiters)
 
 		if (isExpList) {
-			return exp[M_ISSUGAR] ? content : '(' + content + ')'
+			return expr[M_ISSUGAR] ? content : '(' + content + ')'
 		} else if (isExpVector) {
 			return '[' + content + ']'
 		} else {
 			return '{' + content + '}'
 		}
-	} else if (typeof exp === 'number') {
-		return exp.toFixed(4).replace(/\.?[0]+$/, '')
-	} else if (typeof exp === 'boolean') {
-		return exp.toString()
-	} else if (exp === null) {
+	} else if (typeof expr === 'number') {
+		return expr.toFixed(4).replace(/\.?[0]+$/, '')
+	} else if (typeof expr === 'boolean') {
+		return expr.toString()
+	} else if (expr === null) {
 		return 'nil'
-	} else if (isSymbol(exp)) {
-		return exp.value
-	} else if (isKeyword(exp)) {
-		return ':' + exp.slice(1)
-	} else if (isFunc(exp)) {
-		if (M_AST in exp) {
-			const params = printExp(exp[M_PARAMS])
-			const body = printExp(exp[M_AST])
-			const symbol = exp[M_ISMACRO] ? 'macro' : 'fn'
+	} else if (isSymbol(expr)) {
+		return expr.value
+	} else if (isKeyword(expr)) {
+		return ':' + expr.slice(1)
+	} else if (isFunc(expr)) {
+		if (M_AST in expr) {
+			const params = printExpr(expr[M_PARAMS])
+			const body = printExpr(expr[M_AST])
+			const symbol = expr[M_ISMACRO] ? 'macro' : 'fn'
 			return `(${symbol} ${params} ${body})`
 		} else {
 			return '<JS Function>'
 		}
-	} else if (isAtom(exp)) {
-		return `(atom ${printExp(exp.value)})`
+	} else if (isAtom(expr)) {
+		return `(atom ${printExpr(expr.value)})`
 	} else {
 		return '<undefined>'
 	}

@@ -2,22 +2,21 @@ import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
 import GIF from 'gif.js'
 
-import printExp, {printer} from '@/glisp/printer'
-import {
-	convertJSObjectToExprMap,
-	convertExprCollToJSObject,
-} from '@/glisp/reader'
-import Scope from '@/glisp/scope'
 import {
 	assocBang,
+	convertExprCollToJSObject,
+	convertJSObjectToExprMap,
 	createList as L,
+	Expr,
+	GlispError,
 	isKeyword,
 	keywordFor as K,
-	GlispError,
-	Expr,
+	printer,
+	printExpr,
+	Scope,
 	setMeta,
 	symbolFor as S,
-} from '@/glisp/types'
+} from '@/glisp'
 import getRendereredImage from '@/renderer/get-rendererd-image'
 import renderToSvg from '@/renderer/render-to-svg'
 
@@ -156,7 +155,7 @@ ConsoleScope.def(
 					)
 					if (!viewExp) {
 						throw new GlispError(
-							`Element ${printExp(options.selector, true)} does not exist`
+							`Element ${printExpr(options.selector, true)} does not exist`
 						)
 					}
 				}

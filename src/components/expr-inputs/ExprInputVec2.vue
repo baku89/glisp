@@ -55,11 +55,10 @@ import {toRef} from 'vue'
 
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
 import {useNumericVectorUpdator} from '@/components/use'
-import {ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
-import {reverseEval} from '@/glisp/utils'
+import {Expr, ExprSeq, ExprSymbol, reverseEval} from '@/glisp'
 
-import ExprSelectButton from './ExprSelectButton.vue'
 import ExprInputNumber from './ExprInputNumber.vue'
+import ExprSelectButton from './ExprSelectButton.vue'
 
 interface Props {
 	value: ExprSeq | ExprSymbol
