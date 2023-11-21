@@ -29,12 +29,7 @@ const drag = useDraggable(el, {
 	onDrag({x, y, prevX, prevY}) {
 		const prevAngle = Math.atan2(prevY, prevX)
 
-		const alignedPos = vec2.rotate(
-			vec2.create(),
-			[x, y] as vec2,
-			[0, 0],
-			-prevAngle
-		)
+		const alignedPos = vec2.rotate([x, y], -prevAngle)
 		const delta = Math.atan2(alignedPos[1], alignedPos[0])
 		const value = props.value + delta
 

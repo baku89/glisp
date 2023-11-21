@@ -10,11 +10,11 @@
 		/>
 		<div v-if="compact" class="MalInputColor__hex">{{ hexValue }}</div>
 		<template v-else>
-			<template v-if="mode === 'EXP'">
-				<InputString
+			<template v-if="mode === 'exp'">
+				<Tq.InputString
 					class="MalInputColor__text exp"
-					:value="displayValues"
-					@input="onInputText"
+					:modelValue="displayValues as string"
+					@update:modelValue="onInputText"
 					@end-tweak="$emit('end-tweak')"
 				/>
 				<MalExpButton
@@ -32,11 +32,11 @@
 					@input="changeMode"
 					@end-tweak="$emit('end-tweak')"
 				/>
-				<InputString
-					v-if="mode === 'HEX'"
+				<Tq.InputString
+					v-if="mode === 'hex'"
 					class="MalInputColor__text"
-					:value="displayValues"
-					@input="onInputText"
+					:modelValue="displayValues as string"
+					@update:modelValue="onInputText"
 					@end-tweak="$emit('end-tweak')"
 				/>
 				<div v-else-if="mode" class="MalInputColor__elements">
@@ -58,9 +58,10 @@
 
 <script lang="ts" setup>
 import chroma from 'chroma-js'
+import Tq from 'tweeq'
 import {computed, ComputedRef} from 'vue'
 
-import {InputColor, InputDropdown, InputString} from '@/components/inputs'
+import {InputColor, InputDropdown} from '@/components/inputs'
 import {
 	createList as L,
 	getEvaluated,
@@ -77,7 +78,7 @@ import {reverseEval} from '@/mal/utils'
 import MalExpButton from './MalExpButton.vue'
 import MalInputNumber from './MalInputNumber.vue'
 
-type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
+type ColorMode = 'hex' | 'rgb' | 'hsl' | 'exp'
 
 const COLOR_SPACE_FUNCTIONS = new Set(['color/rgb', 'color/hsl'])
 const COLOR_SPACE_SHORTHANDS = new Set(['rgb', 'hsl'])
@@ -101,7 +102,7 @@ const mode = computed(() => {
 			{
 				const str = props.value as string
 				if (chroma.valid(str)) {
-					return 'HEX'
+					return 'hex'
 				}
 				break
 			}
@@ -115,17 +116,18 @@ const mode = computed(() => {
 					return fst.value.toUpperCase()
 				}
 			}
-			return 'EXP'
+			return 'exp'
 		}
 		case MalType.Symbol: {
-			return 'EXP'
+			return 'exp'
 		}
 	}
-	return 'HEX'
+
+	return 'hex'
 }) as ComputedRef<ColorMode>
 
 const displayValues = computed(() => {
-	if (mode.value === 'EXP') {
+	if (mode.value === 'exp') {
 		return getEvaluated(props.value) as string
 	}
 
@@ -143,19 +145,19 @@ const chromaColor = computed(() => {
 
 	let color: chroma.Color
 	switch (mode.value) {
-		case 'HEX':
+		case 'hex':
 			color = chroma.valid(value as string)
 				? chroma(value as string)
 				: chroma('black')
 			break
-		case 'RGB': {
+		case 'rgb': {
 			const [, r, g, b] = (value as MalVal[]).map(v =>
 				getEvaluated(v)
 			) as number[]
 			color = chroma(r * 255, g * 255, b * 255, 'rgb')
 			break
 		}
-		case 'HSL': {
+		case 'hsl': {
 			const evaluated = (value as MalVal[]).map(v =>
 				getEvaluated(v)
 			) as number[]
@@ -167,13 +169,13 @@ const chromaColor = computed(() => {
 			color = chroma((h / Math.PI) * 180, s, l, 'hsl')
 			break
 		}
-		case 'EXP': {
+		case 'exp': {
 			color = chroma(getEvaluated(value) as string)
 			break
 		}
 	}
 
-	if (mode.value !== 'EXP' && isList(value) && value.length >= 5) {
+	if (mode.value !== 'exp' && isList(value) && value.length >= 5) {
 		color = color.alpha(getEvaluated(value[4]) as number)
 	}
 
@@ -192,14 +194,14 @@ const hexValue = computed(() => {
 
 const validators = computed(() => {
 	switch (mode.value) {
-		case 'RGB':
+		case 'rgb':
 			return [
 				validatorZeroOne,
 				validatorZeroOne,
 				validatorZeroOne,
 				validatorZeroOne,
 			]
-		case 'HSL':
+		case 'hsl':
 			return [
 				validatorZeroTwoPI,
 				validatorZeroOne,
@@ -219,13 +221,13 @@ function changeMode(mode: ColorMode) {
 	let value
 
 	switch (mode) {
-		case 'HEX':
+		case 'hex':
 			value = color.hex('auto')
 			break
-		case 'RGB':
+		case 'rgb':
 			value = L(S('rgb'), ...color.rgb().map(v => v / 255))
 			break
-		case 'HSL': {
+		case 'hsl': {
 			const [h, s, l] = color.hsl()
 			value = L(S('hsl'), ((h || 0) / 180) * Math.PI, s, l)
 			break
@@ -234,7 +236,7 @@ function changeMode(mode: ColorMode) {
 			throw new Error('Invalid color mode')
 	}
 
-	if (color.alpha() < 1 && mode !== 'HEX') {
+	if (color.alpha() < 1 && mode !== 'hex') {
 		;(value as MalVal[]).push(color.alpha())
 	}
 
@@ -242,7 +244,7 @@ function changeMode(mode: ColorMode) {
 }
 
 function onInputText(str: string) {
-	if (mode.value !== 'EXP') {
+	if (mode.value !== 'exp') {
 		emit('input', str)
 	} else {
 		// Inverse evaluation
@@ -267,14 +269,14 @@ function onInputColor(color: {
 	let value: MalVal = isList(props.value) ? L(...props.value) : ''
 
 	switch (mode.value) {
-		case 'HEX':
+		case 'hex':
 			if (color.a < 1) {
 				value = color.hex8
 			} else {
 				value = color.hex
 			}
 			break
-		case 'RGB': {
+		case 'rgb': {
 			let {r, g, b} = color.rgba
 			r = reverseEval(r / 255, (props.value as MalVal[])[1]) as number
 			g = reverseEval(g / 255, (props.value as MalVal[])[2]) as number
@@ -284,7 +286,7 @@ function onInputColor(color: {
 			;(value as MalVal[])[3] = b
 			break
 		}
-		case 'HSL': {
+		case 'hsl': {
 			let {h, s, l} = color.hsl
 			h = reverseEval(
 				(h / 180) * Math.PI,
@@ -297,14 +299,14 @@ function onInputColor(color: {
 			;(value as MalVal[])[3] = l
 			break
 		}
-		case 'EXP': {
+		case 'exp': {
 			// Inverse evaluation
 			value = reverseEval(color.hex8, props.value)
 			break
 		}
 	}
 
-	if (mode.value === 'RGB' || mode.value === 'HSL') {
+	if (mode.value === 'rgb' || mode.value === 'hsl') {
 		if (color.a < 0.9999) {
 			const a =
 				(props.value as MalVal[])[4] !== undefined

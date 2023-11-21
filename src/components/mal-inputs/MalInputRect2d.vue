@@ -42,28 +42,28 @@
 			/>
 		</template>
 		<template v-else>
-			<InputNumber
+			<Tq.InputNumber
 				class="MalInputRect2d__el exp"
-				:value="evaluated[0]"
-				@input="onInputEvaluatedElement(0, $event)"
+				:modelValue="evaluated[0]"
+				@update:modelValue="onInputEvaluatedElement(0, $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<InputNumber
+			<Tq.InputNumber
 				class="MalInputRect2d__el exp"
-				:value="evaluated[1]"
-				@input="onInputEvaluatedElement(1, $event)"
+				:modelValue="evaluated[1]"
+				@update:modelValue="onInputEvaluatedElement(1, $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<InputNumber
+			<Tq.InputNumber
 				class="MalInputRect2d__el exp"
-				:value="evaluated[2]"
-				@input="onInputEvaluatedElement(2, $event)"
+				:modelValue="evaluated[2]"
+				@update:modelValue="onInputEvaluatedElement(2, $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<InputNumber
+			<Tq.InputNumber
 				class="MalInputRect2d__el exp"
-				:value="evaluated[3]"
-				@input="onInputEvaluatedElement(3, $event)"
+				:modelValue="evaluated[3]"
+				@update:modelValue="onInputEvaluatedElement(3, $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
 		</template>
@@ -77,6 +77,7 @@
 </template>
 
 <script lang="ts" setup>
+import Tq from 'tweeq'
 import {toRef} from 'vue'
 
 import {useNumericVectorUpdator} from '@/components/use'

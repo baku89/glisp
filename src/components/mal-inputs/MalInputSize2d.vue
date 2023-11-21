@@ -26,16 +26,16 @@
 			/>
 		</template>
 		<template v-else>
-			<InputNumber
+			<Tq.InputNumber
 				class="MalInputSize2d__el exp"
-				:value="evaluated[0]"
-				@input="onInputEvaluatedElement(0, $event)"
+				:modelValue="evaluated[0]"
+				@update:modelValue="onInputEvaluatedElement(0, $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<InputNumber
+			<Tq.InputNumber
 				class="MalInputSize2d__el exp"
-				:value="evaluated[1]"
-				@input="onInputEvaluatedElement(1, $event)"
+				:modelValue="evaluated[1]"
+				@update:modelValue="onInputEvaluatedElement(1, $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
 		</template>
@@ -48,6 +48,7 @@
 </template>
 
 <script lang="ts" setup>
+import Tq from 'tweeq'
 import {computed} from 'vue'
 
 import {

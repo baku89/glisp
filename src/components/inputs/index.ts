@@ -1,8 +1,6 @@
 export {default as InputBoolean} from './InputBoolean.vue'
 export {default as InputColor} from './InputColor.vue'
 export {default as InputDropdown} from './InputDropdown.vue'
-export {default as InputNumber} from './InputNumber.vue'
-export {default as InputString} from './InputString.vue'
 export {default as InputRotery} from './InputRotery.vue'
 export {default as InputSeed} from './InputSeed.vue'
 export {default as InputSlider} from './InputSlider.vue'

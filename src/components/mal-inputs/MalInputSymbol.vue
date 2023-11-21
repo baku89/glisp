@@ -1,6 +1,6 @@
 <template>
 	<div class="MalInputSymbol">
-		<InputString
+		<Tq.InputString
 			class="MalInputSymbol__input"
 			:value="displayValue"
 			:validator="symbolValidator"

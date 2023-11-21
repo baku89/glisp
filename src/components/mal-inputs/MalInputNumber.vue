@@ -7,12 +7,12 @@
 			:compact="true"
 			@select="$emit('select', $event)"
 		/>
-		<InputNumber
+		<Tq.InputNumber
 			:class="{
 				exp: display.isExp,
 			}"
-			:value="displayValue"
-			@input="onInput"
+			:modelValue="displayValue"
+			@update:modelValue="onInput"
 			@end-tweak="$emit('end-tweak', $event)"
 		/>
 		<span
@@ -32,9 +32,9 @@
 </template>
 
 <script lang="ts" setup>
+import Tq from 'tweeq'
 import {computed} from 'vue'
 
-import InputNumber from '@/components/inputs/InputNumber.vue'
 import {readStr} from '@/mal'
 import {
 	createList as L,
@@ -49,7 +49,6 @@ import {
 import {getFn, getFnInfo, getMapValue, reverseEval} from '@/mal/utils'
 
 import MalExpButton from './MalExpButton.vue'
-
 interface Props {
 	value: MalSymbol | number | MalSeq
 	validator?: (v: number) => number | null
@@ -103,7 +102,7 @@ const displayValue = computed(() => {
 	}
 })
 
-function onInput(value: number | string) {
+function onInput(value: number) {
 	let newExp: MalVal = value
 
 	// Parse if necessary

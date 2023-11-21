@@ -1,7 +1,7 @@
 <template>
 	<div class="MalInputKeyword">
 		:
-		<InputString
+		<Tq.InputString
 			class="MalInputKeyword__input"
 			:value="displayValue"
 			:validator="keywordValidator"
