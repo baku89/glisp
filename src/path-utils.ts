@@ -4,9 +4,9 @@ import {
 	isKeyword,
 	isVector,
 	keywordFor as K,
-	MalError,
-	MalVal,
-} from '@/mal/types'
+	GlispError,
+	Expr,
+} from '@/glisp/types'
 
 const K_PATH = K('path')
 
@@ -21,23 +21,23 @@ export function isPath(exp: any): exp is PathType {
 
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
 	if (!Array.isArray(path)) {
-		throw new MalError('Invalid path')
+		throw new GlispError('Invalid path')
 	}
 
 	let start = path[0].toString().startsWith(K_PATH) ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
-		if (i === l || isKeyword(path[i] as MalVal)) {
+		if (i === l || isKeyword(path[i] as Expr)) {
 			yield path.slice(start, i) as SegmentType
 			start = i
 		}
 	}
 }
 
-export function getSVGPathDataRecursive(exp: MalVal): string {
+export function getSVGPathDataRecursive(exp: Expr): string {
 	return convertPath(exp)
 
-	function convertPath(exp: MalVal, transform?: mat2d): string {
+	function convertPath(exp: Expr, transform?: mat2d): string {
 		if (!isVector(exp)) {
 			return ''
 		}
@@ -71,7 +71,7 @@ export function getSVGPathDataRecursive(exp: MalVal): string {
 			return path
 		} else {
 			return path.map(p =>
-				isVector(p as MalVal) ? vec2.transformMat2d(p as vec2, transform) : p
+				isVector(p as Expr) ? vec2.transformMat2d(p as vec2, transform) : p
 			)
 		}
 	}
@@ -82,7 +82,7 @@ export function getSVGPathData(path: PathType) {
 		path = path.slice(1)
 	}
 
-	return path.map(x => (isKeyword(x as MalVal) ? x.slice(1) : x)).join(' ')
+	return path.map(x => (isKeyword(x as Expr) ? x.slice(1) : x)).join(' ')
 }
 
 const K_M = K('M'),

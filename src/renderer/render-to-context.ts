@@ -1,12 +1,12 @@
-import printExp from '@/mal/printer'
+import printExp from '@/glisp/printer'
 import {
 	isKeyword,
 	isMap,
 	keywordFor as K,
-	MalError,
-	MalMap,
-	MalVal,
-} from '@/mal/types'
+	GlispError,
+	ExprMap,
+	Expr,
+} from '@/glisp/types'
 import {iterateSegment, PathType} from '@/path-utils'
 import {partition} from '@/utils'
 
@@ -16,10 +16,10 @@ type CanvasContext =
 
 export default function renderToContext(
 	ctx: CanvasContext,
-	exp: MalVal,
-	defaultStyle: MalMap | null = null
+	exp: Expr,
+	defaultStyle: ExprMap | null = null
 ) {
-	function draw(exp: MalVal, styles: MalMap[]) {
+	function draw(exp: Expr, styles: ExprMap[]) {
 		if (Array.isArray(exp) && exp.length > 0) {
 			const [elm, ...rest] = exp as any[]
 
@@ -32,7 +32,7 @@ export default function renderToContext(
 
 				switch (cmd) {
 					case K('transform'): {
-						const [mat, ...children] = rest as [number[], ...MalVal[]]
+						const [mat, ...children] = rest as [number[], ...Expr[]]
 
 						ctx.save()
 						ctx.transform(
@@ -51,7 +51,7 @@ export default function renderToContext(
 						const [attrs, ...children] = rest
 						styles = [
 							...styles,
-							...((Array.isArray(attrs) ? attrs : [attrs]) as MalMap[]),
+							...((Array.isArray(attrs) ? attrs : [attrs]) as ExprMap[]),
 						]
 						draw(children, styles)
 						break
@@ -127,7 +127,7 @@ export default function renderToContext(
 						break
 					}
 					default:
-						throw new MalError(`Unknown rendering command ${printExp(cmd)}`)
+						throw new GlispError(`Unknown rendering command ${printExp(cmd)}`)
 				}
 			}
 		}
@@ -159,7 +159,7 @@ export default function renderToContext(
 					ctx.closePath()
 					break
 				default: {
-					throw new MalError(`Invalid d-path command: ${printExp(c)}`)
+					throw new GlispError(`Invalid d-path command: ${printExp(c)}`)
 				}
 			}
 		}
@@ -169,7 +169,7 @@ export default function renderToContext(
 		if (typeof style === 'string') {
 			return style
 		} else if (Array.isArray(style)) {
-			const [type, params] = style as [string, MalMap]
+			const [type, params] = style as [string, ExprMap]
 			switch (type) {
 				case K('linear-gradient'): {
 					const [x0, y0, x1, y1] = params[K('points')] as number[]
@@ -189,8 +189,8 @@ export default function renderToContext(
 	}
 
 	function applyDrawStyle(
-		styles: MalMap[],
-		defaultStyle: MalMap | null,
+		styles: ExprMap[],
+		defaultStyle: ExprMap | null,
 		content:
 			| PathType
 			| {

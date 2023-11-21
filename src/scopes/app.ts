@@ -1,7 +1,7 @@
 import Mousetrap from 'mousetrap'
 
-import Scope from '@/mal/scope'
-import {isList, MalError, MalVal} from '@/mal/types'
+import Scope from '@/glisp/scope'
+import {isList, GlispError, Expr} from '@/glisp/types'
 
 import ConsoleScope from './console'
 import ReplScope from './repl'
@@ -14,9 +14,9 @@ const AppScope = new Scope(ReplScope, 'app', onSetup)
 
 // Keybinds
 
-AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
+AppScope.def('set-keybind', (keybind: Expr, exp: Expr) => {
 	if (typeof keybind !== 'string' || !isList(exp)) {
-		throw new MalError('Invalid argument for set-keybind')
+		throw new GlispError('Invalid argument for set-keybind')
 	}
 
 	const callback = (e: KeyboardEvent) => {
@@ -30,9 +30,9 @@ AppScope.def('set-keybind', (keybind: MalVal, exp: MalVal) => {
 	return true
 })
 
-AppScope.def('trigger-keybind', (keybind: MalVal) => {
+AppScope.def('trigger-keybind', (keybind: Expr) => {
 	if (typeof keybind !== 'string') {
-		throw new MalError('Keybind should be string')
+		throw new GlispError('Keybind should be string')
 	}
 
 	Mousetrap.trigger(keybind)
@@ -47,7 +47,7 @@ AppScope.def('unset-all-keybinds', () => {
 })
 
 AppScope.def('*global-menu*', [])
-AppScope.def('set-global-menu', (menu: MalVal) => {
+AppScope.def('set-global-menu', (menu: Expr) => {
 	AppScope.def('*global-menu*', menu)
 	return true
 })

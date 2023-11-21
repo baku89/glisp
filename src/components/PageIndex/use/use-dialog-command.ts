@@ -1,35 +1,33 @@
-import {printExp} from '@/mal'
-import {printer} from '@/mal/printer'
+import {printExp} from '@/glisp'
+import {printer} from '@/glisp/printer'
 import {
 	getMeta,
 	isFunc,
 	isSymbol,
-	MalError,
-	MalFunc,
-	MalMap,
+	GlispError,
+	ExprFn,
+	ExprMap,
 	MalType,
-	MalVal,
-} from '@/mal/types'
-import {getMapValue} from '@/mal/utils'
+	Expr,
+} from '@/glisp/types'
+import {getMapValue} from '@/glisp/utils'
 import ConsoleScope from '@/scopes/console'
 
 export default function useDialogCommand() {
 	// const {$modal} = context.root
 
-	ConsoleScope.def('show-command-dialog', (f: MalVal) => {
+	ConsoleScope.def('show-command-dialog', (f: Expr) => {
 		if (f === undefined || !isSymbol(f)) {
-			throw new MalError(`${printExp(f)} is not a symbol`)
+			throw new GlispError(`${printExp(f)} is not a symbol`)
 		}
 
 		// Retrieve default parameters
 		const fn = ConsoleScope.var(f.value)
 		const meta = getMeta(fn)
-		const paramsDesc = getMapValue(meta, 'params', MalType.Vector) as
-			| MalMap[]
-			| null
+		const paramsDesc = getMapValue(meta, 'params', 'vector') as ExprMap[] | null
 		let initialParams = getMapValue(meta, 'initial-params') as
-			| MalFunc
-			| MalVal[]
+			| ExprFn
+			| Expr[]
 			| null
 
 		if (!paramsDesc || !initialParams) {
@@ -38,11 +36,11 @@ export default function useDialogCommand() {
 		}
 
 		if (isFunc(initialParams)) {
-			initialParams = initialParams() as MalVal[]
+			initialParams = initialParams() as Expr[]
 		}
 
 		// Create the expression with default parameters
-		// const exp: MalVal = L(f, ...initialParams)
+		// const exp: Expr = L(f, ...initialParams)
 
 		// Show Modal
 		// $modal.show(

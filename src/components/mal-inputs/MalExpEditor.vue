@@ -14,26 +14,24 @@
 import {computed, Ref, ref} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
-import printExp, {printer} from '@/mal/printer'
-import readStr, {findExpByRange, getRangeOfExp} from '@/mal/reader'
-import {BlankException} from '@/mal/reader'
+import printExp, {printer} from '@/glisp/printer'
+import readStr, {findExpByRange, getRangeOfExpr} from '@/glisp/reader'
+import {BlankException} from '@/glisp/reader'
 import {
 	getType,
 	isList,
-	isNode,
+	isColl,
 	M_DELIMITERS,
-	M_ELMSTRS,
-	MalNode,
-	MalType,
-	MalVal,
+	ExprColl,
+	Expr,
 	symbolFor,
-} from '@/mal/types'
+} from '@/glisp/types'
 
 type EditMode = 'node' | 'elements' | 'params'
 
 interface Props {
-	exp: MalVal
-	selectedExp: MalNode | null
+	exp: Expr
+	selectedExp: ExprColl | null
 	editMode: EditMode
 	cssStyle?: string
 }
@@ -42,9 +40,9 @@ const props = withDefaults(defineProps<Props>(), {cssStyle: ''})
 
 const emit = defineEmits<{
 	'update:hasParseError': [boolean]
-	select: [exp: MalNode | null]
+	select: [exp: ExprColl | null]
 	'input-code': [code: string]
-	input: [exp: MalVal]
+	input: [exp: Expr]
 }>()
 
 const EDITOR_DELIMITER = ';__\n'
@@ -60,16 +58,18 @@ const preText = computed(() => {
 			return ''
 		case 'params': {
 			return (
-				'(' + (exp as MalNode)[M_DELIMITERS][0] + (exp as MalNode)[M_ELMSTRS][0]
+				'(' +
+				(exp as ExprColl)[M_DELIMITERS][0] +
+				(exp as ExprColl)[M_ELMSTRS][0]
 			)
 		}
 		case 'elements': {
 			switch (getType(exp)) {
-				case MalType.List:
+				case 'list':
 					return '('
-				case MalType.Vector:
+				case 'vector':
 					return '['
-				case MalType.Map:
+				case 'map':
 					return '{'
 				default:
 					throw new Error('Invalid node')
@@ -89,11 +89,11 @@ const postText = computed(() => {
 			return ')'
 		case 'elements':
 			switch (getType(exp)) {
-				case MalType.List:
+				case 'list':
 					return ')'
-				case MalType.Vector:
+				case 'vector':
 					return ']'
-				case MalType.Map:
+				case 'map':
 					return '}'
 				default:
 					throw new Error('Invalid node')
@@ -128,8 +128,8 @@ const code = computed(() => {
 // selectedExp -> activeRange
 const activeRange = computed(() => {
 	const sel = props.selectedExp
-	if (sel && isNode(sel) && isNode(props.exp)) {
-		const ret = getRangeOfExp(sel, props.exp)
+	if (sel && isColl(sel) && isColl(props.exp)) {
+		const ret = getRangeOfExpr(sel, props.exp)
 		if (ret) {
 			const [start, end] = ret
 			return [
@@ -142,7 +142,7 @@ const activeRange = computed(() => {
 })
 
 // Event Handlers
-let inputExp: MalVal | null = null
+let inputExp: Expr | null = null
 
 function onInput(code: string) {
 	emit('input-code', code)
@@ -150,8 +150,11 @@ function onInput(code: string) {
 
 	try {
 		exp = readStr(
-			`${preText.value}${endsDelimiter.value}${code}${endsDelimiter.value}${postText.value}`,
-			true
+			preText.value +
+				endsDelimiter.value +
+				code +
+				endsDelimiter.value +
+				postText.value
 		)
 	} catch (err) {
 		if (!(err instanceof BlankException)) {
@@ -168,7 +171,7 @@ function onInput(code: string) {
 	emit('input', inputExp)
 }
 
-function onSelect([start, end]: [number, number], exp?: MalVal) {
+function onSelect([start, end]: [number, number], exp?: Expr) {
 	selection.value = [start, end]
 
 	if (exp === undefined) {
@@ -203,3 +206,4 @@ function onSelect([start, end]: [number, number], exp?: MalVal) {
 	}
 }
 </script>
+@/glis[/printer@/glis[/reader@/glis[/reader@/glis[/types

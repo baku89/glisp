@@ -2,25 +2,25 @@
 import {computed} from 'vue'
 
 import {
-	getOuter,
+	getParent,
 	isList,
 	isSymbol,
-	MalNode,
-	MalSymbol,
+	ExprColl,
+	ExprSymbol,
 	MalType,
-	MalVal,
-} from '@/mal/types'
-import {copyDelimiters, getFnInfo, getMapValue} from '@/mal/utils'
+	Expr,
+} from '@/glisp/types'
+import {copyDelimiters, getFnInfo, getMapValue} from '@/glisp/utils'
 
 import ParamControl from './ParamControl.vue'
 
 const props = defineProps<{
-	exp: MalNode
+	exp: ExprColl
 }>()
 
 const emit = defineEmits<{
-	input: [newExp: MalVal]
-	select: [exp: MalNode]
+	input: [newExp: Expr]
+	select: [exp: ExprColl]
 	'end-tweak': []
 }>()
 
@@ -35,7 +35,7 @@ const fnName = computed(() => {
 		fnInfo.value?.fn ||
 		(isList(props.exp) && isSymbol(props.exp[0]))
 	) {
-		return ((props.exp as MalVal[])[0] as MalSymbol).value || ''
+		return ((props.exp as Expr[])[0] as ExprSymbol).value || ''
 	} else {
 		return ''
 	}
@@ -43,15 +43,15 @@ const fnName = computed(() => {
 
 const fnDoc = computed(() => {
 	if (fnInfo.value?.meta) {
-		return getMapValue(fnInfo.value.meta, 'doc', MalType.String, '') as string
+		return getMapValue(fnInfo.value.meta, 'doc', 'string', '') as string
 	}
 	return ''
 })
 
-const outer = computed(() => {
-	const outer = getOuter(props.exp)
+parent = computed(() => {
+	parent = getParent(props.exp)
 
-	if (getOuter(outer)) {
+	if (getParent(outer)) {
 		return outer
 	}
 	return null
@@ -67,7 +67,7 @@ function onSelectOuter() {
 	emit('select', outer.value)
 }
 
-function onInput(newExp: MalVal) {
+function onInput(newExp: Expr) {
 	copyDelimiters(newExp, props.exp)
 	emit('input', newExp)
 }
@@ -108,13 +108,12 @@ function onInput(newExp: MalVal) {
 
 .Inspector
 	position relative
-	padding 1rem 0.5rem 1rem 1rem
+	padding var(--tq-pane-padding)
 	height 100%
 	text-align left
 	user-select none
 
 	.fira-code
-		font-monospace()
 
 	&__header
 		position relative
@@ -123,6 +122,7 @@ function onInput(newExp: MalVal) {
 	&__name
 		margin-bottom 0.5em
 		font-weight bold
+		font-family var(--tq-font-code)
 
 		.alias
 			color var(--comment)
@@ -146,3 +146,4 @@ function onInput(newExp: MalVal) {
 		code
 			color var(--syntax-function)
 </style>
+@/glis[/types@/glis[/utils

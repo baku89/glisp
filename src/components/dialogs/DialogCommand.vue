@@ -3,15 +3,15 @@ import {computed, Ref, ref} from 'vue'
 import VueMarkdown from 'vue-markdown'
 
 import ParamControl from '@/components/ParamControl.vue'
-import {printExp} from '@/mal'
-import {printer} from '@/mal/printer'
-import {getMeta, MalFunc, MalSymbol, MalVal} from '@/mal/types'
-import {getMapValue} from '@/mal/utils'
+import {printExp} from '@/glisp'
+import {printer} from '@/glisp/printer'
+import {getMeta, ExprFn, ExprSymbol, Expr} from '@/glisp/types'
+import {getMapValue} from '@/glisp/utils'
 import ConsoleScope from '@/scopes/console'
 
 interface Props {
-	exp: MalVal[]
-	fn: MalFunc
+	exp: Expr[]
+	fn: ExprFn
 }
 
 const props = defineProps<Props>()
@@ -20,11 +20,11 @@ const emit = defineEmits<{
 }>()
 
 const meta = getMeta(props.fn)
-const fnName = computed(() => (props.exp[0] as MalSymbol).value)
+const fnName = computed(() => (props.exp[0] as ExprSymbol).value)
 const fnDoc = computed(() => getMapValue(meta, 'doc') || '')
-const editExp: Ref<MalVal> = ref(props.exp)
+const editExp: Ref<Expr> = ref(props.exp)
 
-function onInput(newExp: MalVal) {
+function onInput(newExp: Expr) {
 	editExp.value = newExp
 }
 
@@ -66,7 +66,6 @@ function onClickExecute() {
 	height 100%
 	text-align left
 	user-select none
-	translucent-bg()
 
 	.fira-code
 		font-monospace()
@@ -121,3 +120,4 @@ function onClickExecute() {
 			&:last-child
 				border-right none
 </style>
+@/glis[@/glis[/printer@/glis[/types@/glis[/utils

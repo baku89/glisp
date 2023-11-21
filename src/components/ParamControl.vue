@@ -54,37 +54,37 @@
 import {computed} from 'vue'
 
 import * as MalInputComponents from '@/components/mal-inputs'
-import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
+import {convertExprCollToJSObject, markParent} from '@/glisp/reader'
 import {
 	generateSchemaParamLabel,
 	generateUISchema,
 	Schema,
 	SchemaVector,
 	updateParamsByUISchema,
-} from '@/mal/schema'
+} from '@/glisp/schema'
 import {
-	cloneExp,
+	cloneExpr,
 	createList as L,
-	isNode,
+	isColl,
 	keywordFor as K,
 	keywordFor,
-	MalFunc,
+	ExprFn,
 	MalSeq,
-	MalVal,
+	Expr,
 	symbolFor,
-} from '@/mal/types'
-import {getFnInfo, getMapValue} from '@/mal/utils'
+} from '@/glisp/types'
+import {getFnInfo, getMapValue} from '@/glisp/utils'
 
 interface Props {
 	exp: MalSeq
-	fn?: MalFunc
+	fn?: ExprFn
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [exp: MalVal]
-	select: [exp: MalVal]
+	input: [exp: Expr]
+	select: [exp: Expr]
 	'end-tweak': []
 }>()
 
@@ -121,7 +121,7 @@ const TypeDefaults = {
 	path: [K('path')],
 	exp: null,
 	any: null,
-} as {[type: string]: MalVal}
+} as {[type: string]: Expr}
 
 const fnInfo = computed(() => {
 	return getFnInfo(props.fn || props.exp)
@@ -143,12 +143,12 @@ const schema = computed<Schema[]>(() => {
 	const meta = fnInfo.value.meta
 	const malSchema = getMapValue(meta, 'params')
 
-	if (!isNode(malSchema)) {
+	if (!isColl(malSchema)) {
 		return null
 	}
 
 	// Convert to JS Object
-	let schema = convertMalNodeToJSObject(malSchema)
+	let schema = convertExprCollToJSObject(malSchema)
 
 	// Add label
 	if (Array.isArray(schema)) {
@@ -184,7 +184,7 @@ const uiSchema = computed(() => {
 })
 
 // Updator
-function onParamInput(i: number, value: MalVal) {
+function onParamInput(i: number, value: Expr) {
 	if (!fnInfo.value) return
 
 	const newParams = updateParamsByUISchema(
@@ -199,7 +199,7 @@ function onParamInput(i: number, value: MalVal) {
 		? newParams[0]
 		: L(props.exp[0], ...newParams)
 
-	reconstructTree(newExp)
+	markParent(newExp)
 
 	emit('input', newExp)
 }
@@ -212,7 +212,7 @@ function onParamInsert(i: number) {
 	const type = variadicSchema.type
 
 	// Compute value
-	let value = cloneExp(TypeDefaults[type])
+	let value = cloneExpr(TypeDefaults[type])
 
 	if (vectorSchema.insert) {
 		value = (vectorSchema.insert as any)({
@@ -220,13 +220,13 @@ function onParamInsert(i: number) {
 			[K('index')]: i - vectorVariadicPos.value,
 		})
 	} else if ('default' in variadicSchema) {
-		value = variadicSchema.default as MalVal
+		value = variadicSchema.default as Expr
 	}
 
 	newParams.splice(i, 0, value)
 	const newExp = L(props.exp[0], ...newParams)
 
-	reconstructTree(newExp)
+	markParent(newExp)
 
 	emit('input', newExp)
 }
@@ -236,7 +236,7 @@ function onParamDelete(i: number) {
 	newParams.splice(i, 1)
 
 	const newExp = L(props.exp[0], ...newParams)
-	reconstructTree(newExp)
+	markParent(newExp)
 
 	emit('input', newExp)
 }
@@ -298,7 +298,7 @@ function onParamDelete(i: number) {
 			opacity 0.5
 
 			&:hover
-				color var(--warning)
+				color var(--tq-color-error)
 
 		&.insert
 			align-self start
@@ -328,3 +328,4 @@ function onParamDelete(i: number) {
 		&.add
 			labeled-button()
 </style>
+@/glis[/reader@/glis[/schema@/glis[/types@/glis[/utils

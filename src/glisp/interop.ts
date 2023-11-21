@@ -1,5 +1,5 @@
-import {convertJSObjectToMalMap} from './reader'
-import {MalError} from './types'
+import {convertJSObjectToExprMap} from './reader'
+import {GlispError} from './types'
 
 export default {
 	resolveJS(str: string): [any, any] {
@@ -8,7 +8,7 @@ export default {
 			const match = /^(.*)\.[^\.]*$/.exec(str)
 
 			if (match === null) {
-				throw new MalError('[interop.resolveJS] Cannot resolve')
+				throw new GlispError('[interop.resolveJS] Cannot resolve')
 			} else {
 				return [eval(match[1]), eval(str)]
 			}
@@ -21,6 +21,6 @@ export default {
 			return null
 		}
 
-		return convertJSObjectToMalMap(obj)
+		return convertJSObjectToExprMap(obj)
 	},
 }

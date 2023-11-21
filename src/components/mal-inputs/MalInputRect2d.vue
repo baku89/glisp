@@ -81,17 +81,17 @@ import Tq from 'tweeq'
 import {toRef} from 'vue'
 
 import {useNumericVectorUpdator} from '@/components/use'
-import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
-import {reverseEval} from '@/mal/utils'
+import {MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {reverseEval} from '@/glisp/utils'
 
 interface Props {
-	value: MalSeq | MalSymbol
+	value: MalSeq | ExprSymbol
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [MalVal]
+	input: [Expr]
 }>()
 
 const {
@@ -130,3 +130,4 @@ function onInputTranslate(value: number[]) {
 	&__translate
 		margin-left $input-horiz-margin
 </style>
+@/glis[/types@/glis[/utils

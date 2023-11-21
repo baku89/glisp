@@ -1,7 +1,7 @@
 import {mat2d, vec2} from 'linearly'
 import {computed, onBeforeMount, Ref, ref} from 'vue'
 
-import {reconstructTree} from '@/mal/reader'
+import {markParent} from '@/glisp/reader'
 import {
 	createList as L,
 	getEvaluated,
@@ -9,19 +9,19 @@ import {
 	isVector,
 	keywordFor as K,
 	malEquals,
-	MalMap,
-	MalNode,
+	ExprMap,
+	ExprColl,
 	MalSeq,
-	MalVal,
-} from '@/mal/types'
+	Expr,
+} from '@/glisp/types'
 import {
 	computeExpTransform,
 	copyDelimiters,
 	getFnInfo,
 	getMapValue,
-	replaceExp,
+	replaceExpr,
 	reverseEval,
-} from '@/mal/utils'
+} from '@/glisp/utils'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
 
 interface ClassList {
@@ -31,7 +31,7 @@ interface ClassList {
 interface Handle {
 	type: string
 	cls: ClassList
-	id: MalVal
+	id: Expr
 	guide: boolean
 	transform: string
 	yTransform?: string
@@ -56,7 +56,7 @@ const K_ANGLE = K('angle'),
 const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 
 export default function useHandle(
-	selectedExp: Ref<MalNode[]>,
+	selectedExp: Ref<ExprColl[]>,
 	viewTransform: Ref<mat2d>,
 	viewEl: Ref<HTMLElement | null>,
 	emit: (event: 'tag-history', tag: string) => void
@@ -65,7 +65,7 @@ export default function useHandle(
 	const rawPrevPos = ref(vec2.zero)
 	const fnInfo = computed(() => selectedExp.value.map(getFnInfo))
 
-	const handleCallbacks = computed<(MalMap | null)[]>(() =>
+	const handleCallbacks = computed<(ExprMap | null)[]>(() =>
 		fnInfo.value.map(fi => {
 			if (!fi) {
 				return null
@@ -268,11 +268,11 @@ export default function useHandle(
 			[K_POS]: pos,
 			[K_PREV_POS]: prevPos,
 			[K_PARAMS]: _params,
-		} as MalMap
+		} as ExprMap
 
 		rawPrevPos.value = rawPos
 
-		let result: MalVal
+		let result: Expr
 		try {
 			result = dragHandle(eventInfo)
 		} catch (err) {
@@ -284,7 +284,7 @@ export default function useHandle(
 		}
 
 		// Parse the result
-		let newParams: MalVal[]
+		let newParams: Expr[]
 		let updatedIndices: number[] | undefined = undefined
 
 		if (isMap(result)) {
@@ -298,11 +298,11 @@ export default function useHandle(
 				newParams = [..._unevaluatedParams]
 				const pairs = (
 					typeof replace[0] === 'number'
-						? [replace as any as [number, MalVal]]
-						: (replace as any as [number, MalVal][])
+						? [replace as any as [number, Expr]]
+						: (replace as any as [number, Expr][])
 				).map(
 					([si, e]) =>
-						[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+						[si < 0 ? newParams.length + si : si, e] as [number, Expr]
 				)
 				for (const [i, value] of pairs) {
 					newParams[i] = value
@@ -349,10 +349,10 @@ export default function useHandle(
 
 		// Copy the delimiter if possible
 		copyDelimiters(newExp, _exp)
-		reconstructTree(newExp)
+		markParent(newExp)
 
 		// Finally replaces the sexp
-		replaceExp(_exp, newExp)
+		replaceExpr(_exp, newExp)
 	}
 
 	function onMouseup() {

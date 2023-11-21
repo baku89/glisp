@@ -1,14 +1,10 @@
 import C2S from 'canvas2svg'
 
-import {MalVal} from '@/mal/types'
+import {Expr} from '@/glisp/types'
 
 import renderToContext from './render-to-context'
 
-export default function renderToSvg(
-	view: MalVal,
-	width: number,
-	height: number
-) {
+export default function renderToSvg(view: Expr, width: number, height: number) {
 	const ctx = new C2S(width, height)
 
 	renderToContext(ctx, view)

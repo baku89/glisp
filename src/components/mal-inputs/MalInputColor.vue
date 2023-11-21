@@ -70,10 +70,10 @@ import {
 	isSymbol,
 	MalSeq,
 	MalType,
-	MalVal,
+	Expr,
 	symbolFor as S,
-} from '@/mal/types'
-import {reverseEval} from '@/mal/utils'
+} from '@/glisp/types'
+import {reverseEval} from '@/glisp/utils'
 
 import MalExpButton from './MalExpButton.vue'
 import MalInputNumber from './MalInputNumber.vue'
@@ -91,14 +91,14 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal]
-	select: [value: MalVal]
+	input: [value: Expr]
+	select: [value: Expr]
 	'end-tweak': []
 }>()
 
 const mode = computed(() => {
 	switch (getType(props.value)) {
-		case MalType.String: {
+		case 'string': {
 			{
 				const str = props.value as string
 				if (chroma.valid(str)) {
@@ -107,8 +107,8 @@ const mode = computed(() => {
 				break
 			}
 		}
-		case MalType.List: {
-			const fst = (props.value as MalVal[])[0]
+		case 'list': {
+			const fst = (props.value as Expr[])[0]
 			if (isSymbol(fst)) {
 				if (COLOR_SPACE_FUNCTIONS.has(fst.value)) {
 					return fst.value.split('/')[1].toUpperCase()
@@ -118,7 +118,7 @@ const mode = computed(() => {
 			}
 			return 'exp'
 		}
-		case MalType.Symbol: {
+		case 'symbol': {
 			return 'exp'
 		}
 	}
@@ -151,16 +151,14 @@ const chromaColor = computed(() => {
 				: chroma('black')
 			break
 		case 'rgb': {
-			const [, r, g, b] = (value as MalVal[]).map(v =>
+			const [, r, g, b] = (value as Expr[]).map(v =>
 				getEvaluated(v)
 			) as number[]
 			color = chroma(r * 255, g * 255, b * 255, 'rgb')
 			break
 		}
 		case 'hsl': {
-			const evaluated = (value as MalVal[]).map(v =>
-				getEvaluated(v)
-			) as number[]
+			const evaluated = (value as Expr[]).map(v => getEvaluated(v)) as number[]
 			let [, h] = evaluated
 			const [, , s, l] = evaluated
 			if (isNaN(h)) {
@@ -237,7 +235,7 @@ function changeMode(mode: ColorMode) {
 	}
 
 	if (color.alpha() < 1 && mode !== 'hex') {
-		;(value as MalVal[]).push(color.alpha())
+		;(value as Expr[]).push(color.alpha())
 	}
 
 	emit('input', value)
@@ -254,7 +252,7 @@ function onInputText(str: string) {
 }
 
 function onInputNumber(i: number, v: number) {
-	const newExp = L(...(props.value as MalVal[]))
+	const newExp = L(...(props.value as Expr[]))
 	newExp[i + 1] = v
 	emit('input', newExp)
 }
@@ -266,7 +264,7 @@ function onInputColor(color: {
 	rgba: {r: number; g: number; b: number}
 	hsl: {h: number; s: number; l: number}
 }) {
-	let value: MalVal = isList(props.value) ? L(...props.value) : ''
+	let value: Expr = isList(props.value) ? L(...props.value) : ''
 
 	switch (mode.value) {
 		case 'hex':
@@ -278,25 +276,22 @@ function onInputColor(color: {
 			break
 		case 'rgb': {
 			let {r, g, b} = color.rgba
-			r = reverseEval(r / 255, (props.value as MalVal[])[1]) as number
-			g = reverseEval(g / 255, (props.value as MalVal[])[2]) as number
-			b = reverseEval(b / 255, (props.value as MalVal[])[3]) as number
-			;(value as MalVal[])[1] = r
-			;(value as MalVal[])[2] = g
-			;(value as MalVal[])[3] = b
+			r = reverseEval(r / 255, (props.value as Expr[])[1]) as number
+			g = reverseEval(g / 255, (props.value as Expr[])[2]) as number
+			b = reverseEval(b / 255, (props.value as Expr[])[3]) as number
+			;(value as Expr[])[1] = r
+			;(value as Expr[])[2] = g
+			;(value as Expr[])[3] = b
 			break
 		}
 		case 'hsl': {
 			let {h, s, l} = color.hsl
-			h = reverseEval(
-				(h / 180) * Math.PI,
-				(props.value as MalVal[])[1]
-			) as number
-			s = reverseEval(s, (props.value as MalVal[])[2]) as number
-			l = reverseEval(l, (props.value as MalVal[])[3]) as number
-			;(value as MalVal[])[1] = h
-			;(value as MalVal[])[2] = s
-			;(value as MalVal[])[3] = l
+			h = reverseEval((h / 180) * Math.PI, (props.value as Expr[])[1]) as number
+			s = reverseEval(s, (props.value as Expr[])[2]) as number
+			l = reverseEval(l, (props.value as Expr[])[3]) as number
+			;(value as Expr[])[1] = h
+			;(value as Expr[])[2] = s
+			;(value as Expr[])[3] = l
 			break
 		}
 		case 'exp': {
@@ -309,12 +304,12 @@ function onInputColor(color: {
 	if (mode.value === 'rgb' || mode.value === 'hsl') {
 		if (color.a < 0.9999) {
 			const a =
-				(props.value as MalVal[])[4] !== undefined
-					? reverseEval(color.a, (props.value as MalVal[])[4])
+				(props.value as Expr[])[4] !== undefined
+					? reverseEval(color.a, (props.value as Expr[])[4])
 					: color.a
-			;(value as MalVal[])[4] = a
+			;(value as Expr[])[4] = a
 		} else {
-			value = L(...(value as MalVal[]).slice(0, 4))
+			value = L(...(value as Expr[]).slice(0, 4))
 		}
 	}
 
@@ -369,3 +364,4 @@ function validatorZeroTwoPI(x: number) {
 	&__exp
 		margin-left 0.3rem
 </style>
+@/glis[/types@/glis[/utils

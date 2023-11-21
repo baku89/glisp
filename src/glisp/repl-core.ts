@@ -2,8 +2,8 @@ import {vsprintf} from 'sprintf-js'
 
 import interop from './interop'
 import printExp, {printer} from './printer'
-import readStr, {convertJSObjectToMalMap} from './reader'
-import {MalError, MalVal, setMeta, symbolFor as S} from './types'
+import readStr, {convertJSObjectToExprMap} from './reader'
+import {GlispError, Expr, setMeta, symbolFor as S} from './types'
 
 // String functions
 export const slurp = (() => {
@@ -15,18 +15,18 @@ export const slurp = (() => {
 		req.open('GET', url, false)
 		req.send()
 		if (req.status !== 200) {
-			throw new MalError(`Failed to slurp file: ${url}`)
+			throw new GlispError(`Failed to slurp file: ${url}`)
 		}
 		return req.responseText
 	}
 })()
 
 // Interop
-function jsEval(str: string): MalVal {
+function jsEval(str: string): Expr {
 	return interop.jsToMal(eval(str.toString()))
 }
 
-function jsMethodCall(objMethodStr: string, ...args: MalVal[]): MalVal {
+function jsMethodCall(objMethodStr: string, ...args: Expr[]): Expr {
 	const [obj, f] = interop.resolveJS(objMethodStr)
 	const res = f.apply(obj, args)
 	return interop.jsToMal(res)
@@ -36,28 +36,28 @@ const Exports = [
 	[
 		'throw',
 		(msg: string) => {
-			throw new MalError(msg)
+			throw new GlispError(msg)
 		},
 	],
 
 	// Standard Output
 	[
 		'prn',
-		(...a: MalVal[]) => {
-			printer.log(...a.map(e => printExp(e, true)))
+		(...a: Expr[]) => {
+			printer.log(...a.map(e => printExp(e)))
 			return null
 		},
 	],
 	[
 		'print-str',
-		(...a: MalVal[]) => {
-			return a.map(e => printExp(e, true)).join(' ')
+		(...a: Expr[]) => {
+			return a.map(e => printExp(e)).join(' ')
 		},
 	],
 	[
 		'println',
-		(...a: MalVal[]) => {
-			printer.log(...a.map(e => printExp(e, false)))
+		(...a: Expr[]) => {
+			printer.log(...a.map(e => printExp(e)))
 			return null
 		},
 	],
@@ -81,7 +81,7 @@ const Exports = [
 		'def',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Defines a variable',
 				params: [
 					{label: 'Symbol', type: 'symbol'},
@@ -94,7 +94,7 @@ const Exports = [
 		'defvar',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Creates a variable which can be changed by the bidirectional evaluation',
 				params: [
 					{label: 'Symbol', type: 'symbol'},
@@ -107,7 +107,7 @@ const Exports = [
 		'let',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Creates a lexical scope',
 				params: [
 					{label: 'Binds', type: 'exp'},
@@ -120,7 +120,7 @@ const Exports = [
 		'binding',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Creates a new binding',
 				params: [
 					{label: 'Binds', type: 'exp'},
@@ -133,7 +133,7 @@ const Exports = [
 		'get-all-symbols',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Gets all existing symbols',
 				params: [],
 				return: {type: 'vector'},
@@ -144,7 +144,7 @@ const Exports = [
 		'fn-params',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Gets the list of a function parameter',
 				params: [{label: 'Function', type: 'symbol'}],
 			})
@@ -154,7 +154,7 @@ const Exports = [
 		'eval*',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Inside macro, evaluates the expression in a scope that called macro. Otherwise, executes *eval* normally',
 				params: [{label: 'Form', type: 'exp'}],
 			})
@@ -164,7 +164,7 @@ const Exports = [
 		'quote',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Yields the unevaluated *form*',
 				params: [{label: 'Form', type: 'exp'}],
 			})
@@ -174,7 +174,7 @@ const Exports = [
 		'quasiquote',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Quasiquote',
 				params: [{label: 'Form', type: 'exp'}],
 			})
@@ -184,7 +184,7 @@ const Exports = [
 		'fn',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Defines a function',
 				params: [
 					{label: 'Params', type: 'exp'},
@@ -197,7 +197,7 @@ const Exports = [
 		'fn-sugar',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'syntactic sugar for (fn [] *form*)',
 				params: [],
 			})
@@ -207,7 +207,7 @@ const Exports = [
 		'macro',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: '',
 				params: [
 					{label: 'Param', type: 'exp'},
@@ -220,7 +220,7 @@ const Exports = [
 		'macroexpand',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Expands the macro',
 				params: [],
 			})
@@ -230,7 +230,7 @@ const Exports = [
 		'try',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Try',
 				params: [],
 			})
@@ -240,7 +240,7 @@ const Exports = [
 		'catch',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Catch',
 				params: [],
 			})
@@ -250,7 +250,7 @@ const Exports = [
 		'do',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Evaluates *forms* in order and returns the value of the last',
 				params: [
 					{
@@ -266,7 +266,7 @@ const Exports = [
 		'if',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'If statement. If **else** is not supplied it defaults to nil',
 				params: [
 					{label: 'Test', type: 'boolean'},
@@ -280,12 +280,12 @@ const Exports = [
 		'env-chain',
 		setMeta(
 			() => null,
-			convertJSObjectToMalMap({
+			convertJSObjectToExprMap({
 				doc: 'Env chain',
 				params: [],
 			})
 		),
 	],
-] as [string, MalVal][]
+] as [string, Expr][]
 
 export default Exports

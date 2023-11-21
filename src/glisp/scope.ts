@@ -1,9 +1,9 @@
 import Env from './env'
-import evalExp from './eval'
+import evaluate from './eval'
 import printExp, {printer} from './printer'
 import readStr, {BlankException} from './reader'
 import ReplCore, {slurp} from './repl-core'
-import {MalError, MalVal, symbolFor as S} from './types'
+import {GlispError, Expr, symbolFor as S} from './types'
 
 const normalizeURL = (url: string, basename: string) => {
 	return new URL(url, basename).href
@@ -17,8 +17,7 @@ export default class Scope<T> {
 	constructor(
 		private outer: Scope<any> | null = null,
 		private name = 'repl',
-		private onSetup: ((scope: Scope<T>, option: T) => any) | null = null,
-		private cache = false
+		private onSetup: ((scope: Scope<T>, option: T) => any) | null = null
 	) {
 		this.setup()
 
@@ -36,23 +35,23 @@ export default class Scope<T> {
 			this.def(name, expr)
 		})
 
-		this.def('normalize-url', (url: MalVal) => {
+		this.def('normalize-url', (url: Expr) => {
 			const basename = this.var('*filename*') as string
 			return normalizeURL(url as string, basename)
 		})
 
-		this.def('eval', (exp: MalVal) => {
-			return evalExp(exp, this.env)
+		this.def('eval', (exp: Expr) => {
+			return evaluate(exp, this.env)
 		})
 
-		this.def('import-js-force', (url: MalVal) => {
+		this.def('import-js-force', (url: Expr) => {
 			const basename = this.var('*filename*') as string
 			const absurl = normalizeURL(url as string, basename)
 			console.log('importing', absurl)
 			const text = slurp(absurl)
 			eval(text)
 			const exp = (globalThis as any)['glisp_library']
-			return evalExp(exp, this.env)
+			return evaluate(exp, this.env)
 		})
 
 		const filename = new URL('.', document.baseURI).href
@@ -92,7 +91,7 @@ export default class Scope<T> {
 		}
 	}
 
-	public readEval(str: string): MalVal | undefined {
+	public readEval(str: string): Expr | undefined {
 		try {
 			return this.eval(readStr(str))
 		} catch (err) {
@@ -100,7 +99,7 @@ export default class Scope<T> {
 				return null
 			}
 
-			if (err instanceof MalError) {
+			if (err instanceof GlispError) {
 				printer.error(err)
 			} else if (err instanceof Error) {
 				printer.error(err.stack)
@@ -108,11 +107,11 @@ export default class Scope<T> {
 		}
 	}
 
-	public eval(exp: MalVal): MalVal | undefined {
+	public eval(exp: Expr): Expr | undefined {
 		try {
-			return evalExp(exp, this.env, this.cache)
+			return evaluate(exp, this.env)
 		} catch (err) {
-			if (err instanceof MalError) {
+			if (err instanceof GlispError) {
 				printer.error(err)
 			} else if (err instanceof Error) {
 				printer.error(err.stack)
@@ -120,7 +119,7 @@ export default class Scope<T> {
 		}
 	}
 
-	public def(name: string, value: MalVal) {
+	public def(name: string, value: Expr) {
 		this.env.set(S(name), value)
 	}
 

@@ -1,5 +1,5 @@
 import readlineSync from 'readline-sync'
-import Scope from '@/mal/scope'
+import Scope from '@/glisp/scope'
 
 const replScope = new Scope()
 

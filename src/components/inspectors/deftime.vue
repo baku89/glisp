@@ -30,25 +30,25 @@ import ParamControl from '@/components/ParamControl.vue'
 import {useDraggable} from '@/components/use'
 import {
 	assocBang,
-	cloneExp,
+	cloneExpr,
 	getEvaluated,
 	keywordFor as K,
-	MalVal,
-} from '@/mal/types'
+	Expr,
+} from '@/glisp/types'
 
 const K_START = K('start'),
 	K_DURATION = K('duration'),
 	K_FPS = K('fps')
 
 interface Props {
-	exp: MalVal[]
+	exp: Expr[]
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [exp: MalVal[]]
-	select: [exp: MalVal[]]
+	input: [exp: Expr[]]
+	select: [exp: Expr[]]
 }>()
 
 const currentTimeRef: Ref<HTMLElement | null> = ref(null)
@@ -79,7 +79,7 @@ const normalizedPosition = computed(() =>
 )
 
 function updateTime(newTime: number) {
-	const exp = cloneExp(props.exp)
+	const exp = cloneExpr(props.exp)
 	;(exp[2] as number) = newTime
 	emit('input', exp)
 }
@@ -221,3 +221,4 @@ onBeforeMount(() => {
 		&:hover, &[dragging]
 			border 2px solid var(--highlight)
 </style>
+@/glis[/types

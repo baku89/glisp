@@ -2,7 +2,7 @@ import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
 import hull from 'hull.js'
 
-import {createList as L, MalVal, symbolFor as S} from '@/mal/types'
+import {createList as L, Expr, symbolFor as S} from '@/glisp/types'
 import {partition} from '@/utils'
 
 const Exports = [
@@ -30,7 +30,7 @@ const Exports = [
 			return easing(Math.min(Math.max(0, t), 1))
 		},
 	],
-] as [string, MalVal][]
+] as [string, Expr][]
 
 const Exp = L(
 	S('do'),

@@ -1,4 +1,4 @@
-import {keywordFor as K, MalMap, MalVal} from '@/mal/types'
+import {keywordFor as K, ExprMap, Expr} from '@/glisp/types'
 
 import renderToContext from '../render-to-context'
 import {ViewerSettings} from './index'
@@ -12,7 +12,7 @@ type CanvasContext =
 export default class CanvasRenderer {
 	private ctx!: CanvasContext
 	private dpi!: number
-	private cachedExp!: MalVal
+	private cachedExp!: Expr
 
 	constructor(private canvas: Canvas) {
 		this.ctx = this.canvas.getContext('2d')!
@@ -24,7 +24,7 @@ export default class CanvasRenderer {
 		this.canvas.height = height * dpi
 	}
 
-	public async render(exp: MalVal | undefined, settings: ViewerSettings) {
+	public async render(exp: Expr | undefined, settings: ViewerSettings) {
 		if (!this.dpi) {
 			throw new Error('trying to render before settings resolution')
 		}
@@ -56,7 +56,7 @@ export default class CanvasRenderer {
 		}
 
 		// default style
-		const defaultStyle: MalMap | null = settings.guideColor
+		const defaultStyle: ExprMap | null = settings.guideColor
 			? {
 					[K('stroke')]: true,
 					[K('stroke-color')]: settings.guideColor,

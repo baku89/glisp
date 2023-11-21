@@ -1,10 +1,10 @@
 import {Ref} from 'vue'
 
-import {readStr} from '@/mal'
-import printExp from '@/mal/printer'
-import {reconstructTree} from '@/mal/reader'
+import {readStr} from '@/glisp'
+import printExp from '@/glisp/printer'
+import {markParent} from '@/glisp/reader'
 import {
-	cloneExp,
+	cloneExpr,
 	createList as L,
 	expandExp,
 	getEvaluated,
@@ -12,21 +12,21 @@ import {
 	getName,
 	isFunc,
 	isList,
-	isNode,
+	isColl,
 	isSeq,
 	isSymbol,
 	isSymbolFor,
 	isVector,
 	keywordFor as K,
-	MalError,
-	MalMap,
-	MalNode,
+	GlispError,
+	ExprMap,
+	ExprColl,
 	MalSeq,
-	MalType,
-	MalVal,
+	Expr,
 	symbolFor as S,
 	symbolFor,
-} from '@/mal/types'
+	getParent,
+} from '@/glisp/types'
 import {
 	applyParamModifier,
 	copyDelimiters,
@@ -35,204 +35,217 @@ import {
 	getExpByPath,
 	getFnInfo,
 	getMapValue,
-	getUIOuterInfo,
-	replaceExp,
-} from '@/mal/utils'
+	replaceExpr,
+} from '@/glisp/utils'
 import AppScope from '@/scopes/app'
 import ViewScope from '@/scopes/view'
 
 import {toSketchCode} from '../utils'
 
-export default function useAppCommands(options: {
-	exp: Ref<MalNode>
-	selectedExp: Ref<MalNode[]>
-	activeExp: Ref<MalNode | null>
-	editingExp: Ref<MalNode | null>
-	updateExp: (exp: MalNode) => void
-	setActiveExp: (exp: MalNode | null) => any
-	setSelectedExp: (exp: MalNode[]) => void
+export default function useAppCommands({
+	exp,
+	selectedExprs,
+	activeExp,
+	editingExpr: editingExp,
+	updateExpr,
+	setActiveExpr,
+	setSelectedExp,
+}: {
+	exp: Ref<ExprColl>
+	selectedExprs: Ref<ExprColl[]>
+	activeExp: Ref<ExprColl | null>
+	editingExpr: Ref<ExprColl | null>
+	updateExpr: (exp: ExprColl) => void
+	setActiveExpr: (exp: ExprColl | null) => any
+	setSelectedExp: (exp: ExprColl[]) => void
 }) {
 	AppScope.def('expand-selected', () => {
-		if (!options.activeExp.value) {
+		if (!activeExp.value) {
 			return false
 		}
 
-		const expanded = expandExp(options.activeExp)
+		const expanded = expandExp(activeExp)
 		if (expanded === undefined) {
 			return false
 		}
 
-		replaceExp(options.activeExp.value, expanded)
+		replaceExpr(activeExp.value, expanded)
 
 		return true
 	})
 
-	AppScope.def('insert-item', (exp: MalVal) => {
-		const activeExp = options.activeExp.value ?? options.exp.value
+	AppScope.def('insert-item', (item: Expr) => {
+		const _activeExp = activeExp.value ?? exp.value
 
-		if (!isSeq(activeExp)) {
-			throw new MalError('No insertable selection')
+		if (!isSeq(_activeExp)) {
+			throw new GlispError('No insertable selection')
 		}
 
 		let newExp: MalSeq
 
-		if (typeof exp === 'string' || isSymbol(exp)) {
-			const fnName = getName(exp)
+		if (typeof item === 'string' || isSymbol(item)) {
+			const fnName = getName(item)
 			const fn = ViewScope.var(fnName)
 			const meta = getMeta(fn)
 			const returnType =
-				(getMapValue(meta, 'return/type', MalType.String) as string) || ''
+				(getMapValue(meta, 'return/type', 'string') as string) || ''
 			const initialParams =
-				(getMapValue(meta, 'initial-params', MalType.Vector) as MalSeq) || null
+				(getMapValue(meta, 'initial-params', 'vector') as MalSeq) || null
 
 			if (!isFunc(fn) || !['item', 'path'].includes(returnType)) {
-				throw new MalError(`${fnName} is not a function that returns item/path`)
+				throw new GlispError(
+					`${fnName} is not a function that returns item/path`
+				)
 			}
 
 			if (!initialParams) {
-				throw new MalError(
+				throw new GlispError(
 					`Function ${fnName} does not have the :initial-params field`
 				)
 			}
 
 			newExp = L(S(fnName), ...initialParams)
-		} else if (isList(exp)) {
-			newExp = exp
+		} else if (isList(item)) {
+			newExp = item
 		} else {
-			throw new MalError('Invalid argument')
+			throw new GlispError('Invalid argument')
 		}
 
-		reconstructTree(newExp)
+		markParent(newExp)
 
 		// Insert
-		const newActiveExp = cloneExp(activeExp)
+		const newActiveExp = cloneExpr(_activeExp)
 		newActiveExp.push(newExp)
 		copyDelimiters(newActiveExp, activeExp)
 
-		replaceExp(activeExp, newActiveExp)
+		replaceExpr(_activeExp, newActiveExp)
 
 		return generateExpAbsPath(newExp)
 	})
 
-	AppScope.def('replace-item', (path: MalVal, replaced: MalVal) => {
+	AppScope.def('replace-item', (path: Expr, replaced: Expr) => {
 		if (typeof path !== 'string') {
 			throw new Error('Path should be string')
 		}
 
-		const original = getExpByPath(options.exp.value, path)
+		const original = getExpByPath(exp.value, path)
 
-		if (!isNode(original)) {
-			throw new MalError('The original should be node')
+		if (!isColl(original)) {
+			throw new GlispError('The original should be node')
 		}
 
-		replaceExp(original, replaced)
+		replaceExpr(original, replaced)
 
 		return path
 	})
 
-	AppScope.def('select-items', (paths: MalVal) => {
+	AppScope.def('select-items', (paths: Expr) => {
 		if (isVector(paths)) {
-			const items: MalNode[] = []
+			const items: ExprColl[] = []
 
 			for (const path of paths) {
 				if (typeof path !== 'string') {
 					return false
 				}
-				const item = getExpByPath(options.exp.value, path)
-				if (!isNode(item)) {
+				const item = getExpByPath(exp.value, path)
+				if (!isColl(item)) {
 					return false
 				}
 				items.push(item)
 			}
 
-			options.setSelectedExp(items)
+			setSelectedExp(items)
 		}
 		return false
 	})
 
-	AppScope.def('item-selected?', (path: MalVal) => {
+	AppScope.def('item-selected?', (path: Expr) => {
 		if (typeof path !== 'string') {
 			return false
 		}
 
-		const item = getExpByPath(options.exp.value, path)
+		const item = getExpByPath(exp.value, path)
 
-		if (!isNode(item)) {
+		if (!isColl(item)) {
 			return false
 		}
 
-		const index = options.selectedExp.value.findIndex(s => s === item)
+		const index = selectedExprs.value.findIndex(s => s === item)
 
 		return index !== -1
 	})
 
-	AppScope.def('toggle-item-selection', (path: MalVal) => {
+	AppScope.def('toggle-item-selection', (path: Expr) => {
 		if (typeof path !== 'string') {
 			return false
 		}
 
-		const item = getExpByPath(options.exp.value, path)
+		const item = getExpByPath(exp.value, path)
 
-		if (!isNode(item)) {
+		if (!isColl(item)) {
 			return false
 		}
 
-		const index = options.selectedExp.value.findIndex(s => s === item)
+		const index = selectedExprs.value.indexOf(item)
 
-		const items = [...options.selectedExp.value]
+		const items = [...selectedExprs.value]
 		if (index === -1) {
 			items.push(item)
 		} else {
 			items.splice(index, 1)
 		}
 
-		options.setSelectedExp(items)
+		setSelectedExp(items)
 
 		return true
 	})
 
-	AppScope.def('load-file', (url: MalVal) => {
+	AppScope.def('load-file', (url: Expr) => {
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				const exp = readStr(toSketchCode(code)) as MalNode
-				options.updateExp(exp)
-				options.setActiveExp(null)
-				options.editingExp.value = exp
+				const expr = readStr(toSketchCode(code)) as ExprColl
+				updateExpr(expr)
+				setActiveExpr(null)
+				editingExp.value = expr
 			} else {
-				throw new MalError(`Failed to load from "${url}"`)
+				throw new GlispError(`Failed to load from "${url}"`)
 			}
 		})
 		return null
 	})
 
 	AppScope.def('select-outer', () => {
-		if (!options.activeExp.value) {
-			throw new MalError('No selection')
+		if (!activeExp.value) {
+			throw new GlispError('No selection')
 		}
 
-		const [outer] = getUIOuterInfo(options.activeExp.value)
-		if (outer && outer !== options.exp.value) {
-			options.setActiveExp(outer)
+		const parent = getParent(activeExp.value)
+
+		if (!parent) {
+			return false
 		}
+
+		setActiveExpr(parent)
+
 		return true
 	})
 
-	AppScope.def('wrap-selected', (wrapper: MalVal) => {
-		if (!options.activeExp.value) {
-			throw new MalError('No selection')
+	AppScope.def('wrap-selected', (wrapper: Expr) => {
+		if (!activeExp.value) {
+			throw new GlispError('No selection')
 		}
 		if (!isList(wrapper)) {
-			throw new MalError(`${printExp(wrapper)} is not a list`)
+			throw new GlispError(`${printExp(wrapper)} is not a list`)
 		}
 
-		const exp = options.activeExp.value
+		const exp = activeExp.value
 		let shouldDuplicate = false
 
 		const newExp = L(
 			...wrapper.map(e => {
 				if (isSymbolFor(e, '%')) {
-					const ret = shouldDuplicate ? cloneExp(exp, true) : exp
+					const ret = shouldDuplicate ? cloneExpr(exp, true) : exp
 					shouldDuplicate = true
 					return ret
 				} else {
@@ -241,15 +254,15 @@ export default function useAppCommands(options: {
 			})
 		)
 
-		reconstructTree(newExp)
+		markParent(newExp)
 
-		replaceExp(options.activeExp.value, newExp)
+		replaceExpr(activeExp.value, newExp)
 
 		return true
 	})
 
-	AppScope.def('transform-selected', (xform: MalVal) => {
-		for (const exp of options.selectedExp.value) {
+	AppScope.def('transform-selected', (xform: Expr) => {
+		for (const exp of selectedExprs.value) {
 			if (!isSeq(exp)) {
 				return false
 			}
@@ -270,11 +283,11 @@ export default function useAppCommands(options: {
 			const originalParams = structType ? [exp] : exp.slice(1)
 			const payload = {
 				[K('params')]: originalParams.map(p => getEvaluated(p)),
-				[K('transform')]: xform as MalVal,
-			} as MalMap
+				[K('transform')]: xform as Expr,
+			} as ExprMap
 
 			const modifier = transformFn(payload)
-			let newParams: MalVal[] | null
+			let newParams: Expr[] | null
 
 			if (structType) {
 				newParams = modifier as MalSeq
@@ -288,18 +301,18 @@ export default function useAppCommands(options: {
 			const newExp = structType ? newParams[0] : L(exp[0], ...newParams)
 			copyDelimiters(newExp, exp)
 
-			replaceExp(exp, newExp)
+			replaceExpr(exp, newExp)
 		}
 
 		return true
 	})
 
 	AppScope.def('copy-selected', () => {
-		if (!options.activeExp.value) {
-			throw new MalError('No selection')
+		if (!activeExp.value) {
+			throw new GlispError('No selection')
 		}
 
-		const code = printExp(options.activeExp.value)
+		const code = printExp(activeExp.value)
 
 		navigator.clipboard.writeText(code)
 
@@ -309,13 +322,10 @@ export default function useAppCommands(options: {
 	AppScope.def('paste-from-clipboard', () => {
 		let outer: MalSeq, index: number
 
-		if (!options.activeExp.value) {
-			;[outer, index] = [
-				options.exp.value as MalSeq,
-				(options.exp.value as MalSeq).length - 1,
-			]
+		if (!activeExp.value) {
+			;[outer, index] = [exp.value as MalSeq, (exp.value as MalSeq).length - 1]
 		} else {
-			const [_outer, _index] = getUIOuterInfo(options.activeExp.value)
+			const [_outer, _index] = getUIOuterInfo(activeExp.value)
 
 			if (!isSeq(_outer)) {
 				return false
@@ -324,7 +334,7 @@ export default function useAppCommands(options: {
 			;[outer, index] = [_outer, _index]
 		}
 
-		const newOuter = cloneExp(outer)
+		const newOuter = cloneExpr(outer)
 
 		navigator.clipboard.readText().then((str: string) => {
 			const exp = readStr(str)
@@ -332,41 +342,41 @@ export default function useAppCommands(options: {
 			newOuter.splice(index + 1, 0, exp)
 			copyDelimiters(newOuter, outer)
 
-			reconstructTree(newOuter)
-			replaceExp(outer, newOuter)
+			markParent(newOuter)
+			replaceExpr(outer, newOuter)
 
-			options.setActiveExp(isNode(exp) ? exp : null)
+			setActiveExpr(isColl(exp) ? exp : null)
 		})
 
 		return null
 	})
 
 	AppScope.def('delete-selected', () => {
-		for (const exp of options.selectedExp.value) {
+		for (const exp of selectedExprs.value) {
 			deleteExp(exp)
 		}
 
-		options.setSelectedExp([])
+		setSelectedExp([])
 
 		return true
 	})
 
 	AppScope.def('group-selected', () => {
-		if (options.selectedExp.value.length === 0) {
+		if (selectedExprs.value.length === 0) {
 			return false
 		}
 
-		const [first, ...rest] = options.selectedExp.value
+		const [first, ...rest] = selectedExprs.value
 
 		for (const exp of rest) {
 			deleteExp(exp)
 		}
 
-		const group = L(symbolFor('g'), {} as MalMap, first, ...rest)
+		const group = L(symbolFor('g'), {} as ExprMap, first, ...rest)
 
-		replaceExp(first, group)
+		replaceExpr(first, group)
 
-		options.setActiveExp(group)
+		setActiveExpr(group)
 
 		return true
 	})

@@ -1,9 +1,9 @@
 import seedrandom from 'seedrandom'
 
-import printExp from '@/mal/printer'
+import printExp from '@/glisp/printer'
 import {
 	assocBang,
-	cloneExp,
+	cloneExpr,
 	createList as L,
 	getMeta,
 	getType,
@@ -15,36 +15,36 @@ import {
 	isSymbol,
 	isVector,
 	keywordFor,
-	MalAtom,
-	MalError,
-	MalFunc,
-	MalMap,
-	MalVal,
+	ExprAtom,
+	GlispError,
+	ExprFn,
+	ExprMap,
+	Expr,
 	setMeta,
 	symbolFor as S,
 	withMeta,
-} from '@/mal/types'
+} from '@/glisp/types'
 import {partition} from '@/utils'
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
-	['nil?', (x: MalVal) => x === null],
-	['true?', (x: MalVal) => x === true],
-	['false?', (x: MalVal) => x === false],
-	['boolean?', (x: MalVal) => typeof x === 'boolean'],
-	['number?', (x: MalVal) => typeof x === 'number'],
+	['nil?', (x: Expr) => x === null],
+	['true?', (x: Expr) => x === true],
+	['false?', (x: Expr) => x === false],
+	['boolean?', (x: Expr) => typeof x === 'boolean'],
+	['number?', (x: Expr) => typeof x === 'number'],
 	['string?', isString],
 	['keyword?', isKeyword],
-	['fn?', (x: MalVal) => getType(x) === 'fn'],
-	['macro?', (x: MalVal) => getType(x) === 'macro'],
+	['fn?', (x: Expr) => getType(x) === 'fn'],
+	['macro?', (x: Expr) => getType(x) === 'macro'],
 
 	['keyword', keywordFor],
 	['symbol', S],
 	['symbol?', isSymbol],
 
 	// // Compare
-	['=', (a: MalVal, b: MalVal) => a === b],
-	['!=', (a: MalVal, b: MalVal) => a !== b],
+	['=', (a: Expr, b: Expr) => a === b],
+	['!=', (a: Expr, b: Expr) => a !== b],
 	['<', (a: number, b: number) => a < b],
 	['<=', (a: number, b: number) => a <= b],
 	['>', (a: number, b: number) => a > b],
@@ -86,17 +86,17 @@ const Exports = [
 	['mod', (x: number, y: number) => ((x % y) + y) % y],
 
 	// Array
-	['list', (...coll: MalVal[]) => L(...coll)],
-	['lst', (coll: MalVal[]) => L(...coll)],
+	['list', (...coll: Expr[]) => L(...coll)],
+	['lst', (coll: Expr[]) => L(...coll)],
 	['list?', isList],
 
-	['vector', (...xs: MalVal[]) => xs],
+	['vector', (...xs: Expr[]) => xs],
 	['vector?', isVector],
-	['vec', (a: MalVal[]) => [...a]],
+	['vec', (a: Expr[]) => [...a]],
 	['sequential?', isSeq],
 	[
 		'seq',
-		(a: MalVal) => {
+		(a: Expr) => {
 			if (isSeq(a)) {
 				return [...a]
 			} else if (isString(a) && a.length > 0) {
@@ -110,64 +110,63 @@ const Exports = [
 	],
 	[
 		'nth',
-		(a: MalVal[], i: number) => {
+		(a: Expr[], i: number) => {
 			if (typeof i !== 'number') {
-				throw new MalError('[nth] Index should be specified by number')
+				throw new GlispError('[nth] Index should be specified by number')
 			} else if (i < 0) {
 				if (-i <= a.length) {
 					return a[a.length - i]
 				} else {
-					throw new MalError('[nth] index out of range')
+					throw new GlispError('[nth] index out of range')
 				}
 			} else {
 				if (i < a.length) {
 					return a[i]
 				} else {
-					throw new MalError('[nth] index out of range')
+					throw new GlispError('[nth] index out of range')
 				}
 			}
 		},
 	],
-	['first', (a: MalVal[]) => (a !== null && a.length > 0 ? a[0] : null)],
-	['rest', (a: MalVal[]) => (a === null ? [] : a.slice(1))],
+	['first', (a: Expr[]) => (a !== null && a.length > 0 ? a[0] : null)],
+	['rest', (a: Expr[]) => (a === null ? [] : a.slice(1))],
 	[
 		'last',
-		(a: MalVal[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null),
+		(a: Expr[]) => (a !== null && a.length > 0 ? a[a.length - 1] : null),
 	],
-	['butlast', (a: MalVal[]) => (a === null ? [] : a.slice(0, a.length - 1))],
-	['count', (a: MalVal[]) => (a === null ? 0 : a.length)],
+	['butlast', (a: Expr[]) => (a === null ? [] : a.slice(0, a.length - 1))],
+	['count', (a: Expr[]) => (a === null ? 0 : a.length)],
 	[
 		'slice',
-		(a: MalVal[], start: number, end: number) => {
+		(a: Expr[], start: number, end: number) => {
 			if (isSeq(a)) {
 				return a.slice(start, end)
 			} else {
-				throw new MalError(`[slice] ${printExp(a)} is not an array`)
+				throw new GlispError(`[slice] ${printExp(a)} is not an array`)
 			}
 		},
 	],
 	[
 		'apply',
-		(f: MalFunc, ...a: MalVal[]) =>
-			f(...a.slice(0, -1).concat(a[a.length - 1])),
+		(f: ExprFn, ...a: Expr[]) => f(...a.slice(0, -1).concat(a[a.length - 1])),
 	],
-	['map', (f: MalFunc, a: MalVal[]) => a.map(x => f(x))],
-	['map-indexed', (f: MalFunc, a: MalVal[]) => a.map((x, i) => f(i, x))],
-	['filter', (f: MalFunc, a: MalVal[]) => a.filter(x => f(x))],
-	['remove', (f: MalFunc, a: MalVal[]) => a.filter(x => !f(x))],
-	['sort', (coll: MalVal[]) => [...coll].sort()],
+	['map', (f: ExprFn, a: Expr[]) => a.map(x => f(x))],
+	['map-indexed', (f: ExprFn, a: Expr[]) => a.map((x, i) => f(i, x))],
+	['filter', (f: ExprFn, a: Expr[]) => a.filter(x => f(x))],
+	['remove', (f: ExprFn, a: Expr[]) => a.filter(x => !f(x))],
+	['sort', (coll: Expr[]) => [...coll].sort()],
 	['partition', partition],
-	['index-of', (value: MalVal[] | string, a: string) => value.indexOf(a)],
+	['index-of', (value: Expr[] | string, a: string) => value.indexOf(a)],
 	[
 		'last-index-of',
-		(value: MalVal[] | string, a: string) => value.lastIndexOf(a),
+		(value: Expr[] | string, a: string) => value.lastIndexOf(a),
 	],
-	['repeat', (a: MalVal, n: number) => Array(n).fill(a)],
-	['reverse', (coll: MalVal[]) => [...coll].reverse()],
-	['cons', (a: MalVal, b: MalVal) => [a].concat(b)],
+	['repeat', (a: Expr, n: number) => Array(n).fill(a)],
+	['reverse', (coll: Expr[]) => [...coll].reverse()],
+	['cons', (a: Expr, b: Expr) => [a].concat(b)],
 	[
 		'conj',
-		(lst: MalVal, ...args: MalVal[]) => {
+		(lst: Expr, ...args: Expr[]) => {
 			if (isList(lst)) {
 				const newList = L(...lst)
 				args.forEach(arg => newList.unshift(arg))
@@ -179,30 +178,29 @@ const Exports = [
 	],
 	[
 		'concat',
-		(...args: MalVal[]) =>
-			[].concat(...(args.filter(v => v !== null) as any[])),
+		(...args: Expr[]) => [].concat(...(args.filter(v => v !== null) as any[])),
 	],
 	[
 		'join',
-		(separator: string, coll: MalVal[]) =>
-			coll.map(v => printExp(v, false)).join(separator),
+		(separator: string, coll: Expr[]) =>
+			coll.map(v => printExp(v)).join(separator),
 	],
 
 	// Map
-	['hash-map', (...a: MalVal[]) => assocBang({}, ...a)],
+	['hash-map', (...a: Expr[]) => assocBang({}, ...a)],
 	['map?', isMap],
-	['assoc', (m: MalMap, ...a: MalVal[]) => ({...m, ...assocBang({}, ...a)})],
+	['assoc', (m: ExprMap, ...a: Expr[]) => ({...m, ...assocBang({}, ...a)})],
 	[
 		'dissoc',
-		(m: MalMap, ...a: string[]) => {
-			const n = cloneExp(m) as MalMap
+		(m: ExprMap, ...a: string[]) => {
+			const n = cloneExpr(m) as ExprMap
 			a.forEach(k => delete n[k])
 			return n
 		},
 	],
 	[
 		'get',
-		(m: MalMap, a: string, notfound: MalVal = null) => {
+		(m: ExprMap, a: string, notfound: Expr = null) => {
 			if (isMap(m)) {
 				return a in m ? m[a] : notfound
 			} else {
@@ -212,21 +210,21 @@ const Exports = [
 	],
 	[
 		'contains?',
-		(m: MalMap, a: MalVal) => (typeof a === 'string' ? a in m : false),
+		(m: ExprMap, a: Expr) => (typeof a === 'string' ? a in m : false),
 	],
-	['keys', (a: MalMap) => Object.keys(a)],
-	['vals', (a: MalMap) => Object.values(a)],
-	['entries', (a: MalMap) => Object.entries(a)],
+	['keys', (a: ExprMap) => Object.keys(a)],
+	['vals', (a: ExprMap) => Object.values(a)],
+	['entries', (a: ExprMap) => Object.entries(a)],
 	[
 		'merge',
-		(...xs: MalVal[]) => {
+		(...xs: Expr[]) => {
 			return xs.filter(isMap).reduce((ret, m) => Object.assign(ret, m), {})
 		},
 	],
 
 	// String
-	['pr-str', (...a: MalVal[]) => a.map(e => printExp(e, true)).join(' ')],
-	['str', (...a: MalVal[]) => a.map(e => printExp(e, false)).join('')],
+	['pr-str', (...a: Expr[]) => a.map(e => printExp(e)).join(' ')],
+	['str', (...a: Expr[]) => a.map(e => printExp(e)).join('')],
 	['subs', (a: string, from: number, to?: number) => a.substr(from, to)],
 
 	// Meta
@@ -235,18 +233,18 @@ const Exports = [
 	['console.log', console.log],
 	['with-meta', withMeta],
 	['set-meta!', setMeta],
-	['with-meta-sugar', (m: any, a: MalVal) => withMeta(a, m)],
+	['with-meta-sugar', (m: any, a: Expr) => withMeta(a, m)],
 	[
 		// Atom
 		'atom',
-		(a: MalVal) => new MalAtom(a),
+		(a: Expr) => new ExprAtom(a),
 	],
-	['atom?', (a: MalVal) => a instanceof MalAtom],
-	['deref', (atm: MalAtom) => atm.value],
-	['reset!', (atm: MalAtom, a: MalVal) => (atm.value = a)],
+	['atom?', (a: Expr) => a instanceof ExprAtom],
+	['deref', (atm: ExprAtom) => atm.value],
+	['reset!', (atm: ExprAtom, a: Expr) => (atm.value = a)],
 	[
 		'swap!',
-		(atm: MalAtom, fn: MalFunc, ...args: any) =>
+		(atm: ExprAtom, fn: ExprFn, ...args: any) =>
 			(atm.value = fn(atm.value, ...args)),
 	],
 
@@ -277,8 +275,8 @@ const Exports = [
 		},
 	],
 	// Random
-	['rnd', (a: MalVal) => seedrandom(a)()],
-] as [string, MalVal][]
+	['rnd', (a: Expr) => seedrandom(a)()],
+] as [string, Expr][]
 
 // Expose Math
 Object.getOwnPropertyNames(Math).forEach(k =>

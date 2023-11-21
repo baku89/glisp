@@ -14,14 +14,14 @@
 <script lang="ts">
 import {defineComponent, PropType} from 'vue'
 
-import {MalVal} from '@/mal/types'
+import {Expr} from '@/glisp/types'
 
 export default defineComponent({
 	name: 'GlobalSubmenu',
 	props: {
 		menu: {
 			required: true,
-			type: Array as PropType<[string, MalVal][]>,
+			type: Array as PropType<[string, Expr][]>,
 		},
 	},
 })
@@ -52,3 +52,4 @@ export default defineComponent({
 		&:last-child
 			border none
 </style>
+@/glis[/types

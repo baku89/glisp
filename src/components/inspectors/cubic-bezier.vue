@@ -40,17 +40,17 @@ import {clamp} from 'lodash'
 import {computed, Ref, ref, toRef} from 'vue'
 
 import {useDraggable, useRem, useResizeSensor} from '@/components/use'
-import {cloneExp, getEvaluated, MalVal} from '@/mal/types'
+import {cloneExpr, getEvaluated, Expr} from '@/glisp/types'
 
 interface Props {
-	exp: MalVal[]
+	exp: Expr[]
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal[]]
-	select: [value: MalVal]
+	input: [value: Expr[]]
+	select: [value: Expr]
 	'end-tweak': []
 }>()
 
@@ -100,7 +100,7 @@ const c1Drag = useDraggable(c1El, {
 		const dx = e.x / size.value[0]
 		const dy = e.y / -size.value[1]
 
-		const exp = cloneExp(props.exp) as number[]
+		const exp = cloneExpr(props.exp) as number[]
 
 		exp[1] = clamp(ox + dx, 0, 1)
 		exp[2] = oy + dy
@@ -118,7 +118,7 @@ const c2Drag = useDraggable(c2El, {
 		const dx = e.x / size.value[0]
 		const dy = e.y / -size.value[1]
 
-		const exp = cloneExp(props.exp) as number[]
+		const exp = cloneExpr(props.exp) as number[]
 
 		exp[3] = clamp(ox + dx, 0, 1)
 		exp[4] = oy + dy
@@ -175,3 +175,4 @@ const isDraggingC2 = toRef(c2Drag, 'isDragging')
 			&:hover
 				stroke-width 3
 </style>
+@/glis[/types

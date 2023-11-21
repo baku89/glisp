@@ -21,14 +21,14 @@
 import Tq from 'tweeq'
 import {computed} from 'vue'
 
-import {reconstructTree} from '@/mal/reader'
-import {getEvaluated, MalSeq, MalSymbol, MalVal} from '@/mal/types'
-import {reverseEval} from '@/mal/utils'
+import {markParent} from '@/glisp/reader'
+import {getEvaluated, MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {reverseEval} from '@/glisp/utils'
 
 import MalExpButton from './MalExpButton.vue'
 
 interface Props {
-	value: string | MalSeq | MalSymbol
+	value: string | MalSeq | ExprSymbol
 	validator: (v: string) => string | undefined
 	multiline?: boolean
 }
@@ -36,8 +36,8 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal]
-	select: [value: MalVal]
+	input: [value: Expr]
+	select: [value: Expr]
 	'end-tweak': []
 }>()
 
@@ -51,11 +51,11 @@ const evaluated = computed(() => {
 })
 
 function onInput(value: string) {
-	let newValue: MalVal = value
+	let newValue: Expr = value
 
 	if (isExp.value) {
 		newValue = reverseEval(value, props.value)
-		reconstructTree(newValue)
+		markParent(newValue)
 	}
 
 	emit('input', newValue)
@@ -67,3 +67,4 @@ function onInput(value: string) {
 .MalInputString
 	display flex
 </style>
+@/glis[/reader@/glis[/types@/glis[/utils

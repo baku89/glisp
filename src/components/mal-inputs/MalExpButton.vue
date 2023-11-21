@@ -13,18 +13,18 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import printExp from '@/mal/printer'
-import {isList, isNode, isSymbol, MalVal} from '@/mal/types'
+import printExp from '@/glisp/printer'
+import {isList, isColl, isSymbol, Expr} from '@/glisp/types'
 
 interface Props {
-	value: MalVal
+	value: Expr
 	compact?: boolean
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	select: [exp: MalVal]
+	select: [exp: Expr]
 }>()
 
 const sign = computed(() => {
@@ -37,14 +37,14 @@ const sign = computed(() => {
 	}
 })
 
-const selectable = computed(() => isNode(props.value))
+const selectable = computed(() => isColl(props.value))
 
 const str = computed(() => {
 	if (sign.value === 'f') {
 		if (props.compact) {
 			return ''
 		} else {
-			return `${printExp((props.value as MalVal[])[0])}`
+			return `${printExp((props.value as Expr[])[0])}`
 		}
 	} else {
 		return printExp(props.value)
@@ -118,3 +118,4 @@ function onClick() {
 		text-overflow ellipsis
 		white-space nowrap
 </style>
+@/glis[/printer@/glis[/types

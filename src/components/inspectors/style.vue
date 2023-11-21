@@ -1,25 +1,25 @@
 <script lang="ts" setup>
 import {computed, ref} from 'vue'
 
-import {reconstructTree} from '@/mal/reader'
+import {markParent} from '@/glisp/reader'
 import {
-	cloneExp,
+	cloneExpr,
 	createList as L,
 	isVector,
 	MalSeq,
-	MalVal,
+	Expr,
 	symbolFor as S,
-} from '@/mal/types'
+} from '@/glisp/types'
 import {getParamLabel} from '@/utils'
 
 interface Props {
-	exp: MalVal[]
+	exp: Expr[]
 }
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [exp: MalVal[]]
-	select: [exp: MalVal]
+	input: [exp: Expr[]]
+	select: [exp: Expr]
 	'end-tweak': []
 }>()
 
@@ -33,20 +33,20 @@ const labels = computed(() => {
 })
 
 function updateStyleAt(style: MalSeq, i: number) {
-	const newExp = cloneExp(props.exp)
+	const newExp = cloneExpr(props.exp)
 	const newStyles = styles.value.map(s => s)
 	newStyles[i] = style
 	newExp[1] = newStyles.length === 1 ? newStyles[0] : newStyles
 
-	reconstructTree(newExp)
+	markParent(newExp)
 	emit('input', newExp)
 }
 
 function sortStyles(sortedStyles: MalSeq[][]) {
-	const newExp = cloneExp(props.exp)
+	const newExp = cloneExpr(props.exp)
 	newExp[1] = sortedStyles.length === 1 ? sortedStyles[0] : sortedStyles
 
-	reconstructTree(newExp)
+	markParent(newExp)
 	emit('input', newExp)
 	emit('end-tweak')
 }
@@ -55,23 +55,23 @@ function appendStyle(type: 'fill' | 'stroke') {
 	const style =
 		type === 'fill' ? L(S('fill'), '#000000') : L(S('stroke'), '#000000', 1)
 
-	const newExp = cloneExp(props.exp)
+	const newExp = cloneExpr(props.exp)
 	const newStyles = [...styles.value]
 	newStyles.push(style)
 	newExp[1] = newStyles.length === 1 ? newStyles[0] : newStyles
 
-	reconstructTree(newExp)
+	markParent(newExp)
 	emit('input', newExp)
 	emit('end-tweak')
 }
 
 function deleteStyleAt(i: number) {
-	const newExp = cloneExp(props.exp)
+	const newExp = cloneExpr(props.exp)
 	const newStyles = [...styles.value]
 	newStyles.splice(i, 1)
 	newExp[1] = newStyles.length === 1 ? newStyles[0] : newStyles
 
-	reconstructTree(newExp)
+	markParent(newExp)
 	emit('input', newExp)
 	emit('end-tweak')
 }
@@ -187,7 +187,7 @@ const dragging = ref(false)
 		cursor pointer
 
 		&:hover
-			color var(--warning)
+			color var(--tq-color-error)
 
 	&__handle
 		height 100%
@@ -214,3 +214,4 @@ const dragging = ref(false)
 			border-color var(--highlight)
 			color var(--highlight)
 </style>
+@/glis[/reader@/glis[/types

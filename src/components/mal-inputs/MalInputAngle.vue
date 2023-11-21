@@ -21,19 +21,19 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {getEvaluated, MalSeq, MalSymbol, MalVal} from '@/mal/types'
-import {reverseEval} from '@/mal/utils'
+import {getEvaluated, MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {reverseEval} from '@/glisp/utils'
 
 interface Props {
-	value: number | MalSeq | MalSymbol
+	value: number | MalSeq | ExprSymbol
 	validator: (v: number) => number | null
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal]
-	select: [value: MalVal]
+	input: [value: Expr]
+	select: [value: Expr]
 	'end-tweak': []
 }>()
 
@@ -41,7 +41,7 @@ const evaluated = computed(() => {
 	return getEvaluated(props.value) as number
 })
 
-function onInput(value: MalVal) {
+function onInput(value: Expr) {
 	let newExp = value
 	if (typeof newExp === 'number') {
 		// Executes backward evalution
@@ -62,3 +62,4 @@ function onInput(value: MalVal) {
 	&__input
 		margin-right $input-horiz-margin
 </style>
+@/glis[/types@/glis[/utils

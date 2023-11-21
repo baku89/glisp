@@ -1,16 +1,16 @@
 import {vec2} from 'linearly'
 import {Ref} from 'vue'
 
-import {isNode, isSeq, MalNode, MalVal} from '@/mal/types'
-import {generateExpAbsPath} from '@/mal/utils'
+import {isColl, isSeq, ExprColl, Expr} from '@/glisp/types'
+import {generateExpAbsPath} from '@/glisp/utils'
 import AppScope from '@/scopes/app'
 
 import {HitDetector} from './hit-detector'
 
-export default function useHitDetector(exp: Ref<MalNode>) {
+export default function useHitDetector(exp: Ref<ExprColl>) {
 	const detector = new HitDetector()
 
-	AppScope.def('detect-hit', (pos: MalVal) => {
+	AppScope.def('detect-hit', (pos: Expr) => {
 		if (
 			isSeq(pos) &&
 			typeof pos[0] === 'number' &&
@@ -19,7 +19,7 @@ export default function useHitDetector(exp: Ref<MalNode>) {
 			const p = vec2.clone(pos as any)
 			const ret = detector.analyze(p, exp.value)
 
-			if (isNode(ret)) {
+			if (isColl(ret)) {
 				return generateExpAbsPath(ret)
 			}
 		}

@@ -1,6 +1,6 @@
 import {mat2d} from 'linearly'
 
-import {MalVal} from '@/mal/types'
+import {Expr} from '@/glisp/types'
 
 import createCanvasRender, {CanvasRendererType} from './canvas-renderer'
 
@@ -8,7 +8,7 @@ const getRendereredImage = (() => {
 	let canvasRenderer: CanvasRendererType
 
 	return async (
-		viewExp: MalVal,
+		viewExp: Expr,
 		{format = 'png', scaling = 1, bounds = [0, 0, 100, 100]} = {}
 	) => {
 		if (!canvasRenderer) {

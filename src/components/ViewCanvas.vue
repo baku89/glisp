@@ -9,14 +9,14 @@ import {mat2d} from 'linearly'
 import {onMounted, Ref, ref, watch} from 'vue'
 
 import {useResizeSensor} from '@/components/use'
-import {printer} from '@/mal/printer'
-import {MalError, MalVal} from '@/mal/types'
+import {printer} from '@/glisp/printer'
+import {GlispError, Expr} from '@/glisp/types'
 import createCanvasRender, {
 	CanvasRendererType,
 } from '@/renderer/canvas-renderer'
 
 interface Props {
-	exp: MalVal | null
+	exp: Expr | null
 	guideColor: string
 	viewTransform: mat2d
 }
@@ -32,7 +32,7 @@ let renderer: CanvasRendererType | null = null
 const el: Ref<HTMLElement | null> = ref(null)
 const canvas: Ref<HTMLCanvasElement | null> = ref(null)
 
-let initialExp: MalVal
+let initialExp: Expr
 
 async function onResized(el: HTMLElement) {
 	if (!renderer) return
@@ -63,9 +63,9 @@ onMounted(async () => {
 // 	this.renderer.dispose()
 // })
 
-let prevExp: MalVal | undefined = undefined
+let prevExp: Expr | undefined = undefined
 
-async function render(_exp: MalVal) {
+async function render(_exp: Expr) {
 	const options = {
 		viewTransform: props.viewTransform,
 		...(props.guideColor ? {guideColor: props.guideColor} : {}),
@@ -77,7 +77,7 @@ async function render(_exp: MalVal) {
 	try {
 		await (renderer as CanvasRendererType).render(exp, options)
 	} catch (err) {
-		if (err instanceof MalError) {
+		if (err instanceof GlispError) {
 			printer.error(err.message)
 		} else {
 			printer.error(err)
@@ -117,3 +117,4 @@ watch(
 		width 100%
 		height 100%
 </style>
+@/glis[/printer@/glis[/types

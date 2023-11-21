@@ -1,8 +1,8 @@
 import Case from 'case'
 import {Ref, unref} from 'vue'
 
-import printExp from '@/mal/printer'
-import {isKeyword, MalVal} from '@/mal/types'
+import printExp from '@/glisp/printer'
+import {isKeyword, Expr} from '@/glisp/types'
 
 export function replaceRange(
 	s: string,
@@ -21,7 +21,7 @@ export function replaceRange(
  * Converts the bind expression to parameter's label
  * @param exp A bind expression
  */
-export function getParamLabel(exp: MalVal) {
+export function getParamLabel(exp: Expr) {
 	const str = isKeyword(exp) ? exp.slice(1) : printExp(exp)
 	return str.length === 1 ? str : Case.capital(str)
 }
@@ -41,11 +41,11 @@ export function delay(ms: number) {
 
 export function getHTMLElement(
 	el: Ref<HTMLElement | any | null> | HTMLElement
-): HTMLElement | undefined {
+): HTMLElement | null {
 	const _el = unref(el)
 	return _el instanceof HTMLElement
 		? _el
 		: _el instanceof Object && _el.$el instanceof HTMLElement
 		  ? _el.$el
-		  : undefined
+		  : null
 }

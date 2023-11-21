@@ -1,18 +1,18 @@
 import {Ref, ref} from 'vue'
 
-import {reconstructTree} from '@/mal/reader'
-import {getName, isKeyword, MalError, MalNode, MalVal} from '@/mal/types'
+import {markParent} from '@/glisp/reader'
+import {getName, isKeyword, GlispError, ExprColl, Expr} from '@/glisp/types'
 import AppScope from '@/scopes/app'
 
-type Commit = [MalNode, Set<string>]
+type Commit = [ExprColl, Set<string>]
 
 export default function useExpHistory(
-	_exp: Ref<MalNode>,
-	updateExp: (exp: MalNode, pushHistory?: boolean) => any
+	_exp: Ref<ExprColl>,
+	updateExp: (exp: ExprColl, pushHistory?: boolean) => any
 ) {
 	const history: Ref<Commit[]> = ref([])
 
-	function pushExpHistory(newExp: MalNode, tag?: string) {
+	function pushExpHistory(newExp: ExprColl, tag?: string) {
 		history.value.push([newExp, new Set(tag ? [tag] : undefined)])
 	}
 
@@ -37,13 +37,13 @@ export default function useExpHistory(
 
 		const [prev] = history.value[index]
 		history.value.length = index + 1
-		reconstructTree(prev)
+		markParent(prev)
 		updateExp(prev, false)
 
 		return true
 	}
 
-	AppScope.def('revert-history', (arg: MalVal) => {
+	AppScope.def('revert-history', (arg: Expr) => {
 		if (typeof arg !== 'string') {
 			return undoExp()
 		} else {
@@ -58,9 +58,9 @@ export default function useExpHistory(
 		}
 	}
 
-	AppScope.def('tag-history', (tag: MalVal) => {
+	AppScope.def('tag-history', (tag: Expr) => {
 		if (!(typeof tag === 'string' || isKeyword(tag))) {
-			throw new MalError('tag is not a string/keyword')
+			throw new GlispError('tag is not a string/keyword')
 		}
 		tagExpHistory(getName(tag))
 		return true

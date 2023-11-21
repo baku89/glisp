@@ -31,7 +31,7 @@
 import {defineComponent, Ref, ref} from 'vue'
 import ClickOutside from 'vue-click-outside'
 
-import {isVector, MalVal} from '@/mal/types'
+import {isVector, Expr} from '@/glisp/types'
 import AppScope from '@/scopes/app'
 import ConsoleScope from '@/scopes/console'
 
@@ -63,7 +63,7 @@ export default defineComponent({
 			expandedIndex.value = null
 		}
 
-		function onClick(content: MalVal, i: number) {
+		function onClick(content: Expr, i: number) {
 			if (isVector(content)) {
 				expandedIndex.value = i
 			} else {
@@ -140,3 +140,4 @@ $height = 3.4rem
 		left 0
 		z-index 1000
 </style>
+@/glis[/types

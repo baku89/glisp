@@ -68,18 +68,18 @@
 import {toRef} from 'vue'
 
 import {useNumericVectorUpdator} from '@/components/use'
-import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
-import {reverseEval} from '@/mal/utils'
+import {MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {reverseEval} from '@/glisp/utils'
 
 interface Props {
-	value: MalSeq | MalSymbol
+	value: MalSeq | ExprSymbol
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal]
-	select: [value: MalSeq | MalSymbol]
+	input: [value: Expr]
+	select: [value: MalSeq | ExprSymbol]
 	'end-tweak': []
 }>()
 
@@ -112,3 +112,4 @@ function onInputTranslate(value: number[]) {
 	&__el
 		width 4rem
 </style>
+@/glis[/types@/glis[/utils

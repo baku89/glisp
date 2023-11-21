@@ -1,6 +1,6 @@
-import Env from '@/mal/env'
-import Scope from '@/mal/scope'
-import {symbolFor as S} from '@/mal/types'
+import Env from '@/glisp/env'
+import Scope from '@/glisp/scope'
+import {symbolFor as S} from '@/glisp/types'
 
 import AppScope from './app'
 

@@ -19,16 +19,16 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {convertMalNodeToJSObject} from '@/mal/reader'
+import {convertExprCollToJSObject} from '@/glisp/reader'
 import {
-	cloneExp,
+	cloneExpr,
 	getEvaluated,
 	getMeta,
 	MalSeq,
 	MalType,
-	MalVal,
-} from '@/mal/types'
-import {getMapValue} from '@/mal/utils'
+	Expr,
+} from '@/glisp/types'
+import {getMapValue} from '@/glisp/utils'
 
 interface Props {
 	value: MalSeq
@@ -37,7 +37,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal]
+	input: [value: Expr]
 	'end-tweak': []
 }>()
 
@@ -49,13 +49,13 @@ const fn = computed(() => getEvaluated(props.value[0]))
 
 const schemes = computed(
 	() =>
-		convertMalNodeToJSObject(
-			getMapValue(getMeta(fn.value), 'compact-params', MalType.Vector)
+		convertExprCollToJSObject(
+			getMapValue(getMeta(fn.value), 'compact-params', 'vector')
 		) || null
 )
 
-function updateParamAt(value: MalVal, i: number) {
-	const newExp = cloneExp(props.value)
+function updateParamAt(value: Expr, i: number) {
+	const newExp = cloneExpr(props.value)
 	newExp[i + 1] = value
 
 	emit('input', newExp)
@@ -80,3 +80,4 @@ function updateParamAt(value: MalVal, i: number) {
 	&__input
 		margin-right 0.6rem
 </style>
+@/glis[/reader@/glis[/types@/glis[/utils

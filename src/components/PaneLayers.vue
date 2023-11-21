@@ -1,23 +1,23 @@
 <script lang="ts" setup>
 import {computed, Ref, ref} from 'vue'
 
-import {reconstructTree} from '@/mal/reader'
-import {cloneExp, MalNode, MalSeq, MalVal} from '@/mal/types'
+import {markParent} from '@/glisp/reader'
+import {cloneExpr, ExprColl, MalSeq, Expr} from '@/glisp/types'
 
 import ViewExpTree from './ViewExpTree.vue'
 
 interface Props {
 	exp: MalSeq
-	selectedExp: MalVal[]
-	editingExp: MalVal | null
-	hoveringExp: MalVal | null
+	selectedExp: Expr[]
+	editingExp: Expr | null
+	hoveringExp: Expr | null
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-	select: [exp: MalVal[]]
+	select: [exp: Expr[]]
 	'update:exp': [exp: MalSeq]
-	'update:editingExp': [exp: MalVal | null]
+	'update:editingExp': [exp: Expr | null]
 }>()
 
 const el: Ref<null | HTMLElement> = ref(null)
@@ -38,12 +38,12 @@ const expSelection = computed(() => {
 	return new Set(props.selectedExp.slice(1))
 })
 
-function onUpdateChildExp(i: number, replaced: MalNode) {
-	const newExp = cloneExp(props.exp)
+function onUpdateChildExp(i: number, replaced: ExprColl) {
+	const newExp = cloneExpr(props.exp)
 
 	newExp[i + 1] = replaced
 
-	reconstructTree(newExp)
+	markParent(newExp)
 
 	emit('update:exp', newExp)
 }
@@ -54,11 +54,11 @@ function onClickEditButton(e: MouseEvent) {
 }
 
 // Selection manipulation
-function selectSingleExp(exp: MalNode) {
+function selectSingleExp(exp: ExprColl) {
 	emit('select', [exp])
 }
 
-function toggleSelectedExp(exp: MalNode) {
+function toggleSelectedExp(exp: ExprColl) {
 	const newSelection = [...props.selectedExp]
 
 	const index = newSelection.findIndex(s => s === exp)
@@ -134,3 +134,4 @@ function deselectAll(e: MouseEvent) {
 		&.active
 			opacity 0.7
 </style>
+@/glis[/reader@/glis[/types

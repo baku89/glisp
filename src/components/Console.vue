@@ -3,7 +3,7 @@ import 'jq-console'
 
 import {onMounted, Ref, ref} from 'vue'
 
-import {printer} from '@/mal/printer'
+import {printer} from '@/glisp/printer'
 import ConsoleScope from '@/scopes/console'
 
 defineProps<{
@@ -146,8 +146,9 @@ onMounted(() => {
 		color var(--comment)
 
 	&-error
-		color var(--warning)
+		color var(--tq-color-error)
 
 	.brace, .paren, .bracket, .dquote
 		color var(--yellow)
 </style>
+@/glis[/printer

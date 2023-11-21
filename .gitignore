@@ -29,5 +29,3 @@ yarn-error.log*
 
 # Vue PWA
 dev-dist
-
-/dev_modules

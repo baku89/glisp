@@ -36,21 +36,21 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {readStr} from '@/mal'
+import {readStr} from '@/glisp'
 import {
 	createList as L,
 	getEvaluated,
 	isList,
 	keywordFor as K,
 	MalSeq,
-	MalSymbol,
+	ExprSymbol,
 	MalType,
-	MalVal,
-} from '@/mal/types'
-import {getFn, getFnInfo, getMapValue, reverseEval} from '@/mal/utils'
+	Expr,
+} from '@/glisp/types'
+import {getFn, getFnInfo, getMapValue, reverseEval} from '@/glisp/utils'
 
 interface Props {
-	value: MalSymbol | number | MalSeq
+	value: ExprSymbol | number | MalSeq
 	min: number
 	max: number
 	clamped: boolean
@@ -62,9 +62,9 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal]
-	select: [value: MalVal]
-	'end-tweak': [value: MalVal]
+	input: [value: Expr]
+	select: [value: Expr]
+	'end-tweak': [value: Expr]
 }>()
 
 const display = computed(() => {
@@ -74,11 +74,11 @@ const display = computed(() => {
 		const info = getFnInfo(props.value)
 
 		if (info) {
-			const inverseFn = getMapValue(info.meta, 'inverse', MalType.Function)
-			const unit = getMapValue(info.meta, 'unit', MalType.String)
+			const inverseFn = getMapValue(info.meta, 'inverse', 'fn')
+			const unit = getMapValue(info.meta, 'unit', 'string')
 
 			if (inverseFn && unit) {
-				const isExp = typeof (props.value as MalVal[])[1] !== 'number'
+				const isExp = typeof (props.value as Expr[])[1] !== 'number'
 				return {mode: 'unit', unit, inverseFn, isExp}
 			}
 		}
@@ -99,7 +99,7 @@ const displayValue = computed(() => {
 		case 'number':
 			return props.value as number
 		case 'unit':
-			return getEvaluated((props.value as MalVal[])[1]) as number
+			return getEvaluated((props.value as Expr[])[1]) as number
 		default:
 			// exp
 			return getEvaluated(props.value) as number
@@ -127,7 +127,7 @@ const innerMax = computed(() => {
 })
 
 function onInput(value: number | string) {
-	let newExp: MalVal = value
+	let newExp: Expr = value
 
 	// Parse if necessary
 	if (typeof value === 'string') {
@@ -160,9 +160,9 @@ function onInput(value: number | string) {
 	if (display.value.mode === 'unit') {
 		const unitValue =
 			typeof newExp === 'number'
-				? reverseEval(newExp, (props.value as MalVal[])[1])
+				? reverseEval(newExp, (props.value as Expr[])[1])
 				: newExp
-		newExp = L((props.value as MalVal[])[0], unitValue)
+		newExp = L((props.value as Expr[])[0], unitValue)
 	} else if (display.value.mode === 'exp') {
 		newExp =
 			typeof newExp === 'number' ? reverseEval(newExp, props.value) : newExp
@@ -194,3 +194,4 @@ function onInput(value: number | string) {
 	&__exp-after
 		margin-left 0.3rem
 </style>
+@/glis[@/glis[/types@/glis[/utils

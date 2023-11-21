@@ -1,16 +1,15 @@
 import {mat2d} from 'linearly'
 
 import {
-	cloneExp,
+	cloneExpr,
 	createList as L,
-	getEvaluated,
 	getMeta,
-	getOuter,
+	getParent as getParent,
 	getType,
 	isFunc,
 	isList,
 	isMap,
-	isNode,
+	isColl,
 	isSeq,
 	isSymbol,
 	isSymbolFor,
@@ -18,23 +17,26 @@ import {
 	keywordFor as K,
 	keywordFor,
 	M_DELIMITERS,
-	M_OUTER,
-	M_OUTER_INDEX,
-	MalFunc,
-	MalJSFunc,
-	MalMap,
-	MalNode,
+	ExprFn,
+	ExprJSFn,
+	ExprMap,
+	ExprColl,
 	MalSeq,
-	MalSymbol,
+	ExprSymbol,
 	MalType,
-	MalVal,
+	Expr,
 	symbolFor as S,
-} from '@/mal/types'
+	getEvaluated,
+} from '@/glisp/types'
 import ConsoleScope from '@/scopes/console'
 
-import {reconstructTree} from './reader'
+import {markParent} from './reader'
+import printExpr, {generateDefaultDelimiters} from './printer'
 
-export function getStructType(exp: MalVal): StructTypes | undefined {
+/**
+ * [1 2], [:path :M [1 2]]のような特殊な形式を検出する
+ */
+export function getStructType(exp: Expr): StructTypes | undefined {
 	if (isVector(exp)) {
 		if (exp[0] === K('path')) {
 			return 'path'
@@ -54,43 +56,43 @@ export function getStructType(exp: MalVal): StructTypes | undefined {
 			}
 		}
 	}
-	return undefined
+	return
 }
 
-type WatchOnReplacedCallback = (newExp: MalVal) => any
+type WatchOnReplacedCallback = (newExp: Expr) => any
 
-const ExpWatcher = new WeakMap<MalNode, Set<WatchOnReplacedCallback>>()
+const ExprWatchers = new WeakMap<ExprColl, Set<WatchOnReplacedCallback>>()
 
 export function watchExpOnReplace(
-	exp: MalNode,
+	exp: ExprColl,
 	callback: WatchOnReplacedCallback
 ) {
-	const callbacks = ExpWatcher.get(exp) || new Set()
+	const callbacks = ExprWatchers.get(exp) || new Set()
 	callbacks.add(callback)
-	ExpWatcher.set(exp, callbacks)
+	ExprWatchers.set(exp, callbacks)
 }
 
 export function unwatchExpOnReplace(
-	exp: MalNode,
+	exp: ExprColl,
 	callback: WatchOnReplacedCallback
 ) {
-	const callbacks = ExpWatcher.get(exp)
+	const callbacks = ExprWatchers.get(exp)
 	if (callbacks) {
 		callbacks.delete(callback)
 		if (callbacks.size === 0) {
-			ExpWatcher.delete(exp)
+			ExprWatchers.delete(exp)
 		}
 	}
 }
 
-export function getExpByPath(root: MalNode, path: string): MalVal {
+export function getExpByPath(root: ExprColl, path: string): Expr {
 	const keys = path
 		.split('/')
 		.filter(k => k !== '')
 		.map(k => parseInt(k))
 	return find(root, keys)
 
-	function find(exp: MalVal, keys: number[]): MalVal {
+	function find(exp: Expr, keys: number[]): Expr {
 		const [index, ...rest] = keys
 
 		if (keys.length === 0) {
@@ -108,114 +110,83 @@ export function getExpByPath(root: MalNode, path: string): MalVal {
 	}
 }
 
-export function generateExpAbsPath(exp: MalNode) {
-	return seek(exp, '')
+export function generateExpAbsPath(expr: ExprColl) {
+	let path = ''
 
-	function seek(exp: MalNode, path: string): string {
-		const outer = getOuter(exp)
-		if (outer) {
-			const index = exp[M_OUTER_INDEX]
-			return seek(outer, index + '/' + path)
-		} else {
+	for (let i = 0; i < 1e6; i++) {
+		const parent = getParent(expr)
+
+		if (!parent) {
 			return '/' + path
 		}
+
+		const index = findElementIndex(expr, parent)
+		path = index + '/' + path
+		expr = parent
 	}
-}
-
-export function getUIOuterInfo(
-	exp: MalVal | undefined
-): [MalNode | null, number] {
-	if (!isNode(exp)) {
-		return [null, -1]
-	}
-
-	const outer = getOuter(exp)
-
-	return outer ? [outer, exp[M_OUTER_INDEX]] : [null, -1]
 }
 
 /**
- * Cached Tree-shaking
+ * 置き換える。最終的にルートまで置き換える
  */
-export function replaceExp(original: MalNode, replaced: MalVal) {
+export function replaceExpr(original: ExprColl, replaced: Expr) {
 	// Execute a callback if necessary
-	if (ExpWatcher.has(original)) {
-		const callbacks = ExpWatcher.get(original) as Set<WatchOnReplacedCallback>
-		ExpWatcher.delete(original)
-		for (const cb of callbacks) {
-			cb(replaced)
-		}
-	}
+	ExprWatchers.get(original)?.forEach(cb => cb(replaced))
+	ExprWatchers.delete(original)
 
-	const outer = original[M_OUTER]
-	const index = original[M_OUTER_INDEX]
+	const parent = getParent(original)
+	if (!parent) return
 
-	if (index === undefined || !isNode(outer)) {
-		// Is the root exp
-		return
-	}
-
-	const newOuter = cloneExp(outer)
+	const index = findElementIndex(original, parent)
+	const newParent = cloneExpr(parent) as ExprColl
 
 	// Set replaced as new child
-	if (isSeq(newOuter)) {
+	if (isSeq(newParent)) {
 		// Sequence
-		newOuter[index] = replaced
-		for (let i = 0; i < newOuter.length; i++) {
-			if (isNode(newOuter[i])) {
-				;(newOuter[i] as MalNode)[M_OUTER] = newOuter
-				;(newOuter[i] as MalNode)[M_OUTER_INDEX] = i
-			}
-		}
+		newParent[index] = replaced
 	} else {
 		// Hash map
-		const keys = Object.keys(outer)
-		const key = keys[index]
-		newOuter[key] = replaced
-		for (let i = 0; i < keys.length; i++) {
-			if (isNode(newOuter[i])) {
-				;(newOuter[i] as MalNode)[M_OUTER] = newOuter
-				;(newOuter[i] as MalNode)[M_OUTER_INDEX] = i
-			}
-		}
+		const key = Object.keys(parent)[index]
+		;(newParent as ExprMap)[key] = replaced
 	}
 
-	newOuter[M_DELIMITERS] = outer[M_DELIMITERS]
+	newParent[M_DELIMITERS] = parent[M_DELIMITERS]
+	markParent(newParent)
 
-	replaceExp(outer, newOuter)
+	replaceExpr(parent, newParent)
 }
 
-export function deleteExp(exp: MalNode) {
-	const outer = exp[M_OUTER]
-	const index = exp[M_OUTER_INDEX]
+export function deleteExp(exp: ExprColl) {
+	const parent = getParent(exp)
 
-	if (!outer) {
+	if (!parent) {
 		return false
 	}
 
-	const newOuter = cloneExp(outer)
+	const newParent = cloneExpr(parent) as ExprColl
+	const index = findElementIndex(exp, newParent)
 
-	if (isSeq(newOuter)) {
-		newOuter.splice(index, 1)
+	if (isSeq(newParent)) {
+		newParent.splice(index, 1)
 	} else {
-		const key = Object.keys(newOuter)[index]
-		delete newOuter[key]
+		const key = Object.keys(newParent)[index]
+		delete newParent[key]
 	}
 
-	copyDelimiters(newOuter, outer)
-	reconstructTree(newOuter)
+	copyDelimiters(newParent, parent)
+	markParent(newParent)
 
-	replaceExp(outer, newOuter)
+	replaceExpr(parent, newParent)
 
 	return true
 }
 
 export function getMapValue(
-	exp: MalVal | undefined,
+	exp: Expr | undefined,
 	path: string,
 	type?: MalType,
-	defaultValue?: MalVal
-): MalVal {
+	defaultValue?: Expr
+): Expr {
 	if (exp === undefined) {
 		return defaultValue !== undefined ? defaultValue : null
 	}
@@ -251,27 +222,30 @@ export function getMapValue(
 	return exp
 }
 
+/**
+ * 特殊な型
+ */
 type StructTypes = 'vec2' | 'rect2d' | 'mat2d' | 'path'
 
 export interface FnInfoType {
-	fn: MalFunc | MalJSFunc
-	meta?: MalVal
+	fn: ExprFn | ExprJSFn
+	meta?: Expr
 	aliasFor?: string
 	structType?: StructTypes
 }
 
-export function getFnInfo(exp: MalVal): FnInfoType | undefined {
+export function getFnInfo(exp: Expr): FnInfoType | undefined {
 	let fn = isFunc(exp) ? exp : getFn(exp)
 
 	let meta = undefined
 	let aliasFor = undefined
-	let structType: StructTypes | undefined = undefined
+	let structType: StructTypes | undefined
 
 	// Check if the exp is struct
 	if (!fn) {
 		structType = getStructType(getEvaluated(exp))
 		if (structType) {
-			fn = ConsoleScope.var(structType) as MalFunc
+			fn = ConsoleScope.var(structType) as ExprFn
 		}
 	}
 
@@ -282,21 +256,17 @@ export function getFnInfo(exp: MalVal): FnInfoType | undefined {
 	meta = getMeta(fn)
 
 	if (isMap(meta)) {
-		aliasFor = getMapValue(meta, 'alias-for', MalType.String) as string
+		aliasFor = getMapValue(meta, 'alias-for', 'string') as string
 	}
 
 	return {fn, meta, aliasFor, structType}
 }
 
-export function reverseEval(
-	exp: MalVal,
-	original: MalVal,
-	forceOverwrite = false
-) {
+export function reverseEval(exp: Expr, original: Expr, forceOverwrite = false) {
 	// const meta = getMeta(original)
 
 	switch (getType(original)) {
-		case MalType.List: {
+		case 'list': {
 			// Check if the list is wrapped within const
 			if (isSymbolFor((original as MalSeq)[0], 'const')) {
 				return original
@@ -315,14 +285,14 @@ export function reverseEval(
 				const result = inverseFn({
 					[K('return')]: exp,
 					[K('params')]: evaluatedParams,
-				} as MalMap)
+				} as ExprMap)
 
 				if (!isVector(result) && !isMap(result)) {
 					return null
 				}
 
 				// Parse the result
-				let newParams: MalVal[]
+				let newParams: Expr[]
 				let updatedIndices: number[] | undefined = undefined
 
 				if (isMap(result)) {
@@ -335,11 +305,11 @@ export function reverseEval(
 						newParams = [...originalParams]
 						const pairs = (
 							typeof replace[0] === 'number'
-								? [replace as any as [number, MalVal]]
-								: (replace as any as [number, MalVal][])
+								? [replace as any as [number, Expr]]
+								: (replace as any as [number, Expr][])
 						).map(
 							([si, e]) =>
-								[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+								[si < 0 ? newParams.length + si : si, e] as [number, Expr]
 						)
 						for (const [i, value] of pairs) {
 							newParams[i] = value
@@ -372,20 +342,20 @@ export function reverseEval(
 			}
 			break
 		}
-		case MalType.Vector: {
+		case 'vector': {
 			if (isVector(exp) && exp.length === (original as MalSeq).length) {
 				const newExp = exp.map((e, i) =>
 					reverseEval(e, (original as MalSeq)[i], forceOverwrite)
-				) as MalVal[]
+				) as Expr[]
 				return newExp
 			}
 			break
 		}
-		case MalType.Map: {
+		case 'map': {
 			if (isMap(exp)) {
-				const newExp = {...exp} as MalMap
+				const newExp = {...exp} as ExprMap
 
-				Object.entries(original as MalMap).forEach(([key, value]) => {
+				Object.entries(original as ExprMap).forEach(([key, value]) => {
 					if (key in exp) {
 						newExp[key] = reverseEval(exp[key], value, forceOverwrite)
 					} else {
@@ -397,35 +367,38 @@ export function reverseEval(
 			}
 			break
 		}
-		case MalType.Symbol: {
-			const def = (original as MalSymbol).def
+		case 'symbol': {
+			const def = (original as ExprSymbol).def
 			if (def && !isSymbol(exp)) {
 				// NOTE: Making side-effects on the below line
 				const newDefBody = reverseEval(exp, def[2], forceOverwrite)
-				replaceExp(def, L(S('defvar'), original, newDefBody))
-				return cloneExp(original)
+				replaceExpr(def, L(S('defvar'), original, newDefBody))
+				return cloneExpr(original)
 			}
 			break
 		}
-		case MalType.Number:
-		case MalType.String:
-		case MalType.Keyword:
-		case MalType.Boolean:
+		case 'number':
+		case 'string':
+		case 'keyword':
+		case 'boolean':
 			return exp
 	}
 
 	return forceOverwrite ? exp : original
 }
 
-export function computeExpTransform(exp: MalVal): mat2d {
-	if (!isNode(exp)) {
+export function computeExpTransform(exp: Expr): mat2d {
+	if (!isColl(exp)) {
 		return mat2d.ident
 	}
 
 	// Collect ancestors with index
-	const ancestors: [MalNode, number][] = []
-	for (let _exp: MalNode = exp; _exp[M_OUTER]; _exp = _exp[M_OUTER]) {
-		ancestors.unshift([_exp[M_OUTER], _exp[M_OUTER_INDEX]])
+	const ancestors: [expr: ExprColl, index: number][] = []
+
+	let outer = getParent(exp)
+	while (outer) {
+		ancestors.unshift([outer, findElementIndex(exp, outer)])
+		outer = getParent(outer)
 	}
 
 	let xform = mat2d.ident
@@ -445,7 +418,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 		// Execute the viewport transform function
 
 		const evaluatedParams = node.slice(1).map(x => getEvaluated(x))
-		const paramXforms = viewportFn(...evaluatedParams) as MalVal
+		const paramXforms = viewportFn(...evaluatedParams) as Expr
 
 		if (!isVector(paramXforms) || !paramXforms[index - 1]) {
 			continue
@@ -460,13 +433,13 @@ export function computeExpTransform(exp: MalVal): mat2d {
 const K_PARAMS = K('params')
 const K_REPLACE = K('replace')
 
-export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
+export function applyParamModifier(modifier: Expr, originalParams: Expr[]) {
 	if (!isVector(modifier) && !isMap(modifier)) {
 		return null
 	}
 
 	// Parse the modifier
-	let newParams: MalVal[]
+	let newParams: Expr[]
 	let updatedIndices: number[] | undefined = undefined
 
 	if (isMap(modifier)) {
@@ -479,11 +452,10 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 			newParams = [...originalParams]
 			const pairs = (
 				typeof replace[0] === 'number'
-					? [replace as any as [number, MalVal]]
-					: (replace as any as [number, MalVal][])
+					? [replace as any as [number, Expr]]
+					: (replace as any as [number, Expr][])
 			).map(
-				([si, e]) =>
-					[si < 0 ? newParams.length + si : si, e] as [number, MalVal]
+				([si, e]) => [si < 0 ? newParams.length + si : si, e] as [number, Expr]
 			)
 			for (const [i, value] of pairs) {
 				newParams[i] = value
@@ -523,9 +495,9 @@ export function applyParamModifier(modifier: MalVal, originalParams: MalVal[]) {
 	return newParams
 }
 
-export function getFn(exp: MalVal) {
+export function getFn(exp: Expr) {
 	if (!isList(exp)) {
-		//throw new MalError(`${printExp(exp)} is not a function application`)
+		//throw new GlispError(`${printExp(exp)} is not a function application`)
 		return undefined
 	}
 
@@ -539,8 +511,8 @@ export function getFn(exp: MalVal) {
 	return first
 }
 
-export function copyDelimiters(target: MalVal, original: MalVal) {
-	if (isSeq(target) && isSeq(original) && M_DELIMITERS in original) {
+export function copyDelimiters(target: Expr, original: Expr) {
+	if (isSeq(target) && isSeq(original) && original[M_DELIMITERS]) {
 		const delimiters = [...original[M_DELIMITERS]]
 
 		const lengthDiff = target.length - original.length
@@ -563,4 +535,56 @@ export function copyDelimiters(target: MalVal, original: MalVal) {
 
 		target[M_DELIMITERS] = delimiters
 	}
+}
+
+export function getDelimiters(exp: MalSeq | ExprMap): string[] {
+	const length = isSeq(exp) ? exp.length : Object.keys(exp).length * 2
+
+	if (!exp[M_DELIMITERS]) {
+		exp[M_DELIMITERS] = generateDefaultDelimiters(length)
+	}
+
+	return exp[M_DELIMITERS]
+}
+
+export function getElementStrs(expr: MalSeq | ExprMap): string[] {
+	if (isSeq(expr)) {
+		return expr.map(printExpr)
+	} else {
+		return Object.entries(expr).flat().map(printExpr)
+	}
+}
+
+export function insertDelimiters(
+	elements: readonly string[],
+	delimiters: readonly string[]
+) {
+	if (elements.length + 1 !== delimiters.length) {
+		throw new Error(
+			'Invalid length of delimiters. elements=' +
+				JSON.stringify(elements) +
+				' delimiters=' +
+				JSON.stringify(delimiters)
+		)
+	}
+
+	let str = delimiters[0]
+
+	for (let i = 0; i < elements.length; i++) {
+		str += elements[i] + delimiters[i + 1]
+	}
+
+	return str
+}
+
+export function findElementIndex(expr: Expr, parent: ExprColl) {
+	const children = isSeq(parent) ? parent : Object.values(parent)
+
+	const index = children.findIndex(e => e === expr)
+
+	if (index === -1) {
+		throw new Error('Cannot find the element in the parent')
+	}
+
+	return index
 }

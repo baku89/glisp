@@ -14,10 +14,10 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {getName, keywordFor, MalSeq, MalSymbol} from '@/mal/types'
+import {getName, keywordFor, MalSeq, ExprSymbol} from '@/glisp/types'
 
 interface Props {
-	value: string | MalSeq | MalSymbol
+	value: string | MalSeq | ExprSymbol
 	validator: (v: string) => string | null
 }
 
@@ -49,3 +49,4 @@ function onInput(str: string) {
 	&__input
 		color var(--syntax-keyword)
 </style>
+@/glis[/types

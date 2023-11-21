@@ -13,16 +13,16 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {getName, MalSeq, MalSymbol, symbolFor} from '@/mal/types'
+import {getName, MalSeq, ExprSymbol, symbolFor} from '@/glisp/types'
 
 interface Props {
-	value: string | MalSeq | MalSymbol
+	value: string | MalSeq | ExprSymbol
 	validator: (v: string) => string | null
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-	input: [value: MalSymbol]
+	input: [value: ExprSymbol]
 	'end-tweak': []
 }>()
 
@@ -47,3 +47,4 @@ function onInput(str: string) {
 	&__input
 		color var(--syntax-function)
 </style>
+@/glis[/types

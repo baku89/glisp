@@ -52,28 +52,28 @@ import Tq from 'tweeq'
 import {computed} from 'vue'
 
 import {
-	cloneExp,
+	cloneExpr,
 	createList,
 	getEvaluated,
 	isList,
 	isSymbolFor,
 	isVector,
 	MalSeq,
-	MalSymbol,
-	MalVal,
+	ExprSymbol,
+	Expr,
 	symbolFor,
-} from '@/mal/types'
-import {reverseEval} from '@/mal/utils'
+} from '@/glisp/types'
+import {reverseEval} from '@/glisp/utils'
 
 interface Props {
-	value: MalSeq | MalSymbol
+	value: MalSeq | ExprSymbol
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal]
-	select: [value: MalVal]
+	input: [value: Expr]
+	select: [value: Expr]
 	'end-tweak': []
 }>()
 
@@ -111,12 +111,12 @@ const nonReactiveValues = computed(() => {
 
 const evaluated = computed(() => getEvaluated(size.value) as number[])
 
-function onInputElement(index: number, v: MalVal, num: number) {
+function onInputElement(index: number, v: Expr, num: number) {
 	if (!isValueSeparated.value) {
 		return
 	}
 
-	const newSize = cloneExp(size.value as MalSeq)
+	const newSize = cloneExpr(size.value as MalSeq)
 	newSize[index] = v
 
 	const r = evaluated.value[1] / evaluated.value[0]
@@ -124,7 +124,7 @@ function onInputElement(index: number, v: MalVal, num: number) {
 	if (ratio.value !== false) {
 		const anotherIndex = index === 0 ? 1 : 0
 
-		let anotherValue: MalVal = evaluated.value[anotherIndex]
+		let anotherValue: Expr = evaluated.value[anotherIndex]
 		if (r === 0) {
 			anotherValue = anotherIndex === 0 ? anotherValue : 0
 		} else if (Math.abs(r) === Infinity) {
@@ -202,3 +202,4 @@ function onClickLinkButton() {
 		height @width !important
 		color var(--button)
 </style>
+@/glis[/types@/glis[/utils

@@ -10,17 +10,17 @@
 <script lang="ts" setup>
 import {PropType} from 'vue'
 
-import {MalVal} from '@/mal/types'
+import {Expr} from '@/glisp/types'
 
 interface Props {
-	value: MalVal
+	value: Expr
 	values: PropType<string[] | number[]>
 	labels: string[]
 }
 
 defineProps<Props>()
 const emit = defineEmits<{
-	input: [MalVal]
+	input: [Expr]
 	'end-tweak': []
 }>()
 
@@ -29,3 +29,4 @@ function onInput(value: string) {
 	emit('end-tweak')
 }
 </script>
+@/glis[/types

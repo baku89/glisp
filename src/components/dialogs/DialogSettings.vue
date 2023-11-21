@@ -2,14 +2,14 @@
 import {computed, ref} from 'vue'
 
 import DEFAULT_SETTINGS from '@/default-settings.glisp?raw'
-import {readStr} from '@/mal'
+import {readStr} from '@/glisp'
 
 const code = ref(localStorage.getItem('settings') || DEFAULT_SETTINGS)
 
 const hasParseError = computed(() => {
 	const codeStr = code.value
 	try {
-		readStr(`(do\n${codeStr}\n)`, false)
+		readStr(`(do\n${codeStr}\n)`)
 	} catch (e) {
 		return true
 	}
@@ -68,7 +68,6 @@ function updateSettings() {
 	height 100%
 	text-align left
 	user-select none
-	translucent-bg()
 
 	&__header
 		display flex
@@ -105,8 +104,8 @@ function updateSettings() {
 		transition all 0.2s var(--ease)
 
 		&.error
-			border-color var(--warning)
-			background var(--warning)
+			border-color var(--tq-color-error)
+			background var(--tq-color-error)
 			color var(--background)
 			--textcolor var(--background)
 
@@ -130,3 +129,4 @@ function updateSettings() {
 			&.bold
 				font-weight bold
 </style>
+@/glis[

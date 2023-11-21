@@ -1,19 +1,18 @@
-import AppScope from '@/scopes/app'
 import {getParamLabel} from '@/utils'
 
-import {convertMalNodeToJSObject} from './reader'
+import {convertExprCollToJSObject} from './reader'
 import {
 	assocBang,
 	createList,
 	getEvaluated,
 	getType,
-	isMalFunc,
+	isExprFn,
 	keywordFor as K,
 	M_PARAMS,
-	MalFunc,
+	ExprFn,
 	MalSeq,
-	MalSymbol,
-	MalVal,
+	ExprSymbol,
+	Expr,
 	symbolFor,
 } from './types'
 import {getStructType} from './utils'
@@ -24,9 +23,9 @@ interface SchemaBase {
 	label: string
 
 	// Properties for uiSchema
-	value?: MalVal
-	default?: MalVal
-	initial?: MalVal
+	value?: Expr
+	default?: Expr
+	initial?: Expr
 	isDefault?: boolean
 	isInvalid?: boolean
 }
@@ -35,7 +34,7 @@ interface SchemaBase {
  * Schema for primitive value
  */
 
-interface SchemaPrimitiveBase<T extends MalVal> extends SchemaBase {
+interface SchemaPrimitiveBase<T extends Expr> extends SchemaBase {
 	value?: T
 	default?: T
 	variadic?: false
@@ -107,7 +106,7 @@ interface SchemaKeywordDropdown extends SchemaKeywordDefault {
 }
 
 // Symbol
-interface SchemaSymbol extends SchemaPrimitiveBase<MalSymbol> {
+interface SchemaSymbol extends SchemaPrimitiveBase<ExprSymbol> {
 	type: 'symbol'
 }
 
@@ -148,12 +147,12 @@ interface SchemaPath extends SchemaPrimitiveBase<MalSeq> {
 }
 
 // Any
-interface SchemaAny extends SchemaPrimitiveBase<MalVal> {
+interface SchemaAny extends SchemaPrimitiveBase<Expr> {
 	type: 'any'
 }
 
 // Exp (always show with MalExpButton)
-interface SchemaExp extends SchemaPrimitiveBase<MalVal> {
+interface SchemaExp extends SchemaPrimitiveBase<Expr> {
 	type: 'exp'
 }
 
@@ -176,7 +175,7 @@ type SchemaPrimitive =
 export interface SchemaVector extends SchemaBase {
 	type: 'vector'
 	variadic?: boolean
-	insert?: MalFunc
+	insert?: ExprFn
 	items: SchemaPrimitive
 }
 
@@ -188,8 +187,8 @@ export interface SchemaMap extends SchemaBase {
 
 export interface SchemaDynamic extends SchemaBase {
 	type: 'dynamic'
-	'to-schema': MalFunc
-	'to-params': MalFunc
+	'to-schema': ExprFn
+	'to-params': ExprFn
 }
 
 const DEFAULT_VALUE = {
@@ -213,8 +212,8 @@ export type Schema = SchemaVector | SchemaMap | SchemaPrimitive
 /**
  * Set the labels of schema by the parameters of Function references
  */
-export function generateSchemaParamLabel(_schemaParams: Schema[], fn: MalFunc) {
-	if (!isMalFunc(fn)) {
+export function generateSchemaParamLabel(_schemaParams: Schema[], fn: ExprFn) {
+	if (!isExprFn(fn)) {
 		return _schemaParams
 	}
 
@@ -251,14 +250,13 @@ export function extractParams(exp: MalSeq): MalSeq {
 	const structType = getStructType(exp)
 	if (structType) {
 		const structSymbol = symbolFor(structType)
-		structSymbol.evaluated = AppScope.var(structType) as MalFunc
-		return createList(structType, exp)
+		return createList(structSymbol, exp)
 	} else {
 		return exp
 	}
 }
 
-function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
+function generateFixedUISchema(schemaParams: Schema[], params: Expr[]) {
 	// Deep clone the schema
 	const uiSchema = schemaParams.map(sch => ({...sch}))
 
@@ -309,9 +307,9 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 		for (let i = params.length; i < uiSchema.length; i++) {
 			const sch = uiSchema[i]
 			if ('initial' in sch) {
-				params.push(sch.initial as MalVal)
+				params.push(sch.initial as Expr)
 			} else if ('default' in sch) {
-				params.push(sch.default as MalVal)
+				params.push(sch.default as Expr)
 			} else {
 				break
 			}
@@ -330,7 +328,7 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 
 		// Get value
 		sch.isInvalid = sch.isInvalid || i >= params.length
-		let value: MalVal = !sch.isInvalid
+		let value: Expr = !sch.isInvalid
 			? params[i]
 			: 'initial' in sch
 			  ? sch.initial
@@ -338,7 +336,7 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 			    ? sch.default
 			    : (DEFAULT_VALUE as any)[sch.ui]
 
-		const evaluated: MalVal = !sch.isInvalid ? evaluatedParams[i] : value
+		const evaluated: Expr = !sch.isInvalid ? evaluatedParams[i] : value
 		const valueType = getStructType(evaluated) || getType(evaluated)
 
 		switch (sch.type) {
@@ -371,18 +369,15 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 	return uiSchema
 }
 
-function generateDynamicUISchema(
-	schemaParams: SchemaDynamic,
-	params: MalVal[]
-) {
+function generateDynamicUISchema(schemaParams: SchemaDynamic, params: Expr[]) {
 	const toSchema = schemaParams['to-schema']
 
-	const uiSchema = convertMalNodeToJSObject(
+	const uiSchema = convertExprCollToJSObject(
 		toSchema({[K('params')]: params})
 	) as Schema[]
 
 	for (const sch of uiSchema) {
-		const value = sch.value as MalVal
+		const value = sch.value as Expr
 		sch.value = value
 
 		// Force set the UI type
@@ -400,7 +395,7 @@ function generateDynamicUISchema(
  */
 export function generateUISchema(
 	schemaParams: Schema[] | SchemaDynamic,
-	params: MalVal[]
+	params: Expr[]
 ) {
 	if (!Array.isArray(schemaParams)) {
 		return generateDynamicUISchema(schemaParams, params)
@@ -412,9 +407,9 @@ export function generateUISchema(
 function updateParamsByFixedUISchema(
 	schemaParams: Schema[],
 	uiSchema: Schema[],
-	params: MalVal[],
+	params: Expr[],
 	index: number,
-	value: MalVal
+	value: Expr
 ) {
 	const lastSchema = schemaParams[schemaParams.length - 1]
 
@@ -428,8 +423,8 @@ function updateParamsByFixedUISchema(
 		for (let i = newParams.length; i < index; i++) {
 			newParams.push(
 				'default' in uiSchema[i]
-					? (uiSchema[i].default as MalVal)
-					: (uiSchema[i].value as MalVal)
+					? (uiSchema[i].default as Expr)
+					: (uiSchema[i].value as Expr)
 			)
 		}
 
@@ -451,7 +446,7 @@ function updateParamsByFixedUISchema(
 		newParams.push(...Object.entries(restMap).flat())
 		return newParams
 	} else {
-		const newParams = uiSchema.map(sch => sch.value) as MalVal[]
+		const newParams = uiSchema.map(sch => sch.value) as Expr[]
 		newParams[index] = value
 
 		// Shorten the parameters as much as possible
@@ -472,12 +467,12 @@ function updateParamsByDynamicUISchema(
 	schuema: SchemaDynamic,
 	uiSchema: Schema[],
 	index: number,
-	value: MalVal
+	value: Expr
 ) {
-	const params = uiSchema.map(s => s.value as MalVal)
+	const params = uiSchema.map(s => s.value as Expr)
 	params[index] = value
 	const toParams = schuema['to-params']
-	return toParams({[K('values')]: params}) as MalVal[]
+	return toParams({[K('values')]: params}) as Expr[]
 }
 
 /**
@@ -486,9 +481,9 @@ function updateParamsByDynamicUISchema(
 export function updateParamsByUISchema(
 	schema: Schema[] | SchemaDynamic,
 	uiSchema: Schema[],
-	params: MalVal[],
+	params: Expr[],
 	index: number,
-	value: MalVal
+	value: Expr
 ) {
 	if (!Array.isArray(schema)) {
 		return updateParamsByDynamicUISchema(schema, uiSchema, index, value)

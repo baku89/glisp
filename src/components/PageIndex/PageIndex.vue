@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import 'normalize.css'
+import 'tweeq/global.styl'
 import 'splitpanes/dist/splitpanes.css'
 
 import {useElementSize} from '@vueuse/core'
@@ -9,23 +10,27 @@ import {useTweeq} from 'tweeq'
 import {computed, onMounted, reactive, Ref, ref, watch, watchEffect} from 'vue'
 
 import Console from '@/components/Console.vue'
-import GlobalMenu from '@/components/GlobalMenu'
+import Tq from 'tweeq'
 import Inspector from '@/components/Inspector.vue'
 import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
 import PaneLayers from '@/components/PaneLayers.vue'
 import {useRem} from '@/components/use'
 import ViewHandles from '@/components/ViewHandles'
-import {printExp} from '@/mal'
-import {reconstructTree} from '@/mal/reader'
+import {printExp} from '@/glisp'
+import {markParent} from '@/glisp/reader'
 import {
 	createList as L,
-	isNode,
-	MalAtom,
-	MalNode,
-	MalVal,
+	isColl,
+	ExprAtom,
+	ExprColl,
+	Expr,
 	symbolFor as S,
-} from '@/mal/types'
-import {replaceExp, unwatchExpOnReplace, watchExpOnReplace} from '@/mal/utils'
+} from '@/glisp/types'
+import {
+	replaceExpr,
+	unwatchExpOnReplace,
+	watchExpOnReplace,
+} from '@/glisp/utils'
 import ConsoleScope from '@/scopes/console'
 import ViewScope from '@/scopes/view'
 import {computeTheme, isValidColorString} from '@/theme'
@@ -66,7 +71,7 @@ const viewTransform = computed(() => {
 	return mat2d.translate(viewHandlesTransform.value, [left, top])
 })
 
-const exp = ref(L(S('sketch'))) as Ref<MalNode>
+const exp = ref(L(S('sketch'))) as Ref<ExprColl>
 
 const hasParseError = ref(false)
 const hasEvalError = computed(() => viewExp.value === null)
@@ -76,7 +81,7 @@ const hasError = computed(
 )
 
 const viewExp = computed(() => {
-	let viewExp: MalVal | null = null
+	let viewExp: Expr | null = null
 
 	if (exp.value) {
 		ViewScope.setup({
@@ -94,15 +99,15 @@ const viewExp = computed(() => {
 	return viewExp
 })
 
-const selectedExp = ref([]) as Ref<MalNode[]>
+const selectedExp = ref([]) as Ref<ExprColl[]>
 
 const activeExp = computed(() => {
 	return selectedExp.value.length === 0
 		? null
-		: (selectedExp.value[0] as MalNode)
+		: (selectedExp.value[0] as ExprColl)
 })
 
-const editingExp = ref(null) as Ref<MalNode | null>
+const editingExp = ref(null) as Ref<ExprColl | null>
 const hoveringExp = ref(null)
 
 // Centerize the origin of viewport on mounted
@@ -123,7 +128,7 @@ onMounted(() => {
 
 const {pushExpHistory, tagExpHistory} = useExpHistory(exp, updateExp)
 
-const {onSetupConsole} = useURLParser((exp: MalNode) => {
+const {onSetupConsole} = useURLParser((exp: ExprColl) => {
 	updateExp(exp, false)
 	pushExpHistory(exp, 'undo')
 	setEditingExp(exp)
@@ -143,18 +148,18 @@ watch(
 // Events
 
 // Exp
-function updateExp(_exp: MalNode, pushHistory = true) {
+function updateExp(_exp: ExprColl, pushHistory = true) {
 	unwatchExpOnReplace(exp.value, onReplaced)
 	if (pushHistory) {
 		pushExpHistory(_exp)
 	}
 	// NOTE: might be redundant
-	reconstructTree(exp.value)
+	markParent(exp.value)
 	exp.value = _exp
 	watchExpOnReplace(exp.value, onReplaced)
 
-	function onReplaced(newExp: MalVal) {
-		if (!isNode(newExp)) {
+	function onReplaced(newExp: Expr) {
+		if (!isColl(newExp)) {
 			throw new Error('data.exp cannot be non-node value')
 		}
 		updateExp(newExp)
@@ -162,11 +167,11 @@ function updateExp(_exp: MalNode, pushHistory = true) {
 }
 
 // SelectedExp
-function setSelectedExp(targets: MalNode[]) {
+function setSelectedExp(targets: ExprColl[]) {
 	selectedExp.value = targets
 }
 
-function setActiveExp(target: MalNode | null) {
+function setActiveExp(target: ExprColl | null) {
 	if (target) {
 		selectedExp.value = target !== exp.value ? [target] : []
 	} else {
@@ -174,21 +179,21 @@ function setActiveExp(target: MalNode | null) {
 	}
 }
 
-function updateSelectedExp(target: MalVal) {
+function updateSelectedExp(target: Expr) {
 	if (!activeExp.value) {
 		return
 	}
-	replaceExp(activeExp.value, target)
+	replaceExpr(activeExp.value, target)
 }
 
 // Editing
-function setEditingExp(target: MalNode) {
+function setEditingExp(target: ExprColl) {
 	editingExp.value = target
 }
 
-function updateEditingExp(_exp: MalVal) {
+function updateEditingExp(_exp: Expr) {
 	if (!editingExp.value) return
-	replaceExp(editingExp.value, _exp)
+	replaceExpr(editingExp.value, _exp)
 	pushExpHistory(exp.value, 'undo')
 }
 
@@ -222,7 +227,7 @@ watch(exp, exp => {
 
 // Watch the mutable states
 watch(viewExp, () => {
-	const bg = ConsoleScope.var('*app-background*') as MalAtom
+	const bg = ConsoleScope.var('*app-background*') as ExprAtom
 	if (
 		typeof bg.value === 'string' &&
 		isValidColorString(bg.value) &&
@@ -267,6 +272,7 @@ watchEffect(() => {
 
 <template>
 	<div id="app" class="PageIndex">
+		<Tq.TitleBar name="Glisp" icon="favicon.svg" />
 		<!-- <ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
@@ -274,7 +280,6 @@ watchEffect(() => {
 			:viewTransform="viewTransform"
 			@render="hasRenderError = !$event"
 		/> -->
-		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<Splitpanes
 			class="PageIndex__content default-theme"
 			vertical
@@ -366,45 +371,30 @@ watchEffect(() => {
 
 $compact-dur = 0.4s
 
-html, body
-	overflow hidden
-	height 100vh
-	--ease cubic-bezier(0.22, 0, 0.02, 1)
+
+.view-handles-axes
+	position absolute
+	top 3.4rem
+	height calc(100vh - 3.4rem)
+	pointer-events none
+
 
 .PageIndex
-	position relative
-	display flex
-	flex-direction column
 	overflow hidden
 	width 100%
-	height 100%
 	height 100vh
 	background var(--background)
-	color var(--foreground)
-
-	&__global-menu
-		z-index 100
-		background-attachment fixed
-		-webkit-app-region drag
-		translucent-bg()
 
 	&__content
-		position relative
-		// display flex
-		// flex-grow 1
-		height calc(100vh - 3.4rem)
+		position fixed
+		inset var(--app-margin-top) 0 0
+		height auto
 
 	&__list-view
 		position relative
 		width 100%
 		height 100%
-		translucent-bg()
 		overflow-y scroll
-
-	&__view-handles-axes
-		position absolute !important
-		top 3.4rem
-		height calc(100vh - 3.4rem)
 
 	&__viewer
 		position absolute !important
@@ -425,8 +415,8 @@ html, body
 		left 1rem
 		z-index 1000
 		width 30rem
-		border 1px solid var(--border)
-		translucent-bg()
+		pane-style()
+		border-radius var(--tq-pane-border-radius)
 
 	&__modes
 		position absolute
@@ -482,7 +472,6 @@ html, body
 		flex-direction column
 		width 100%
 		height 100%
-		translucent-bg()
 
 	&__editor
 		padding 1rem 0.5rem 1rem 1rem
@@ -514,8 +503,8 @@ html, body
 			--textcolor var(--comment)
 
 			&.error
-				border-color var(--warning)
-				background var(--warning)
+				border-color var(--tq-color-error)
+				background var(--tq-color-error)
 				color var(--background)
 				--textcolor var(--background)
 
@@ -588,3 +577,4 @@ html, body
 		border-right 1px solid var(--border)
 		border-left none
 </style>
+@/glis[@/glis[/reader@/glis[/types@/glis[/utils

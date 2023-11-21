@@ -6,17 +6,16 @@ import {
 	isSymbol,
 	keywordFor,
 	MalBind,
-	MalError,
-	MalMap,
+	GlispError,
+	ExprMap,
 	MalSeq,
-	MalSymbol,
-	MalType,
-	MalVal,
+	ExprSymbol,
+	Expr,
 	symbolFor,
 } from './types'
 
 export default class Env {
-	private data = new Map<string, MalVal>()
+	private data = new Map<string, Expr>()
 
 	/**
 	 * Stores a definition expression `(devar sym val)` for each symbol
@@ -24,12 +23,12 @@ export default class Env {
 	private defs = new Map<string, MalSeq>()
 
 	private bindings!: Env[]
-	private exps?: MalVal[]
+	private exps?: Expr[]
 
 	constructor(
 		protected outer: Env | null = null,
 		binds?: MalBind,
-		exps?: MalVal[],
+		exps?: Expr[],
 		public name = 'let'
 	) {
 		if (this.root === this) {
@@ -60,7 +59,7 @@ export default class Env {
 		return Array.from(merged.keys()).map(v => symbolFor(v))
 	}
 
-	public bindAll(binds: MalBind, exps: MalVal[]) {
+	public bindAll(binds: MalBind, exps: Expr[]) {
 		// Returns a new Env with symbols in binds bound to
 		// corresponding values in exps
 		if (isSymbol(binds)) {
@@ -72,48 +71,46 @@ export default class Env {
 
 				const bindType = getType(bind)
 
-				if (bindType === MalType.Symbol && (bind as MalSymbol).value === '&') {
+				if (bindType === 'symbol' && (bind as ExprSymbol).value === '&') {
 					// rest arguments
-					this.set(binds[i + 1] as MalSymbol, exps.slice(i))
+					this.set(binds[i + 1] as ExprSymbol, exps.slice(i))
 					i++
 					continue
 				} else if (bind === keywordFor('as')) {
 					// :as destruction
-					this.set(binds[i + 1] as MalSymbol, [...exps])
+					this.set(binds[i + 1] as ExprSymbol, [...exps])
 					break
 				}
 
 				switch (bindType) {
-					case MalType.Symbol: {
+					case 'symbol': {
 						if (exp === undefined) {
-							throw new MalError(
+							throw new GlispError(
 								`[${this.name}] parameter '${bind}' is not specified`
 							)
 						}
-						this.set(bind as MalSymbol, exp)
+						this.set(bind as ExprSymbol, exp)
 						break
 					}
-					case MalType.Vector: {
+					case 'vector': {
 						// List Destruction
 						if (!isSeq(exp)) {
-							throw new MalError(
+							throw new GlispError(
 								`[${this.name}] The destruction parameter ${printExp(
-									bind,
-									true
+									bind
 								)} is not specified as sequence`
 							)
 						}
 
-						this.bindAll(bind as MalBind, exp as MalVal[])
+						this.bindAll(bind as MalBind, exp as Expr[])
 						break
 					}
-					case MalType.Map: {
+					case 'map': {
 						// Hashmap destruction
 						if (!isMap(exp)) {
-							throw new MalError(
+							throw new GlispError(
 								`[${this.name}] The destruction parameter '${printExp(
-									bind,
-									true
+									bind
 								)}'} is not specified as map`
 							)
 						}
@@ -128,15 +125,15 @@ export default class Env {
 								hashBinds.push(sym)
 								hashExps.push(exp)
 							} else {
-								if (!(key in (exp as MalMap))) {
-									throw new MalError(
+								if (!(key in (exp as ExprMap))) {
+									throw new GlispError(
 										`[${this.name}] The destruction keyword :${key.slice(
 											1
 										)} does not exist on the parameter`
 									)
 								}
 								hashBinds.push(sym)
-								hashExps.push((exp as MalMap)[key])
+								hashExps.push((exp as ExprMap)[key])
 							}
 						}
 
@@ -144,13 +141,13 @@ export default class Env {
 						break
 					}
 					default:
-						throw new MalError(`[${this.name}] Invalid bind expression`)
+						throw new GlispError(`[${this.name}] Invalid bind expression`)
 				}
 			}
 		}
 	}
 
-	public set(symbol: MalSymbol, value: MalVal, def?: MalSeq) {
+	public set(symbol: ExprSymbol, value: Expr, def?: MalSeq) {
 		this.data.set(symbol.value, value)
 		if (def) {
 			this.defs.set(symbol.value, def)
@@ -158,8 +155,7 @@ export default class Env {
 		return value
 	}
 
-	public getDef(symbol: MalSymbol): MalSeq | null {
-		// eslint-disable-next-line no-prototype-builtins
+	public getDef(symbol: ExprSymbol): MalSeq | null {
 		if (this.defs.has(symbol.value)) {
 			return this.defs.get(symbol.value) as MalSeq
 		}
@@ -171,7 +167,7 @@ export default class Env {
 		return null
 	}
 
-	public find(symbol: MalSymbol): MalVal | void {
+	public find(symbol: ExprSymbol): Expr | void {
 		// if (!isSymbol(symbol)) {
 		// 	throw 'FIND not symbol'
 		// }
@@ -206,22 +202,15 @@ export default class Env {
 		return undefined
 	}
 
-	public hasOwn(symbol: MalSymbol) {
-		// if (!isSymbol(symbol)) {
-		// 	throw 'HASOWN not symbol'
-		// }
+	public hasOwn(symbol: ExprSymbol) {
 		return this.data.has(symbol.value)
 	}
 
-	public get(symbol: MalSymbol): MalVal {
-		// if (!isSymbol(symbol)) {
-		// 	throw 'get not symbol'
-		// }
-
+	public get(symbol: ExprSymbol): Expr {
 		const value = this.find(symbol)
 
 		if (value === undefined) {
-			throw new MalError(`[${this.name}] Symbol ${symbol} not found`)
+			throw new GlispError(`[${this.name}] Symbol ${symbol} not found`)
 		}
 
 		return value

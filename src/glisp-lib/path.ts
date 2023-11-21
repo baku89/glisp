@@ -6,17 +6,17 @@ import {OffsetOptions, PaperOffset} from 'paperjs-offset'
 import svgpath from 'svgpath'
 import Voronoi from 'voronoi'
 
-import printExp from '@/mal/printer'
+import printExp from '@/glisp/printer'
 import {
 	assocBang,
 	createList as L,
 	createVector,
 	isMap,
 	keywordFor as K,
-	MalError,
-	MalVal,
+	GlispError,
+	Expr,
 	symbolFor as S,
-} from '@/mal/types'
+} from '@/glisp/types'
 import {
 	convertToPath2D,
 	getSVGPathData,
@@ -135,7 +135,7 @@ function getChildPaperPathByLength(path: paper.CompoundPath, offset: number) {
 function getBezier(points: Vec2[]) {
 	const coords = points.map(([x, y]) => ({x, y}))
 	if (coords.length !== 4) {
-		throw new MalError('Invalid point count for cubic bezier')
+		throw new GlispError('Invalid point count for cubic bezier')
 	}
 	return new Bezier(coords)
 }
@@ -423,7 +423,7 @@ function pathTransform(transform: mat2d, path: PathType) {
 }
 
 // Get Path Property
-type LengthBasedFunctionType = (t: number, path: PathType) => MalVal
+type LengthBasedFunctionType = (t: number, path: PathType) => Expr
 function convertToNormalizedFunction(f: LengthBasedFunctionType) {
 	return (t: number, path: PathType) => {
 		const paperPath = createPaperPath(path)
@@ -477,7 +477,7 @@ function angleAtLength(offset: number, path: PathType) {
 	return tangent.angleInRadians
 }
 
-function alignMatrixAtLength(offset: number, path: PathType): MalVal {
+function alignMatrixAtLength(offset: number, path: PathType): Expr {
 	const paperPath = createPaperPath(path)
 
 	const ret = getChildPaperPathByLength(paperPath, offset)
@@ -525,12 +525,7 @@ function createPolynominalBooleanOperator(methodName: string) {
 
 // Shape Functions
 
-function pathArc(
-	[x, y]: vec2,
-	r: number,
-	start: number,
-	end: number
-): MalVal[] {
+function pathArc([x, y]: vec2, r: number, start: number, end: number): Expr[] {
 	const min = Math.min(start, end)
 	const max = Math.max(start, end)
 
@@ -634,14 +629,14 @@ function pathArc(
 	]
 }
 
-function createHashMap(args: MalVal[]) {
+function createHashMap(args: Expr[]) {
 	for (let i = 0; i < args.length; i += 2) {
 		args[i] = (args[i] as string).slice(1)
 	}
 	return assocBang({}, ...args)
 }
 
-function offset(d: number, path: PathType, ...args: MalVal[]) {
+function offset(d: number, path: PathType, ...args: Expr[]) {
 	const options = {
 		join: 'round',
 		cap: 'round',
@@ -652,7 +647,7 @@ function offset(d: number, path: PathType, ...args: MalVal[]) {
 	return getMalPathFromPaper(offsetPath)
 }
 
-function offsetStroke(d: number, path: PathType, ...args: MalVal[]) {
+function offsetStroke(d: number, path: PathType, ...args: Expr[]) {
 	const options = {
 		join: 'round',
 		cap: 'round',
@@ -773,7 +768,7 @@ function pathBounds(path: PathType) {
 		const [text, [x, y], options] = path.slice(1) as [
 			string,
 			[number, number],
-			...MalVal[],
+			...Expr[],
 		]
 		const settings: any = {
 			size: 12,
@@ -909,7 +904,7 @@ const Exports = [
 	['path/nearest-point', nearestPoint],
 	['path/inside?', insideQ],
 	['path/intersections', intersections],
-] as [string, MalVal][]
+] as [string, Expr][]
 
 const Exp = L(
 	S('do'),

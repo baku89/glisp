@@ -1,7 +1,4 @@
-font-monospace()
-	letter-spacing 0
-	font-family 'Fira Code', monospace
-	font-variant-ligatures normal !important
+@import '../dev_modules/tweeq/src/common.styl'
 
 $input-height = 1.8rem
 $button-height = 1.4rem
@@ -37,10 +34,6 @@ input-border()
 
 	&:focus
 		border-color var(--hover)
-
-translucent-bg()
-	background var(--translucent)
-	backdrop-filter blur(16px)
 
 labeled-button()
 	padding-top 0.2rem

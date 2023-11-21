@@ -2,19 +2,22 @@ import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
 import GIF from 'gif.js'
 
-import printExp, {printer} from '@/mal/printer'
-import {convertJSObjectToMalMap, convertMalNodeToJSObject} from '@/mal/reader'
-import Scope from '@/mal/scope'
+import printExp, {printer} from '@/glisp/printer'
+import {
+	convertJSObjectToExprMap,
+	convertExprCollToJSObject,
+} from '@/glisp/reader'
+import Scope from '@/glisp/scope'
 import {
 	assocBang,
 	createList as L,
 	isKeyword,
 	keywordFor as K,
-	MalError,
-	MalVal,
+	GlispError,
+	Expr,
 	setMeta,
 	symbolFor as S,
-} from '@/mal/types'
+} from '@/glisp/types'
 import getRendereredImage from '@/renderer/get-rendererd-image'
 import renderToSvg from '@/renderer/render-to-svg'
 
@@ -49,8 +52,8 @@ function generateSketchURL(codeURL: string) {
 	return null
 }
 
-function createHashMap(arr: MalVal[]) {
-	const ret: {[key: string]: MalVal | MalVal[]} = {}
+function createHashMap(arr: Expr[]) {
+	const ret: {[key: string]: Expr | Expr[]} = {}
 	const counts: {[key: string]: number} = {}
 
 	counts['_'] = 0
@@ -65,24 +68,24 @@ function createHashMap(arr: MalVal[]) {
 			} else if (counts[keyword] === 2) {
 				ret[keyword] = [ret[keyword], arr[i]]
 			} else {
-				;(ret[keyword] as MalVal[]).push(arr[i])
+				;(ret[keyword] as Expr[]).push(arr[i])
 			}
 		}
 	}
 	return ret
 }
 
-ConsoleScope.def('copy-to-clipboard', (str: MalVal) => {
+ConsoleScope.def('copy-to-clipboard', (str: Expr) => {
 	return copyToClipboard(str as string)
 })
 
 ConsoleScope.def(
 	'generate-sketch-url',
 	setMeta(
-		(url: MalVal) => {
+		(url: Expr) => {
 			return generateSketchURL(url as string)
 		},
-		convertJSObjectToMalMap({
+		convertJSObjectToExprMap({
 			doc: 'Generates Code URL',
 			params: [
 				{
@@ -95,7 +98,7 @@ ConsoleScope.def(
 	)
 )
 
-ConsoleScope.def('open-link', (url: MalVal) => {
+ConsoleScope.def('open-link', (url: Expr) => {
 	window.open(url as string, '_blank')
 	return `Open URL: ${url}`
 })
@@ -105,7 +108,7 @@ ConsoleScope.def('clear-console', () => {
 	return null
 })
 
-ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
+ConsoleScope.def('download-sketch', (...args: Expr[]) => {
 	const filename = generateFilename(args[0] as string)
 
 	const sketch = ConsoleScope.var('*sketch*') as string
@@ -120,7 +123,7 @@ ConsoleScope.def('download-sketch', (...args: MalVal[]) => {
 })
 
 ConsoleScope.def('copy-as-svg', () => {
-	const viewExp: MalVal | undefined = ConsoleScope.var('*view*')
+	const viewExp: Expr | undefined = ConsoleScope.var('*view*')
 
 	const svg = renderToSvg(viewExp, 500, 500)
 	copyToClipboard(svg)
@@ -133,7 +136,7 @@ let renderWindow: Window | null
 ConsoleScope.def(
 	'export-image',
 	setMeta(
-		(...xs: MalVal[]) => {
+		(...xs: Expr[]) => {
 			const exec = async () => {
 				const sketch = ConsoleScope.var('*sketch*') as string
 				const code = `(sketch ${sketch}\nnil)`
@@ -142,17 +145,17 @@ ConsoleScope.def(
 				let viewExp = renderViewScope.readEval(code)
 
 				if (viewExp === undefined) {
-					throw new MalError('Invalid sketch')
+					throw new GlispError('Invalid sketch')
 				}
 
-				const options = convertMalNodeToJSObject(assocBang({}, ...xs))
+				const options = convertExprCollToJSObject(assocBang({}, ...xs))
 
 				if (options.selector) {
 					viewExp = ConsoleScope.eval(
 						L(S('filter-elements'), options.selector, viewExp)
 					)
 					if (!viewExp) {
-						throw new MalError(
+						throw new GlispError(
 							`Element ${printExp(options.selector, true)} does not exist`
 						)
 					}
@@ -162,7 +165,7 @@ ConsoleScope.def(
 					L(S('get-element-bounds'), viewExp)
 				) as number[]
 				if (!bounds) {
-					throw new MalError('Cannot retrieve bounds')
+					throw new GlispError('Cannot retrieve bounds')
 				}
 
 				const image = await getRendereredImage(viewExp, {
@@ -185,7 +188,7 @@ ConsoleScope.def(
 
 			return null
 		},
-		convertJSObjectToMalMap({
+		convertJSObjectToExprMap({
 			doc: 'Renders and exports a sketch',
 			params: [
 				{
@@ -223,7 +226,7 @@ ConsoleScope.def(
 ConsoleScope.def(
 	'export-video',
 	setMeta(
-		(...xs: MalVal[]) => {
+		(...xs: Expr[]) => {
 			const options = {
 				format: 'gif',
 				scaling: 1,
@@ -232,7 +235,7 @@ ConsoleScope.def(
 				duration: 1,
 				fps: 24,
 				bounds: [0, 0, 200, 200],
-				...convertMalNodeToJSObject(assocBang({}, ...xs)),
+				...convertExprCollToJSObject(assocBang({}, ...xs)),
 			} as {
 				format: 'gif'
 				scaling: number
@@ -250,7 +253,7 @@ ConsoleScope.def(
 				renderViewScope.setup({guideColor: null})
 				const viewExp = renderViewScope.readEval(code)
 				if (viewExp === undefined) {
-					throw new MalError('Invalid sketch')
+					throw new GlispError('Invalid sketch')
 				}
 
 				const image = await getRendereredImage(viewExp, {
@@ -298,7 +301,7 @@ ConsoleScope.def(
 
 			return null
 		},
-		convertJSObjectToMalMap({
+		convertJSObjectToExprMap({
 			doc: 'Exports a video',
 			params: [
 				{
@@ -348,14 +351,14 @@ ConsoleScope.def(
 ConsoleScope.def(
 	'publish-gist',
 	setMeta(
-		(...args: MalVal[]) => {
+		(...args: Expr[]) => {
 			const code = ConsoleScope.var('*sketch*') as string
 
 			// eslint-disable-next-line prefer-const
 			const {_: name, user, token} = createHashMap(args)
 
 			if (typeof user !== 'string' || typeof token !== 'string') {
-				throw new MalError(`Parameters :user and :token must be specified.
+				throw new GlispError(`Parameters :user and :token must be specified.
 	Get the token from https://github.com/settings/tokens/new with 'gist' option turned on.`)
 			}
 
@@ -396,7 +399,7 @@ ConsoleScope.def(
 
 			return null
 		},
-		convertJSObjectToMalMap({
+		convertJSObjectToExprMap({
 			doc: 'Publishes the current sketch to Gist then generates Code URL. Please set `user` to your GitHub username and `token` to a personal access token that you can generate from [Developer Settings](https://github.com/settings/tokens/new) with the **gist** option turned on.',
 			params: [
 				{

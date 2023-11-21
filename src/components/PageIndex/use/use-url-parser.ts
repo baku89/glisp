@@ -1,10 +1,10 @@
 import DefaultCanvasCode from '@/default-canvas.glisp?raw'
-import {readStr} from '@/mal'
-import {isNode, MalError, MalNode} from '@/mal/types'
+import {readStr} from '@/glisp'
+import {isColl, GlispError, ExprColl} from '@/glisp/types'
 
 import {toSketchCode} from '../utils'
 
-export default function useURLParser(onLoadExp: (exp: MalNode) => void) {
+export default function useURLParser(onLoadExp: (exp: ExprColl) => void) {
 	// URL
 	const url = new URL(location.href)
 
@@ -35,7 +35,7 @@ export default function useURLParser(onLoadExp: (exp: MalNode) => void) {
 					code = `;; Loaded from "${codeURL}"\n\n${code}`
 				}
 			} else {
-				new MalError(`Failed to load from "${codeURL}"`)
+				new GlispError(`Failed to load from "${codeURL}"`)
 			}
 
 			history.pushState({}, document.title, url.pathname + url.search)
@@ -59,7 +59,7 @@ export default function useURLParser(onLoadExp: (exp: MalNode) => void) {
 
 	Promise.all([loadCodePromise, setupConsolePromise]).then(([code]) => {
 		const exp = readStr(toSketchCode(code as string))
-		if (isNode(exp)) {
+		if (isColl(exp)) {
 			onLoadExp(exp)
 		}
 	})

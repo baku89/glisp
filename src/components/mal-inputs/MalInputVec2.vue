@@ -55,20 +55,20 @@ import {toRef} from 'vue'
 
 import InputTranslate from '@/components/inputs/InputTranslate.vue'
 import {useNumericVectorUpdator} from '@/components/use'
-import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
-import {reverseEval} from '@/mal/utils'
+import {MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {reverseEval} from '@/glisp/utils'
 
 import MalExpButton from './MalExpButton.vue'
 import MalInputNumber from './MalInputNumber.vue'
 
 interface Props {
-	value: MalSeq | MalSymbol
+	value: MalSeq | ExprSymbol
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-	input: [value: MalVal]
+	input: [value: Expr]
 	'end-tweak': []
 }>()
 
@@ -97,3 +97,4 @@ function onInputTranslate(value: number[]) {
 	&__el, &__exp-button
 		margin-right 0.6rem
 </style>
+@/glis[/types@/glis[/utils

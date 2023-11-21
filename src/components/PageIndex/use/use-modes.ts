@@ -2,8 +2,8 @@ import {mat2d, vec2} from 'linearly'
 import {computed, Ref, ref, watch} from 'vue'
 
 import useMouseEvents from '@/components/use/use-mouse-events'
-import {convertMalNodeToJSObject} from '@/mal/reader'
-import {assocBang, isMap, keywordFor, MalAtom, MalMap} from '@/mal/types'
+import {convertExprCollToJSObject} from '@/glisp/reader'
+import {assocBang, isMap, keywordFor, ExprAtom, ExprMap} from '@/glisp/types'
 import AppScope from '@/scopes/app'
 import ConsoleScope from '@/scopes/console'
 import {getHTMLElement} from '@/utils'
@@ -17,11 +17,11 @@ interface Mode {
 	handlers: {
 		label: string
 		icon: {type: 'character' | 'fontawesome'; value: string}
-		setup?: () => MalMap
-		move?: (state: MalMap) => MalMap
-		press?: (state: MalMap) => MalMap
-		drag?: (state: MalMap) => MalMap
-		release?: (state: MalMap) => MalMap
+		setup?: () => ExprMap
+		move?: (state: ExprMap) => ExprMap
+		press?: (state: ExprMap) => ExprMap
+		drag?: (state: ExprMap) => ExprMap
+		release?: (state: ExprMap) => ExprMap
 	}
 }
 
@@ -32,12 +32,12 @@ export function useModes(
 	// Force enable keyboard state to retrieve modifiers
 
 	const modes = ref(
-		convertMalNodeToJSObject(
-			(ConsoleScope.var('*modes*') as MalAtom).value
+		convertExprCollToJSObject(
+			(ConsoleScope.var('*modes*') as ExprAtom).value
 		) as Mode[]
 	)
 
-	let state: MalMap
+	let state: ExprMap
 
 	const {mouseX, mouseY, mousePressed} = useMouseEvents(handleEl, {
 		onMove: () => executeMouseHandler('move'),
@@ -95,7 +95,7 @@ export function useModes(
 		if (activeMode.value) {
 			state = activeMode.value.handlers.setup
 				? activeMode.value.handlers.setup()
-				: ({} as MalMap)
+				: ({} as ExprMap)
 			return true
 		} else {
 			return false
@@ -106,7 +106,7 @@ export function useModes(
 		() => activeMode.value,
 		mode => {
 			if (mode) {
-				state = mode.handlers.setup ? mode.handlers.setup() : ({} as MalMap)
+				state = mode.handlers.setup ? mode.handlers.setup() : ({} as ExprMap)
 			}
 		},
 		{immediate: true}

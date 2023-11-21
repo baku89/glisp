@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import 'normalize.css'
 
-import {computed, ref, watch} from 'vue'
+import {Ref, computed, ref, watch} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
 import ViewCanvas from '@/components/ViewCanvas.vue'
-import {printExp, readStr} from '@/mal'
-import {printer} from '@/mal/printer'
-import {BlankException} from '@/mal/reader'
-import {MalVal} from '@/mal/types'
+import {printExp, readStr} from '@/glisp'
+import {printer} from '@/glisp/printer'
+import {BlankException} from '@/glisp/reader'
+import {Expr} from '@/glisp/types'
 import ConsoleScope from '@/scopes/console'
 import ViewScope from '@/scopes/view'
 import {computeTheme} from '@/theme'
@@ -21,7 +21,7 @@ const colors = computed(() => computeTheme(background.value).colors)
 const guideColor = computed(() => colors.value['--selection'])
 
 const code = ref('')
-const exp = ref(null as MalVal)
+const exp = ref(null) as Ref<Expr>
 const hasError = computed(() => {
 	return (
 		hasParseError.value || hasEvalError.value || hasRenderError.value.valueOf
@@ -72,7 +72,7 @@ watch(
 		const evalCode = `(sketch\n${code}\n)`
 		let _exp
 		try {
-			_exp = readStr(evalCode, true)
+			_exp = readStr(evalCode)
 		} catch (err) {
 			if (!(err instanceof BlankException)) {
 				printer.error(err)
@@ -205,3 +205,4 @@ $compact-dur = 0.4s
 		&:hover
 			color var(--hover)
 </style>
+@/glis[@/glis[/printer@/glis[/reader@/glis[/types

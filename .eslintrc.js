@@ -38,5 +38,6 @@ module.exports = {
 		'vue/no-v-model-argument': 'off',
 		'vue/attribute-hyphenation': 'off',
 		'vue/require-default-prop': 'off',
+		'@typescript-eslint/explicit-member-accessibility': 'no-public',
 	},
 }

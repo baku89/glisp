@@ -198,7 +198,7 @@
 ;; 			mat2d.create(),
 ;; 			env.get(S('*transform*')) as mat2d,
 ;; 			matrix as mat2d
-;; 		) as MalVal[]
+;; 		) as Expr[]
 ;; 	)
 
 ;; 	env.pushBinding(bindingEnv)
@@ -209,8 +209,8 @@
 ;; 		env.popBinding()
 ;; 	}
 ;; 	if (cache) {
-;; 		;(exp as MalNode)[M_EVAL] = ret
-;; 		;(exp as MalSeq)[M_FN] = env.get(S_TRANSFORM) as MalFunc
+;; 		;(exp as ExprColl)[M_EVAL] = ret
+;; 		;(exp as MalSeq)[M_FN] = env.get(S_TRANSFORM) as ExprFn
 ;; 	}
 ;; 	return ret
 (defmacro graphics/transform

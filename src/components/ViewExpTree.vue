@@ -61,19 +61,18 @@
 <script lang="ts" setup>
 import {computed, ref} from 'vue'
 
-import {printExp} from '@/mal'
-import {reconstructTree} from '@/mal/reader'
+import {printExp} from '@/glisp'
+import {markParent} from '@/glisp/reader'
 import {
-	cloneExp,
+	cloneExpr,
 	getType,
 	isList,
 	isMap,
 	isVector,
-	MalNode,
+	ExprColl,
 	MalSeq,
-	MalType,
-	MalVal,
-} from '@/mal/types'
+	Expr,
+} from '@/glisp/types'
 
 interface Icon {
 	type: 'fontawesome' | 'text' | 'serif'
@@ -87,37 +86,37 @@ interface LabelInfo {
 	expandable: boolean
 	editable: boolean
 	icon: Icon
-	children: null | MalVal[]
+	children: null | Expr[]
 }
 
 interface Props {
-	exp: MalVal
-	expSelection: Set<MalNode>
-	activeExp: MalNode | null
-	editingExp: MalVal | null
-	hoveringExp: MalVal | null
+	exp: Expr
+	expSelection: Set<ExprColl>
+	activeExp: ExprColl | null
+	editingExp: Expr | null
+	hoveringExp: Expr | null
 	mode?: 'node' | 'element'
 }
 
 const props = withDefaults(defineProps<Props>(), {mode: 'node'})
 
 const emit = defineEmits<{
-	select: [value: MalVal]
-	'toggle-selection': [value: MalVal]
-	'update:editingExp': [value: MalVal]
-	'update:exp': [value: MalVal]
+	select: [value: Expr]
+	'toggle-selection': [value: Expr]
+	'update:editingExp': [value: Expr]
+	'update:exp': [value: Expr]
 }>()
 
 const IconTexts = {
-	[MalType.Function]: {type: 'serif', value: 'f'},
-	[MalType.Number]: {type: 'text', value: '#'},
-	[MalType.String]: {
+	['fn']: {type: 'serif', value: 'f'},
+	['number']: {type: 'text', value: '#'},
+	['string']: {
 		type: 'fontawesome',
 		value: 'fas fa-quote-right',
 		style: 'transform: scale(0.6);',
 	},
-	[MalType.Symbol]: {type: 'serif', value: 'x'},
-	[MalType.Keyword]: {type: 'fontawesome', value: 'fas fa-key'},
+	['symbol']: {type: 'serif', value: 'x'},
+	['keyword']: {type: 'fontawesome', value: 'fas fa-key'},
 } as Record<string, Icon>
 
 const labelInfo = computed(() => {
@@ -170,7 +169,7 @@ const active = computed(() => {
 })
 
 const selected = computed(() => {
-	return props.expSelection.has(props.exp as MalNode)
+	return props.expSelection.has(props.exp as ExprColl)
 })
 
 const hovering = computed(() => {
@@ -198,14 +197,14 @@ function toggleExpanded() {
 	expanded.value = !expanded.value
 }
 
-function onUpdateChildExp(i: number, replaced: MalVal) {
-	const newExpBody = cloneExp(props.exp) as MalSeq
+function onUpdateChildExp(i: number, replaced: Expr) {
+	const newExpBody = cloneExpr(props.exp) as MalSeq
 
 	;(newExpBody as MalSeq)[i + 1] = replaced
 
 	const newExp = newExpBody
 
-	reconstructTree(newExp)
+	markParent(newExp)
 
 	emit('update:exp', newExp)
 }
@@ -333,3 +332,4 @@ function onClickEditButton(e: MouseEvent) {
 			border-left 1px dotted var(--border)
 			content ''
 </style>
+@/glis[@/glis[/reader@/glis[/types

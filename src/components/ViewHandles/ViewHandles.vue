@@ -117,14 +117,14 @@ import {mat2d, vec2} from 'linearly'
 import {computed, Ref, ref, toRef} from 'vue'
 
 import {useGesture, useRem} from '@/components/use'
-import {MalNode, MalSeq} from '@/mal/types'
+import {ExprColl, MalSeq} from '@/glisp/types'
 import AppScope from '@/scopes/app'
 
 import useHandle from './use-handle'
 
 interface Props {
 	activeExp: MalSeq | null
-	selectedExp: MalNode[]
+	selectedExp: ExprColl[]
 	viewTransform: mat2d
 }
 
@@ -303,3 +303,4 @@ const rem = useRem()
     stroke transparent
     stroke-width 20
 </style>
+@/glis[/types

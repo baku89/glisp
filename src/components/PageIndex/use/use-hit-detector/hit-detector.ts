@@ -6,10 +6,10 @@ import {
 	isList,
 	isVector,
 	keywordFor as K,
-	MalMap,
+	ExprMap,
 	MalSeq,
-	MalVal,
-} from '@/mal/types'
+	Expr,
+} from '@/glisp/types'
 import {convertToPath2D, PathType} from '@/path-utils'
 
 const K_PATH = K('path'),
@@ -21,7 +21,7 @@ const K_PATH = K('path'),
 
 export class HitDetector {
 	private ctx: CanvasRenderingContext2D
-	private cachedExp: MalVal = null
+	private cachedExp: Expr = null
 	private cachedPath2D = new WeakMap<MalSeq, Path2D>()
 
 	constructor() {
@@ -39,7 +39,7 @@ export class HitDetector {
 		}
 	}
 
-	private analyzeVector(pos: vec2, exp: MalVal[], hitStyle: MalMap) {
+	private analyzeVector(pos: vec2, exp: Expr[], hitStyle: ExprMap) {
 		for (const child of exp.reverse()) {
 			const ret = this.analyzeNode(pos, child, hitStyle)
 			if (ret) {
@@ -49,7 +49,7 @@ export class HitDetector {
 		return null
 	}
 
-	private analyzeNode(pos: vec2, exp: MalVal, hitStyle: MalMap): null | MalVal {
+	private analyzeNode(pos: vec2, exp: Expr, hitStyle: ExprMap): null | Expr {
 		const evaluated = getEvaluated(exp)
 		if (isVector(evaluated)) {
 			const command = evaluated[0]
@@ -88,7 +88,7 @@ export class HitDetector {
 					const [, styles] = evaluated
 					const [, , ...body] = exp as MalSeq
 					let mergedStyles = {...hitStyle}
-					for (const s of (isVector(styles) ? styles : [styles]) as MalMap[]) {
+					for (const s of (isVector(styles) ? styles : [styles]) as ExprMap[]) {
 						mergedStyles = {...mergedStyles, ...s}
 					}
 					const ret = this.analyzeVector(pos, body, mergedStyles)
@@ -112,7 +112,7 @@ export class HitDetector {
 		return null
 	}
 
-	public analyze(pos: vec2, exp: MalVal = this.cachedExp) {
+	public analyze(pos: vec2, exp: Expr = this.cachedExp) {
 		this.cachedExp = exp
 		this.ctx.resetTransform()
 		return this.analyzeNode(pos, exp, {})

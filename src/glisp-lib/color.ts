@@ -1,6 +1,6 @@
 import chroma from 'chroma-js'
 
-import {createList as L, MalVal, symbolFor as S} from '@/mal/types'
+import {createList as L, Expr, symbolFor as S} from '@/glisp/types'
 
 const Exports = [
 	[
@@ -39,7 +39,7 @@ const Exports = [
 			}
 		},
 	],
-] as [string, MalVal][]
+] as [string, Expr][]
 
 const Exp = L(
 	S('do'),
