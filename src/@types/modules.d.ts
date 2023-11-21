@@ -24,11 +24,6 @@ declare module 'resize-sensor' {
 	}
 }
 
-declare module 'vue-markdown' {
-	export const VueMarkdown: any
-	export default VueMarkdown
-}
-
 declare module 'vue-color' {
 	export const Chrome: any
 }

@@ -1,5 +1,4 @@
 export {default as useDraggable} from './use-draggable'
-export {default as useKeyboardState} from './use-keyboard-state'
 export {default as useResizeSensor} from './use-resize-sensor'
 export {default as useRem} from './use-rem'
 export {default as useGesture} from './use-gesture'

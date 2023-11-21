@@ -52,9 +52,14 @@
 <script lang="ts" setup>
 import {toRef} from 'vue'
 
+import InputNumber from '@/components/inputs/InputNumber.vue'
+import InputTranslate from '@/components/inputs/InputTranslate.vue'
 import {useNumericVectorUpdator} from '@/components/use'
 import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
+
+import MalExpButton from './MalExpButton.vue'
+import MalInputNumber from './MalInputNumber.vue'
 
 interface Props {
 	value: MalSeq | MalSymbol

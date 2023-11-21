@@ -60,6 +60,7 @@
 import chroma from 'chroma-js'
 import {computed, ComputedRef} from 'vue'
 
+import {InputColor, InputDropdown, InputString} from '@/components/inputs'
 import {
 	createList as L,
 	getEvaluated,
@@ -72,6 +73,9 @@ import {
 	symbolFor as S,
 } from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
+
+import MalExpButton from './MalExpButton.vue'
+import MalInputNumber from './MalInputNumber.vue'
 
 type ColorMode = 'HEX' | 'RGB' | 'HSL' | 'EXP'
 

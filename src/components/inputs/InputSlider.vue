@@ -14,9 +14,10 @@
 </template>
 
 <script lang="ts" setup>
+import {useKeyModifier} from '@vueuse/core'
 import {computed, Ref, ref, toRef} from 'vue'
 
-import {useDraggable, useKeyboardState} from '../use'
+import {useDraggable} from '../use'
 import useNumberInput from './use-number-input'
 
 const props = defineProps<{
@@ -36,7 +37,8 @@ const emit = defineEmits<{
 const dragEl: Ref<null | HTMLElement> = ref(null)
 const inputEl: Ref<null | HTMLInputElement> = ref(null)
 
-const {shift, alt} = useKeyboardState()
+const alt = useKeyModifier('Alt')
+const shift = useKeyModifier('Shift')
 
 // Drag Events
 let startValue = 0

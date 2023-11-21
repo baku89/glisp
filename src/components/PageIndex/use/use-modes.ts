@@ -1,7 +1,6 @@
 import {mat2d, vec2} from 'linearly'
 import {computed, Ref, ref, watch} from 'vue'
 
-import {useKeyboardState} from '@/components/use'
 import useMouseEvents from '@/components/use/use-mouse-events'
 import {convertMalNodeToJSObject} from '@/mal/reader'
 import {assocBang, isMap, keywordFor, MalAtom, MalMap} from '@/mal/types'
@@ -31,7 +30,6 @@ export function useModes(
 	viewTransform: Ref<mat2d>
 ) {
 	// Force enable keyboard state to retrieve modifiers
-	useKeyboardState()
 
 	const modes = ref(
 		convertMalNodeToJSObject(

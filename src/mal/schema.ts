@@ -263,9 +263,9 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 	const uiSchema = schemaParams.map(sch => ({...sch}))
 
 	// Flatten the schema if it is variadic
-	const lastSchema = uiSchema[uiSchema.length - 1]
+	const lastSchema = uiSchema.at(-1)
 
-	if (lastSchema.variadic) {
+	if (lastSchema?.variadic) {
 		// Check if parameters is too short
 		if (params.length < uiSchema.length - 1) {
 			params = [...params]

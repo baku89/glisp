@@ -37,8 +37,8 @@ import {
 } from './use'
 import {useModes} from './use/use-modes'
 
-const OFFSET_START = 11 // length of "(sketch;__\n"
-const OFFSET_END = 5 // length of ";__\n)"
+const OFFSET_START = '(sketch;__\n'.length
+const OFFSET_END = ';__\n)'.length
 
 const elHandles: Ref<any | null> = ref(null)
 

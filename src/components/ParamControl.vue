@@ -34,7 +34,7 @@
 					</template>
 				</td>
 			</tr>
-			<tr v-if="isVectorVariadic">
+			<!-- <tr v-if="isVectorVariadic">
 				<td class="ParamControl__label"></td>
 				<td class="ParamControl__value">
 					<button
@@ -45,13 +45,13 @@
 						+ Add
 					</button>
 				</td>
-			</tr>
+			</tr> -->
 		</template>
 	</table>
 </template>
 
 <script lang="ts" setup>
-import {Component, computed} from 'vue'
+import {computed} from 'vue'
 
 import * as MalInputComponents from '@/components/mal-inputs'
 import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
@@ -77,7 +77,7 @@ import {getFnInfo, getMapValue} from '@/mal/utils'
 
 interface Props {
 	exp: MalSeq
-	fn: MalFunc
+	fn?: MalFunc
 }
 
 const props = defineProps<Props>()
@@ -88,7 +88,7 @@ const emit = defineEmits<{
 	'end-tweak': []
 }>()
 
-const inputComponents: Record<string, Component> = {
+const inputComponents: Record<string, any> = {
 	number: MalInputComponents.MalInputNumber,
 	slider: MalInputComponents.MalInputSlider,
 	angle: MalInputComponents.MalInputAngle,
@@ -137,14 +137,14 @@ const params = computed(() => {
 	}
 })
 
-const schema = computed(() => {
-	if (!fnInfo.value) return [] as Schema[]
+const schema = computed<Schema[]>(() => {
+	if (!fnInfo.value) return []
 
 	const meta = fnInfo.value.meta
 	const malSchema = getMapValue(meta, 'params')
 
 	if (!isNode(malSchema)) {
-		return undefined
+		return null
 	}
 
 	// Convert to JS Object
@@ -178,14 +178,9 @@ const vectorVariadicPos = computed(() => {
 // UISchema
 const uiSchema = computed(() => {
 	if (!schema.value) {
-		return undefined
+		return null
 	}
-	try {
-		return generateUISchema(schema.value, params.value)
-	} catch (e) {
-		console.error(e)
-		return undefined
-	}
+	return generateUISchema(schema.value, params.value)
 })
 
 // Updator

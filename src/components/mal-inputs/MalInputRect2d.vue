@@ -76,11 +76,11 @@
 	</div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import {toRef} from 'vue'
 
 import {useNumericVectorUpdator} from '@/components/use'
-import {MalSeq, MalSymbol} from '@/mal/types'
+import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
 
 interface Props {
@@ -89,13 +89,17 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const emit = defineEmits<{
+	input: [MalVal]
+}>()
+
 const {
 	nonReactiveValues,
 	isValueSeparated,
 	evaluated,
 	onInputElement,
 	onInputEvaluatedElement,
-} = useNumericVectorUpdator(toRef(props, 'value'), context)
+} = useNumericVectorUpdator(toRef(props, 'value'), emit)
 
 function onInputTranslate(value: number[]) {
 	const newValue = [...value, ...evaluated.value.slice(2)]

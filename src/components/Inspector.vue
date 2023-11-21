@@ -1,8 +1,6 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
-import VueMarkdown from 'vue-markdown'
 
-import Inspectors from '@/components/inspectors'
 import {
 	getOuter,
 	isList,
@@ -13,6 +11,8 @@ import {
 	MalVal,
 } from '@/mal/types'
 import {copyDelimiters, getFnInfo, getMapValue} from '@/mal/utils'
+
+import ParamControl from './ParamControl.vue'
 
 const props = defineProps<{
 	exp: MalNode
@@ -59,7 +59,7 @@ const outer = computed(() => {
 
 const inspectorName = computed(() => {
 	const customInspector = `Inspector-${fnName.value}`
-	return customInspector in Inspectors ? customInspector : 'ParamControl'
+	return customInspector in {} ? customInspector : 'ParamControl'
 })
 
 function onSelectOuter() {
@@ -87,13 +87,13 @@ function onInput(newExp: MalVal) {
 					<i class="fas fa-level-up-alt" />
 				</button>
 			</div>
-			<VueMarkdown
+			<!-- <VueMarkdown
 				class="Inspector__doc"
 				:source="fnDoc"
 				:anchorAttributes="{target: '_blank'}"
-			/>
+			/> -->
 		</div>
-		<component
+		<ParamControl
 			:is="inspectorName"
 			:exp="exp"
 			@input="onInput"

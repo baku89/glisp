@@ -34,6 +34,7 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
+import InputNumber from '@/components/inputs/InputNumber.vue'
 import {readStr} from '@/mal'
 import {
 	createList as L,
@@ -46,6 +47,8 @@ import {
 	MalVal,
 } from '@/mal/types'
 import {getFn, getFnInfo, getMapValue, reverseEval} from '@/mal/utils'
+
+import MalExpButton from './MalExpButton.vue'
 
 interface Props {
 	value: MalSymbol | number | MalSeq

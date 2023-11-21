@@ -1,5 +1,6 @@
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import Markdown from 'unplugin-vue-markdown/vite'
 import {fileURLToPath} from 'url'
 import {defineConfig} from 'vite'
 import {VitePWA} from 'vite-plugin-pwa'
@@ -10,7 +11,10 @@ export default defineConfig({
 		port: 5858,
 	},
 	plugins: [
-		vue(),
+		vue({
+			include: [/\.vue$/, /\.md$/], // <-- allows Vue to compile Markdown files
+		}),
+		Markdown({}),
 		VitePWA({
 			registerType: 'autoUpdate',
 			injectRegister: 'auto',
