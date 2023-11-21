@@ -3,6 +3,7 @@ import path from 'path'
 import Markdown from 'unplugin-vue-markdown/vite'
 import {fileURLToPath} from 'url'
 import {defineConfig} from 'vite'
+import glsl from 'vite-plugin-glsl'
 import {VitePWA} from 'vite-plugin-pwa'
 
 export default defineConfig({
@@ -11,6 +12,7 @@ export default defineConfig({
 		port: 5858,
 	},
 	plugins: [
+		glsl(),
 		vue({
 			include: [/\.vue$/, /\.md$/], // <-- allows Vue to compile Markdown files
 		}),
@@ -44,6 +46,12 @@ export default defineConfig({
 				find: '@',
 				replacement: fileURLToPath(new URL('./src', import.meta.url)),
 			},
+			{
+				find: 'tweeq',
+				replacement: fileURLToPath(
+					new URL('./dev_modules/tweeq/src', import.meta.url)
+				),
+			},
 		],
 	},
 	build: {
@@ -55,5 +63,9 @@ export default defineConfig({
 		},
 		outDir: 'dist',
 		emptyOutDir: true,
+	},
+	define: {
+		// This is needed to make the PromiseQueue class available in the browser.
+		'process.env.PROMISE_QUEUE_COVERAGE': false,
 	},
 })

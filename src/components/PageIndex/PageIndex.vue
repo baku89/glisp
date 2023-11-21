@@ -5,6 +5,7 @@ import 'splitpanes/dist/splitpanes.css'
 import {useElementSize} from '@vueuse/core'
 import {mat2d} from 'linearly'
 import {Pane, Splitpanes} from 'splitpanes'
+import {useTweeq} from 'tweeq'
 import {computed, onMounted, reactive, Ref, ref, watch, watchEffect} from 'vue'
 
 import Console from '@/components/Console.vue'
@@ -36,6 +37,11 @@ import {
 	useURLParser,
 } from './use'
 import {useModes} from './use/use-modes'
+
+useTweeq('com.baku89.glisp', {
+	colorMode: 'light',
+	accentColor: '#0000ff',
+})
 
 const OFFSET_START = '(sketch;__\n'.length
 const OFFSET_END = ';__\n)'.length

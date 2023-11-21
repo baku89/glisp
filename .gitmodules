@@ -1,0 +1,3 @@
+[submodule "dev_modules/tweeq"]
+	path = tweeq
+	url = https://github.com/baku89/tweeq

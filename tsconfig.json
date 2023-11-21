@@ -22,7 +22,8 @@
 		"types": ["jquery", "node"],
 		"typeRoots": ["node_modules/@types", "src"],
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"tweeq": ["./dev_modules/tweeq/src/index.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.vue"]
