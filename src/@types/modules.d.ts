@@ -28,11 +28,6 @@ declare module 'vue-color' {
 	export const Chrome: any
 }
 
-declare module 'vue-popperjs' {
-	const Popper: any
-	export default Popper
-}
-
 declare module 'canvas2svg' {
 	export default class Canvas2Svg extends CanvasRenderingContext2D {
 		constructor(width: number, height: number)

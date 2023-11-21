@@ -1,46 +1,25 @@
 <template>
-	<div clas="InputColor">
-		<Popper
-			trigger="clickToOpen"
-			:append-to-body="true"
-			:delay-on-mouse-out="250"
-			:options="{
-				placement: 'top',
-				modifiers: {offset: {offset: '0px,10px'}},
-			}"
-			boundaries-selector="body"
-			@hide="$emit('end-tweak')"
-		>
+	<Menu :triggers="['click']" placement="top" @hide="$emit('end-tweak')">
+		<button class="InputColor__button">
+			<span class="InputColor__color-preview" :style="{background: value}" />
+		</button>
+		<template #popper>
 			<ColorPicker
 				class="InputColor__picker"
 				:value="value"
 				@input="$emit('input', $event)"
 			/>
-			<button slot="reference" class="InputColor__button">
-				<span class="InputColor__color-preview" :style="{background: value}" />
-			</button>
-		</Popper>
-	</div>
+		</template>
+	</Menu>
 </template>
 
-<script lang="ts">
-import {defineComponent} from 'vue'
+<script lang="ts" setup>
+import {Menu} from 'floating-vue'
 import {Chrome as ColorPicker} from 'vue-color'
-import Popper from 'vue-popperjs'
 
-export default defineComponent({
-	name: 'InputColor',
-	components: {
-		ColorPicker,
-		Popper,
-	},
-	props: {
-		value: {
-			type: String,
-			required: true,
-		},
-	},
-})
+defineProps<{
+	value: string
+}>()
 </script>
 
 <style lang="stylus">
