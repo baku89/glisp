@@ -24,10 +24,10 @@ module.exports = {
 			filename: '[name].js',
 		},
 		entry: {
-			'lib/core': path.join(__dirname, 'src/mal-lib/core.ts'),
-			'lib/color': path.join(__dirname, 'src/mal-lib/color.ts'),
-			'lib/path': path.join(__dirname, 'src/mal-lib/path.ts'),
-			'lib/math': path.join(__dirname, 'src/mal-lib/math.ts'),
+			'lib/core': path.join(__dirname, 'src/glisp-lib/core.ts'),
+			'lib/color': path.join(__dirname, 'src/glisp-lib/color.ts'),
+			'lib/path': path.join(__dirname, 'src/glisp-lib/path.ts'),
+			'lib/math': path.join(__dirname, 'src/glisp-lib/math.ts'),
 			'js/generator': path.join(__dirname, 'src/generator.ts'),
 		},
 		node: {

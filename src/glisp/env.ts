@@ -5,10 +5,10 @@ import {
 	isSeq,
 	isSymbol,
 	keywordFor,
-	MalBind,
+	ExprBind,
 	GlispError,
 	ExprMap,
-	MalSeq,
+	ExprSeq,
 	ExprSymbol,
 	Expr,
 	symbolFor,
@@ -20,14 +20,14 @@ export default class Env {
 	/**
 	 * Stores a definition expression `(devar sym val)` for each symbol
 	 */
-	private defs = new Map<string, MalSeq>()
+	private defs = new Map<string, ExprSeq>()
 
 	private bindings!: Env[]
 	private exps?: Expr[]
 
 	constructor(
 		protected outer: Env | null = null,
-		binds?: MalBind,
+		binds?: ExprBind,
 		exps?: Expr[],
 		public name = 'let'
 	) {
@@ -59,7 +59,7 @@ export default class Env {
 		return Array.from(merged.keys()).map(v => symbolFor(v))
 	}
 
-	public bindAll(binds: MalBind, exps: Expr[]) {
+	public bindAll(binds: ExprBind, exps: Expr[]) {
 		// Returns a new Env with symbols in binds bound to
 		// corresponding values in exps
 		if (isSymbol(binds)) {
@@ -102,7 +102,7 @@ export default class Env {
 							)
 						}
 
-						this.bindAll(bind as MalBind, exp as Expr[])
+						this.bindAll(bind as ExprBind, exp as Expr[])
 						break
 					}
 					case 'map': {
@@ -116,7 +116,7 @@ export default class Env {
 						}
 						// Convert the two maps to list
 						// binds: [name location] <-- exps: ["Baku" "Japan"]
-						const hashBinds = [] as MalBind,
+						const hashBinds = [] as ExprBind,
 							hashExps = []
 
 						for (const [key, sym] of Object.entries(bind)) {
@@ -147,7 +147,7 @@ export default class Env {
 		}
 	}
 
-	public set(symbol: ExprSymbol, value: Expr, def?: MalSeq) {
+	public set(symbol: ExprSymbol, value: Expr, def?: ExprSeq) {
 		this.data.set(symbol.value, value)
 		if (def) {
 			this.defs.set(symbol.value, def)
@@ -155,9 +155,9 @@ export default class Env {
 		return value
 	}
 
-	public getDef(symbol: ExprSymbol): MalSeq | null {
+	public getDef(symbol: ExprSymbol): ExprSeq | null {
 		if (this.defs.has(symbol.value)) {
-			return this.defs.get(symbol.value) as MalSeq
+			return this.defs.get(symbol.value) as ExprSeq
 		}
 
 		if (this.outer !== null) {

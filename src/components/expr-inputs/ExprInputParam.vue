@@ -1,12 +1,12 @@
 <template>
-	<div class="MalInputParam">
-		<div v-for="(scheme, i) in schemes" :key="i" class="MalInputParam__param">
-			<div v-if="scheme.label" class="MalInputParam__label">
+	<div class="ExprInputParam">
+		<div v-for="(scheme, i) in schemes" :key="i" class="ExprInputParam__param">
+			<div v-if="scheme.label" class="ExprInputParam__label">
 				{{ scheme.label }}
 			</div>
 			<component
 				:is="scheme.type"
-				class="MalInputParam__input"
+				class="ExprInputParam__input"
 				:value="params[i]"
 				:compact="true"
 				@input="updateParamAt($event, i)"
@@ -20,18 +20,11 @@
 import {computed} from 'vue'
 
 import {convertExprCollToJSObject} from '@/glisp/reader'
-import {
-	cloneExpr,
-	getEvaluated,
-	getMeta,
-	MalSeq,
-	MalType,
-	Expr,
-} from '@/glisp/types'
+import {cloneExpr, getEvaluated, getMeta, ExprSeq, Expr} from '@/glisp/types'
 import {getMapValue} from '@/glisp/utils'
 
 interface Props {
-	value: MalSeq
+	value: ExprSeq
 }
 
 const props = defineProps<Props>()
@@ -65,7 +58,7 @@ function updateParamAt(value: Expr, i: number) {
 <style lang="stylus">
 @import '../style/common.styl'
 
-.MalInputParam
+.ExprInputParam
 	display flex
 	align-items center
 	line-height $input-height

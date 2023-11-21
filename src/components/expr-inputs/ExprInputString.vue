@@ -1,6 +1,6 @@
 <template>
-	<div class="MalInputString">
-		<MalExpButton
+	<div class="ExprInputString">
+		<ExprSelectButton
 			v-if="isExp"
 			:value="value"
 			:compact="true"
@@ -22,13 +22,13 @@ import Tq from 'tweeq'
 import {computed} from 'vue'
 
 import {markParent} from '@/glisp/reader'
-import {getEvaluated, MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {getEvaluated, ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
 import {reverseEval} from '@/glisp/utils'
 
-import MalExpButton from './MalExpButton.vue'
+import ExprSelectButton from './ExprSelectButton.vue'
 
 interface Props {
-	value: string | MalSeq | ExprSymbol
+	value: string | ExprSeq | ExprSymbol
 	validator: (v: string) => string | undefined
 	multiline?: boolean
 }
@@ -64,7 +64,7 @@ function onInput(value: string) {
 </script>
 
 <style lang="stylus">
-.MalInputString
+.ExprInputString
 	display flex
 </style>
 @/glis[/reader@/glis[/types@/glis[/utils

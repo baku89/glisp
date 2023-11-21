@@ -1,24 +1,24 @@
 <template>
-	<div class="MalInputColor">
+	<div class="ExprInputColor">
 		<InputColor
 			v-if="mode"
-			class="MalInputColor__picker"
+			class="ExprInputColor__picker"
 			:value="pickerValue"
 			:mode="mode"
 			@input="onInputColor"
 			@end-tweak="$emit('end-tweak')"
 		/>
-		<div v-if="compact" class="MalInputColor__hex">{{ hexValue }}</div>
+		<div v-if="compact" class="ExprInputColor__hex">{{ hexValue }}</div>
 		<template v-else>
 			<template v-if="mode === 'exp'">
 				<Tq.InputString
-					class="MalInputColor__text exp"
+					class="ExprInputColor__text exp"
 					:modelValue="displayValues as string"
 					@update:modelValue="onInputText"
 					@end-tweak="$emit('end-tweak')"
 				/>
-				<MalExpButton
-					class="MalInputColor__exp"
+				<ExprSelectButton
+					class="ExprInputColor__exp"
 					:value="value"
 					:compact="false"
 					@select="$emit('select', $event)"
@@ -26,7 +26,7 @@
 			</template>
 			<template v-else>
 				<InputDropdown
-					class="MalInputColor__mode simple"
+					class="ExprInputColor__mode simple"
 					:value="mode"
 					:values="['HEX', 'RGB', 'HSL']"
 					@input="changeMode"
@@ -34,17 +34,17 @@
 				/>
 				<Tq.InputString
 					v-if="mode === 'hex'"
-					class="MalInputColor__text"
+					class="ExprInputColor__text"
 					:modelValue="displayValues as string"
 					@update:modelValue="onInputText"
 					@end-tweak="$emit('end-tweak')"
 				/>
-				<div v-else-if="mode" class="MalInputColor__elements">
-					<MalInputNumber
+				<div v-else-if="mode" class="ExprInputColor__elements">
+					<ExprInputNumber
 						v-for="(v, i) in displayValues"
 						:key="i"
 						:compact="true"
-						class="MalInputColor__el"
+						class="ExprInputColor__el"
 						:value="v"
 						:validator="validators[i]"
 						@input="onInputNumber(i, $event)"
@@ -68,15 +68,14 @@ import {
 	getType,
 	isList,
 	isSymbol,
-	MalSeq,
-	MalType,
+	ExprSeq,
 	Expr,
 	symbolFor as S,
 } from '@/glisp/types'
 import {reverseEval} from '@/glisp/utils'
 
-import MalExpButton from './MalExpButton.vue'
-import MalInputNumber from './MalInputNumber.vue'
+import ExprSelectButton from './ExprSelectButton.vue'
+import ExprInputNumber from './ExprInputNumber.vue'
 
 type ColorMode = 'hex' | 'rgb' | 'hsl' | 'exp'
 
@@ -84,7 +83,7 @@ const COLOR_SPACE_FUNCTIONS = new Set(['color/rgb', 'color/hsl'])
 const COLOR_SPACE_SHORTHANDS = new Set(['rgb', 'hsl'])
 
 interface Props {
-	value: string | MalSeq
+	value: string | ExprSeq
 	compact?: boolean
 }
 
@@ -328,7 +327,7 @@ function validatorZeroTwoPI(x: number) {
 <style lang="stylus">
 @import '../style/common.styl'
 
-.MalInputColor
+.ExprInputColor
 	display flex
 	line-height $input-height
 

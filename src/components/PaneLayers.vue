@@ -2,12 +2,12 @@
 import {computed, Ref, ref} from 'vue'
 
 import {markParent} from '@/glisp/reader'
-import {cloneExpr, ExprColl, MalSeq, Expr} from '@/glisp/types'
+import {cloneExpr, ExprColl, ExprSeq, Expr} from '@/glisp/types'
 
 import ViewExpTree from './ViewExpTree.vue'
 
 interface Props {
-	exp: MalSeq
+	exp: ExprSeq
 	selectedExp: Expr[]
 	editingExp: Expr | null
 	hoveringExp: Expr | null
@@ -16,7 +16,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
 	select: [exp: Expr[]]
-	'update:exp': [exp: MalSeq]
+	'update:exp': [exp: ExprSeq]
 	'update:editingExp': [exp: Expr | null]
 }>()
 

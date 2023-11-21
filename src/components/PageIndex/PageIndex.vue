@@ -12,7 +12,7 @@ import {computed, onMounted, reactive, Ref, ref, watch, watchEffect} from 'vue'
 import Console from '@/components/Console.vue'
 import Tq from 'tweeq'
 import Inspector from '@/components/Inspector.vue'
-import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
+import ExprExpEditor from '@/components/expr-inputs/ExprEditor.vue'
 import PaneLayers from '@/components/PaneLayers.vue'
 import {useRem} from '@/components/use'
 import ViewHandles from '@/components/ViewHandles'
@@ -338,7 +338,7 @@ watchEffect(() => {
 			<Pane :size="paneSizeInPercent.control" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
-						<MalExpEditor
+						<ExprExpEditor
 							v-if="editingExp"
 							v-model:hasParseError="hasParseError"
 							:exp="editingExp"

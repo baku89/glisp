@@ -1,23 +1,23 @@
 <template>
-	<div class="MalInputSize2d">
-		<MalExpButton
+	<div class="ExprInputSize2d">
+		<ExprSelectButton
 			v-if="!isValueSeparated"
-			class="MalInputSize2d__exp-button"
+			class="ExprInputSize2d__exp-button"
 			:value="size"
 			:compact="true"
 			@select="$emit('select', $event)"
 		/>
 		<template v-if="isValueSeparated">
-			<MalInputNumber
-				class="MalInputSize2d__el"
+			<ExprInputNumber
+				class="ExprInputSize2d__el"
 				:value="nonReactiveValues[0]"
 				:compact="true"
 				@input="(...$event) => onInputElement(0, ...$event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<MalInputNumber
-				class="MalInputSize2d__el"
+			<ExprInputNumber
+				class="ExprInputSize2d__el"
 				:value="nonReactiveValues[1]"
 				:compact="true"
 				@input="(...$event) => onInputElement(1, ...$event)"
@@ -27,20 +27,20 @@
 		</template>
 		<template v-else>
 			<Tq.InputNumber
-				class="MalInputSize2d__el exp"
+				class="ExprInputSize2d__el exp"
 				:modelValue="evaluated[0]"
 				@update:modelValue="onInputEvaluatedElement(0, $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
 			<Tq.InputNumber
-				class="MalInputSize2d__el exp"
+				class="ExprInputSize2d__el exp"
 				:modelValue="evaluated[1]"
 				@update:modelValue="onInputEvaluatedElement(1, $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
 		</template>
 		<button
-			class="MalInputSize2d__link-button fas"
+			class="ExprInputSize2d__link-button fas"
 			:class="{'fa-link': ratio !== false, 'fa-unlink': ratio === false}"
 			@click="onClickLinkButton"
 		/>
@@ -58,7 +58,7 @@ import {
 	isList,
 	isSymbolFor,
 	isVector,
-	MalSeq,
+	ExprSeq,
 	ExprSymbol,
 	Expr,
 	symbolFor,
@@ -66,7 +66,7 @@ import {
 import {reverseEval} from '@/glisp/utils'
 
 interface Props {
-	value: MalSeq | ExprSymbol
+	value: ExprSeq | ExprSymbol
 }
 
 const props = defineProps<Props>()
@@ -84,7 +84,7 @@ const isSizeFunc = computed(
 const size = computed(() => {
 	const value = props.value
 	if (isSizeFunc.value) {
-		return value as MalSeq[1]
+		return value as ExprSeq[1]
 	} else {
 		return props.value
 	}
@@ -93,7 +93,7 @@ const size = computed(() => {
 const ratio = computed(() => {
 	const value = props.value
 	if (isSizeFunc.value) {
-		return (value as MalSeq)[2] as number | false
+		return (value as ExprSeq)[2] as number | false
 	} else {
 		return false
 	}
@@ -105,7 +105,7 @@ const nonReactiveValues = computed(() => {
 	if (!isValueSeparated.value) {
 		return []
 	} else {
-		return Array.from(size.value as MalSeq)
+		return Array.from(size.value as ExprSeq)
 	}
 })
 
@@ -116,7 +116,7 @@ function onInputElement(index: number, v: Expr, num: number) {
 		return
 	}
 
-	const newSize = cloneExpr(size.value as MalSeq)
+	const newSize = cloneExpr(size.value as ExprSeq)
 	newSize[index] = v
 
 	const r = evaluated.value[1] / evaluated.value[0]
@@ -188,7 +188,7 @@ function onClickLinkButton() {
 <style lang="stylus">
 @import '../style/common.styl'
 
-.MalInputSize2d
+.ExprInputSize2d
 	display flex
 	align-items center
 	line-height $input-height

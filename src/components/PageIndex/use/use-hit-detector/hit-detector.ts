@@ -7,7 +7,7 @@ import {
 	isVector,
 	keywordFor as K,
 	ExprMap,
-	MalSeq,
+	ExprSeq,
 	Expr,
 } from '@/glisp/types'
 import {convertToPath2D, PathType} from '@/path-utils'
@@ -22,14 +22,14 @@ const K_PATH = K('path'),
 export class HitDetector {
 	private ctx: CanvasRenderingContext2D
 	private cachedExp: Expr = null
-	private cachedPath2D = new WeakMap<MalSeq, Path2D>()
+	private cachedPath2D = new WeakMap<ExprSeq, Path2D>()
 
 	constructor() {
 		const canvas = document.createElement('canvas')
 		this.ctx = canvas.getContext('2d')!
 	}
 
-	private getPath2D(exp: MalSeq) {
+	private getPath2D(exp: ExprSeq) {
 		if (this.cachedPath2D.has(exp)) {
 			return this.cachedPath2D.get(exp) as Path2D
 		} else {
@@ -75,7 +75,7 @@ export class HitDetector {
 				}
 				case K_TRANSFORM: {
 					const [, xform] = evaluated
-					const [, , ...body] = exp as MalSeq
+					const [, , ...body] = exp as ExprSeq
 					this.ctx.save()
 					this.ctx.transform(
 						...(xform as [number, number, number, number, number, number])
@@ -86,7 +86,7 @@ export class HitDetector {
 				}
 				case K_STYLE: {
 					const [, styles] = evaluated
-					const [, , ...body] = exp as MalSeq
+					const [, , ...body] = exp as ExprSeq
 					let mergedStyles = {...hitStyle}
 					for (const s of (isVector(styles) ? styles : [styles]) as ExprMap[]) {
 						mergedStyles = {...mergedStyles, ...s}
@@ -101,7 +101,7 @@ export class HitDetector {
 				}
 				default:
 					if (isKeyword(command)) {
-						const body = (exp as MalSeq).slice(1)
+						const body = (exp as ExprSeq).slice(1)
 						return this.analyzeVector(pos, body, hitStyle)
 					}
 			}

@@ -21,7 +21,7 @@ import {
 	M_ENV,
 	M_ISMACRO,
 	M_PARAMS,
-	MalBind,
+	ExprBind,
 	GlispError,
 	ExprFnThis,
 	ExprMap,
@@ -247,7 +247,7 @@ export default function evaluate(
 					},
 					body,
 					env,
-					params as MalBind
+					params as ExprBind
 				)
 			}
 			case 'fn-sugar': {
@@ -285,7 +285,7 @@ export default function evaluate(
 					},
 					body,
 					env,
-					params as MalBind,
+					params as ExprBind,
 					null,
 					true
 				)

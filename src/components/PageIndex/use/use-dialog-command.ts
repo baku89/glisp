@@ -7,7 +7,6 @@ import {
 	GlispError,
 	ExprFn,
 	ExprMap,
-	MalType,
 	Expr,
 } from '@/glisp/types'
 import {getMapValue} from '@/glisp/utils'

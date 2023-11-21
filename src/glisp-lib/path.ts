@@ -76,7 +76,7 @@ function createPaperPath(path: PathType): paper.CompoundPath {
 
 const canvasContext = document.createElement('canvas').getContext('2d')!
 
-function getMalPathFromPaper(
+function getExprPathFromPaper(
 	_path: paper.CompoundPath | paper.PathItem
 ): PathType {
 	const d = _path ? _path.pathData : ''
@@ -370,7 +370,7 @@ function toBeziers(path: PathType) {
 
 function pathLength(_path: PathType) {
 	const path = createPaperPath(_path)
-	getMalPathFromPaper(path)
+	getExprPathFromPaper(path)
 	return path.length
 }
 
@@ -502,7 +502,7 @@ function alignMatrixAtLength(offset: number, path: PathType): Expr {
 function pathFlatten(flatness: number, path: PathType) {
 	const paperPath = createPaperPath(path)
 	paperPath.flatten(flatness)
-	return getMalPathFromPaper(paperPath)
+	return getExprPathFromPaper(paperPath)
 }
 
 // Binary Operation
@@ -519,7 +519,7 @@ function createPolynominalBooleanOperator(methodName: string) {
 			.slice(1)
 			.reduce((a, b) => (a as any)[methodName](b), paperPaths[0])
 
-		return getMalPathFromPaper(result)
+		return getExprPathFromPaper(result)
 	}
 }
 
@@ -644,7 +644,7 @@ function offset(d: number, path: PathType, ...args: Expr[]) {
 	} as OffsetOptions
 	const paperPath = createPaperPath(path)
 	const offsetPath = PaperOffset.offset(paperPath, d, options)
-	return getMalPathFromPaper(offsetPath)
+	return getExprPathFromPaper(offsetPath)
 }
 
 function offsetStroke(d: number, path: PathType, ...args: Expr[]) {
@@ -655,7 +655,7 @@ function offsetStroke(d: number, path: PathType, ...args: Expr[]) {
 	} as OffsetOptions
 	const paperPath = createPaperPath(path)
 	const offsetPath = PaperOffset.offsetStroke(paperPath, d, options)
-	return getMalPathFromPaper(offsetPath)
+	return getExprPathFromPaper(offsetPath)
 }
 
 /**
@@ -683,7 +683,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 	}
 
 	if (paperPath.children.length > 1) {
-		return getMalPathFromPaper(paperPath)
+		return getExprPathFromPaper(paperPath)
 	} else {
 		const childPath = paperPath.children[0] as paper.Path
 		const cloned = childPath.clone()
@@ -697,7 +697,7 @@ function trimByLength(start: number, end: number, path: PathType) {
 			return createEmptyPath()
 		}
 
-		return getMalPathFromPaper(trimmed)
+		return getExprPathFromPaper(trimmed)
 	}
 }
 

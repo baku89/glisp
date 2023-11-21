@@ -6,7 +6,7 @@ import {defineConfig} from 'vite'
 export default defineConfig({
 	build: {
 		lib: {
-			entry: resolve(__dirname, 'src/mal-lib/core.ts'),
+			entry: resolve(__dirname, 'src/glisp-lib/core.ts'),
 			name: 'GlispCore',
 			fileName: 'glisp-core',
 		},

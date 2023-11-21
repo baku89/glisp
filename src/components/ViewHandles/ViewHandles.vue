@@ -117,13 +117,13 @@ import {mat2d, vec2} from 'linearly'
 import {computed, Ref, ref, toRef} from 'vue'
 
 import {useGesture, useRem} from '@/components/use'
-import {ExprColl, MalSeq} from '@/glisp/types'
+import {ExprColl, ExprSeq} from '@/glisp/types'
 import AppScope from '@/scopes/app'
 
 import useHandle from './use-handle'
 
 interface Props {
-	activeExp: MalSeq | null
+	activeExp: ExprSeq | null
 	selectedExp: ExprColl[]
 	viewTransform: mat2d
 }

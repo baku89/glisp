@@ -1,12 +1,12 @@
 <template>
-	<div class="MalExpButton" :class="{selectable}" @click="onClick">
+	<div class="ExprSelectButton" :class="{selectable}" @click="onClick">
 		<div
-			class="MalExpButton__sign"
+			class="ExprSelectButton__sign"
 			:class="{equals: sign === '=', fn: sign === 'f', variable: sign === 'x'}"
 		>
 			{{ sign }}
 		</div>
-		<div v-if="!compact" class="MalExpButton__exp">{{ str }}</div>
+		<div v-if="!compact" class="ExprSelectButton__exp">{{ str }}</div>
 	</div>
 </template>
 
@@ -61,7 +61,7 @@ function onClick() {
 <style lang="stylus">
 @import '../style/common.styl'
 
-.MalExpButton
+.ExprSelectButton
 	max-width 100%
 	height $input-height
 	color var(--comment)
@@ -79,7 +79,7 @@ function onClick() {
 		&:hover
 			color var(--red)
 
-			.MalExpButton__sign
+			.ExprSelectButton__sign
 				background var(--red)
 				color var(--background)
 

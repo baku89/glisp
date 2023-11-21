@@ -16,7 +16,7 @@ export default {
 			return [globalThis, eval(str)]
 		}
 	},
-	jsToMal(obj: any) {
+	jsToExpr(obj: any) {
 		if (obj === null || obj === undefined) {
 			return null
 		}

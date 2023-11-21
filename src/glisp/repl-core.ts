@@ -23,13 +23,13 @@ export const slurp = (() => {
 
 // Interop
 function jsEval(str: string): Expr {
-	return interop.jsToMal(eval(str.toString()))
+	return interop.jsToExpr(eval(str.toString()))
 }
 
 function jsMethodCall(objMethodStr: string, ...args: Expr[]): Expr {
 	const [obj, f] = interop.resolveJS(objMethodStr)
 	const res = f.apply(obj, args)
-	return interop.jsToMal(res)
+	return interop.jsToExpr(res)
 }
 
 const Exports = [

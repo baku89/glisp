@@ -7,7 +7,6 @@ import {
 	isSymbol,
 	ExprColl,
 	ExprSymbol,
-	MalType,
 	Expr,
 } from '@/glisp/types'
 import {copyDelimiters, getFnInfo, getMapValue} from '@/glisp/utils'
@@ -48,13 +47,8 @@ const fnDoc = computed(() => {
 	return ''
 })
 
-parent = computed(() => {
-	parent = getParent(props.exp)
-
-	if (getParent(outer)) {
-		return outer
-	}
-	return null
+const parent = computed(() => {
+	return getParent(props.exp)
 })
 
 const inspectorName = computed(() => {
@@ -62,9 +56,9 @@ const inspectorName = computed(() => {
 	return customInspector in {} ? customInspector : 'ParamControl'
 })
 
-function onSelectOuter() {
-	if (!outer.value) return
-	emit('select', outer.value)
+function onSelectParent() {
+	if (!parent.value) return
+	emit('select', parent.value)
 }
 
 function onInput(newExp: Expr) {
@@ -83,7 +77,7 @@ function onInput(newExp: Expr) {
 					alias for
 					{{ fnInfo.aliasFor }}
 				</span>
-				<button v-if="outer" class="Inspector__outer" @click="onSelectOuter">
+				<button v-if="parent" class="Inspector__parent" @click="onSelectParent">
 					<i class="fas fa-level-up-alt" />
 				</button>
 			</div>
@@ -129,7 +123,7 @@ function onInput(newExp: Expr) {
 			font-weight normal
 			font-size 0.95em
 
-	&__outer
+	&__parent
 		position absolute
 		top 0
 		right 0

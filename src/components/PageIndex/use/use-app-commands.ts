@@ -21,7 +21,7 @@ import {
 	GlispError,
 	ExprMap,
 	ExprColl,
-	MalSeq,
+	ExprSeq,
 	Expr,
 	symbolFor as S,
 	symbolFor,
@@ -81,7 +81,7 @@ export default function useAppCommands({
 			throw new GlispError('No insertable selection')
 		}
 
-		let newExp: MalSeq
+		let newExp: ExprSeq
 
 		if (typeof item === 'string' || isSymbol(item)) {
 			const fnName = getName(item)
@@ -90,7 +90,7 @@ export default function useAppCommands({
 			const returnType =
 				(getMapValue(meta, 'return/type', 'string') as string) || ''
 			const initialParams =
-				(getMapValue(meta, 'initial-params', 'vector') as MalSeq) || null
+				(getMapValue(meta, 'initial-params', 'vector') as ExprSeq) || null
 
 			if (!isFunc(fn) || !['item', 'path'].includes(returnType)) {
 				throw new GlispError(
@@ -290,7 +290,7 @@ export default function useAppCommands({
 			let newParams: Expr[] | null
 
 			if (structType) {
-				newParams = modifier as MalSeq
+				newParams = modifier as ExprSeq
 			} else {
 				newParams = applyParamModifier(modifier, originalParams)
 				if (!newParams) {
@@ -320,10 +320,13 @@ export default function useAppCommands({
 	})
 
 	AppScope.def('paste-from-clipboard', () => {
-		let outer: MalSeq, index: number
+		let outer: ExprSeq, index: number
 
 		if (!activeExp.value) {
-			;[outer, index] = [exp.value as MalSeq, (exp.value as MalSeq).length - 1]
+			;[outer, index] = [
+				exp.value as ExprSeq,
+				(exp.value as ExprSeq).length - 1,
+			]
 		} else {
 			const [_outer, _index] = getUIOuterInfo(activeExp.value)
 

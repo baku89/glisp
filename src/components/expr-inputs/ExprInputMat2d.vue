@@ -1,53 +1,53 @@
 <template>
-	<div class="MalInputMat2d">
-		<MalExpButton
+	<div class="ExprInputMat2d">
+		<ExprSelectButton
 			v-if="!isValueSeparated"
 			:value="value"
 			@select="$emit('select', $event)"
 		/>
-		<div v-if="isValueSeparated" class="MalInputMat2d__value">
-			<MalInputNumber
-				class="MalInputMat2d__el"
+		<div v-if="isValueSeparated" class="ExprInputMat2d__value">
+			<ExprInputNumber
+				class="ExprInputMat2d__el"
 				:value="nonReactiveValues[0]"
 				:compact="true"
 				@input="onInputElement(0, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<MalInputNumber
-				class="MalInputMat2d__el"
+			<ExprInputNumber
+				class="ExprInputMat2d__el"
 				:value="nonReactiveValues[2]"
 				:compact="true"
 				@input="onInputElement(2, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<MalInputNumber
-				class="MalInputMat2d__el t"
+			<ExprInputNumber
+				class="ExprInputMat2d__el t"
 				:value="nonReactiveValues[4]"
 				:compact="true"
 				@input="onInputElement(4, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<MalInputNumber
-				class="MalInputMat2d__el"
+			<ExprInputNumber
+				class="ExprInputMat2d__el"
 				:value="nonReactiveValues[1]"
 				:compact="true"
 				@input="onInputElement(1, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<MalInputNumber
-				class="MalInputMat2d__el"
+			<ExprInputNumber
+				class="ExprInputMat2d__el"
 				:value="nonReactiveValues[3]"
 				:compact="true"
 				@input="onInputElement(3, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
 			/>
-			<MalInputNumber
-				class="MalInputMat2d__el t"
+			<ExprInputNumber
+				class="ExprInputMat2d__el t"
 				:value="nonReactiveValues[5]"
 				:compact="true"
 				@input="onInputElement(5, $event)"
@@ -68,18 +68,18 @@
 import {toRef} from 'vue'
 
 import {useNumericVectorUpdator} from '@/components/use'
-import {MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
 import {reverseEval} from '@/glisp/utils'
 
 interface Props {
-	value: MalSeq | ExprSymbol
+	value: ExprSeq | ExprSymbol
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
 	input: [value: Expr]
-	select: [value: MalSeq | ExprSymbol]
+	select: [value: ExprSeq | ExprSymbol]
 	'end-tweak': []
 }>()
 
@@ -96,7 +96,7 @@ function onInputTranslate(value: number[]) {
 <style lang="stylus">
 @import '../style/common.styl'
 
-.MalInputMat2d
+.ExprInputMat2d
 	display flex
 	align-items center
 	line-height $input-height

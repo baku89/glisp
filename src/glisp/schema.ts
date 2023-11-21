@@ -10,7 +10,7 @@ import {
 	keywordFor as K,
 	M_PARAMS,
 	ExprFn,
-	MalSeq,
+	ExprSeq,
 	ExprSymbol,
 	Expr,
 	symbolFor,
@@ -121,7 +121,7 @@ interface SchemaBoolean extends SchemaPrimitiveBase<boolean> {
 type SchemaKeyword = SchemaKeywordDefault | SchemaKeywordDropdown
 
 // Vec2
-interface SchemaVec2Default extends SchemaPrimitiveBase<MalSeq> {
+interface SchemaVec2Default extends SchemaPrimitiveBase<ExprSeq> {
 	type: 'vec2'
 }
 
@@ -132,17 +132,17 @@ interface SchemaVec2Size extends SchemaVec2Default {
 type SchemaVec2 = SchemaVec2Default | SchemaVec2Size
 
 // Rect2d
-interface SchemaRect2d extends SchemaPrimitiveBase<MalSeq> {
+interface SchemaRect2d extends SchemaPrimitiveBase<ExprSeq> {
 	type: 'rect2d'
 }
 
 // Mat2d
-interface SchemaMat2d extends SchemaPrimitiveBase<MalSeq> {
+interface SchemaMat2d extends SchemaPrimitiveBase<ExprSeq> {
 	type: 'mat2d'
 }
 
 // Path
-interface SchemaPath extends SchemaPrimitiveBase<MalSeq> {
+interface SchemaPath extends SchemaPrimitiveBase<ExprSeq> {
 	type: 'path'
 }
 
@@ -151,7 +151,7 @@ interface SchemaAny extends SchemaPrimitiveBase<Expr> {
 	type: 'any'
 }
 
-// Exp (always show with MalExpButton)
+// Exp (always show with ExprSelectButton)
 interface SchemaExp extends SchemaPrimitiveBase<Expr> {
 	type: 'exp'
 }
@@ -246,7 +246,7 @@ export function generateSchemaParamLabel(_schemaParams: Schema[], fn: ExprFn) {
  * ex: [10 20] -> [[10 20]]
  * ex
  */
-export function extractParams(exp: MalSeq): MalSeq {
+export function extractParams(exp: ExprSeq): ExprSeq {
 	const structType = getStructType(exp)
 	if (structType) {
 		const structSymbol = symbolFor(structType)

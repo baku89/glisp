@@ -70,7 +70,7 @@ import {
 	isMap,
 	isVector,
 	ExprColl,
-	MalSeq,
+	ExprSeq,
 	Expr,
 } from '@/glisp/types'
 
@@ -198,9 +198,9 @@ function toggleExpanded() {
 }
 
 function onUpdateChildExp(i: number, replaced: Expr) {
-	const newExpBody = cloneExpr(props.exp) as MalSeq
+	const newExpBody = cloneExpr(props.exp) as ExprSeq
 
-	;(newExpBody as MalSeq)[i + 1] = replaced
+	;(newExpBody as ExprSeq)[i + 1] = replaced
 
 	const newExp = newExpBody
 

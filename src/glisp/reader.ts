@@ -15,7 +15,7 @@ import {
 	GlispError,
 	ExprMap,
 	ExprColl,
-	MalSeq,
+	ExprSeq,
 	Expr,
 	symbolFor as S,
 	isList,
@@ -189,7 +189,7 @@ function readVector(reader: Reader, start = '[', end = ']') {
 // read vector of tokens
 function readList(reader: Reader) {
 	const exp = readVector(reader, '(', ')')
-	;(exp as MalSeq)[M_ISLIST] = true
+	;(exp as ExprSeq)[M_ISLIST] = true
 	return exp
 }
 

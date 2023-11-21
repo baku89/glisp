@@ -1,7 +1,7 @@
 <template>
-	<div class="MalInputSeed">
-		<MalInputNumber
-			class="MalInputSeed__input"
+	<div class="ExprInputAngle">
+		<ExprInputNumber
+			class="ExprInputAngle__input"
 			:compact="true"
 			:value="value"
 			:validator="validator"
@@ -9,16 +9,23 @@
 			@select="$emit('select', $event)"
 			@end-tweak="$emit('end-tweak')"
 		/>
-		<InputSeed class="MalInputSeed__shuffle" @input="onInput" />
+		<InputRotery
+			class="ExprInputAngle__rotery"
+			:value="evaluated"
+			@input="onInput"
+			@end-tweak="$emit('end-tweak')"
+		/>
 	</div>
 </template>
 
 <script lang="ts" setup>
-import {MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {computed} from 'vue'
+
+import {getEvaluated, ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
 import {reverseEval} from '@/glisp/utils'
 
 interface Props {
-	value: number | MalSeq | ExprSymbol
+	value: number | ExprSeq | ExprSymbol
 	validator: (v: number) => number | null
 }
 
@@ -30,6 +37,10 @@ const emit = defineEmits<{
 	'end-tweak': []
 }>()
 
+const evaluated = computed(() => {
+	return getEvaluated(props.value) as number
+})
+
 function onInput(value: Expr) {
 	let newExp = value
 	if (typeof newExp === 'number') {
@@ -37,14 +48,13 @@ function onInput(value: Expr) {
 		newExp = reverseEval(newExp, props.value)
 	}
 	emit('input', newExp)
-	emit('end-tweak')
 }
 </script>
 
 <style lang="stylus">
 @import '../style/common.styl'
 
-.MalInputSeed
+.ExprInputAngle
 	display flex
 	align-items center
 	line-height $input-height

@@ -4,17 +4,17 @@ import {
 	cloneExpr,
 	getEvaluated,
 	isVector,
-	MalSeq,
+	ExprSeq,
 	ExprSymbol,
 	Expr,
 } from '@/glisp/types'
 import {reverseEval} from '@/glisp/utils'
 
 /**
- * Refs and event handles for MalInputVec2, Rect2d, Mat2d
+ * Refs and event handles for ExprInputVec2, Rect2d, Mat2d
  */
 export default function useNumericVectorUpdator(
-	exp: Ref<MalSeq | ExprSymbol>,
+	exp: Ref<ExprSeq | ExprSymbol>,
 	emit: (event: 'input', value: Expr) => void
 ) {
 	const isValueSeparated = computed(() => isVector(exp.value))
@@ -23,7 +23,7 @@ export default function useNumericVectorUpdator(
 		if (!isValueSeparated.value) {
 			return []
 		} else {
-			return Array.from(exp.value as MalSeq)
+			return Array.from(exp.value as ExprSeq)
 		}
 	})
 
@@ -34,13 +34,13 @@ export default function useNumericVectorUpdator(
 			return
 		}
 
-		const newExp = cloneExpr(exp.value as MalSeq)
+		const newExp = cloneExpr(exp.value as ExprSeq)
 		newExp[i] = v
 		emit('input', newExp)
 	}
 
 	function onInputEvaluatedElement(i: number, v: number) {
-		const value = cloneExpr(exp.value as MalSeq)
+		const value = cloneExpr(exp.value as ExprSeq)
 		value[i] = v
 		const newExp = reverseEval(value, exp.value)
 		emit('input', newExp)

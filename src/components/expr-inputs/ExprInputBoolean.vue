@@ -1,12 +1,12 @@
 <template>
-	<div class="MalInputBoolean">
+	<div class="ExprInputBoolean">
 		<InputBoolean
-			class="MalInputBoolean__input"
+			class="ExprInputBoolean__input"
 			:class="{exp: isExp}"
 			:value="evaluated"
 			@input="onInput"
 		/>
-		<MalExpButton
+		<ExprSelectButton
 			v-if="isExp"
 			:value="value"
 			@select="$emit('select', $event)"
@@ -19,13 +19,13 @@ import {computed} from 'vue'
 
 import {InputBoolean} from '@/components/inputs'
 import {markParent} from '@/glisp/reader'
-import {getEvaluated, MalSeq, ExprSymbol, Expr} from '@/glisp/types'
+import {getEvaluated, ExprSeq, ExprSymbol, Expr} from '@/glisp/types'
 import {reverseEval} from '@/glisp/utils'
 
-import MalExpButton from './MalExpButton.vue'
+import ExprSelectButton from './ExprSelectButton.vue'
 
 interface Props {
-	value: boolean | MalSeq | ExprSymbol
+	value: boolean | ExprSeq | ExprSymbol
 }
 const props = defineProps<Props>()
 
@@ -52,7 +52,7 @@ function onInput(value: boolean) {
 </script>
 
 <style lang="stylus">
-.MalInputBoolean
+.ExprInputBoolean
 	display flex
 
 	&__input

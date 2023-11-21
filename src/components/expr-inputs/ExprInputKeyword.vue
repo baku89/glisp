@@ -1,9 +1,10 @@
 <template>
-	<div class="MalInputSymbol">
+	<div class="ExprInputKeyword">
+		:
 		<Tq.InputString
-			class="MalInputSymbol__input"
+			class="ExprInputKeyword__input"
 			:value="displayValue"
-			:validator="symbolValidator"
+			:validator="keywordValidator"
 			@input="onInput"
 			@end-tweak="$emit('end-tweak')"
 		/>
@@ -13,16 +14,17 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {getName, MalSeq, ExprSymbol, symbolFor} from '@/glisp/types'
+import {getName, keywordFor, ExprSeq, ExprSymbol} from '@/glisp/types'
 
 interface Props {
-	value: string | MalSeq | ExprSymbol
+	value: string | ExprSeq | ExprSymbol
 	validator: (v: string) => string | null
 }
 
 const props = defineProps<Props>()
+
 const emit = defineEmits<{
-	input: [value: ExprSymbol]
+	input: [value: string]
 	'end-tweak': []
 }>()
 
@@ -30,21 +32,21 @@ const displayValue = computed(() => {
 	return getName(props.value)
 })
 
-function symbolValidator(str: string): string {
+function keywordValidator(str: string): string {
 	return str.replace(/[^a-z0-9-]/gi, '-')
 }
 
 function onInput(str: string) {
-	const value = symbolFor(str)
+	const value = keywordFor(str)
 	emit('input', value)
 }
 </script>
 
 <style lang="stylus">
-.MalInputSymbol
-	color var(--syntax-function)
+.ExprInputKeyword
+	color var(--syntax-keyword)
 
 	&__input
-		color var(--syntax-function)
+		color var(--syntax-keyword)
 </style>
 @/glis[/types

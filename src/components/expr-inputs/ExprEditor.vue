@@ -1,6 +1,6 @@
 <template>
 	<GlispEditor
-		class="MalExpEditor"
+		class="ExprExpEditor"
 		:value="code"
 		:activeRange="activeRange"
 		:cssStyle="cssStyle"

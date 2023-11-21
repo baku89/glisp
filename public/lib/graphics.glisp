@@ -210,7 +210,7 @@
 ;; 	}
 ;; 	if (cache) {
 ;; 		;(exp as ExprColl)[M_EVAL] = ret
-;; 		;(exp as MalSeq)[M_FN] = env.get(S_TRANSFORM) as ExprFn
+;; 		;(exp as ExprSeq)[M_FN] = env.get(S_TRANSFORM) as ExprFn
 ;; 	}
 ;; 	return ret
 (defmacro graphics/transform

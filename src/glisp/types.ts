@@ -22,11 +22,11 @@ export const M_EXPAND = Symbol.for('expand')
 export const M_ISSUGAR = Symbol('issugar')
 export const M_DELIMITERS = Symbol.for('delimiters') // delimiter strings of list/map
 
-export type MalBind = (
+export type ExprBind = (
 	| ExprSymbol
 	| string
 	| Record<string, ExprSymbol>
-	| MalBind
+	| ExprBind
 )[]
 
 export enum ExpandType {
@@ -61,7 +61,7 @@ export interface ExprFn {
 	[M_META]?: Expr
 	[M_AST]: Expr
 	[M_ENV]: Env
-	[M_PARAMS]: MalBind
+	[M_PARAMS]: ExprBind
 	[M_ISMACRO]: boolean
 }
 
@@ -91,7 +91,7 @@ export interface ExprVector extends Array<Expr>, ExprNodeBase {
 	[M_ISLIST]?: false
 }
 
-export type MalSeq = ExprList | ExprVector
+export type ExprSeq = ExprList | ExprVector
 
 export type ExprWithMeta = ExprFn | ExprColl
 
@@ -152,7 +152,7 @@ export function getParent(expr: Expr) {
 	return null
 }
 
-export type MalType =
+export type ExprType =
 	// Collections
 	| 'list'
 	| 'vector'
@@ -171,7 +171,7 @@ export type MalType =
 	// Others
 	| 'undefined'
 
-export function getType(obj: any): MalType {
+export function getType(obj: any): ExprType {
 	const _typeof = typeof obj
 	switch (_typeof) {
 		case 'object':
@@ -215,7 +215,7 @@ export const isColl = (v?: Expr): v is ExprColl => {
 	return isList(v) || isVector(v) || isMap(v)
 }
 
-export const isSeq = (v?: Expr): v is MalSeq => {
+export const isSeq = (v?: Expr): v is ExprSeq => {
 	const type = getType(v)
 	return type === 'list' || type === 'vector'
 }
@@ -266,13 +266,13 @@ export interface ExprCollSelection {
 	index: number
 }
 
-interface MalRootSelection {
+interface ExprRootSelection {
 	root: Expr
 }
 
-export type MalSelection = ExprCollSelection | MalRootSelection
+export type ExprSelection = ExprCollSelection | ExprRootSelection
 
-export function getMalFromSelection(sel: MalSelection) {
+export function getExprFromSelection(sel: ExprSelection) {
 	if ('root' in sel) {
 		return sel.root
 	} else {
@@ -339,7 +339,7 @@ export function cloneExpr(expr: Expr, deep = false): Expr {
 		return cloned
 	} else if (isFunc(expr)) {
 		// new function instance
-		const fn = function (this: ExprFnThis, ...args: MalSeq) {
+		const fn = function (this: ExprFnThis, ...args: ExprSeq) {
 			return expr.apply(this, args)
 		}
 		// copy original properties
@@ -380,7 +380,7 @@ export function createExprFn(
 	fn: (this: void | ExprFnThis, ...args: Expr[]) => Expr,
 	exp: Expr,
 	env: Env,
-	params: MalBind,
+	params: ExprBind,
 	meta = null,
 	ismacro = false
 ): ExprFn {
@@ -458,10 +458,10 @@ export const isVector = (obj: Expr | undefined): obj is ExprVector => {
 export function createVector(...coll: Expr[]) {
 	coll.forEach(child => {
 		if (isColl(child)) {
-			child[M_PARENT] = coll as MalSeq
+			child[M_PARENT] = coll as ExprSeq
 		}
 	})
-	return coll as MalSeq
+	return coll as ExprSeq
 }
 
 // Maps

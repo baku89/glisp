@@ -6,7 +6,7 @@ import {
 	cloneExpr,
 	createList as L,
 	isVector,
-	MalSeq,
+	ExprSeq,
 	Expr,
 	symbolFor as S,
 } from '@/glisp/types'
@@ -29,10 +29,10 @@ const styles = computed(() => {
 })
 
 const labels = computed(() => {
-	return styles.value.map(s => getParamLabel((s as MalSeq)[0]))
+	return styles.value.map(s => getParamLabel((s as ExprSeq)[0]))
 })
 
-function updateStyleAt(style: MalSeq, i: number) {
+function updateStyleAt(style: ExprSeq, i: number) {
 	const newExp = cloneExpr(props.exp)
 	const newStyles = styles.value.map(s => s)
 	newStyles[i] = style
@@ -42,7 +42,7 @@ function updateStyleAt(style: MalSeq, i: number) {
 	emit('input', newExp)
 }
 
-function sortStyles(sortedStyles: MalSeq[][]) {
+function sortStyles(sortedStyles: ExprSeq[][]) {
 	const newExp = cloneExpr(props.exp)
 	newExp[1] = sortedStyles.length === 1 ? sortedStyles[0] : sortedStyles
 
@@ -101,12 +101,12 @@ const dragging = ref(false)
 			<tr v-for="(style, i) in styles" :key="i" class="Inspector-style__style">
 				<td class="Inspector-style__label">{{ labels[i] }}</td>
 				<td class="Inspector-style__input">
-					<MalExpButton
+					<ExprSelectButton
 						:value="style"
 						:compact="true"
 						@select="$emit('select', $event)"
 					/>
-					<MalInputParam
+					<ExprInputParam
 						class="Inspector-style__param"
 						:value="style"
 						@input="updateStyleAt($event, i)"

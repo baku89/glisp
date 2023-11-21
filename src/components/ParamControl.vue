@@ -53,7 +53,7 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import * as MalInputComponents from '@/components/mal-inputs'
+import * as ExprInputComponents from '@/components/expr-inputs'
 import {convertExprCollToJSObject, markParent} from '@/glisp/reader'
 import {
 	generateSchemaParamLabel,
@@ -69,14 +69,14 @@ import {
 	keywordFor as K,
 	keywordFor,
 	ExprFn,
-	MalSeq,
+	ExprSeq,
 	Expr,
 	symbolFor,
 } from '@/glisp/types'
 import {getFnInfo, getMapValue} from '@/glisp/utils'
 
 interface Props {
-	exp: MalSeq
+	exp: ExprSeq
 	fn?: ExprFn
 }
 
@@ -89,23 +89,23 @@ const emit = defineEmits<{
 }>()
 
 const inputComponents: Record<string, any> = {
-	number: MalInputComponents.MalInputNumber,
-	slider: MalInputComponents.MalInputSlider,
-	angle: MalInputComponents.MalInputAngle,
-	seed: MalInputComponents.MalInputSeed,
-	string: MalInputComponents.MalInputString,
-	color: MalInputComponents.MalInputColor,
-	dropdown: MalInputComponents.MalInputDropdown,
-	keyword: MalInputComponents.MalInputKeyword,
-	symbol: MalInputComponents.MalInputSymbol,
-	boolean: MalInputComponents.MalInputBoolean,
-	vec2: MalInputComponents.MalInputVec2,
-	rect2d: MalInputComponents.MalInputRect2d,
-	mat2d: MalInputComponents.MalInputMat2d,
-	size2d: MalInputComponents.MalInputSize2d,
-	path: MalInputComponents.MalExpButton,
-	exp: MalInputComponents.MalExpButton,
-	// 'ui-any': MalInputComponents.MalInputAny,
+	number: ExprInputComponents.ExprInputNumber,
+	slider: ExprInputComponents.ExprInputSlider,
+	angle: ExprInputComponents.ExprInputAngle,
+	seed: ExprInputComponents.ExprInputSeed,
+	string: ExprInputComponents.ExprInputString,
+	color: ExprInputComponents.ExprInputColor,
+	dropdown: ExprInputComponents.ExprInputDropdown,
+	keyword: ExprInputComponents.ExprInputKeyword,
+	symbol: ExprInputComponents.ExprInputSymbol,
+	boolean: ExprInputComponents.ExprInputBoolean,
+	vec2: ExprInputComponents.ExprInputVec2,
+	rect2d: ExprInputComponents.ExprInputRect2d,
+	mat2d: ExprInputComponents.ExprInputMat2d,
+	size2d: ExprInputComponents.ExprInputSize2d,
+	path: ExprInputComponents.ExprSelectButton,
+	exp: ExprInputComponents.ExprSelectButton,
+	// 'ui-any': ExprInputComponents.ExprInputAny,
 }
 
 const TypeDefaults = {
@@ -328,4 +328,4 @@ function onParamDelete(i: number) {
 		&.add
 			labeled-button()
 </style>
-@/glis[/reader@/glis[/schema@/glis[/types@/glis[/utils
+@/glis[/reader@/glis[/schema@/glis[/types@/glis[/utils @/components/expr-inputs

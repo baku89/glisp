@@ -11,7 +11,7 @@ import {
 	malEquals,
 	ExprMap,
 	ExprColl,
-	MalSeq,
+	ExprSeq,
 	Expr,
 } from '@/glisp/types'
 import {
@@ -343,9 +343,9 @@ export default function useHandle(
 		}
 
 		// Construct the new expression and send it to parent
-		const newExp: MalSeq = _fnInfo.structType
-			? (newParams[0] as MalSeq)
-			: (L(_exp[0], ...newParams) as MalSeq)
+		const newExp: ExprSeq = _fnInfo.structType
+			? (newParams[0] as ExprSeq)
+			: (L(_exp[0], ...newParams) as ExprSeq)
 
 		// Copy the delimiter if possible
 		copyDelimiters(newExp, _exp)

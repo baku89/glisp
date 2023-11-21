@@ -56,7 +56,7 @@ export default defineConfig({
 	},
 	build: {
 		rollupOptions: {
-			input: [path.resolve(__dirname, 'src/mal-lib/core.ts')],
+			input: [path.resolve(__dirname, 'src/glisp-lib/core.ts')],
 			output: {
 				preserveModules: false,
 			},

@@ -21,9 +21,9 @@ import {
 	ExprJSFn,
 	ExprMap,
 	ExprColl,
-	MalSeq,
+	ExprSeq,
 	ExprSymbol,
-	MalType,
+	ExprType,
 	Expr,
 	symbolFor as S,
 	getEvaluated,
@@ -184,7 +184,7 @@ export function deleteExp(exp: ExprColl) {
 export function getMapValue(
 	exp: Expr | undefined,
 	path: string,
-	type?: MalType,
+	type?: ExprType,
 	defaultValue?: Expr
 ): Expr {
 	if (exp === undefined) {
@@ -268,17 +268,17 @@ export function reverseEval(exp: Expr, original: Expr, forceOverwrite = false) {
 	switch (getType(original)) {
 		case 'list': {
 			// Check if the list is wrapped within const
-			if (isSymbolFor((original as MalSeq)[0], 'const')) {
+			if (isSymbolFor((original as ExprSeq)[0], 'const')) {
 				return original
 			} else {
 				// find Inverse function
-				const info = getFnInfo(original as MalSeq)
+				const info = getFnInfo(original as ExprSeq)
 				if (!info) break
 				const inverseFn = getMapValue(info.meta, 'inverse')
 				if (!isFunc(inverseFn)) break
 
-				const fnName = (original as MalSeq)[0]
-				const originalParams = (original as MalSeq).slice(1)
+				const fnName = (original as ExprSeq)[0]
+				const originalParams = (original as ExprSeq).slice(1)
 				const evaluatedParams = originalParams.map(e => getEvaluated(e))
 
 				// Compute the original parameter
@@ -343,9 +343,9 @@ export function reverseEval(exp: Expr, original: Expr, forceOverwrite = false) {
 			break
 		}
 		case 'vector': {
-			if (isVector(exp) && exp.length === (original as MalSeq).length) {
+			if (isVector(exp) && exp.length === (original as ExprSeq).length) {
 				const newExp = exp.map((e, i) =>
-					reverseEval(e, (original as MalSeq)[i], forceOverwrite)
+					reverseEval(e, (original as ExprSeq)[i], forceOverwrite)
 				) as Expr[]
 				return newExp
 			}
@@ -537,7 +537,7 @@ export function copyDelimiters(target: Expr, original: Expr) {
 	}
 }
 
-export function getDelimiters(exp: MalSeq | ExprMap): string[] {
+export function getDelimiters(exp: ExprSeq | ExprMap): string[] {
 	const length = isSeq(exp) ? exp.length : Object.keys(exp).length * 2
 
 	if (!exp[M_DELIMITERS]) {
@@ -547,7 +547,7 @@ export function getDelimiters(exp: MalSeq | ExprMap): string[] {
 	return exp[M_DELIMITERS]
 }
 
-export function getElementStrs(expr: MalSeq | ExprMap): string[] {
+export function getElementStrs(expr: ExprSeq | ExprMap): string[] {
 	if (isSeq(expr)) {
 		return expr.map(printExpr)
 	} else {

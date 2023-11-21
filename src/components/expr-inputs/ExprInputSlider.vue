@@ -1,29 +1,31 @@
 <template>
-	<div class="MalInputNumber">
-		<MalExpButton
+	<div class="ExprInputSlider">
+		<ExprSelectButton
 			v-if="display.isExp && compact"
-			class="MalInputNumber__exp-button"
 			:value="value"
 			:compact="true"
 			@select="$emit('select', $event)"
 		/>
-		<Tq.InputNumber
+		<InputSlider
 			:class="{
 				exp: display.isExp,
 			}"
-			:modelValue="displayValue"
-			@update:modelValue="onInput"
+			:value="displayValue"
+			:max="innerMax"
+			:min="innerMin"
+			:clamped="clamped"
+			@input="onInput"
 			@end-tweak="$emit('end-tweak', $event)"
 		/>
 		<span
 			v-if="display.mode === 'unit'"
-			class="MalInputNumber__unit"
+			class="ExprInputSlider__unit"
 			:class="{small: display.unit && display.unit.length >= 2}"
 			>{{ display.unit }}</span
 		>
-		<MalExpButton
+		<ExprSelectButton
 			v-if="display.isExp && !compact"
-			class="MalInputNumber__exp-after"
+			class="ExprInputSlider__exp-after"
 			:value="value"
 			:compact="false"
 			@select="$emit('select', $event)"
@@ -32,7 +34,6 @@
 </template>
 
 <script lang="ts" setup>
-import Tq from 'tweeq'
 import {computed} from 'vue'
 
 import {readStr} from '@/glisp'
@@ -41,18 +42,20 @@ import {
 	getEvaluated,
 	isList,
 	keywordFor as K,
-	MalSeq,
+	ExprSeq,
 	ExprSymbol,
-	MalType,
 	Expr,
 } from '@/glisp/types'
 import {getFn, getFnInfo, getMapValue, reverseEval} from '@/glisp/utils'
 
-import MalExpButton from './MalExpButton.vue'
 interface Props {
-	value: ExprSymbol | number | MalSeq
-	validator?: (v: number) => number | null
-	compact?: boolean
+	value: ExprSymbol | number | ExprSeq
+	min: number
+	max: number
+	clamped: boolean
+	validator: (v: number) => number | null
+	compact: boolean
+	isExp: boolean
 }
 
 const props = defineProps<Props>()
@@ -86,7 +89,7 @@ const fn = computed(() => {
 	if (display.value.mode !== 'exp') {
 		return getFn(props.value)
 	} else {
-		return undefined
+		return null
 	}
 })
 
@@ -102,7 +105,27 @@ const displayValue = computed(() => {
 	}
 })
 
-function onInput(value: number) {
+const innerMin = computed(() => {
+	if (display.value.mode === 'unit') {
+		return (display.value.inverseFn as any)({
+			[K('return')]: props.min,
+		})[0]
+	} else {
+		return props.min
+	}
+})
+
+const innerMax = computed(() => {
+	if (display.value.mode === 'unit') {
+		return (display.value.inverseFn as any)({
+			[K('return')]: props.max,
+		})[0]
+	} else {
+		return props.max
+	}
+})
+
+function onInput(value: number | string) {
 	let newExp: Expr = value
 
 	// Parse if necessary
@@ -151,16 +174,10 @@ function onInput(value: number) {
 <style lang="stylus">
 @import '../style/common.styl'
 
-.MalInputNumber
-	position relative
+.ExprInputSlider
 	display flex
 	align-items center
 	line-height $input-height
-
-	&__exp-button
-		position absolute
-		left 0.4rem
-		z-index 200
 
 	&__unit
 		padding-left 0.3em
