@@ -1,27 +1,26 @@
-import {
-	keywordFor,
-	assocBang,
-	MalError,
-	symbolFor as S,
-	MalNode,
-	MalNodeMap,
-	isMap,
-	MalMap,
-	MalVal,
-	M_OUTER,
-	isNode,
-	M_ELMSTRS,
-	M_DELIMITERS,
-	M_ISSUGAR,
-	M_ISLIST,
-	M_OUTER_INDEX,
-	isSeq,
-	getName,
-	createList as L,
-	MalSeq,
-	isSymbol,
-} from './types'
 import printExp from './printer'
+import {
+	assocBang,
+	createList as L,
+	getName,
+	isMap,
+	isNode,
+	isSeq,
+	isSymbol,
+	keywordFor,
+	M_DELIMITERS,
+	M_ELMSTRS,
+	M_ISLIST,
+	M_ISSUGAR,
+	M_OUTER,
+	M_OUTER_INDEX,
+	MalError,
+	MalMap,
+	MalNode,
+	MalSeq,
+	MalVal,
+	symbolFor as S,
+} from './types'
 
 const S_QUOTE = S('quote')
 const S_QUASIQUOTE = S('quasiquote')
@@ -29,7 +28,6 @@ const S_UNQUOTE = S('unquote')
 const S_SPLICE_UNQUOTE = S('splice-unquote')
 const S_FN_SUGAR = S('fn-sugar')
 const S_WITH_META_SUGAR = S('with-meta-sugar')
-const S_UI_ANNOTATE = S('ui-annotate')
 const S_DEREF = S('deref')
 
 class Reader {
@@ -81,8 +79,8 @@ class Reader {
 }
 
 function tokenize(str: string, saveStr = false) {
-	// eslint-disable-next-line no-useless-escape
 	const re =
+		// eslint-disable-next-line no-useless-escape
 		/[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
 	let match = null
 	const spaceRe = /^[\s,]*/
@@ -90,7 +88,7 @@ function tokenize(str: string, saveStr = false) {
 		spaceOffset = null
 	const results = []
 
-	while ((match = re.exec(str)) && match[1] != '') {
+	while ((match = re.exec(str)) && match[1] !== '') {
 		if (match[1][0] === ';') {
 			continue
 		}
@@ -209,7 +207,7 @@ function readList(reader: Reader, saveStr: boolean) {
 // read hash-map key/value pairs
 function readHashMap(reader: Reader, saveStr: boolean) {
 	const lst = readVector(reader, saveStr, '{', '}')
-	const map = assocBang({}, ...lst) as MalNodeMap
+	const map = assocBang({} as MalMap, ...lst) as MalMap
 	if (saveStr) {
 		const elmStrs = []
 
@@ -265,14 +263,6 @@ function readForm(reader: Reader, saveStr: boolean): any {
 				// Syntactic sugar for anonymous function: #( )
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
 				val = L(S_FN_SUGAR, readForm(reader, saveStr))
-			} else if (type === '@') {
-				// Syntactic sugar for ui-annotation #@
-				reader.next()
-				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
-				const annotation = readForm(reader, saveStr)
-				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
-				const expr = readForm(reader, saveStr)
-				val = L(S_UI_ANNOTATE, annotation, expr)
 			} else if (type[0] === '"') {
 				// Syntactic sugar for set-id
 				if (saveStr) sugar = [reader.prevEndOffset(), reader.offset()]
@@ -485,7 +475,7 @@ export function convertJSObjectToMalMap(obj: any): MalVal {
 	} else if (isSymbol(obj) || obj instanceof Function) {
 		return obj
 	} else if (obj instanceof Object) {
-		const ret: MalMap = {}
+		const ret = {} as MalMap
 		for (const [key, value] of Object.entries(obj)) {
 			ret[keywordFor(key)] = convertJSObjectToMalMap(value)
 		}
@@ -557,7 +547,7 @@ export default function readStr(str: string, saveStr = true): MalVal {
 	return exp
 
 	function saveOuter(exp: MalVal, outer: MalVal, index?: number) {
-		if (isNode(exp) && !(M_OUTER in exp)) {
+		if (isNode(exp) /*&& !(M_OUTER in exp)*/) {
 			if (isNode(outer) && index !== undefined) {
 				exp[M_OUTER] = outer
 				exp[M_OUTER_INDEX] = index
@@ -566,8 +556,8 @@ export default function readStr(str: string, saveStr = true): MalVal {
 			const children: MalVal[] | null = Array.isArray(exp)
 				? exp
 				: isMap(exp)
-				? Object.keys(exp).map(k => exp[k])
-				: null
+				  ? Object.keys(exp).map(k => exp[k])
+				  : null
 
 			if (children) {
 				children.forEach((child, index) => saveOuter(child, exp, index))

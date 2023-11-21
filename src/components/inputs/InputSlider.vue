@@ -1,123 +1,92 @@
 <template>
 	<div class="InputSlider" :class="{tweaking}">
-		<div class="InputSlider__drag" ref="dragEl" />
+		<div ref="dragEl" class="InputSlider__drag" />
 		<input
+			ref="inputEl"
 			class="InputSlider__input"
 			type="text"
 			:value="displayValue"
 			@blur="onBlur"
 			@keydown="onKeydown"
-			ref="inputEl"
 		/>
 		<div class="InputSlider__slider" :style="sliderStyle" />
 	</div>
 </template>
 
-<script lang="ts">
-import {
-	defineComponent,
-	computed,
-	ref,
-	Ref,
-	PropType,
-	toRef,
-} from 'vue'
+<script lang="ts" setup>
+import {computed, Ref, ref, toRef} from 'vue'
+
 import {useDraggable, useKeyboardState} from '../use'
 import useNumberInput from './use-number-input'
 
-export default defineComponent({
-	name: 'InputSlider',
-	props: {
-		value: {
-			type: Number,
-			required: true,
-		},
-		min: {
-			type: Number,
-			default: 0,
-		},
-		max: {
-			type: Number,
-			default: 1,
-		},
-		clamped: {
-			type: Boolean,
-			default: false,
-		},
-	},
-	setup(props, context) {
-		// Element references
-		const dragEl: Ref<null | HTMLElement> = ref(null)
-		const inputEl: Ref<null | HTMLInputElement> = ref(null)
+const props = defineProps<{
+	value: number
+	min: number
+	max: number
+	step?: number
+	validator?: (v: number) => number | null
+}>()
 
-		const {shift, alt} = useKeyboardState()
+const emit = defineEmits<{
+	input: [value: number | string]
+	'end-tweak': []
+}>()
 
-		// Drag Events
-		let startValue = 0
-		const drag = useDraggable(dragEl, {
-			onClick() {
-				if (inputEl.value) {
-					inputEl.value.focus()
-					inputEl.value.select()
-				}
-			},
-			onDragStart() {
-				startValue = props.value
-			},
-			onDrag({deltaX}) {
-				if (!dragEl.value) return
+// Element references
+const dragEl: Ref<null | HTMLElement> = ref(null)
+const inputEl: Ref<null | HTMLInputElement> = ref(null)
 
-				let inc = ((props.max - props.min) * deltaX) / dragEl.value.clientWidth
+const {shift, alt} = useKeyboardState()
 
-				if (shift.value) {
-					inc *= 10
-				}
-				if (alt.value) {
-					inc /= 10
-				}
-
-				startValue += inc
-
-				update(startValue)
-			},
-			onDragEnd() {
-				context.emit('end-tweak')
-			},
-		})
-
-		const tweaking = toRef(drag, 'isDragging')
-
-		const {step, displayValue, onBlur, onKeydown, update} = useNumberInput(
-			toRef(props, 'value'),
-			tweaking,
-			context
-		)
-
-		const sliderStyle = computed(() => {
-			const t = (props.value - props.min) / (props.max - props.min)
-			const borderRadius = t < 1 ? 0 : '2px'
-			return {
-				width: `${t * 100}%`,
-				borderTopRightRadius: borderRadius,
-				borderButtonRightRadius: borderRadius,
-			}
-		})
-
-		return {
-			dragEl,
-			inputEl,
-
-			displayValue,
-			step,
-			tweaking,
-
-			onBlur,
-			onKeydown,
-			update,
-
-			sliderStyle,
+// Drag Events
+let startValue = 0
+const drag = useDraggable(dragEl, {
+	onClick() {
+		if (inputEl.value) {
+			inputEl.value.focus()
+			inputEl.value.select()
 		}
 	},
+	onDragStart() {
+		startValue = props.value
+	},
+	onDrag({deltaX}) {
+		if (!dragEl.value) return
+
+		let inc = ((props.max - props.min) * deltaX) / dragEl.value.clientWidth
+
+		if (shift.value) {
+			inc *= 10
+		}
+		if (alt.value) {
+			inc /= 10
+		}
+
+		startValue += inc
+
+		update(startValue)
+	},
+	onDragEnd() {
+		emit('end-tweak')
+	},
+})
+
+const tweaking = toRef(drag, 'isDragging')
+
+const {displayValue, onBlur, onKeydown, update} = useNumberInput(
+	toRef(props, 'value'),
+	tweaking,
+	emit
+)
+
+const sliderStyle = computed(() => {
+	const t = (props.value - props.min) / (props.max - props.min)
+	const borderRadius = t < 1 ? 0 : '2px'
+	return {
+		width: `${t * 100}%`,
+		borderTopRightRadius: borderRadius,
+		borderButtonRightRadius: borderRadius,
+	}
 })
 </script>
 

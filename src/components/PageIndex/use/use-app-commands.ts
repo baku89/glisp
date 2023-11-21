@@ -1,83 +1,74 @@
-import AppScope from '@/scopes/app'
-import {NonReactive, nonReactive} from '@/utils'
+import {Ref} from 'vue'
+
+import {readStr} from '@/mal'
+import printExp from '@/mal/printer'
+import {reconstructTree} from '@/mal/reader'
 import {
-	MalVal,
-	MalNode,
-	expandExp,
-	symbolFor as S,
-	createList as L,
-	keywordFor as K,
-	getName,
-	getMeta,
-	isFunc,
-	MalType,
-	MalError,
 	cloneExp,
-	isSeq,
-	isList,
-	isSymbolFor,
-	MalSeq,
+	createList as L,
+	expandExp,
 	getEvaluated,
-	getType,
+	getMeta,
+	getName,
+	isFunc,
+	isList,
 	isNode,
-	symbolFor,
+	isSeq,
+	isSymbol,
+	isSymbolFor,
 	isVector,
+	keywordFor as K,
+	MalError,
+	MalMap,
+	MalNode,
+	MalSeq,
+	MalType,
+	MalVal,
+	symbolFor as S,
+	symbolFor,
 } from '@/mal/types'
 import {
-	getMapValue,
-	getFnInfo,
 	applyParamModifier,
 	copyDelimiters,
-	replaceExp,
-	getUIOuterInfo,
-	getUIAnnotationExp,
 	deleteExp,
 	generateExpAbsPath,
 	getExpByPath,
+	getFnInfo,
+	getMapValue,
+	getUIOuterInfo,
+	replaceExp,
 } from '@/mal/utils'
-import {readStr} from '@/mal'
-import {toSketchCode} from '../utils'
-import printExp from '@/mal/printer'
+import AppScope from '@/scopes/app'
 import ViewScope from '@/scopes/view'
-import {reconstructTree} from '@/mal/reader'
 
-export default function useAppCommands(
-	data: {
-		exp: NonReactive<MalNode>
-		selectedExp: NonReactive<MalNode>[]
-		activeExp: NonReactive<MalNode> | null
-		editingExp: NonReactive<MalNode> | null
-	},
-	callbacks: {
-		updateExp: (exp: NonReactive<MalNode>) => void
-		setActiveExp: (exp: NonReactive<MalNode> | null) => any
-		setSelectedExp: (exp: NonReactive<MalNode>[]) => void
-	}
-) {
+import {toSketchCode} from '../utils'
+
+export default function useAppCommands(options: {
+	exp: Ref<MalNode>
+	selectedExp: Ref<MalNode[]>
+	activeExp: Ref<MalNode | null>
+	editingExp: Ref<MalNode | null>
+	updateExp: (exp: MalNode) => void
+	setActiveExp: (exp: MalNode | null) => any
+	setSelectedExp: (exp: MalNode[]) => void
+}) {
 	AppScope.def('expand-selected', () => {
-		if (!data.activeExp) {
+		if (!options.activeExp.value) {
 			return false
 		}
 
-		const expanded = expandExp(data.activeExp.value)
+		const expanded = expandExp(options.activeExp)
 		if (expanded === undefined) {
 			return false
 		}
 
-		replaceExp(data.activeExp.value, expanded)
+		replaceExp(options.activeExp.value, expanded)
 
 		return true
 	})
 
 	AppScope.def('insert-item', (exp: MalVal) => {
-		let activeExp = data.exp.value
-		if (data.activeExp) {
-			activeExp = data.activeExp.value
-		} else {
-			activeExp = data.exp.value
-		}
-
-		const type = getType(exp)
+		const activeExp = options.activeExp.value ?? options.exp.value
 
 		if (!isSeq(activeExp)) {
 			throw new MalError('No insertable selection')
@@ -85,7 +76,7 @@ export default function useAppCommands(
 
 		let newExp: MalSeq
 
-		if (type === MalType.String || type === MalType.Symbol) {
+		if (typeof exp === 'string' || isSymbol(exp)) {
 			const fnName = getName(exp)
 			const fn = ViewScope.var(fnName)
 			const meta = getMeta(fn)
@@ -105,8 +96,8 @@ export default function useAppCommands(
 			}
 
 			newExp = L(S(fnName), ...initialParams)
-		} else if (type === MalType.List) {
-			newExp = exp as MalSeq
+		} else if (isList(exp)) {
+			newExp = exp
 		} else {
 			throw new MalError('Invalid argument')
 		}
@@ -128,7 +119,7 @@ export default function useAppCommands(
 			throw new Error('Path should be string')
 		}
 
-		const original = getExpByPath(data.exp.value, path)
+		const original = getExpByPath(options.exp.value, path)
 
 		if (!isNode(original)) {
 			throw new MalError('The original should be node')
@@ -141,20 +132,20 @@ export default function useAppCommands(
 
 	AppScope.def('select-items', (paths: MalVal) => {
 		if (isVector(paths)) {
-			const items: NonReactive<MalNode>[] = []
+			const items: MalNode[] = []
 
 			for (const path of paths) {
 				if (typeof path !== 'string') {
 					return false
 				}
-				const item = getExpByPath(data.exp.value, path)
+				const item = getExpByPath(options.exp.value, path)
 				if (!isNode(item)) {
 					return false
 				}
-				items.push(nonReactive(item))
+				items.push(item)
 			}
 
-			callbacks.setSelectedExp(items)
+			options.setSelectedExp(items)
 		}
 		return false
 	})
@@ -164,13 +155,13 @@ export default function useAppCommands(
 			return false
 		}
 
-		const item = getExpByPath(data.exp.value, path)
+		const item = getExpByPath(options.exp.value, path)
 
 		if (!isNode(item)) {
 			return false
 		}
 
-		const index = data.selectedExp.findIndex(s => s.value === item)
+		const index = options.selectedExp.value.findIndex(s => s === item)
 
 		return index !== -1
 	})
@@ -180,22 +171,22 @@ export default function useAppCommands(
 			return false
 		}
 
-		const item = getExpByPath(data.exp.value, path)
+		const item = getExpByPath(options.exp.value, path)
 
 		if (!isNode(item)) {
 			return false
 		}
 
-		const index = data.selectedExp.findIndex(s => s.value === item)
+		const index = options.selectedExp.value.findIndex(s => s === item)
 
-		const items = [...data.selectedExp]
+		const items = [...options.selectedExp.value]
 		if (index === -1) {
-			items.push(nonReactive(item))
+			items.push(item)
 		} else {
 			items.splice(index, 1)
 		}
 
-		callbacks.setSelectedExp(items)
+		options.setSelectedExp(items)
 
 		return true
 	})
@@ -205,10 +196,9 @@ export default function useAppCommands(
 			if (res.ok) {
 				const code = await res.text()
 				const exp = readStr(toSketchCode(code)) as MalNode
-				const nonReactiveExp = nonReactive(exp)
-				callbacks.updateExp(nonReactiveExp)
-				callbacks.setActiveExp(null)
-				data.editingExp = nonReactiveExp
+				options.updateExp(exp)
+				options.setActiveExp(null)
+				options.editingExp.value = exp
 			} else {
 				throw new MalError(`Failed to load from "${url}"`)
 			}
@@ -217,26 +207,26 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('select-outer', () => {
-		if (!data.activeExp) {
+		if (!options.activeExp.value) {
 			throw new MalError('No selection')
 		}
 
-		const [outer] = getUIOuterInfo(data.activeExp.value)
-		if (outer && outer !== data.exp?.value) {
-			callbacks.setActiveExp(nonReactive(outer))
+		const [outer] = getUIOuterInfo(options.activeExp.value)
+		if (outer && outer !== options.exp.value) {
+			options.setActiveExp(outer)
 		}
 		return true
 	})
 
 	AppScope.def('wrap-selected', (wrapper: MalVal) => {
-		if (!data.activeExp) {
+		if (!options.activeExp.value) {
 			throw new MalError('No selection')
 		}
 		if (!isList(wrapper)) {
 			throw new MalError(`${printExp(wrapper)} is not a list`)
 		}
 
-		const exp = data.activeExp.value
+		const exp = options.activeExp.value
 		let shouldDuplicate = false
 
 		const newExp = L(
@@ -253,13 +243,13 @@ export default function useAppCommands(
 
 		reconstructTree(newExp)
 
-		replaceExp(data.activeExp.value, newExp)
+		replaceExp(options.activeExp.value, newExp)
 
 		return true
 	})
 
 	AppScope.def('transform-selected', (xform: MalVal) => {
-		for (const {value: exp} of data.selectedExp) {
+		for (const exp of options.selectedExp.value) {
 			if (!isSeq(exp)) {
 				return false
 			}
@@ -281,7 +271,7 @@ export default function useAppCommands(
 			const payload = {
 				[K('params')]: originalParams.map(p => getEvaluated(p)),
 				[K('transform')]: xform as MalVal,
-			}
+			} as MalMap
 
 			const modifier = transformFn(payload)
 			let newParams: MalVal[] | null
@@ -305,11 +295,11 @@ export default function useAppCommands(
 	})
 
 	AppScope.def('copy-selected', () => {
-		if (!data.activeExp) {
+		if (!options.activeExp.value) {
 			throw new MalError('No selection')
 		}
 
-		const code = printExp(data.activeExp.value)
+		const code = printExp(options.activeExp.value)
 
 		navigator.clipboard.writeText(code)
 
@@ -319,13 +309,13 @@ export default function useAppCommands(
 	AppScope.def('paste-from-clipboard', () => {
 		let outer: MalSeq, index: number
 
-		if (!data.activeExp) {
+		if (!options.activeExp.value) {
 			;[outer, index] = [
-				data.exp.value as MalSeq,
-				(data.exp.value as MalSeq).length - 1,
+				options.exp.value as MalSeq,
+				(options.exp.value as MalSeq).length - 1,
 			]
 		} else {
-			const [_outer, _index] = getUIOuterInfo(data.activeExp.value)
+			const [_outer, _index] = getUIOuterInfo(options.activeExp.value)
 
 			if (!isSeq(_outer)) {
 				return false
@@ -345,39 +335,38 @@ export default function useAppCommands(
 			reconstructTree(newOuter)
 			replaceExp(outer, newOuter)
 
-			callbacks.setActiveExp(isNode(exp) ? nonReactive(exp) : null)
+			options.setActiveExp(isNode(exp) ? exp : null)
 		})
 
 		return null
 	})
 
 	AppScope.def('delete-selected', () => {
-		for (const _exp of data.selectedExp) {
-			const exp = getUIAnnotationExp(_exp.value)
+		for (const exp of options.selectedExp.value) {
 			deleteExp(exp)
 		}
 
-		callbacks.setSelectedExp([])
+		options.setSelectedExp([])
 
 		return true
 	})
 
 	AppScope.def('group-selected', () => {
-		if (data.selectedExp.length === 0) {
+		if (options.selectedExp.value.length === 0) {
 			return false
 		}
 
-		const [first, ...rest] = data.selectedExp.map(e => e.value)
+		const [first, ...rest] = options.selectedExp.value
 
 		for (const exp of rest) {
-			deleteExp(getUIAnnotationExp(exp))
+			deleteExp(exp)
 		}
 
-		const group = L(symbolFor('g'), {}, first, ...rest)
+		const group = L(symbolFor('g'), {} as MalMap, first, ...rest)
 
 		replaceExp(first, group)
 
-		callbacks.setActiveExp(nonReactive(group))
+		options.setActiveExp(group)
 
 		return true
 	})

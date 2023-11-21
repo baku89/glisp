@@ -1,10 +1,11 @@
-import {vec2, mat2d} from 'gl-matrix'
+import {mat2d, vec2} from 'linearly'
+
 import {
-	MalError,
 	isKeyword,
-	MalVal,
-	keywordFor as K,
 	isVector,
+	keywordFor as K,
+	MalError,
+	MalVal,
 } from '@/mal/types'
 
 const K_PATH = K('path')
@@ -34,7 +35,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 }
 
 export function getSVGPathDataRecursive(exp: MalVal): string {
-	return convertPath(exp, mat2d.create())
+	return convertPath(exp)
 
 	function convertPath(exp: MalVal, transform?: mat2d): string {
 		if (!isVector(exp)) {
@@ -52,9 +53,8 @@ export function getSVGPathDataRecursive(exp: MalVal): string {
 			}
 			case K('transform'): {
 				const newTransform = mat2d.mul(
-					mat2d.create(),
-					transform || mat2d.create(),
-					exp[1] as mat2d
+					transform ?? mat2d.identity,
+					exp[1] as mat2d.Mutable
 				)
 				return exp
 					.slice(2)
@@ -66,14 +66,14 @@ export function getSVGPathDataRecursive(exp: MalVal): string {
 		return ''
 	}
 
-	function transformPath(path: PathType, transform?: mat2d) {
-		return !transform
-			? path
-			: (path.map(p =>
-					isVector(p as MalVal)
-						? vec2.transformMat2d(vec2.create(), p as vec2, transform)
-						: p
-			  ) as PathType)
+	function transformPath(path: PathType, transform?: mat2d): PathType {
+		if (!transform) {
+			return path
+		} else {
+			return path.map(p =>
+				isVector(p as MalVal) ? vec2.transformMat2d(p as vec2, transform) : p
+			)
+		}
 	}
 }
 

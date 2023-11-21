@@ -1,51 +1,31 @@
 <template>
 	<InputDropdown
-		:value="value.value"
+		:value="value"
 		:values="values"
 		:labels="labels"
 		@input="onInput"
 	/>
 </template>
 
-<script lang="ts">
-import {defineComponent, SetupContext} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
-import {MalVal} from '@/mal/types'
+<script lang="ts" setup>
 import {PropType} from 'vue'
-import {InputDropdown} from '@/components/inputs'
+
+import {MalVal} from '@/mal/types'
 
 interface Props {
-	value: NonReactive<MalVal>
+	value: MalVal
 	values: PropType<string[] | number[]>
 	labels: string[]
 }
 
-export default defineComponent({
-	name: 'MalInputDropdown',
-	components: {
-		InputDropdown,
-	},
-	props: {
-		value: {
-			required: true,
-			validator: x => x instanceof NonReactive,
-		},
-		values: {
-			type: Array,
-			required: true,
-		},
-		labels: {
-			type: Array,
-			required: false,
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		function onInput(value: string) {
-			context.emit('input', nonReactive(value))
-			context.emit('end-tweak')
-		}
+defineProps<Props>()
+const emit = defineEmits<{
+	input: [MalVal]
+	'end-tweak': []
+}>()
 
-		return {onInput}
-	},
-})
+function onInput(value: string) {
+	emit('input', value)
+	emit('end-tweak')
+}
 </script>

@@ -1,5 +1,5 @@
 import chroma from 'chroma-js'
-import {vec2} from 'gl-matrix'
+import {vec2} from 'linearly'
 
 const TOMORROW = {
 	'--currentline': '#efefef',

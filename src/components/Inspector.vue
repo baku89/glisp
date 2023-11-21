@@ -1,3 +1,78 @@
+<script lang="ts" setup>
+import {computed} from 'vue'
+import VueMarkdown from 'vue-markdown'
+
+import Inspectors from '@/components/inspectors'
+import {
+	getOuter,
+	isList,
+	isSymbol,
+	MalNode,
+	MalSymbol,
+	MalType,
+	MalVal,
+} from '@/mal/types'
+import {copyDelimiters, getFnInfo, getMapValue} from '@/mal/utils'
+
+const props = defineProps<{
+	exp: MalNode
+}>()
+
+const emit = defineEmits<{
+	input: [newExp: MalVal]
+	select: [exp: MalNode]
+	'end-tweak': []
+}>()
+
+const fnInfo = computed(() => {
+	return getFnInfo(props.exp)
+})
+
+const fnName = computed(() => {
+	if (fnInfo.value?.structType) {
+		return fnInfo.value.structType
+	} else if (
+		fnInfo.value?.fn ||
+		(isList(props.exp) && isSymbol(props.exp[0]))
+	) {
+		return ((props.exp as MalVal[])[0] as MalSymbol).value || ''
+	} else {
+		return ''
+	}
+})
+
+const fnDoc = computed(() => {
+	if (fnInfo.value?.meta) {
+		return getMapValue(fnInfo.value.meta, 'doc', MalType.String, '') as string
+	}
+	return ''
+})
+
+const outer = computed(() => {
+	const outer = getOuter(props.exp)
+
+	if (getOuter(outer)) {
+		return outer
+	}
+	return null
+})
+
+const inspectorName = computed(() => {
+	const customInspector = `Inspector-${fnName.value}`
+	return customInspector in Inspectors ? customInspector : 'ParamControl'
+})
+
+function onSelectOuter() {
+	if (!outer.value) return
+	emit('select', outer.value)
+}
+
+function onInput(newExp: MalVal) {
+	copyDelimiters(newExp, props.exp)
+	emit('input', newExp)
+}
+</script>
+
 <template>
 	<div class="Inspector">
 		<div class="Inspector__header">
@@ -8,7 +83,7 @@
 					alias for
 					{{ fnInfo.aliasFor }}
 				</span>
-				<button class="Inspector__outer" v-if="outer" @click="onSelectOuter">
+				<button v-if="outer" class="Inspector__outer" @click="onSelectOuter">
 					<i class="fas fa-level-up-alt" />
 				</button>
 			</div>
@@ -27,114 +102,6 @@
 		/>
 	</div>
 </template>
-
-<script lang="ts">
-import VueMarkdown from 'vue-markdown'
-
-import {
-	MalVal,
-	isList,
-	isSymbol,
-	MalNode,
-	MalSymbol,
-	isNode,
-	getOuter,
-	isSymbolFor,
-	MalType,
-} from '@/mal/types'
-
-import ParamControl from './ParamControl.vue'
-
-import Inspectors from '@/components/inspectors'
-import {NonReactive, nonReactive} from '@/utils'
-import {getFnInfo, copyDelimiters, getMapValue} from '@/mal/utils'
-import {defineComponent, computed, SetupContext} from 'vue'
-
-interface Props {
-	exp: NonReactive<MalNode>
-}
-
-export default defineComponent({
-	name: 'Inspector',
-	components: {
-		VueMarkdown,
-		ParamControl,
-		...Inspectors,
-	},
-	props: {
-		exp: {
-			required: true,
-			validator: p => p instanceof NonReactive && isNode(p.value),
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const fnInfo = computed(() => {
-			return getFnInfo(props.exp.value)
-		})
-
-		const fnName = computed(() => {
-			if (fnInfo.value?.structType) {
-				return fnInfo.value.structType
-			} else if (
-				fnInfo.value?.fn ||
-				(isList(props.exp.value) && isSymbol(props.exp.value[0]))
-			) {
-				return ((props.exp.value as MalVal[])[0] as MalSymbol).value || ''
-			} else {
-				return ''
-			}
-		})
-
-		const fnDoc = computed(() => {
-			if (fnInfo.value?.meta) {
-				return getMapValue(
-					fnInfo.value.meta,
-					'doc',
-					MalType.String,
-					''
-				) as string
-			}
-			return ''
-		})
-
-		const outer = computed(() => {
-			let outer = getOuter(props.exp.value)
-			if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
-				outer = getOuter(outer)
-			}
-
-			if (getOuter(outer)) {
-				return outer
-			}
-			return undefined
-		})
-
-		const inspectorName = computed(() => {
-			const customInspector = `Inspector-${fnName.value}`
-			return customInspector in Inspectors ? customInspector : 'ParamControl'
-		})
-
-		function onSelectOuter() {
-			context.emit('select', nonReactive(outer.value))
-		}
-
-		function onInput(newExp: NonReactive<MalVal>) {
-			copyDelimiters(newExp.value, props.exp.value)
-			context.emit('input', newExp)
-		}
-
-		return {
-			fnInfo,
-			fnName,
-			fnDoc,
-			inspectorName,
-			outer,
-			onSelectOuter,
-			onInput,
-		}
-	},
-})
-</script>
 
 <style lang="stylus">
 @import 'style/common.styl'

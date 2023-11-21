@@ -1,20 +1,273 @@
+<script lang="ts" setup>
+import 'normalize.css'
+import 'splitpanes/dist/splitpanes.css'
+
+import {useElementSize} from '@vueuse/core'
+import {mat2d} from 'linearly'
+import {Pane, Splitpanes} from 'splitpanes'
+import {computed, onMounted, reactive, Ref, ref, watch, watchEffect} from 'vue'
+
+import Console from '@/components/Console.vue'
+import GlobalMenu from '@/components/GlobalMenu'
+import Inspector from '@/components/Inspector.vue'
+import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
+import PaneLayers from '@/components/PaneLayers.vue'
+import {useRem} from '@/components/use'
+import ViewHandles from '@/components/ViewHandles'
+import {printExp} from '@/mal'
+import {reconstructTree} from '@/mal/reader'
+import {
+	createList as L,
+	isNode,
+	MalAtom,
+	MalNode,
+	MalVal,
+	symbolFor as S,
+} from '@/mal/types'
+import {replaceExp, unwatchExpOnReplace, watchExpOnReplace} from '@/mal/utils'
+import ConsoleScope from '@/scopes/console'
+import ViewScope from '@/scopes/view'
+import {computeTheme, isValidColorString} from '@/theme'
+
+import {
+	useCompactScrollbar,
+	useExpHistory,
+	useHitDetector,
+	useURLParser,
+} from './use'
+import {useModes} from './use/use-modes'
+
+const OFFSET_START = 11 // length of "(sketch;__\n"
+const OFFSET_END = 5 // length of ";__\n)"
+
+const elHandles: Ref<any | null> = ref(null)
+
+const rem = useRem()
+
+const {width: windowWidth} = useElementSize(document.body)
+
+const compact = ref(true)
+const background = ref('whiteSmoke')
+const theme = computed(() => computeTheme(background.value))
+const guideColor = computed(() => theme.value.colors['--guide'])
+const viewHandlesTransform = ref(mat2d.identity)
+
+const viewTransform = computed(() => {
+	const left = paneSizeInPixel.layers
+	const {top} = elHandles.value?.$el.getBoundingClientRect() || {
+		top: 0,
+	}
+	return mat2d.translate(viewHandlesTransform.value, [left, top])
+})
+
+const exp = ref(L(S('sketch'))) as Ref<MalNode>
+
+const hasParseError = ref(false)
+const hasEvalError = computed(() => viewExp.value === null)
+const hasRenderError = ref(false)
+const hasError = computed(
+	() => hasParseError.value || hasEvalError.value || hasRenderError.value
+)
+
+const viewExp = computed(() => {
+	let viewExp: MalVal | null = null
+
+	if (exp.value) {
+		ViewScope.setup({
+			guideColor: guideColor.value,
+		})
+
+		const ret = ViewScope.eval(exp.value)
+
+		if (ret !== undefined) {
+			ConsoleScope.def('*view*', ret)
+			viewExp = ret
+		}
+	}
+
+	return viewExp
+})
+
+const selectedExp = ref([]) as Ref<MalNode[]>
+
+const activeExp = computed(() => {
+	return selectedExp.value.length === 0
+		? null
+		: (selectedExp.value[0] as MalNode)
+})
+
+const editingExp = ref(null) as Ref<MalNode | null>
+const hoveringExp = ref(null)
+
+// Centerize the origin of viewport on mounted
+onMounted(() => {
+	if (!elHandles.value) return
+
+	const {top, bottom} = (
+		elHandles.value.$el as SVGElement
+	).getBoundingClientRect()
+
+	const left = 0
+	const right = window.innerWidth - paneSizeInPixel.control
+
+	const xform = mat2d.fromTranslation([(left + right) / 2, (top + bottom) / 2])
+
+	viewHandlesTransform.value = xform
+})
+
+const {pushExpHistory, tagExpHistory} = useExpHistory(exp, updateExp)
+
+const {onSetupConsole} = useURLParser((exp: MalNode) => {
+	updateExp(exp, false)
+	pushExpHistory(exp, 'undo')
+	setEditingExp(exp)
+})
+
+// Apply the theme
+watch(
+	() => theme.value.colors,
+	colors => {
+		Object.entries(colors).forEach(([name, value]) => {
+			document.body.style.setProperty(name, value)
+		})
+	},
+	{immediate: true}
+)
+
+// Events
+
+// Exp
+function updateExp(_exp: MalNode, pushHistory = true) {
+	unwatchExpOnReplace(exp.value, onReplaced)
+	if (pushHistory) {
+		pushExpHistory(_exp)
+	}
+	// NOTE: might be redundant
+	reconstructTree(exp.value)
+	exp.value = _exp
+	watchExpOnReplace(exp.value, onReplaced)
+
+	function onReplaced(newExp: MalVal) {
+		if (!isNode(newExp)) {
+			throw new Error('data.exp cannot be non-node value')
+		}
+		updateExp(newExp)
+	}
+}
+
+// SelectedExp
+function setSelectedExp(targets: MalNode[]) {
+	selectedExp.value = targets
+}
+
+function setActiveExp(target: MalNode | null) {
+	if (target) {
+		selectedExp.value = target !== exp.value ? [target] : []
+	} else {
+		selectedExp.value = []
+	}
+}
+
+function updateSelectedExp(target: MalVal) {
+	if (!activeExp.value) {
+		return
+	}
+	replaceExp(activeExp.value, target)
+}
+
+// Editing
+function setEditingExp(target: MalNode) {
+	editingExp.value = target
+}
+
+function updateEditingExp(_exp: MalVal) {
+	if (!editingExp.value) return
+	replaceExp(editingExp.value, _exp)
+	pushExpHistory(exp.value, 'undo')
+}
+
+// Splitpanes
+const paneSizeInPixel = reactive({
+	layers: 15 * rem.value,
+	control: 30 * rem.value,
+})
+
+const paneSizeInPercent = reactive({
+	layers: computed(() => (paneSizeInPixel.layers / windowWidth.value) * 100),
+	control: computed(() => (paneSizeInPixel.control / windowWidth.value) * 100),
+})
+
+function onResizeSplitpanes(sizes: {min: number; max: number; size: number}[]) {
+	const [layers, , control] = sizes.map(s => s.size)
+
+	paneSizeInPixel.layers = windowWidth.value * (layers / 100)
+	paneSizeInPixel.control = windowWidth.value * (control / 100)
+}
+
+// Save code
+watch(exp, exp => {
+	if (exp) {
+		const code = printExp(exp)
+		const sketch = code.slice(OFFSET_START, -OFFSET_END)
+		localStorage.setItem('saved_code', sketch)
+		ConsoleScope.def('*sketch*', sketch)
+	}
+})
+
+// Watch the mutable states
+watch(viewExp, () => {
+	const bg = ConsoleScope.var('*app-background*') as MalAtom
+	if (
+		typeof bg.value === 'string' &&
+		isValidColorString(bg.value) &&
+		background.value !== bg.value
+	) {
+		background.value = bg.value
+	}
+})
+
+// Setup scopes
+// useAppCommands({
+// 	exp,
+// 	activeExp,
+// 	selectedExp,
+// 	editingExp,
+// 	updateExp,
+// 	setActiveExp,
+// 	setSelectedExp,
+// })
+// useDialogCommand(context)
+// useDialogSettings(context)
+
+// Scrollbar
+useCompactScrollbar()
+
+// Modes
+const {modes, activeModeIndex} = useModes(elHandles, viewTransform)
+
+// HitDetector
+useHitDetector(exp)
+
+// ...toRefs(data as any),
+// ...toRefs(ui as any),
+
+const viewHandlesAxes = document.getElementById('view-handles-axes')!
+
+watchEffect(() => {
+	viewHandlesAxes.style.left = paneSizeInPercent.layers + '%'
+	viewHandlesAxes.style.right = paneSizeInPercent.control + '%'
+})
+</script>
+
 <template>
 	<div id="app" class="PageIndex">
-		<PortalTarget
-			class="PageIndex__view-handles-axes"
-			name="view-handles-axes"
-			:style="{
-				left: `${paneSizeInPercent.layers}%`,
-				right: `${paneSizeInPercent.control}%`,
-			}"
-		/>
-		<ViewCanvas
+		<!-- <ViewCanvas
 			class="PageIndex__viewer"
 			:exp="viewExp"
 			:guideColor="guideColor"
 			:viewTransform="viewTransform"
 			@render="hasRenderError = !$event"
-		/>
+		/> -->
 		<GlobalMenu class="PageIndex__global-menu" :dark="theme.dark" />
 		<Splitpanes
 			class="PageIndex__content default-theme"
@@ -34,7 +287,7 @@
 				/>
 			</Pane>
 			<Pane :size="100 - paneSizeInPercent.layers - paneSizeInPercent.control">
-				<div class="PageIndex__inspector" v-if="activeExp">
+				<div v-if="activeExp" class="PageIndex__inspector">
 					<Inspector
 						:exp="activeExp"
 						@input="updateSelectedExp"
@@ -52,18 +305,18 @@
 				/>
 				<div class="PageIndex__modes">
 					<button
-						class="PageIndex__modes-button"
 						v-for="({name, handlers}, i) in modes"
 						:key="name"
+						class="PageIndex__modes-button"
 						:class="{active: i === activeModeIndex}"
 						@click="activeModeIndex = i"
 					>
-						<span class="icon" v-if="handlers.icon.type === 'character'">{{
+						<span v-if="handlers.icon.type === 'character'" class="icon">{{
 							handlers.icon.value
 						}}</span>
 						<i
-							class="icon"
 							v-else-if="handlers.icon.type === 'fontawesome'"
+							class="icon"
 							:class="handlers.icon.value"
 						/>
 
@@ -76,10 +329,10 @@
 					<div class="PageIndex__editor">
 						<MalExpEditor
 							v-if="editingExp"
+							v-model:hasParseError="hasParseError"
 							:exp="editingExp"
 							:selectedExp="activeExp"
-							:hasParseError.sync="hasParseError"
-							:editMode="editingPath === '/' ? 'params' : 'node'"
+							:editMode="editingExp === exp ? 'params' : 'node'"
 							@input="updateEditingExp"
 							@select="setActiveExp"
 						/>
@@ -99,396 +352,6 @@
 		</Splitpanes>
 	</div>
 </template>
-
-<script lang="ts">
-import 'normalize.css'
-import {Splitpanes, Pane} from 'splitpanes'
-import 'splitpanes/dist/splitpanes.css'
-import {
-	defineComponent,
-	reactive,
-	computed,
-	watch,
-	toRefs,
-	ref,
-	Ref,
-	onMounted,
-	toRef,
-} from 'vue'
-
-import GlobalMenu from '@/components/GlobalMenu'
-import MalExpEditor from '@/components/mal-inputs/MalExpEditor.vue'
-import ViewCanvas from '@/components/ViewCanvas.vue'
-import Console from '@/components/Console.vue'
-import Inspector from '@/components/Inspector.vue'
-import ViewHandles from '@/components/ViewHandles'
-import PaneLayers from '@/components/PaneLayers.vue'
-
-import {useElementSize} from '@vueuse/core'
-
-import {printExp} from '@/mal'
-import {
-	MalVal,
-	MalNode,
-	isNode,
-	MalAtom,
-	createList as L,
-	symbolFor as S,
-} from '@/mal/types'
-
-import {nonReactive, NonReactive} from '@/utils'
-import ViewScope from '@/scopes/view'
-import ConsoleScope from '@/scopes/console'
-import {computeTheme, Theme, isValidColorString} from '@/theme'
-import {mat2d} from 'gl-matrix'
-import {useRem} from '@/components/use'
-import {
-	replaceExp,
-	watchExpOnReplace,
-	unwatchExpOnReplace,
-	generateExpAbsPath,
-	getExpByPath,
-} from '@/mal/utils'
-
-import {
-	useAppCommands,
-	useURLParser,
-	useCompactScrollbar,
-	useExpHistory,
-	useDialogCommand,
-	useDialogSettings,
-	useHitDetector,
-} from './use'
-import {reconstructTree} from '@/mal/reader'
-import {useModes} from './use/use-modes'
-
-interface Data {
-	exp: NonReactive<MalNode>
-	viewExp: NonReactive<MalVal> | null
-	hasError: boolean
-	hasParseError: boolean
-	hasEvalError: boolean
-	hasRenderError: boolean
-	selectedExp: NonReactive<MalNode>[]
-	activeExp: NonReactive<MalNode> | null
-	editingExp: NonReactive<MalNode> | null
-	hoveringExp: NonReactive<MalNode> | null
-	selectedPath: string[]
-	editingPath: string
-}
-
-interface UI {
-	compact: boolean
-	background: string
-	theme: Theme
-	guideColor: string
-	viewTransform: mat2d
-	viewHandlesTransform: mat2d
-}
-
-const OFFSET_START = 11 // length of "(sketch;__\n"
-const OFFSET_END = 5 // length of ";__\n)"
-
-export default defineComponent({
-	name: 'PageIndex',
-	components: {
-		GlobalMenu,
-		MalExpEditor,
-		ViewCanvas,
-		Console,
-		Inspector,
-		ViewHandles,
-		Splitpanes,
-		PaneLayers,
-		Pane,
-	},
-	setup(_, context) {
-		const elHandles: Ref<any | null> = ref(null)
-
-		const rem = useRem()
-
-		const {width: windowWidth} = useElementSize(document.body)
-
-		const ui = reactive({
-			compact: true,
-			background: 'whiteSmoke',
-			theme: computed(() => {
-				return computeTheme(ui.background)
-			}),
-			guideColor: computed(() => ui.theme.colors['--guide']),
-			viewHandlesTransform: mat2d.identity(mat2d.create()),
-			viewTransform: computed(() => {
-				const {top} = elHandles.value?.$el.getBoundingClientRect() || {
-					top: 0,
-				}
-				const left = paneSizeInPixel.layers
-				const xform = mat2d.clone(ui.viewHandlesTransform)
-				xform[4] += left
-				xform[5] += top
-				return xform as mat2d
-			}),
-		}) as UI
-
-		const data = reactive({
-			exp: nonReactive(L(S('sketch'))),
-			hasError: computed(
-				() => data.hasParseError || data.hasEvalError || data.hasRenderError
-			),
-			hasParseError: false,
-			hasEvalError: computed(() => data.viewExp === null),
-			hasRenderError: false,
-			viewExp: computed(() => {
-				let viewExp: NonReactive<MalVal> | null = null
-
-				if (data.exp) {
-					ViewScope.setup({
-						guideColor: ui.guideColor,
-					})
-
-					const ret = ViewScope.eval(data.exp.value)
-
-					if (ret !== undefined) {
-						ConsoleScope.def('*view*', ret)
-						viewExp = nonReactive(ret)
-					}
-				}
-
-				return viewExp
-			}),
-			// Selection
-			selectedExp: computed(() =>
-				data.selectedPath.map(path =>
-					nonReactive(getExpByPath(data.exp.value, path))
-				)
-			),
-			activeExp: computed(() =>
-				data.selectedExp.length === 0 ? null : data.selectedExp[0]
-			),
-			editingExp: computed(() =>
-				data.editingPath
-					? nonReactive(getExpByPath(data.exp.value, data.editingPath))
-					: null
-			),
-			hoveringExp: null,
-
-			// Paths
-			selectedPath: [],
-			editingPath: '',
-		}) as Data
-
-		// Centerize the origin of viewport on mounted
-		onMounted(() => {
-			if (!elHandles.value) return
-
-			const {top, bottom} = (elHandles.value
-				.$el as SVGElement).getBoundingClientRect()
-
-			const left = 0
-			const right = window.innerWidth - paneSizeInPixel.control
-
-			const xform = mat2d.fromTranslation(mat2d.create(), [
-				(left + right) / 2,
-				(top + bottom) / 2,
-			])
-
-			ui.viewHandlesTransform = xform
-		})
-
-		const {pushExpHistory, tagExpHistory} = useExpHistory(
-			toRef(data, 'exp'),
-			updateExp
-		)
-
-		const {onSetupConsole} = useURLParser((exp: NonReactive<MalNode>) => {
-			updateExp(exp, false)
-			pushExpHistory(exp, 'undo')
-			setEditingExp(exp)
-		})
-
-		// Apply the theme
-		watch(
-			() => ui.theme.colors,
-			colors => {
-				Object.entries(colors).forEach(([name, value]) => {
-					document.body.style.setProperty(name, value)
-				})
-			},
-			{immediate: true}
-		)
-
-		// Events
-
-		// Exp
-		function updateExp(exp: NonReactive<MalNode>, pushHistory = true) {
-			unwatchExpOnReplace(data.exp.value, onReplaced)
-			if (pushHistory) {
-				pushExpHistory(exp)
-			}
-			// NOTE: might be redundant
-			reconstructTree(exp.value)
-			data.exp = exp
-			watchExpOnReplace(exp.value, onReplaced)
-
-			function onReplaced(newExp: MalVal) {
-				if (!isNode(newExp)) {
-					throw new Error('data.exp cannot be non-node value')
-				}
-				updateExp(nonReactive(newExp))
-			}
-		}
-
-		// SelectedExp
-		function setSelectedExp(exp: NonReactive<MalNode>[]) {
-			data.selectedPath = exp.map(e => generateExpAbsPath(e.value))
-		}
-		function toggleSelectedExp(exp: NonReactive<MalNode>) {
-			const selectedExp = [...data.selectedExp]
-			const index = selectedExp.findIndex(e => e.value === exp.value)
-			if (index >= 0) {
-				selectedExp.splice(index, 1)
-			} else {
-				selectedExp.push(exp)
-			}
-			setSelectedExp(selectedExp)
-		}
-
-		function setActiveExp(exp: NonReactive<MalNode> | null) {
-			if (exp) {
-				const path = generateExpAbsPath(exp.value)
-				data.selectedPath = path !== '/' ? [path] : []
-			} else {
-				data.selectedPath = []
-			}
-		}
-
-		function updateSelectedExp(exp: NonReactive<MalVal>) {
-			if (data.selectedExp.length === 0) {
-				return
-			}
-			replaceExp(data.selectedExp[0].value, exp.value)
-		}
-
-		// Editing
-		function setEditingExp(exp: NonReactive<MalNode>) {
-			if (exp) {
-				data.editingPath = generateExpAbsPath(exp.value)
-			} else {
-				data.editingPath = ''
-			}
-		}
-
-		function updateEditingExp(exp: NonReactive<MalVal>) {
-			if (!data.editingExp) return
-			replaceExp(data.editingExp.value, exp.value)
-			pushExpHistory(data.exp, 'undo')
-		}
-
-		// Hovering
-		function setHoveringExp(exp: NonReactive<MalNode> | null) {
-			data.hoveringExp = exp
-		}
-
-		// Splitpanes
-		const paneSizeInPixel = reactive({
-			layers: 15 * rem.value,
-			control: 30 * rem.value,
-		})
-
-		const paneSizeInPercent = reactive({
-			layers: computed(
-				() => (paneSizeInPixel.layers / windowWidth.value) * 100
-			),
-			control: computed(
-				() => (paneSizeInPixel.control / windowWidth.value) * 100
-			),
-		})
-
-		function onResizeSplitpanes(
-			sizes: {min: number; max: number; size: number}[]
-		) {
-			const [layers, , control] = sizes.map(s => s.size)
-
-			paneSizeInPixel.layers = windowWidth.value * (layers / 100)
-			paneSizeInPixel.control = windowWidth.value * (control / 100)
-		}
-
-		// Save code
-		watch(
-			() => data.exp,
-			exp => {
-				if (exp) {
-					const code = printExp(exp.value)
-					const sketch = code.slice(OFFSET_START, -OFFSET_END)
-					localStorage.setItem('saved_code', sketch)
-					ConsoleScope.def('*sketch*', sketch)
-				}
-			}
-		)
-
-		// Watch the mutable states
-		watch(
-			() => data.viewExp,
-			() => {
-				const bg = ConsoleScope.var('*app-background*') as MalAtom
-				if (
-					typeof bg.value === 'string' &&
-					isValidColorString(bg.value) &&
-					ui.background !== bg.value
-				) {
-					ui.background = bg.value
-				}
-			}
-		)
-
-		// transform selectedExp
-		function onTransformSelectedExp(xform: mat2d) {
-			ConsoleScope.eval(L(S('transform-selected'), xform as MalVal[]))
-		}
-
-		const viewTransform = toRef(ui, 'viewTransform')
-		// Setup scopes
-		useAppCommands(data, {
-			updateExp,
-			setActiveExp,
-			setSelectedExp,
-		})
-		useDialogCommand(context)
-		useDialogSettings(context)
-
-		// Scrollbar
-		useCompactScrollbar()
-
-		// Modes
-		const {modes, activeModeIndex} = useModes(elHandles, viewTransform)
-
-		const hitEnabled = computed(() => activeModeIndex.value === undefined)
-
-		// HitDetector
-		useHitDetector(toRef(data, 'exp'))
-
-		return {
-			elHandles,
-			...toRefs(data as any),
-			onSetupConsole,
-			updateSelectedExp,
-			updateEditingExp,
-			setEditingExp,
-			...toRefs(ui as any),
-			updateExp,
-			setSelectedExp,
-			setActiveExp,
-			onResizeSplitpanes,
-			tagExpHistory,
-
-			// modes
-			modes,
-			activeModeIndex,
-
-			paneSizeInPercent,
-		}
-	},
-})
-</script>
 
 <style lang="stylus">
 @import '../style/common.styl'

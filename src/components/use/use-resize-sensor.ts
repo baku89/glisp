@@ -1,5 +1,5 @@
-import {Ref, onMounted, onBeforeMount, unref} from 'vue'
 import ResizeSensor from 'resize-sensor'
+import {onBeforeMount, onMounted, Ref, unref} from 'vue'
 
 export default function useResizeSensor(
 	element: Ref<HTMLElement | null> | HTMLElement,

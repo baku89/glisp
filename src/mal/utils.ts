@@ -1,36 +1,37 @@
+import {mat2d} from 'linearly'
+
 import {
-	MalVal,
+	cloneExp,
+	createList as L,
+	getEvaluated,
+	getMeta,
+	getOuter,
+	getType,
+	isFunc,
+	isList,
 	isMap,
-	MalFunc,
+	isNode,
+	isSeq,
+	isSymbol,
+	isSymbolFor,
+	isVector,
 	keywordFor as K,
+	keywordFor,
+	M_DELIMITERS,
+	M_OUTER,
+	M_OUTER_INDEX,
+	MalFunc,
+	MalJSFunc,
 	MalMap,
 	MalNode,
-	isVector,
-	MalJSFunc,
-	isSeq,
-	keywordFor,
-	getMeta,
 	MalSeq,
-	getType,
-	isSymbol,
 	MalSymbol,
-	symbolFor as S,
-	createList as L,
-	isNode,
-	M_OUTER,
-	isList,
-	M_OUTER_INDEX,
 	MalType,
-	isFunc,
-	getEvaluated,
-	isSymbolFor,
-	cloneExp,
-	MalNodeMap,
-	M_DELIMITERS,
-	getOuter,
+	MalVal,
+	symbolFor as S,
 } from '@/mal/types'
 import ConsoleScope from '@/scopes/console'
-import {mat2d} from 'gl-matrix'
+
 import {reconstructTree} from './reader'
 
 export function getStructType(exp: MalVal): StructTypes | undefined {
@@ -92,19 +93,17 @@ export function getExpByPath(root: MalNode, path: string): MalVal {
 	function find(exp: MalVal, keys: number[]): MalVal {
 		const [index, ...rest] = keys
 
-		const expBody = getUIBodyExp(exp)
-
 		if (keys.length === 0) {
-			return expBody
+			return exp
 		}
 
-		if (isSeq(expBody)) {
-			return find(expBody[index], rest)
-		} else if (isMap(expBody)) {
-			const keys = Object.keys(expBody as MalNodeMap)
-			return find(expBody[keys[index]], rest)
+		if (isSeq(exp)) {
+			return find(exp[index], rest)
+		} else if (isMap(exp)) {
+			const keys = Object.keys(exp)
+			return find(exp[keys[index]], rest)
 		} else {
-			return expBody
+			return exp
 		}
 	}
 }
@@ -115,12 +114,8 @@ export function generateExpAbsPath(exp: MalNode) {
 	function seek(exp: MalNode, path: string): string {
 		const outer = getOuter(exp)
 		if (outer) {
-			if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
-				return seek(outer, path)
-			} else {
-				const index = exp[M_OUTER_INDEX]
-				return seek(outer, index + '/' + path)
-			}
+			const index = exp[M_OUTER_INDEX]
+			return seek(outer, index + '/' + path)
 		} else {
 			return '/' + path
 		}
@@ -128,20 +123,13 @@ export function generateExpAbsPath(exp: MalNode) {
 }
 
 export function getUIOuterInfo(
-	_exp: MalVal | undefined
+	exp: MalVal | undefined
 ): [MalNode | null, number] {
-	if (!isNode(_exp)) {
+	if (!isNode(exp)) {
 		return [null, -1]
 	}
 
-	let exp = _exp
-
-	let outer = getOuter(exp)
-
-	if (isList(outer) && isSymbolFor(outer[0], 'ui-annotate')) {
-		exp = outer
-		outer = getOuter(exp)
-	}
+	const outer = getOuter(exp)
 
 	return outer ? [outer, exp[M_OUTER_INDEX]] : [null, -1]
 }
@@ -181,7 +169,7 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 		}
 	} else {
 		// Hash map
-		const keys = Object.keys(outer as MalNodeMap)
+		const keys = Object.keys(outer)
 		const key = keys[index]
 		newOuter[key] = replaced
 		for (let i = 0; i < keys.length; i++) {
@@ -195,15 +183,6 @@ export function replaceExp(original: MalNode, replaced: MalVal) {
 	newOuter[M_DELIMITERS] = outer[M_DELIMITERS]
 
 	replaceExp(outer, newOuter)
-}
-
-export function getUIAnnotationExp(exp: MalNode) {
-	const outer = getOuter(exp)
-	return isList(outer) && isSymbolFor(outer[0], 'ui-annotate') ? outer : exp
-}
-
-export function getUIBodyExp(exp: MalVal) {
-	return isList(exp) && isSymbolFor(exp[0], 'ui-annotate') ? exp[2] : exp
 }
 
 export function deleteExp(exp: MalNode) {
@@ -336,7 +315,7 @@ export function reverseEval(
 				const result = inverseFn({
 					[K('return')]: exp,
 					[K('params')]: evaluatedParams,
-				})
+				} as MalMap)
 
 				if (!isVector(result) && !isMap(result)) {
 					return null
@@ -440,7 +419,7 @@ export function reverseEval(
 
 export function computeExpTransform(exp: MalVal): mat2d {
 	if (!isNode(exp)) {
-		return mat2d.create()
+		return mat2d.ident
 	}
 
 	// Collect ancestors with index
@@ -449,7 +428,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 		ancestors.unshift([_exp[M_OUTER], _exp[M_OUTER_INDEX]])
 	}
 
-	const xform = mat2d.create()
+	let xform = mat2d.ident
 
 	for (const [node, index] of ancestors) {
 		if (!isList(node)) {
@@ -472,7 +451,7 @@ export function computeExpTransform(exp: MalVal): mat2d {
 			continue
 		}
 
-		mat2d.mul(xform, xform, paramXforms[index - 1] as mat2d)
+		xform = mat2d.mul(xform, paramXforms[index - 1] as unknown as mat2d)
 	}
 
 	return xform

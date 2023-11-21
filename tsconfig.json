@@ -8,10 +8,10 @@
 
 		/* Bundler mode */
 		"moduleResolution": "bundler",
-		"allowImportingTsExtensions": true,
+		"allowImportingTsExtensions": false,
 		"resolveJsonModule": true,
 		"isolatedModules": true,
-		"noEmit": true,
+		"noEmit": false,
 
 		/* Linting */
 		"strict": true,
@@ -19,11 +19,11 @@
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
 
-		"types": ["webpack-env", "jquery", "node"],
+		"types": ["jquery", "node"],
 		"typeRoots": ["node_modules/@types", "src"],
 		"paths": {
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": ["src/**/*.ts", "tests/**/*.ts"]
+	"include": ["src/**/*.ts", "src/**/*.vue"]
 }

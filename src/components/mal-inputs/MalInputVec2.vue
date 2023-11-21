@@ -1,8 +1,8 @@
 <template>
 	<div class="MalInputVec2">
 		<MalExpButton
-			class="MalInputVec2__exp-button"
 			v-if="!isValueSeparated"
+			class="MalInputVec2__exp-button"
 			:value="value"
 			:compact="true"
 			@select="$emit('select', $event)"
@@ -49,54 +49,36 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, toRef, SetupContext} from 'vue'
-import {MalSeq, isSeq, MalSymbol, isSymbol} from '@/mal/types'
-import MalInputNumber from './MalInputNumber.vue'
-import MalExpButton from './MalExpButton.vue'
-import {InputNumber, InputTranslate} from '@/components/inputs'
+<script lang="ts" setup>
+import {toRef} from 'vue'
+
 import {useNumericVectorUpdator} from '@/components/use'
+import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
 
 interface Props {
-	value: NonReactive<MalSeq | MalSymbol>
+	value: MalSeq | MalSymbol
 }
 
-export default defineComponent({
-	name: 'MalInputVec2',
-	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
-	props: {
-		value: {
-			required: true,
-			validator: x =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const {
-			nonReactiveValues,
-			isValueSeparated,
-			evaluated,
-			onInputElement,
-			onInputEvaluatedElement,
-		} = useNumericVectorUpdator(toRef(props, 'value'), context)
+const props = defineProps<Props>()
 
-		function onInputTranslate(value: number[]) {
-			const newExp = reverseEval(value, props.value.value)
-			context.emit('input', nonReactive(newExp))
-		}
+const emit = defineEmits<{
+	input: [value: MalVal]
+	'end-tweak': []
+}>()
 
-		return {
-			nonReactiveValues,
-			isValueSeparated,
-			evaluated,
-			onInputElement,
-			onInputEvaluatedElement,
-			onInputTranslate,
-		}
-	},
-})
+const {
+	nonReactiveValues,
+	isValueSeparated,
+	evaluated,
+	onInputElement,
+	onInputEvaluatedElement,
+} = useNumericVectorUpdator(toRef(props, 'value'), emit)
+
+function onInputTranslate(value: number[]) {
+	const newExp = reverseEval(value, props.value)
+	emit('input', newExp)
+}
 </script>
 
 <style lang="stylus">

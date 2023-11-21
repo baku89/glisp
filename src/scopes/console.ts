@@ -1,23 +1,24 @@
 import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
-import printExp, {printer} from '@/mal/printer'
-import Scope from '@/mal/scope'
-import {
-	MalVal,
-	MalError,
-	isKeyword,
-	symbolFor as S,
-	keywordFor as K,
-	createList as L,
-	setMeta,
-	assocBang,
-} from '@/mal/types'
 import GIF from 'gif.js'
 
-import ViewScope, {createViewScope} from './view'
-import renderToSvg from '@/renderer/render-to-svg'
+import printExp, {printer} from '@/mal/printer'
 import {convertJSObjectToMalMap, convertMalNodeToJSObject} from '@/mal/reader'
+import Scope from '@/mal/scope'
+import {
+	assocBang,
+	createList as L,
+	isKeyword,
+	keywordFor as K,
+	MalError,
+	MalVal,
+	setMeta,
+	symbolFor as S,
+} from '@/mal/types'
 import getRendereredImage from '@/renderer/get-rendererd-image'
+import renderToSvg from '@/renderer/render-to-svg'
+
+import ViewScope, {createViewScope} from './view'
 
 const ConsoleScope = new Scope(ViewScope, 'console')
 
@@ -396,8 +397,7 @@ ConsoleScope.def(
 			return null
 		},
 		convertJSObjectToMalMap({
-			doc:
-				'Publishes the current sketch to Gist then generates Code URL. Please set `user` to your GitHub username and `token` to a personal access token that you can generate from [Developer Settings](https://github.com/settings/tokens/new) with the **gist** option turned on.',
+			doc: 'Publishes the current sketch to Gist then generates Code URL. Please set `user` to your GitHub username and `token` to a personal access token that you can generate from [Developer Settings](https://github.com/settings/tokens/new) with the **gist** option turned on.',
 			params: [
 				{
 					label: 'Name',

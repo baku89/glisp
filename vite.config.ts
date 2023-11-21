@@ -1,4 +1,5 @@
 import vue from '@vitejs/plugin-vue'
+import path from 'path'
 import {fileURLToPath} from 'url'
 import {defineConfig} from 'vite'
 import {VitePWA} from 'vite-plugin-pwa'
@@ -41,8 +42,14 @@ export default defineConfig({
 			},
 		],
 	},
-	define: {
-		// This is needed to make the PromiseQueue class available in the browser.
-		'process.env.PROMISE_QUEUE_COVERAGE': false,
+	build: {
+		rollupOptions: {
+			input: [path.resolve(__dirname, 'src/mal-lib/core.ts')],
+			output: {
+				preserveModules: false,
+			},
+		},
+		outDir: 'dist',
+		emptyOutDir: true,
 	},
 })

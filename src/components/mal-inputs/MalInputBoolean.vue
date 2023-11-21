@@ -1,6 +1,6 @@
 <template>
 	<div class="MalInputBoolean">
-		<inputBoolean
+		<InputBoolean
 			class="MalInputBoolean__input"
 			:class="{exp: isExp}"
 			:value="evaluated"
@@ -14,52 +14,41 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, SetupContext, computed} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
-import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
-import {reverseEval} from '@/mal/utils'
-import {reconstructTree} from '@/mal/reader'
+<script lang="ts" setup>
+import {computed} from 'vue'
+
 import {InputBoolean} from '@/components/inputs'
+import {reconstructTree} from '@/mal/reader'
+import {getEvaluated, MalSeq, MalSymbol, MalVal} from '@/mal/types'
+import {reverseEval} from '@/mal/utils'
+
 import MalExpButton from './MalExpButton.vue'
 
 interface Props {
-	value: NonReactive<boolean | MalSeq | MalSymbol>
+	value: boolean | MalSeq | MalSymbol
 }
+const props = defineProps<Props>()
 
-export default defineComponent({
-	name: 'MalInputBoolean',
-	components: {
-		InputBoolean,
-		MalExpButton,
-	},
-	props: {
-		value: {
-			required: true,
-			validator: x => x instanceof NonReactive,
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const isExp = computed(() => typeof props.value.value !== 'boolean')
-		const evaluated = computed(() =>
-			getEvaluated(props.value.value) ? true : false
-		)
+const emit = defineEmits<{
+	input: [value: MalVal]
+	select: [value: MalVal]
+	'end-tweak': []
+}>()
 
-		function onInput(value: boolean) {
-			let newValue: MalVal = value
+const isExp = computed(() => typeof props.value !== 'boolean')
+const evaluated = computed(() => (getEvaluated(props.value) ? true : false))
 
-			if (isExp.value) {
-				newValue = reverseEval(value, props.value.value)
-				reconstructTree(newValue)
-			}
+function onInput(value: boolean) {
+	let newValue: MalVal = value
 
-			context.emit('input', nonReactive(newValue))
-			context.emit('end-tweak')
-		}
+	if (isExp.value) {
+		newValue = reverseEval(value, props.value)
+		reconstructTree(newValue)
+	}
 
-		return {isExp, evaluated, onInput}
-	},
-})
+	emit('input', newValue)
+	emit('end-tweak')
+}
 </script>
 
 <style lang="stylus">

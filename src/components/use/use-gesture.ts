@@ -1,10 +1,10 @@
-import {Ref, onMounted} from 'vue'
 import hotkeys from 'hotkeys-js'
+import {onMounted, Ref} from 'vue'
 
 interface UseGestureOptions {
-	onScroll?: (e: MouseWheelEvent) => any
-	onGrab?: (e: MouseWheelEvent) => any
-	onZoom?: (e: MouseWheelEvent) => any
+	onScroll?: (e: WheelEvent) => any
+	onGrab?: (e: WheelEvent) => any
+	onZoom?: (e: WheelEvent) => any
 	onRotate?: (e: {rotation: number; pageX: number; pageY: number}) => any
 }
 
@@ -19,28 +19,32 @@ export default function useGesture(
 
 		if (options.onScroll || options.onZoom) {
 			// Wheel scrolling
-			el.value.addEventListener('wheel', (e: MouseWheelEvent) => {
-				if (e.altKey || e.ctrlKey) {
-					if (options.onZoom) {
-						e.preventDefault()
-						e.stopPropagation()
-						if (isWindows) {
-							e = {
-								pageX: e.pageX,
-								pageY: e.pageY,
-								deltaY: e.deltaY / 10,
-							} as MouseWheelEvent
+			el.value.addEventListener(
+				'wheel',
+				(e: WheelEvent) => {
+					if (e.altKey || e.ctrlKey) {
+						if (options.onZoom) {
+							e.preventDefault()
+							e.stopPropagation()
+							if (isWindows) {
+								e = {
+									pageX: e.pageX,
+									pageY: e.pageY,
+									deltaY: e.deltaY / 10,
+								} as WheelEvent
+							}
+							options.onZoom(e)
 						}
-						options.onZoom(e)
+					} else {
+						if (options.onScroll) {
+							e.preventDefault()
+							e.stopPropagation()
+							options.onScroll(e)
+						}
 					}
-				} else {
-					if (options.onScroll) {
-						e.preventDefault()
-						e.stopPropagation()
-						options.onScroll(e)
-					}
-				}
-			})
+				},
+				{passive: true}
+			)
 		}
 
 		if (options.onGrab) {
@@ -51,7 +55,7 @@ export default function useGesture(
 				const e = {
 					deltaX: _e.pageX - prevX,
 					deltaY: _e.pageY - prevY,
-				} as MouseWheelEvent
+				} as WheelEvent
 
 				prevX = _e.pageX
 				prevY = _e.pageY

@@ -1,6 +1,9 @@
 import ace from 'brace'
+
 import {useResizeSensor} from '@/components/use'
 import ConsoleScope from '@/scopes/console'
+
+null // Force TS to recognize the following imports as side-effect
 
 // require('brace/theme/tomorrow')
 // require('brace/theme/tomorrow_night')

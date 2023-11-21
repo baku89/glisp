@@ -1,32 +1,23 @@
 import {vsprintf} from 'sprintf-js'
-import isNodeJS from 'is-node'
 
-import {MalVal, MalError, setMeta, symbolFor as S} from './types'
+import interop from './interop'
 import printExp, {printer} from './printer'
 import readStr, {convertJSObjectToMalMap} from './reader'
-import interop from './interop'
+import {MalError, MalVal, setMeta, symbolFor as S} from './types'
 
 // String functions
 export const slurp = (() => {
-	if (isNodeJS) {
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const fs = require('fs')
-		return (url: string) => {
-			return fs.readFileSync(url, 'UTF-8')
+	return (url: string) => {
+		const req = new XMLHttpRequest()
+		// const hashedUrl =
+		// 	url + (/\?/.test(url) ? '&' : '?') + new Date().getTime()
+		// req.open('GET', hashedUrl, false)
+		req.open('GET', url, false)
+		req.send()
+		if (req.status !== 200) {
+			throw new MalError(`Failed to slurp file: ${url}`)
 		}
-	} else {
-		return (url: string) => {
-			const req = new XMLHttpRequest()
-			// const hashedUrl =
-			// 	url + (/\?/.test(url) ? '&' : '?') + new Date().getTime()
-			// req.open('GET', hashedUrl, false)
-			req.open('GET', url, false)
-			req.send()
-			if (req.status !== 200) {
-				throw new MalError(`Failed to slurp file: ${url}`)
-			}
-			return req.responseText
-		}
+		return req.responseText
 	}
 })()
 
@@ -82,7 +73,6 @@ const Exports = [
 	// Needed in import-force
 	['format', (fmt: string, ...xs: (number | string)[]) => vsprintf(fmt, xs)],
 
-	['*is-node*', isNodeJS],
 	['*host-language*', 'JavaScript'],
 
 	// Special forms annoations

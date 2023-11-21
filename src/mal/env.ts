@@ -1,19 +1,19 @@
-import {
-	MalVal,
-	MalError,
-	isSymbol,
-	isMap,
-	MalMap,
-	MalSymbol,
-	MalBind,
-	isSeq,
-	getType,
-	MalSeq,
-	MalType,
-	symbolFor,
-	keywordFor,
-} from './types'
 import {printExp} from '.'
+import {
+	getType,
+	isMap,
+	isSeq,
+	isSymbol,
+	keywordFor,
+	MalBind,
+	MalError,
+	MalMap,
+	MalSeq,
+	MalSymbol,
+	MalType,
+	MalVal,
+	symbolFor,
+} from './types'
 
 export default class Env {
 	private data = new Map<string, MalVal>()

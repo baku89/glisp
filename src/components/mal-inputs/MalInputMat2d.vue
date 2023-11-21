@@ -5,7 +5,7 @@
 			:value="value"
 			@select="$emit('select', $event)"
 		/>
-		<div class="MalInputMat2d__value" v-if="isValueSeparated">
+		<div v-if="isValueSeparated" class="MalInputMat2d__value">
 			<MalInputNumber
 				class="MalInputMat2d__el"
 				:value="nonReactiveValues[0]"
@@ -64,55 +64,33 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, toRef, SetupContext} from 'vue'
-import {InputNumber, InputTranslate} from '@/components/inputs'
-import MalInputNumber from './MalInputNumber.vue'
-import MalExpButton from './MalExpButton.vue'
+<script lang="ts" setup>
+import {toRef} from 'vue'
+
 import {useNumericVectorUpdator} from '@/components/use'
+import {MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
-import {isSeq, MalSeq, isSymbol, MalSymbol} from '@/mal/types'
 
 interface Props {
-	value: NonReactive<MalSeq | MalSymbol>
+	value: MalSeq | MalSymbol
 }
 
-export default defineComponent({
-	name: 'MalInputMat2d',
-	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
-	props: {
-		value: {
-			required: true,
-			validator: x =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const {
-			nonReactiveValues,
-			isValueSeparated,
-			evaluated,
-			onInputElement,
-			onInputEvaluatedElement,
-		} = useNumericVectorUpdator(toRef(props, 'value'), context)
+const props = defineProps<Props>()
 
-		function onInputTranslate(value: number[]) {
-			const newValue = [...evaluated.value.slice(0, 4), ...value]
-			const newExp = reverseEval(newValue, props.value.value)
-			context.emit('input', nonReactive(newExp))
-		}
+const emit = defineEmits<{
+	input: [value: MalVal]
+	select: [value: MalSeq | MalSymbol]
+	'end-tweak': []
+}>()
 
-		return {
-			nonReactiveValues,
-			isValueSeparated,
-			evaluated,
-			onInputElement,
-			onInputEvaluatedElement,
-			onInputTranslate,
-		}
-	},
-})
+const {nonReactiveValues, isValueSeparated, evaluated, onInputElement} =
+	useNumericVectorUpdator(toRef(props, 'value'), emit)
+
+function onInputTranslate(value: number[]) {
+	const newValue = [...evaluated.value.slice(0, 4), ...value]
+	const newExp = reverseEval(newValue, props.value)
+	emit('input', newExp)
+}
 </script>
 
 <style lang="stylus">

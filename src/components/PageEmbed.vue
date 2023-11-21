@@ -1,3 +1,121 @@
+<script lang="ts" setup>
+import 'normalize.css'
+
+import {computed, ref, watch} from 'vue'
+
+import GlispEditor from '@/components/GlispEditor'
+import ViewCanvas from '@/components/ViewCanvas.vue'
+import {printExp, readStr} from '@/mal'
+import {printer} from '@/mal/printer'
+import {BlankException} from '@/mal/reader'
+import {MalVal} from '@/mal/types'
+import ConsoleScope from '@/scopes/console'
+import ViewScope from '@/scopes/view'
+import {computeTheme} from '@/theme'
+
+const OFFSET_START = 8 // length of "(sketch\n"
+const OFFSET_END = 2 // length of "/n)"
+
+const background = ref('#f8f8f8')
+const colors = computed(() => computeTheme(background.value).colors)
+const guideColor = computed(() => colors.value['--selection'])
+
+const code = ref('')
+const exp = ref(null as MalVal)
+const hasError = computed(() => {
+	return (
+		hasParseError.value || hasEvalError.value || hasRenderError.value.valueOf
+	)
+})
+const hasParseError = ref(false)
+const hasEvalError = computed(() => viewExp.value === null)
+const hasRenderError = ref(false)
+
+const viewExp = computed(() => {
+	return evalExp()
+})
+
+const editorURL = computed(() => {
+	// data.code
+	const url = new URL('.', location.href)
+	url.searchParams.set('code', code.value)
+
+	return url.toString()
+})
+
+function evalExp() {
+	if (!exp.value) {
+		return []
+	}
+
+	ViewScope.setup({
+		guideColor: guideColor.value,
+	})
+
+	ViewScope.def('*width*', 100)
+	ViewScope.def('*height*', 100)
+	ViewScope.def('*size*', [100, 100])
+
+	const viewExp = ViewScope.eval(exp.value)
+	if (viewExp !== undefined) {
+		ConsoleScope.def('*view*', viewExp)
+		return viewExp
+	} else {
+		return null
+	}
+}
+
+// Code <-> Exp Conversion
+watch(
+	() => code.value,
+	code => {
+		const evalCode = `(sketch\n${code}\n)`
+		let _exp
+		try {
+			_exp = readStr(evalCode, true)
+		} catch (err) {
+			if (!(err instanceof BlankException)) {
+				printer.error(err)
+			}
+			hasParseError.value = true
+			return
+		}
+		hasParseError.value = false
+		exp.value = _exp
+	}
+)
+
+watch(
+	() => exp.value,
+	() => {
+		if (exp.value) {
+			code.value = printExp(exp.value).slice(OFFSET_START, -OFFSET_END)
+		} else {
+			code.value = ''
+		}
+	}
+)
+
+// Parse URL
+
+{
+	// URL
+	const url = new URL(location.href)
+
+	// Load initial codes
+	let _code = ''
+
+	const queryCode = url.searchParams.get('code')
+
+	if (queryCode) {
+		_code = decodeURI(queryCode)
+		url.searchParams.delete('code')
+	}
+
+	code.value = _code
+}
+</script>
+
 <template>
 	<div
 		id="app"
@@ -8,8 +126,8 @@
 		<div class="PageEmbed__editor">
 			<GlispEditor
 				:value="code"
-				@input="code = $event"
 				cssStyle="line-height: 1.5"
+				@input="code = $event"
 			/>
 		</div>
 		<div class="PageEmbed__viewer">
@@ -24,167 +142,6 @@
 		</a>
 	</div>
 </template>
-
-<script lang="ts">
-import 'normalize.css'
-
-import {
-	defineComponent,
-	reactive,
-	computed,
-	watch,
-	toRefs,
-} from 'vue'
-
-import GlispEditor from '@/components/GlispEditor'
-import ViewCanvas from '@/components/ViewCanvas.vue'
-
-import {printExp, readStr} from '@/mal'
-import {MalVal} from '@/mal/types'
-
-import {nonReactive, NonReactive} from '@/utils'
-import {printer} from '@/mal/printer'
-import {BlankException} from '@/mal/reader'
-import ViewScope from '@/scopes/view'
-import ConsoleScope from '@/scopes/console'
-import {computeTheme} from '@/theme'
-
-const OFFSET_START = 8 // length of "(sketch\n"
-const OFFSET_END = 2 // length of "/n)"
-
-interface Data {
-	code: string
-	exp: NonReactive<MalVal> | null
-	viewExp: NonReactive<MalVal> | null
-	hasError: boolean
-	hasParseError: boolean
-	hasEvalError: boolean
-	hasRenderError: boolean
-}
-
-interface UI {
-	background: string
-	colors: {[k: string]: string}
-	guideColor: string
-}
-
-function parseURL(data: Data) {
-	// URL
-	const url = new URL(location.href)
-
-	// Load initial codes
-	let code = ''
-
-	const queryCode = url.searchParams.get('code')
-
-	if (queryCode) {
-		code = decodeURI(queryCode)
-		url.searchParams.delete('code')
-	}
-
-	data.code = code
-}
-
-export default defineComponent({
-	name: 'PageEmbed',
-	components: {
-		GlispEditor,
-		ViewCanvas,
-	},
-	setup() {
-		const ui = reactive({
-			background: '#f8f8f8',
-			colors: computed(() => computeTheme(ui.background).colors),
-			guideColor: computed(() => ui.colors['--selection']),
-		}) as UI
-
-		const data = reactive({
-			code: '',
-			exp: null,
-			hasError: computed(() => {
-				return data.hasParseError || data.hasEvalError || data.hasRenderError
-			}),
-			hasParseError: false,
-			hasEvalError: computed(() => data.viewExp === null),
-			hasRenderError: false,
-			viewExp: computed(() => {
-				return evalExp()
-			}),
-		}) as Data
-
-		const editorURL = computed(() => {
-			// data.code
-			const url = new URL('.', location.href)
-			url.searchParams.set('code', data.code)
-
-			return url.toString()
-		})
-
-		function evalExp() {
-			const exp = data.exp
-
-			if (!exp) {
-				return []
-			}
-
-			ViewScope.setup({
-				guideColor: ui.guideColor,
-			})
-
-			ViewScope.def('*width*', 100)
-			ViewScope.def('*height*', 100)
-			ViewScope.def('*size*', [100, 100])
-
-			const viewExp = ViewScope.eval(exp.value)
-			if (viewExp !== undefined) {
-				ConsoleScope.def('*view*', viewExp)
-				return nonReactive(viewExp)
-			} else {
-				return null
-			}
-		}
-
-		// Code <-> Exp Conversion
-		watch(
-			() => data.code,
-			code => {
-				const evalCode = `(sketch\n${code}\n)`
-				let exp
-				try {
-					exp = nonReactive(readStr(evalCode, true))
-				} catch (err) {
-					if (!(err instanceof BlankException)) {
-						printer.error(err)
-					}
-					data.hasParseError = true
-					return
-				}
-				data.hasParseError = false
-				data.exp = exp
-			}
-		)
-
-		watch(
-			() => data.exp,
-			() => {
-				if (data.exp) {
-					data.code = printExp(data.exp.value).slice(OFFSET_START, -OFFSET_END)
-				} else {
-					data.code = ''
-				}
-			}
-		)
-
-		parseURL(data)
-
-		return {
-			...toRefs(data as any),
-			...toRefs(ui as any),
-			editorURL,
-		}
-	},
-})
-</script>
 
 <style lang="stylus">
 @import './style/global.styl'

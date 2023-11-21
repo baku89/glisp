@@ -2,19 +2,14 @@
 	<button class="InputSeed fas fa-redo-alt" @click="shuffle" />
 </template>
 
-<script lang="ts">
-import {defineComponent} from 'vue'
+<script lang="ts" setup>
+const emit = defineEmits<{
+	input: [value: number]
+}>()
 
-export default defineComponent({
-	name: 'InputSeed',
-	setup(prop, context) {
-		function shuffle() {
-			context.emit('input', Math.random())
-		}
-
-		return {shuffle}
-	},
-})
+function shuffle() {
+	emit('input', Math.random())
+}
 </script>
 
 <style lang="stylus">

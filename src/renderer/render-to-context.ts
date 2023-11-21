@@ -1,14 +1,14 @@
+import printExp from '@/mal/printer'
 import {
-	MalVal,
-	keywordFor as K,
-	isMap,
 	isKeyword,
+	isMap,
+	keywordFor as K,
 	MalError,
 	MalMap,
+	MalVal,
 } from '@/mal/types'
-import {partition} from '@/utils'
 import {iterateSegment, PathType} from '@/path-utils'
-import printExp from '@/mal/printer'
+import {partition} from '@/utils'
 
 type CanvasContext =
 	| CanvasRenderingContext2D

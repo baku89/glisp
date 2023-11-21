@@ -1,17 +1,16 @@
-import {vec2} from 'gl-matrix'
+import {vec2} from 'linearly'
+
 import {
-	MalVal,
 	getEvaluated,
+	isKeyword,
+	isList,
 	isVector,
 	keywordFor as K,
-	isList,
-	MalSeq,
-	isKeyword,
 	MalMap,
-	isSymbol,
+	MalSeq,
+	MalVal,
 } from '@/mal/types'
-import {PathType, convertToPath2D} from '@/path-utils'
-import {getUIBodyExp} from '@/mal/utils'
+import {convertToPath2D, PathType} from '@/path-utils'
 
 const K_PATH = K('path'),
 	K_TRANSFORM = K('transform'),
@@ -20,11 +19,6 @@ const K_PATH = K('path'),
 	K_STROKE = K('stroke'),
 	K_STROKE_WIDTH = K('stroke-width')
 
-interface HitStyle {
-	fill: boolean
-	stroke: false | number
-}
-
 export class HitDetector {
 	private ctx: CanvasRenderingContext2D
 	private cachedExp: MalVal = null
@@ -32,11 +26,7 @@ export class HitDetector {
 
 	constructor() {
 		const canvas = document.createElement('canvas')
-		const ctx = canvas.getContext('2d')
-		if (!ctx) {
-			throw new Error('Cannot initialize OfscreenCanvasRenderingContext2D')
-		}
-		this.ctx = ctx
+		this.ctx = canvas.getContext('2d')!
 	}
 
 	private getPath2D(exp: MalSeq) {
@@ -60,8 +50,6 @@ export class HitDetector {
 	}
 
 	private analyzeNode(pos: vec2, exp: MalVal, hitStyle: MalMap): null | MalVal {
-		exp = getUIBodyExp(exp)
-
 		const evaluated = getEvaluated(exp)
 		if (isVector(evaluated)) {
 			const command = evaluated[0]

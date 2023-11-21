@@ -1,7 +1,8 @@
 import Case from 'case'
-import {MalVal, isKeyword} from '@/mal/types'
-import printExp from '@/mal/printer'
 import {Ref, unref} from 'vue'
+
+import printExp from '@/mal/printer'
+import {isKeyword, MalVal} from '@/mal/types'
 
 export function replaceRange(
 	s: string,
@@ -16,10 +17,6 @@ export function replaceRange(
 	]
 }
 
-export function clamp(value: number, min: number, max: number) {
-	return Math.max(min, Math.min(value, max))
-}
-
 /**
  * Converts the bind expression to parameter's label
  * @param exp A bind expression
@@ -27,31 +24,6 @@ export function clamp(value: number, min: number, max: number) {
 export function getParamLabel(exp: MalVal) {
 	const str = isKeyword(exp) ? exp.slice(1) : printExp(exp)
 	return str.length === 1 ? str : Case.capital(str)
-}
-
-/**
- * The utility class holds a value which does not need to be watched by Vue
- */
-const ValueSymbol = Symbol('NonReactive.value')
-// let counter = 0
-export class NonReactive<T> {
-	// private id: number
-
-	constructor(value: T) {
-		// this.id = counter++
-		;(this as any)[ValueSymbol] = value
-	}
-
-	public get value(): T {
-		return (this as any)[ValueSymbol]
-	}
-}
-
-/**
- * Creates NonReactive object
- */
-export function nonReactive<T>(value: T): NonReactive<T> {
-	return new NonReactive(value)
 }
 
 export function partition(n: number, coll: any[]) {
@@ -74,6 +46,6 @@ export function getHTMLElement(
 	return _el instanceof HTMLElement
 		? _el
 		: _el instanceof Object && _el.$el instanceof HTMLElement
-		? _el.$el
-		: undefined
+		  ? _el.$el
+		  : undefined
 }

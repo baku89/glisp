@@ -1,3 +1,41 @@
+<script lang="ts" setup>
+import {computed, ref} from 'vue'
+
+import DEFAULT_SETTINGS from '@/default-settings.glisp?raw'
+import {readStr} from '@/mal'
+
+const code = ref(localStorage.getItem('settings') || DEFAULT_SETTINGS)
+
+const hasParseError = computed(() => {
+	const codeStr = code.value
+	try {
+		readStr(`(do\n${codeStr}\n)`, false)
+	} catch (e) {
+		return true
+	}
+	return false
+})
+
+function resetSettings() {
+	code.value = DEFAULT_SETTINGS
+}
+
+function updateSettings() {
+	if (hasParseError.value) {
+		alert('Cannot update the settings because of the parsing error.')
+		return
+	}
+	localStorage.setItem('settings', code.value)
+	if (
+		confirm(
+			'Are you sure you want to reload the editor to reflect the settings?'
+		)
+	) {
+		location.reload()
+	}
+}
+</script>
+
 <template>
 	<div class="DialogSettings">
 		<div class="DialogSettings__header">
@@ -21,60 +59,6 @@
 		</div>
 	</div>
 </template>
-
-<script lang="ts">
-import Vue from 'vue'
-import {defineComponent, ref, computed} from 'vue'
-import {readStr} from '@/mal'
-import GlispEditor from '@/components/GlispEditor/GlispEditor2.vue'
-
-const DEFAULT_SETTINGS = require('@/default-settings.glisp?raw')
-	.default as string
-
-export default defineComponent({
-	name: 'DialogSettings',
-	components: {GlispEditor},
-	setup() {
-		const code = ref(localStorage.getItem('settings') || DEFAULT_SETTINGS)
-
-		const hasParseError = computed(() => {
-			const codeStr = code.value
-			try {
-				readStr(`(do\n${codeStr}\n)`, false)
-			} catch (e) {
-				return true
-			}
-			return false
-		})
-
-		function resetSettings() {
-			code.value = DEFAULT_SETTINGS
-		}
-
-		function updateSettings() {
-			if (hasParseError.value) {
-				alert('Cannot update the settings because of the parsing error.')
-				return
-			}
-			localStorage.setItem('settings', code.value)
-			if (
-				confirm(
-					'Are you sure you want to reload the editor to reflect the settings?'
-				)
-			) {
-				location.reload()
-			}
-		}
-
-		return {
-			code,
-			hasParseError,
-			resetSettings,
-			updateSettings,
-		}
-	},
-})
-</script>
 
 <style lang="stylus">
 @import '../style/common.styl'

@@ -5,7 +5,7 @@
 			@input="$emit('input', $event)"
 			@select="$emit('select', $event)"
 		/>
-		<svg class="Inspector-cubic-bezier__svg" ref="svgEl">
+		<svg ref="svgEl" class="Inspector-cubic-bezier__svg">
 			<line class="diagonal" x1="0" :y1="size[1]" :x2="size[1]" y2="0" />
 			<path
 				class="curve"
@@ -35,126 +35,103 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {
-	defineComponent,
-	SetupContext,
-	ref,
-	Ref,
-	computed,
-	toRefs,
-} from 'vue'
-import {MalVal, isList, getEvaluated, cloneExp} from '@/mal/types'
-import {NonReactive, nonReactive, clamp} from '@/utils'
-import {useResizeSensor, useDraggable, useRem} from '@/components/use'
-import ParamControl from '@/components/ParamControl.vue'
+<script lang="ts" setup>
+import {clamp} from 'lodash'
+import {computed, Ref, ref, toRef} from 'vue'
+
+import {useDraggable, useRem, useResizeSensor} from '@/components/use'
+import {cloneExp, getEvaluated, MalVal} from '@/mal/types'
 
 interface Props {
-	exp: NonReactive<MalVal[]>
+	exp: MalVal[]
 }
 
-export default defineComponent({
-	name: 'Inspector-cubic-bezier',
-	components: {
-		ParamControl,
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+	input: [value: MalVal[]]
+	select: [value: MalVal]
+	'end-tweak': []
+}>()
+
+const svgEl: Ref<null | HTMLElement> = ref(null)
+const c1El: Ref<null | HTMLElement> = ref(null)
+const c2El: Ref<null | HTMLElement> = ref(null)
+
+const size = ref([0, 0])
+
+useResizeSensor(
+	svgEl,
+	(el: HTMLElement) => {
+		const {width, height} = el.getBoundingClientRect()
+		size.value = [width, height]
 	},
-	props: {
-		exp: {
-			required: true,
-			validator: x => x instanceof NonReactive && isList(x.value),
-		},
+	true
+)
+
+const tx = computed(
+	() => size.value[0] * (getEvaluated(props.exp[5]) as number)
+)
+
+const c1 = computed(() => {
+	return [
+		size.value[0] * (props.exp[1] as number),
+		size.value[1] * (1 - (props.exp[2] as number)),
+	]
+})
+
+const c2 = computed(() => {
+	return [
+		size.value[0] * (props.exp[3] as number),
+		size.value[1] * (1 - (props.exp[4] as number)),
+	]
+})
+
+// Saves the value on dragstart
+let ox = 0,
+	oy = 0
+
+const c1Drag = useDraggable(c1El, {
+	onDragStart() {
+		ox = props.exp[1] as number
+		oy = props.exp[2] as number
 	},
-	setup(props: Props, context: SetupContext) {
-		const svgEl: Ref<null | HTMLElement> = ref(null)
-		const c1El: Ref<null | HTMLElement> = ref(null)
-		const c2El: Ref<null | HTMLElement> = ref(null)
+	onDrag(e) {
+		const dx = e.x / size.value[0]
+		const dy = e.y / -size.value[1]
 
-		const size = ref([0, 0])
+		const exp = cloneExp(props.exp) as number[]
 
-		useResizeSensor(
-			svgEl,
-			(el: HTMLElement) => {
-				const {width, height} = el.getBoundingClientRect()
-				size.value = [width, height]
-			},
-			true
-		)
+		exp[1] = clamp(ox + dx, 0, 1)
+		exp[2] = oy + dy
 
-		const tx = computed(
-			() => size.value[0] * (getEvaluated(props.exp.value[5]) as number)
-		)
-
-		const c1 = computed(() => {
-			return [
-				size.value[0] * (props.exp.value[1] as number),
-				size.value[1] * (1 - (props.exp.value[2] as number)),
-			]
-		})
-
-		const c2 = computed(() => {
-			return [
-				size.value[0] * (props.exp.value[3] as number),
-				size.value[1] * (1 - (props.exp.value[4] as number)),
-			]
-		})
-
-		// Saves the value on dragstart
-		let ox = 0,
-			oy = 0
-
-		const c1Drag = useDraggable(c1El, {
-			onDragStart() {
-				ox = props.exp.value[1] as number
-				oy = props.exp.value[2] as number
-			},
-			onDrag(e) {
-				const dx = e.x / size.value[0]
-				const dy = e.y / -size.value[1]
-
-				const exp = cloneExp(props.exp.value) as number[]
-
-				exp[1] = clamp(ox + dx, 0, 1)
-				exp[2] = oy + dy
-
-				context.emit('input', nonReactive(exp))
-			},
-		})
-
-		const c2Drag = useDraggable(c2El, {
-			onDragStart() {
-				ox = props.exp.value[3] as number
-				oy = props.exp.value[4] as number
-			},
-			onDrag(e) {
-				const dx = e.x / size.value[0]
-				const dy = e.y / -size.value[1]
-
-				const exp = cloneExp(props.exp.value) as number[]
-
-				exp[3] = clamp(ox + dx, 0, 1)
-				exp[4] = oy + dy
-
-				context.emit('input', nonReactive(exp))
-			},
-		})
-
-		const rem = useRem()
-		const radius = computed(() => rem.value * 0.5)
-
-		return {
-			svgEl,
-			c1El,
-			c2El,
-			size,
-			tx,
-			c1,
-			c2,
-			radius,
-			isDraggingC1: toRefs(c1Drag).isDragging,
-			isDraggingC2: toRefs(c2Drag).isDragging,
-		}
+		emit('input', exp)
 	},
 })
+
+const c2Drag = useDraggable(c2El, {
+	onDragStart() {
+		ox = props.exp[3] as number
+		oy = props.exp[4] as number
+	},
+	onDrag(e) {
+		const dx = e.x / size.value[0]
+		const dy = e.y / -size.value[1]
+
+		const exp = cloneExp(props.exp) as number[]
+
+		exp[3] = clamp(ox + dx, 0, 1)
+		exp[4] = oy + dy
+
+		emit('input', exp)
+	},
+})
+
+const rem = useRem()
+const radius = computed(() => rem.value * 0.5)
+
+const isDraggingC1 = toRef(c1Drag, 'isDragging')
+const isDraggingC2 = toRef(c2Drag, 'isDragging')
 </script>
 
 <style lang="stylus">

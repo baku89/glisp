@@ -1,7 +1,8 @@
-import {MalVal, symbolFor as S, createList as L} from '@/mal/types'
-import hull from 'hull.js'
 import BezierEasing from 'bezier-easing'
 import Delaunator from 'delaunator'
+import hull from 'hull.js'
+
+import {createList as L, MalVal, symbolFor as S} from '@/mal/types'
 import {partition} from '@/utils'
 
 const Exports = [

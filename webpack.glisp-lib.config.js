@@ -1,14 +1,8 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 const path = require('path')
-const webpack = require('webpack')
-const CopyPlugin = require('copy-webpack-plugin')
 
 module.exports = {
-	node: {
-		__filename: false,
-		__dirname: false,
-	},
 	entry: {
-		index: './src/repl.ts',
 		'lib/core': './src/mal-lib/core.ts',
 		'lib/color': './src/mal-lib/color.ts',
 		'lib/path': './src/mal-lib/path.ts',
@@ -26,27 +20,17 @@ module.exports = {
 			{
 				test: /\.ts$/,
 				use: 'ts-loader',
-				exclude: /node_modules/,
 			},
 		],
 	},
-	target: 'node',
+	target: 'web',
+	optimization: {
+		minimize: false,
+	},
 	output: {
 		filename: '[name].js',
-		path: path.resolve(__dirname, 'repl'),
+		path: path.resolve(__dirname, 'public'),
 		globalObject: 'this',
 		libraryTarget: 'umd',
-		libraryExport: '',
 	},
-	plugins: [
-		new webpack.IgnorePlugin(/jsdom$/),
-		new CopyPlugin({
-			patterns: [
-				{
-					from: 'public/lib',
-					to: 'lib',
-				},
-			],
-		}),
-	],
 }

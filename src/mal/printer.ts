@@ -1,34 +1,41 @@
 import {
-	MalVal,
-	MalAtom,
-	M_PARAMS,
-	M_AST,
-	M_ELMSTRS,
-	M_DELIMITERS,
 	getType,
-	MalFunc,
-	MalNode,
-	MalSymbol,
-	MalType,
+	isAtom,
+	isFunc,
+	isKeyword,
+	isList,
+	isMap,
 	isSeq,
-	MalSeq,
-	M_ISSUGAR,
 	isSymbol,
+	M_AST,
+	M_DELIMITERS,
+	M_ELMSTRS,
+	M_ISMACRO,
+	M_ISSUGAR,
+	M_PARAMS,
+	MalNode,
+	MalType,
+	MalVal,
 } from './types'
 
 export const printer = {
 	log: (...args: any) => {
+		// eslint-disable-next-line no-console
 		console.info(...args)
 	},
 	return: (...args: any) => {
+		// eslint-disable-next-line no-console
 		console.log(...args)
 	},
 	error: (...args: any) => {
+		// eslint-disable-next-line no-console
 		console.error(...args)
 	},
 	pseudoExecute: (command: string) => {
+		// eslint-disable-next-line no-console
 		console.log(command)
 	},
+	// eslint-disable-next-line no-console
 	clear: console.clear,
 }
 
@@ -42,7 +49,6 @@ function generateDefaultDelimiters(elementCount: number) {
 
 const SUGAR_INFO = new Map<string, {prefix: string}>([
 	['quote', {prefix: "'"}],
-	['ui-annotate', {prefix: '#@'}],
 	['with-meta-sugar', {prefix: '^'}],
 	['fn-sugar', {prefix: '#'}],
 	['quasiquote', {prefix: '`'}],
@@ -56,124 +62,101 @@ export default function printExp(exp: MalVal, printReadably = true): string {
 
 	const type = getType(exp)
 
-	switch (type) {
+	const isExpList = isList(exp)
+	const isExpSeq = isSeq(exp)
+
+	if (isExpList || isMap(exp)) {
 		// Collection
-		case MalType.List:
-		case MalType.Vector:
-		case MalType.Map: {
-			const coll = exp as MalNode
 
-			const sugarInfo =
-				type === MalType.List &&
-				SUGAR_INFO.get(
-					isSymbol((coll as MalSeq)[0])
-						? ((coll as MalSeq)[0] as MalSymbol).value
-						: ''
-				)
+		const sugarInfo =
+			isExpList && SUGAR_INFO.get(isSymbol(exp[0]) ? exp[0].value : '')
 
-			if (sugarInfo /* && !(M_ISSUGAR in coll)*/) {
-				;(coll as MalSeq)[M_ISSUGAR] = true
-				coll[M_ELMSTRS] = [
-					sugarInfo.prefix,
-					...(coll as MalSeq).slice(1).map(e => printExp(e, _r)),
-				]
-				coll[M_DELIMITERS] = Array((coll as MalSeq).length + 1).fill('')
-			} else {
-				// Creates a cache if there's no element text cache
-				if (!(M_ELMSTRS in coll)) {
-					let elmStrs: string[]
+		if (sugarInfo /* && !(M_ISSUGAR in coll)*/) {
+			exp[M_ISSUGAR] = true
+			exp[M_ELMSTRS] = [
+				sugarInfo.prefix,
+				...exp.slice(1).map(e => printExp(e, _r)),
+			]
+			exp[M_DELIMITERS] = Array(exp.length + 1).fill('')
+		} else {
+			// Creates a cache if there's no element text cache
+			if (!(M_ELMSTRS in exp)) {
+				let elmStrs: string[]
 
-					if (isSeq(coll)) {
-						elmStrs = Array.from(coll).map(e => printExp(e, _r))
-						if (sugarInfo) {
-							elmStrs[0] = ''
-						}
-					} else {
-						// NOTE: This might change the order of key
-						elmStrs = Object.entries(coll)
-							.map(([key, value]) => [printExp(key, _r), printExp(value, _r)])
-							.flat()
-					}
-					coll[M_ELMSTRS] = elmStrs
-				}
-
-				// Creates a cache for delimiters if it does not exist
-				if (!(M_DELIMITERS in coll)) {
-					let delimiters: string[]
-
-					if (isSeq(coll)) {
-						delimiters = generateDefaultDelimiters(coll.length)
-					} else {
-						// Map
-						delimiters = generateDefaultDelimiters(Object.keys(coll).length * 2)
-					}
-
-					coll[M_DELIMITERS] = delimiters
-				}
-			}
-
-			// Print using cache
-			const elmStrs = coll[M_ELMSTRS]
-			const delimiters = coll[M_DELIMITERS]
-
-			let ret = ''
-			for (let i = 0; i < elmStrs.length; i++) {
-				ret += delimiters[i] + elmStrs[i]
-			}
-			ret += delimiters[delimiters.length - 1]
-
-			switch (type) {
-				case MalType.List:
+				if (isExpSeq) {
+					elmStrs = exp.map(e => printExp(e, _r))
 					if (sugarInfo) {
-						return ret
-					} else {
-						return '(' + ret + ')'
+						elmStrs[0] = ''
 					}
-				case MalType.Vector:
-					return '[' + ret + ']'
-				default:
+				} else {
+					// NOTE: This might change the order of key
+					elmStrs = Object.entries(exp)
+						.map(([key, value]) => [printExp(key, _r), printExp(value, _r)])
+						.flat()
+				}
+				;(exp as MalNode)[M_ELMSTRS] = elmStrs
+			}
+
+			// Creates a cache for delimiters if it does not exist
+			if (!(M_DELIMITERS in exp)) {
+				let delimiters: string[]
+
+				if (isExpSeq) {
+					delimiters = generateDefaultDelimiters(exp.length)
+				} else {
 					// Map
-					return '{' + ret + '}'
+					delimiters = generateDefaultDelimiters(Object.keys(exp).length * 2)
+				}
+
+				;(exp as MalNode)[M_DELIMITERS] = delimiters
 			}
 		}
-		// Atoms
-		case MalType.Number:
-			return (exp as number).toFixed(4).replace(/\.?[0]+$/, '')
-		case MalType.String:
-			if (_r) {
-				return (
-					'"' +
-					(exp as string)
-						.replace(/\\/g, '\\\\')
-						.replace(/"/g, '\\"')
-						.replace(/\n/g, '\\n') +
-					'"'
-				)
-			} else {
-				return exp as string
-			}
-		case MalType.Boolean:
-			return (exp as boolean).toString()
-		case MalType.Nil:
-			return 'nil'
-		case MalType.Symbol:
-			return (exp as MalSymbol).value
-		case MalType.Keyword:
-			return ':' + (exp as string).slice(1)
-		case MalType.Atom:
-			return `(atom ${printExp((exp as MalAtom).value, _r)})`
-		case MalType.Function:
-		case MalType.Macro: {
-			if (M_AST in (exp as MalFunc)) {
-				const params = printExp((exp as MalFunc)[M_PARAMS], _r)
-				const body = printExp((exp as MalFunc)[M_AST], _r)
-				return `(${type} ${params} ${body})`
-			} else {
-				return '<JS Function>'
-			}
+
+		// Print using cache
+		const elmStrs = (exp as MalNode)[M_ELMSTRS]
+		const delimiters = (exp as MalNode)[M_DELIMITERS]
+
+		let ret = ''
+		for (let i = 0; i < elmStrs.length; i++) {
+			ret += delimiters[i] + elmStrs[i]
 		}
-		default:
-			//case MalType.Undefined:
-			return '<undefined>'
+		ret += delimiters[delimiters.length - 1]
+
+		switch (type) {
+			case MalType.List:
+				if (sugarInfo) {
+					return ret
+				} else {
+					return '(' + ret + ')'
+				}
+			case MalType.Vector:
+				return '[' + ret + ']'
+			default:
+				// Map
+				return '{' + ret + '}'
+		}
+	} else if (typeof exp === 'number') {
+		return exp.toFixed(4).replace(/\.?[0]+$/, '')
+	} else if (typeof exp === 'boolean') {
+		return exp.toString()
+	} else if (exp === null) {
+		return 'nil'
+	} else if (isSymbol(exp)) {
+		return exp.value
+	} else if (isKeyword(exp)) {
+		return ':' + exp.slice(1)
+	} else if (isFunc(exp)) {
+		if (M_AST in exp) {
+			const params = printExp(exp[M_PARAMS], _r)
+			const body = printExp(exp[M_AST], _r)
+			const symbol = exp[M_ISMACRO] ? 'macro' : 'fn'
+			return `(${symbol} ${params} ${body})`
+		} else {
+			return '<JS Function>'
+		}
+	} else if (isAtom(exp)) {
+		return `(atom ${printExp(exp.value, _r)})`
+	} else {
+		return '<undefined>'
 	}
 }

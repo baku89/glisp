@@ -1,3 +1,5 @@
+import {mapValues} from 'lodash'
+
 import Env from './env'
 
 export type MalJSFunc = (...args: MalVal[]) => MalVal | never
@@ -25,7 +27,7 @@ export const M_DEF = Symbol.for('def') // save def exp reference in symbol objec
 export type MalBind = (
 	| MalSymbol
 	| string
-	| {[k: string]: MalSymbol}
+	| Record<string, MalSymbol>
 	| MalBind
 )[]
 
@@ -56,7 +58,7 @@ export interface MalFuncThis {
 	callerEnv: Env
 }
 
-export interface MalFunc extends Function {
+export interface MalFunc {
 	(this: void | MalFuncThis, ...args: MalVal[]): MalVal
 	[M_META]?: MalVal
 	[M_AST]: MalVal
@@ -67,9 +69,8 @@ export interface MalFunc extends Function {
 
 export class MalError extends Error {}
 
-export type MalMap = {[keyword: string]: MalVal}
-
-export interface MalNodeMap extends MalMap {
+export interface MalMap {
+	[keyword: string]: MalVal
 	[M_META]?: MalVal
 	[M_DELIMITERS]: string[]
 	[M_ELMSTRS]: string[]
@@ -189,7 +190,7 @@ export function getType(obj: any): MalType {
 				return MalType.Map
 			}
 		case 'function': {
-			const ismacro = (obj as MalFunc)[M_ISMACRO]
+			const ismacro = obj[M_ISMACRO]
 			return ismacro ? MalType.Macro : MalType.Function
 		}
 		case 'string':
@@ -208,18 +209,22 @@ export function getType(obj: any): MalType {
 	}
 }
 
-export type MalNode = MalNodeMap | MalSeq
+export type MalNode = MalMap | MalSeq
 
-export const isNode = (v: MalVal | undefined): v is MalNode => {
+export const isNode = (v?: MalVal): v is MalNode => {
 	const type = getType(v)
 	return (
 		type === MalType.List || type === MalType.Map || type === MalType.Vector
 	)
 }
 
-export const isSeq = (v: MalVal | undefined): v is MalSeq => {
+export const isSeq = (v?: MalVal): v is MalSeq => {
 	const type = getType(v)
 	return type === MalType.List || type === MalType.Vector
+}
+
+export const isAtom = (v: MalVal | undefined): v is MalAtom => {
+	return getType(v) === MalType.Atom
 }
 
 export function getMeta(obj: MalVal): MalVal {
@@ -325,54 +330,40 @@ export function isEqual(a: MalVal, b: MalVal) {
 }
 
 export function cloneExp<T extends MalVal>(exp: T, deep = false): T {
-	switch (getType(exp)) {
-		case MalType.List: {
-			const children = deep
-				? (exp as MalSeq).map(e => cloneExp(e, true))
-				: (exp as MalSeq)
-			const cloned = createList(...children)
-			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
-				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
-			}
-			return cloned as T
+	if (isList(exp)) {
+		const children = deep ? exp.map(e => cloneExp(e, true)) : exp
+		const cloned = createList(...children)
+		if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
+			cloned[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
 		}
-		case MalType.Vector: {
-			const children = deep
-				? (exp as MalSeq).map(e => cloneExp(e, true))
-				: (exp as MalSeq)
-			const cloned = createVector(...children)
-			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
-				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
-			}
-			return cloned as T
+		return cloned as T
+	} else if (isVector(exp)) {
+		const children = deep ? exp.map(e => cloneExp(e, true)) : exp
+		const cloned = createVector(...children)
+		if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
+			cloned[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
 		}
-		case MalType.Map: {
-			const cloned = deep
-				? Object.fromEntries(
-						Object.entries(exp as MalMap).map(([k, v]) => [
-							k,
-							cloneExp(v, true),
-						])
-				  )
-				: {...(exp as MalMap)}
-			if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
-				;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
-			}
-			return cloned as T
+		return cloned as T
+	} else if (isMap(exp)) {
+		const cloned = deep
+			? mapValues(exp, v => cloneExp(v, true))
+			: {...(exp as MalMap)}
+
+		if (Array.isArray((exp as MalNode)[M_DELIMITERS])) {
+			;(cloned as MalNode)[M_DELIMITERS] = [...(exp as MalNode)[M_DELIMITERS]]
 		}
-		case MalType.Function:
-		case MalType.Macro: {
-			// new function instance
-			const fn = function (this: MalFuncThis, ...args: MalSeq) {
-				return (exp as MalFunc).apply(this, args)
-			}
-			// copy original properties
-			return Object.assign(fn, exp) as T
+		return cloned as T
+	} else if (isFunc(exp)) {
+		// new function instance
+		const fn = function (this: MalFuncThis, ...args: MalSeq) {
+			return exp.apply(this, args)
 		}
-		case MalType.Symbol:
-			return symbolFor((exp as MalSymbol).value) as T
-		default:
-			return exp
+		// copy original properties
+		return Object.assign(fn, exp) as T
+	} else if (isSymbol(exp)) {
+		return symbolFor(exp.value) as T
+	} else {
+		return exp
 	}
 }
 
@@ -484,7 +475,7 @@ export const isList = (obj: MalVal | undefined): obj is MalSeq => {
 	return Array.isArray(obj) && (obj as any)[M_ISLIST]
 }
 
-export function createList(...coll: MalVal[]) {
+export function createList(...coll: MalVal[]): MalSeq {
 	;(coll as MalSeq)[M_ISLIST] = true
 	coll.forEach((child, i) => {
 		if (isNode(child)) {
@@ -503,6 +494,7 @@ export const isVector = (obj: MalVal | undefined): obj is MalSeq => {
 		obj instanceof Float32Array
 	)
 }
+
 export function createVector(...coll: MalVal[]) {
 	coll.forEach((child, i) => {
 		if (isNode(child)) {

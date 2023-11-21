@@ -1,5 +1,5 @@
 <template>
-	<div class="MalExpButton" @click="onClick" :class="{selectable}">
+	<div class="MalExpButton" :class="{selectable}" @click="onClick">
 		<div
 			class="MalExpButton__sign"
 			:class="{equals: sign === '=', fn: sign === 'f', variable: sign === 'x'}"
@@ -10,70 +10,52 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
-import {MalVal, isList, isSymbol, isNode} from '@/mal/types'
+<script lang="ts" setup>
+import {computed} from 'vue'
+
 import printExp from '@/mal/printer'
-import {NonReactive, nonReactive} from '@/utils'
-import {getUIBodyExp} from '@/mal/utils'
+import {isList, isNode, isSymbol, MalVal} from '@/mal/types'
 
 interface Props {
-	value: NonReactive<MalVal>
-	compact: boolean
+	value: MalVal
+	compact?: boolean
 }
 
-export default defineComponent({
-	name: 'MalExpButton',
-	props: {
-		value: {
-			required: true,
-			validator: v => v instanceof NonReactive,
-		},
-		compact: {
-			default: false,
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const sign = computed(() => {
-			if (isList(props.value.value)) {
-				return 'f'
-			} else if (isSymbol(props.value.value)) {
-				return 'x'
-			} else {
-				return '='
-			}
-		})
+const props = defineProps<Props>()
 
-		const selectable = computed(() => isNode(props.value.value))
+const emit = defineEmits<{
+	select: [exp: MalVal]
+}>()
 
-		const expBody = computed(() => nonReactive(getUIBodyExp(props.value.value)))
-
-		const str = computed(() => {
-			if (sign.value === 'f') {
-				if (props.compact) {
-					return ''
-				} else {
-					return `${printExp((expBody.value.value as MalVal[])[0])}`
-				}
-			} else {
-				return printExp(expBody.value.value)
-			}
-		})
-
-		function onClick() {
-			if (selectable.value) {
-				context.emit('select', expBody.value)
-			}
-		}
-
-		return {
-			sign,
-			selectable,
-			str,
-			onClick,
-		}
-	},
+const sign = computed(() => {
+	if (isList(props.value)) {
+		return 'f'
+	} else if (isSymbol(props.value)) {
+		return 'x'
+	} else {
+		return '='
+	}
 })
+
+const selectable = computed(() => isNode(props.value))
+
+const str = computed(() => {
+	if (sign.value === 'f') {
+		if (props.compact) {
+			return ''
+		} else {
+			return `${printExp((props.value as MalVal[])[0])}`
+		}
+	} else {
+		return printExp(props.value)
+	}
+})
+
+function onClick() {
+	if (selectable.value) {
+		emit('select', props.value)
+	}
+}
 </script>
 
 <style lang="stylus">

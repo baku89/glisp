@@ -1,3 +1,45 @@
+<script lang="ts" setup>
+import {computed, Ref, ref} from 'vue'
+import VueMarkdown from 'vue-markdown'
+
+import ParamControl from '@/components/ParamControl.vue'
+import {printExp} from '@/mal'
+import {printer} from '@/mal/printer'
+import {getMeta, MalFunc, MalSymbol, MalVal} from '@/mal/types'
+import {getMapValue} from '@/mal/utils'
+import ConsoleScope from '@/scopes/console'
+
+interface Props {
+	exp: MalVal[]
+	fn: MalFunc
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<{
+	close: []
+}>()
+
+const meta = getMeta(props.fn)
+const fnName = computed(() => (props.exp[0] as MalSymbol).value)
+const fnDoc = computed(() => getMapValue(meta, 'doc') || '')
+const editExp: Ref<MalVal> = ref(props.exp)
+
+function onInput(newExp: MalVal) {
+	editExp.value = newExp
+}
+
+function onClickExecute() {
+	emit('close')
+	const command = printExp(editExp.value)
+
+	// Show the executed command in the console and add it to the history
+	printer.pseudoExecute(command)
+
+	// Execute
+	ConsoleScope.readEval(command)
+}
+</script>
+
 <template>
 	<div class="DialogCommand">
 		<div class="DialogCommand__content">
@@ -17,81 +59,6 @@
 		</div>
 	</div>
 </template>
-
-<script lang="ts">
-import {
-	defineComponent,
-	ref,
-	Ref,
-	computed,
-	SetupContext,
-} from 'vue'
-import ParamControl from '@/components/ParamControl.vue'
-import {NonReactive} from '@/utils'
-import {
-	MalVal,
-	MalFunc,
-	getMeta,
-	MalSymbol,
-	isList,
-	isSymbol,
-} from '@/mal/types'
-import {getMapValue} from '@/mal/utils'
-import ConsoleScope from '@/scopes/console'
-import VueMarkdown from 'vue-markdown'
-import {printExp} from '@/mal'
-import {printer} from '@/mal/printer'
-
-interface Props {
-	exp: NonReactive<MalVal[]>
-	fn: MalFunc
-}
-
-export default defineComponent({
-	name: 'DialogCommand',
-	components: {ParamControl, VueMarkdown},
-	props: {
-		exp: {
-			required: true,
-			validator: v =>
-				v instanceof NonReactive && isList(v.value) && isSymbol(v.value[0]),
-		},
-		fn: {
-			type: Function,
-			required: true,
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const meta = getMeta(props.fn)
-		const fnName = computed(() => (props.exp.value[0] as MalSymbol).value)
-		const fnDoc = computed(() => getMapValue(meta, 'doc') || '')
-		const editExp: Ref<NonReactive<MalVal>> = ref(props.exp)
-
-		function onInput(newExp: NonReactive<MalVal>) {
-			editExp.value = newExp
-		}
-
-		function onClickExecute() {
-			context.emit('close')
-			const command = printExp(editExp.value.value)
-
-			// Show the executed command in the console and add it to the history
-			printer.pseudoExecute(command)
-
-			// Execute
-			ConsoleScope.readEval(command)
-		}
-
-		return {
-			editExp,
-			fnName,
-			fnDoc,
-			onInput,
-			onClickExecute,
-		}
-	},
-})
-</script>
 
 <style lang="stylus">
 .DialogCommand

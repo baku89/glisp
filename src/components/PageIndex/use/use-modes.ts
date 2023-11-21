@@ -1,11 +1,12 @@
-import ConsoleScope from '@/scopes/console'
-import {convertMalNodeToJSObject} from '@/mal/reader'
-import {ref, Ref, computed, watch, markRaw} from 'vue'
-import {MalAtom, MalMap, assocBang, keywordFor, isMap} from '@/mal/types'
-import {mat2d, vec2} from 'gl-matrix'
-import useMouseEvents from '@/components/use/use-mouse-events'
-import AppScope from '@/scopes/app'
+import {mat2d, vec2} from 'linearly'
+import {computed, Ref, ref, watch} from 'vue'
+
 import {useKeyboardState} from '@/components/use'
+import useMouseEvents from '@/components/use/use-mouse-events'
+import {convertMalNodeToJSObject} from '@/mal/reader'
+import {assocBang, isMap, keywordFor, MalAtom, MalMap} from '@/mal/types'
+import AppScope from '@/scopes/app'
+import ConsoleScope from '@/scopes/console'
 import {getHTMLElement} from '@/utils'
 
 const K_EVENT_TYPE = keywordFor('event-type')
@@ -33,11 +34,9 @@ export function useModes(
 	useKeyboardState()
 
 	const modes = ref(
-		markRaw(
-			convertMalNodeToJSObject(
-				(ConsoleScope.var('*modes*') as MalAtom).value
-			) as Mode[]
-		)
+		convertMalNodeToJSObject(
+			(ConsoleScope.var('*modes*') as MalAtom).value
+		) as Mode[]
 	)
 
 	let state: MalMap
@@ -61,18 +60,15 @@ export function useModes(
 
 	const activeMode = computed(() =>
 		activeModeIndex.value !== undefined
-			? markRaw(modes.value[activeModeIndex.value])
+			? modes.value[activeModeIndex.value]
 			: undefined
 	)
 
 	const pos = computed(() => {
-		const pos = vec2.fromValues(mouseX.value, mouseY.value)
-		vec2.transformMat2d(
-			pos,
-			pos,
-			mat2d.invert(mat2d.create(), viewTransform.value)
+		return vec2.transformMat2d(
+			[mouseX.value, mouseY.value],
+			mat2d.invert(viewTransform.value) ?? mat2d.ident
 		)
-		return pos
 	})
 
 	function executeMouseHandler(type: 'move' | 'press' | 'drag' | 'release') {

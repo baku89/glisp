@@ -1,38 +1,31 @@
+<script lang="ts" setup>
+defineProps<{
+	value: boolean
+}>()
+
+const emit = defineEmits<{
+	input: [value: boolean]
+}>()
+
+function onInput(e: Event) {
+	const value = (e.target as HTMLInputElement).checked
+	emit('input', value)
+}
+</script>
+
 <template>
 	<div class="InputBoolean">
 		<input
 			:checked="!!value"
-			@input="onInput"
 			class="InputBoolean__input"
 			type="checkbox"
+			@input="onInput"
 		/>
 		<div class="InputBoolean__frame">
 			<i class="InputBoolean__checkmark fas fa-check" />
 		</div>
 	</div>
 </template>
-
-<script lang="ts">
-import {defineComponent} from 'vue'
-
-export default defineComponent({
-	name: 'InputBoolean',
-	props: {
-		value: {
-			type: Boolean,
-			required: true,
-		},
-	},
-	setup(props, context) {
-		function onInput(e: InputEvent) {
-			const value = (e.target as HTMLInputElement).checked
-			context.emit('input', value)
-		}
-
-		return {onInput}
-	},
-})
-</script>
 
 <style lang="stylus">
 @import '../style/common.styl'

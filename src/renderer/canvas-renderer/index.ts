@@ -1,6 +1,7 @@
-import CanvasRenderer from './canvas-renderer'
 import * as Comlink from 'comlink'
-import {mat2d} from 'gl-matrix'
+import {mat2d} from 'linearly'
+
+import CanvasRenderer from './canvas-renderer'
 
 export interface ViewerSettings {
 	viewTransform?: mat2d

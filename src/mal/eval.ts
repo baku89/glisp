@@ -1,38 +1,39 @@
 /* eslint-ignore @typescript-eslint/no-use-before-define */
 
+import {capital} from 'case'
+
+import {printExp} from '.'
+import Env from './env'
 import {
-	MalVal,
-	createMalFunc,
-	isMalFunc,
-	MalFuncThis,
-	MalError,
-	symbolFor as S,
-	isSymbol,
-	M_ISMACRO,
-	M_EVAL,
-	isMap,
-	MalMap,
-	isList,
 	createList as L,
-	MalNode,
-	isNode,
-	MalSeq,
-	M_PARAMS,
-	MalBind,
-	isSeq,
-	isVector,
-	setExpandInfo,
+	createMalFunc,
 	ExpandType,
 	getType,
+	isFunc,
+	isList,
+	isMalFunc,
+	isMap,
+	isNode,
+	isSeq,
+	isSymbol,
 	isSymbolFor,
+	isVector,
 	M_AST,
 	M_ENV,
-	isFunc,
+	M_EVAL,
+	M_ISMACRO,
+	M_PARAMS,
+	MalBind,
+	MalError,
+	MalFuncThis,
+	MalMap,
+	MalNode,
+	MalSeq,
 	MalSymbol,
+	MalVal,
+	setExpandInfo,
+	symbolFor as S,
 } from './types'
-import Env from './env'
-import {printExp} from '.'
-import {capital} from 'case'
 
 const S_DEF = S('def')
 const S_DEFVAR = S('defvar')
@@ -456,7 +457,7 @@ export default function evalExp(
 						const ret = evalExp.call(
 							this,
 							errBody,
-							new Env(env, [errSym], [err]),
+							new Env(env, [errSym], [err as any]),
 							cache
 						)
 						if (cache) {

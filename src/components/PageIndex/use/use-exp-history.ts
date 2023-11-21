@@ -1,19 +1,18 @@
-import {MalNode, getName, MalVal, MalError, isKeyword} from '@/mal/types'
-
 import {Ref, ref} from 'vue'
-import {NonReactive} from '@/utils'
+
 import {reconstructTree} from '@/mal/reader'
+import {getName, isKeyword, MalError, MalNode, MalVal} from '@/mal/types'
 import AppScope from '@/scopes/app'
 
-type Commit = [NonReactive<MalNode>, Set<string>]
+type Commit = [MalNode, Set<string>]
 
 export default function useExpHistory(
-	exp: Ref<NonReactive<MalNode>>,
-	updateExp: (exp: NonReactive<MalNode>, pushHistory?: boolean) => any
+	_exp: Ref<MalNode>,
+	updateExp: (exp: MalNode, pushHistory?: boolean) => any
 ) {
 	const history: Ref<Commit[]> = ref([])
 
-	function pushExpHistory(newExp: NonReactive<MalNode>, tag?: string) {
+	function pushExpHistory(newExp: MalNode, tag?: string) {
 		history.value.push([newExp, new Set(tag ? [tag] : undefined)])
 	}
 
@@ -38,7 +37,7 @@ export default function useExpHistory(
 
 		const [prev] = history.value[index]
 		history.value.length = index + 1
-		reconstructTree(prev.value)
+		reconstructTree(prev)
 		updateExp(prev, false)
 
 		return true

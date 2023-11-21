@@ -1,127 +1,111 @@
 <template>
-	<div class="ViewCanvas" ref="el">
-		<canvas class="ViewCanvas__canvas" ref="canvas" />
+	<div ref="el" class="ViewCanvas">
+		<canvas ref="canvas" class="ViewCanvas__canvas" />
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, Ref, onMounted, watch, ref} from 'vue'
+<script lang="ts" setup>
+import {mat2d} from 'linearly'
+import {onMounted, Ref, ref, watch} from 'vue'
 
-import {MalVal, MalError} from '@/mal/types'
+import {useResizeSensor} from '@/components/use'
 import {printer} from '@/mal/printer'
-import {NonReactive} from '@/utils'
+import {MalError, MalVal} from '@/mal/types'
 import createCanvasRender, {
 	CanvasRendererType,
 } from '@/renderer/canvas-renderer'
-import {mat2d} from 'gl-matrix'
-import {useResizeSensor} from '@/components/use'
 
 interface Props {
-	exp: NonReactive<MalVal> | null
+	exp: MalVal | null
 	guideColor: string
 	viewTransform: mat2d
 }
 
-export default defineComponent({
-	props: {
-		exp: {
-			required: true,
-		},
-		guideColor: {
-			type: String,
-			required: true,
-		},
-		viewTransform: {
-			default: () => mat2d.identity(mat2d.create()),
-		},
-	},
-	setup(props: Props, context) {
-		let renderer: CanvasRendererType | null = null
+const props = defineProps<Props>()
 
-		const el: Ref<HTMLElement | null> = ref(null)
-		const canvas: Ref<HTMLCanvasElement | null> = ref(null)
+const emit = defineEmits<{
+	render: [success: boolean]
+}>()
 
-		let initialExp: MalVal
+let renderer: CanvasRendererType | null = null
 
-		async function onResized(el: HTMLElement) {
-			if (!renderer) return
+const el: Ref<HTMLElement | null> = ref(null)
+const canvas: Ref<HTMLCanvasElement | null> = ref(null)
 
-			const width = el.clientWidth
-			const height = el.clientHeight
-			const dpi = window.devicePixelRatio || 1
-			await renderer.resize(width, height, dpi)
+let initialExp: MalVal
 
-			if (prevExp) render(prevExp)
-		}
+async function onResized(el: HTMLElement) {
+	if (!renderer) return
 
-		useResizeSensor(el, onResized)
+	const width = el.clientWidth
+	const height = el.clientHeight
+	const dpi = window.devicePixelRatio || 1
+	await renderer.resize(width, height, dpi)
 
-		onMounted(async () => {
-			if (!canvas.value || !el.value) {
-				return
-			}
+	if (prevExp) render(prevExp)
+}
 
-			renderer = await createCanvasRender(canvas.value)
-			onResized(el.value)
-			if (initialExp) {
-				render(initialExp)
-			}
-		})
+useResizeSensor(el, onResized)
 
-		// onBeforeMount(() => {
-		// 	this.renderer.dispose()
-		// })
+onMounted(async () => {
+	if (!canvas.value || !el.value) {
+		return
+	}
 
-		let prevExp: MalVal | undefined = undefined
-
-		async function render(_exp: MalVal) {
-			const options = {
-				viewTransform: props.viewTransform,
-				...(props.guideColor ? {guideColor: props.guideColor} : {}),
-			}
-
-			const exp = prevExp === _exp ? undefined : _exp
-			prevExp = _exp
-
-			try {
-				await (renderer as CanvasRendererType).render(exp, options)
-			} catch (err) {
-				if (err instanceof MalError) {
-					printer.error(err.message)
-				} else {
-					printer.error(err)
-				}
-				context.emit('render', false)
-				return
-			}
-
-			context.emit('render', true)
-		}
-
-		watch(
-			() => [props.exp, props.viewTransform],
-			async () => {
-				if (!props.exp) {
-					return
-				}
-
-				if (!renderer) {
-					initialExp = props.exp.value
-					return
-				}
-
-				const exp = props.exp.value
-
-				await render(exp)
-			}
-		)
-
-		return {
-			el,
-			canvas,
-		}
-	},
+	renderer = await createCanvasRender(canvas.value)
+	onResized(el.value)
+	if (initialExp) {
+		render(initialExp)
+	}
 })
+
+// onBeforeMount(() => {
+// 	this.renderer.dispose()
+// })
+
+let prevExp: MalVal | undefined = undefined
+
+async function render(_exp: MalVal) {
+	const options = {
+		viewTransform: props.viewTransform,
+		...(props.guideColor ? {guideColor: props.guideColor} : {}),
+	}
+
+	const exp = prevExp === _exp ? undefined : _exp
+	prevExp = _exp
+
+	try {
+		await (renderer as CanvasRendererType).render(exp, options)
+	} catch (err) {
+		if (err instanceof MalError) {
+			printer.error(err.message)
+		} else {
+			printer.error(err)
+		}
+		emit('render', false)
+		return
+	}
+
+	emit('render', true)
+}
+
+watch(
+	() => [props.exp, props.viewTransform],
+	async () => {
+		if (!props.exp) {
+			return
+		}
+
+		if (!renderer) {
+			initialExp = props.exp
+			return
+		}
+
+		const exp = props.exp
+
+		await render(exp)
+	}
+)
 </script>
 
 <style lang="stylus" scoped>

@@ -1,6 +1,7 @@
-import {MalVal, keywordFor as K, MalMap} from '@/mal/types'
-import {ViewerSettings} from './index'
+import {keywordFor as K, MalMap, MalVal} from '@/mal/types'
+
 import renderToContext from '../render-to-context'
+import {ViewerSettings} from './index'
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas
 
@@ -14,13 +15,7 @@ export default class CanvasRenderer {
 	private cachedExp!: MalVal
 
 	constructor(private canvas: Canvas) {
-		const ctx = this.canvas.getContext('2d')
-
-		if (ctx) {
-			this.ctx = ctx
-		} else {
-			throw new Error('Cannot initialize rendering context')
-		}
+		this.ctx = this.canvas.getContext('2d')!
 	}
 
 	public async resize(width: number, height: number, dpi: number) {

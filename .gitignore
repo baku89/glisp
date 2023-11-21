@@ -4,6 +4,8 @@ node_modules
 
 /mal
 
+/public/lib/*.js
+/public/lib/*.LICENSE.txt
 /repl/lib/*
 /ftp.info.js
 

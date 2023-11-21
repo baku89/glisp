@@ -17,58 +17,43 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, SetupContext, computed} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
-import {MalSeq, MalSymbol, getEvaluated, MalVal} from '@/mal/types'
+<script lang="ts" setup>
+import {computed} from 'vue'
+
 import {InputString} from '@/components/inputs'
-import {reverseEval} from '@/mal/utils'
 import {reconstructTree} from '@/mal/reader'
+import {getEvaluated, MalSeq, MalSymbol, MalVal} from '@/mal/types'
+import {reverseEval} from '@/mal/utils'
+
 import MalExpButton from './MalExpButton.vue'
 
 interface Props {
-	value: NonReactive<string | MalSeq | MalSymbol>
+	value: string | MalSeq | MalSymbol
 	validator: (v: string) => string | null
+	multiline?: boolean
 }
 
-export default defineComponent({
-	name: 'MalInputString',
-	components: {
-		InputString,
-		MalExpButton,
-	},
-	props: {
-		value: {
-			required: true,
-			validator: x => x instanceof NonReactive,
-		},
-		validator: {
-			required: false,
-		},
-		multiline: {
-			required: false,
-			default: false,
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const isExp = computed(() => typeof props.value.value !== 'string')
-		const evaluated = computed(() => getEvaluated(props.value.value))
+const props = defineProps<Props>()
 
-		function onInput(value: string) {
-			let newValue: MalVal = value
+const emit = defineEmits<{
+	input: [value: MalVal]
+	'end-tweak': []
+}>()
 
-			if (isExp.value) {
-				newValue = reverseEval(value, props.value.value)
-				reconstructTree(newValue)
-			}
+const isExp = computed(() => typeof props.value !== 'string')
+const evaluated = computed(() => getEvaluated(props.value))
 
-			context.emit('input', nonReactive(newValue))
-			context.emit('end-tweak')
-		}
+function onInput(value: string) {
+	let newValue: MalVal = value
 
-		return {isExp, evaluated, onInput}
-	},
-})
+	if (isExp.value) {
+		newValue = reverseEval(value, props.value)
+		reconstructTree(newValue)
+	}
+
+	emit('input', newValue)
+	emit('end-tweak')
+}
 </script>
 
 <style lang="stylus">

@@ -1,21 +1,22 @@
-import {getParamLabel, NonReactive, nonReactive} from '@/utils'
 import AppScope from '@/scopes/app'
+import {getParamLabel} from '@/utils'
+
+import {convertMalNodeToJSObject} from './reader'
 import {
-	MalVal,
+	assocBang,
+	createList,
+	getEvaluated,
+	getType,
+	isMalFunc,
+	keywordFor as K,
+	M_PARAMS,
+	MalFunc,
 	MalSeq,
 	MalSymbol,
-	getType,
-	getEvaluated,
-	createList,
+	MalVal,
 	symbolFor,
-	MalFunc,
-	M_PARAMS,
-	isMalFunc,
-	assocBang,
-	keywordFor as K,
 } from './types'
 import {getStructType} from './utils'
-import {convertMalNodeToJSObject} from './reader'
 
 interface SchemaBase {
 	type: string
@@ -23,7 +24,7 @@ interface SchemaBase {
 	label: string
 
 	// Properties for uiSchema
-	value?: NonReactive<MalVal>
+	value?: MalVal
 	default?: MalVal
 	initial?: MalVal
 	isDefault?: boolean
@@ -35,7 +36,7 @@ interface SchemaBase {
  */
 
 interface SchemaPrimitiveBase<T extends MalVal> extends SchemaBase {
-	value?: NonReactive<T>
+	value?: T
 	default?: T
 	variadic?: false
 	key?: string
@@ -83,11 +84,11 @@ interface SchemaStringColor extends SchemaStringDefault {
 	ui: 'color'
 }
 
-interface SchemaStringDropdown extends SchemaStringDefault {
-	ui: 'dropdown'
-	values: string[]
-	labels: string[]
-}
+// interface SchemaStringDropdown extends SchemaStringDefault {
+// 	ui: 'dropdown'
+// 	values: string[]
+// 	labels: string[]
+// }
 
 type SchemaString =
 	| SchemaStringDefault
@@ -225,7 +226,7 @@ export function generateSchemaParamLabel(_schemaParams: Schema[], fn: MalFunc) {
 		const schema = schemaParams[i]
 
 		if (schema.variadic) {
-			if (schema.type == 'vector' && !schema.items.label) {
+			if (schema.type === 'vector' && !schema.items.label) {
 				schemaParams[i] = {
 					...schema,
 					items: {...schema.items, label: labels[i]},
@@ -272,7 +273,7 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 				uiSchema[i].isInvalid = true
 				params.push((DEFAULT_VALUE as any)[uiSchema[i].ui || uiSchema[i].type])
 			}
-			console.log('too short', uiSchema)
+			// console.log('too short', uiSchema)
 		}
 
 		// Delete the last variadic schema itself
@@ -332,10 +333,10 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 		let value: MalVal = !sch.isInvalid
 			? params[i]
 			: 'initial' in sch
-			? sch.initial
-			: 'default' in sch
-			? sch.default
-			: (DEFAULT_VALUE as any)[sch.ui]
+			  ? sch.initial
+			  : 'default' in sch
+			    ? sch.default
+			    : (DEFAULT_VALUE as any)[sch.ui]
 
 		const evaluated: MalVal = !sch.isInvalid ? evaluatedParams[i] : value
 		const valueType = getStructType(evaluated) || getType(evaluated)
@@ -355,13 +356,13 @@ function generateFixedUISchema(schemaParams: Schema[], params: MalVal[]) {
 						'initial' in sch
 							? sch.initial
 							: 'default' in sch
-							? sch.default
-							: (DEFAULT_VALUE as any)[sch.ui]
+							  ? sch.default
+							  : (DEFAULT_VALUE as any)[sch.ui]
 				}
 		}
 
 		// Set value with wrapped by nonReactive
-		sch.value = nonReactive(value)
+		sch.value = value
 		if ('default' in sch) {
 			sch.isDefault = value === sch.default
 		}
@@ -382,7 +383,7 @@ function generateDynamicUISchema(
 
 	for (const sch of uiSchema) {
 		const value = sch.value as MalVal
-		sch.value = nonReactive(value)
+		sch.value = value
 
 		// Force set the UI type
 		sch.ui = sch.ui || sch.type
@@ -428,7 +429,7 @@ function updateParamsByFixedUISchema(
 			newParams.push(
 				'default' in uiSchema[i]
 					? (uiSchema[i].default as MalVal)
-					: (uiSchema[i].value?.value as MalVal)
+					: (uiSchema[i].value as MalVal)
 			)
 		}
 
@@ -450,7 +451,7 @@ function updateParamsByFixedUISchema(
 		newParams.push(...Object.entries(restMap).flat())
 		return newParams
 	} else {
-		const newParams = uiSchema.map(sch => sch.value?.value) as MalVal[]
+		const newParams = uiSchema.map(sch => sch.value) as MalVal[]
 		newParams[index] = value
 
 		// Shorten the parameters as much as possible
@@ -473,7 +474,7 @@ function updateParamsByDynamicUISchema(
 	index: number,
 	value: MalVal
 ) {
-	const params = uiSchema.map(s => s.value?.value as MalVal)
+	const params = uiSchema.map(s => s.value as MalVal)
 	params[index] = value
 	const toParams = schuema['to-params']
 	return toParams({[K('values')]: params}) as MalVal[]

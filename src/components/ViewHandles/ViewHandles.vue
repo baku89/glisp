@@ -1,6 +1,6 @@
 <template>
-	<div class="ViewHandles" ref="el">
-		<Portal to="view-handles-axes">
+	<div ref="el" class="ViewHandles">
+		<teleport to="#view-handles-axes">
 			<svg class="ViewHandles__axes-portal">
 				<defs>
 					<marker
@@ -33,9 +33,9 @@
 					<path class="ViewHandles__axis stroke" d="M 0 -50000 V 50000" />
 				</g>
 				<g
+					v-if="handleCallbacks"
 					:transform="transformStyle"
 					class="ViewHandles__gnomon"
-					v-if="handleCallbacks"
 				>
 					<path
 						class="stroke axis-x"
@@ -49,16 +49,20 @@
 					/>
 				</g>
 			</svg>
-		</Portal>
+		</teleport>
 		<svg class="ViewHandles__handles">
-			<g :key="selectedIndex" v-for="(_, selectedIndex) in selectedExp">
+			<g v-for="(_, selectedIndex) in selectedExp" :key="selectedIndex">
 				<path
+					v-if="selectedPath[selectedIndex]"
 					:d="selectedPath[selectedIndex]"
 					:transform="`matrix(${transform[selectedIndex].join(' ')})`"
 					class="stroke"
-					v-if="selectedPath[selectedIndex]"
 				/>
 				<g
+					v-for="(
+						{type, transform: xform, yTransform, path, cls, guide}, handleIndex
+					) in handles[selectedIndex]"
+					:key="handleIndex"
 					:class="cls"
 					:dragging="
 						draggingIndex &&
@@ -66,28 +70,25 @@
 						draggingIndex[1] === handleIndex
 					"
 					:hoverrable="draggingIndex === null && !guide"
-					:key="handleIndex"
-					:transform="transform"
+					:transform="xform"
 					@mousedown="
 						!guide && onMousedown([selectedIndex, handleIndex], $event)
 					"
-					v-for="({type, transform, yTransform, path, cls, guide},
-					handleIndex) in handles[selectedIndex]"
 				>
 					<template v-if="type === 'path'">
 						<path :d="path" class="stroke hover-zone" />
 						<path :d="path" class="stroke display" />
 					</template>
 					<path
+						v-else-if="type === 'dia'"
 						class="fill display"
 						d="M 7 0 L 0 7 L -7 0 L 0 -7 Z"
-						v-else-if="type === 'dia'"
 					/>
 					<template v-else>
 						<path
+							v-if="type === 'arrow'"
 							class="stroke display"
 							d="M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5"
-							v-if="type === 'arrow'"
 						/>
 						<template v-else-if="type === 'translate'">
 							<path class="stroke display" d="M 12 0 H -12" />
@@ -111,146 +112,128 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {MalSeq, MalNode} from '@/mal/types'
-import {mat2d, vec2} from 'gl-matrix'
-import {NonReactive} from '@/utils'
-import {useRem, useGesture} from '@/components/use'
-import {
-	defineComponent,
-	computed,
-	ref,
-	SetupContext,
-	Ref,
-	toRef,
-} from 'vue'
+<script lang="ts" setup>
+import {mat2d, vec2} from 'linearly'
+import {computed, Ref, ref, toRef} from 'vue'
+
+import {useGesture, useRem} from '@/components/use'
+import {MalNode, MalSeq} from '@/mal/types'
 import AppScope from '@/scopes/app'
+
 import useHandle from './use-handle'
 
 interface Props {
-	activeExp: NonReactive<MalSeq> | null
-	selectedExp: NonReactive<MalNode>[]
+	activeExp: MalSeq | null
+	selectedExp: MalNode[]
 	viewTransform: mat2d
 }
 
-export default defineComponent({
-	props: {
-		activeExp: {
-			required: true,
-			// validator: v => v instanceof NonReactive,
-		},
-		selectedExp: {
-			required: true,
-		},
-		viewTransform: {
-			type: Float32Array,
-			default: () => mat2d.identity(mat2d.create()),
-		},
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+	'update:view-transform': [value: mat2d]
+	'tag-history': [tag: string]
+}>()
+
+const el: Ref<HTMLElement | null> = ref(null)
+
+const viewAxisStyle = computed(() => `matrix(${props.viewTransform.join(' ')})`)
+
+const {
+	draggingIndex,
+	handles,
+	onMousedown,
+	transform,
+	selectedPath,
+	handleCallbacks,
+	transformStyle,
+} = useHandle(
+	toRef(props, 'selectedExp'),
+	toRef(props, 'viewTransform'),
+	el,
+	emit
+)
+
+// Gestures for view transform
+useGesture(el, {
+	onZoom({pageX, pageY, deltaY}: WheelEvent) {
+		if (!el.value) return
+
+		let xform = props.viewTransform
+
+		// Scale
+		const deltaScale = 1 + -deltaY * 0.01
+
+		const {left, top} = el.value.getBoundingClientRect()
+		let pivot: vec2 = [pageX - left, pageY - top]
+
+		const xformInv = mat2d.invert(xform) ?? mat2d.ident
+		pivot = vec2.transformMat2d(pivot, xformInv)
+
+		xform = mat2d.translate(xform, pivot)
+		xform = mat2d.scale(xform, [deltaScale, deltaScale])
+
+		pivot = vec2.negate(pivot)
+		xform = mat2d.translate(xform, pivot)
+
+		emit('update:view-transform', xform)
 	},
-	setup(props: Props, context: SetupContext) {
-		const el: Ref<HTMLElement | null> = ref(null)
+	onScroll({deltaX, deltaY}: WheelEvent) {
+		const xform = mat2d.clone(props.viewTransform as mat2d)
 
-		const viewAxisStyle = computed(
-			() => `matrix(${props.viewTransform.join(' ')})`
-		)
+		// Translate
+		xform[4] -= deltaX / 2
+		xform[5] -= deltaY / 2
 
-		const handleData = useHandle(
-			toRef(props, 'selectedExp'),
-			toRef(props, 'viewTransform'),
-			el,
-			context
-		)
+		emit('update:view-transform', xform)
+	},
+	onGrab({deltaX, deltaY}) {
+		if (!el.value) return
+		const xform = mat2d.clone(props.viewTransform as mat2d)
 
-		// Gestures for view transform
-		useGesture(el, {
-			onZoom({pageX, pageY, deltaY}: MouseWheelEvent) {
-				if (!el.value) return
+		// Translate (pixel by pixel)
+		xform[4] += deltaX
+		xform[5] += deltaY
 
-				const xform = mat2d.clone(props.viewTransform as mat2d)
+		emit('update:view-transform', xform)
+	},
+	onRotate({rotation, pageX, pageY}) {
+		if (!el.value) return
 
-				// Scale
-				const deltaScale = 1 + -deltaY * 0.01
+		const {left, top} = el.value.getBoundingClientRect()
+		let pivot: vec2 = [pageX - left, pageY - top]
 
-				const {left, top} = el.value.getBoundingClientRect()
-				const pivot = vec2.fromValues(pageX - left, pageY - top)
+		let xform = props.viewTransform
 
-				const xformInv = mat2d.invert(mat2d.create(), xform)
-				vec2.transformMat2d(pivot, pivot, xformInv)
+		pivot = vec2.transformMat2d(pivot, mat2d.invert(xform) ?? mat2d.ident)
 
-				mat2d.translate(xform, xform, pivot)
-				mat2d.scale(xform, xform, [deltaScale, deltaScale])
+		// Rotate
+		const rad = (rotation * Math.PI) / 180
+		const rot = mat2d.fromRotation(-rad)
 
-				vec2.negate(pivot, pivot)
-				mat2d.translate(xform, xform, pivot)
+		xform = mat2d.translate(xform, pivot)
+		xform = mat2d.mul(xform, rot)
+		xform = mat2d.translate(xform, vec2.negate(pivot))
 
-				context.emit('update:view-transform', xform)
-			},
-			onScroll({deltaX, deltaY}: MouseWheelEvent) {
-				const xform = mat2d.clone(props.viewTransform as mat2d)
-
-				// Translate
-				xform[4] -= deltaX / 2
-				xform[5] -= deltaY / 2
-
-				context.emit('update:view-transform', xform)
-			},
-			onGrab({deltaX, deltaY}) {
-				if (!el.value) return
-				const xform = mat2d.clone(props.viewTransform as mat2d)
-
-				// Translate (pixel by pixel)
-				xform[4] += deltaX
-				xform[5] += deltaY
-
-				context.emit('update:view-transform', xform)
-			},
-			onRotate({rotation, pageX, pageY}) {
-				if (!el.value) return
-
-				const {left, top} = el.value.getBoundingClientRect()
-				const pivot = vec2.fromValues(pageX - left, pageY - top)
-
-				const xform = mat2d.clone(props.viewTransform)
-
-				vec2.transformMat2d(pivot, pivot, mat2d.invert(mat2d.create(), xform))
-
-				// Rotate
-				const rad = (rotation * Math.PI) / 180
-				const rot = mat2d.fromRotation(mat2d.create(), -rad)
-
-				mat2d.translate(xform, xform, pivot)
-				mat2d.mul(xform, xform, rot)
-				mat2d.translate(xform, xform, vec2.negate(vec2.create(), pivot))
-
-				context.emit('update:view-transform', xform)
-			},
-		})
-
-		// Register app commands to ConsoleScope
-		AppScope.def('reset-viewport', () => {
-			if (!el.value) return null
-
-			const {width, height} = el.value.getBoundingClientRect()
-
-			const xform = mat2d.create()
-			mat2d.fromTranslation(xform, vec2.fromValues(width / 2, height / 2))
-
-			context.emit('update:view-transform', xform)
-
-			return null
-		})
-
-		// REM
-		const rem = useRem()
-
-		return {
-			el,
-			viewAxisStyle,
-			...handleData,
-			rem,
-		}
+		emit('update:view-transform', xform)
 	},
 })
+
+// Register app commands to ConsoleScope
+AppScope.def('reset-viewport', () => {
+	if (!el.value) return null
+
+	const {width, height} = el.value.getBoundingClientRect()
+
+	const xform = mat2d.fromTranslation([width / 2, height / 2])
+
+	emit('update:view-transform', xform)
+
+	return null
+})
+
+// REM
+const rem = useRem()
 </script>
 
 <style lang="stylus" scoped>

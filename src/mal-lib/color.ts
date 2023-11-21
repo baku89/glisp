@@ -1,5 +1,6 @@
 import chroma from 'chroma-js'
-import {symbolFor as S, createList as L, MalVal} from '@/mal/types'
+
+import {createList as L, MalVal, symbolFor as S} from '@/mal/types'
 
 const Exports = [
 	[

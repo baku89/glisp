@@ -1,29 +1,31 @@
-import {vec2, mat2d} from 'gl-matrix'
-import Bezier from 'bezier-js'
+import {Bezier} from 'bezier-js'
+import {mat2d, vec2} from 'linearly'
+import {clamp} from 'lodash'
+import paper from 'paper'
+import {OffsetOptions, PaperOffset} from 'paperjs-offset'
 import svgpath from 'svgpath'
 import Voronoi from 'voronoi'
-import paper from 'paper'
-import {PaperOffset, OffsetOptions} from 'paperjs-offset'
 
-import {
-	MalVal,
-	keywordFor as K,
-	symbolFor as S,
-	MalError,
-	assocBang,
-	isMap,
-	createList as L,
-} from '@/mal/types'
-import {partition, clamp} from '@/utils'
 import printExp from '@/mal/printer'
 import {
-	PathType,
-	SegmentType,
-	iterateSegment,
-	Vec2,
+	assocBang,
+	createList as L,
+	createVector,
+	isMap,
+	keywordFor as K,
+	MalError,
+	MalVal,
+	symbolFor as S,
+} from '@/mal/types'
+import {
 	convertToPath2D,
 	getSVGPathData,
+	iterateSegment,
+	PathType,
+	SegmentType,
+	Vec2,
 } from '@/path-utils'
+import {partition} from '@/utils'
 
 const EPSILON = 1e-5
 
@@ -72,16 +74,7 @@ function createPaperPath(path: PathType): paper.CompoundPath {
 	return paperPath
 }
 
-const canvasContext = (() => {
-	const canvas = document.createElement('canvas')
-	const ctx = canvas.getContext('2d')
-
-	if (!ctx) {
-		throw 'Cannot initialize a canvas context'
-	}
-
-	return ctx
-})()
+const canvasContext = document.createElement('canvas').getContext('2d')!
 
 function getMalPathFromPaper(
 	_path: paper.CompoundPath | paper.PathItem
@@ -232,8 +225,8 @@ function dragHandle(
 	path: PathType,
 	index: number,
 	type: string,
-	delta: vec2,
-	breakCorner = false
+	delta: vec2
+	// breakCorner = false
 ) {
 	const segs = Array.from(iterateSegment(path))
 	const draggingSeg = segs[index]
@@ -490,7 +483,7 @@ function alignMatrixAtLength(offset: number, path: PathType): MalVal {
 	const ret = getChildPaperPathByLength(paperPath, offset)
 
 	if (!ret) {
-		return mat2d.create() as MalVal
+		return createVector(...mat2d.ident)
 	}
 
 	const {offset: childOffset, path: childPath} = ret
@@ -498,11 +491,11 @@ function alignMatrixAtLength(offset: number, path: PathType): MalVal {
 	const tangent = childPath.getTangentAt(childOffset)
 	const {point} = childPath.getLocationAt(childOffset)
 
-	const mat = mat2d.fromTranslation(mat2d.create(), [point.x, point.y])
+	let mat = mat2d.fromTranslation([point.x, point.y])
 
-	mat2d.rotate(mat, mat, tangent.angleInRadians)
+	mat = mat2d.rotate(mat, tangent.angleInRadians)
 
-	return mat as MalVal
+	return createVector(...mat)
 }
 
 // Iteration
@@ -731,11 +724,7 @@ const canvasCtx = (() => {
 	const canvas = globalThis.document
 		? document.createElement('canvas')
 		: new OffscreenCanvas(10, 10)
-	const ctx = canvas.getContext('2d')
-	if (!ctx) {
-		throw new Error('Cannot create canvas context')
-	}
-	return ctx
+	return canvas.getContext('2d')!
 })()
 
 /**
@@ -784,7 +773,7 @@ function pathBounds(path: PathType) {
 		const [text, [x, y], options] = path.slice(1) as [
 			string,
 			[number, number],
-			...MalVal[]
+			...MalVal[],
 		]
 		const settings: any = {
 			size: 12,

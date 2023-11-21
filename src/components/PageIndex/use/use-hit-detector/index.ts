@@ -1,12 +1,13 @@
+import {vec2} from 'linearly'
 import {Ref} from 'vue'
-import {NonReactive} from '@/utils'
-import {MalVal, MalNode, isSeq, isNode} from '@/mal/types'
-import {HitDetector} from './hit-detector'
-import {vec2} from 'gl-matrix'
-import AppScope from '@/scopes/app'
-import {generateExpAbsPath} from '@/mal/utils'
 
-export default function useHitDetector(exp: Ref<NonReactive<MalNode>>) {
+import {isNode, isSeq, MalNode, MalVal} from '@/mal/types'
+import {generateExpAbsPath} from '@/mal/utils'
+import AppScope from '@/scopes/app'
+
+import {HitDetector} from './hit-detector'
+
+export default function useHitDetector(exp: Ref<MalNode>) {
 	const detector = new HitDetector()
 
 	AppScope.def('detect-hit', (pos: MalVal) => {
@@ -16,7 +17,7 @@ export default function useHitDetector(exp: Ref<NonReactive<MalNode>>) {
 			typeof pos[1] === 'number'
 		) {
 			const p = vec2.clone(pos as any)
-			const ret = detector.analyze(p, exp.value.value)
+			const ret = detector.analyze(p, exp.value)
 
 			if (isNode(ret)) {
 				return generateExpAbsPath(ret)

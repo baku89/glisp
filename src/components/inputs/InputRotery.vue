@@ -1,53 +1,47 @@
 <template>
 	<button
+		ref="el"
 		class="InputRotery"
 		:class="{dragging: drag.isDragging}"
 		:style="{transform: `rotate(${value}rad)`}"
-		ref="el"
 	/>
 </template>
 
-<script lang="ts">
-import {defineComponent, ref, Ref} from 'vue'
+<script lang="ts" setup>
+import {vec2} from 'linearly'
+import {Ref, ref} from 'vue'
+
 import {useDraggable} from '@/components/use/'
-import {vec2} from 'gl-matrix'
 
-export default defineComponent({
-	name: 'InputRotery',
-	props: {
-		value: {
-			type: Number,
-			required: true,
-		},
+const props = defineProps<{
+	value: number
+}>()
+
+const emit = defineEmits<{
+	input: [value: number]
+	'end-tweak': []
+}>()
+
+const el: Ref<null | HTMLElement> = ref(null)
+
+const drag = useDraggable(el, {
+	coordinate: 'center',
+	onDrag({x, y, prevX, prevY}) {
+		const prevAngle = Math.atan2(prevY, prevX)
+
+		const alignedPos = vec2.rotate(
+			vec2.create(),
+			[x, y] as vec2,
+			[0, 0],
+			-prevAngle
+		)
+		const delta = Math.atan2(alignedPos[1], alignedPos[0])
+		const value = props.value + delta
+
+		emit('input', value)
 	},
-	setup(props, context) {
-		const el: Ref<null | HTMLElement> = ref(null)
-
-		const drag = useDraggable(el, {
-			coordinate: 'center',
-			onDrag({x, y, prevX, prevY}) {
-				const prevAngle = Math.atan2(prevY, prevX)
-
-				const alignedPos = vec2.rotate(
-					vec2.create(),
-					[x, y] as vec2,
-					[0, 0],
-					-prevAngle
-				)
-				const delta = Math.atan2(alignedPos[1], alignedPos[0])
-				const value = props.value + delta
-
-				context.emit('input', value)
-			},
-			onDragEnd() {
-				context.emit('end-tweak')
-			},
-		})
-
-		return {
-			el,
-			drag,
-		}
+	onDragEnd() {
+		emit('end-tweak')
 	},
 })
 </script>

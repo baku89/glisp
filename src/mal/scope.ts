@@ -1,24 +1,13 @@
 import Env from './env'
-import readStr, {BlankException} from './reader'
 import evalExp from './eval'
-import ReplCore, {slurp} from './repl-core'
-import {symbolFor as S, MalVal, MalError} from './types'
 import printExp, {printer} from './printer'
-import isNodeJS from 'is-node'
+import readStr, {BlankException} from './reader'
+import ReplCore, {slurp} from './repl-core'
+import {MalError, MalVal, symbolFor as S} from './types'
 
-const normalizeURL = (() => {
-	if (isNodeJS) {
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const path = require('path')
-		return (url: string, basename: string) => {
-			return path.join(path.dirname(basename), url)
-		}
-	} else {
-		return (url: string, basename: string) => {
-			return new URL(url, basename).href
-		}
-	}
-})()
+const normalizeURL = (url: string, basename: string) => {
+	return new URL(url, basename).href
+}
 
 export default class Scope<T> {
 	public env!: Env
@@ -59,19 +48,15 @@ export default class Scope<T> {
 		this.def('import-js-force', (url: MalVal) => {
 			const basename = this.var('*filename*') as string
 			const absurl = normalizeURL(url as string, basename)
+			console.log('importing', absurl)
 			const text = slurp(absurl)
 			eval(text)
 			const exp = (globalThis as any)['glisp_library']
 			return evalExp(exp, this.env)
 		})
 
-		let filename: string
-		if (isNodeJS) {
-			// NOTE: This should be fixed
-			filename = '/Users/baku/Sites/glisp/repl/index.js'
-		} else {
-			filename = new URL('.', document.baseURI).href
-		}
+		const filename = new URL('.', document.baseURI).href
+
 		this.def('*filename*', filename)
 
 		this.readEval(
@@ -85,10 +70,6 @@ export default class Scope<T> {
 		)
 		// Load core library as default
 		this.readEval('(import-force "./lib/core.glisp")')
-
-		if (isNodeJS) {
-			this.def('*filename*', process.cwd())
-		}
 	}
 
 	public setup(option?: T) {
@@ -124,8 +105,6 @@ export default class Scope<T> {
 			} else if (err instanceof Error) {
 				printer.error(err.stack)
 			}
-
-			return undefined
 		}
 	}
 
@@ -138,7 +117,6 @@ export default class Scope<T> {
 			} else if (err instanceof Error) {
 				printer.error(err.stack)
 			}
-			return undefined
 		}
 	}
 

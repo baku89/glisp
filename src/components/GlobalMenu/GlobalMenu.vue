@@ -4,45 +4,44 @@
 		:class="{dark, 'title-bar-macos': titleBar === 'macos'}"
 	>
 		<h1>'(GLISP)</h1>
-		<div class="GlobalMenu__menu" v-click-outside="onClose">
+		<div v-click-outside="onClose" class="GlobalMenu__menu">
 			<div
-				class="GlobalMenu__item"
 				v-for="([label, content], i) in menu"
+				:key="label"
+				class="GlobalMenu__item"
 				:class="{
 					active: expandedIndex === i,
 				}"
 				@click="onClick(content, i)"
-				:key="label"
 			>
 				{{ label }}
 				<i class="fas fa-caret-down" />
 				<GlobalSubmenu
-					class="GlobalMenu__submenu"
 					v-if="expandedIndex === i"
+					class="GlobalMenu__submenu"
 					:menu="content"
 					@click="onClick"
 				/>
 			</div>
 		</div>
-		<WindowTitleButtons v-if="titleBar === 'frameless'" :dark="dark" />
 	</header>
 </template>
 
 <script lang="ts">
+import {defineComponent, Ref, ref} from 'vue'
 import ClickOutside from 'vue-click-outside'
-import GlobalSubmenu from './GlobalSubmenu.vue'
-import WindowTitleButtons from './WindowTitleButtons.vue'
-import ConsoleScope from '@/scopes/console'
-import {defineComponent, ref, Ref} from 'vue'
-import AppScope from '@/scopes/app'
+
 import {isVector, MalVal} from '@/mal/types'
+import AppScope from '@/scopes/app'
+import ConsoleScope from '@/scopes/console'
+
+import GlobalSubmenu from './GlobalSubmenu.vue'
 
 export default defineComponent({
 	name: 'GlobalMenu',
 	directives: {ClickOutside},
 	components: {
 		GlobalSubmenu,
-		WindowTitleButtons,
 	},
 	props: {
 		dark: {
@@ -58,9 +57,7 @@ export default defineComponent({
 			eval('"process" in globalThis && globalThis.process.platform') as string
 		)
 
-		const titleBar = ref(
-				null
-		)
+		const titleBar = ref(null)
 
 		function onClose() {
 			expandedIndex.value = null

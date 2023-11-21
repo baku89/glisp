@@ -3,95 +3,110 @@
 		<div
 			:class="{
 				clickable: labelInfo.clickable,
-				hidden: ui.hidden,
 				active,
 				selected,
 				hovering,
 			}"
-			@click="labelInfo.clickable && onClick($event)"
 			class="ViewExpTree__label"
+			@click="labelInfo.clickable && onClick($event)"
 		>
 			<div
 				:class="{expanded, expandable: labelInfo.expandable}"
-				@click="labelInfo.expandable && toggleExpanded()"
 				class="ViewExpTree__icon"
+				@click="labelInfo.expandable && toggleExpanded()"
 			>
 				<i
+					v-if="labelInfo.icon.type === 'fontawesome'"
 					:class="labelInfo.icon.value"
 					:style="labelInfo.icon.style"
-					v-if="labelInfo.icon.type === 'fontawesome'"
 				/>
 				<span
-					:style="labelInfo.icon.style"
 					v-else-if="labelInfo.icon.type === 'text'"
-				>{{ labelInfo.icon.value }}</span>
+					:style="labelInfo.icon.style"
+					>{{ labelInfo.icon.value }}</span
+				>
 				<span
+					v-if="labelInfo.icon.type === 'serif'"
 					:style="labelInfo.icon.style"
 					class="serif"
-					v-if="labelInfo.icon.type === 'serif'"
-				>{{ labelInfo.icon.value }}</span>
+					>{{ labelInfo.icon.value }}</span
+				>
 			</div>
 			{{ labelInfo.label }}
 			<i
-				:class="{active: editing}"
-				@click="onClickEditButton"
-				class="ViewExpTree__editing fas fa-code"
 				v-if="labelInfo.editable"
+				:class="{active: editing}"
+				class="ViewExpTree__editing fas fa-code"
+				@click="onClickEditButton"
 			/>
 		</div>
-		<div class="ViewExpTree__children" v-if="labelInfo.children && expanded">
+		<div v-if="labelInfo.children && expanded" class="ViewExpTree__children">
 			<ViewExpTree
+				v-for="(child, i) in labelInfo.children"
+				:key="i"
 				:activeExp="activeExp"
 				:editingExp="editingExp"
 				:exp="child"
 				:expSelection="expSelection"
 				:hoveringExp="hoveringExp"
-				:key="i"
 				@select="$emit('select', $event)"
 				@toggle-selection="$emit('toggle-selection', $event)"
 				@update:editingExp="$emit('update:editingExp', $event)"
 				@update:exp="onUpdateChildExp(i, $event)"
-				v-for="(child, i) in labelInfo.children"
 			/>
 		</div>
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, computed} from 'vue'
-import {NonReactive, nonReactive} from '@/utils'
-import {
-	MalVal,
-	isList,
-	isVector,
-	MalType,
-	getType,
-	symbolFor as S,
-	keywordFor as K,
-	MalMap,
-	createList as L,
-	MalNode,
-	MalSeq,
-	isSymbolFor,
-	isMap,
-	cloneExp,
-} from '@/mal/types'
+<script lang="ts" setup>
+import {computed, ref} from 'vue'
+
 import {printExp} from '@/mal'
 import {reconstructTree} from '@/mal/reader'
+import {
+	cloneExp,
+	getType,
+	isList,
+	isMap,
+	isVector,
+	MalNode,
+	MalSeq,
+	MalType,
+	MalVal,
+} from '@/mal/types'
 
-enum DisplayMode {
-	Node = 'node',
-	Elements = 'elements',
+interface Icon {
+	type: 'fontawesome' | 'text' | 'serif'
+	value: string
+	style?: string
+}
+
+interface LabelInfo {
+	label: string
+	clickable: boolean
+	expandable: boolean
+	editable: boolean
+	icon: Icon
+	children: null | MalVal[]
 }
 
 interface Props {
-	exp: NonReactive<MalVal>
+	exp: MalVal
 	expSelection: Set<MalNode>
-	activeExp: NonReactive<MalNode> | null
-	editingExp: NonReactive<MalVal> | null
-	hoveringExp: NonReactive<MalVal> | null
-	mode: DisplayMode
+	activeExp: MalNode | null
+	editingExp: MalVal | null
+	hoveringExp: MalVal | null
+	mode?: 'node' | 'element'
 }
+
+const props = withDefaults(defineProps<Props>(), {mode: 'node'})
+
+const emit = defineEmits<{
+	select: [value: MalVal]
+	'toggle-selection': [value: MalVal]
+	'update:editingExp': [value: MalVal]
+	'update:exp': [value: MalVal]
+}>()
 
 const IconTexts = {
 	[MalType.Function]: {type: 'serif', value: 'f'},
@@ -103,208 +118,102 @@ const IconTexts = {
 	},
 	[MalType.Symbol]: {type: 'serif', value: 'x'},
 	[MalType.Keyword]: {type: 'fontawesome', value: 'fas fa-key'},
-} as {[type: string]: {type: string; value: string; style?: string}}
+} as Record<string, Icon>
 
-const S_UI_ANNOTATE = S('ui-annotate')
-const K_NAME = K('name')
-const K_EXPANDED = K('expanded')
-const K_HIDDEN = K('hidden')
+const labelInfo = computed(() => {
+	const exp = props.exp
 
-export default defineComponent({
-	name: 'ViewExpTree',
-	props: {
-		exp: {
-			required: true,
-		},
-		expSelection: {
-			required: true,
-		},
-		activeExp: {
-			required: true,
-		},
-		editingExp: {
-			required: true,
-		},
-		hoveringExp: {
-			required: true,
-		},
-		mode: {
-			default: DisplayMode.Node,
-		},
-	},
-	setup(props: Props, context) {
-		/**
-		 * The flag whether the exp has UI annotaiton
-		 */
-		const hasAnnotation = computed(() => {
-			const exp = props.exp.value
-			return isList(exp) && isSymbolFor(exp[0], 'ui-annotate')
-		})
-
-		/**
-		 * the body of expression withouht ui-annotate wrapping
-		 */
-		const expBody = computed(() => {
-			const exp = props.exp.value
-			if (hasAnnotation.value) {
-				return nonReactive((exp as MalSeq)[2])
-			} else {
-				return props.exp
-			}
-		})
-
-		/**
-		 * UI Annotations
-		 */
-		const ui = computed(() => {
-			const exp = props.exp.value
-			if (hasAnnotation.value) {
-				const info = (exp as MalSeq)[1] as MalMap
-				return {
-					name: info[K_NAME] || null,
-					expanded: info[K_EXPANDED] || false,
-					hidden: info[K_HIDDEN] || false,
-				}
-			}
-
-			return {name: null, expanded: false, hidden: false}
-		})
-
-		const labelInfo = computed(() => {
-			const exp = expBody.value.value
-
-			if (isList(exp)) {
-				return {
-					label: exp[0] ? printExp(exp[0]) : '<empty>',
-					clickable: props.mode === DisplayMode.Node,
-					expandable: props.mode === DisplayMode.Node,
-					editable: true,
-					icon: {
-						type: 'fontawesome',
-						value: 'fas fa-caret-right',
-					},
-					children: exp.slice(1).map(e => nonReactive(e)),
-				}
-			} else if (isVector(exp)) {
-				return {
-					label: printExp(exp),
-					clickable: true,
-					expandable: false,
-					editable: true,
-					icon: {type: 'text', value: '[ ]'},
-					children: null,
-				}
-			} else if (isMap(exp)) {
-				return {
-					label: printExp(exp),
-					clickable: true,
-					expandable: false,
-					editable: true,
-					icon: {type: 'fontawesome', value: 'far fa-map'},
-					children: null,
-				}
-			} else {
-				return {
-					label: printExp(exp, false),
-					clickable: false,
-					expandable: false,
-					editable: false,
-					icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
-					children: null,
-				}
-			}
-		})
-
-		const expanded = computed(() => {
-			return props.mode !== DisplayMode.Node
-				? true
-				: labelInfo.value.expandable
-				? ui.value.expanded
-				: false
-		})
-
-		const active = computed(() => {
-			return props.activeExp && expBody.value.value === props.activeExp.value
-		})
-
-		const selected = computed(() => {
-			return props.expSelection.has(expBody.value.value as MalNode)
-		})
-
-		const hovering = computed(() => {
-			return (
-				props.hoveringExp && expBody.value.value === props.hoveringExp.value
-			)
-		})
-
-		const editing = computed(() => {
-			return props.editingExp && expBody.value.value === props.editingExp.value
-		})
-
-		/**
-		 * Events
-		 */
-		function onClick(e: MouseEvent) {
-			const ctrlPressed = e.ctrlKey || e.metaKey
-			context.emit(ctrlPressed ? 'toggle-selection' : 'select', expBody.value)
-		}
-
-		function toggleExpanded() {
-			const annotation = {} as {[k: string]: MalVal}
-			if (!ui.value.expanded === true) {
-				annotation[K_EXPANDED] = true
-			}
-			if (ui.value.name !== null) {
-				annotation[K_NAME] = ui.value.name
-			}
-
-			const newExp = nonReactive(
-				Object.keys(annotation).length > 0
-					? L(S_UI_ANNOTATE, annotation, expBody.value.value)
-					: expBody.value.value
-			)
-
-			context.emit('update:exp', newExp)
-		}
-
-		function onUpdateChildExp(i: number, replaced: NonReactive<MalNode>) {
-			const newExpBody = cloneExp(expBody.value.value) as MalSeq
-
-			;(newExpBody as MalSeq)[i + 1] = replaced.value
-
-			let newExp
-
-			if (hasAnnotation.value) {
-				newExp = L(S_UI_ANNOTATE, (props.exp.value as MalSeq)[1], newExpBody)
-			} else {
-				newExp = newExpBody
-			}
-
-			reconstructTree(newExp)
-
-			context.emit('update:exp', nonReactive(newExp))
-		}
-
-		function onClickEditButton(e: MouseEvent) {
-			e.stopPropagation()
-			context.emit('update:editingExp', expBody.value)
-		}
-
+	if (isList(exp)) {
 		return {
-			labelInfo,
-			active,
-			selected,
-			hovering,
-			editing,
-			onClick,
-			expanded,
-			ui,
-			toggleExpanded,
-			onUpdateChildExp,
-			onClickEditButton,
-		}
-	},
+			label: exp[0] ? printExp(exp[0]) : '<empty>',
+			clickable: props.mode === 'node',
+			expandable: props.mode === 'node',
+			editable: true,
+			icon: {
+				type: 'fontawesome',
+				value: 'fas fa-caret-right',
+			},
+			children: exp.slice(1),
+		} as LabelInfo
+	} else if (isVector(exp)) {
+		return {
+			label: printExp(exp),
+			clickable: true,
+			expandable: false,
+			editable: true,
+			icon: {type: 'text', value: '[ ]'},
+			children: null,
+		} as LabelInfo
+	} else if (isMap(exp)) {
+		return {
+			label: printExp(exp),
+			clickable: true,
+			expandable: false,
+			editable: true,
+			icon: {type: 'fontawesome', value: 'far fa-map'},
+			children: null,
+		} as LabelInfo
+	} else {
+		return {
+			label: printExp(exp, false),
+			clickable: false,
+			expandable: false,
+			editable: false,
+			icon: IconTexts[getType(exp)] || {type: 'text', value: '・'},
+			children: null,
+		} as LabelInfo
+	}
 })
+
+const active = computed(() => {
+	return props.activeExp && props.exp === props.activeExp
+})
+
+const selected = computed(() => {
+	return props.expSelection.has(props.exp as MalNode)
+})
+
+const hovering = computed(() => {
+	return props.hoveringExp && props.exp === props.hoveringExp
+})
+
+const editing = computed(() => {
+	return props.editingExp && props.exp === props.editingExp
+})
+
+/**
+ * Events
+ */
+function onClick(e: MouseEvent) {
+	const ctrlPressed = e.ctrlKey || e.metaKey
+	if (ctrlPressed) {
+		emit('toggle-selection', props.exp)
+	} else {
+		emit('select', props.exp)
+	}
+}
+
+const expanded = ref(false)
+function toggleExpanded() {
+	expanded.value = !expanded.value
+}
+
+function onUpdateChildExp(i: number, replaced: MalVal) {
+	const newExpBody = cloneExp(props.exp) as MalSeq
+
+	;(newExpBody as MalSeq)[i + 1] = replaced
+
+	const newExp = newExpBody
+
+	reconstructTree(newExp)
+
+	emit('update:exp', newExp)
+}
+
+function onClickEditButton(e: MouseEvent) {
+	e.stopPropagation()
+	emit('update:editingExp', props.exp)
+}
 </script>
 
 <style lang="stylus">
@@ -342,9 +251,6 @@ export default defineComponent({
 		&:hover
 			&:after
 				opacity 0.15
-
-		&.hidden
-			text-decoration line-through
 
 		&.clickable
 			color var(--foreground)

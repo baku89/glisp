@@ -11,7 +11,7 @@
 				<td class="ParamControl__value">
 					<div class="ParamControl__input">
 						<component
-							:is="'ui-' + sch.ui"
+							:is="inputComponents[sch.ui]"
 							v-bind="sch"
 							@input="onParamInput(i, $event)"
 							@select="$emit('select', $event)"
@@ -28,7 +28,9 @@
 							class="ParamControl__button insert"
 							tabindex="-1"
 							@click="onParamInsert(i)"
-						>Insert</button>
+						>
+							Insert
+						</button>
 					</template>
 				</td>
 			</tr>
@@ -39,41 +41,71 @@
 						class="ParamControl__button add"
 						tabindex="-1"
 						@click="onParamInsert(uiSchema.length)"
-					>+ Add</button>
+					>
+						+ Add
+					</button>
 				</td>
 			</tr>
 		</template>
 	</table>
 </template>
 
-<script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
-import {
-	MalSeq,
-	MalVal,
-	MalFunc,
-	createList as L,
-	keywordFor as K,
-	symbolFor,
-	cloneExp,
-	keywordFor,
-	isNode,
-} from '@/mal/types'
+<script lang="ts" setup>
+import {Component, computed} from 'vue'
+
 import * as MalInputComponents from '@/components/mal-inputs'
-import {getFnInfo, getMapValue} from '@/mal/utils'
-import {nonReactive, NonReactive} from '@/utils'
+import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
 import {
 	generateSchemaParamLabel,
 	generateUISchema,
-	updateParamsByUISchema,
-	SchemaVector,
 	Schema,
+	SchemaVector,
+	updateParamsByUISchema,
 } from '@/mal/schema'
-import {convertMalNodeToJSObject, reconstructTree} from '@/mal/reader'
+import {
+	cloneExp,
+	createList as L,
+	isNode,
+	keywordFor as K,
+	keywordFor,
+	MalFunc,
+	MalSeq,
+	MalVal,
+	symbolFor,
+} from '@/mal/types'
+import {getFnInfo, getMapValue} from '@/mal/utils'
 
 interface Props {
-	exp: NonReactive<MalSeq>
+	exp: MalSeq
 	fn: MalFunc
+}
+
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+	input: [exp: MalVal]
+	select: [exp: MalVal]
+	'end-tweak': []
+}>()
+
+const inputComponents: Record<string, Component> = {
+	number: MalInputComponents.MalInputNumber,
+	slider: MalInputComponents.MalInputSlider,
+	angle: MalInputComponents.MalInputAngle,
+	seed: MalInputComponents.MalInputSeed,
+	string: MalInputComponents.MalInputString,
+	color: MalInputComponents.MalInputColor,
+	dropdown: MalInputComponents.MalInputDropdown,
+	keyword: MalInputComponents.MalInputKeyword,
+	symbol: MalInputComponents.MalInputSymbol,
+	boolean: MalInputComponents.MalInputBoolean,
+	vec2: MalInputComponents.MalInputVec2,
+	rect2d: MalInputComponents.MalInputRect2d,
+	mat2d: MalInputComponents.MalInputMat2d,
+	size2d: MalInputComponents.MalInputSize2d,
+	path: MalInputComponents.MalExpButton,
+	exp: MalInputComponents.MalExpButton,
+	// 'ui-any': MalInputComponents.MalInputAny,
 }
 
 const TypeDefaults = {
@@ -91,165 +123,128 @@ const TypeDefaults = {
 	any: null,
 } as {[type: string]: MalVal}
 
-export default defineComponent({
-	name: 'ParamControl',
-	props: {
-		exp: {required: true},
-		fn: {required: false},
-	},
-	components: {
-		'ui-number': MalInputComponents.MalInputNumber,
-		'ui-slider': MalInputComponents.MalInputSlider,
-		'ui-angle': MalInputComponents.MalInputAngle,
-		'ui-seed': MalInputComponents.MalInputSeed,
-		'ui-string': MalInputComponents.MalInputString,
-		'ui-color': MalInputComponents.MalInputColor,
-		'ui-dropdown': MalInputComponents.MalInputDropdown,
-		'ui-keyword': MalInputComponents.MalInputKeyword,
-		'ui-symbol': MalInputComponents.MalInputSymbol,
-		'ui-boolean': MalInputComponents.MalInputBoolean,
-		'ui-vec2': MalInputComponents.MalInputVec2,
-		'ui-rect2d': MalInputComponents.MalInputRect2d,
-		'ui-mat2d': MalInputComponents.MalInputMat2d,
-		'ui-size2d': MalInputComponents.MalInputSize2d,
-		'ui-path': MalInputComponents.MalExpButton,
-		'ui-exp': MalInputComponents.MalExpButton,
-		// 'ui-any': MalInputComponents.MalInputAny,
-	},
-	setup(props: Props, context: SetupContext) {
-		const fnInfo = computed(() => {
-			return getFnInfo(props.fn || props.exp.value)
-		})
-
-		const params = computed(() => {
-			if (!fnInfo.value) return []
-
-			if (fnInfo.value.structType) {
-				return [props.exp.value]
-			} else {
-				return props.exp.value.slice(1)
-			}
-		})
-
-		const schema = computed(() => {
-			if (!fnInfo.value) return [] as Schema[]
-
-			const meta = fnInfo.value.meta
-			const malSchema = getMapValue(meta, 'params')
-
-			if (!isNode(malSchema)) {
-				return undefined
-			}
-
-			// Convert to JS Object
-			let schema = convertMalNodeToJSObject(malSchema)
-
-			// Add label
-			if (Array.isArray(schema)) {
-				schema = generateSchemaParamLabel(schema as any, fnInfo.value.fn as any)
-			}
-			return schema
-		})
-
-		// Vector variadic
-		const isVectorVariadic = computed(() => {
-			if (schema.value.length > 0) {
-				const lastSchema = schema.value[schema.value.length - 1]
-				return !!lastSchema.variadic && lastSchema.type === 'vector'
-			} else {
-				return false
-			}
-		})
-
-		const vectorVariadicPos = computed(() => {
-			if (isVectorVariadic.value) {
-				return schema.value.length - 1
-			} else {
-				return -1
-			}
-		})
-
-		// UISchema
-		const uiSchema = computed(() => {
-			if (!schema.value) {
-				return undefined
-			}
-			try {
-				return generateUISchema(schema.value, params.value)
-			} catch (e) {
-				console.error(e)
-				return undefined
-			}
-		})
-
-		// Updator
-		function onParamInput(i: number, value: NonReactive<MalVal>) {
-			if (!fnInfo.value) return
-
-			const newParams = updateParamsByUISchema(
-				schema.value,
-				uiSchema.value as Schema[],
-				params.value,
-				i,
-				value.value
-			)
-
-			const newExp = fnInfo.value.structType
-				? newParams[0]
-				: L(props.exp.value[0], ...newParams)
-
-			reconstructTree(newExp)
-
-			context.emit('input', nonReactive(newExp))
-		}
-
-		function onParamInsert(i: number) {
-			const newParams = [...params.value]
-			const vectorSchema = schema.value[schema.value.length - 1] as SchemaVector
-			const variadicSchema = vectorSchema.items
-
-			const type = variadicSchema.type
-
-			// Compute value
-			let value = cloneExp(TypeDefaults[type])
-
-			if (vectorSchema.insert) {
-				value = (vectorSchema.insert as any)({
-					[K('params')]: params.value.slice(vectorVariadicPos.value),
-					[K('index')]: i - vectorVariadicPos.value,
-				})
-			} else if ('default' in variadicSchema) {
-				value = variadicSchema.default as MalVal
-			}
-
-			newParams.splice(i, 0, value)
-			const newExp = L(props.exp.value[0], ...newParams)
-
-			reconstructTree(newExp)
-
-			context.emit('input', nonReactive(newExp))
-		}
-
-		function onParamDelete(i: number) {
-			const newParams = [...params.value]
-			newParams.splice(i, 1)
-
-			const newExp = L(props.exp.value[0], ...newParams)
-			reconstructTree(newExp)
-
-			context.emit('input', nonReactive(newExp))
-		}
-
-		return {
-			isVectorVariadic,
-			vectorVariadicPos,
-			uiSchema,
-			onParamInput,
-			onParamInsert,
-			onParamDelete,
-		}
-	},
+const fnInfo = computed(() => {
+	return getFnInfo(props.fn || props.exp)
 })
+
+const params = computed(() => {
+	if (!fnInfo.value) return []
+
+	if (fnInfo.value.structType) {
+		return [props.exp]
+	} else {
+		return props.exp.slice(1)
+	}
+})
+
+const schema = computed(() => {
+	if (!fnInfo.value) return [] as Schema[]
+
+	const meta = fnInfo.value.meta
+	const malSchema = getMapValue(meta, 'params')
+
+	if (!isNode(malSchema)) {
+		return undefined
+	}
+
+	// Convert to JS Object
+	let schema = convertMalNodeToJSObject(malSchema)
+
+	// Add label
+	if (Array.isArray(schema)) {
+		schema = generateSchemaParamLabel(schema as any, fnInfo.value.fn as any)
+	}
+	return schema
+})
+
+// Vector variadic
+const isVectorVariadic = computed(() => {
+	if (schema.value.length > 0) {
+		const lastSchema = schema.value[schema.value.length - 1]
+		return !!lastSchema.variadic && lastSchema.type === 'vector'
+	} else {
+		return false
+	}
+})
+
+const vectorVariadicPos = computed(() => {
+	if (isVectorVariadic.value) {
+		return schema.value.length - 1
+	} else {
+		return -1
+	}
+})
+
+// UISchema
+const uiSchema = computed(() => {
+	if (!schema.value) {
+		return undefined
+	}
+	try {
+		return generateUISchema(schema.value, params.value)
+	} catch (e) {
+		console.error(e)
+		return undefined
+	}
+})
+
+// Updator
+function onParamInput(i: number, value: MalVal) {
+	if (!fnInfo.value) return
+
+	const newParams = updateParamsByUISchema(
+		schema.value,
+		uiSchema.value as Schema[],
+		params.value,
+		i,
+		value
+	)
+
+	const newExp = fnInfo.value.structType
+		? newParams[0]
+		: L(props.exp[0], ...newParams)
+
+	reconstructTree(newExp)
+
+	emit('input', newExp)
+}
+
+function onParamInsert(i: number) {
+	const newParams = [...params.value]
+	const vectorSchema = schema.value[schema.value.length - 1] as SchemaVector
+	const variadicSchema = vectorSchema.items
+
+	const type = variadicSchema.type
+
+	// Compute value
+	let value = cloneExp(TypeDefaults[type])
+
+	if (vectorSchema.insert) {
+		value = (vectorSchema.insert as any)({
+			[K('params')]: params.value.slice(vectorVariadicPos.value),
+			[K('index')]: i - vectorVariadicPos.value,
+		})
+	} else if ('default' in variadicSchema) {
+		value = variadicSchema.default as MalVal
+	}
+
+	newParams.splice(i, 0, value)
+	const newExp = L(props.exp[0], ...newParams)
+
+	reconstructTree(newExp)
+
+	emit('input', newExp)
+}
+
+function onParamDelete(i: number) {
+	const newParams = [...params.value]
+	newParams.splice(i, 1)
+
+	const newExp = L(props.exp[0], ...newParams)
+	reconstructTree(newExp)
+
+	emit('input', newExp)
+}
 </script>
 
 <style lang="stylus">

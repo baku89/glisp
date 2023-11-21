@@ -1,10 +1,10 @@
 <template>
 	<div class="GlobalSubmenu">
 		<div
-			class="GlobalSubmenu__item"
 			v-for="[label, command] in menu"
-			@click="$emit('click', command)"
 			:key="label"
+			class="GlobalSubmenu__item"
+			@click="$emit('click', command)"
 		>
 			{{ label }}
 		</div>
@@ -13,6 +13,7 @@
 
 <script lang="ts">
 import {defineComponent, PropType} from 'vue'
+
 import {MalVal} from '@/mal/types'
 
 export default defineComponent({

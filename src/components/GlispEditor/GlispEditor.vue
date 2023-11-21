@@ -1,161 +1,127 @@
-<template>
-	<div class="GlispEditor">
-		<div class="GlispEditor__editor" ref="editorEl" :style="cssStyle" />
-	</div>
-</template>
-
-<script lang="ts">
-import {
-	defineComponent,
-	onMounted,
-	ref,
-	Ref,
-	onBeforeUnmount,
-	watch,
-	SetupContext,
-	PropType,
-} from 'vue'
+<script lang="ts" setup>
 import ace from 'brace'
+import {
+	nextTick,
+	onBeforeUnmount,
+	onMounted,
+	Ref,
+	ref,
+	watch,
+	watchEffect,
+} from 'vue'
 
 import {setupEditor} from './setup'
-import {getEditorSelection, convertToAceRange} from './utils'
+import {convertToAceRange, getEditorSelection} from './utils'
+
+type Range = [start: number, end: number]
 
 interface Props {
 	value: string
-	selection?: number[]
-	activeRange?: number[]
+	selection?: Range
+	activeRange?: Range
+	cssStyle?: string
 }
 
-function useBraceEditor(props: Props, context: SetupContext) {
-	const editorEl: Ref<HTMLElement | null> = ref(null)
-	let editor: ace.Editor
+const props = defineProps<Props>()
+const emit = defineEmits<{
+	input: [value: string]
+	'update:selection': [selection: number[]]
+}>()
 
-	onMounted(() => {
-		if (!editorEl.value) return
+const $editor: Ref<HTMLElement | null> = ref(null)
+let editor: ace.Editor
 
-		editor = ace.edit(editorEl.value)
+onMounted(() => {
+	if (!$editor.value) return
 
-		// Update activeRange
-		let activeRangeMarker: number
-		watch(
-			() => props.activeRange,
-			activeRange => {
-				editor.session.removeMarker(activeRangeMarker)
+	editor = ace.edit($editor.value)
 
-				if (!activeRange) {
-					return
-				}
+	// Update activeRange
+	let activeRangeMarker: number
 
-				// NOTE: Make sure to update the marker, add marker for next tick
-				context.root.$nextTick(() => {
-					const [start, end] = activeRange
-					const range = convertToAceRange(editor, start, end)
-					activeRangeMarker = editor.session.addMarker(
-						range,
-						'active-range',
-						'text',
-						false
+	watchEffect(() => {
+		if (!props.activeRange) return
+
+		const [start, end] = props.activeRange
+		const range = convertToAceRange(editor, start, end)
+
+		editor.session.removeMarker(activeRangeMarker)
+
+		nextTick(() => {
+			activeRangeMarker = editor.session.addMarker(
+				range,
+				'active-range',
+				'text',
+				false
+			)
+		})
+	})
+
+	// Update selection
+	let setBySelf = false
+
+	watchEffect(() => {
+		if (!props.selection) return
+
+		const [start, end] = props.selection
+		const [oldStart, oldEnd] = getEditorSelection(editor)
+
+		if (start !== oldStart || end !== oldEnd) {
+			setBySelf = true
+			const range = convertToAceRange(editor, start, end)
+			editor.selection.setRange(range, false)
+			setBySelf = false
+		}
+	})
+
+	editor.on('change', () => {
+		if (setBySelf) return
+		const value = editor.getValue()
+		emit('input', value)
+	})
+
+	editor.on('changeSelection', () => {
+		if (setBySelf) return
+		const selection = getEditorSelection(editor)
+		emit('update:selection', selection)
+	})
+
+	// Watch the value and update the editor
+	watch(
+		() => props.value,
+		newValue => {
+			if (editor.getValue() !== newValue) {
+				setBySelf = true
+				editor.setValue(newValue, -1)
+				if (props.selection) {
+					const range = convertToAceRange(
+						editor,
+						props.selection[0],
+						props.selection[0]
 					)
-				})
-			}
-		)
-
-		// Update selection
-		watch(
-			() => props.selection,
-			selection => {
-				if (!selection) {
-					return
-				}
-
-				const [start, end] = selection
-				const [oldStart, oldEnd] = getEditorSelection(editor)
-
-				if (start !== oldStart || end !== oldEnd) {
-					setBySelf = true
-					const range = convertToAceRange(editor, start, end)
 					editor.selection.setRange(range, false)
-					setBySelf = false
 				}
+				setBySelf = false
 			}
-		)
-
-		let setBySelf = false
-
-		function onChange() {
-			if (setBySelf) return
-			const value = editor.getValue()
-			context.emit('input', value)
-		}
-
-		function onChangeSelection() {
-			if (setBySelf) return
-			const selection = getEditorSelection(editor)
-			context.emit('update:selection', selection)
-		}
-
-		editor.on('change', onChange)
-		editor.on('changeSelection', onChangeSelection)
-
-		// Watch the value and update the editor
-		watch(
-			() => props.value,
-			newValue => {
-				if (editor.getValue() !== newValue) {
-					setBySelf = true
-					editor.setValue(newValue, -1)
-					if (props.selection) {
-						const range = convertToAceRange(
-							editor,
-							props.selection[0],
-							props.selection[0]
-						)
-						editor.selection.setRange(range, false)
-					}
-					setBySelf = false
-				}
-			},
-			{immediate: true}
-		)
-
-		// Enable individual features
-		setupEditor(editor)
-	})
-
-	onBeforeUnmount(() => {
-		editor.destroy()
-		editor.container.remove()
-	})
-
-	return {editorEl}
-}
-
-export default defineComponent({
-	name: 'GlispEditor',
-	props: {
-		value: {
-			type: String,
-			required: true,
 		},
-		selection: {
-			type: Array as PropType<number[]>,
-			required: false,
-		},
-		activeRange: {
-			type: Array as PropType<number[]>,
-			required: false,
-		},
-		cssStyle: {
-			type: String,
-			default: '',
-		},
-	},
-	setup(props, context) {
-		const {editorEl} = useBraceEditor(props, context)
-		return {editorEl}
-	},
+		{immediate: true}
+	)
+
+	// Enable individual features
+	setupEditor(editor)
+})
+
+onBeforeUnmount(() => {
+	editor.destroy()
+	editor.container.remove()
 })
 </script>
+
+<template>
+	<div class="GlispEditor">
+		<div ref="$editor" class="GlispEditor__editor" :style="cssStyle" />
+	</div>
+</template>
 
 <style lang="stylus">
 @import '../style/common.styl'

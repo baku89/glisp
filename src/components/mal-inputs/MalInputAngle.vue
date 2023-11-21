@@ -18,51 +18,37 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
-import MalInputNumber from './MalInputNumber.vue'
-import {InputRotery} from '@/components/inputs'
-import {MalSeq, MalSymbol, MalVal, getEvaluated} from '@/mal/types'
+<script lang="ts" setup>
+import {computed} from 'vue'
+
+import {getEvaluated, MalSeq, MalSymbol, MalVal} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
 
 interface Props {
-	value: NonReactive<number | MalSeq | MalSymbol>
+	value: number | MalSeq | MalSymbol
 	validator: (v: number) => number | null
 }
 
-export default defineComponent({
-	name: 'MalInputAngle',
-	components: {MalInputNumber, InputRotery},
-	props: {
-		value: {
-			required: true,
-			validator: x => x instanceof NonReactive,
-		},
-		validator: {
-			required: false,
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const evaluated = computed(() => {
-			return getEvaluated(props.value.value) as number
-		})
+const props = defineProps<Props>()
 
-		function onInput(value: MalVal) {
-			let newExp = value
-			if (typeof newExp === 'number') {
-				// Executes backward evalution
-				newExp = reverseEval(newExp, props.value.value)
-			}
-			context.emit('input', nonReactive(newExp))
-		}
+const emit = defineEmits<{
+	input: [value: MalVal]
+	select: [value: MalVal]
+	'end-tweak': []
+}>()
 
-		return {
-			evaluated,
-			onInput,
-		}
-	},
+const evaluated = computed(() => {
+	return getEvaluated(props.value) as number
 })
+
+function onInput(value: MalVal) {
+	let newExp = value
+	if (typeof newExp === 'number') {
+		// Executes backward evalution
+		newExp = reverseEval(newExp, props.value)
+	}
+	emit('input', newExp)
+}
 </script>
 
 <style lang="stylus">

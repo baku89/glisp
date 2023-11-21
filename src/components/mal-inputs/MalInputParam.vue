@@ -1,12 +1,12 @@
 <template>
 	<div class="MalInputParam">
-		<div class="MalInputParam__param" v-for="(scheme, i) in schemes" :key="i">
-			<div class="MalInputParam__label" v-if="scheme.label">
+		<div v-for="(scheme, i) in schemes" :key="i" class="MalInputParam__param">
+			<div v-if="scheme.label" class="MalInputParam__label">
 				{{ scheme.label }}
 			</div>
 			<component
-				class="MalInputParam__input"
 				:is="scheme.type"
+				class="MalInputParam__input"
 				:value="params[i]"
 				:compact="true"
 				@input="updateParamAt($event, i)"
@@ -16,63 +16,50 @@
 	</div>
 </template>
 
-<script lang="ts">
-import {defineComponent, computed, SetupContext} from 'vue'
-import MalInputNumber from '@/components/mal-inputs/MalInputNumber.vue'
-import MalInputColor from '@/components/mal-inputs/MalInputColor.vue'
+<script lang="ts" setup>
+import {computed} from 'vue'
+
+import {convertMalNodeToJSObject} from '@/mal/reader'
 import {
-	MalSeq,
-	getEvaluated,
-	MalType,
-	getMeta,
-	MalVal,
 	cloneExp,
-	isList,
+	getEvaluated,
+	getMeta,
+	MalSeq,
+	MalType,
+	MalVal,
 } from '@/mal/types'
 import {getMapValue} from '@/mal/utils'
-import {convertMalNodeToJSObject} from '@/mal/reader'
-import {NonReactive, nonReactive} from '@/utils'
 
 interface Props {
-	value: NonReactive<MalSeq>
+	value: MalSeq
 }
 
-export default defineComponent({
-	name: 'MalInputParam',
-	components: {
-		number: MalInputNumber,
-		color: MalInputColor,
-	},
-	props: {
-		value: {
-			required: true,
-			validator: v => v instanceof NonReactive && isList(v.value),
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const params = computed(() => {
-			return props.value.value.slice(1).map(nonReactive)
-		})
+const props = defineProps<Props>()
 
-		const fn = computed(() => getEvaluated(props.value.value[0]))
+const emit = defineEmits<{
+	input: [value: MalVal]
+	'end-tweak': []
+}>()
 
-		const schemes = computed(
-			() =>
-				convertMalNodeToJSObject(
-					getMapValue(getMeta(fn.value), 'compact-params', MalType.Vector)
-				) || null
-		)
-
-		function updateParamAt(value: NonReactive<MalVal>, i: number) {
-			const newExp = cloneExp(props.value.value)
-			newExp[i + 1] = value.value
-
-			context.emit('input', nonReactive(newExp))
-		}
-
-		return {params, schemes, updateParamAt}
-	},
+const params = computed(() => {
+	return props.value.slice(1)
 })
+
+const fn = computed(() => getEvaluated(props.value[0]))
+
+const schemes = computed(
+	() =>
+		convertMalNodeToJSObject(
+			getMapValue(getMeta(fn.value), 'compact-params', MalType.Vector)
+		) || null
+)
+
+function updateParamAt(value: MalVal, i: number) {
+	const newExp = cloneExp(props.value)
+	newExp[i + 1] = value
+
+	emit('input', newExp)
+}
 </script>
 
 <style lang="stylus">

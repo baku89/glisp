@@ -1,30 +1,30 @@
 import seedrandom from 'seedrandom'
+
+import printExp from '@/mal/printer'
 import {
-	MalVal,
-	symbolFor as S,
-	createList as L,
-	MalMap,
-	cloneExp,
 	assocBang,
+	cloneExp,
+	createList as L,
+	getMeta,
+	getType,
+	isKeyword,
+	isList,
 	isMap,
+	isSeq,
 	isString,
 	isSymbol,
-	isKeyword,
+	isVector,
 	keywordFor,
+	MalAtom,
 	MalError,
 	MalFunc,
-	isVector,
-	isList,
-	MalAtom,
-	getType,
-	getMeta,
-	withMeta,
-	isSeq,
+	MalMap,
+	MalVal,
 	setMeta,
+	symbolFor as S,
+	withMeta,
 } from '@/mal/types'
-import printExp from '@/mal/printer'
 import {partition} from '@/utils'
-import isNodeJS from 'is-node'
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
@@ -231,6 +231,7 @@ const Exports = [
 
 	// Meta
 	['meta', getMeta],
+	// eslint-disable-next-line no-console
 	['console.log', console.log],
 	['with-meta', withMeta],
 	['set-meta!', setMeta],
@@ -277,27 +278,6 @@ const Exports = [
 	],
 	// Random
 	['rnd', (a: MalVal) => seedrandom(a)()],
-
-	// I/O
-	[
-		'spit',
-		(f: MalVal, content: MalVal) => {
-			if (isNodeJS) {
-				// eslint-disable-next-line @typescript-eslint/no-var-requires
-				const fs = require('fs')
-				// eslint-disable-next-line @typescript-eslint/no-var-requires
-				const path = require('path')
-				fs.writeFileSync(
-					path.join(process.cwd(), f) as string,
-					content as string
-				)
-			} else {
-				throw new MalError('Cannot spit on browser')
-			}
-
-			return null
-		},
-	],
 ] as [string, MalVal][]
 
 // Expose Math

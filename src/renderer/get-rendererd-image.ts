@@ -1,6 +1,8 @@
+import {mat2d} from 'linearly'
+
 import {MalVal} from '@/mal/types'
+
 import createCanvasRender, {CanvasRendererType} from './canvas-renderer'
-import {mat2d} from 'gl-matrix'
 
 const getRendereredImage = (() => {
 	let canvasRenderer: CanvasRendererType
@@ -16,7 +18,7 @@ const getRendereredImage = (() => {
 		const [x, y, width, height] = bounds as number[]
 
 		canvasRenderer.resize(width, height, scaling)
-		const viewTransform = mat2d.fromTranslation(mat2d.create(), [-x, -y])
+		const viewTransform = mat2d.fromTranslation([-x, -y])
 		await canvasRenderer.render(viewExp, {viewTransform})
 		const image = await canvasRenderer.getImage({format})
 

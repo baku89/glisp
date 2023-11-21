@@ -1,8 +1,8 @@
 <template>
 	<div class="MalInputRect2d">
 		<MalExpButton
-			class="MalInputRect2d__exp-button"
 			v-if="!isValueSeparated"
+			class="MalInputRect2d__exp-button"
 			:value="value"
 			:compact="true"
 			@select="$emit('select', $event)"
@@ -11,34 +11,34 @@
 			<MalInputNumber
 				class="MalInputRect2d__el"
 				:value="nonReactiveValues[0]"
+				:compact="true"
 				@input="onInputElement(0, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
-				:compact="true"
 			/>
 			<MalInputNumber
 				class="MalInputRect2d__el"
 				:value="nonReactiveValues[1]"
+				:compact="true"
 				@input="onInputElement(1, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
-				:compact="true"
 			/>
 			<MalInputNumber
 				class="MalInputRect2d__el"
 				:value="nonReactiveValues[2]"
+				:compact="true"
 				@input="onInputElement(2, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
-				:compact="true"
 			/>
 			<MalInputNumber
 				class="MalInputRect2d__el"
 				:value="nonReactiveValues[3]"
+				:compact="true"
 				@input="onInputElement(3, $event)"
 				@select="$emit('select', $event)"
 				@end-tweak="$emit('end-tweak')"
-				:compact="true"
 			/>
 		</template>
 		<template v-else>
@@ -77,54 +77,31 @@
 </template>
 
 <script lang="ts">
-import {defineComponent, toRef, SetupContext} from 'vue'
-import {InputNumber, InputTranslate} from '@/components/inputs'
-import MalInputNumber from './MalInputNumber.vue'
-import MalExpButton from './MalExpButton.vue'
+import {toRef} from 'vue'
+
 import {useNumericVectorUpdator} from '@/components/use'
+import {MalSeq, MalSymbol} from '@/mal/types'
 import {reverseEval} from '@/mal/utils'
-import {NonReactive, nonReactive} from '@/utils'
-import {isSeq, MalSeq, MalSymbol, isSymbol} from '@/mal/types'
 
 interface Props {
-	value: NonReactive<MalSeq | MalSymbol>
+	value: MalSeq | MalSymbol
 }
 
-export default defineComponent({
-	name: 'MalInputRect2d',
-	components: {MalInputNumber, MalExpButton, InputNumber, InputTranslate},
-	props: {
-		value: {
-			required: true,
-			validator: x =>
-				x instanceof NonReactive && (isSeq(x.value) || isSymbol(x.value)),
-		},
-	},
-	setup(props: Props, context: SetupContext) {
-		const {
-			nonReactiveValues,
-			isValueSeparated,
-			evaluated,
-			onInputElement,
-			onInputEvaluatedElement,
-		} = useNumericVectorUpdator(toRef(props, 'value'), context)
+const props = defineProps<Props>()
 
-		function onInputTranslate(value: number[]) {
-			const newValue = [...value, ...evaluated.value.slice(2)]
-			const newExp = reverseEval(newValue, props.value.value)
-			context.emit('input', nonReactive(newExp))
-		}
+const {
+	nonReactiveValues,
+	isValueSeparated,
+	evaluated,
+	onInputElement,
+	onInputEvaluatedElement,
+} = useNumericVectorUpdator(toRef(props, 'value'), context)
 
-		return {
-			nonReactiveValues,
-			isValueSeparated,
-			evaluated,
-			onInputElement,
-			onInputEvaluatedElement,
-			onInputTranslate,
-		}
-	},
-})
+function onInputTranslate(value: number[]) {
+	const newValue = [...value, ...evaluated.value.slice(2)]
+	const newExp = reverseEval(newValue, props.value)
+	emit('input', newExp)
+}
 </script>
 
 <style lang="stylus">

@@ -1,12 +1,12 @@
-import {Ref, computed, SetupContext} from 'vue'
 import keycode from 'keycode'
+import {computed, Ref} from 'vue'
 
 const VERTICAL_ARROW_KEYS = new Set(['up', 'down'])
 
 export default function useNumber(
 	value: Ref<number>,
 	tweaking: Ref<boolean>,
-	context: SetupContext
+	emit: (event: 'input', value: string | number) => void
 ) {
 	const displayValue = computed(() => {
 		const v = value.value
@@ -56,8 +56,9 @@ export default function useNumber(
 	}
 
 	function update(val: number | string) {
-		context.emit('input', val)
+		emit('input', val)
 	}
+
 	return {
 		step,
 		displayValue,

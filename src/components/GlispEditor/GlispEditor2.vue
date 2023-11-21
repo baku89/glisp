@@ -1,24 +1,24 @@
 <template>
 	<div class="GlispEditor2">
-		<div class="GlispEditor2__editor" ref="editorEl" :style="cssStyle" />
+		<div ref="editorEl" class="GlispEditor2__editor" :style="cssStyle" />
 	</div>
 </template>
 
 <script lang="ts">
+import ace from 'brace'
 import {
 	defineComponent,
-	onMounted,
-	ref,
-	Ref,
+	nextTick,
 	onBeforeUnmount,
-	watch,
-	SetupContext,
+	onMounted,
 	PropType,
+	Ref,
+	ref,
+	watch,
 } from 'vue'
-import ace from 'brace'
 
 import {setupEditor} from './setup'
-import {getEditorSelection, convertToAceRange} from './utils'
+import {convertToAceRange, getEditorSelection} from './utils'
 
 interface Props {
 	value: string
@@ -26,7 +26,7 @@ interface Props {
 	activeRange?: number[]
 }
 
-function useBraceEditor(props: Props, context: SetupContext) {
+function useBraceEditor(props: Props) {
 	const editorEl: Ref<HTMLElement | null> = ref(null)
 	let editor: ace.Editor
 
@@ -47,7 +47,7 @@ function useBraceEditor(props: Props, context: SetupContext) {
 				}
 
 				// NOTE: Make sure to update the marker, add marker for next tick
-				context.root.$nextTick(() => {
+				nextTick(() => {
 					const [start, end] = activeRange
 					const range = convertToAceRange(editor, start, end)
 					activeRangeMarker = editor.session.addMarker(
@@ -85,13 +85,13 @@ function useBraceEditor(props: Props, context: SetupContext) {
 		function onChange() {
 			if (setBySelf) return
 			const value = editor.getValue()
-			context.emit('input', value)
+			emit('input', value)
 		}
 
 		function onChangeSelection() {
 			if (setBySelf) return
 			const selection = getEditorSelection(editor)
-			context.emit('update:selection', selection)
+			emit('update:selection', selection)
 		}
 
 		editor.on('change', onChange)

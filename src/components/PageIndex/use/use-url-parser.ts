@@ -1,11 +1,10 @@
-import {MalError, MalNode, isNode} from '@/mal/types'
-import {nonReactive, NonReactive} from '@/utils'
+import DefaultCanvasCode from '@/default-canvas.glisp?raw'
 import {readStr} from '@/mal'
+import {isNode, MalError, MalNode} from '@/mal/types'
+
 import {toSketchCode} from '../utils'
 
-export default function useURLParser(
-	onLoadExp: (exp: NonReactive<MalNode>) => void
-) {
+export default function useURLParser(onLoadExp: (exp: MalNode) => void) {
 	// URL
 	const url = new URL(location.href)
 
@@ -45,16 +44,14 @@ export default function useURLParser(
 			url.searchParams.delete('code')
 			history.pushState({}, document.title, url.pathname + url.search)
 		} else {
-			code =
-				localStorage.getItem('saved_code') ||
-				require('@/default-canvas.glisp?raw').default
+			code = localStorage.getItem('saved_code') || DefaultCanvasCode
 		}
 
 		return code
 	})()
 
 	let onSetupConsole
-	const setupConsolePromise = new Promise(resolve => {
+	const setupConsolePromise = new Promise<void>(resolve => {
 		onSetupConsole = () => {
 			resolve()
 		}
@@ -63,7 +60,7 @@ export default function useURLParser(
 	Promise.all([loadCodePromise, setupConsolePromise]).then(([code]) => {
 		const exp = readStr(toSketchCode(code as string))
 		if (isNode(exp)) {
-			onLoadExp(nonReactive(exp))
+			onLoadExp(exp)
 		}
 	})
 
