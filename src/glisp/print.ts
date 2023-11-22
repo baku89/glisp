@@ -114,6 +114,12 @@ export function printExpr(expr: Expr): string {
 		return expr.toFixed(4).replace(/\.?[0]+$/, '')
 	} else if (typeof expr === 'boolean') {
 		return expr.toString()
+	} else if (typeof expr === 'string') {
+		if (isKeyword(expr)) {
+			return `:${expr.slice(1)}`
+		} else {
+			return `"${expr}"`
+		}
 	} else if (expr === null) {
 		return 'nil'
 	} else if (isSymbol(expr)) {
