@@ -8,13 +8,12 @@ import {
 	ExprFn,
 	ExprSeq,
 	ExprSymbol,
-	getEvaluated,
 	getType,
 	isExprFn,
 	keywordFor as K,
 	symbolFor,
 } from './types'
-import {convertExprCollToJSObject, getStructType} from './utils'
+import {convertExprCollToJSObject, getEvaluated, getStructType} from './utils'
 
 interface SchemaBase {
 	type: string

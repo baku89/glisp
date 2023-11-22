@@ -2,6 +2,7 @@
 
 import {capital} from 'case'
 
+import {printExpr} from '.'
 import Env from './env'
 import {M_AST, M_ENV, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
 import {

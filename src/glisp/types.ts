@@ -1,5 +1,3 @@
-import {mapValues} from 'lodash'
-
 import Env from './env'
 import {
 	M_AST,
@@ -15,7 +13,6 @@ import {
 	M_PARENT,
 	M_TYPE,
 } from './symbols'
-import {getDelimiters} from './utils'
 
 export type ExprJSFn = (...args: Expr[]) => Expr
 
@@ -96,59 +93,6 @@ export function canAttachMeta(expr: Expr): expr is ExprWithMeta {
 	return isColl(expr) || isFunc(expr)
 }
 
-// Expand
-function expandSymbolsInExpr(expr: Expr, env: Env): Expr {
-	const type = getType(expr)
-	switch (type) {
-		case 'list':
-		case 'vector': {
-			let ret = (expr as Expr[]).map(val => expandSymbolsInExpr(val, env))
-			if (type === 'list') {
-				ret = createList(...ret)
-			}
-			return ret
-		}
-		case 'map': {
-			const ret = {} as ExprMap
-			Object.entries(expr as ExprMap).forEach(([key, val]) => {
-				ret[key] = expandSymbolsInExpr(val, env)
-			})
-			return ret
-		}
-		case 'symbol':
-			if (env.hasOwn(expr as ExprSymbol)) {
-				return env.get(expr as ExprSymbol)
-			} else {
-				return expr
-			}
-		default:
-			return expr
-	}
-}
-
-export function expandExp(exp: Expr) {
-	if (isList(exp) && M_EXPAND in exp && exp[M_EXPAND]) {
-		const info = exp[M_EXPAND]
-		switch (info.type) {
-			case ExpandType.Constant:
-				return info.exp
-			case ExpandType.Env:
-				return expandSymbolsInExpr(info.exp, info.env)
-			case ExpandType.Unchange:
-				return exp
-		}
-	} else {
-		return getEvaluated(exp)
-	}
-}
-
-export function getParent(expr: Expr) {
-	if (isColl(expr)) {
-		return expr[M_PARENT] ?? null
-	}
-	return null
-}
-
 export type ExprType =
 	// Collections
 	| 'list'
@@ -221,32 +165,6 @@ export const isAtom = (v: Expr | undefined): v is ExprAtom => {
 	return getType(v) === 'atom'
 }
 
-export function getMeta(obj: Expr): Expr {
-	if (obj instanceof Object) {
-		return M_META in obj ? (obj as any)[M_META] : null
-	} else {
-		return null
-	}
-}
-
-export function withMeta(a: Expr, m: Expr) {
-	if (canAttachMeta(a)) {
-		const c = cloneExpr(a) as ExprWithMeta
-		c[M_META] = m
-		return c
-	} else {
-		throw new GlispError('[with-meta] Object should not be atom')
-	}
-}
-
-export function setMeta(a: Expr, m: Expr) {
-	if (!(a instanceof Object)) {
-		throw new GlispError('[with-meta] Object should not be atom')
-	}
-	;(a as any)[M_META] = m
-	return a
-}
-
 export type Expr =
 	| number
 	| string
@@ -311,66 +229,6 @@ export function isEqual(a: Expr, b: Expr) {
 	}
 }
 
-export function cloneExpr(expr: Expr, deep = false): Expr {
-	if (isList(expr)) {
-		const children: Expr[] = deep
-			? expr.map(e => cloneExpr(e as any, true))
-			: expr
-		const cloned = createList(...children)
-		cloned[M_DELIMITERS] = getDelimiters(expr)
-		cloned[M_ISSUGAR] = expr[M_ISSUGAR]
-		return cloned
-	} else if (isVector(expr)) {
-		const children = deep ? expr.map(c => cloneExpr(c as any, true)) : expr
-		const cloned = createVector(...children)
-		cloned[M_DELIMITERS] = getDelimiters(expr)
-		return cloned
-	} else if (isMap(expr)) {
-		const cloned = deep
-			? {
-					...expr,
-					...(mapValues(expr, c => cloneExpr(c as any, true)) as ExprMap),
-			  }
-			: {...expr}
-		cloned[M_DELIMITERS] = getDelimiters(expr)
-		return cloned
-	} else if (isFunc(expr)) {
-		// new function instance
-		const fn = function (this: ExprFnThis, ...args: ExprSeq) {
-			return expr.apply(this, args)
-		}
-		// copy original properties
-		return Object.assign(fn, expr)
-	} else if (isSymbol(expr)) {
-		return symbolFor(expr.value)
-	} else {
-		return expr
-	}
-}
-
-export function getEvaluated(expr: Expr): Expr {
-	if (isColl(expr) || isSymbol(expr)) {
-		return expr[M_EVAL] ?? expr
-	} else {
-		return expr
-	}
-}
-
-export function getName(exp: Expr): string {
-	switch (getType(exp)) {
-		case 'string':
-			return exp as string
-		case 'keyword':
-			return (exp as string).slice(1)
-		case 'symbol':
-			return (exp as ExprSymbol).value
-		default:
-			throw new GlispError(
-				'getName() can only extract the name by string/keyword/symbol'
-			)
-	}
-}
-
 // Functions
 
 export function createExprFn(
@@ -408,8 +266,9 @@ export interface ExprSymbol {
 	value: string
 }
 
-export const isSymbol = (obj: Expr | undefined): obj is ExprSymbol =>
-	getType(obj) === 'symbol'
+export const isSymbol = (obj: Expr | undefined): obj is ExprSymbol => {
+	return getType(obj) === 'symbol'
+}
 
 export const isSymbolFor = (obj: any, name: string): obj is ExprSymbol =>
 	isSymbol(obj) && obj.value === name
@@ -482,45 +341,5 @@ export function assocBang(hm: ExprMap, ...args: any[]) {
 export class ExprAtom {
 	public constructor(public value: Expr) {
 		;(this as any)[M_TYPE] = 'atom'
-	}
-}
-
-// General functions
-export function malEquals(a: Expr, b: Expr) {
-	const type = getType(a)
-	const typeB = getType(b)
-
-	if (type !== typeB) {
-		return false
-	}
-
-	switch (type) {
-		case 'list':
-		case 'vector':
-			if ((a as Expr[]).length !== (b as Expr[]).length) {
-				return false
-			}
-			for (let i = 0; i < (a as Expr[]).length; i++) {
-				if (!malEquals((a as Expr[])[i], (b as Expr[])[i])) {
-					return false
-				}
-			}
-			return true
-		case 'map': {
-			const keys = Object.keys(a as ExprMap)
-			if (keys.length !== Object.keys(b as ExprMap).length) {
-				return false
-			}
-			for (const key of keys) {
-				if (!malEquals((a as ExprMap)[key], (b as ExprMap)[key])) {
-					return false
-				}
-			}
-			return true
-		}
-		case 'symbol':
-			return (a as ExprSymbol).value === (b as ExprSymbol).value
-		default:
-			return a === b
 	}
 }

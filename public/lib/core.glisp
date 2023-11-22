@@ -592,8 +592,8 @@
             :items {:label "Params" :type "exp"}}]})
 
 ;; Load other cores
-(import "ui.glisp")
-(import "color.glisp")
-(import "graphics.glisp")
-(import "math.glisp")
-(import "path.glisp")
+;; (import "ui.glisp")
+;; (import "color.glisp")
+;; (import "graphics.glisp")
+;; (import "math.glisp")
+;; (import "path.glisp")

@@ -53,7 +53,7 @@ export default function useMouseEvents(
 	}
 
 	onMounted(() => {
-		targetEl = getHTMLElement(target)
+		targetEl = getHTMLElement(target)!
 
 		if (!targetEl) return
 		targetEl.addEventListener('mousemove', onMouseMove)

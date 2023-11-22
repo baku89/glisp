@@ -23,6 +23,7 @@ import {
 	ExprColl,
 	isColl,
 	markParent,
+	printExpr,
 	replaceExpr,
 	symbolFor as S,
 	unwatchExpOnReplace,

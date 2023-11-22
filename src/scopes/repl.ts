@@ -1,3 +1,3 @@
-import {Scope} from '@/glisp'
+import {Scope} from '@/glisp/scope'
 
 export default new Scope()

@@ -1,7 +1,7 @@
 import Env from './env'
 import {evaluate} from './eval'
-import {printer, printExpr} from './printer'
-import {BlankException, readStr} from './reader'
+import {printer, printExpr} from './print'
+import {BlankException, readStr} from './read'
 import ReplCore, {slurp} from './repl-core'
 import {Expr, GlispError, symbolFor as S} from './types'
 
@@ -9,7 +9,7 @@ const normalizeURL = (url: string, basename: string) => {
 	return new URL(url, basename).href
 }
 
-export default class Scope<T> {
+export class Scope<T> {
 	public env!: Env
 
 	private inner!: Scope<any>
@@ -47,8 +47,8 @@ export default class Scope<T> {
 		this.def('import-js-force', (url: Expr) => {
 			const basename = this.var('*filename*') as string
 			const absurl = normalizeURL(url as string, basename)
-			console.log('importing', absurl)
 			const text = slurp(absurl)
+			console.log('importing', absurl, text)
 			eval(text)
 			const exp = (globalThis as any)['glisp_library']
 			return evaluate(exp, this.env)

@@ -22,7 +22,7 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 }
 
 export function createViewScope() {
-	return new Scope<ViewScopeOption>(AppScope, 'view', onSetup, true)
+	return new Scope<ViewScopeOption>(AppScope, 'view', onSetup)
 }
 
 export default createViewScope()

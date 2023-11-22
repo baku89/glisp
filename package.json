@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build:lib": "webpack --config webpack.glisp-lib.config.js",
+		"build:lib": "webpack --config webpack.glisp-lib.config.cjs",
 		"build": "vite build",
 		"doc:serve": "docsify serve docs",
 		"doc:export-refs": "yarn repl export-refs.glisp",

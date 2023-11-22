@@ -1,7 +1,7 @@
 import Case from 'case'
 import {Ref, unref} from 'vue'
 
-import {Expr, isKeyword} from '@/glisp'
+import {Expr, isKeyword, printExpr} from '@/glisp'
 
 export function replaceRange(
 	s: string,

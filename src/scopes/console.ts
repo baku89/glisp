@@ -155,7 +155,7 @@ ConsoleScope.def(
 					)
 					if (!viewExp) {
 						throw new GlispError(
-							`Element ${printExpr(options.selector, true)} does not exist`
+							`Element ${printExpr(options.selector)} does not exist`
 						)
 					}
 				}

@@ -15,7 +15,7 @@ import {
 	isMap,
 	isVector,
 	keywordFor as K,
-	malEquals,
+	equals,
 	markParent,
 	replaceExpr,
 	reverseEval,
@@ -314,7 +314,7 @@ export default function useHandle(
 				const newId = newParams[1]
 				draggingIndex.value = [
 					selectedIndex,
-					handles.value[selectedIndex].findIndex(h => malEquals(h.id, newId)),
+					handles.value[selectedIndex].findIndex(h => equals(h.id, newId)),
 				]
 			}
 		} else {

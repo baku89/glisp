@@ -1,4 +1,4 @@
-import {printExpr} from './printer'
+import {printExpr} from './print'
 import {
 	Expr,
 	ExprBind,
@@ -210,7 +210,7 @@ export default class Env {
 		const value = this.find(symbol)
 
 		if (value === undefined) {
-			throw new GlispError(`[${this.name}] Symbol ${symbol} not found`)
+			throw new GlispError(`[${this.name}] Symbol ${symbol.value} not found`)
 		}
 
 		return value

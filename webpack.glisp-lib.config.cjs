@@ -15,6 +15,7 @@ module.exports = {
 		},
 		extensions: ['.ts', '.js'],
 	},
+	devtool: 'inline-source-map',
 	module: {
 		rules: [
 			{

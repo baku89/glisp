@@ -1,10 +1,10 @@
 import {vsprintf} from 'sprintf-js'
 
 import interop from './interop'
-import {printer, printExpr} from './printer'
-import {readStr} from './reader'
-import {Expr, GlispError, setMeta, symbolFor as S} from './types'
-import {convertJSObjectToExprMap} from './utils'
+import {printer, printExpr} from './print'
+import {readStr} from './read'
+import {Expr, GlispError, symbolFor as S} from './types'
+import {convertJSObjectToExprMap, setMeta} from './utils'
 
 // String functions
 export const slurp = (() => {

@@ -11,6 +11,7 @@ import {
 	ExprColl,
 	ExprMap,
 	ExprSeq,
+	findElementIndex,
 	generateExpAbsPath,
 	getEvaluated,
 	getExpByPath,
@@ -318,33 +319,32 @@ export default function useAppCommands({
 	})
 
 	AppScope.def('paste-from-clipboard', () => {
-		let outer: ExprSeq, index: number
+		let parent: ExprSeq, index: number
 
 		if (!activeExp.value) {
-			;[outer, index] = [
+			;[parent, index] = [
 				exp.value as ExprSeq,
 				(exp.value as ExprSeq).length - 1,
 			]
 		} else {
-			const [_outer, _index] = getUIOuterInfo(activeExp.value)
+			const _parent = getParent(activeExp.value)
 
-			if (!isSeq(_outer)) {
-				return false
-			}
+			if (!isSeq(_parent)) return false
 
-			;[outer, index] = [_outer, _index]
+			parent = _parent
+			index = findElementIndex(activeExp.value, _parent)
 		}
 
-		const newOuter = cloneExpr(outer) as ExprSeq
+		const newOuter = cloneExpr(parent) as ExprSeq
 
 		navigator.clipboard.readText().then((str: string) => {
 			const exp = readStr(str)
 
 			newOuter.splice(index + 1, 0, exp)
-			copyDelimiters(newOuter, outer)
+			copyDelimiters(newOuter, parent)
 
 			markParent(newOuter)
-			replaceExpr(outer, newOuter)
+			replaceExpr(parent, newOuter)
 
 			setActiveExpr(isColl(exp) ? exp : null)
 		})

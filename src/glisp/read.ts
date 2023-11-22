@@ -6,6 +6,7 @@ import {
 	ExprMap,
 	ExprSeq,
 	GlispError,
+	isList,
 	keywordFor,
 	symbolFor as S,
 } from './types'
@@ -190,10 +191,7 @@ function readHashMap(reader: Reader) {
 }
 
 function readForm(reader: Reader): any {
-	let val
-
-	// For syntaxtic sugars
-	const startIdx = reader.index
+	let val: Expr = null
 
 	// Set offset array value if the form is syntaxic sugar.
 	// the offset array is like [<end of arg0>, <start of arg1>]
@@ -281,26 +279,25 @@ function readForm(reader: Reader): any {
 			val = readAtom(reader)
 	}
 
-	val[M_ISSUGAR] = !!sugar
+	if (isList(val)) {
+		val[M_ISSUGAR] = !!sugar
 
-	if (sugar) {
-		// Save str info
-		const annotator = reader.peek(startIdx)
-		const formEnd = reader.prevEndOffset()
+		if (sugar) {
+			// Save str info
+			const formEnd = reader.prevEndOffset()
 
-		const delimiters = ['']
-		const elmStrs = [annotator]
+			const delimiters = ['']
 
-		sugar.push(formEnd)
+			sugar.push(formEnd)
 
-		for (let i = 0; i < sugar.length - 1; i += 2) {
-			delimiters.push(reader.getStr(sugar[i], sugar[i + 1]))
-			elmStrs.push(reader.getStr(sugar[i + 1], sugar[i + 2]))
+			for (let i = 0; i < sugar.length - 1; i += 2) {
+				delimiters.push(reader.getStr(sugar[i], sugar[i + 1]))
+			}
+
+			delimiters.push('')
+
+			val[M_DELIMITERS] = delimiters
 		}
-
-		delimiters.push('')
-
-		val[M_DELIMITERS] = delimiters
 	}
 
 	return val
