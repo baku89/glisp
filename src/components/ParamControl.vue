@@ -4,41 +4,35 @@
 			<tr
 				v-for="(sch, i) in uiSchema"
 				:key="i"
-				class="ParamControl__param"
+				class="param"
 				:class="{'is-default': sch.isDefault, 'is-invalid': sch.isInvalid}"
 			>
-				<td class="ParamControl__label">{{ sch.label }}</td>
-				<td class="ParamControl__value">
-					<div class="ParamControl__input">
+				<td class="label">{{ sch.label }}</td>
+				<td class="value">
+					<div class="input">
 						<component
 							:is="inputComponents[sch.ui]"
 							v-bind="sch"
-							@input="onParamInput(i, $event)"
-							@select="$emit('select', $event)"
-							@end-tweak="$emit('end-tweak')"
+							:parent="expr"
 						/>
 					</div>
 					<template v-if="isVectorVariadic && i >= vectorVariadicPos">
-						<button
-							class="ParamControl__button delete far fa-times-circle"
-							tabindex="-1"
-							@click="onParamDelete(i)"
-						></button>
-						<button
-							class="ParamControl__button insert"
-							tabindex="-1"
-							@click="onParamInsert(i)"
-						>
+						<Icon
+							icon="typcn:delete"
+							class="button delete"
+							@click="deleteParam(i)"
+						/>
+						<button class="button insert" tabindex="-1" @click="insertParam(i)">
 							Insert
 						</button>
 					</template>
 				</td>
 			</tr>
 			<!-- <tr v-if="isVectorVariadic">
-				<td class="ParamControl__label"></td>
-				<td class="ParamControl__value">
+				<td class="label"></td>
+				<td class="value">
 					<button
-						class="ParamControl__button add"
+						class="button add"
 						tabindex="-1"
 						@click="onParamInsert(uiSchema.length)"
 					>
@@ -51,7 +45,8 @@
 </template>
 
 <script lang="ts" setup>
-import {computed} from 'vue'
+import {Icon} from '@iconify/vue'
+import {computed, toRaw} from 'vue'
 
 import * as ExprInputComponents from '@/components/expr-inputs'
 import {
@@ -60,33 +55,27 @@ import {
 	createList as L,
 	Expr,
 	ExprFn,
-	ExprSeq,
+	ExprList,
 	generateSchemaParamLabel,
 	generateUISchema,
 	getFnInfo,
 	getMapValue,
+	getParent,
 	isColl,
 	keywordFor as K,
 	keywordFor,
-	markParent,
 	Schema,
 	SchemaVector,
 	symbolFor,
-	updateParamsByUISchema,
 } from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
 interface Props {
-	exp: ExprSeq
+	expr: ExprList
 	fn?: ExprFn
 }
 
 const props = defineProps<Props>()
-
-const emit = defineEmits<{
-	input: [exp: Expr]
-	select: [exp: Expr]
-	'end-tweak': []
-}>()
 
 const inputComponents: Record<string, any> = {
 	number: ExprInputComponents.ExprInputNumber,
@@ -105,7 +94,6 @@ const inputComponents: Record<string, any> = {
 	size2d: ExprInputComponents.ExprInputSize2d,
 	path: ExprInputComponents.ExprSelectButton,
 	exp: ExprInputComponents.ExprSelectButton,
-	// 'ui-any': ExprInputComponents.ExprInputAny,
 }
 
 const TypeDefaults = {
@@ -124,16 +112,16 @@ const TypeDefaults = {
 } as {[type: string]: Expr}
 
 const fnInfo = computed(() => {
-	return getFnInfo(props.fn || props.exp)
+	return getFnInfo(toRaw(props.fn || props.expr))
 })
 
 const params = computed(() => {
 	if (!fnInfo.value) return []
 
 	if (fnInfo.value.structType) {
-		return [props.exp]
+		return [props.expr]
 	} else {
-		return props.exp.slice(1)
+		return props.expr.slice(1)
 	}
 })
 
@@ -183,28 +171,14 @@ const uiSchema = computed(() => {
 	return generateUISchema(schema.value, params.value)
 })
 
-// Updator
-function onParamInput(i: number, value: Expr) {
-	if (!fnInfo.value) return
+function insertParam(i: number) {
+	const expr = toRaw(props.expr)
+	const parent = getParent(expr)
 
-	const newParams = updateParamsByUISchema(
-		schema.value,
-		uiSchema.value as Schema[],
-		params.value,
-		i,
-		value
-	)
+	if (!parent) {
+		throw new Error('No parent')
+	}
 
-	const newExp = fnInfo.value.structType
-		? newParams[0]
-		: L(props.exp[0], ...newParams)
-
-	markParent(newExp)
-
-	emit('input', newExp)
-}
-
-function onParamInsert(i: number) {
 	const newParams = [...params.value]
 	const vectorSchema = schema.value[schema.value.length - 1] as SchemaVector
 	const variadicSchema = vectorSchema.items
@@ -224,25 +198,30 @@ function onParamInsert(i: number) {
 	}
 
 	newParams.splice(i, 0, value)
-	const newExp = L(props.exp[0], ...newParams)
+	const newExpr = L(expr[0], ...newParams)
 
-	markParent(newExp)
-
-	emit('input', newExp)
+	sketch.replace(parent, expr, newExpr)
 }
 
-function onParamDelete(i: number) {
+const sketch = useSketchStore()
+
+function deleteParam(i: number) {
+	const parent = getParent(toRaw(props.expr))
+
+	if (!parent) {
+		throw new Error('No parent')
+	}
+
 	const newParams = [...params.value]
 	newParams.splice(i, 1)
 
-	const newExp = L(props.exp[0], ...newParams)
-	markParent(newExp)
+	const newExpr = L(props.expr[0], ...newParams)
 
-	emit('input', newExp)
+	sketch.replace(parent, props.expr, newExpr)
 }
 </script>
 
-<style lang="stylus">
+<style lang="stylus" scoped>
 @import './style/common.styl'
 
 .ParamControl
@@ -250,82 +229,79 @@ function onParamDelete(i: number) {
 	width 100%
 	table-layout fixed
 
-	&__param
+.param
+	position relative
+
+	&.is-default
+		opacity 0.5
+
+	&.is-invalid .label
+		color var(--red)
+
+		&:after
+			content ' ⚠'
+
+	& > td
+		padding 0.2em 0
+
+.label
+	clear both
+	padding-right 1em
+	width 5.5em
+	height $param-height
+	color var(--comment)
+	white-space nowrap
+	line-height $param-height
+
+.value
+	display flex
+	align-items center
+	width 99%
+
+.input
+	max-width calc(100% - 2rem)
+
+.button
+	height 100%
+	color var(--comment)
+	cursor pointer
+
+	&:hover
+		opacity 1 !important
+
+	&.delete
 		position relative
-
-		&.is-default
-			opacity 0.5
-
-		&.is-invalid .ParamControl__label
-			color var(--red)
-
-			&:after
-				content ' ⚠'
-
-		& > td
-			padding 0.2em 0
-
-	&__label
-		clear both
-		padding-right 1em
-		width 5.5em
-		height $param-height
-		color var(--comment)
-		white-space nowrap
-		line-height $param-height
-
-	&__value
-		display flex
-		align-items center
-		width 99%
-
-	&__input
-		max-width calc(100% - 2rem)
-
-	&__button
-		height 100%
-		color var(--comment)
-		line-height $param-height
-		cursor pointer
-		input-transition()
+		z-index 10
+		opacity 0.5
 
 		&:hover
-			opacity 1 !important
+			color var(--tq-color-error)
 
-		&.delete
-			position relative
-			z-index 10
-			opacity 0.5
+	&.insert
+		align-self start
+		font-weight normal
+		opacity 0
+		transform translate(-1em, -66%)
 
-			&:hover
-				color var(--tq-color-error)
+		&:before
+			content '<-- '
+			font-monospace()
 
-		&.insert
-			align-self start
-			font-weight normal
-			opacity 0
-			transform translate(-1em, -66%)
+		&:hover
+			color var(--hover)
 
-			&:before
-				content '<-- '
-				font-monospace()
+		&:after
+			position absolute
+			top 50%
+			right 0
+			display block
+			width 100%
+			width 23em
+			height 0.5em
+			// background red
+			content ''
+			transform translateY(-50%)
 
-			&:hover
-				color var(--hover)
-
-			&:after
-				position absolute
-				top 50%
-				right 0
-				display block
-				width 100%
-				width 23em
-				height 0.5em
-				// background red
-				content ''
-				transform translateY(-50%)
-
-		&.add
-			labeled-button()
+	&.add
+		labeled-button()
 </style>
-@/glis[/reader@/glis[/schema@/glis[/types@/glis[/utils @/components/expr-inputs

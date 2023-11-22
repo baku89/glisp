@@ -1,7 +1,7 @@
-import {Expr, ExprMap, keywordFor as K} from '@/glisp'
+import {Expr, ExprMap, keywordFor as K} from '@/glisp/types'
 
 import renderToContext from '../render-to-context'
-import {ViewerSettings} from './index'
+import {CanvasRenderOptions} from './index'
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas
 
@@ -10,33 +10,24 @@ type CanvasContext =
 	| OffscreenCanvasRenderingContext2D
 
 export default class CanvasRenderer {
+	private canvas: Canvas
 	private ctx!: CanvasContext
-	private dpi!: number
-	private cachedExp!: Expr
+	private dpi: number | null = null
 
-	constructor(private canvas: Canvas) {
-		this.ctx = this.canvas.getContext('2d')!
+	constructor(canvas: Canvas) {
+		this.canvas = canvas
+		this.ctx = canvas.getContext('2d')!
 	}
 
-	public async resize(width: number, height: number, dpi: number) {
+	async resize(width: number, height: number, dpi: number) {
 		this.dpi = dpi
 		this.canvas.width = width * dpi
 		this.canvas.height = height * dpi
 	}
 
-	public async render(exp: Expr | undefined, settings: ViewerSettings) {
+	async render(expr: Expr, settings: CanvasRenderOptions) {
 		if (!this.dpi) {
 			throw new Error('trying to render before settings resolution')
-		}
-
-		// Use cached expression
-		if (exp === undefined) {
-			if (!this.cachedExp) {
-				throw new Error('Cannot render because there iss no cached exp')
-			}
-			exp = this.cachedExp
-		} else {
-			this.cachedExp = exp
 		}
 
 		const ctx = this.ctx
@@ -50,8 +41,8 @@ export default class CanvasRenderer {
 		ctx.scale(this.dpi, this.dpi)
 
 		// Apply view transform
-		if (settings.viewTransform) {
-			const m = settings.viewTransform
+		if (settings.transform) {
+			const m = settings.transform
 			ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5])
 		}
 
@@ -66,10 +57,10 @@ export default class CanvasRenderer {
 			: null
 
 		// Start drawing
-		return renderToContext(this.ctx, exp, defaultStyle)
+		return renderToContext(this.ctx, expr, defaultStyle)
 	}
 
-	public async getImage({format = 'png'} = {}) {
+	async getImage({format = 'png'} = {}) {
 		let blob: Blob
 
 		const imageType = `image/${format}`

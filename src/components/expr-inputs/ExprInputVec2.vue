@@ -1,91 +1,77 @@
 <template>
 	<div class="ExprInputVec2">
-		<ExprSelectButton
-			v-if="!isValueSeparated"
-			class="ExprInputVec2__exp-button"
-			:value="value"
-			:compact="true"
-			@select="$emit('select', $event)"
-		/>
-		<template v-if="isValueSeparated">
-			<ExprInputNumber
-				class="ExprInputVec2__el"
-				:value="nonReactiveValues[0]"
-				:compact="true"
-				@input="onInputElement(0, $event)"
-				@select="$emit('select', $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
-			<ExprInputNumber
-				class="ExprInputVec2__el"
-				:value="nonReactiveValues[1]"
-				:compact="true"
-				@input="onInputElement(1, $event)"
-				@select="$emit('select', $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
+		<template v-if="literalValue">
+			<ExprInputNumber class="el" :value="literalValue[0]" :parent="value" />
+			<ExprInputNumber class="el" :value="literalValue[1]" :parent="value" />
 		</template>
 		<template v-else>
 			<Tq.InputNumber
-				class="ExprInputVec2__el exp"
-				:modelValue="evaluated[0]"
-				@update:modelValue="onInputEvaluatedElement(0, $event)"
-				@end-tweak="$emit('end-tweak')"
+				class="el"
+				:modelValue="evaluatedValue[0]"
+				@update:modelValue="onInputElement(0, $event)"
 			/>
 			<Tq.InputNumber
-				class="ExprInputVec2__el exp"
-				:modelValue="evaluated[1]"
-				@update:modelValue="onInputEvaluatedElement(1, $event)"
-				@end-tweak="$emit('end-tweak')"
+				class="el"
+				:modelValue="evaluatedValue[1]"
+				@update:modelValue="onInputElement(1, $event)"
 			/>
 		</template>
-
-		<InputTranslate
-			class="ExprInputVec2__translate"
-			:value="evaluated"
-			@input="onInputTranslate"
-			@end-tweak="$emit('end-tweak')"
-		/>
 	</div>
 </template>
 
 <script lang="ts" setup>
+import {vec2} from 'linearly'
 import Tq from 'tweeq'
-import {toRef} from 'vue'
+import {computed, toRaw} from 'vue'
 
-import InputTranslate from '@/components/inputs/InputTranslate.vue'
-import {useNumericVectorUpdator} from '@/components/use'
-import {Expr, ExprSeq, ExprSymbol, reverseEval} from '@/glisp'
+import {Expr, getEvaluated, isVector} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
 import ExprInputNumber from './ExprInputNumber.vue'
-import ExprSelectButton from './ExprSelectButton.vue'
+import {PropBase} from './types'
 
-interface Props {
-	value: ExprSeq | ExprSymbol
-}
+interface Props extends PropBase {}
 
 const props = defineProps<Props>()
 
-const emit = defineEmits<{
-	input: [value: Expr]
-	'end-tweak': []
-}>()
+const sketch = useSketchStore()
 
-const {
-	nonReactiveValues,
-	isValueSeparated,
-	evaluated,
-	onInputElement,
-	onInputEvaluatedElement,
-} = useNumericVectorUpdator(toRef(props, 'value'), emit)
+function isVec2(expr: Expr): expr is vec2.Mutable {
+	return isVector(expr) && expr.length === 2
+}
 
-function onInputTranslate(value: number[]) {
-	const newExp = reverseEval(value, props.value)
-	emit('input', newExp)
+const literalValue = computed<vec2 | null>(() => {
+	const expr = toRaw(props.value)
+
+	if (isVec2(expr)) {
+		return expr
+	}
+
+	return null
+})
+
+const evaluatedValue = computed<vec2>(() => {
+	const expr = toRaw(props.value)
+
+	const evaluated = getEvaluated(expr)
+
+	if (isVec2(evaluated)) {
+		return evaluated
+	}
+
+	throw new Error('Invalid vector expression')
+})
+
+function onInputElement(index: number, value: number) {
+	const newExpr = vec2.clone(evaluatedValue.value)
+
+	newExpr[index] = value
+
+	sketch.replace(props.parent, props.value, newExpr)
 }
 </script>
 
-<style lang="stylus">
+<style lang="stylus" scoped>
 @import '../style/common.styl'
 
 .ExprInputVec2
@@ -93,7 +79,7 @@ function onInputTranslate(value: number[]) {
 	align-items center
 	line-height $input-height
 
-	&__el, &__exp-button
-		margin-right 0.6rem
+.el, .exp-button
+	margin-right 0.6rem
 </style>
 @/glis[/types@/glis[/utils

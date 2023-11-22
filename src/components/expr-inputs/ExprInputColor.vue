@@ -1,326 +1,54 @@
 <template>
 	<div class="ExprInputColor">
-		<InputColor
-			v-if="mode"
-			class="ExprInputColor__picker"
-			:value="pickerValue"
-			:mode="mode"
-			@input="onInputColor"
-			@end-tweak="$emit('end-tweak')"
+		<Tq.InputColor
+			class="picker"
+			:modelValue="evaluatedValue"
+			@update:modelValue="onInput"
 		/>
-		<div v-if="compact" class="ExprInputColor__hex">{{ hexValue }}</div>
-		<template v-else>
-			<template v-if="mode === 'exp'">
-				<Tq.InputString
-					class="ExprInputColor__text exp"
-					:modelValue="displayValues as string"
-					@update:modelValue="onInputText"
-					@end-tweak="$emit('end-tweak')"
-				/>
-				<ExprSelectButton
-					class="ExprInputColor__exp"
-					:value="value"
-					:compact="false"
-					@select="$emit('select', $event)"
-				/>
-			</template>
-			<template v-else>
-				<InputDropdown
-					class="ExprInputColor__mode simple"
-					:value="mode"
-					:values="['HEX', 'RGB', 'HSL']"
-					@input="changeMode"
-					@end-tweak="$emit('end-tweak')"
-				/>
-				<Tq.InputString
-					v-if="mode === 'hex'"
-					class="ExprInputColor__text"
-					:modelValue="displayValues as string"
-					@update:modelValue="onInputText"
-					@end-tweak="$emit('end-tweak')"
-				/>
-				<div v-else-if="mode" class="ExprInputColor__elements">
-					<ExprInputNumber
-						v-for="(v, i) in displayValues"
-						:key="i"
-						:compact="true"
-						class="ExprInputColor__el"
-						:value="v"
-						:validator="validators[i]"
-						@input="onInputNumber(i, $event)"
-						@end-tweak="$emit('end-tweak')"
-					/>
-				</div>
-			</template>
-		</template>
 	</div>
 </template>
 
 <script lang="ts" setup>
-import chroma from 'chroma-js'
 import Tq from 'tweeq'
-import {computed, ComputedRef} from 'vue'
+import {computed, toRaw} from 'vue'
 
-import {InputColor, InputDropdown} from '@/components/inputs'
-import {
-	createList as L,
-	Expr,
-	ExprSeq,
-	getEvaluated,
-	getType,
-	isList,
-	isSymbol,
-	reverseEval,
-	symbolFor as S,
-} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
-import ExprInputNumber from './ExprInputNumber.vue'
-import ExprSelectButton from './ExprSelectButton.vue'
+import {PropBase} from './types'
 
-type ColorMode = 'hex' | 'rgb' | 'hsl' | 'exp'
-
-const COLOR_SPACE_FUNCTIONS = new Set(['color/rgb', 'color/hsl'])
-const COLOR_SPACE_SHORTHANDS = new Set(['rgb', 'hsl'])
-
-interface Props {
-	value: string | ExprSeq
+interface Props extends PropBase {
 	compact?: boolean
 }
 
 const props = defineProps<Props>()
+const sketch = useSketchStore()
 
-const emit = defineEmits<{
-	input: [value: Expr]
-	select: [value: Expr]
-	'end-tweak': []
-}>()
+const literalValue = computed(() => {
+	const expr = toRaw(props.value)
 
-const mode = computed(() => {
-	switch (getType(props.value)) {
-		case 'string': {
-			{
-				const str = props.value as string
-				if (chroma.valid(str)) {
-					return 'hex'
-				}
-				break
-			}
-		}
-		case 'list': {
-			const fst = (props.value as Expr[])[0]
-			if (isSymbol(fst)) {
-				if (COLOR_SPACE_FUNCTIONS.has(fst.value)) {
-					return fst.value.split('/')[1].toUpperCase()
-				} else if (COLOR_SPACE_SHORTHANDS.has(fst.value)) {
-					return fst.value.toUpperCase()
-				}
-			}
-			return 'exp'
-		}
-		case 'symbol': {
-			return 'exp'
-		}
+	if (typeof expr === 'string') {
+		return expr
 	}
 
-	return 'hex'
-}) as ComputedRef<ColorMode>
-
-const displayValues = computed(() => {
-	if (mode.value === 'exp') {
-		return getEvaluated(props.value) as string
-	}
-
-	if (typeof props.value === 'string') {
-		return props.value
-	} else if (isList(props.value)) {
-		return props.value.slice(1)
-	}
-
-	throw new Error('Invalid color value')
+	return null
 })
 
-const chromaColor = computed(() => {
-	const value = props.value
-
-	let color: chroma.Color
-	switch (mode.value) {
-		case 'hex':
-			color = chroma.valid(value as string)
-				? chroma(value as string)
-				: chroma('black')
-			break
-		case 'rgb': {
-			const [, r, g, b] = (value as Expr[]).map(v =>
-				getEvaluated(v)
-			) as number[]
-			color = chroma(r * 255, g * 255, b * 255, 'rgb')
-			break
-		}
-		case 'hsl': {
-			const evaluated = (value as Expr[]).map(v => getEvaluated(v)) as number[]
-			let [, h] = evaluated
-			const [, , s, l] = evaluated
-			if (isNaN(h)) {
-				h = 0
-			}
-			color = chroma((h / Math.PI) * 180, s, l, 'hsl')
-			break
-		}
-		case 'exp': {
-			color = chroma(getEvaluated(value) as string)
-			break
-		}
+const evaluatedValue = computed(() => {
+	if (literalValue.value) {
+		return literalValue.value
 	}
 
-	if (mode.value !== 'exp' && isList(value) && value.length >= 5) {
-		color = color.alpha(getEvaluated(value[4]) as number)
+	const expr = toRaw(props.value)
+
+	if (typeof expr === 'string') {
+		return expr
 	}
 
-	return color
+	throw new Error('Not a string but got=' + expr)
 })
 
-const pickerValue = computed(() => {
-	if (!mode.value || !chromaColor.value) return null
-	return chromaColor.value.css()
-})
-
-const hexValue = computed(() => {
-	if (!mode.value || !chromaColor.value) return null
-	return chromaColor.value.hex().slice(0, 7)
-})
-
-const validators = computed(() => {
-	switch (mode.value) {
-		case 'rgb':
-			return [
-				validatorZeroOne,
-				validatorZeroOne,
-				validatorZeroOne,
-				validatorZeroOne,
-			]
-		case 'hsl':
-			return [
-				validatorZeroTwoPI,
-				validatorZeroOne,
-				validatorZeroOne,
-				validatorZeroOne,
-			]
-	}
-
-	return []
-})
-
-function changeMode(mode: ColorMode) {
-	if (!pickerValue.value) return
-
-	const color = chroma(pickerValue.value)
-
-	let value
-
-	switch (mode) {
-		case 'hex':
-			value = color.hex('auto')
-			break
-		case 'rgb':
-			value = L(S('rgb'), ...color.rgb().map(v => v / 255))
-			break
-		case 'hsl': {
-			const [h, s, l] = color.hsl()
-			value = L(S('hsl'), ((h || 0) / 180) * Math.PI, s, l)
-			break
-		}
-		default:
-			throw new Error('Invalid color mode')
-	}
-
-	if (color.alpha() < 1 && mode !== 'hex') {
-		;(value as Expr[]).push(color.alpha())
-	}
-
-	emit('input', value)
-}
-
-function onInputText(str: string) {
-	if (mode.value !== 'exp') {
-		emit('input', str)
-	} else {
-		// Inverse evaluation
-		const newExp = reverseEval(str, props.value)
-		emit('input', newExp)
-	}
-}
-
-function onInputNumber(i: number, v: number) {
-	const newExp = L(...(props.value as Expr[]))
-	newExp[i + 1] = v
-	emit('input', newExp)
-}
-
-function onInputColor(color: {
-	a: number
-	hex: string
-	hex8: string
-	rgba: {r: number; g: number; b: number}
-	hsl: {h: number; s: number; l: number}
-}) {
-	let value: Expr = isList(props.value) ? L(...props.value) : ''
-
-	switch (mode.value) {
-		case 'hex':
-			if (color.a < 1) {
-				value = color.hex8
-			} else {
-				value = color.hex
-			}
-			break
-		case 'rgb': {
-			let {r, g, b} = color.rgba
-			r = reverseEval(r / 255, (props.value as Expr[])[1]) as number
-			g = reverseEval(g / 255, (props.value as Expr[])[2]) as number
-			b = reverseEval(b / 255, (props.value as Expr[])[3]) as number
-			;(value as Expr[])[1] = r
-			;(value as Expr[])[2] = g
-			;(value as Expr[])[3] = b
-			break
-		}
-		case 'hsl': {
-			let {h, s, l} = color.hsl
-			h = reverseEval((h / 180) * Math.PI, (props.value as Expr[])[1]) as number
-			s = reverseEval(s, (props.value as Expr[])[2]) as number
-			l = reverseEval(l, (props.value as Expr[])[3]) as number
-			;(value as Expr[])[1] = h
-			;(value as Expr[])[2] = s
-			;(value as Expr[])[3] = l
-			break
-		}
-		case 'exp': {
-			// Inverse evaluation
-			value = reverseEval(color.hex8, props.value)
-			break
-		}
-	}
-
-	if (mode.value === 'rgb' || mode.value === 'hsl') {
-		if (color.a < 0.9999) {
-			const a =
-				(props.value as Expr[])[4] !== undefined
-					? reverseEval(color.a, (props.value as Expr[])[4])
-					: color.a
-			;(value as Expr[])[4] = a
-		} else {
-			value = L(...(value as Expr[]).slice(0, 4))
-		}
-	}
-
-	emit('input', value)
-}
-
-function validatorZeroOne(x: number) {
-	return Math.max(0, Math.min(x, 1))
-}
-
-function validatorZeroTwoPI(x: number) {
-	return Math.max(0, Math.min(x, Math.PI * 2))
+function onInput(newExpr: string) {
+	sketch.replace(props.parent, props.value, newExpr)
 }
 </script>
 

@@ -27,7 +27,7 @@ class Reader {
 	#strlen: number
 	#index: number
 
-	constructor(tokens: string[], str: string) {
+	constructor(tokens: Token[], str: string) {
 		this.#tokens = [...tokens]
 		this.#str = str
 		this.#strlen = str.length
@@ -293,7 +293,7 @@ function readForm(reader: Reader): any {
 export class BlankException extends Error {}
 
 export function readStr(str: string): Expr {
-	const tokens = tokenize(str) as string[]
+	const tokens = tokenize(str)
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}

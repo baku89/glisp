@@ -1,3 +1,4 @@
+import {printExpr} from '@/glisp/print'
 import {
 	Expr,
 	ExprMap,
@@ -5,8 +6,7 @@ import {
 	isKeyword,
 	isMap,
 	keywordFor as K,
-	printExpr,
-} from '@/glisp'
+} from '@/glisp/types'
 import {iterateSegment, PathType} from '@/path-utils'
 import {partition} from '@/utils'
 
@@ -16,15 +16,15 @@ type CanvasContext =
 
 export default function renderToContext(
 	ctx: CanvasContext,
-	exp: Expr,
+	expr: Expr,
 	defaultStyle: ExprMap | null = null
 ) {
-	function draw(exp: Expr, styles: ExprMap[]) {
-		if (Array.isArray(exp) && exp.length > 0) {
-			const [elm, ...rest] = exp as any[]
+	function draw(expr: Expr, styles: ExprMap[]) {
+		if (Array.isArray(expr) && expr.length > 0) {
+			const [elm, ...rest] = expr as any[]
 
 			if (!isKeyword(elm)) {
-				for (const child of exp) {
+				for (const child of expr) {
 					draw(child, styles)
 				}
 			} else {
@@ -75,8 +75,8 @@ export default function renderToContext(
 						break
 					}
 					case K('path'): {
-						drawPath(ctx, exp as PathType)
-						applyDrawStyle(styles, defaultStyle, exp as PathType)
+						drawPath(ctx, expr as PathType)
+						applyDrawStyle(styles, defaultStyle, expr as PathType)
 						break
 					}
 					case K('text'): {
@@ -259,5 +259,5 @@ export default function renderToContext(
 	ctx.lineCap = 'round'
 	ctx.lineJoin = 'round'
 
-	return draw(exp, [])
+	return draw(expr, [])
 }

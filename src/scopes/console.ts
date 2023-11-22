@@ -122,9 +122,9 @@ ConsoleScope.def('download-sketch', (...args: Expr[]) => {
 })
 
 ConsoleScope.def('copy-as-svg', () => {
-	const viewExp: Expr | undefined = ConsoleScope.var('*view*')
+	const viewExpr: Expr | undefined = ConsoleScope.var('*view*')
 
-	const svg = renderToSvg(viewExp, 500, 500)
+	const svg = renderToSvg(viewExpr, 500, 500)
 	copyToClipboard(svg)
 	return null
 })
@@ -141,19 +141,19 @@ ConsoleScope.def(
 				const code = `(sketch ${sketch}\nnil)`
 
 				renderViewScope.setup({guideColor: null})
-				let viewExp = renderViewScope.readEval(code)
+				let viewExpr = renderViewScope.readEval(code)
 
-				if (viewExp === undefined) {
+				if (viewExpr === undefined) {
 					throw new GlispError('Invalid sketch')
 				}
 
 				const options = convertExprCollToJSObject(assocBang({}, ...xs))
 
 				if (options.selector) {
-					viewExp = ConsoleScope.eval(
-						L(S('filter-elements'), options.selector, viewExp)
+					viewExpr = ConsoleScope.eval(
+						L(S('filter-elements'), options.selector, viewExpr)
 					)
-					if (!viewExp) {
+					if (!viewExpr) {
 						throw new GlispError(
 							`Element ${printExpr(options.selector)} does not exist`
 						)
@@ -161,13 +161,13 @@ ConsoleScope.def(
 				}
 
 				const bounds = ConsoleScope.eval(
-					L(S('get-element-bounds'), viewExp)
+					L(S('get-element-bounds'), viewExpr)
 				) as number[]
 				if (!bounds) {
 					throw new GlispError('Cannot retrieve bounds')
 				}
 
-				const image = await getRendereredImage(viewExp, {
+				const image = await getRendereredImage(viewExpr, {
 					format: options.format,
 					scaling: options.scaling,
 					bounds,
@@ -250,12 +250,12 @@ ConsoleScope.def(
 				const code = `(sketch-at-time "${options.symbol}" ${time} ${sketch}\nnil)`
 
 				renderViewScope.setup({guideColor: null})
-				const viewExp = renderViewScope.readEval(code)
-				if (viewExp === undefined) {
+				const viewExpr = renderViewScope.readEval(code)
+				if (viewExpr === undefined) {
 					throw new GlispError('Invalid sketch')
 				}
 
-				const image = await getRendereredImage(viewExp, {
+				const image = await getRendereredImage(viewExpr, {
 					format: options.format,
 					scaling: options.scaling,
 					bounds: options.bounds,

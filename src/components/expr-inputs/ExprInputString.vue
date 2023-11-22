@@ -21,14 +21,7 @@
 import Tq from 'tweeq'
 import {computed} from 'vue'
 
-import {
-	Expr,
-	ExprSeq,
-	ExprSymbol,
-	getEvaluated,
-	markParent,
-	reverseEval,
-} from '@/glisp'
+import {Expr, ExprSeq, ExprSymbol, getEvaluated, reverseEval} from '@/glisp'
 
 import ExprSelectButton from './ExprSelectButton.vue'
 
@@ -60,7 +53,6 @@ function onInput(value: string) {
 
 	if (isExp.value) {
 		newValue = reverseEval(value, props.value)
-		markParent(newValue)
 	}
 
 	emit('input', newValue)

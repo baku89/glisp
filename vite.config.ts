@@ -3,6 +3,7 @@ import path from 'path'
 import Markdown from 'unplugin-vue-markdown/vite'
 import {fileURLToPath} from 'url'
 import {defineConfig} from 'vite'
+import {comlink} from 'vite-plugin-comlink'
 import glsl from 'vite-plugin-glsl'
 import {VitePWA} from 'vite-plugin-pwa'
 
@@ -13,6 +14,7 @@ export default defineConfig({
 	},
 	plugins: [
 		glsl(),
+		comlink(),
 		vue({
 			include: [/\.vue$/, /\.md$/], // <-- allows Vue to compile Markdown files
 		}),
@@ -40,6 +42,9 @@ export default defineConfig({
 			},
 		}),
 	],
+	worker: {
+		plugins: [comlink()],
+	},
 	resolve: {
 		alias: [
 			{

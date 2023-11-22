@@ -8,37 +8,20 @@ import {mat2d} from 'linearly'
 import {Pane, Splitpanes} from 'splitpanes'
 import {useTweeq} from 'tweeq'
 import Tq from 'tweeq'
-import {computed, onMounted, reactive, Ref, ref, watch, watchEffect} from 'vue'
+import {computed, onMounted, reactive, Ref, ref, watch} from 'vue'
 
 import Console from '@/components/Console.vue'
-import ExprExpEditor from '@/components/expr-inputs/ExprEditor.vue'
+import ExprEditor from '@/components/expr-inputs/ExprEditor.vue'
 import Inspector from '@/components/Inspector.vue'
 import PaneLayers from '@/components/PaneLayers.vue'
 import {useRem} from '@/components/use'
-import ViewHandles from '@/components/ViewHandles'
-import {
-	createList as L,
-	Expr,
-	ExprAtom,
-	ExprColl,
-	isColl,
-	markParent,
-	printExpr,
-	replaceExpr,
-	symbolFor as S,
-	unwatchExpOnReplace,
-	watchExpOnReplace,
-} from '@/glisp'
+import ViewCanvas from '@/components/ViewCanvas.vue'
+import {ExprAtom, ExprColl, printExpr} from '@/glisp'
 import ConsoleScope from '@/scopes/console'
-import ViewScope from '@/scopes/view'
+import {useSketchStore} from '@/stores/sketch'
 import {computeTheme, isValidColorString} from '@/theme'
 
-import {
-	useCompactScrollbar,
-	useExpHistory,
-	useHitDetector,
-	useURLParser,
-} from './use'
+import {useCompactScrollbar, useHitDetector} from './use'
 import {useModes} from './use/use-modes'
 
 useTweeq('com.baku89.glisp', {
@@ -51,6 +34,8 @@ const OFFSET_END = ';__\n)'.length
 
 const elHandles: Ref<any | null> = ref(null)
 
+const sketch = useSketchStore()
+
 const rem = useRem()
 
 const {width: windowWidth} = useElementSize(document.body)
@@ -58,7 +43,6 @@ const {width: windowWidth} = useElementSize(document.body)
 const compact = ref(true)
 const background = ref('whiteSmoke')
 const theme = computed(() => computeTheme(background.value))
-const guideColor = computed(() => theme.value.colors['--guide'])
 const viewHandlesTransform = ref(mat2d.identity)
 
 const viewTransform = computed(() => {
@@ -68,45 +52,6 @@ const viewTransform = computed(() => {
 	}
 	return mat2d.translate(viewHandlesTransform.value, [left, top])
 })
-
-const exp = ref(L(S('sketch'))) as Ref<ExprColl>
-
-const hasParseError = ref(false)
-const hasEvalError = computed(() => viewExp.value === null)
-const hasRenderError = ref(false)
-const hasError = computed(
-	() => hasParseError.value || hasEvalError.value || hasRenderError.value
-)
-
-const viewExp = computed(() => {
-	let viewExp: Expr | null = null
-
-	if (exp.value) {
-		ViewScope.setup({
-			guideColor: guideColor.value,
-		})
-
-		const ret = ViewScope.eval(exp.value)
-
-		if (ret !== undefined) {
-			ConsoleScope.def('*view*', ret)
-			viewExp = ret
-		}
-	}
-
-	return viewExp
-})
-
-const selectedExp = ref([]) as Ref<ExprColl[]>
-
-const activeExp = computed(() => {
-	return selectedExp.value.length === 0
-		? null
-		: (selectedExp.value[0] as ExprColl)
-})
-
-const editingExp = ref(null) as Ref<ExprColl | null>
-const hoveringExp = ref(null)
 
 // Centerize the origin of viewport on mounted
 onMounted(() => {
@@ -124,14 +69,6 @@ onMounted(() => {
 	viewHandlesTransform.value = xform
 })
 
-const {pushExpHistory, tagExpHistory} = useExpHistory(exp, updateExp)
-
-const {onSetupConsole} = useURLParser((exp: ExprColl) => {
-	updateExp(exp, false)
-	pushExpHistory(exp, 'undo')
-	setEditingExp(exp)
-})
-
 // Apply the theme
 watch(
 	() => theme.value.colors,
@@ -144,57 +81,6 @@ watch(
 )
 
 // Events
-
-// Exp
-function updateExp(_exp: ExprColl, pushHistory = true) {
-	unwatchExpOnReplace(exp.value, onReplaced)
-	if (pushHistory) {
-		pushExpHistory(_exp)
-	}
-	// NOTE: might be redundant
-	markParent(exp.value)
-	exp.value = _exp
-	watchExpOnReplace(exp.value, onReplaced)
-
-	function onReplaced(newExp: Expr) {
-		if (!isColl(newExp)) {
-			throw new Error('data.exp cannot be non-node value')
-		}
-		updateExp(newExp)
-	}
-}
-
-// SelectedExp
-function setSelectedExp(targets: ExprColl[]) {
-	selectedExp.value = targets
-}
-
-function setActiveExp(target: ExprColl | null) {
-	if (target) {
-		selectedExp.value = target !== exp.value ? [target] : []
-	} else {
-		selectedExp.value = []
-	}
-}
-
-function updateSelectedExp(target: Expr) {
-	if (!activeExp.value) {
-		return
-	}
-	replaceExpr(activeExp.value, target)
-}
-
-// Editing
-function setEditingExp(target: ExprColl) {
-	editingExp.value = target
-}
-
-function updateEditingExp(_exp: Expr) {
-	if (!editingExp.value) return
-	replaceExpr(editingExp.value, _exp)
-	pushExpHistory(exp.value, 'undo')
-}
-
 // Splitpanes
 const paneSizeInPixel = reactive({
 	layers: 15 * rem.value,
@@ -214,39 +100,32 @@ function onResizeSplitpanes(sizes: {min: number; max: number; size: number}[]) {
 }
 
 // Save code
-watch(exp, exp => {
-	if (exp) {
-		const code = printExpr(exp)
-		const sketch = code.slice(OFFSET_START, -OFFSET_END)
-		localStorage.setItem('saved_code', sketch)
-		ConsoleScope.def('*sketch*', sketch)
+watch(
+	() => sketch.expr as ExprColl,
+	(expr: ExprColl) => {
+		if (expr) {
+			const code = printExpr(expr)
+			const sketch = code.slice(OFFSET_START, -OFFSET_END)
+			localStorage.setItem('saved_code', sketch)
+			ConsoleScope.def('*sketch*', sketch)
+		}
 	}
-})
+)
 
 // Watch the mutable states
-watch(viewExp, () => {
-	const bg = ConsoleScope.var('*app-background*') as ExprAtom
-	if (
-		typeof bg.value === 'string' &&
-		isValidColorString(bg.value) &&
-		background.value !== bg.value
-	) {
-		background.value = bg.value
+watch(
+	() => sketch.evaluated,
+	() => {
+		const bg = ConsoleScope.var('*app-background*') as ExprAtom
+		if (
+			typeof bg.value === 'string' &&
+			isValidColorString(bg.value) &&
+			background.value !== bg.value
+		) {
+			background.value = bg.value
+		}
 	}
-})
-
-// Setup scopes
-// useAppCommands({
-// 	exp,
-// 	activeExp,
-// 	selectedExp,
-// 	editingExp,
-// 	updateExp,
-// 	setActiveExp,
-// 	setSelectedExp,
-// })
-// useDialogCommand(context)
-// useDialogSettings(context)
+)
 
 // Scrollbar
 useCompactScrollbar()
@@ -255,63 +134,24 @@ useCompactScrollbar()
 const {modes, activeModeIndex} = useModes(elHandles, viewTransform)
 
 // HitDetector
-useHitDetector(exp)
-
-// ...toRefs(data as any),
-// ...toRefs(ui as any),
-
-const viewHandlesAxes = document.getElementById('view-handles-axes')!
-
-watchEffect(() => {
-	viewHandlesAxes.style.left = paneSizeInPercent.layers + '%'
-	viewHandlesAxes.style.right = paneSizeInPercent.control + '%'
-})
+useHitDetector()
 </script>
 
 <template>
 	<div id="app" class="PageIndex">
 		<Tq.TitleBar name="Glisp" icon="favicon.svg" />
-		<!-- <ViewCanvas
-			class="PageIndex__viewer"
-			:exp="viewExp"
-			:guideColor="guideColor"
-			:viewTransform="viewTransform"
-			@render="hasRenderError = !$event"
-		/> -->
 		<Splitpanes
 			class="PageIndex__content default-theme"
 			vertical
 			@resize="onResizeSplitpanes"
 		>
 			<Pane class="left" :size="paneSizeInPercent.layers" :max-size="30">
-				<PaneLayers
-					class="PageIndex__list-view"
-					:exp="exp"
-					:editingExp="editingExp"
-					:selectedExp="selectedExp"
-					:hoveringExp="hoveringExp"
-					@select="setSelectedExp"
-					@update:exp="updateExp"
-					@update:editingExp="setEditingExp"
-				/>
+				<PaneLayers class="PageIndex__list-view" />
 			</Pane>
 			<Pane :size="100 - paneSizeInPercent.layers - paneSizeInPercent.control">
-				<div v-if="activeExp" class="PageIndex__inspector">
-					<Inspector
-						:exp="activeExp"
-						@input="updateSelectedExp"
-						@select="setActiveExp"
-						@end-tweak="tagExpHistory('undo')"
-					/>
+				<div v-if="sketch.activeExpr" class="PageIndex__inspector">
+					<Inspector v-model:expr="sketch.activeExpr" />
 				</div>
-				<ViewHandles
-					ref="elHandles"
-					class="PageIndex__view-handles"
-					:activeExp="activeExp"
-					:selectedExp="selectedExp"
-					:viewTransform.sync="viewHandlesTransform"
-					@tag-history="tagExpHistory('undo')"
-				/>
 				<div class="PageIndex__modes">
 					<button
 						v-for="({name, handlers}, i) in modes"
@@ -336,29 +176,22 @@ watchEffect(() => {
 			<Pane :size="paneSizeInPercent.control" :max-size="40">
 				<div class="PageIndex__control" :class="{compact}">
 					<div class="PageIndex__editor">
-						<ExprExpEditor
-							v-if="editingExp"
-							v-model:hasParseError="hasParseError"
-							:exp="editingExp"
-							:selectedExp="activeExp"
-							:editMode="editingExp === exp ? 'params' : 'node'"
-							@input="updateEditingExp"
-							@select="setActiveExp"
-						/>
+						<ExprEditor />
 					</div>
 					<div class="PageIndex__console">
 						<button
 							class="PageIndex__console-toggle"
-							:class="{error: hasError}"
+							:class="{error: sketch.hasError}"
 							@click="compact = !compact"
 						>
-							{{ hasError ? '!' : '✓' }}
+							{{ sketch.hasError ? '!' : '✓' }}
 						</button>
-						<Console :compact="compact" @setup="onSetupConsole" />
+						<Console :compact="compact" />
 					</div>
 				</div>
 			</Pane>
 		</Splitpanes>
+		<ViewCanvas class="PageIndex__viewer" />
 	</div>
 </template>
 
@@ -381,7 +214,6 @@ $compact-dur = 0.4s
 	overflow hidden
 	width 100%
 	height 100vh
-	background var(--background)
 
 	&__content
 		position fixed
@@ -434,8 +266,6 @@ $compact-dur = 0.4s
 			width $width
 			height $width
 			border-radius (0.5 * $width)rem
-			background var(--foreground)
-			color var(--background)
 			text-align center
 			line-height $width
 			transition all 0.1s ease
@@ -503,7 +333,7 @@ $compact-dur = 0.4s
 			&.error
 				border-color var(--tq-color-error)
 				background var(--tq-color-error)
-				color var(--background)
+				color var(--tq-color-background)
 				--textcolor var(--background)
 
 			&:hover

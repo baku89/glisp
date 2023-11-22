@@ -70,32 +70,6 @@ export function getStructType(exp: Expr): StructTypes | undefined {
 	return
 }
 
-type WatchOnReplacedCallback = (newExp: Expr) => any
-
-const ExprWatchers = new WeakMap<ExprColl, Set<WatchOnReplacedCallback>>()
-
-export function watchExpOnReplace(
-	exp: ExprColl,
-	callback: WatchOnReplacedCallback
-) {
-	const callbacks = ExprWatchers.get(exp) || new Set()
-	callbacks.add(callback)
-	ExprWatchers.set(exp, callbacks)
-}
-
-export function unwatchExpOnReplace(
-	exp: ExprColl,
-	callback: WatchOnReplacedCallback
-) {
-	const callbacks = ExprWatchers.get(exp)
-	if (callbacks) {
-		callbacks.delete(callback)
-		if (callbacks.size === 0) {
-			ExprWatchers.delete(exp)
-		}
-	}
-}
-
 export function getExpByPath(root: ExprColl, path: string): Expr {
 	const keys = path
 		.split('/')
@@ -140,16 +114,14 @@ export function generateExpAbsPath(expr: ExprColl) {
 }
 
 /**
- * 置き換える。最終的にルートまで置き換える
+ * 置き換える。再帰的にルートまで置き換える
  */
-export function replaceExpr(original: ExprColl, replaced: Expr) {
-	// Execute a callback if necessary
-	ExprWatchers.get(original)?.forEach(cb => cb(replaced))
-	ExprWatchers.delete(original)
-
-	const parent = getParent(original)
-	if (!parent) return
-
+export function replaceExpr(
+	root: ExprColl,
+	parent: ExprColl,
+	original: Expr,
+	replaced: Expr
+) {
 	const index = findElementIndex(original, parent)
 	const newParent = cloneExpr(parent) as ExprColl
 
@@ -164,9 +136,19 @@ export function replaceExpr(original: ExprColl, replaced: Expr) {
 	}
 
 	newParent[M_DELIMITERS] = parent[M_DELIMITERS]
-	markParent(newParent)
+	newParent[M_META] = parent[M_META]
 
-	replaceExpr(parent, newParent)
+	if (root === parent) {
+		return newParent
+	}
+
+	const grandParent = getParent(parent)
+
+	if (!grandParent) {
+		throw new Error('Invalid form')
+	}
+
+	return replaceExpr(root, grandParent, parent, newParent)
 }
 
 export function deleteExp(exp: ExprColl) {
@@ -509,7 +491,7 @@ export function applyParamModifier(modifier: Expr, originalParams: Expr[]) {
 }
 
 export function getFn(exp: Expr) {
-	if (!isList(exp)) {
+	if (!isList(exp) || exp.length === 0) {
 		//throw new GlispError(`${printExpr(exp)} is not a function application`)
 		return undefined
 	}
@@ -722,43 +704,44 @@ export function getRangeOfExpr(
 	expr: ExprColl,
 	root: ExprColl
 ): [begin: number, end: number] | null {
-	function calcOffset(expr: ExprColl): number {
+	let start = 0
+	const length = printExpr(expr).length
+
+	if (expr === root) {
+		return [0, length]
+	}
+
+	for (let i = 0; i < 1e6; i++) {
 		const parent = getParent(expr)
 
 		if (!parent) {
-			throw new Error('root is not a parent')
+			console.warn('root is not a parent')
+			return null
 		}
-
-		if (parent === root) {
-			return 0
-		}
-
-		let offset = calcOffset(parent)
 
 		const delimiters = getDelimiters(parent)
 		const elmStrs = getElementStrs(parent)
-
-		const index = 0
+		const index = findElementIndex(expr, parent)
 
 		if (isSeq(parent)) {
-			offset = isList(parent) && parent[M_ISSUGAR] ? 0 : 1
-			offset += delimiters.slice(0, index + 1).join('').length
-			offset += elmStrs.slice(0, index).join('').length
+			start += isList(parent) && parent[M_ISSUGAR] ? 0 : '('.length
+			start += delimiters.slice(0, index + 1).join('').length
+			start += elmStrs.slice(0, index).join('').length
 		} else if (isMap(parent)) {
-			const index = findElementIndex(expr, parent)
-			offset +=
+			start +=
 				'{'.length +
 				delimiters.slice(0, (index + 1) * 2).join('').length +
 				elmStrs.slice(0, index * 2 + 1).join('').length
 		}
 
-		return offset
+		if (parent === root) {
+			break
+		}
+
+		expr = parent
 	}
 
-	const expLength = printExpr(expr).length
-	const offset = calcOffset(expr)
-
-	return [offset, offset + expLength]
+	return [start, start + length]
 }
 
 export function getName(exp: Expr): string {

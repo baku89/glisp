@@ -1,14 +1,6 @@
 <script lang="ts" setup>
 import ace from 'brace'
-import {
-	nextTick,
-	onBeforeUnmount,
-	onMounted,
-	Ref,
-	ref,
-	watch,
-	watchEffect,
-} from 'vue'
+import {onBeforeUnmount, onMounted, Ref, ref, watch, watchEffect} from 'vue'
 
 import {setupEditor} from './setup'
 import {convertToAceRange, getEditorSelection} from './utils'
@@ -16,15 +8,16 @@ import {convertToAceRange, getEditorSelection} from './utils'
 type Range = readonly [start: number, end: number]
 
 interface Props {
-	value: string
+	modelValue: string
 	selection?: Range
 	activeRange?: Range
+	hoveringRange?: Range
 	cssStyle?: string
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-	input: [value: string]
+	'update:modelValue': [value: string]
 	'update:selection': [selection: number[]]
 }>()
 
@@ -38,7 +31,6 @@ onMounted(() => {
 
 	// Update activeRange
 	let activeRangeMarker: number
-
 	watchEffect(() => {
 		if (!props.activeRange) return
 
@@ -47,14 +39,38 @@ onMounted(() => {
 
 		editor.session.removeMarker(activeRangeMarker)
 
-		nextTick(() => {
-			activeRangeMarker = editor.session.addMarker(
-				range,
-				'active-range',
-				'text',
-				false
-			)
-		})
+		activeRangeMarker = editor.session.addMarker(
+			range,
+			'active-range',
+			'text',
+			false
+		)
+	})
+
+	// Update hoveringRange
+	let hoveringRangeMarker: number | null = null
+	watchEffect(() => {
+		if (!props.hoveringRange) {
+			if (hoveringRangeMarker !== null) {
+				editor.session.removeMarker(hoveringRangeMarker)
+				hoveringRangeMarker = null
+			}
+			return
+		}
+
+		const [start, end] = props.hoveringRange
+		const range = convertToAceRange(editor, start, end)
+
+		if (hoveringRangeMarker !== null) {
+			editor.session.removeMarker(hoveringRangeMarker)
+		}
+
+		hoveringRangeMarker = editor.session.addMarker(
+			range,
+			'hovering-range',
+			'text',
+			false
+		)
 	})
 
 	// Update selection
@@ -77,7 +93,7 @@ onMounted(() => {
 	editor.on('change', () => {
 		if (setBySelf) return
 		const value = editor.getValue()
-		emit('input', value)
+		emit('update:modelValue', value)
 	})
 
 	editor.on('changeSelection', () => {
@@ -88,7 +104,7 @@ onMounted(() => {
 
 	// Watch the value and update the editor
 	watch(
-		() => props.value,
+		() => props.modelValue,
 		newValue => {
 			if (editor.getValue() !== newValue) {
 				setBySelf = true
@@ -135,10 +151,17 @@ onBeforeUnmount(() => {
 
 	.active-range
 		position absolute
-		background var(--active-range)
+		background var(--tq-color-tinted-input-active)
+		opacity .5
+
+	.hovering-range
+		position absolute
+		border 1px solid var(--tq-color-primary)
+		opacity .5
 
 	.ace_selection
 		opacity 0.5
+
 
 	// Theme overwriting by CSS
 	&__editor

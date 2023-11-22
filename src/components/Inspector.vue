@@ -1,45 +1,49 @@
 <script lang="ts" setup>
-import {computed} from 'vue'
+import {Icon} from '@iconify/vue'
+import Tq from 'tweeq'
+import {computed, toRaw} from 'vue'
 
 import {
-	copyDelimiters,
 	Expr,
 	ExprColl,
-	ExprSymbol,
 	getFnInfo,
 	getMapValue,
 	getParent,
 	isList,
 	isSymbol,
 } from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
 import ParamControl from './ParamControl.vue'
 
-const props = defineProps<{
-	exp: ExprColl
-}>()
+const sketch = useSketchStore()
 
 const emit = defineEmits<{
 	input: [newExp: Expr]
-	select: [exp: ExprColl]
+	'update:expr': [newExp: Expr]
 	'end-tweak': []
 }>()
 
 const fnInfo = computed(() => {
-	return getFnInfo(props.exp)
+	return getFnInfo(toRaw(sketch.activeExpr as ExprColl))
 })
 
-const fnName = computed(() => {
-	if (fnInfo.value?.structType) {
-		return fnInfo.value.structType
-	} else if (
-		fnInfo.value?.fn ||
-		(isList(props.exp) && isSymbol(props.exp[0]))
-	) {
-		return ((props.exp as Expr[])[0] as ExprSymbol).value || ''
-	} else {
+const name = computed(() => {
+	if (!fnInfo.value) {
 		return ''
 	}
+
+	if (fnInfo.value.structType) {
+		return fnInfo.value.structType
+	}
+
+	const activeExpr = toRaw(sketch.activeExpr as ExprColl)
+
+	if (isList(activeExpr) && isSymbol(activeExpr[0])) {
+		return activeExpr[0].value
+	}
+
+	return ''
 })
 
 const fnDoc = computed(() => {
@@ -50,52 +54,44 @@ const fnDoc = computed(() => {
 })
 
 const parent = computed(() => {
-	return getParent(props.exp)
-})
+	const activeExpr = toRaw(sketch.activeExpr as ExprColl)
+	const parent = toRaw(getParent(activeExpr))
 
-const inspectorName = computed(() => {
-	const customInspector = `Inspector-${fnName.value}`
-	return customInspector in {} ? customInspector : 'ParamControl'
+	if (parent !== toRaw(sketch.expr)) {
+		return parent
+	} else {
+		return null
+	}
 })
 
 function onSelectParent() {
 	if (!parent.value) return
-	emit('select', parent.value)
-}
 
-function onInput(newExp: Expr) {
-	copyDelimiters(newExp, props.exp)
-	emit('input', newExp)
+	emit('update:expr', parent.value)
 }
 </script>
 
 <template>
 	<div class="Inspector">
-		<div class="Inspector__header">
-			<div class="Inspector__name">
-				{{ fnName }}
-				<span v-if="fnInfo && fnInfo.aliasFor" class="alias">
-					<span class="fira-code">--></span>
-					alias for
-					{{ fnInfo.aliasFor }}
-				</span>
-				<button v-if="parent" class="Inspector__parent" @click="onSelectParent">
-					<i class="fas fa-level-up-alt" />
-				</button>
+		<div class="header">
+			<div class="name">
+				{{ name }}
 			</div>
-			<!-- <VueMarkdown
-				class="Inspector__doc"
-				:source="fnDoc"
-				:anchorAttributes="{target: '_blank'}"
-			/> -->
+			<span v-if="fnInfo && fnInfo.aliasFor" class="alias">
+				<span class="fira-code">--></span>
+				alias for
+				{{ fnInfo.aliasFor }}
+			</span>
+			<span class="spacer" />
+			<Icon
+				v-if="parent"
+				icon="mdi:arrow-up"
+				class="parent"
+				@click="onSelectParent"
+			/>
 		</div>
-		<ParamControl
-			:is="inspectorName"
-			:exp="exp"
-			@input="onInput"
-			@select="$emit('select', $event)"
-			@end-tweak="$emit('end-tweak')"
-		/>
+		<Tq.Markdown class="doc" :source="fnDoc" />
+		<ParamControl :expr="sketch.activeExpr" />
 	</div>
 </template>
 
@@ -108,38 +104,42 @@ function onInput(newExp: Expr) {
 	height 100%
 	text-align left
 	user-select none
+	display flex
+	flex-direction column
+	gap 1em
 
-	.fira-code
+.header
+	position relative
+	display flex
+	align-items center
+	gap 1px
 
-	&__header
-		position relative
-		margin-bottom 1em
+.name
+	font-weight bold
+	font-size 1.2em
+	font-family var(--tq-font-heading)
 
-	&__name
-		margin-bottom 0.5em
-		font-weight bold
-		font-family var(--tq-font-code)
+.alias
+	color var(--comment)
+	font-weight normal
+	font-size 0.95em
 
-		.alias
-			color var(--comment)
-			font-weight normal
-			font-size 0.95em
+.spacer
+	flex-grow 1
 
-	&__parent
-		position absolute
-		top 0
-		right 0
-		color var(--comment)
-		opacity 0.6
+.parent
+	color var(--tq-color-gray-on-background)
+	border-radius var(--tq-input-border-radius)
 
-		&:hover
-			color var(--hover)
-			opacity 1
+	&:hover
+		color var(--tq-color-primary)
+		opacity 1
+		background var(--tq-color-tinted-input)
 
-	&__doc
-		line-height 1.4
+.doc
+	line-height 1.4
 
-		code
-			color var(--syntax-function)
+	code
+		color var(--syntax-function)
 </style>
 @/glis[/types@/glis[/utils

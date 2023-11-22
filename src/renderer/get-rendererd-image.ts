@@ -2,13 +2,13 @@ import {mat2d} from 'linearly'
 
 import {Expr} from '@/glisp'
 
-import createCanvasRender, {CanvasRendererType} from './canvas-renderer'
+import createCanvasRender, {Canvas} from './canvas-renderer'
 
 const getRendereredImage = (() => {
-	let canvasRenderer: CanvasRendererType
+	let canvasRenderer: Canvas
 
 	return async (
-		viewExp: Expr,
+		viewExpr: Expr,
 		{format = 'png', scaling = 1, bounds = [0, 0, 100, 100]} = {}
 	) => {
 		if (!canvasRenderer) {
@@ -19,7 +19,7 @@ const getRendereredImage = (() => {
 
 		canvasRenderer.resize(width, height, scaling)
 		const viewTransform = mat2d.fromTranslation([-x, -y])
-		await canvasRenderer.render(viewExp, {viewTransform})
+		await canvasRenderer.render(viewExpr, {transform: viewTransform})
 		const image = await canvasRenderer.getImage({format})
 
 		return image

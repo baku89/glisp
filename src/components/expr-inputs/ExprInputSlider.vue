@@ -34,7 +34,7 @@
 </template>
 
 <script lang="ts" setup>
-import {computed} from 'vue'
+import {computed, toRaw} from 'vue'
 
 import {readStr} from '@/glisp'
 import {
@@ -73,7 +73,7 @@ const display = computed(() => {
 	if (typeof props.value === 'number') {
 		return {mode: 'number', isExp: false}
 	} else if (isList(props.value) && props.value.length === 2) {
-		const info = getFnInfo(props.value)
+		const info = getFnInfo(toRaw(props.value))
 
 		if (info) {
 			const inverseFn = getMapValue(info.meta, 'inverse', 'fn')

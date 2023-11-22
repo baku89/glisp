@@ -113,12 +113,11 @@
 </template>
 
 <script lang="ts" setup>
-import {mat2d, vec2} from 'linearly'
+import {mat2d} from 'linearly'
 import {computed, Ref, ref, toRef} from 'vue'
 
-import {useGesture, useRem} from '@/components/use'
+import {useRem} from '@/components/use'
 import {ExprColl, ExprSeq} from '@/glisp'
-import AppScope from '@/scopes/app'
 
 import useHandle from './use-handle'
 
@@ -127,13 +126,6 @@ interface Props {
 	selectedExp: ExprColl[]
 	viewTransform: mat2d
 }
-
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-	'update:view-transform': [value: mat2d]
-	'tag-history': [tag: string]
-}>()
 
 const el: Ref<HTMLElement | null> = ref(null)
 
@@ -155,82 +147,82 @@ const {
 )
 
 // Gestures for view transform
-useGesture(el, {
-	onZoom({pageX, pageY, deltaY}: WheelEvent) {
-		if (!el.value) return
+// useGesture(el, {
+// 	onZoom({pageX, pageY, deltaY}: WheelEvent) {
+// 		if (!el.value) return
 
-		let xform = props.viewTransform
+// 		let xform = props.viewTransform
 
-		// Scale
-		const deltaScale = 1 + -deltaY * 0.01
+// 		// Scale
+// 		const deltaScale = 1 + -deltaY * 0.01
 
-		const {left, top} = el.value.getBoundingClientRect()
-		let pivot: vec2 = [pageX - left, pageY - top]
+// 		const {left, top} = el.value.getBoundingClientRect()
+// 		let pivot: vec2 = [pageX - left, pageY - top]
 
-		const xformInv = mat2d.invert(xform) ?? mat2d.ident
-		pivot = vec2.transformMat2d(pivot, xformInv)
+// 		const xformInv = mat2d.invert(xform) ?? mat2d.ident
+// 		pivot = vec2.transformMat2d(pivot, xformInv)
 
-		xform = mat2d.translate(xform, pivot)
-		xform = mat2d.scale(xform, [deltaScale, deltaScale])
+// 		xform = mat2d.translate(xform, pivot)
+// 		xform = mat2d.scale(xform, [deltaScale, deltaScale])
 
-		pivot = vec2.negate(pivot)
-		xform = mat2d.translate(xform, pivot)
+// 		pivot = vec2.negate(pivot)
+// 		xform = mat2d.translate(xform, pivot)
 
-		emit('update:view-transform', xform)
-	},
-	onScroll({deltaX, deltaY}: WheelEvent) {
-		const xform = mat2d.clone(props.viewTransform as mat2d)
+// 		emit('update:view-transform', xform)
+// 	},
+// 	onScroll({deltaX, deltaY}: WheelEvent) {
+// 		const xform = mat2d.clone(props.viewTransform as mat2d)
 
-		// Translate
-		xform[4] -= deltaX / 2
-		xform[5] -= deltaY / 2
+// 		// Translate
+// 		xform[4] -= deltaX / 2
+// 		xform[5] -= deltaY / 2
 
-		emit('update:view-transform', xform)
-	},
-	onGrab({deltaX, deltaY}) {
-		if (!el.value) return
-		const xform = mat2d.clone(props.viewTransform as mat2d)
+// 		emit('update:view-transform', xform)
+// 	},
+// 	onGrab({deltaX, deltaY}) {
+// 		if (!el.value) return
+// 		const xform = mat2d.clone(props.viewTransform as mat2d)
 
-		// Translate (pixel by pixel)
-		xform[4] += deltaX
-		xform[5] += deltaY
+// 		// Translate (pixel by pixel)
+// 		xform[4] += deltaX
+// 		xform[5] += deltaY
 
-		emit('update:view-transform', xform)
-	},
-	onRotate({rotation, pageX, pageY}) {
-		if (!el.value) return
+// 		emit('update:view-transform', xform)
+// 	},
+// 	onRotate({rotation, pageX, pageY}) {
+// 		if (!el.value) return
 
-		const {left, top} = el.value.getBoundingClientRect()
-		let pivot: vec2 = [pageX - left, pageY - top]
+// 		const {left, top} = el.value.getBoundingClientRect()
+// 		let pivot: vec2 = [pageX - left, pageY - top]
 
-		let xform = props.viewTransform
+// 		let xform = props.viewTransform
 
-		pivot = vec2.transformMat2d(pivot, mat2d.invert(xform) ?? mat2d.ident)
+// 		pivot = vec2.transformMat2d(pivot, mat2d.invert(xform) ?? mat2d.ident)
 
-		// Rotate
-		const rad = (rotation * Math.PI) / 180
-		const rot = mat2d.fromRotation(-rad)
+// 		// Rotate
+// 		const rad = (rotation * Math.PI) / 180
+// 		const rot = mat2d.fromRotation(-rad)
 
-		xform = mat2d.translate(xform, pivot)
-		xform = mat2d.mul(xform, rot)
-		xform = mat2d.translate(xform, vec2.negate(pivot))
+// 		xform = mat2d.translate(xform, pivot)
+// 		xform = mat2d.mul(xform, rot)
+// 		xform = mat2d.translate(xform, vec2.negate(pivot))
 
-		emit('update:view-transform', xform)
-	},
-})
+// 		emit('update:view-transform', xform)
+// 	},
+// })
 
 // Register app commands to ConsoleScope
-AppScope.def('reset-viewport', () => {
-	if (!el.value) return null
+// AppScope.def('reset-viewport', () => {
+// 	if (!el.value) return null
 
-	const {width, height} = el.value.getBoundingClientRect()
+// 	const {width, height} = el.value.getBoundingClientRect()
 
-	const xform = mat2d.fromTranslation([width / 2, height / 2])
+// 	const xform = mat2d.fromTranslation([width / 2, height / 2])
 
-	emit('update:view-transform', xform)
+// 	emit('update:view-transform', xform)
 
-	return null
-})
+// 	return null
+// })
 
 // REM
 const rem = useRem()
@@ -268,7 +260,7 @@ const rem = useRem()
       vector-effect non-scaling-stroke
 
     .fill
-      fill var(--background)
+      fill var(--tq-color-background)
 
     .stroke
       stroke var(--highlight)

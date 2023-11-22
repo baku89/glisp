@@ -1,32 +1,32 @@
+/// <reference types="vite-plugin-comlink/client" />
 import * as Comlink from 'comlink'
 import {mat2d} from 'linearly'
 
 import CanvasRenderer from './canvas-renderer'
 
-export interface ViewerSettings {
-	viewTransform?: mat2d
+export interface CanvasRenderOptions {
+	transform?: mat2d
 	guideColor?: string
 }
 
-export type CanvasRendererType = CanvasRenderer | Comlink.Remote<CanvasRenderer>
+export type Canvas = CanvasRenderer | Comlink.Remote<CanvasRenderer>
 
 export default async function createCanvasRender(canvas?: HTMLCanvasElement) {
-	let renderer: CanvasRendererType
-
 	if (!canvas) {
 		canvas = document.createElement('canvas')
 	}
 
-	if (typeof OffscreenCanvas !== 'undefined') {
-		const CanvasRendererWorker = Comlink.wrap<CanvasRenderer>(
-			new Worker('./worker.ts', {type: 'module'})
-		) as any
+	let renderer: Canvas
+
+	if (typeof OffscreenCanvas !== 'undefined' && false) {
+		const CanvasRenderer = new ComlinkWorker<typeof import('./worker')>(
+			new URL('./worker', import.meta.url)
+		).CanvasRenderer
 
 		const offscreenCanvas = canvas.transferControlToOffscreen()
-
-		renderer = (await new CanvasRendererWorker(
+		renderer = await new CanvasRenderer(
 			Comlink.transfer(offscreenCanvas, [offscreenCanvas])
-		)) as Comlink.Remote<CanvasRenderer>
+		)
 	} else {
 		renderer = new CanvasRenderer(canvas)
 	}

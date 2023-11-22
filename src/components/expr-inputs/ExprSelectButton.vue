@@ -14,17 +14,16 @@
 import {computed} from 'vue'
 
 import {Expr, isColl, isList, isSymbol, printExpr} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
 interface Props {
 	value: Expr
 	compact?: boolean
 }
 
-const props = defineProps<Props>()
+const sketch = useSketchStore()
 
-const emit = defineEmits<{
-	select: [exp: Expr]
-}>()
+const props = defineProps<Props>()
 
 const sign = computed(() => {
 	if (isList(props.value)) {
@@ -51,8 +50,8 @@ const str = computed(() => {
 })
 
 function onClick() {
-	if (selectable.value) {
-		emit('select', props.value)
+	if (isColl(props.value)) {
+		sketch.activeExpr = props.value
 	}
 }
 </script>
@@ -80,7 +79,6 @@ function onClick() {
 
 			.ExprSelectButton__sign
 				background var(--red)
-				color var(--background)
 
 	&__sign
 		flex 1 0 1.1rem

@@ -1,112 +1,58 @@
 <template>
 	<div class="ExprInputRect2d">
-		<ExprSelectButton
-			v-if="!isValueSeparated"
-			class="ExprInputRect2d__exp-button"
-			:value="value"
-			:compact="true"
-			@select="$emit('select', $event)"
-		/>
-		<template v-if="isValueSeparated">
+		<template v-if="literalValue">
 			<ExprInputNumber
-				class="ExprInputRect2d__el"
-				:value="nonReactiveValues[0]"
-				:compact="true"
-				@input="onInputElement(0, $event)"
-				@select="$emit('select', $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
-			<ExprInputNumber
-				class="ExprInputRect2d__el"
-				:value="nonReactiveValues[1]"
-				:compact="true"
-				@input="onInputElement(1, $event)"
-				@select="$emit('select', $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
-			<ExprInputNumber
-				class="ExprInputRect2d__el"
-				:value="nonReactiveValues[2]"
-				:compact="true"
-				@input="onInputElement(2, $event)"
-				@select="$emit('select', $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
-			<ExprInputNumber
-				class="ExprInputRect2d__el"
-				:value="nonReactiveValues[3]"
-				:compact="true"
-				@input="onInputElement(3, $event)"
-				@select="$emit('select', $event)"
-				@end-tweak="$emit('end-tweak')"
+				v-for="(v, i) in literalValue"
+				:key="i"
+				class="el"
+				:value="v"
+				:parent="value"
 			/>
 		</template>
-		<template v-else>
-			<Tq.InputNumber
-				class="ExprInputRect2d__el exp"
-				:modelValue="evaluated[0]"
-				@update:modelValue="onInputEvaluatedElement(0, $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
-			<Tq.InputNumber
-				class="ExprInputRect2d__el exp"
-				:modelValue="evaluated[1]"
-				@update:modelValue="onInputEvaluatedElement(1, $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
-			<Tq.InputNumber
-				class="ExprInputRect2d__el exp"
-				:modelValue="evaluated[2]"
-				@update:modelValue="onInputEvaluatedElement(2, $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
-			<Tq.InputNumber
-				class="ExprInputRect2d__el exp"
-				:modelValue="evaluated[3]"
-				@update:modelValue="onInputEvaluatedElement(3, $event)"
-				@end-tweak="$emit('end-tweak')"
-			/>
-		</template>
-		<InputTranslate
-			class="ExprInputRect2d__translate"
-			:value="evaluated.slice(0, 2)"
-			@input="onInputTranslate"
-			@end-tweak="$emit('end-tweak')"
-		/>
 	</div>
 </template>
 
 <script lang="ts" setup>
-import Tq from 'tweeq'
-import {toRef} from 'vue'
+import {computed} from '@vue/reactivity'
+import {vec4} from 'linearly'
+import {toRaw} from 'vue'
 
-import {useNumericVectorUpdator} from '@/components/use'
-import {Expr, ExprSeq, ExprSymbol, reverseEval} from '@/glisp'
+import {Expr, getEvaluated, getStructType} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
-interface Props {
-	value: ExprSeq | ExprSymbol
-}
+import ExprInputNumber from './ExprInputNumber.vue'
+import {PropBase} from './types'
+
+interface Props extends PropBase {}
 
 const props = defineProps<Props>()
+const sketch = useSketchStore()
 
-const emit = defineEmits<{
-	input: [Expr]
-	'end-tweak': []
-}>()
-
-const {
-	nonReactiveValues,
-	isValueSeparated,
-	evaluated,
-	onInputElement,
-	onInputEvaluatedElement,
-} = useNumericVectorUpdator(toRef(props, 'value'), emit)
-
-function onInputTranslate(value: number[]) {
-	const newValue = [...value, ...evaluated.value.slice(2)]
-	const newExp = reverseEval(newValue, props.value)
-	emit('input', newExp)
+function isRect2d(expr: Expr): expr is vec4.Mutable {
+	return getStructType(expr) === 'rect2d'
 }
+
+const literalValue = computed<vec4 | null>(() => {
+	const expr = toRaw(props.value)
+
+	if (isRect2d(expr)) {
+		return expr
+	}
+
+	return null
+})
+
+const evaluatedValue = computed<vec4>(() => {
+	const expr = toRaw(props.value)
+
+	const evaluated = getEvaluated(expr)
+
+	if (isRect2d(evaluated)) {
+		return evaluated
+	}
+
+	throw new Error('Invalid vector expression')
+})
 </script>
 
 <style lang="stylus">

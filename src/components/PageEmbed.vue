@@ -24,10 +24,10 @@ const hasError = computed(() => {
 	)
 })
 const hasParseError = ref(false)
-const hasEvalError = computed(() => viewExp.value === null)
+const hasEvalError = computed(() => viewExpr.value === null)
 const hasRenderError = ref(false)
 
-const viewExp = computed(() => {
+const viewExpr = computed(() => {
 	return evalExp()
 })
 
@@ -52,10 +52,10 @@ function evalExp() {
 	ViewScope.def('*height*', 100)
 	ViewScope.def('*size*', [100, 100])
 
-	const viewExp = ViewScope.eval(exp.value)
-	if (viewExp !== undefined) {
-		ConsoleScope.def('*view*', viewExp)
-		return viewExp
+	const viewExpr = ViewScope.eval(exp.value)
+	if (viewExpr !== undefined) {
+		ConsoleScope.def('*view*', viewExpr)
+		return viewExpr
 	} else {
 		return null
 	}
@@ -128,7 +128,7 @@ watch(
 		</div>
 		<div class="PageEmbed__viewer">
 			<!-- <ViewCanvas
-				:exp="viewExp"
+				:exp="viewExpr"
 				:guide-color="guideColor"
 				@render="hasRenderError = !$event"
 			/> -->
@@ -151,8 +151,6 @@ $compact-dur = 0.4s
 	min-height calc(102px + 4rem)
 	height auto
 	border-left 2px solid #eee
-	background var(--background)
-	color var(--foreground)
 
 	&:after
 		position absolute

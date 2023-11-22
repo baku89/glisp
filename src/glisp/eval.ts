@@ -5,7 +5,7 @@ import {mapValues} from 'lodash'
 
 import {printExpr} from '.'
 import Env from './env'
-import {M_AST, M_ENV, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
+import {M_AST, M_ENV, M_EVAL, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
 import {
 	createFn,
 	createList,
@@ -95,7 +95,7 @@ function evalAtom(this: void | ExprFnThis, exp: Expr, env: Env) {
 	}
 }
 
-export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
+function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 	let counter = 0
 	while (counter++ < 1e6) {
 		if (!isList(exp)) {
@@ -347,4 +347,14 @@ export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 	}
 
 	throw new Error('Exceed the maximum TCO stacks')
+}
+
+export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
+	const evaluated = evaluate2.call(this, exp, env)
+
+	if (typeof exp === 'object' && exp !== null) {
+		;(exp as any)[M_EVAL] = evaluated
+	}
+
+	return evaluated
 }

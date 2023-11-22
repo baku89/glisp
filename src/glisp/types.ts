@@ -14,6 +14,8 @@ import {
 	M_TYPE,
 } from './symbols'
 
+export type TextRange = [start: number, end: number]
+
 export type ExprJSFn = (...args: Expr[]) => Expr
 
 export type ExprBind = (
@@ -146,7 +148,7 @@ export function getType(obj: any): ExprType {
 		case 'boolean':
 			return 'boolean'
 		default:
-			throw new Error(`Unknown type: ${_typeof}`)
+			return 'undefined'
 	}
 }
 

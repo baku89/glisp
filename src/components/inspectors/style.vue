@@ -7,7 +7,6 @@ import {
 	Expr,
 	ExprSeq,
 	isVector,
-	markParent,
 	symbolFor as S,
 } from '@/glisp'
 import {getParamLabel} from '@/utils'
@@ -38,7 +37,6 @@ function updateStyleAt(style: ExprSeq, i: number) {
 	newStyles[i] = style
 	newExp[1] = newStyles.length === 1 ? newStyles[0] : newStyles
 
-	markParent(newExp)
 	emit('input', newExp)
 }
 
@@ -46,7 +44,6 @@ function sortStyles(sortedStyles: ExprSeq[][]) {
 	const newExp = cloneExpr(props.exp)
 	newExp[1] = sortedStyles.length === 1 ? sortedStyles[0] : sortedStyles
 
-	markParent(newExp)
 	emit('input', newExp)
 	emit('end-tweak')
 }
@@ -60,7 +57,6 @@ function appendStyle(type: 'fill' | 'stroke') {
 	newStyles.push(style)
 	newExp[1] = newStyles.length === 1 ? newStyles[0] : newStyles
 
-	markParent(newExp)
 	emit('input', newExp)
 	emit('end-tweak')
 }
@@ -71,7 +67,6 @@ function deleteStyleAt(i: number) {
 	newStyles.splice(i, 1)
 	newExp[1] = newStyles.length === 1 ? newStyles[0] : newStyles
 
-	markParent(newExp)
 	emit('input', newExp)
 	emit('end-tweak')
 }

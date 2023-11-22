@@ -1,108 +1,74 @@
 <template>
-	<div ref="el" class="ViewCanvas">
-		<canvas ref="canvas" class="ViewCanvas__canvas" />
+	<div ref="$root" class="ViewCanvas">
+		<canvas ref="$canvas" class="canvas" />
 	</div>
 </template>
 
 <script lang="ts" setup>
-import {mat2d} from 'linearly'
-import {onMounted, Ref, ref, watch} from 'vue'
+import {useElementSize} from '@vueuse/core'
+import {useThemeStore} from 'tweeq'
+import {computed, onMounted, Ref, ref, watch} from 'vue'
 
-import {useResizeSensor} from '@/components/use'
-import {Expr, GlispError, printer} from '@/glisp'
+import {printer} from '@/glisp'
 import createCanvasRender, {
-	CanvasRendererType,
+	Canvas,
+	CanvasRenderOptions,
 } from '@/renderer/canvas-renderer'
+import {useSketchStore} from '@/stores/sketch'
+import {useViewportStore} from '@/stores/viewport'
 
-interface Props {
-	exp: Expr | null
-	guideColor: string
-	viewTransform: mat2d
-}
+const sketch = useSketchStore()
+const viewport = useViewportStore()
+const theme = useThemeStore()
 
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-	render: [success: boolean]
-}>()
-
-let renderer: CanvasRendererType | null = null
-
-const el: Ref<HTMLElement | null> = ref(null)
-const canvas: Ref<HTMLCanvasElement | null> = ref(null)
-
-let initialExp: Expr
-
-async function onResized(el: HTMLElement) {
-	if (!renderer) return
-
-	const width = el.clientWidth
-	const height = el.clientHeight
-	const dpi = window.devicePixelRatio || 1
-	await renderer.resize(width, height, dpi)
-
-	if (prevExp) render(prevExp)
-}
-
-useResizeSensor(el, onResized)
-
-onMounted(async () => {
-	if (!canvas.value || !el.value) {
-		return
-	}
-
-	renderer = await createCanvasRender(canvas.value)
-	onResized(el.value)
-	if (initialExp) {
-		render(initialExp)
-	}
+const guideColor = computed(() => {
+	return theme.colorPrimary
 })
 
-// onBeforeMount(() => {
-// 	this.renderer.dispose()
-// })
+const renderer = ref(null) as Ref<Canvas | null>
 
-let prevExp: Expr | undefined = undefined
+const $root: Ref<HTMLElement | null> = ref(null)
+const $canvas: Ref<HTMLCanvasElement | null> = ref(null)
 
-async function render(_exp: Expr) {
-	const options = {
-		viewTransform: props.viewTransform,
-		...(props.guideColor ? {guideColor: props.guideColor} : {}),
-	}
+const {width, height} = useElementSize($root)
 
-	const exp = prevExp === _exp ? undefined : _exp
-	prevExp = _exp
-
-	try {
-		await (renderer as CanvasRendererType).render(exp, options)
-	} catch (err) {
-		if (err instanceof GlispError) {
-			printer.error(err.message)
-		} else {
-			printer.error(err)
-		}
-		emit('render', false)
+onMounted(async () => {
+	if (!$canvas.value || !$root.value) {
 		return
 	}
 
-	emit('render', true)
-}
+	renderer.value = await createCanvasRender($canvas.value)
+})
 
 watch(
-	() => [props.exp, props.viewTransform],
-	async () => {
-		if (!props.exp) {
+	() =>
+		[
+			sketch.evaluated,
+			viewport.transform,
+			renderer.value,
+			width.value,
+			height.value,
+		] as const,
+	async ([evaluated, transform, renderer, w, h], [, , , wOld, hOld]) => {
+		if (!evaluated || !renderer) {
 			return
 		}
 
-		if (!renderer) {
-			initialExp = props.exp
-			return
+		if (w !== wOld || h !== hOld) {
+			const dpi = window.devicePixelRatio || 1
+			await renderer.resize(w, h, dpi)
 		}
 
-		const exp = props.exp
+		const options: CanvasRenderOptions = {
+			transform,
+			guideColor: guideColor.value,
+		}
 
-		await render(exp)
+		try {
+			await renderer.render(evaluated, options)
+		} catch (err) {
+			printer.error(err)
+		}
 	}
 )
 </script>
@@ -111,9 +77,11 @@ watch(
 .ViewCanvas
 	position relative
 	height 100%
+	pointer-events none
+	z-index -10
 
-	&__canvas
-		width 100%
-		height 100%
+.canvas
+	width 100%
+	height 100%
 </style>
 @/glis[/printer@/glis[/types

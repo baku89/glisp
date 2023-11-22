@@ -5,6 +5,7 @@ import {
 	computeExpTransform,
 	copyDelimiters,
 	createList as L,
+	equals,
 	Expr,
 	ExprColl,
 	ExprMap,
@@ -15,8 +16,6 @@ import {
 	isMap,
 	isVector,
 	keywordFor as K,
-	equals,
-	markParent,
 	replaceExpr,
 	reverseEval,
 } from '@/glisp'
@@ -56,8 +55,7 @@ const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 export default function useHandle(
 	selectedExp: Ref<ExprColl[]>,
 	viewTransform: Ref<mat2d>,
-	viewEl: Ref<HTMLElement | null>,
-	emit: (event: 'tag-history', tag: string) => void
+	viewEl: Ref<HTMLElement | null>
 ) {
 	const draggingIndex = ref<[number, number] | null>(null)
 	const rawPrevPos = ref(vec2.zero)
@@ -347,7 +345,6 @@ export default function useHandle(
 
 		// Copy the delimiter if possible
 		copyDelimiters(newExp, _exp)
-		markParent(newExp)
 
 		// Finally replaces the sexp
 		replaceExpr(_exp, newExp)
@@ -356,7 +353,6 @@ export default function useHandle(
 	function onMouseup() {
 		draggingIndex.value = null
 		unregisterMouseEvents()
-		emit('tag-history', 'undo')
 	}
 
 	function unregisterMouseEvents() {

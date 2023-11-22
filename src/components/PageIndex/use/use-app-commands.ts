@@ -29,7 +29,6 @@ import {
 	isSymbolFor,
 	isVector,
 	keywordFor as K,
-	markParent,
 	printExpr,
 	readStr,
 	replaceExpr,
@@ -38,6 +37,7 @@ import {
 } from '@/glisp'
 import AppScope from '@/scopes/app'
 import ViewScope from '@/scopes/view'
+import {useSketchStore} from '@/stores/sketch'
 
 import {toSketchCode} from '../utils'
 
@@ -58,6 +58,8 @@ export default function useAppCommands({
 	setActiveExpr: (exp: ExprColl | null) => any
 	setSelectedExp: (exp: ExprColl[]) => void
 }) {
+	const sketch = useSketchStore()
+
 	AppScope.def('expand-selected', () => {
 		if (!activeExp.value) {
 			return false
@@ -67,8 +69,6 @@ export default function useAppCommands({
 		if (expanded === undefined) {
 			return false
 		}
-
-		replaceExpr(activeExp.value, expanded)
 
 		return true
 	})
@@ -109,8 +109,6 @@ export default function useAppCommands({
 		} else {
 			throw new GlispError('Invalid argument')
 		}
-
-		markParent(newExp)
 
 		// Insert
 		const newActiveExp = cloneExpr(_activeExp) as ExprSeq
@@ -253,8 +251,6 @@ export default function useAppCommands({
 			})
 		)
 
-		markParent(newExp)
-
 		replaceExpr(activeExp.value, newExp)
 
 		return true
@@ -343,7 +339,6 @@ export default function useAppCommands({
 			newOuter.splice(index + 1, 0, exp)
 			copyDelimiters(newOuter, parent)
 
-			markParent(newOuter)
 			replaceExpr(parent, newOuter)
 
 			setActiveExpr(isColl(exp) ? exp : null)
