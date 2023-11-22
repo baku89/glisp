@@ -18,18 +18,18 @@ export default async function createCanvasRender(canvas?: HTMLCanvasElement) {
 
 	let renderer: Canvas
 
-	if (typeof OffscreenCanvas !== 'undefined' && false) {
-		const CanvasRenderer = new ComlinkWorker<typeof import('./worker')>(
-			new URL('./worker', import.meta.url)
-		).CanvasRenderer
+	// if (typeof OffscreenCanvas !== 'undefined' && false) {
+	// 	const CanvasRenderer = new ComlinkWorker<typeof import('./worker')>(
+	// 		new URL('./worker', import.meta.url)
+	// 	).CanvasRenderer
 
-		const offscreenCanvas = canvas.transferControlToOffscreen()
-		renderer = await new CanvasRenderer(
-			Comlink.transfer(offscreenCanvas, [offscreenCanvas])
-		)
-	} else {
-		renderer = new CanvasRenderer(canvas)
-	}
+	// 	const offscreenCanvas = canvas.transferControlToOffscreen()
+	// 	renderer = await new CanvasRenderer(
+	// 		Comlink.transfer(offscreenCanvas, [offscreenCanvas])
+	// 	)
+	// } else {
+	renderer = new CanvasRenderer(canvas)
+	// }
 
 	return renderer
 }

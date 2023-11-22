@@ -18,20 +18,10 @@ function onUpdateChild(i: number, replaced: ExprColl) {
 </script>
 
 <template>
-	<div class="PaneLayers">
-		<div class="children">
-			<ViewExprTree
-				v-for="(child, i) in children"
-				:key="i"
-				:expr="child"
-				@update:exp="onUpdateChild(i, $event)"
-			/>
-		</div>
-	</div>
+	<ViewExprTree
+		v-for="(child, i) in children"
+		:key="i"
+		:expr="child"
+		@update:exp="onUpdateChild(i, $event)"
+	/>
 </template>
-
-<style lang="stylus" scoped>
-.PaneLayers
-	overflow hidden
-	padding var(--tq-pane-padding)
-</style>
