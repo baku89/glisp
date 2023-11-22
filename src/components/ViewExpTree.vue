@@ -61,6 +61,7 @@
 <script lang="ts" setup>
 import {computed, ref} from 'vue'
 
+import {printExpr} from '@/glisp'
 import {
 	cloneExpr,
 	Expr,

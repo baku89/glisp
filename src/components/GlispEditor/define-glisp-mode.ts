@@ -32,7 +32,6 @@ import ace from 'brace'
 				'transform',
 				'style',
 				'path/transform',
-				'artboard',
 				'clip',
 			]
 

@@ -1,18 +1,21 @@
 /* eslint-ignore @typescript-eslint/no-use-before-define */
 
 import {capital} from 'case'
+import {mapValues} from 'lodash'
 
 import {printExpr} from '.'
 import Env from './env'
 import {M_AST, M_ENV, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
 import {
-	createExprFn,
+	createFn,
+	createList,
 	createList as L,
 	ExpandType,
 	Expr,
 	ExprBind,
 	ExprFnThis,
 	ExprMap,
+	ExprVector,
 	getType,
 	GlispError,
 	isExprFn,
@@ -27,58 +30,48 @@ import {
 } from './types'
 
 const S_DO = S('do')
-const S_QUOTE = S('quote')
-const S_CONCAT = S('concat')
-const S_LST = S('lst')
 
-function quasiquote(exp: Expr): Expr {
-	if (isMap(exp)) {
-		const ret: ExprMap = {}
-		for (const [k, v] of Object.entries(exp)) {
-			ret[k] = quasiquote(v)
+function evalQuasiquote(expr: Expr, env: Env): Expr {
+	if (isMap(expr)) {
+		return mapValues(expr, (v: Expr) => evalQuasiquote(v, env)) as ExprMap
+	}
+
+	const isExpList = isList(expr)
+	const isExprVector = isVector(expr)
+
+	if (!isExpList && !isExprVector) {
+		return expr
+	}
+
+	if (isSymbolFor(expr[0], 'unquote')) {
+		return evaluate(expr[1], env)
+	}
+
+	const ret: ExprVector = expr.flatMap(e => {
+		if (isList(e) && isSymbolFor(e[0], 'splice-unquote')) {
+			return evaluate(e[1], env)
+		} else {
+			return [evalQuasiquote(e, env)]
 		}
-		return ret
-	}
+	})
 
-	if (!isPair(exp)) {
-		return L(S_QUOTE, exp)
-	}
-
-	if (isSymbolFor(exp[0], 'unquote')) {
-		return exp[1]
-	}
-
-	let ret = L(
-		S_CONCAT,
-		...exp.map(e => {
-			if (isPair(e) && isSymbolFor(e[0], 'splice-unquote')) {
-				return e[1]
-			} else {
-				return [quasiquote(e)]
-			}
-		})
-	)
-	ret = isList(exp) ? L(S_LST, ret) : ret
-	return ret
-
-	function isPair(x: Expr): x is Expr[] {
-		return isSeq(x) && x.length > 0
-	}
+	return isExpList ? createList(...ret) : ret
 }
 
-function macroexpand(_exp: Expr, env: Env) {
-	let exp = _exp
+function macroexpand(exp: Expr, env: Env) {
+	const originalExp = exp
 
-	while (isList(exp) && isSymbol(exp[0]) && env.find(exp[0])) {
-		const fn = env.get(exp[0])
-		if (!isExprFn(fn) || !fn[M_ISMACRO]) {
+	while (isList(exp)) {
+		const fst = evaluate(exp[0], env)
+		if (!isExprFn(fst) || !fst[M_ISMACRO]) {
 			break
 		}
-		exp = fn.apply({callerEnv: env}, exp.slice(1))
+
+		exp = fst.apply({callerEnv: env}, exp.slice(1))
 	}
 
-	if (exp !== _exp && isList(_exp)) {
-		_exp[M_EXPAND] = {type: ExpandType.Constant, exp}
+	if (exp !== exp && isList(originalExp)) {
+		originalExp[M_EXPAND] = {type: ExpandType.Constant, exp: exp}
 	}
 
 	return exp
@@ -204,9 +197,9 @@ export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				return isExprFn(fn) ? [...fn[M_PARAMS]] : null
 			}
 			case 'eval*': {
-				// if (!this) {
-				// 	throw new GlispError('Cannot find the caller env')
-				// }
+				if (!this) {
+					throw new GlispError('Cannot find the caller env')
+				}
 				const expanded = evaluate.call(this, exp[1], env)
 				exp = evaluate.call(this, expanded, this ? this.callerEnv : env)
 				break // continue TCO loop
@@ -215,7 +208,7 @@ export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				return exp[1]
 			}
 			case 'quasiquote': {
-				return quasiquote(exp[1])
+				return evalQuasiquote(exp[1], env)
 			}
 			case 'fn': {
 				const [, , body] = exp
@@ -229,12 +222,12 @@ export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				if (body === undefined) {
 					throw new GlispError('Second argument of fn should be specified')
 				}
-				return createExprFn(
+				return createFn(
 					function (...args) {
 						return evaluate.call(
 							this,
 							body,
-							new Env(env, params as any[], args)
+							new Env(env, params as ExprBind, args, 'fn')
 						)
 					},
 					body,
@@ -244,9 +237,9 @@ export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 			}
 			case 'fn-sugar': {
 				const body = exp[1]
-				return createExprFn(
+				return createFn(
 					function (...args) {
-						return evaluate.call(this, body, new Env(env, [], args))
+						return evaluate.call(this, body, new Env(env, [], args, 'fn-sugar'))
 					},
 					body,
 					env,
@@ -267,12 +260,12 @@ export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				if (body === undefined) {
 					throw new GlispError('Second argument of macro should be specified')
 				}
-				return createExprFn(
+				const macro = createFn(
 					function (...args) {
 						return evaluate.call(
 							this,
 							body,
-							new Env(env, params as any[], args)
+							new Env(env, params as ExprBind, args, 'macro')
 						)
 					},
 					body,
@@ -281,6 +274,8 @@ export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 					null,
 					true
 				)
+
+				return macro
 			}
 			case 'macroexpand': {
 				return macroexpand(exp[1], env)

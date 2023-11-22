@@ -210,7 +210,12 @@ export default class Env {
 		const value = this.find(symbol)
 
 		if (value === undefined) {
-			throw new GlispError(`[${this.name}] Symbol ${symbol.value} not found`)
+			const callStacks = this.getChain()
+				.map(env => env.name)
+				.join(' -> ')
+			throw new GlispError(
+				`[${this.name}] Symbol ${symbol.value} not found\n${callStacks}`
+			)
 		}
 
 		return value

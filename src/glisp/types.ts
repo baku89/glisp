@@ -231,20 +231,20 @@ export function isEqual(a: Expr, b: Expr) {
 
 // Functions
 
-export function createExprFn(
+export function createFn(
 	fn: (this: void | ExprFnThis, ...args: Expr[]) => Expr,
 	exp: Expr,
 	env: Env,
 	params: ExprBind,
 	meta = null,
-	ismacro = false
+	isMacro = false
 ): ExprFn {
 	const attrs = {
 		[M_AST]: exp,
 		[M_ENV]: env,
 		[M_PARAMS]: params,
 		[M_META]: meta,
-		[M_ISMACRO]: ismacro,
+		[M_ISMACRO]: isMacro,
 	}
 	return Object.assign(fn, attrs)
 }

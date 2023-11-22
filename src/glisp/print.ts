@@ -78,10 +78,10 @@ export function printExpr(expr: Expr): string {
 	const isExpList = isList(expr)
 	const isExpVector = isVector(expr)
 
-	let elmStrs: string[] | undefined
-
-	if (isExpList || isMap(expr)) {
+	if (isExpList || isExpVector || isMap(expr)) {
 		// Collection
+		let elmStrs: string[] | undefined
+
 		// Check if there's a syntactic sugar
 		if (isExpList) {
 			const sugarPrefix = getSugarPrefix(expr)

@@ -110,22 +110,6 @@ export default function renderToContext(
 
 						break
 					}
-					case K('artboard'): {
-						const [region, children] = rest
-						const [x, y, w, h] = region
-
-						// Enable Clip
-						ctx.save()
-						ctx.rect(x, y, w, h)
-						ctx.clip()
-
-						// Draw inner items
-						draw(children, styles)
-
-						// Restore
-						ctx.restore()
-						break
-					}
 					default:
 						throw new GlispError(`Unknown rendering command ${printExpr(cmd)}`)
 				}

@@ -551,9 +551,8 @@ export function copyDelimiters(target: Expr, original: Expr) {
 }
 
 export function getDelimiters(exp: ExprSeq | ExprMap): string[] {
-	const length = isSeq(exp) ? exp.length : Object.keys(exp).length * 2
-
 	if (!exp[M_DELIMITERS]) {
+		const length = isSeq(exp) ? exp.length : Object.keys(exp).length * 2
 		exp[M_DELIMITERS] = generateDefaultDelimiters(length)
 	}
 

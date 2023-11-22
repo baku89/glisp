@@ -1,9 +1,21 @@
+import color from '@/glisp-lib/color'
+import core from '@/glisp-lib/core'
+import math from '@/glisp-lib/math'
+import path from '@/glisp-lib/path'
+
 import Env from './env'
 import {evaluate} from './eval'
 import {printer, printExpr} from './print'
 import {BlankException, readStr} from './read'
-import ReplCore, {slurp} from './repl-core'
+import ReplCore from './repl-core'
 import {Expr, GlispError, symbolFor as S} from './types'
+
+const libraries = new Map<string, Expr>([
+	['core.js', core],
+	['math.js', math],
+	['path.js', path],
+	['color.js', color],
+])
 
 const normalizeURL = (url: string, basename: string) => {
 	return new URL(url, basename).href
@@ -22,13 +34,13 @@ export class Scope<T> {
 		this.setup()
 
 		if (this.outer === null) {
-			this.initAsRepl()
+			this.#initAsRepl()
 		} else {
 			this.outer.inner = this
 		}
 	}
 
-	private initAsRepl() {
+	#initAsRepl() {
 		// Defining essential functions
 
 		ReplCore.forEach(([name, expr]) => {
@@ -45,13 +57,22 @@ export class Scope<T> {
 		})
 
 		this.def('import-js-force', (url: Expr) => {
-			const basename = this.var('*filename*') as string
-			const absurl = normalizeURL(url as string, basename)
-			const text = slurp(absurl)
-			console.log('importing', absurl, text)
-			eval(text)
-			const exp = (globalThis as any)['glisp_library']
-			return evaluate(exp, this.env)
+			// const basename = this.var('*filename*') as string
+			// const absurl = normalizeURL(url as string, basename)
+			// const text = slurp(absurl)
+			// eval(text)
+			// const exp = (globalThis as any)['glisp_library']
+			// return evaluate(exp, this.env)
+
+			const library = libraries.get(url as string)
+
+			if (!library) {
+				throw new Error(`Library ${url} not found`)
+			}
+
+			const evaluated = evaluate(library, this.env)
+
+			return evaluated
 		})
 
 		const filename = new URL('.', document.baseURI).href
@@ -67,11 +88,12 @@ export class Scope<T> {
 													url
 													(slurp url)))))))`
 		)
+
 		// Load core library as default
 		this.readEval('(import-force "./lib/core.glisp")')
 	}
 
-	public setup(option?: T) {
+	setup(option?: T) {
 		this.env = new Env(this.outer?.env)
 		this.env.name = this.name
 
@@ -84,14 +106,14 @@ export class Scope<T> {
 		}
 	}
 
-	public REP(str: string): void {
+	REP(str: string): void {
 		const ret = this.readEval(str)
 		if (ret !== undefined) {
 			printer.return(printExpr(ret))
 		}
 	}
 
-	public readEval(str: string): Expr | undefined {
+	readEval(str: string): Expr | undefined {
 		try {
 			return this.eval(readStr(str))
 		} catch (err) {
@@ -107,7 +129,7 @@ export class Scope<T> {
 		}
 	}
 
-	public eval(exp: Expr): Expr | undefined {
+	eval(exp: Expr): Expr | undefined {
 		try {
 			return evaluate(exp, this.env)
 		} catch (err) {
@@ -117,21 +139,22 @@ export class Scope<T> {
 				printer.error(err.stack)
 			}
 		}
+		return null
 	}
 
-	public def(name: string, value: Expr) {
+	def(name: string, value: Expr) {
 		this.env.set(S(name), value)
 	}
 
-	public pushBinding(env: Env) {
+	pushBinding(env: Env) {
 		this.env.pushBinding(env)
 	}
 
-	public popBinding() {
+	popBinding() {
 		this.env.popBinding()
 	}
 
-	public var(name: string) {
+	var(name: string) {
 		return this.env.get(S(name))
 	}
 }

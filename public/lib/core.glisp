@@ -65,28 +65,6 @@
 (defmacro annotate-fn! [sym meta]
   `(def ~sym (set-meta! ~sym ~meta)))
 
-(defmacro deftime
-  {:doc "Defines a numeric variable with playback control"
-   :params [{:label "Symbol" :type "symbol"}
-            {:label "Time" :type "number"}
-            {:type "map"
-             :variadic true
-             :items [{:key :start :type "number" :default 0}
-                     {:key :duration :type "number" :default 1
-                      :validator #(max 0 %)}
-                     {:key :fps :label "FPS" :type "number" :default 0
-                      :validator #(round (clamp 0 120 %))}]}]}
-  [sym time & options]
-  `(do
-     (swap! *time-variables*
-            conj `[~sym
-                   ~(merge {:start 0
-                            :duration 1
-                            :fps 0}
-                           (apply hash-map options))])
-     (def ~sym ~time)))
-
-
 (defn fn-meta [f]
   (def fm (meta f))
   (def alias (get fm :alias-for))
@@ -592,8 +570,8 @@
             :items {:label "Params" :type "exp"}}]})
 
 ;; Load other cores
-;; (import "ui.glisp")
-;; (import "color.glisp")
-;; (import "graphics.glisp")
-;; (import "math.glisp")
-;; (import "path.glisp")
+(import "ui.glisp")
+(import "color.glisp")
+(import "graphics.glisp")
+(import "math.glisp")
+(import "path.glisp")

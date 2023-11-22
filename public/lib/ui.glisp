@@ -7,7 +7,6 @@
 (def *guide-color* nil)
 (def *transform* [1 0 0 1 0 0])
 
-(def *inside-artboard* false)
 (def *fill-color* nil)
 (def *stroke-color* nil)
 (def *stroke-width* 1)
@@ -21,41 +20,13 @@
 
 ;; Atoms
 (def *app-background* (atom nil))
-(def *time-variables* (atom []))
 
 ;; Sketch
-;; (defn normalize-element
-;;   {:private true}
-;;   [el]
-;;   (let [tag (first el) content (rest el)]
-;;     (if (keyword? tag)
-;;       (cond (= tag :g)
-;;             (let [has-attrs (map? (first content))
-;;                   attrs (if has-attrs (first content) {})
-;;                   body (->> (if has-attrs (rest content) content)
-;;                             (map #(if (list? %) % [%]))
-;;                             (apply concat)
-;;                             (map normalize-element)
-;;                             (remove nil?))]
-;;               (vec `(~tag ~attrs ~@body)))
-
-;;             :else
-;;             el))))
-
 (defmacro sketch [& body]
-  (reset! *time-variables* [])
   (let [evaluated-body (eval* body)
         start-line-num (inc (last-index-of evaluated-body :start-sketch))
         sketch-body (filter element? (drop start-line-num evaluated-body))]
     `[:g :_ ~@sketch-body]))
-
-
-(defmacro sketch-at-time [sym time & body]
-  `(let [deftime (fn [] nil)
-         ~(symbol sym) ~time]
-     (sketch ~@body)))
-
-  ;; `(eval (read-string (format "(do (defn deftime [] nil) (def %s %f) (sketch %s\nnil))" ~sym ~time sketch))))
 
 ;; Pens and Hands
 ;; (defmacro begin-draw

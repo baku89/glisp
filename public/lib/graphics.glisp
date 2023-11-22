@@ -1,16 +1,5 @@
 (import "math.glisp")
 
-(defn set-id [id elm]
-  (if (element? elm)
-    (replace-nth elm 0 (keyword (str (name (first elm)) "#" id)))))
-
-(defn get-id [elm]
-  (if (element? elm)
-    (let [fst (name (first elm))
-          idx (index-of fst "#")]
-      (if (<= 0 idx)
-        (subs fst (inc idx))
-        nil))))
 
 (defn apply-draw-handle [f & xs]
   (let [hf (-> (fn-meta f)
@@ -41,54 +30,8 @@
                          (count fst)
                          idx)))))))
 
-(defn gen-element-selector-pred [sel]
-  (let [dummy-tag [(keyword (name sel))]
-        tag (tagtype dummy-tag)
-        id (get-id dummy-tag)]
-    (cond
-      (and tag id) (fn [elm] (= (first elm)))
-      tag          (fn [elm] (= (tagtype elm) tag))
-      id           (fn [elm] (= (get-id elm) id))
-      :else        (fn [] true))))
-
-(defn find-element [sel body]
-  (first (match-elements (gen-element-selector-pred sel) body)))
-
-(defn filter-elements [sel body]
-  (let [pred (gen-element-selector-pred sel)]
-    (if (sequential? body)
-      (if (element? body)
-        (if (<= 0 (index-of [:path :text :background] (tagtype body)))
-          ;; self-closing tags
-          (if (pred body) body nil)
-
-          ;; other tags such as :g
-          (if (pred body)
-            ;; Returns all of body
-            body
-
-            ;; Filter children
-            (let [children (slice body 2)
-                  filtered-chilren (filter-elements sel children)]
-              (if (nil? filtered-chilren)
-                ;; None of children matches
-                nil
-                ;; 
-                `[~@(slice body 0 2)
-                  ~@filtered-chilren]))))
-
-        ;; Not element yet still sequence
-        (let [filtered-chilren
-              (remove nil? (map #(filter-elements sel %) body))]
-          (if (zero? (count filtered-chilren))
-            nil
-            filtered-chilren)))
-
-      ;; Not a list
-      nil)))
 
 (def get-element-bounds
-
   (let [get-merged-path
         (fn [body]
           (if (vector? body)
@@ -108,16 +51,6 @@
                   ;; Clip
                   (= tag :clip)
                   (second body)
-
-                  ;; Artboard
-                  ;; (let [bounds (second body)]
-                  ;;   (rect (rect2d/point bounds) (rect2d/size bounds)))
-
-                  ;; Style (offset stroke)
-                  ;; NOTE: Path-offset looks buggy
-                  ;; (and (starts-with? tagname "style")
-                  ;;      (get (second body) :stroke))
-                  ;; (spy (path/offset-stroke 10 (get-merged-path `[~@(slice body 2)])))
 
                   :else
                   (get-merged-path `[~@(slice body 2)])))
@@ -187,31 +120,6 @@
       `[:g :_ ~@body])))
 (defalias g graphics/g)
 
-;; ==================================== JS Implementation
-;; 	const matrix = evalExp(exp[1], env, cache)
-;; 	const xs = exp.slice(2)
-
-;; 	const bindingEnv = new Env()
-;; 	bindingEnv.set(
-;; 		S('*transform*'),
-;; 		mat2d.mul(
-;; 			env.get(S('*transform*')) as mat2d,
-;; 			matrix as mat2d
-;; 		) as Expr[]
-;; 	)
-
-;; 	env.pushBinding(bindingEnv)
-;; 	let ret
-;; 	try {
-;; 		ret = [K('transform'), matrix, ...xs.map(x => evalExp(x, env, cache))]
-;; 	} finally {
-;; 		env.popBinding()
-;; 	}
-;; 	if (cache) {
-;; 		;(exp as ExprColl)[M_EVAL] = ret
-;; 		;(exp as ExprSeq)[M_FN] = env.get(S_TRANSFORM) as ExprFn
-;; 	}
-;; 	return ret
 (defmacro graphics/transform
   {:doc "Transforms elements"
    :params [{:label "Transform" :type "mat2d"}
@@ -252,46 +160,8 @@
     `(binding ~binds [:style ~evaluated-styles ~@body])))
 (defalias style graphics/style)
 
-(defmacro graphics/artboard
-  {:doc "Creates an artboard"
-   :params [{:label "Options" :type "exp"}
-            {:type "vector"
-             :variadic true
-             :items {:label "Body" :type "exp"}}]
-  ;;  :handles {:draw (fn {:params [{:bounds bounds} & body]}
-  ;;                    (let [info {:params [bounds]
-  ;;                                :return (rect bounds)}]
-  ;;                      (apply-draw-handle rect2d info)))
-  ;;            :drag (fn [info]
-  ;;                    (spy (let [params (get info :params)
-  ;;                                    options (first params)
-  ;;                                    bounds (get options :bounds)
-  ;;                                    rect-info (assoc info :params [bounds])
-  ;;                                    new-bounds (first (apply-drag-handle rect2d rect-info))
-  ;;                                    new-options (assoc options :bounds new-bounds)]
-  ;;                                `[~new-options ~@(rest params)])))}}
-   :return {:type "item"}}
-  [options & body]
-  (let [evaluated-options (eval* options)
-        bounds (get evaluated-options :bounds [0 0 0 0])
-        size (rect2d/size bounds)
-        offset (rect2d/point bounds)
-        bg (get evaluated-options :background)]
-    `(binding [*size* ~size
-               *width* ~(rect2d/width bounds)
-               *height* ~(rect2d/height bounds)
-               *inside-artboard* true
-               *background* ~(or bg *background*)]
-       [:clip (rect ~bounds)
-        ~(if bg `(style (fill ~bg) (rect ~bounds)))
-        (transform (translate ~offset)
-                   ~@body
-                   (guide/stroke ~(rect (rect2d/point-size [0.5 0.5]
-                                                           (vec2/- size [1 1])))))])))
-(defalias artboard graphics/artboard)
-
 (defn graphics/background
-  {:doc "Fill the entire view or artboard with a color"
+  {:doc "Fill the entire view with a color"
    :params [{:type "string" :ui "color" :desc "A background color"}]}
   [color]
   (reset! *app-background* color))
@@ -301,7 +171,7 @@
 
 ;; Transform
 (defn view-center
-  {:doc "Returns the center of view or artboard"
+  {:doc "Returns the center of view"
    :return {:type "vec2"}
    :handles {:draw (fn {:return mat}
                      [{:type "translate" :pos (take 4 mat)}])}}
@@ -354,16 +224,6 @@
    :params []}
   [] {:stroke false})
 (defalias no-stroke graphics/no-stroke)
-
-; (defn linear-gradient
-;   {:doc "Define a linear gradient style to apply to fill or stroke"}
-;   [x1 y1 x2 y2 & xs]
-;   (let [args (apply hash-map xs)]
-;     (if (not (contains? args :stops))
-;       (throw "[linear-gradient] odd number of arguments")
-;       (vector :linear-gradient
-;               (hash-map :points (vector x1 y1 x2 y2)
-;                         :stops (get args :stops))))))
 
 ;; Shape Functions
 (defn graphics/text

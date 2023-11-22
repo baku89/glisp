@@ -46,3 +46,5 @@ const Exp = L(
 	...Exports.map(([sym, body]) => L(S('def'), S(sym), body))
 )
 ;(globalThis as any)['glisp_library'] = Exp
+
+export default Exp

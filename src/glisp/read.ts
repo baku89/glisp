@@ -5,6 +5,7 @@ import {
 	Expr,
 	ExprMap,
 	ExprSeq,
+	ExprVector,
 	GlispError,
 	isList,
 	keywordFor,
@@ -21,54 +22,58 @@ const S_WITH_META_SUGAR = S('with-meta-sugar')
 const S_DEREF = S('deref')
 
 class Reader {
-	private tokens: string[] | [string, number][]
-	private str: string
-	private strlen: number
-	private _index: number
+	#tokens: string[] | [string, number][]
+	#str: string
+	#strlen: number
+	#index: number
 
 	constructor(tokens: string[], str: string) {
-		this.tokens = [...tokens]
-		this.str = str
-		this.strlen = str.length
-		this._index = 0
+		this.#tokens = [...tokens]
+		this.#str = str
+		this.#strlen = str.length
+		this.#index = 0
 	}
 
 	public next() {
-		const token = this.tokens[this._index++]
+		const token = this.#tokens[this.#index++]
 		return Array.isArray(token) ? token[0] : token
 	}
 
-	public peek(pos = this._index) {
-		const token = this.tokens[pos]
+	public peek(pos = this.#index) {
+		const token = this.#tokens[pos]
 		return Array.isArray(token) ? token[0] : token
 	}
 
 	public get index() {
-		return this._index
+		return this.#index
 	}
 
 	public getStr(start: number, end: number) {
-		return this.str.slice(start, end)
+		return this.#str.slice(start, end)
 	}
 
-	public offset(pos = this._index): number {
-		const token = this.tokens[pos]
-		return (token !== undefined ? token[1] : this.strlen) as number
+	public offset(pos = this.#index): number {
+		const token = this.#tokens[pos]
+		return (token !== undefined ? token[1] : this.#strlen) as number
 	}
 
-	public endOffset(pos = this._index): number {
-		const token = this.tokens[pos]
+	public endOffset(pos = this.#index): number {
+		const token = this.#tokens[pos]
 		return (
-			token !== undefined ? (token[1] as number) + token[0].length : this.strlen
+			token !== undefined
+				? (token[1] as number) + token[0].length
+				: this.#strlen
 		) as number
 	}
 
 	public prevEndOffset(): number {
-		return this.endOffset(this._index - 1)
+		return this.endOffset(this.#index - 1)
 	}
 }
 
-function tokenize(str: string, saveStr = false) {
+type Token = [token: string, offset: number]
+
+function tokenize(str: string): Token[] {
 	const re =
 		// eslint-disable-next-line no-useless-escape
 		/[\s,]*(~@|[\[\]{}()'`~^@#]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*)/g
@@ -76,21 +81,17 @@ function tokenize(str: string, saveStr = false) {
 	const spaceRe = /^[\s,]*/
 	let spaceMatch = null,
 		spaceOffset = null
-	const results = []
+	const results: Token[] = []
 
 	while ((match = re.exec(str)) && match[1] !== '') {
 		if (match[1][0] === ';') {
 			continue
 		}
 
-		if (saveStr) {
-			spaceMatch = spaceRe.exec(match[0])
-			spaceOffset = spaceMatch ? spaceMatch[0].length : 0
+		spaceMatch = spaceRe.exec(match[0])
+		spaceOffset = spaceMatch ? spaceMatch[0].length : 0
 
-			results.push([match[1], match.index + spaceOffset] as [string, number])
-		} else {
-			results.push(match[1])
-		}
+		results.push([match[1], match.index + spaceOffset] as [string, number])
 	}
 	return results
 }
@@ -132,10 +133,9 @@ function readAtom(reader: Reader) {
 }
 
 // read list of tokens
-function readVector(reader: Reader, start = '[', end = ']') {
-	const exp: any = []
+function readColl(reader: Reader, start: string, end: string) {
+	const exp: ExprVector = []
 
-	const elmStrs: string[] = []
 	const delimiters: string[] = []
 
 	let token = reader.next()
@@ -143,8 +143,6 @@ function readVector(reader: Reader, start = '[', end = ']') {
 	if (token !== start) {
 		throw new GlispError(`Expected '${start}'`)
 	}
-
-	let elmStart = 0
 
 	while ((token = reader.peek()) !== end) {
 		if (!token) {
@@ -155,13 +153,7 @@ function readVector(reader: Reader, start = '[', end = ']') {
 		const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
 		delimiters.push(delimiter)
 
-		elmStart = reader.offset()
-
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		exp.push(readForm(reader))
-
-		const elm = reader.getStr(elmStart, reader.prevEndOffset())
-		elmStrs.push(elm)
 	}
 
 	// Save a delimiter between a last element and a end tag
@@ -177,15 +169,15 @@ function readVector(reader: Reader, start = '[', end = ']') {
 
 // read vector of tokens
 function readList(reader: Reader) {
-	const exp = readVector(reader, '(', ')')
+	const exp = readColl(reader, '(', ')')
 	;(exp as ExprSeq)[M_ISLIST] = true
 	return exp
 }
 
 // read hash-map key/value pairs
 function readHashMap(reader: Reader) {
-	const lst = readVector(reader, '{', '}')
-	const map = assocBang({} as ExprMap, ...lst) as ExprMap
+	const lst = readColl(reader, '{', '}')
+	const map = assocBang({} as ExprMap, ...lst)
 	map[M_DELIMITERS] = lst[M_DELIMITERS]
 	return map
 }
@@ -229,13 +221,8 @@ function readForm(reader: Reader): any {
 				// Syntactic sugar for anonymous function: #( )
 				sugar = [reader.prevEndOffset(), reader.offset()]
 				val = L(S_FN_SUGAR, readForm(reader))
-			} else if (type[0] === '"') {
-				// Syntactic sugar for set-id
-				sugar = [reader.prevEndOffset(), reader.offset()]
-				const meta = readForm(reader)
-				if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
-				const expr = readForm(reader)
-				val = L(S('set-id'), meta, expr)
+			} else {
+				throw new GlispError(`Invalid reader macro: #${type}`)
 			}
 			break
 		}
@@ -265,7 +252,7 @@ function readForm(reader: Reader): any {
 		case ']':
 			throw new Error("unexpected ']'")
 		case '[':
-			val = readVector(reader)
+			val = readColl(reader, '[', ']')
 			break
 		// hash-map
 		case '}':
