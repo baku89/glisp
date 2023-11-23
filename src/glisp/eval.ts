@@ -30,9 +30,9 @@ import {
 
 const S_DO = S('do')
 
-function evalQuasiquote(expr: Expr, env: Env): Expr {
+function evalQuote(expr: Expr, env: Env): Expr {
 	if (isMap(expr)) {
-		return mapValues(expr, (v: Expr) => evalQuasiquote(v, env)) as ExprMap
+		return mapValues(expr, (v: Expr) => evalQuote(v, env)) as ExprMap
 	}
 
 	const isExpList = isList(expr)
@@ -50,7 +50,7 @@ function evalQuasiquote(expr: Expr, env: Env): Expr {
 		if (isList(e) && isSymbolFor(e[0], 'splice-unquote')) {
 			return evaluate(e[1], env)
 		} else {
-			return [evalQuasiquote(e, env)]
+			return [evalQuote(e, env)]
 		}
 	})
 
@@ -203,8 +203,8 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				exp = evaluate.call(this, expanded, this ? this.callerEnv : env)
 				break // continue TCO loop
 			}
-			case 'quasiquote': {
-				return evalQuasiquote(exp[1], env)
+			case 'quote': {
+				return evalQuote(exp[1], env)
 			}
 			case '=>': {
 				const [, , body] = exp

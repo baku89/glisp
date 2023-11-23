@@ -1224,9 +1224,9 @@ Prints the objects to the console
 | ---- | ----- | :---------- |
 | & x  | `any` |             |
 
-### quasiquote
+### quote
 
-Quasiquote
+Quote
 
 **Parameter**
 

@@ -162,11 +162,11 @@ const Exports = [
 		),
 	],
 	[
-		'quasiquote',
+		'quote',
 		setMeta(
 			() => null,
 			convertJSObjectToExprMap({
-				doc: 'Quasiquote',
+				doc: 'Quote',
 				params: [{label: 'Form', type: 'exp'}],
 			})
 		),
