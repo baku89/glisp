@@ -113,7 +113,7 @@ export function getType(obj: any): ExprType {
 	switch (_typeof) {
 		case 'object':
 			if (obj === null) {
-				return 'nll'
+				return 'null'
 			} else if (Array.isArray(obj)) {
 				const isList = M_ISLIST in obj && obj[M_ISLIST]
 				return isList ? 'list' : 'vector'
