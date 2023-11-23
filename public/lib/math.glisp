@@ -675,7 +675,7 @@
   [[aa ab ac ad atx aty]]
   (let [det (- (* aa ad) (* ab ac))]
     (if (zero? det)
-      nil
+      null
       (let [det-inv (/ det)]
         [(* ad det-inv)
          (* (- ab) det-inv)
@@ -719,7 +719,7 @@
              :drag (=> {:pos p :params [_ & xs]}
                      `(~p ~@xs))}
    :viewport-transform (=> [p & xs]
-                         `[nil ~@(repeat (translate p) (count xs))])}
+                         `[null ~@(repeat (translate p) (count xs))])}
   [p & xs]
   (let [m-first (mat2d/translate p)
         m-last (mat2d/translate (vec2/scale p -1))]

@@ -121,7 +121,7 @@ export function printExpr(expr: Expr): string {
 			return `"${expr}"`
 		}
 	} else if (expr === null) {
-		return 'nil'
+		return 'null'
 	} else if (isSymbol(expr)) {
 		return expr.value
 	} else if (isKeyword(expr)) {

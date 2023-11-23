@@ -15,7 +15,7 @@
    [name params & body]
    (do
      ;; Destruction of meta, param, body
-     (def metadata nil)
+     (def metadata null)
      (if (false? (sequential? params))
        (do
          (def metadata params)
@@ -25,7 +25,7 @@
      (if (= 1 (count body))
        (def body (first body))
        (def body `(do ~@body)))
-     (if (nil? metadata)
+     (if (null? metadata)
        `(def ~name (macro ~params ~body))
        `(def ~name (set-meta! (macro ~params ~body) ~metadata))))))
 
@@ -38,7 +38,7 @@
              :items {:label "Body" :type "exp"}}]}
   [name params & body]
   ;; Destruction of meta, param, body
-  (def metadata nil)
+  (def metadata null)
   (if (false? (sequential? params))
     (do
       (def metadata params)
@@ -49,7 +49,7 @@
     (def body (first body))
     (def body `(do ~@body)))
 
-  (if (nil? metadata)
+  (if (null? metadata)
     `(def ~name (=> ~params ~body))
     `(def ~name (set-meta! (=> ~params ~body) ~metadata))))
 
@@ -76,11 +76,11 @@
   (try
     import
     (catch _
-           (let [seen (atom (hash-map *filename* nil))]
+           (let [seen (atom (hash-map *filename* null))]
              (=> [filename]
                (if (not (contains? @seen filename))
                  (do
-                   (swap! seen assoc filename nil)
+                   (swap! seen assoc filename null)
                    (import-force filename))))))))
 
 (def type
@@ -148,10 +148,10 @@
   {:doc "Inverted version of *if*"
    :params [{:label "Test" :type "exp"}
             {:label "Else" :type "exp"}
-            {:label "Then" :type "exp" :default nil}]}
+            {:label "Then" :type "exp" :default null}]}
   [test else & then]
   (if (zero? (count then))
-    `(if ~test nil ~else)
+    `(if ~test null ~else)
     `(if ~test ~(first then) ~else)))
 
 (def=> column
@@ -283,7 +283,7 @@
       [lst]
 
       ;; Not match but sequence
-      (remove nil? (mapcat #(match-elements pred %) lst)))))
+      (remove null? (mapcat #(match-elements pred %) lst)))))
 
 (def=> glisp [] (println "Glisp, an acronym for Graphical LISP, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP."))
 

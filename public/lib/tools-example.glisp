@@ -4,7 +4,7 @@
   (do
 
   ; Initialize state
-    (if (nil? (first state))
+    (if (null? (first state))
       (def state '((quote :path) false false false)))
 
     (let
@@ -24,7 +24,7 @@
       needs-update (or just-down (and p (or (!= x px) (!= y py)))))
 
       (list
-      ; Updated Item or nil if no needs to update
+      ; Updated Item or null if no needs to update
        (if needs-update
          `(quote
            ~(concat
@@ -37,7 +37,7 @@
   (do
 
   ; Initialize state
-    (if (nil? (first state))
+    (if (null? (first state))
       (def state '((g) 0 0 false)))
 
     (let
@@ -57,7 +57,7 @@
       cy		(if just-down y (nth state 2)))
 
       (list
-      ; Updated Item or nil if no needs to update
+      ; Updated Item or null if no needs to update
        (if p
          (let (C `(circle ~cx ~cy ~(round (distance cx cy x y))))
            (if just-down
@@ -72,7 +72,7 @@
   (do
 
   ; Initialize state
-    (if (nil? (first state))
+    (if (null? (first state))
       (def state '((g) 0 0 false)))
 
     (let
@@ -92,7 +92,7 @@
       oy		(if just-down y (nth state 2)))
 
       (list
-      ; Updated Item or nil if no needs to update
+      ; Updated Item or null if no needs to update
        (if p
          (let (R `(rect ~ox ~oy ~(- x ox) ~(- y oy)))
            (if just-down
@@ -105,7 +105,7 @@
 (defpen draw-poly (state input) 
   do
 
-  (if (nil? (first state))
+  (if (null? (first state))
     (def state '((poly) false false false)))
 
   (let
@@ -124,12 +124,12 @@
     needs-update (or just-down (and p (or (!= x px) (!= y py)))))
 
     (list
-      ; Updated Item or nil if no needs to update
+      ; Updated Item or null if no needs to update
      (if needs-update
        (if just-down
          (push item x y)
          (push (take (- (count item) 2) item) x y))
-       nil)
+       null)
 
       ; Updated state
      x y p))))

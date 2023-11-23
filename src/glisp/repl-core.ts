@@ -268,7 +268,7 @@ const Exports = [
 		setMeta(
 			() => null,
 			convertJSObjectToExprMap({
-				doc: 'If statement. If **else** is not supplied it defaults to nil',
+				doc: 'If statement. If **else** is not supplied it defaults to null',
 				params: [
 					{label: 'Test', type: 'boolean'},
 					{label: 'Then', type: 'exp'},

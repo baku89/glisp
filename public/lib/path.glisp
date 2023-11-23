@@ -43,7 +43,7 @@
                       (for [seg segs :index i]
                         (let [[cmd & pts] seg]
                           (case cmd
-                            :Z nil
+                            :Z null
                             :C [{:id [i :handle-out] :type "point" :pos (first pts)}
                                 {:id [i :handle-in] :type "point" :pos (second pts)}
                                 {:id [i :anchor] :type "point" :pos (last pts)}]
@@ -393,7 +393,7 @@
   :params [{:label "Matrix" :type "mat2d"}
            {:label "Path" :type "path"}]
   :viewport-transform (=> [xform & body]
-                        `[nil ~@(repeat xform (count body))])
+                        `[null ~@(repeat xform (count body))])
   :return {:type "path"}})
 
 (def=> path/merge

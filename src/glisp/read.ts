@@ -115,7 +115,7 @@ function readAtom(reader: Reader) {
 			throw new GlispError("Expected '\"', got EOF")
 		} else if (token[0] === ':') {
 			return keywordFor(token.slice(1))
-		} else if (token === 'nil') {
+		} else if (token === 'null') {
 			return null
 		} else if (token === 'true') {
 			return true

@@ -191,7 +191,7 @@ import ace from 'brace'
 					},
 					{
 						token: 'constant.language',
-						regex: 'true|false|nil',
+						regex: 'true|false|null',
 					},
 					{
 						token: 'function',

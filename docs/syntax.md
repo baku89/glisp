@@ -32,9 +32,9 @@ Glisp で使われる言語は Clojure という Lisp 方言をベースにし�
 ; let x = 10
 (def x 10) ; -> 10
 
-; コンソールにログを表示（文全体としては nil を返す）
+; コンソールにログを表示（文全体としては null を返す）
 ; console.log("Hello World")
-(println "Hello World") ; -> nil
+(println "Hello World") ; -> null
 
 ; 比較演算子（真偽値を返す）
 ; x === 10
@@ -51,7 +51,7 @@ Glisp で使われる言語は Clojure という Lisp 方言をベースにし�
 
 ## リテラル
 
-`nil` は JavaScript でいう `null` です。Glisp では以下のようなリテラルを扱うことができます。
+Glispでは以下のようなリテラルを扱うことができます。
 
 ```clojure
 -3.14159   ; 数字
@@ -59,7 +59,7 @@ Glisp で使われる言語は Clojure という Lisp 方言をベースにし�
 x max      ; シンボル（変数名・関数名）
 :keyword   ; キーワード（マップのキーなどで使う）
 true false ; 真偽値
-nil        ; null
+null       ; null
 
 ; ベクタ（関数呼び出しとは解釈されない、ただの配列データ）
 [0 1 2]

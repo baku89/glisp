@@ -5,7 +5,7 @@
  :type "number|string|keyword|symbol|boolean|map|vector|vec2|rect2d|mat2d|path|color"
  :ui "angle|seed|dropdown"
  :label "Label"
- :validator validator-fn ;; value -> modified-value or nil (invalid)
+ :validator validator-fn ;; value -> modified-value or null (invalid)
 
  ;; UI Specific options
 

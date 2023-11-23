@@ -588,7 +588,7 @@ Maps the 8-bit value between 0-255 (0xff) to a normalized 0-1
 
 ### if
 
-Evaluates _test_. If truthy, evaluates and yields _then_, otherwise, evaluates and yields _else_. If _else_ is not supplied it defaults to nil
+Evaluates _test_. If truthy, evaluates and yields _then_, otherwise, evaluates and yields _else_. If _else_ is not supplied it defaults to null
 
 **Parameter**
 

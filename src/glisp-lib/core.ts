@@ -28,7 +28,7 @@ import {partition} from '@/utils'
 
 const Exports = [
 	['type', x => keywordFor(getType(x) as string)],
-	['nil?', (x: Expr) => x === null],
+	['null?', (x: Expr) => x === null],
 	['true?', (x: Expr) => x === true],
 	['false?', (x: Expr) => x === false],
 	['boolean?', (x: Expr) => typeof x === 'boolean'],

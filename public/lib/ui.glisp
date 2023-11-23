@@ -3,12 +3,12 @@
 (def *width* 0)
 (def *height* 0)
 (def *size* [0 0])
-(def *background* nil)
-(def *guide-color* nil)
+(def *background* null)
+(def *guide-color* null)
 (def *transform* [1 0 0 1 0 0])
 
-(def *fill-color* nil)
-(def *stroke-color* nil)
+(def *fill-color* null)
+(def *stroke-color* null)
 (def *stroke-width* 1)
 (def *stroke-cap* "round")
 (def *stroke-join* "round")
@@ -19,7 +19,7 @@
   (swap! *modes* conj {:name (name mode-name) :handlers handlers}))
 
 ;; Atoms
-(def *app-background* (atom nil))
+(def *app-background* (atom null))
 
 ;; Sketch
 (defmacro sketch [& body]
@@ -32,7 +32,7 @@
 ;; (defmacro begin-draw
 ;;   {:private true}
 ;;   [state]
-;;   `(def ~state nil))
+;;   `(def ~state null))
 
 ;; (defmacro draw
 ;;   {:private true}

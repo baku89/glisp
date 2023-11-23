@@ -19,11 +19,11 @@
 
 (def=> tagtype [item]
   (if (zero? (count (name (first item))))
-    nil
+    null
     (let [fst (name (first item))
           idx (index-of fst "#")]
       (if (zero? idx)
-        nil
+        null
         (keyword (subs fst
                        0
                        (if (neg? idx)
@@ -58,7 +58,7 @@
               ;; Just a vector
               (->> body
                    (map get-merged-path)
-                   (remove nil?)
+                   (remove null?)
                    (apply path/merge)))))]
 
     (=> [body] (path/bounds (get-merged-path body)))))
@@ -101,7 +101,7 @@
              :items {:label "Body" :type "exp"}}]
    :viewport-transform (=> [attrs & body]
                          (if (contains? attrs :transform)
-                           (spy `[nil ~@(repeat (get attrs :transform)
+                           (spy `[null ~@(repeat (get attrs :transform)
                                                 (count body))])))}
   [attrs & body]
   (let [attr-transform (get attrs :transform)
@@ -127,7 +127,7 @@
              :variadic true
              :items {:label "Body" :type "exp"}}]
    :viewport-transform (=> [xform & body]
-                         `[nil ~@(repeat xform (count body))])
+                         `[null ~@(repeat xform (count body))])
    :transform (=> {:params [xform & body]
                    :transform delta-xform}
                 {:replace [0 (mat2d/* xform delta-xform)]})

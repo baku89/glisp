@@ -98,7 +98,7 @@ export type ExprType =
 	| 'number'
 	| 'string'
 	| 'boolean'
-	| 'nil'
+	| 'null'
 	| 'symbol'
 	| 'keyword'
 	| 'atom'
@@ -113,7 +113,7 @@ export function getType(obj: any): ExprType {
 	switch (_typeof) {
 		case 'object':
 			if (obj === null) {
-				return 'nil'
+				return 'nll'
 			} else if (Array.isArray(obj)) {
 				const isList = M_ISLIST in obj && obj[M_ISLIST]
 				return isList ? 'list' : 'vector'

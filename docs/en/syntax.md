@@ -32,9 +32,9 @@ Therefore, arithmetic operators, relational operators, such as `>`, variable dec
 ; let x = 10
 (def x 10) ; -> 10
 
-; log in the console (returns nil)
+; log in the console (returns null)
 ; console.log("Hello World")
-(println "Hello World") ; -> nil
+(println "Hello World") ; -> null
 
 ; relational operator (returns boolean)
 ; x === 10
@@ -51,7 +51,7 @@ Therefore, arithmetic operators, relational operators, such as `>`, variable dec
 
 ## Literal
 
-`nil` is equivalent to `null` in JavaScript. Glisp supports the following literals.
+Glisp supports the following literals.
 
 ```clojure
 -3.14159   ; number
@@ -59,7 +59,7 @@ Therefore, arithmetic operators, relational operators, such as `>`, variable dec
 x max      ; symbol (variable or function name)
 :keyword   ; keyword (used as a map key)
 true false ; boolean
-nil        ; null
+null
 
 ; vector (an array data, not interpreted as a function call)
 [0 1 2]

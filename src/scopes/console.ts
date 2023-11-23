@@ -138,7 +138,7 @@ ConsoleScope.def(
 		(...xs: Expr[]) => {
 			const exec = async () => {
 				const sketch = ConsoleScope.var('*sketch*') as string
-				const code = `(sketch ${sketch}\nnil)`
+				const code = `(sketch ${sketch}\nnull)`
 
 				renderViewScope.setup({guideColor: null})
 				let viewExpr = renderViewScope.readEval(code)
@@ -247,7 +247,7 @@ ConsoleScope.def(
 
 			const renderTime = async (time: number) => {
 				const sketch = ConsoleScope.var('*sketch*') as string
-				const code = `(sketch-at-time "${options.symbol}" ${time} ${sketch}\nnil)`
+				const code = `(sketch-at-time "${options.symbol}" ${time} ${sketch}\nnull)`
 
 				renderViewScope.setup({guideColor: null})
 				const viewExpr = renderViewScope.readEval(code)

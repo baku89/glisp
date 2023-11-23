@@ -13,7 +13,7 @@
 
 (def=> gen-param-column [idx param variadic]
   (if (= param &)
-    nil
+    null
     (format "| %-8s | %-9s | %-12s |\n"
             (format "%s%s"
                     (if variadic "& " "")
@@ -23,7 +23,7 @@
 
 (def=> gen-param-table [params]
   (if (not (sequential? params))
-    nil
+    null
     (if (sequential? (first params))
       ;; Multi arity function
       (apply str
@@ -38,7 +38,7 @@
        "| -------- | --------- | :----------- |\n"
        (apply
         str
-        (remove nil?
+        (remove null?
                 (map-indexed
                  (=> [i p]
                    (gen-param-column
@@ -61,7 +61,7 @@
    str
 
    (remove
-    nil?
+    null?
 
     [(format "### %s\n\n" (name sym))
 
@@ -101,7 +101,7 @@
              (map #(vector (first %)         ; symbol
                            (meta (second %)) ; meta
                            (second %)))      ; function reference
-             (remove #(nil? (second %))) ; Delete functions with no metadata
+             (remove #(null? (second %))) ; Delete functions with no metadata
              (remove #(get (second %) :alias-for)) ; Delete aliased functions
              (map #(apply gen-doc %))))
 

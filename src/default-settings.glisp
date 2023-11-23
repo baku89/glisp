@@ -58,7 +58,7 @@
 (defmode "select"
   {:label "Select"
    :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
-   :setup (=> [] {:path nil})
+   :setup (=> [] {:path null})
    :move (=> {:pos pos}
            {:path (detect-hit pos)})
    :press (=> {:path path :pos pos}
@@ -90,9 +90,9 @@
 (defmode "polyline"
   {:label "Polyline"
    :icon {:type "character" :value "⏢"}
-   :setup (=> [] {:item nil :path nil})
+   :setup (=> [] {:item null :path null})
    :press (=> {:item item :pos pos :path path}
-            (if (nil? item)
+            (if (null? item)
               (let [item `(polyline ~pos)
                     path (insert-item item)]
                 (tag-history :undo)

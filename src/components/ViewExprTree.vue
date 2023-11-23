@@ -107,7 +107,7 @@ const icon = computed(() => {
 			return 'mdi:code-brackets'
 		case 'macro':
 			return 'mdi:shovel'
-		case 'nil':
+		case 'null':
 			return 'mdi:circle-off-outline'
 		case 'string':
 			return 'mdi:format-quote-close'

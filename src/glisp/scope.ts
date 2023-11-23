@@ -84,7 +84,7 @@ export class Scope<T> {
 				(=> [path]
 					(let [url (normalize-url path)]
 						(eval (read-string
-									(format "(do (def *filename* \\"%s\\") %s \n nil)"
+									(format "(do (def *filename* \\"%s\\") %s \n null)"
 													url
 													(slurp url)))))))`
 		)
