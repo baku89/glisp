@@ -1,5 +1,3 @@
-import {getParamLabel} from '@/utils'
-
 import {M_PARAMS} from './symbols'
 import {
 	assocBang,
@@ -13,7 +11,12 @@ import {
 	keywordFor as K,
 	symbolFor,
 } from './types'
-import {convertExprCollToJSObject, getEvaluated, getStructType} from './utils'
+import {
+	convertExprCollToJSObject,
+	getEvaluated,
+	getParamLabel,
+	getStructType,
+} from './utils'
 
 interface SchemaBase {
 	type: string

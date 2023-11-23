@@ -1,3 +1,4 @@
+import {capital} from 'case'
 import {mat2d} from 'linearly'
 import {mapValues} from 'lodash'
 
@@ -32,6 +33,7 @@ import {
 	GlispError,
 	isColl,
 	isFunc,
+	isKeyword,
 	isList,
 	isMap,
 	isSeq,
@@ -919,4 +921,13 @@ export function setMeta(a: Expr, m: Expr) {
 	}
 	;(a as any)[M_META] = m
 	return a
+}
+
+/**
+ * Converts the bind expression to parameter's label
+ * @param exp A bind expression
+ */
+export function getParamLabel(exp: Expr) {
+	const str = isKeyword(exp) ? exp.slice(1) : printExpr(exp)
+	return str.length === 1 ? str : capital(str)
 }

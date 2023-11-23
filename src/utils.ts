@@ -1,7 +1,4 @@
-import Case from 'case'
 import {Ref, unref} from 'vue'
-
-import {Expr, isKeyword, printExpr} from '@/glisp'
 
 export function replaceRange(
 	s: string,
@@ -14,24 +11,6 @@ export function replaceRange(
 		start,
 		end + (substitute.length - (end - start)),
 	]
-}
-
-/**
- * Converts the bind expression to parameter's label
- * @param exp A bind expression
- */
-export function getParamLabel(exp: Expr) {
-	const str = isKeyword(exp) ? exp.slice(1) : printExpr(exp)
-	return str.length === 1 ? str : Case.capital(str)
-}
-
-export function partition(n: number, coll: any[]) {
-	const ret = []
-
-	for (let i = 0; i < coll.length; i += n) {
-		ret.push(coll.slice(i, i + n))
-	}
-	return ret
 }
 
 export function delay(ms: number) {
@@ -47,4 +26,13 @@ export function getHTMLElement(
 		: _el instanceof Object && _el.$el instanceof HTMLElement
 		  ? _el.$el
 		  : null
+}
+
+export function partition<T>(n: number, coll: T[]): T[][] {
+	const ret: T[][] = []
+
+	for (let i = 0; i < coll.length; i += n) {
+		ret.push(coll.slice(i, i + n))
+	}
+	return ret
 }

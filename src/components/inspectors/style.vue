@@ -6,10 +6,10 @@ import {
 	createList as L,
 	Expr,
 	ExprSeq,
+	getParamLabel,
 	isVector,
 	symbolFor as S,
 } from '@/glisp'
-import {getParamLabel} from '@/utils'
 
 interface Props {
 	exp: Expr[]
