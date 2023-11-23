@@ -18,7 +18,6 @@ import {
 	createList,
 	createList as L,
 	createVector,
-	ExpandType,
 	Expr,
 	ExprColl,
 	ExprFn,
@@ -770,11 +769,11 @@ export function expandExp(exp: Expr) {
 	if (isList(exp) && M_EXPAND in exp && exp[M_EXPAND]) {
 		const info = exp[M_EXPAND]
 		switch (info.type) {
-			case ExpandType.Constant:
+			case 'constant':
 				return info.exp
-			case ExpandType.Env:
+			case 'env':
 				return expandSymbolsInExpr(info.exp, info.env)
-			case ExpandType.Unchange:
+			case 'unchange':
 				return exp
 		}
 	} else {

@@ -25,25 +25,19 @@ export type ExprBind = (
 	| ExprBind
 )[]
 
-export enum ExpandType {
-	Constant = 1,
-	Env,
-	Unchange,
-}
-
 export interface ExpandInfoConstant {
-	type: ExpandType.Constant
+	type: 'constant'
 	exp: Expr
 }
 
 export interface ExpandInfoEnv {
-	type: ExpandType.Env
+	type: 'env'
 	exp: Expr
 	env: Env
 }
 
 export interface ExpandInfoUnchange {
-	type: ExpandType.Unchange
+	type: 'unchange'
 }
 
 export type ExpandInfo = ExpandInfoConstant | ExpandInfoEnv | ExpandInfoUnchange

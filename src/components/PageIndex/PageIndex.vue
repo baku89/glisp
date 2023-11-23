@@ -87,17 +87,14 @@ watch(
 @import '../style/vmodal.styl'
 
 $compact-dur = 0.4s
-
 .PageIndex
 	overflow hidden
 	width 100%
 	height 100vh
-
 .content
 	position fixed
 	inset var(--app-margin-top) 0 0
 	height auto
-
 .viewer
 	position absolute !important
 	top 0
@@ -105,8 +102,6 @@ $compact-dur = 0.4s
 	margin-right 1rem
 	width 100%
 	height 100%
-
-
 .control
 	position relative
 	display flex

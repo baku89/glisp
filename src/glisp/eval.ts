@@ -10,7 +10,6 @@ import {
 	createFn,
 	createList,
 	createList as L,
-	ExpandType,
 	Expr,
 	ExprBind,
 	ExprFnThis,
@@ -71,7 +70,7 @@ function macroexpand(exp: Expr, env: Env) {
 	}
 
 	if (exp !== exp && isList(originalExp)) {
-		originalExp[M_EXPAND] = {type: ExpandType.Constant, exp: exp}
+		originalExp[M_EXPAND] = {type: 'constant', exp: exp}
 	}
 
 	return exp
@@ -131,7 +130,7 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 					throw new GlispError('Invalid form of def')
 				}
 				exp[M_EXPAND] = {
-					type: ExpandType.Unchange,
+					type: 'unchange',
 				}
 				return env.set(sym, evaluate.call(this, form, env))
 			}
@@ -141,7 +140,7 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 					throw new GlispError('Invalid form of defvar')
 				}
 				exp[M_EXPAND] = {
-					type: ExpandType.Unchange,
+					type: 'unchange',
 				}
 				return env.set(sym, evaluate.call(this, form, env))
 			}
@@ -160,7 +159,7 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				env = letEnv
 				const ret = body.length === 1 ? body[0] : L(S_DO, ...body)
 				exp[M_EXPAND] = {
-					type: ExpandType.Env,
+					type: 'env',
 					exp: ret,
 					env: letEnv,
 				}
