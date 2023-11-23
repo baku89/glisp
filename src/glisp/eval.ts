@@ -203,9 +203,6 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				exp = evaluate.call(this, expanded, this ? this.callerEnv : env)
 				break // continue TCO loop
 			}
-			case 'quote': {
-				return exp[1]
-			}
 			case 'quasiquote': {
 				return evalQuasiquote(exp[1], env)
 			}

@@ -50,11 +50,11 @@
 ;;   [name params body]
 ;;   `(do
 ;;      (def ~name (=> ~params ~body))
-;;      (def $pens (conj $pens '~name))))
+;;      (def $pens (conj $pens `~name))))
 
 ;; (defmacro defhand
 ;;   {:private true}
 ;;   [name params body]
 ;;   `(do
 ;;      (def ~name (=> ~params ~body))
-;;      (def $hands (conj $hands '~name))))
+;;      (def $hands (conj $hands `~name))))

@@ -42,7 +42,6 @@ export function generateDefaultDelimiters(elementCount: number) {
 }
 
 const NameForSugarSymbol = new Map<string, string>([
-	['quote', "'"],
 	['with-meta-sugar', '^'],
 	['fn-sugar', '#'],
 	['quasiquote', '`'],

@@ -19,7 +19,7 @@
 
 ;; Function Application (List)
 {:type "list"
- :fn 'circle
+ :fn `circle
  :items  [;; :type === :ui の時省略可能
           {:label "Center" :type "vec2" :ui "vec2"}
           {:label "Radius" :type "number" :ui "number"}]}
@@ -28,7 +28,7 @@
 
 ;; Nested parameter
 {:type "list"
- :fn 'interpolate-linear
+ :fn `interpolate-linear
  :item [{:type "number" :label "t"}
         {:type "vector"
          :items [{:type "number" :label "Time"}
@@ -40,7 +40,7 @@
 
 ;; Rest parameter
 {:type "list"
- :fn '+
+ :fn `+
  :item [{:type "vector"
          :variadic true
          :items {:type "number"}}]}

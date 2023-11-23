@@ -13,7 +13,6 @@ import {
 } from './types'
 import {markParent} from './utils'
 
-const S_QUOTE = S('quote')
 const S_QUASIQUOTE = S('quasiquote')
 const S_UNQUOTE = S('unquote')
 const S_SPLICE_UNQUOTE = S('splice-unquote')
@@ -193,11 +192,6 @@ function readForm(reader: Reader): any {
 		// reader macros/transforms
 		case ';':
 			val = null
-			break
-		case "'":
-			reader.next()
-			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_QUOTE, readForm(reader))
 			break
 		case '`':
 			reader.next()

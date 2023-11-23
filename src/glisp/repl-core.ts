@@ -162,16 +162,6 @@ const Exports = [
 		),
 	],
 	[
-		'quote',
-		setMeta(
-			() => null,
-			convertJSObjectToExprMap({
-				doc: 'Yields the unevaluated *form*',
-				params: [{label: 'Form', type: 'exp'}],
-			})
-		),
-	],
-	[
 		'quasiquote',
 		setMeta(
 			() => null,

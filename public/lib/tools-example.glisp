@@ -5,7 +5,7 @@
 
   ; Initialize state
     (if (null? (first state))
-      (def state '((quote :path) false false false)))
+      (def state `((quasiquote :path) false false false)))
 
     (let
      (; State
@@ -38,7 +38,7 @@
 
   ; Initialize state
     (if (null? (first state))
-      (def state '((g) 0 0 false)))
+      (def state `((g) 0 0 false)))
 
     (let
      (; State
@@ -73,7 +73,7 @@
 
   ; Initialize state
     (if (null? (first state))
-      (def state '((g) 0 0 false)))
+      (def state `((g) 0 0 false)))
 
     (let
      (; State
@@ -106,7 +106,7 @@
   do
 
   (if (null? (first state))
-    (def state '((poly) false false false)))
+    (def state `((poly) false false false)))
 
   (let
    (; State

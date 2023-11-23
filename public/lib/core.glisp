@@ -1,7 +1,7 @@
 (import-js-force "core.js")
 
 ;; Declare special forms as symbol
-(def & '&)
+(def & `&)
 
 ;; Declarations
 (def defmacro
@@ -21,7 +21,7 @@
          (def metadata params)
          (def params (first body))
          (def body (rest body))))
-     ; Wrap with 'do if body has multiple lines
+     ; Wrap with `do if body has multiple lines
      (if (= 1 (count body))
        (def body (first body))
        (def body `(do ~@body)))
@@ -44,7 +44,7 @@
       (def metadata params)
       (def params (first body))
       (def body (rest body))))
-  ;; Wrap with 'do if body has multiple lines
+  ;; Wrap with `do if body has multiple lines
   (if (= 1 (count body))
     (def body (first body))
     (def body `(do ~@body)))
@@ -139,7 +139,7 @@
 (defmacro cond [& xs]
   (if (> (count xs) 0)
     (list
-     'if
+     `if
      (first xs)
      (if (> (count xs) 1) (nth xs 1) (throw "[cond] Odd number of forms to cond"))
      `(cond ~@(rest (rest xs))))))
@@ -202,7 +202,7 @@
     (if (= (count xs) 1)
       (first xs)
       (list
-       'if
+       `if
        `(= ~val ~(first xs))
        (nth xs 1)
        `(case ~val ~@(rest (rest xs)))))))

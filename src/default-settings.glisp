@@ -1,56 +1,56 @@
 ;; Keybinds
-(set-keybind "mod+e" '(do (expand-selected) (tag-history :undo)))
-(set-keybind "mod+p" '(select-outer))
-(set-keybind "mod+g" '(do (group-selected) (tag-history :undo)))
-(set-keybind "up" '(do (transform-selected (translate [0 -1])) (tag-history :undo)))
-(set-keybind "down" '(do (transform-selected (translate [0 1])) (tag-history :undo)))
-(set-keybind "right" '(do (transform-selected (translate [1 0])) (tag-history :undo)))
-(set-keybind "left" '(do (transform-selected (translate [-1 0])) (tag-history :undo)))
-(set-keybind "shift+up" '(do (transform-selected (translate [0 -10])) (tag-history :undo)))
-(set-keybind "shift+down" '(do (transform-selected (translate [0 10])) (tag-history :undo)))
-(set-keybind "shift+right" '(do (transform-selected (translate [10 0])) (tag-history :undo)))
-(set-keybind "shift+left" '(do (transform-selected (translate [-10 0])) (tag-history :undo)))
-(set-keybind "alt+up" '(do (transform-selected (translate [0 -0.1])) (tag-history :undo)))
-(set-keybind "alt+down" '(do (transform-selected (translate [0 0.1])) (tag-history :undo)))
-(set-keybind "alt+right" '(do (transform-selected (translate [0.1 0])) (tag-history :undo)))
-(set-keybind "alt+left" '(do (transform-selected (translate [-0.1 0])) (tag-history :undo)))
-(set-keybind "mod+z" '(revert-history :undo))
-(set-keybind "mod+alt+z" '(revert-history))
-(set-keybind "mod+s" '(download-sketch))
-(set-keybind "backspace" '(do (delete-selected) (tag-history :undo)))
-(set-keybind "delete" '(do (delete-selected) (tag-history :undo)))
-(set-keybind "mod+c" '(copy-selected))
-(set-keybind "mod+v" '(do (paste-from-clipboard) (tag-history :undo)))
-(set-keybind "mod+x" '(do (copy-selected) (delete-selected) (tag-history :undo)))
-(set-keybind "mod+d" '(do (copy-selected) (paste-from-clipboard) (tag-history :undo)))
-(set-keybind "esc" '(reset-mode))
+(set-keybind "mod+e" `(do (expand-selected) (tag-history :undo)))
+(set-keybind "mod+p" `(select-outer))
+(set-keybind "mod+g" `(do (group-selected) (tag-history :undo)))
+(set-keybind "up" `(do (transform-selected (translate [0 -1])) (tag-history :undo)))
+(set-keybind "down" `(do (transform-selected (translate [0 1])) (tag-history :undo)))
+(set-keybind "right" `(do (transform-selected (translate [1 0])) (tag-history :undo)))
+(set-keybind "left" `(do (transform-selected (translate [-1 0])) (tag-history :undo)))
+(set-keybind "shift+up" `(do (transform-selected (translate [0 -10])) (tag-history :undo)))
+(set-keybind "shift+down" `(do (transform-selected (translate [0 10])) (tag-history :undo)))
+(set-keybind "shift+right" `(do (transform-selected (translate [10 0])) (tag-history :undo)))
+(set-keybind "shift+left" `(do (transform-selected (translate [-10 0])) (tag-history :undo)))
+(set-keybind "alt+up" `(do (transform-selected (translate [0 -0.1])) (tag-history :undo)))
+(set-keybind "alt+down" `(do (transform-selected (translate [0 0.1])) (tag-history :undo)))
+(set-keybind "alt+right" `(do (transform-selected (translate [0.1 0])) (tag-history :undo)))
+(set-keybind "alt+left" `(do (transform-selected (translate [-0.1 0])) (tag-history :undo)))
+(set-keybind "mod+z" `(revert-history :undo))
+(set-keybind "mod+alt+z" `(revert-history))
+(set-keybind "mod+s" `(download-sketch))
+(set-keybind "backspace" `(do (delete-selected) (tag-history :undo)))
+(set-keybind "delete" `(do (delete-selected) (tag-history :undo)))
+(set-keybind "mod+c" `(copy-selected))
+(set-keybind "mod+v" `(do (paste-from-clipboard) (tag-history :undo)))
+(set-keybind "mod+x" `(do (copy-selected) (delete-selected) (tag-history :undo)))
+(set-keybind "mod+d" `(do (copy-selected) (paste-from-clipboard) (tag-history :undo)))
+(set-keybind "esc" `(reset-mode))
 
 ;; Global Menu
 (set-global-menu
  [["File"
-   [["Download Sketch" '(download-sketch)]
-    ["Export Image..." '(show-command-dialog 'export-image)]
-    ["Export Video..." '(show-command-dialog 'export-video)]
-    ["Publish to Gist..." '(show-command-dialog 'publish-gist)]
+   [["Download Sketch" `(download-sketch)]
+    ["Export Image..." `(show-command-dialog `export-image)]
+    ["Export Video..." `(show-command-dialog `export-video)]
+    ["Publish to Gist..." `(show-command-dialog `publish-gist)]
     ["Generate Sketch URL..."
-     '(show-command-dialog 'generate-sketch-url)]
-    ["Settings..." '(show-settings)]]]
+     `(show-command-dialog `generate-sketch-url)]
+    ["Settings..." `(show-settings)]]]
   ["Edit"
-   [["Expand Selected" '(expand-selected)]
-    ["Select Outer" '(select-outer)]]]
+   [["Expand Selected" `(expand-selected)]
+    ["Select Outer" `(select-outer)]]]
   ["Examples"
-   [["10 PRINT CHR" '(load-file "./examples/10-print-chr.glisp")]
-    ["Hello World" '(load-file "./examples/hello-world.glisp")]
+   [["10 PRINT CHR" `(load-file "./examples/10-print-chr.glisp")]
+    ["Hello World" `(load-file "./examples/hello-world.glisp")]
     ["Primitive Definition"
-     '(load-file "./examples/primitive-definition.glisp")]
-    ["Transformation" '(load-file "./examples/transformation.glisp")]
-    ["Replicator" '(load-file "./examples/replicator.glisp")]
+     `(load-file "./examples/primitive-definition.glisp")]
+    ["Transformation" `(load-file "./examples/transformation.glisp")]
+    ["Replicator" `(load-file "./examples/replicator.glisp")]
     ["Path Modification"
-     '(load-file "./examples/path-modification.glisp")]]]
+     `(load-file "./examples/path-modification.glisp")]]]
   ["?"
-   [["Documentation" '(open-link "https://glisp.app/docs/")]
-    ["Jump to Repo" '(open-link "https://github.com/baku89/glisp")]
-    ["Made by Baku Hashimoto" '(open-link "https://baku89.com")]]]])
+   [["Documentation" `(open-link "https://glisp.app/docs/")]
+    ["Jump to Repo" `(open-link "https://github.com/baku89/glisp")]
+    ["Made by Baku Hashimoto" `(open-link "https://baku89.com")]]]])
 
 ;; Modes
 (reset! *modes* [])
