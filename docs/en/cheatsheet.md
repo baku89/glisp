@@ -118,7 +118,7 @@ E
 
 
 ;; define a function
-(defn square [x]
+(def=> square [x]
  (* x x))
 
 (square 5) ;-> 25

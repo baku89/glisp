@@ -130,7 +130,7 @@ export function printExpr(expr: Expr): string {
 		if (M_AST in expr) {
 			const params = printExpr(expr[M_PARAMS])
 			const body = printExpr(expr[M_AST])
-			const symbol = expr[M_ISMACRO] ? 'macro' : 'fn'
+			const symbol = expr[M_ISMACRO] ? 'macro' : '=>'
 			return `(${symbol} ${params} ${body})`
 		} else {
 			return '<JS Function>'

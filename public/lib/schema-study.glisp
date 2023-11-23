@@ -76,7 +76,7 @@
 ;; Example: range
 {:type "dynamic"
  :items {:type "any"}
- :to-schema (fn {:params xs}
+ :to-schema (=> {:params xs}
               (let [[start end step] (case (count xs)
                                        1 [0 (first xs) 1]
                                        2 [(start xs) (second xs) 1]
@@ -84,7 +84,7 @@
                 [{:label "Start" :type "number" :value start :default 0}
                  {:label "End" :type "number" :value end}
                  {:label "Step" :type "number" :value step :default 1}]))
- :to-value (fn {:value [start end step]}
+ :to-value (=> {:value [start end step]}
              (cond
                (and (= 0 start) (= 1 step)) [end]
                (= 1 step) [start end]

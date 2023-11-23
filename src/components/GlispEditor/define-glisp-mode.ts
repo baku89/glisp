@@ -24,7 +24,7 @@ import ace from 'brace'
 			this.minorIndentFunctions = [
 				'if',
 				'case',
-				'defn',
+				'def=>',
 				'defmacro',
 				'def',
 				'defvar',
@@ -136,7 +136,7 @@ import ace from 'brace'
 			const builtinFunctions = clojureBuiltinFunctions
 
 			const specialForms =
-				'throw try catch eval eval* var def do fn macro if let quote style transform g defn defmacro defvar'
+				'throw try catch eval eval* var def do fn macro if let quote style transform g def=> defmacro defvar'
 
 			const keywordMapper = this.createKeywordMapper(
 				{

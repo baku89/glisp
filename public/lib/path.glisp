@@ -1,32 +1,32 @@
 (import "math.glisp")
 
-(def path/arc (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/transform (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/trim (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/position-at (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/unite (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/intersect (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/subtract (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/exclude (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/divide (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/offset (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/offset-stroke (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/intersections (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/nearest-offset (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/nearest-point (fn [] (throw "This function is not supported in Node.js environment")))
-(def path/inside? (fn [] (throw "This function is not supported in Node.js environment")))
+(def path/arc (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/transform (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/trim (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/position-at (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/unite (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/intersect (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/subtract (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/exclude (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/divide (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/offset (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/offset-stroke (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/intersections (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/nearest-offset (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/nearest-point (=> [] (throw "This function is not supported in Node.js environment")))
+(def path/inside? (=> [] (throw "This function is not supported in Node.js environment")))
 
 (import-js-force "path.js")
 
-(defn translate-first-param [{:params [c] :transform xform}]
+(def=> translate-first-param [{:params [c] :transform xform}]
   {:replace [0 (vec2/+ c (mat2d/extract-translate xform))]})
 
-(defn path? [a] (and (sequential? a) (= :path (first a))))
+(def=> path? [a] (and (sequential? a) (= :path (first a))))
 
-(defn path
+(def=> path
   {:doc "Creates a path object"
    :handles
-   {:draw (fn {:params [path]}
+   {:draw (=> {:params [path]}
             (apply concat
                    (let [segs (path/split-segments path)]
                      ;; Draws Handles
@@ -50,7 +50,7 @@
                             ; :M or :L
                             {:id [i :anchor] :type "point" :pos (first pts)})))))))
 
-    :drag (fn {:id [seg-idx vtx-type]
+    :drag (=> {:id [seg-idx vtx-type]
                :pos p
                :prev-pos pp
                :params [path]}
@@ -58,7 +58,7 @@
               (if (= vtx-type :anchor)
                 [(path/drag-anchor path seg-idx delta)]
                 [(path/drag-handle path seg-idx vtx-type delta)])))}
-   :transform (fn {:params [path]
+   :transform (=> {:params [path]
                    :transform xform}
                 [(path/transform xform path)])
    :return {:type "path"}}
@@ -66,12 +66,12 @@
 
 ;; Shape functions
 
-(defn path/rect
+(def=> path/rect
   {:doc  "Generates a rect path"
    :params [{:label "Rect" :type "rect2d" :desc "the rectangle dimension" :initial [0 0 100 100]}]
-   :handles {:draw (fn [e] (apply-draw-handle rect2d e))
-             :drag (fn [e] (apply-drag-handle rect2d e))}
-   :transform (fn {:params [[x y w h]] :transform xform}
+   :handles {:draw (=> [e] (apply-draw-handle rect2d e))
+             :drag (=> [e] (apply-drag-handle rect2d e))}
+   :transform (=> {:params [[x y w h]] :transform xform}
                 [`[~@(vec2/transform-mat2d xform [x y]) ~w ~h]])
    :initial-params [[-100 -100 200 200]]
    :return {:type "path"}}
@@ -87,7 +87,7 @@
 (def path/circle
   (set-meta!
    (let [K (/ (* 4 (dec (sqrt 2))) 3)]
-     (fn [[x y] r]
+     (=> [[x y] r]
        (let [k (* r K)
              x+r (+ x r)
              x-r (- x r)
@@ -105,14 +105,14 @@
               :desc "the centre of the circle"}
              {:label "Radius" :type  "number" :initial 100
               :desc "radius of the circle" :validator #(max 0 %)}]
-    :handles {:draw (fn {:params [c r]
+    :handles {:draw (=> {:params [c r]
                          :return path}
                       [{:type "arrow" :id :radius
                         :pos (vec2/+ c [r 0])}
                        {:type "translate"
                         :id :center
                         :pos c}])
-              :drag (fn {:id id :pos p
+              :drag (=> {:id id :pos p
                          :params [c r]}
                       (case id
                         :center {:replace [0 p]}
@@ -121,7 +121,7 @@
     :transform translate-first-param}))
 (defalias circle path/circle)
 
-(defn path/circumcircle
+(def=> path/circumcircle
   [A B C]
   (let [a (vec2/dist B C)
         b (vec2/dist C A)
@@ -141,22 +141,22 @@
     `(circle ~center ~radius)))
 (defalias circumcircle path/circumcircle)
 
-(defn path/line
+(def=> path/line
   {:doc "Generates a line segment path"
    :params [{:type "vec2"}
             {:type "vec2"}]
-   :handles {:draw (fn {:params [from to]
+   :handles {:draw (=> {:params [from to]
                         :return path}
                      [{:type "point" :id :from :pos from}
                       {:type "point" :id :to :pos to}])
-             :drag (fn {:id id :pos p
+             :drag (=> {:id id :pos p
                         :params [from to]}
                      (case id
                        :from {:replace [0 p]}
                        :to {:replace [1 p]}))}
    :return {:type "path"}
    :initial-params [[0 0] [100 100]]
-   :transform (fn {:params [from to]
+   :transform (=> {:params [from to]
                    :transform xform}
                 (let [dp (mat2d/extract-translate xform)]
                   [(vec2/+ from dp) (vec2/+ to dp)]))}
@@ -180,7 +180,7 @@
               :type "number"
               :ui "angle"
               :desc "Angle to stop the arc"}]
-    :handles {:draw (fn {:params [center r start end]
+    :handles {:draw (=> {:params [center r start end]
                          :return path}
                       [{:id :center :type "translate"
                         :pos center}
@@ -191,7 +191,7 @@
                        {:id :radius :type "arrow"
                         :angle (/ (+ start end) 2)
                         :pos (vec2/+ (vec2/dir (/ (+ start end) 2) r))}])
-              :drag (fn {:id id :pos p :prev-pos pp
+              :drag (=> {:id id :pos p :prev-pos pp
                          :params [center r start end]}
                       (case id
                         :center {:replace [0 p]}
@@ -214,11 +214,11 @@
   path/arc)
 (defalias arc path/arc)
 
-(defn path/polyline
+(def=> path/polyline
   {:doc "Generates a polyline path"
    :params [{:type "vector"
              :variadic true
-             :insert (fn {:params pts :index i}
+             :insert (=> {:params pts :index i}
                        (if (zero? (count pts))
                          [0 0]
                          (case i
@@ -226,14 +226,14 @@
                            (count pts) (last pts)
                            (vec2/lerp (nth pts (dec i)) (nth pts i) .5))))
              :items {:label "Point" :type "vec2"}}]
-   :handles {:draw (fn {:params [& pts]}
+   :handles {:draw (=> {:params [& pts]}
                      (for [pt pts :index i]
                        {:type "point" :id i :pos pt}))
-             :drag (fn {:id i :pos p}
+             :drag (=> {:id i :pos p}
                      {:replace [i p]})}
    :return {:type "path"}
    :initial-params [[0 0]]
-   :transform (fn {:params pts
+   :transform (=> {:params pts
                    :transform xform}
                 (let [dp (mat2d/extract-translate xform)]
                   (map #(vec2/+ % dp) pts)))}
@@ -245,11 +245,11 @@
       ~@(apply concat (map #(list :L %) (rest pts)))]))
 (defalias polyline path/polyline)
 
-(defn path/polygon
+(def=> path/polygon
   {:doc "Generates a polygon path"
    :params [{:type "vector"
              :variadic true
-             :insert (fn {:params pts :index i}
+             :insert (=> {:params pts :index i}
                        (if (zero? (count pts))
                          [0 0]
                          (vec2/lerp
@@ -257,13 +257,13 @@
                           (nth pts (mod i (count pts)))
                           .5)))
              :items {:label "Point" :type "vec2"}}]
-   :handles {:draw (fn {:params [& pts]}
+   :handles {:draw (=> {:params [& pts]}
                      (for [pt pts :index i]
                        {:type "point" :id i :pos pt}))
-             :drag (fn {:id i :pos p}
+             :drag (=> {:id i :pos p}
                      {:replace [i p]})}
    :initial-params []
-   :transform (fn {:params pts
+   :transform (=> {:params pts
                    :transform xform}
                 (let [dp (mat2d/extract-translate xform)]
                   (map #(vec2/+ % dp) pts)))
@@ -272,11 +272,11 @@
   (conj (apply polyline pts) :Z))
 (defalias polygon path/polygon)
 
-(defn path/ellipse
+(def=> path/ellipse
   {:doc "Generates an ellipse path"
    :params [{:type "vec2"}
             {:type "vec2" :ui "size2d"}]
-   :handles {:draw (fn {:params [center [rx ry]]
+   :handles {:draw (=> {:params [center [rx ry]]
                         :return path}
                      [{:type "arrow" :id :radius-x
                        :pos (vec2/+ center [rx 0])}
@@ -286,7 +286,7 @@
                       {:type "translate"
                        :id :center
                        :pos center}])
-             :drag (fn {:id id :pos p
+             :drag (=> {:id id :pos p
                         :params [center [rx ry]]}
                      (case id
                        :center [p [rx ry]]
@@ -301,12 +301,12 @@
                   (circle [0 0] 1)))
 (defalias ellipse path/ellipse)
 
-(defn path/ngon
+(def=> path/ngon
   {:doc "Generates a regular polygon"
    :params [{:type "vec2"}
             {:type "number" :validator #(max 0 %) :initial 100}
             {:type "number" :validator #(round (max 3 %)) :initial 6}]
-   :handles {:draw (fn {:params [center radius sides]}
+   :handles {:draw (=> {:params [center radius sides]}
                      [{:type "path" :guide true :class "dashed"
                        :path (arc center
                                   (+ radius 40)
@@ -315,7 +315,7 @@
                       {:id :center :type "translate" :pos center}
                       {:id :radius :type "arrow" :pos (vec2/+ center [radius 0])}
                       {:id :sides :type "dia" :pos (vec2/+ center (vec2/dir (/ TWO_PI sides) (+ radius 40)))}])
-             :drag (fn {:id id :pos p :params [center radius sides]}
+             :drag (=> {:id id :pos p :params [center radius sides]}
                      (case id
                        :center {:replace [0 p]}
                        :radius {:replace [1 (abs (- (.x p) (.x center)))]}
@@ -331,7 +331,7 @@
     `(polygon ~@vertices)))
 (defalias ngon path/ngon)
 
-(defn path/point
+(def=> path/point
   {:doc "Generates a point path"
    :params [{:label "Pos" :type "vec2"}]
    :return {:type "path"}
@@ -340,12 +340,12 @@
   [:path :M p :L p])
 (defalias point path/point)
 
-(defn parallel-line?
+(def=> parallel-line?
   [p0 p1 p2 p3]
   (= 1 (abs (vec2/dot (vec2/normalize (vec2/- p1 p0))
                       (vec2/normalize (vec2/- p3 p2))))))
 
-(defn line-intersection
+(def=> line-intersection
   [p0 p1 p2 p3]
   (if-not (parallel-line? p0 p1 p2 p3)
     (let [a1 (/ (- (.y p2) (.y p1)) (- (.x p2) (.x p1)))
@@ -354,19 +354,19 @@
           y (+ (* (- y2 y1) (/ (- x2 x1)) (- x x1)) y1)]
       [x y])))
 
-(defn path/quadratic-bezier
+(def=> path/quadratic-bezier
   {:doc "Generates a quadratic bezier curve"
    :params [{:type "vector"
              :variadic true
              :items {:label "Pos" :type "vec2"}}]
    :handles
-   {:draw (fn {:params pts}
+   {:draw (=> {:params pts}
             (concat
              [{:type "path" :class "dashed" :guide true
                :path (apply polyline pts)}]
              (for [pt pts :index i]
                {:type "point" :id i :pos pt})))
-    :drag (fn {:id i :pos pos :params pts}
+    :drag (=> {:id i :pos pos :params pts}
             {:replace [i pos]})}
    :return {:type "path"}}
   [& pts]
@@ -392,11 +392,11 @@
  {:doc "Applies transform matrix for the vertex of input path"
   :params [{:label "Matrix" :type "mat2d"}
            {:label "Path" :type "path"}]
-  :viewport-transform (fn [xform & body]
+  :viewport-transform (=> [xform & body]
                         `[nil ~@(repeat xform (count body))])
   :return {:type "path"}})
 
-(defn path/merge
+(def=> path/merge
   {:doc "Returns a merged path"
    :params [& {:type "path"}]
    :return {:type "path"}}
@@ -412,7 +412,7 @@
            {:label "End" :type "number" :ui "slider" :validator clamp01}
            {:label "Path" :type "path"}]
   :return {:type "path"}
-  :handles {:draw (fn {:params [start end path]
+  :handles {:draw (=> {:params [start end path]
                        :return trimmed-path}
                     [{:type "path" :id :path-original :class "dashed" :guide true
                       :path path}
@@ -420,7 +420,7 @@
                       :path trimmed-path}
                      {:type "point" :id :start :pos (path/position-at start path)}
                      {:type "point" :id :end :pos (path/position-at end path)}])
-            :drag (fn {:id id :pos p
+            :drag (=> {:id id :pos p
                        :params [start end path]}
                     (case id
                       :start {:replace [0 (path/nearest-offset p path)]}
@@ -439,18 +439,18 @@
  {:doc "Returns a position of the specified offset on the path"
   :params [{:label "Offset", :type "number" :validator clamp01}
            {:label "Path" :type "path"}]
-  :handles {:draw (fn {:params [t path]
+  :handles {:draw (=> {:params [t path]
                        :return ret}
                     [{:type "path" :guide true :class "dashed" :path path}
                      {:type "point" :pos ret}])
-            :drag (fn {:pos p :params [t path]}
+            :drag (=> {:pos p :params [t path]}
                     {:replace [0 (path/nearest-offset p path)]})}
-  :inverse (fn {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
+  :inverse (=> {:return ret} {:replace [0 (path/nearest-offset ret path) path]})
   :return {:type "vec2"}})
 
 (def path-boolean-meta
   {:params [& {:label "Path" :type "path"}]
-   :handles {:draw (fn {:params [& paths]}
+   :handles {:draw (=> {:params [& paths]}
                      (map #(hash-map
                             :type "path"
                             :guide true
@@ -490,14 +490,14 @@
                      {:key :cap :type "string" :ui "dropdown" :default "round"
                       :values ["butt" "round"]}]}]
    :return {:type "path"}
-   :handles {:draw (fn {:params [d path]
+   :handles {:draw (=> {:params [d path]
                         :return offset-path}
                      [{:type "path" :guide true
                        :class "dashed" :path path}
                       {:type "arrow"
                        :pos (path/position-at 0 offset-path)
                        :angle (+ HALF_PI (path/angle-at 0 offset-path))}])
-             :drag (fn {:pos p
+             :drag (=> {:pos p
                         :params [_ path & options]}
                      (let [near-t (path/nearest-offset p path)
                            near-pt (path/position-at near-t path)

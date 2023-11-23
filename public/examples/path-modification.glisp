@@ -1,6 +1,6 @@
-(defn cloud
+(def=> cloud
   {:handles
-   {:draw (fn {:params [x0 x1 y width]}
+   {:draw (=> {:params [x0 x1 y width]}
             [{:type "path" :path (line [x0 y] [x1 y])
               :class "dashed"}
              {:id :start
@@ -10,7 +10,7 @@
              {:id :width
               :type "arrow" :pos [x0 (+ y width)]
               :angle HALF_PI}])
-    :drag (fn {:id id :pos p :params [x0 x1 y width]}
+    :drag (=> {:id id :pos p :params [x0 x1 y width]}
             (case id
               :start [(.x p) x1 (.y p) width]
               :end [x0 (.x p) (.y p) width]

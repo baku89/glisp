@@ -81,7 +81,7 @@ export class Scope<T> {
 
 		this.readEval(
 			`(def import-force
-				(fn [path]
+				(=> [path]
 					(let [url (normalize-url path)]
 						(eval (read-string
 									(format "(do (def *filename* \\"%s\\") %s \n nil)"

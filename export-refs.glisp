@@ -11,7 +11,7 @@
 ;; | Pos  | `vec2 `| coordinate of top-left corner of the rectangle |
 ;; | Size | `vec2 `| size of the rectangle                          |
 
-(defn gen-param-column [idx param variadic]
+(def=> gen-param-column [idx param variadic]
   (if (= param &)
     nil
     (format "| %-8s | %-9s | %-12s |\n"
@@ -21,7 +21,7 @@
             (str "`" (get param :type "") "`")
             (get param :desc ""))))
 
-(defn gen-param-table [params]
+(def=> gen-param-table [params]
   (if (not (sequential? params))
     nil
     (if (sequential? (first params))
@@ -40,23 +40,23 @@
         str
         (remove nil?
                 (map-indexed
-                 (fn [i p]
+                 (=> [i p]
                    (gen-param-column
                     i p (and (> i 0)
                              (= & (nth params (dec i))))))
                  params)))
        "\n"))))
 
-(defn upper-case [text]
+(def=> upper-case [text]
   (js-eval (format "'%s'.toUpperCase()" text)))
 
-(defn capital-case [text]
+(def=> capital-case [text]
   (if (= 1 (count text))
     text
     (str (upper-case (subs text 0 1))
          (subs text 1))))
 
-(defn gen-doc [sym m f]
+(def=> gen-doc [sym m f]
   (apply
    str
 

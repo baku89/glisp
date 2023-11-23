@@ -182,7 +182,7 @@ const Exports = [
 		),
 	],
 	[
-		'fn',
+		'=>',
 		setMeta(
 			() => null,
 			convertJSObjectToExprMap({
@@ -199,7 +199,7 @@ const Exports = [
 		setMeta(
 			() => null,
 			convertJSObjectToExprMap({
-				doc: 'syntactic sugar for (fn [] *form*)',
+				doc: 'syntactic sugar for (=> [] *form*)',
 				params: [],
 			})
 		),

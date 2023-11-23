@@ -1,7 +1,7 @@
 ;; Example: Primitive Definition
 ;; Defining new type of primitives
 
-(defn star
+(def=> star
   {:doc "Generates a star path"
 
    ;; Parameter annotation
@@ -19,7 +19,7 @@
    {:draw
     ;; Returns a list of handles with ID
     ;; from the function's parameters
-    (fn {:params [c n rmin rmax]}
+    (=> {:params [c n rmin rmax]}
       (let [rmin-angle (/ PI n)]
         [{:id :center :type "point" :pos c}
          {:id :rmin
@@ -34,7 +34,7 @@
     :drag
     ;; In turn, returns new parameters
     ;; from the handle's ID and position
-    (fn {:id id :pos pos
+    (=> {:id id :pos pos
          :params [c n rmin rmax]}
       (case id
         :center [pos n rmin rmax]

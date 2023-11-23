@@ -118,7 +118,7 @@ E
 
 
 ;; 関数の定義
-(defn square [x]
+(def=> square [x]
  (* x x))
 
 (square 5) ;-> 25

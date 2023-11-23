@@ -46,7 +46,7 @@ Therefore, arithmetic operators, relational operators, such as `>`, variable dec
 
 ; lambda expression (returns a function object)
 ; x => x * 2
-(fn [x] (* x 2)) ; -> (fn [x] (x * 2))
+(=> [x] (* x 2)) ; -> (=> [x] (x * 2))
 ```
 
 ## Literal

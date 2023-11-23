@@ -2,16 +2,16 @@
 (import-js-force "color.js")
 
 ;; Color
-(defn color? [x]
+(def=> color? [x]
   (string? x))
 
-(defn color/gray
+(def=> color/gray
   {:return {:type "string" :ui "color"}}
   [v]
   (def b (* v 255))
   (format "rgb(%d,%d,%d)" b b b))
 
-(defn color/rgb
+(def=> color/rgb
   {:params [{:label "Red" :type "number" :validator clamp01}
             {:label "Green" :type "number" :validator clamp01}
             {:label "Blue" :type "number" :validator clamp01}
@@ -23,7 +23,7 @@
     (format "rgba(%d,%d,%d,%d)" (* r 255) (* g 255) (* b 255) (first a))))
 (defalias rgb color/rgb)
 
-(defn color/hsl
+(def=> color/hsl
   {:params [{:label "Hue" :type "number" :validator #(clamp 0 TWO_PI %)}
             {:label "Saturation" :type "number" :validator clamp01}
             {:label "Lightness" :type "number" :validator clamp01}
@@ -73,5 +73,5 @@
   :params [{:label "Color" :type "string" :ui "color"}
            {:label "mode" :type "string" :ui "dropdown" :default "rgb"
             :values ["rgb" "hsl"]}]
-  :inverse (fn {:return ret :params params}
+  :inverse (=> {:return ret :params params}
              [(apply color/invert (replace-nth params 0 ret))])})

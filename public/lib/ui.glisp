@@ -15,7 +15,7 @@
 
 (def *modes* (atom []))
 
-(defn defmode [mode-name handlers]
+(def=> defmode [mode-name handlers]
   (swap! *modes* conj {:name (name mode-name) :handlers handlers}))
 
 ;; Atoms
@@ -49,12 +49,12 @@
 ;;   {:private true}
 ;;   [name params body]
 ;;   `(do
-;;      (def ~name (fn ~params ~body))
+;;      (def ~name (=> ~params ~body))
 ;;      (def $pens (conj $pens '~name))))
 
 ;; (defmacro defhand
 ;;   {:private true}
 ;;   [name params body]
 ;;   `(do
-;;      (def ~name (fn ~params ~body))
+;;      (def ~name (=> ~params ~body))
 ;;      (def $hands (conj $hands '~name))))

@@ -1,7 +1,7 @@
 (import "math.glisp")
 
 
-(defn apply-draw-handle [f & xs]
+(def=> apply-draw-handle [f & xs]
   (let [hf (-> (fn-meta f)
                (get :handles)
                (get :draw))]
@@ -9,7 +9,7 @@
       (apply hf xs)
       (throw "Handle draw function does not exists"))))
 
-(defn apply-drag-handle [f & xs]
+(def=> apply-drag-handle [f & xs]
   (let [hf (-> (fn-meta f)
                (get :handles)
                (get :drag))]
@@ -17,7 +17,7 @@
       (apply hf xs)
       (throw "Handle on-drag function does not exists"))))
 
-(defn tagtype [item]
+(def=> tagtype [item]
   (if (zero? (count (name (first item))))
     nil
     (let [fst (name (first item))
@@ -33,7 +33,7 @@
 
 (def get-element-bounds
   (let [get-merged-path
-        (fn [body]
+        (=> [body]
           (if (vector? body)
             (if (keyword? (first body))
               (let [tag (tagtype body)]
@@ -61,17 +61,17 @@
                    (remove nil?)
                    (apply path/merge)))))]
 
-    (fn [body] (path/bounds (get-merged-path body)))))
+    (=> [body] (path/bounds (get-merged-path body)))))
 
 
 
 (def guide/axis
-  (let [arrow (fn [from to color]
+  (let [arrow (=> [from to color]
                 (style (stroke color 2)
                        (def l (line from to))
                        (transform (path/align-at 1 l)
                                   (polyline [-5 -4] [0 0] [-5 4]))))]
-    (fn [& xs]
+    (=> [& xs]
       (let [[center size] (case (count xs)
                             0 [[0 0] 40]
                             1 [(first xs) 40]
@@ -85,21 +85,21 @@
          (guide/dotted-stroke (polyline [size 0] [size size] [0 size])))))))
 
 
-(defn guide/stroke [& xs]
+(def=> guide/stroke [& xs]
   (style (stroke *guide-color* 1)
          xs))
 
-(defn guide/dotted-stroke [& xs]
+(def=> guide/dotted-stroke [& xs]
   (style (stroke *guide-color* 1 :dash [2 2])
          xs))
 
-(defn graphics/g
+(def=> graphics/g
   {:doc "Creates a element group with attributes"
    :params [{:label "Attribute" :type "exp"}
             {:type "vector"
              :variadic true
              :items {:label "Body" :type "exp"}}]
-   :viewport-transform (fn [attrs & body]
+   :viewport-transform (=> [attrs & body]
                          (if (contains? attrs :transform)
                            (spy `[nil ~@(repeat (get attrs :transform)
                                                 (count body))])))}
@@ -126,9 +126,9 @@
             {:type "vector"
              :variadic true
              :items {:label "Body" :type "exp"}}]
-   :viewport-transform (fn [xform & body]
+   :viewport-transform (=> [xform & body]
                          `[nil ~@(repeat xform (count body))])
-   :transform (fn {:params [xform & body]
+   :transform (=> {:params [xform & body]
                    :transform delta-xform}
                 {:replace [0 (mat2d/* xform delta-xform)]})
    :return {:type "item"}}
@@ -160,26 +160,26 @@
     `(binding ~binds [:style ~evaluated-styles ~@body])))
 (defalias style graphics/style)
 
-(defn graphics/background
+(def=> graphics/background
   {:doc "Fill the entire view with a color"
    :params [{:type "string" :ui "color" :desc "A background color"}]}
   [color]
   (reset! *app-background* color))
 (defalias background graphics/background)
 
-(defn element? [a] (and (vector? a) (keyword? (first a))))
+(def=> element? [a] (and (vector? a) (keyword? (first a))))
 
 ;; Transform
-(defn view-center
+(def=> view-center
   {:doc "Returns the center of view"
    :return {:type "vec2"}
-   :handles {:draw (fn {:return mat}
+   :handles {:draw (=> {:return mat}
                      [{:type "translate" :pos (take 4 mat)}])}}
   []
   (vec2/scale *size* .5))
 
 ;; Style
-(defn graphics/fill
+(def=> graphics/fill
   {:doc "Creates a fill property"
    :params [{:label "Color" :type "string" :ui "color" :desc "Color to fill"}]
    :compact-params [{:type "string" :ui "color"}]}
@@ -189,13 +189,13 @@
     {:fill true :fill-color (first xs)}))
 (defalias fill graphics/fill)
 
-(defn graphics/no-fill
+(def=> graphics/no-fill
   {:doc "Disables all the previous fill styles"
    :params []}
   [] {:fill false})
 (defalias no-fill graphics/no-fill)
 
-(defn graphics/stroke
+(def=> graphics/stroke
   {:doc "Creates a stroke property"
    :params [{:label "Color" :type "string" :ui "color"}
             {:label "Width" :type "number"
@@ -214,19 +214,19 @@
   (let [params (apply hash-map options)]
     (->> params
          (seq params)
-         (map (fn [[k v]] [(keyword (str "stroke-" (name k))) v]))
+         (map (=> [[k v]] [(keyword (str "stroke-" (name k))) v]))
          (apply concat [:stroke true :stroke-color color :stroke-width width])
          (apply hash-map))))
 (defalias stroke graphics/stroke)
 
-(defn graphics/no-stroke
+(def=> graphics/no-stroke
   {:doc "Disables all the previous stroke styles"
    :params []}
   [] {:stroke false})
 (defalias no-stroke graphics/no-stroke)
 
 ;; Shape Functions
-(defn graphics/text
+(def=> graphics/text
   {:doc "Generates a text shape"
    :params [{:type "string" :multiline true}
             {:type "vec2"}
@@ -239,7 +239,7 @@
                      {:key :baseline :type "string" :ui "dropdown" :default "middle"
                       :values ["top" "hanging" "middle"
                                "alphabetic" "ideographic" "bottom"]}]}]
-   :handles {:draw (fn {:params [_ pos & xs]}
+   :handles {:draw (=> {:params [_ pos & xs]}
                      (let [args (apply hash-map xs)
                            size (get args :size 12)]
                        [{:id :pos
@@ -248,7 +248,7 @@
                         {:id :size
                          :type "path"
                          :path (ngon pos size 4)}]))
-             :drag (fn {:id id :pos p :params params}
+             :drag (=> {:id id :pos p :params params}
                      (case id
                        :pos (replace-nth params 1 p)
                        :size (let [dir (vec2/- (nth params 1) p)
@@ -264,26 +264,26 @@
 
 (defalias text graphics/text)
 
-(defn graphics/point-cloud
+(def=> graphics/point-cloud
   {:doc "Creates vector of points"
    :params [{:type "vector"
              :variadic true
              :items {:label "Point" :type "vec2"}}]
-   :handles {:draw (fn {:params pts}
-                     (map-indexed (fn [i p] {:id i :type "point" :pos p}) pts))
-             :drag (fn {:id i :pos p}
+   :handles {:draw (=> {:params pts}
+                     (map-indexed (=> [i p] {:id i :type "point" :pos p}) pts))
+             :drag (=> {:id i :pos p}
                      {:replace [i p]})}}
   [& pts]
   (vec pts))
 (defalias point-cloud graphics/point-cloud)
 
-(defn point-cloud/scatter
+(def=> point-cloud/scatter
   {:doc "Scatters points"
    :params [{:type "vec2"}
             {:type "number"}
             {:type "number" :validator #(round (max 0 %))}
             {:type "number" :ui "seed"}]
-   :handles {:draw (fn {:params [center radius]
+   :handles {:draw (=> {:params [center radius]
                         :return ret}
                      [{:type "path" :guide true
                        :path (apply concat
@@ -296,14 +296,14 @@
                       {:id :center
                        :type "translate"
                        :pos center}])
-             :drag (fn {:id id :pos p
+             :drag (=> {:id id :pos p
                         :params [center radius n seed]}
                      (case id
                        :center [p radius n seed]
                        :radius [center (vec2/dist center p) n seed]))}}
   [center radius n seed]
   (let [seed-offset (rnd seed)]
-    (map (fn [i]
+    (map (=> [i]
            (vec2/+
             center
             (vec2/dir (* (rnd (+ i seed-offset)) TWO_PI)

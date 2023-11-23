@@ -92,7 +92,7 @@ circle(50, 50, 40)
 
 ```cljs
 ;; replicator の定義
-(defn replicator
+(def=> replicator
   [xform n path]
   (->> (reduce #(conj % (mat2d/* (last %) xform))
                [(mat2d/ident)]

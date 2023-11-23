@@ -1,6 +1,6 @@
 ;; Example: Replicator
 
-(defn path/replicator
+(def=> path/replicator
   [xform n path]
   (->> (reduce #(conj % (mat2d/* (last %) xform))
                [(mat2d/ident)]

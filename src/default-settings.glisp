@@ -58,10 +58,10 @@
 (defmode "select"
   {:label "Select"
    :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
-   :setup (fn [] {:path nil})
-   :move (fn {:pos pos}
+   :setup (=> [] {:path nil})
+   :move (=> {:pos pos}
            {:path (detect-hit pos)})
-   :press (fn {:path path :pos pos}
+   :press (=> {:path path :pos pos}
             (let [already-selected (item-selected? path)]
               (if path
                 (if (modifier-pressed? :ctrl)
@@ -72,7 +72,7 @@
               {:path path
                :prev-pos pos
                :deselect already-selected}))
-   :drag (fn {:prev-pos prev-pos
+   :drag (=> {:prev-pos prev-pos
               :pos pos
               :path path
               :deselect deselect}
@@ -81,7 +81,7 @@
                {:prev-pos pos
                 :path path
                 :deselect false}))
-   :release (fn {:path path :deselect deselect}
+   :release (=> {:path path :deselect deselect}
               (when (and deselect
                          (modifier-pressed? :ctrl))
                 (toggle-item-selection path)
@@ -90,8 +90,8 @@
 (defmode "polyline"
   {:label "Polyline"
    :icon {:type "character" :value "⏢"}
-   :setup (fn [] {:item nil :path nil})
-   :press (fn {:item item :pos pos :path path}
+   :setup (=> [] {:item nil :path nil})
+   :press (=> {:item item :pos pos :path path}
             (if (nil? item)
               (let [item `(polyline ~pos)
                     path (insert-item item)]
@@ -107,23 +107,23 @@
 (defmode "circle"
   {:label "Circle"
    :icon {:type "character" :value "●"}
-   :press (fn {:pos pos}
+   :press (=> {:pos pos}
             {:center pos
              :path (insert-item `(circle ~pos 0))})
-   :drag (fn {:center center :path path :pos pos}
+   :drag (=> {:center center :path path :pos pos}
            (do
              (replace-item path `(circle ~center ~(vec2/dist center pos)))
              {:path path :center center}))
-   :release (fn [] (tag-history :undo))})
+   :release (=> [] (tag-history :undo))})
 
 (defmode "rectangle"
   {:label "Rectangle"
    :icon {:type "character" :value "■"}
-   :press (fn {:pos pos}
+   :press (=> {:pos pos}
             {:origin pos
              :path (insert-item `(rect [~@pos 0 0]))})
-   :drag (fn {:origin origin :path path :pos pos}
+   :drag (=> {:origin origin :path path :pos pos}
            (do
              (replace-item path `(rect ~(rect2d/from-to origin pos)))
              {:path path :origin origin}))
-   :release (fn [] (tag-history :undo))})
+   :release (=> [] (tag-history :undo))})

@@ -29,7 +29,7 @@
        `(def ~name (macro ~params ~body))
        `(def ~name (set-meta! (macro ~params ~body) ~metadata))))))
 
-(defmacro defn
+(defmacro def=>
   {:doc "Defines a function"
    :params [{:label "Symbol" :type "symbol"}
             {:label "Params" :type "exp"}
@@ -50,8 +50,8 @@
     (def body `(do ~@body)))
 
   (if (nil? metadata)
-    `(def ~name (fn ~params ~body))
-    `(def ~name (set-meta! (fn ~params ~body) ~metadata))))
+    `(def ~name (=> ~params ~body))
+    `(def ~name (set-meta! (=> ~params ~body) ~metadata))))
 
 (defmacro defalias [alias original]
   `(do
@@ -65,7 +65,7 @@
 (defmacro annotate-fn! [sym meta]
   `(def ~sym (set-meta! ~sym ~meta)))
 
-(defn fn-meta [f]
+(def=> fn-meta [f]
   (def fm (meta f))
   (def alias (get fm :alias-for))
   (if alias
@@ -77,7 +77,7 @@
     import
     (catch _
            (let [seen (atom (hash-map *filename* nil))]
-             (fn [filename]
+             (=> [filename]
                (if (not (contains? @seen filename))
                  (do
                    (swap! seen assoc filename nil)
@@ -89,7 +89,7 @@
     :return {:type "keyword"}}
   type)
 
-(defn name
+(def=> name
   {:doc "Returns the string name of string, symbol or keyword"
    :params [{:type "any"}]
    :return {:type "string"}}
@@ -154,7 +154,7 @@
     `(if ~test nil ~else)
     `(if ~test ~(first then) ~else)))
 
-(defn column
+(def=> column
   {:doc "Returns a vector of numbers from *from* to *to* (both inclusive) with each of element is multiplied by *step*"
    :params [{:label "From" :type "number" :desc "From" :validator #(round %)}
             {:label "To" :type "number" :desc "To" :validator #(round %)}
@@ -170,7 +170,7 @@
               :items {:label "Body" :type "exp"}}]}
   (let
    [destruct-binds
-    (fn [binds]
+    (=> [binds]
       (let
        [pairs (partition 2 binds)
         entries (filter #(symbol? (first %)) pairs)
@@ -187,9 +187,9 @@
                  gen-lst `(combination/product ~@colls)
                  index-sym (get options :index)]
              (if index-sym
-               `(map-indexed (fn [~index-sym ~syms]
+               `(map-indexed (=> [~index-sym ~syms]
                                (do ~@body)) ~gen-lst)
-               `(map (fn [~syms] (do ~@body)) ~gen-lst))))))
+               `(map (=> [~syms] (do ~@body)) ~gen-lst))))))
 
 (defmacro case
   {:doc "Same as [case macro in Clojure](https://clojuredocs.org/clojure.core/case)"
@@ -217,16 +217,16 @@
     (first xs)
     `(if ~(first xs) (and ~@(rest xs)) false)))
 
-(defn not
+(def=> not
   {:doc "Returns true if value is falsy, false otherwise"
    :params [{:type "boolean"}]
-   :inverse (fn {:return ret} [(not ret)])
+   :inverse (=> {:return ret} [(not ret)])
    :return {:type "boolean"}}
   [value] (if value false true))
 
 
 ;; Functioal Language Features
-(defn reduce
+(def=> reduce
   {:doc "Executes a reducer function on each element of **coll**, resulting in single output value"
    :params [{:label "Reducer" :type "exp"}
             {:label "Initial" :type "any"}
@@ -236,13 +236,13 @@
     init
     (reduce f (f init (first coll)) (rest coll))))
 
-(defn reductions
+(def=> reductions
   [f init coll]
-  (rest (reduce (fn [c v] (conj c (f (last c) v)))
+  (rest (reduce (=> [c v] (conj c (f (last c) v)))
                 [init]
                 coll)))
 
-(defn foldr
+(def=> foldr
   {:doc "Executes a foldr function on each element of **coll**, resulting in single output value"
    :params [{:label "Foldr" :type "exp"}
             {:label "Initial" :type "any"}
@@ -256,27 +256,27 @@
 
 (defmacro ->> [expr & forms]
   (reduce
-   (fn [v form] `(~@form ~v))
+   (=> [v form] `(~@form ~v))
    expr
    forms))
 
 (defmacro -> [expr & forms]
   (reduce
-   (fn [v form] `(~(first form) ~v ~@(rest form)))
+   (=> [v form] `(~(first form) ~v ~@(rest form)))
    expr
    forms))
 
 (defmacro as-> [expr name & forms]
   (reduce
-   (fn [prev-form form] `(let [~name ~prev-form] ~form))
+   (=> [prev-form form] `(let [~name ~prev-form] ~form))
    expr
    forms))
 
-(defn mapcat [& xs]
+(def=> mapcat [& xs]
   (apply concat (apply map xs)))
 
 
-(defn match-elements [pred lst]
+(def=> match-elements [pred lst]
   (if (sequential? lst)
     (if (and (element? lst) (pred lst))
       ;; Match
@@ -285,32 +285,32 @@
       ;; Not match but sequence
       (remove nil? (mapcat #(match-elements pred %) lst)))))
 
-(defn glisp [] (println "Glisp, an acronym for Graphical LISP, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP."))
+(def=> glisp [] (println "Glisp, an acronym for Graphical LISP, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP."))
 
-(defn identity [x] x)
-(defn const
+(def=> identity [x] x)
+(def=> const
   {:params [{:type "any"}]}
   [x] x)
-(defn spy [& xs] (do (apply prn xs) (first xs)))
+(def=> spy [& xs] (do (apply prn xs) (first xs)))
 
-(defn zero?
+(def=> zero?
   {:doc "Returns true if x is equal to 0"}
   [x]
   (= x 0))
-(defn pos? [x] (> x 0))
-(defn neg? [x] (< x 0))
-(defn odd? [x] (= (mod x 2) 1))
-(defn even? [x] (= (mod x 2) 0))
+(def=> pos? [x] (> x 0))
+(def=> neg? [x] (< x 0))
+(def=> odd? [x] (= (mod x 2) 1))
+(def=> even? [x] (= (mod x 2) 0))
 
-(defn  pct
+(def=>  pct
   {:doc "Maps the percentage value between 0-100 to normalized 0-1"
    :params [{:type "number"}]
    :return {:type "number"}
    :unit "%"
-   :inverse (fn {:return ret} [(* ret 100)])}
+   :inverse (=> {:return ret} [(* ret 100)])}
   [value] (/ value 100))
 
-(defn compare
+(def=> compare
   {:doc "Returns -1 if x < y, 0 if x == y, +1 otherwise"
    :params [{:type "number"}
             {:type "number"}]
@@ -320,57 +320,57 @@
         (> x y) 1
         (< x y) -1))
 
-(defn inc
+(def=> inc
   {:params [{:type "number"}]
-   :inverse (fn {:return ret} [(dec ret)])
+   :inverse (=> {:return ret} [(dec ret)])
    :return {:type "number"}}
   [x] (+ x 1))
-(defn dec
+(def=> dec
   {:params [{:type "number"}]
-   :inverse (fn {:return ret} [(inc ret)])
+   :inverse (=> {:return ret} [(inc ret)])
    :return {:type "number"}}
   [x] (- x 1))
 
-(defn empty? [x] (= (count x) 0))
+(def=> empty? [x] (= (count x) 0))
 
-(defn second [x] (first (rest x)))
+(def=> second [x] (first (rest x)))
 
 (def gensym
   (let [counter (atom 0)]
     #(symbol (str "G__" (swap! counter inc)))))
 
 ;;  List 
-(defn replace-nth [coll idx val]
+(def=> replace-nth [coll idx val]
   (let [ret (concat (take idx coll) [val] (drop (inc idx) coll))]
     (cond (list? coll) ret
           (vector? coll) (vec ret))))
 
-(defn insert-nth [coll idx val]
+(def=> insert-nth [coll idx val]
   (let [ret (concat (take idx coll) [val] (drop idx coll))]
     (cond (list? coll) ret
           (vector? coll) (vec ret))))
 
-(defn take
+(def=> take
   {:doc "Retruns a sequence of the first n items in coll"}
   [n coll]
   (slice coll 0 n))
 
-(defn drop
+(def=> drop
   {:doc "Returns a sequence of all but the first n items in coll"}
   [n coll]
   (slice coll n))
 
-(defn take-last
+(def=> take-last
   {:doc "Returns a seq of the last n items in coll"}
   [n coll]
   (slice coll (- (count coll) n)))
 
-(defn drop-last
+(def=> drop-last
   {:doc "Returns a sequence of all but the last n items in coll"}
   [n coll]
   (take (- (count coll) n) coll))
 
-(defn drop-nth
+(def=> drop-nth
   {:doc "Returns a sequence of all but the nth item in coll"}
   [n coll]
   (concat
@@ -378,7 +378,7 @@
    (drop (inc n) coll)))
 
 ;; HashMap
-(defn merge-hash-map [xs]
+(def=> merge-hash-map [xs]
   (->> xs
        (map entries)
        (apply concat)
@@ -386,14 +386,14 @@
        (apply assoc {})))
 
 ;; String
-(defn ends-with?
+(def=> ends-with?
   {:doc "True if *s* ends with substr"
    :params [{:type "string"}
             {:type "string"}]}
   [s substr]
   (= (subs s (- (count s) (count substr))) substr))
 
-(defn starts-with?
+(def=> starts-with?
   {:doc "True if *s* ends with substr"
    :params [{:type "string"}
             {:type "string"}]}
@@ -422,7 +422,7 @@
   :params [{:type "vector"
             :variadic true
             :items {:label "Number" :type "number"}}]
-  :inverse (fn {:return ret :params xs}
+  :inverse (=> {:return ret :params xs}
              (case (count xs)
                0 []
                1 [ret]
@@ -435,7 +435,7 @@
   :params [{:type "vector"
             :variadic true
             :items {:label "Number" :type "number"}}]
-  :inverse (fn {:return ret :params xs}
+  :inverse (=> {:return ret :params xs}
              (case (count xs)
                0 []
                1 [(- ret)]
@@ -450,7 +450,7 @@
   :params [{:type "vector"
             :variadic true
             :items {:label "Number" :type "number"}}]
-  :inverse (fn {:return ret :params xs}
+  :inverse (=> {:return ret :params xs}
              (case (count xs)
                0 []
                1 [ret]
@@ -463,7 +463,7 @@
   :params [{:type "vector"
             :variadic true
             :items {:label "Number" :type "number"}}]
-  :inverse (fn {:return ret :params xs}
+  :inverse (=> {:return ret :params xs}
              (case (count xs)
                0 []
                1 [(/ ret)]
@@ -477,14 +477,14 @@
   :params [{:label "Number" :type "number"}
            {:label "Divisor" :type "number"}]
   :return {:type "number"}
-  :inverse (fn {:return ret :params [a b]}
+  :inverse (=> {:return ret :params [a b]}
              {:replace [0 (mod ret b)]})})
 
 (annotate-fn!
  abs
  {:doc "Returns the absolute value of a *number*"
   :params [{:label "Number" :type "number"}]
-  :inverse (fn {:return ret :params [x]}
+  :inverse (=> {:return ret :params [x]}
              (if (zero? x)
                ret
                (* (sign x) ret)))
@@ -494,14 +494,14 @@
  floor
  {:doc "Returns the largest integer less than or equal to a number"
   :params [{:label "Number" :type "number"}]
-  :inverse (fn {:return ret} [(floor ret)])
+  :inverse (=> {:return ret} [(floor ret)])
   :return {:type "number"}})
 
 (annotate-fn!
  ceil
  {:doc "Returns the next largest integer more than or equal to a number"
   :params [{:label "Number" :type "number"}]
-  :inverse (fn {:return ret} [(ceil ret)])
+  :inverse (=> {:return ret} [(ceil ret)])
   :return {:type "number"}})
 
 (annotate-fn!
@@ -509,7 +509,7 @@
  {:doc "Retruns the `base` to the `exponent` power"
   :params [{:label "Base" :type "number"}
            {:label "Exponent" :type "number"}]
-  :inverse (fn {:return ret :params [base exponent]}
+  :inverse (=> {:return ret :params [base exponent]}
              {:replace [1 (spy (/ (log ret) (log base)))]})
   :return {:type "number"}})
 
@@ -517,14 +517,14 @@
  round
  {:doc "Returns the value of a number rounded to the nearest integer"
   :params [{:label "Number" :type "number"}]
-  :inverse (fn {:return ret} [(round ret)])
+  :inverse (=> {:return ret} [(round ret)])
   :return {:type "number"}})
 
 (annotate-fn!
  sqrt
  {:doc "Returns the square root of a number"
   :params [{:label "Number" :type "number"}]
-  :inverse (fn {:return ret} [(* ret ret)])
+  :inverse (=> {:return ret} [(* ret ret)])
   :return {:type "number"}})
 
 (annotate-fn!
@@ -532,7 +532,7 @@
  {:doc "Returns a vector of nums from *start* to *end* (exclusive), by *step*"
   :params {:type "dynamic"
            :to-schema
-           (fn [{:params xs}]
+           (=> [{:params xs}]
              (let [[start end step] (case (count xs)
                                       1 [0 (first xs) 1]
                                       2 [(first xs) (second xs) 1]
@@ -541,7 +541,7 @@
                 {:label "End" :type "number" :value end}
                 {:label "Step" :type "number" :value step :default 1}]))
            :to-params
-           (fn {:values [start end step]}
+           (=> {:values [start end step]}
              (cond
                (and (= 0 start) (= 1 step)) [end]
                (= 1 step) [start end]

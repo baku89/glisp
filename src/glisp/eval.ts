@@ -209,7 +209,7 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 			case 'quasiquote': {
 				return evalQuasiquote(exp[1], env)
 			}
-			case 'fn': {
+			case '=>': {
 				const [, , body] = exp
 				let [, params] = exp
 				if (isMap(params)) {
