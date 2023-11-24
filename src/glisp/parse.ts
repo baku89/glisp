@@ -3,6 +3,8 @@ import {
 	assocBang,
 	createList as L,
 	Expr,
+	ExprCollBase,
+	ExprList,
 	ExprMap,
 	GlispError,
 	isList,
@@ -158,7 +160,7 @@ function parseColl(reader: Reader, start: string, end: string) {
 	delimiters.push(delimiter)
 
 	// Save string information
-	;(expr as any)[M_DELIMITERS] = delimiters
+	;(expr as ExprCollBase)[M_DELIMITERS] = delimiters
 
 	reader.next()
 	return expr
@@ -167,7 +169,7 @@ function parseColl(reader: Reader, start: string, end: string) {
 // read vector of tokens
 function parseList(reader: Reader) {
 	const expr = parseColl(reader, '(', ')')
-	;(expr as any)[M_TYPE] = 'list'
+	;(expr as ExprList)[M_TYPE] = 'list'
 	return expr
 }
 
@@ -175,7 +177,7 @@ function parseList(reader: Reader) {
 function parseMap(reader: Reader) {
 	const coll = parseColl(reader, '{', '}')
 	const map = assocBang({} as ExprMap, ...coll)
-	map[M_DELIMITERS] = (coll as any)[M_DELIMITERS]
+	map[M_DELIMITERS] = (coll as ExprCollBase)[M_DELIMITERS]
 	return map
 }
 

@@ -12,6 +12,14 @@ import {
 
 export type TextRange = [start: number, end: number]
 
+export type Expr = ExprPrim | ExprForm
+
+export type ExprPrim = number | string | boolean | null
+
+export type ExprForm = ExprSymbol | ExprAtom | ExprFn | ExprJSFn | ExprColl
+
+export type ExprColl = ExprMap | ExprList | Expr[]
+
 export type ExprJSFn = (...args: Expr[]) => Expr
 
 export type ExprBind = (
@@ -53,7 +61,7 @@ export interface ExprFn {
 
 export class GlispError extends Error {}
 
-interface ExprNodeBase {
+export interface ExprCollBase {
 	/**
 	 * Caches the evaluated value of the node
 	 */
@@ -62,7 +70,7 @@ interface ExprNodeBase {
 	[M_PARENT]?: ExprColl
 }
 
-export interface ExprMap extends ExprNodeBase {
+export interface ExprMap extends ExprCollBase {
 	[keyword: string]: Expr
 }
 
@@ -100,7 +108,7 @@ export function getType(obj: any): ExprType {
 			if (obj === null) {
 				return 'null'
 			} else if (Array.isArray(obj)) {
-				return (obj as any)[M_TYPE] === 'list' ? 'list' : 'vector'
+				return (obj as ExprList)[M_TYPE] === 'list' ? 'list' : 'vector'
 			} else if (obj instanceof Float32Array) {
 				return 'vector'
 			} else if (M_TYPE in obj) {
@@ -128,26 +136,17 @@ export function getType(obj: any): ExprType {
 	}
 }
 
-export type ExprColl = ExprMap | ExprList | Expr[]
-
-export const isColl = (v?: Expr): v is ExprColl => {
-	return isList(v) || isVector(v) || isMap(v)
+export const isColl = (expr?: Expr): expr is ExprColl => {
+	return Array.isArray(expr) || isMap(expr)
 }
 
 export const isSeq = (expr?: Expr): expr is ExprSeq => {
 	return Array.isArray(expr)
 }
 
-export const isAtom = (v: Expr | undefined): v is ExprAtom => {
-	return getType(v) === 'atom'
+export const isAtom = (expr: Expr | undefined): expr is ExprAtom => {
+	return typeof expr !== 'object' || expr === null
 }
-
-export type ExprPrim = number | string | boolean | null
-
-export type ExprForm = ExprSymbol | ExprAtom | ExprFn | ExprJSFn | ExprColl
-
-export type Expr = ExprPrim | ExprForm | Expr[]
-
 export interface ExprCollSelection {
 	outer: ExprColl
 	index: number
@@ -261,26 +260,25 @@ export const isKeyword = (obj: Expr | undefined): obj is string =>
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
-
-export interface ExprList extends Array<Expr>, ExprNodeBase {
+export interface ExprList extends Array<Expr>, ExprCollBase {
 	[M_TYPE]: 'list'
 	isSugar?: boolean
 	expandInfo?: ExpandInfo
 }
 
 export const isList = (obj: Expr | undefined): obj is ExprList => {
-	return Array.isArray(obj) && (obj as any)[M_TYPE] === 'list'
+	return Array.isArray(obj) && (obj as ExprList)[M_TYPE] === 'list'
 }
 
 export function createList(...coll: Expr[]): ExprList {
-	;(coll as any)[M_TYPE] = 'list'
+	;(coll as ExprList)[M_TYPE] = 'list'
 	return coll as ExprList
 }
 
 // Vectors
 export const isVector = (obj: Expr | undefined): obj is Expr[] => {
 	return (
-		(Array.isArray(obj) && (obj as any)[M_TYPE] !== 'list') ||
+		(Array.isArray(obj) && (obj as ExprList)[M_TYPE] !== 'list') ||
 		obj instanceof Float32Array
 	)
 }
@@ -304,7 +302,6 @@ export function assocBang(hm: ExprMap, ...args: any[]) {
 
 // Atoms
 export class ExprAtom {
-	public constructor(public value: Expr) {
-		;(this as any)[M_TYPE] = 'atom'
-	}
+	[M_TYPE] = 'atom'
+	public constructor(public value: Expr) {}
 }

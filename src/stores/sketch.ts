@@ -2,10 +2,10 @@ import {pausableWatch} from '@vueuse/core'
 import {defineStore} from 'pinia'
 import {
 	computed,
-	readonly,
 	Ref,
 	ref,
 	ref as shallowRef,
+	shallowReadonly,
 	toRaw,
 	watch,
 } from 'vue'
@@ -36,7 +36,7 @@ export const useSketchStore = defineStore('sketch', () => {
   (circle [0 0] 100))`)
 
 	const expr = shallowRef(
-		parse(preText + code.value + postText)
+		parse(preText + code.value + postText) as any
 	) as Ref<ExprList>
 
 	const evaluated = computed(() => {
@@ -44,11 +44,11 @@ export const useSketchStore = defineStore('sketch', () => {
 	})
 
 	const selectedExprs = shallowRef([]) as Ref<ExprColl[]>
-	const activeExpr = computed({
+	const activeExpr = computed<ExprColl | null>({
 		get() {
 			return selectedExprs.value.length === 0 ? null : selectedExprs.value[0]
 		},
-		set(target: ExprColl | null) {
+		set(target) {
 			if (target) {
 				selectedExprs.value =
 					toRaw(target) !== toRaw(expr.value) ? [target] : []
@@ -115,7 +115,7 @@ export const useSketchStore = defineStore('sketch', () => {
 	})
 
 	const exprWatcher = pausableWatch(expr, () => {
-		const newCode = printExpr(expr.value).slice(
+		const newCode = printExpr(toRaw(expr.value)).slice(
 			preText.length,
 			-postText.length
 		)
@@ -140,7 +140,7 @@ export const useSketchStore = defineStore('sketch', () => {
 	}
 
 	return {
-		expr: readonly(expr),
+		expr: shallowReadonly(expr),
 		evaluated,
 		code,
 

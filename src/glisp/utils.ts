@@ -12,6 +12,7 @@ import {
 	createList as L,
 	Expr,
 	ExprColl,
+	ExprCollBase,
 	ExprFn,
 	ExprFnThis,
 	ExprJSFn,
@@ -127,8 +128,10 @@ export function replaceExpr(
 		newParent[key] = replaced
 	}
 
-	;(newParent as any)[M_DELIMITERS] = (parent as any)[M_DELIMITERS]
-	;(newParent as any)[M_META] = (parent as any)[M_META]
+	;(newParent as ExprCollBase)[M_DELIMITERS] = (parent as ExprCollBase)[
+		M_DELIMITERS
+	]
+	;(newParent as ExprCollBase)[M_META] = (parent as ExprCollBase)[M_META]
 
 	if (root === parent) {
 		return newParent
@@ -502,7 +505,11 @@ export function getFn(exp: Expr) {
 }
 
 export function copyDelimiters(target: Expr, original: Expr) {
-	if (isSeq(target) && isSeq(original) && (original as any)[M_DELIMITERS]) {
+	if (
+		isSeq(target) &&
+		isSeq(original) &&
+		(original as ExprCollBase)[M_DELIMITERS]
+	) {
 		const delimiters = [...(original as any)[M_DELIMITERS]]
 
 		const lengthDiff = target.length - original.length
@@ -755,8 +762,8 @@ export function getName(exp: Expr): string {
 	}
 }
 
-export function getParent(expr: Expr) {
-	if (isColl(expr)) {
+export function getParent(expr: Expr): ExprColl | null {
+	if (typeof expr === 'object' && expr !== null) {
 		return (expr as any)[M_PARENT] ?? null
 	}
 	return null
