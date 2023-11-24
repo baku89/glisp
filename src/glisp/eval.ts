@@ -187,9 +187,6 @@ function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 				}
 				return ret
 			}
-			case 'get-all-symbols': {
-				return env.getAllSymbols()
-			}
 			case 'eval*': {
 				if (!this) {
 					throw new GlispError('Cannot find the caller env')

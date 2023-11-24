@@ -131,17 +131,6 @@ const Exports = [
 		),
 	],
 	[
-		'get-all-symbols',
-		setMeta(
-			() => null,
-			convertJSObjectToExprMap({
-				doc: 'Gets all existing symbols',
-				params: [],
-				return: {type: 'vector'},
-			})
-		),
-	],
-	[
 		'eval*',
 		setMeta(
 			() => null,
