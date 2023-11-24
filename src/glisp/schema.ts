@@ -1,4 +1,3 @@
-import {Env} from './env'
 import {getEvaluated} from './eval'
 import {M_PARAMS} from './symbols'
 import {
@@ -254,11 +253,7 @@ export function extractParams(exp: ExprSeq): ExprSeq {
 	}
 }
 
-function generateFixedUISchema(
-	schemaParams: Schema[],
-	params: Expr[],
-	env: Env
-) {
+function generateFixedUISchema(schemaParams: Schema[], params: Expr[]) {
 	// Deep clone the schema
 	const uiSchema = schemaParams.map(sch => ({...sch}))
 
@@ -319,7 +314,7 @@ function generateFixedUISchema(
 	}
 
 	// Extract the parameters from the list
-	const evaluatedParams = params.map(p => getEvaluated(p, env))
+	const evaluatedParams = params.map(getEvaluated)
 
 	// Assign the value
 	for (let i = 0; i < uiSchema.length; i++) {

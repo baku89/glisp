@@ -2,8 +2,6 @@ import {capital} from 'case'
 import {mat2d} from 'linearly'
 import {mapValues} from 'lodash'
 
-import ConsoleScope from '@/scopes/console'
-
 import Env from './env'
 import {getEvaluated} from './eval'
 import {generateDefaultDelimiters, printExpr} from './print'
@@ -129,8 +127,8 @@ export function replaceExpr(
 		newParent[key] = replaced
 	}
 
-	newParent[M_DELIMITERS] = parent[M_DELIMITERS]
-	newParent[M_META] = parent[M_META]
+	;(newParent as any)[M_DELIMITERS] = (parent as any)[M_DELIMITERS]
+	;(newParent as any)[M_META] = (parent as any)[M_META]
 
 	if (root === parent) {
 		return newParent
@@ -145,13 +143,7 @@ export function replaceExpr(
 	return replaceExpr(root, grandParent, parent, newParent)
 }
 
-export function deleteExp(exp: ExprColl) {
-	const parent = getParent(exp)
-
-	if (!parent) {
-		return false
-	}
-
+export function deleteExp(root: ExprColl, parent: ExprColl, exp: Expr) {
 	const newParent = clone(parent) as ExprColl
 	const index = findElementIndex(exp, newParent)
 
@@ -164,7 +156,17 @@ export function deleteExp(exp: ExprColl) {
 
 	copyDelimiters(newParent, parent)
 
-	replaceExpr(parent, newParent)
+	if (root === parent) {
+		return newParent
+	}
+
+	const grandParent = getParent(parent)
+
+	if (!grandParent) {
+		throw new Error('Invalid form')
+	}
+
+	replaceExpr(root, grandParent, parent, newParent)
 
 	return true
 }
@@ -233,7 +235,7 @@ export function getFnInfo(exp: Expr): FnInfoType | undefined {
 	if (!fn) {
 		structType = getStructType(getEvaluated(exp))
 		if (structType) {
-			fn = ConsoleScope.var(structType) as ExprFn
+			fn = null as unknown as ExprFn //ConsoleScope.var(structType) as ExprFn
 		}
 	}
 
@@ -500,8 +502,8 @@ export function getFn(exp: Expr) {
 }
 
 export function copyDelimiters(target: Expr, original: Expr) {
-	if (isSeq(target) && isSeq(original) && original[M_DELIMITERS]) {
-		const delimiters = [...original[M_DELIMITERS]]
+	if (isSeq(target) && isSeq(original) && (original as any)[M_DELIMITERS]) {
+		const delimiters = [...(original as any)[M_DELIMITERS]]
 
 		const lengthDiff = target.length - original.length
 
@@ -521,17 +523,17 @@ export function copyDelimiters(target: Expr, original: Expr) {
 			}
 		}
 
-		target[M_DELIMITERS] = delimiters
+		;(target as any)[M_DELIMITERS] = delimiters
 	}
 }
 
 export function getDelimiters(exp: ExprSeq | ExprMap): string[] {
-	if (!exp[M_DELIMITERS]) {
+	if (!(exp as any)[M_DELIMITERS]) {
 		const length = isSeq(exp) ? exp.length : Object.keys(exp).length * 2
-		exp[M_DELIMITERS] = generateDefaultDelimiters(length)
+		;(exp as any)[M_DELIMITERS] = generateDefaultDelimiters(length)
 	}
 
-	return exp[M_DELIMITERS]
+	return (exp as any)[M_DELIMITERS]
 }
 
 export function getElementStrs(expr: ExprSeq | ExprMap): string[] {
@@ -583,7 +585,7 @@ export function markParent(exp: Expr) {
 
 			for (const child of children) {
 				if (typeof child === 'object' && child !== null) {
-					child[M_PARENT] = exp
+					;(child as any)[M_PARENT] = exp
 					markParent(child)
 				}
 			}
@@ -755,7 +757,7 @@ export function getName(exp: Expr): string {
 
 export function getParent(expr: Expr) {
 	if (isColl(expr)) {
-		return expr[M_PARENT] ?? null
+		return (expr as any)[M_PARENT] ?? null
 	}
 	return null
 }
@@ -890,7 +892,7 @@ export function getMeta(obj: Expr): Expr {
 export function withMeta(a: Expr, m: Expr) {
 	if (canAttachMeta(a)) {
 		const c = clone(a) as ExprWithMeta
-		c[M_META] = m
+		;(c as any)[M_META] = m
 		return c
 	} else {
 		throw new GlispError('[with-meta] Object should not be atom')

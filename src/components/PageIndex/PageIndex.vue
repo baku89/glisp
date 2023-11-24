@@ -14,7 +14,7 @@
 			icon="mdi:folder"
 			:position="{anchor: 'right-bottom', width: 200, height: 200}"
 		>
-			<Inspector v-model:expr="sketch.activeExpr" />
+			<Inspector />
 		</Tq.PaneFloating>
 
 		<Tq.PaneFloating

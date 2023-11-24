@@ -128,15 +128,14 @@ export function getType(obj: any): ExprType {
 	}
 }
 
-export type ExprColl = ExprMap | ExprList | ExprVector
+export type ExprColl = ExprMap | ExprList | Expr[]
 
 export const isColl = (v?: Expr): v is ExprColl => {
 	return isList(v) || isVector(v) || isMap(v)
 }
 
-export const isSeq = (v?: Expr): v is ExprSeq => {
-	const type = getType(v)
-	return type === 'list' || type === 'vector'
+export const isSeq = (expr?: Expr): expr is ExprSeq => {
+	return Array.isArray(expr)
 }
 
 export const isAtom = (v: Expr | undefined): v is ExprAtom => {
@@ -222,7 +221,7 @@ export function createFn(
 	return Object.assign(fn, attrs)
 }
 
-export const isFunc = (exp: Expr | undefined): exp is ExprFn =>
+export const isFunc = (exp: Expr | undefined): exp is ExprFn | ExprJSFn =>
 	exp instanceof Function
 
 export const isExprFn = (obj: Expr | undefined): obj is ExprFn =>
@@ -279,7 +278,7 @@ export function createList(...coll: Expr[]): ExprList {
 }
 
 // Vectors
-export const isVector = (obj: Expr | undefined): obj is ExprVector => {
+export const isVector = (obj: Expr | undefined): obj is Expr[] => {
 	return (
 		(Array.isArray(obj) && (obj as any)[M_TYPE] !== 'list') ||
 		obj instanceof Float32Array
