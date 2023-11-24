@@ -2,7 +2,7 @@ import seedrandom from 'seedrandom'
 
 import {
 	assocBang,
-	cloneExpr,
+	clone,
 	createList as L,
 	Expr,
 	ExprAtom,
@@ -193,7 +193,7 @@ const Exports = [
 	[
 		'dissoc',
 		(m: ExprMap, ...a: string[]) => {
-			const n = cloneExpr(m) as ExprMap
+			const n = clone(m) as ExprMap
 			a.forEach(k => delete n[k])
 			return n
 		},

@@ -3,8 +3,8 @@
 import {capital} from 'case'
 import {mapValues} from 'lodash'
 
-import {printExpr} from '.'
 import Env from './env'
+import {printExpr} from './print'
 import {M_AST, M_ENV, M_EVAL, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
 import {
 	createFn,

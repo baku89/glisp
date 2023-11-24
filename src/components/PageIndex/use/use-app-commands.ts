@@ -2,7 +2,7 @@ import {Ref} from 'vue'
 
 import {
 	applyParamModifier,
-	cloneExpr,
+	clone,
 	copyDelimiters,
 	createList as L,
 	deleteExp,
@@ -111,7 +111,7 @@ export default function useAppCommands({
 		}
 
 		// Insert
-		const newActiveExp = cloneExpr(_activeExp) as ExprSeq
+		const newActiveExp = clone(_activeExp) as ExprSeq
 		newActiveExp.push(newExp)
 		copyDelimiters(newActiveExp, activeExp)
 
@@ -242,7 +242,7 @@ export default function useAppCommands({
 		const newExp = L(
 			...wrapper.map(e => {
 				if (isSymbolFor(e, '%')) {
-					const ret = shouldDuplicate ? cloneExpr(exp, true) : exp
+					const ret = shouldDuplicate ? clone(exp, true) : exp
 					shouldDuplicate = true
 					return ret
 				} else {
@@ -331,7 +331,7 @@ export default function useAppCommands({
 			index = findElementIndex(activeExp.value, _parent)
 		}
 
-		const newOuter = cloneExpr(parent) as ExprSeq
+		const newOuter = clone(parent) as ExprSeq
 
 		navigator.clipboard.readText().then((str: string) => {
 			const exp = parse(str)

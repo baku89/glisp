@@ -50,7 +50,7 @@ import {computed, toRaw} from 'vue'
 
 import * as ExprInputComponents from '@/components/expr-inputs'
 import {
-	cloneExpr,
+	clone,
 	convertExprCollToJSObject,
 	createList as L,
 	Expr,
@@ -186,7 +186,7 @@ function insertParam(i: number) {
 	const type = variadicSchema.type
 
 	// Compute value
-	let value = cloneExpr(TypeDefaults[type])
+	let value = clone(TypeDefaults[type])
 
 	if (vectorSchema.insert) {
 		value = (vectorSchema.insert as any)({

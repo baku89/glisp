@@ -124,7 +124,7 @@ export function replaceExpr(
 	replaced: Expr
 ) {
 	const index = findElementIndex(original, parent)
-	const newParent = cloneExpr(parent) as ExprColl
+	const newParent = clone(parent) as ExprColl
 
 	// Set replaced as new child
 	if (isSeq(newParent)) {
@@ -159,7 +159,7 @@ export function deleteExp(exp: ExprColl) {
 		return false
 	}
 
-	const newParent = cloneExpr(parent) as ExprColl
+	const newParent = clone(parent) as ExprColl
 	const index = findElementIndex(exp, newParent)
 
 	if (isSeq(newParent)) {
@@ -369,7 +369,7 @@ export function reverseEval(exp: Expr, original: Expr, forceOverwrite = false) {
 			// 	// NOTE: Making side-effects on the below line
 			// 	const newDefBody = reverseEval(exp, def[2], forceOverwrite)
 			// 	replaceExpr(def, L(S('defvar'), original, newDefBody))
-			// 	return cloneExpr(original)
+			// 	return clone(original)
 			// }
 			break
 		}
@@ -852,17 +852,15 @@ export function equals(a: Expr, b: Expr) {
 	}
 }
 
-export function cloneExpr(expr: Expr, deep = false): Expr {
+export function clone(expr: Expr, deep = false): Expr {
 	if (isList(expr)) {
-		const children: Expr[] = deep
-			? expr.map(e => cloneExpr(e as any, true))
-			: expr
+		const children: Expr[] = deep ? expr.map(e => clone(e as any, true)) : expr
 		const cloned = createList(...children)
 		cloned[M_DELIMITERS] = getDelimiters(expr)
 		cloned[M_ISSUGAR] = expr[M_ISSUGAR]
 		return cloned
 	} else if (isVector(expr)) {
-		const children = deep ? expr.map(c => cloneExpr(c as any, true)) : expr
+		const children = deep ? expr.map(c => clone(c as any, true)) : expr
 		const cloned = createVector(...children)
 		cloned[M_DELIMITERS] = getDelimiters(expr)
 		return cloned
@@ -870,7 +868,7 @@ export function cloneExpr(expr: Expr, deep = false): Expr {
 		const cloned = deep
 			? {
 					...expr,
-					...(mapValues(expr, c => cloneExpr(c as any, true)) as ExprMap),
+					...(mapValues(expr, c => clone(c as any, true)) as ExprMap),
 			  }
 			: {...expr}
 		cloned[M_DELIMITERS] = getDelimiters(expr)
@@ -907,7 +905,7 @@ export function getMeta(obj: Expr): Expr {
 
 export function withMeta(a: Expr, m: Expr) {
 	if (canAttachMeta(a)) {
-		const c = cloneExpr(a) as ExprWithMeta
+		const c = clone(a) as ExprWithMeta
 		c[M_META] = m
 		return c
 	} else {

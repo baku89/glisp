@@ -52,7 +52,7 @@ import Tq from 'tweeq'
 import {computed} from 'vue'
 
 import {
-	cloneExpr,
+	clone,
 	createList,
 	Expr,
 	ExprSeq,
@@ -116,7 +116,7 @@ function onInputElement(index: number, v: Expr, num: number) {
 		return
 	}
 
-	const newSize = cloneExpr(size.value as ExprSeq)
+	const newSize = clone(size.value as ExprSeq)
 	newSize[index] = v
 
 	const r = evaluated.value[1] / evaluated.value[0]

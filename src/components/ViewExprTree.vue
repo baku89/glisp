@@ -40,7 +40,7 @@ import {Icon} from '@iconify/vue'
 import {computed, ref, toRaw} from 'vue'
 
 import {ExprColl, getStructType, getType, isColl, printExpr} from '@/glisp'
-import {cloneExpr, Expr, ExprSeq, isList, isMap, isVector} from '@/glisp'
+import {clone, Expr, ExprSeq, isList, isMap, isVector} from '@/glisp'
 import {useSketchStore} from '@/stores/sketch'
 
 interface Props {
@@ -166,7 +166,7 @@ function onClick() {
 }
 
 function onUpdateChild(i: number, replaced: Expr) {
-	const newExpBody = cloneExpr(props.expr) as ExprSeq
+	const newExpBody = clone(props.expr) as ExprSeq
 	newExpBody[i + 1] = replaced
 	emit('update:expr', newExpBody)
 }

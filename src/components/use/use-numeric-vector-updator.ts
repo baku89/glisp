@@ -1,7 +1,7 @@
 import {computed, Ref} from 'vue'
 
 import {
-	cloneExpr,
+	clone,
 	Expr,
 	ExprSeq,
 	ExprSymbol,
@@ -34,13 +34,13 @@ export default function useNumericVectorUpdator(
 			return
 		}
 
-		const newExp = cloneExpr(exp.value) as ExprSeq
+		const newExp = clone(exp.value) as ExprSeq
 		newExp[i] = v
 		emit('input', newExp)
 	}
 
 	function onInputEvaluatedElement(i: number, v: number) {
-		const value = cloneExpr(exp.value) as ExprSeq
+		const value = clone(exp.value) as ExprSeq
 		value[i] = v
 		const newExp = reverseEval(value, exp.value)
 		emit('input', newExp)

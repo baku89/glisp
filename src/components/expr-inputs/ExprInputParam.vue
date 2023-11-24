@@ -20,7 +20,7 @@
 import {computed} from 'vue'
 
 import {
-	cloneExpr,
+	clone,
 	convertExprCollToJSObject,
 	Expr,
 	ExprSeq,
@@ -54,7 +54,7 @@ const schemes = computed(
 )
 
 function updateParamAt(value: Expr, i: number) {
-	const newExp = cloneExpr(props.value)
+	const newExp = clone(props.value)
 	newExp[i + 1] = value
 
 	emit('input', newExp)
