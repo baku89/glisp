@@ -1,51 +1,33 @@
 <template>
-	<table class="ParamControl">
-		<template v-if="uiSchema">
-			<tr
-				v-for="(sch, i) in uiSchema"
-				:key="i"
-				class="param"
-				:class="{'is-default': sch.isDefault, 'is-invalid': sch.isInvalid}"
-			>
-				<td class="label">{{ sch.label }}</td>
-				<td class="value">
-					<div class="input">
-						<component
-							:is="inputComponents[sch.ui]"
-							v-bind="sch"
-							:parent="expr"
-						/>
-					</div>
-					<template v-if="isVectorVariadic && i >= vectorVariadicPos">
-						<Icon
-							icon="typcn:delete"
-							class="button delete"
-							@click="deleteParam(i)"
-						/>
-						<button class="button insert" tabindex="-1" @click="insertParam(i)">
-							Insert
-						</button>
-					</template>
-				</td>
-			</tr>
-			<!-- <tr v-if="isVectorVariadic">
-				<td class="label"></td>
-				<td class="value">
-					<button
-						class="button add"
-						tabindex="-1"
-						@click="onParamInsert(uiSchema.length)"
-					>
-						+ Add
+	<Tq.ParameterGrid v-if="uiSchema" class="ParamControl">
+		<Tq.Parameter
+			v-for="(sch, i) in uiSchema"
+			:key="i"
+			:class="{'is-default': sch.isDefault, 'is-invalid': sch.isInvalid}"
+			:label="sch.label"
+		>
+			<div class="input-wrapper">
+				<div class="input">
+					<component
+						:is="inputComponents[sch.ui]"
+						v-bind="sch"
+						:parent="expr"
+					/>
+				</div>
+				<template v-if="variadicPos <= i">
+					<Icon icon="typcn:delete" class="delete" @click="deleteParam(i)" />
+					<button class="insert" tabindex="-1" @click="insertParam(i)">
+						<Icon icon="mdi:plus-thick" class="icon" />
 					</button>
-				</td>
-			</tr> -->
-		</template>
-	</table>
+				</template>
+			</div>
+		</Tq.Parameter>
+	</Tq.ParameterGrid>
 </template>
 
 <script lang="ts" setup>
 import {Icon} from '@iconify/vue'
+import Tq from 'tweeq'
 import {computed, toRaw} from 'vue'
 
 import * as ExprInputComponents from '@/components/expr-inputs'
@@ -54,7 +36,6 @@ import {
 	convertExprCollToJSObject,
 	createList as L,
 	Expr,
-	ExprFn,
 	ExprList,
 	generateSchemaParamLabel,
 	generateUISchema,
@@ -72,7 +53,6 @@ import {useSketchStore} from '@/stores/sketch'
 
 interface Props {
 	expr: ExprList
-	fn?: ExprFn
 }
 
 const props = defineProps<Props>()
@@ -112,7 +92,7 @@ const TypeDefaults = {
 } as {[type: string]: Expr}
 
 const fnInfo = computed(() => {
-	return getFnInfo(toRaw(props.fn || props.expr))
+	return getFnInfo(toRaw(props.expr))
 })
 
 const params = computed(() => {
@@ -145,22 +125,15 @@ const schema = computed<Schema[]>(() => {
 	return schema
 })
 
-// Vector variadic
-const isVectorVariadic = computed(() => {
+const variadicPos = computed(() => {
 	if (schema.value.length > 0) {
-		const lastSchema = schema.value[schema.value.length - 1]
-		return !!lastSchema.variadic && lastSchema.type === 'vector'
-	} else {
-		return false
+		const lastSchema = schema.value.at(-1)
+		if (lastSchema?.variadic && lastSchema.type === 'vector') {
+			return schema.value.length - 1
+		}
 	}
-})
 
-const vectorVariadicPos = computed(() => {
-	if (isVectorVariadic.value) {
-		return schema.value.length - 1
-	} else {
-		return -1
-	}
+	return Infinity
 })
 
 // UISchema
@@ -190,8 +163,8 @@ function insertParam(i: number) {
 
 	if (vectorSchema.insert) {
 		value = (vectorSchema.insert as any)({
-			[K('params')]: params.value.slice(vectorVariadicPos.value),
-			[K('index')]: i - vectorVariadicPos.value,
+			[K('params')]: params.value.slice(variadicPos.value),
+			[K('index')]: i - variadicPos.value,
 		})
 	} else if ('default' in variadicSchema) {
 		value = variadicSchema.default as Expr
@@ -224,84 +197,50 @@ function deleteParam(i: number) {
 <style lang="stylus" scoped>
 @import './style/common.styl'
 
-.ParamControl
+.input-wrapper
 	position relative
-	width 100%
-	table-layout fixed
-
-.param
-	position relative
-
-	&.is-default
-		opacity 0.5
-
-	&.is-invalid .label
-		color var(--red)
-
-		&:after
-			content ' ⚠'
-
-	& > td
-		padding 0.2em 0
-
-.label
-	clear both
-	padding-right 1em
-	width 5.5em
-	height $param-height
-	color var(--comment)
-	white-space nowrap
-	line-height $param-height
-
-.value
 	display flex
 	align-items center
-	width 99%
+	gap var(--tq-input-gap)
 
 .input
-	max-width calc(100% - 2rem)
+	flex-grow 1
 
-.button
-	height 100%
-	color var(--comment)
-	cursor pointer
+.delete
+	color var(--tq-color-gray-on-background)
+	cursor poiner
 
 	&:hover
-		opacity 1 !important
+		color var(--tq-color-error)
 
-	&.delete
-		position relative
+.insert
+	position absolute
+	height var(--tq-input-gap)
+	width 100%
+	top calc(-1 * var(--tq-input-gap))
+	color var(--tq-color-affirmative)
+	opacity 0
+	border-radius 99px
+
+	&:before
+		content ''
+		position absolute
+		left 0
+		right calc(var(--tq-input-height) - 8px + var(--tq-input-gap))
+		height 1px
+		background var(--tq-color-affirmative)
+		top 50%
+		margin-top -0.5px
+
+	&:hover
 		z-index 10
-		opacity 0.5
+		opacity 1
 
-		&:hover
-			color var(--tq-color-error)
-
-	&.insert
-		align-self start
-		font-weight normal
-		opacity 0
-		transform translate(-1em, -66%)
-
-		&:before
-			content '<-- '
-			font-monospace()
-
-		&:hover
-			color var(--hover)
-
-		&:after
-			position absolute
-			top 50%
-			right 0
-			display block
-			width 100%
-			width 23em
-			height 0.5em
-			// background red
-			content ''
-			transform translateY(-50%)
-
-	&.add
-		labeled-button()
+	.icon
+		position absolute
+		right 2px
+		top 50%
+		width calc(var(--tq-input-height) - 8px)
+		height calc(var(--tq-input-height) - 8px)
+		transform translateY(-50%)
 </style>
