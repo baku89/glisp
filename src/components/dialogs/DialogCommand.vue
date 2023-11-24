@@ -48,7 +48,7 @@ function onClickExecute() {
 					:anchorAttributes="{target: '_blank'}"
 				/>
 			</div>
-			<ParamControl :exp="editExp" :fn="fn" @input="onInput" />
+			<ParamControl :expr="editExp" :fn="fn" @input="onInput" />
 		</div>
 		<div class="DialogCommand__buttons">
 			<button class="button" @click="$emit('close')">Cancel</button>

@@ -72,7 +72,7 @@ function onSelectParent() {
 </script>
 
 <template>
-	<div class="Inspector">
+	<div v-if="sketch.activeExpr" class="Inspector">
 		<div class="header">
 			<div class="name">
 				{{ name }}

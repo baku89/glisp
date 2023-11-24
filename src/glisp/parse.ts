@@ -1,11 +1,9 @@
-import {M_DELIMITERS, M_ISLIST, M_ISSUGAR} from './symbols'
+import {M_DELIMITERS, M_TYPE} from './symbols'
 import {
 	assocBang,
 	createList as L,
 	Expr,
 	ExprMap,
-	ExprSeq,
-	ExprVector,
 	GlispError,
 	isList,
 	keywordFor,
@@ -133,7 +131,7 @@ function parseAtom(reader: Reader) {
 
 // read list of tokens
 function parseColl(reader: Reader, start: string, end: string) {
-	const exp: ExprVector = []
+	const expr: Expr[] = []
 
 	const delimiters: string[] = []
 
@@ -152,7 +150,7 @@ function parseColl(reader: Reader, start: string, end: string) {
 		const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
 		delimiters.push(delimiter)
 
-		exp.push(parseForm(reader))
+		expr.push(parseForm(reader))
 	}
 
 	// Save a delimiter between a last element and a end tag
@@ -160,29 +158,29 @@ function parseColl(reader: Reader, start: string, end: string) {
 	delimiters.push(delimiter)
 
 	// Save string information
-	exp[M_DELIMITERS] = delimiters
+	;(expr as any)[M_DELIMITERS] = delimiters
 
 	reader.next()
-	return exp
+	return expr
 }
 
 // read vector of tokens
 function parseList(reader: Reader) {
-	const exp = parseColl(reader, '(', ')')
-	;(exp as ExprSeq)[M_ISLIST] = true
-	return exp
+	const expr = parseColl(reader, '(', ')')
+	;(expr as any)[M_TYPE] = 'list'
+	return expr
 }
 
 // read hash-map key/value pairs
 function parseMap(reader: Reader) {
-	const lst = parseColl(reader, '{', '}')
-	const map = assocBang({} as ExprMap, ...lst)
-	map[M_DELIMITERS] = lst[M_DELIMITERS]
+	const coll = parseColl(reader, '{', '}')
+	const map = assocBang({} as ExprMap, ...coll)
+	map[M_DELIMITERS] = (coll as any)[M_DELIMITERS]
 	return map
 }
 
 function parseForm(reader: Reader): any {
-	let val: Expr = null
+	let expr: Expr = null
 
 	// Set offset array value if the form is syntaxic sugar.
 	// the offset array is like [<end of arg0>, <start of arg1>]
@@ -191,22 +189,22 @@ function parseForm(reader: Reader): any {
 	switch (reader.peek()) {
 		// reader macros/transforms
 		case ';':
-			val = null
+			expr = null
 			break
 		case '`':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_QUOTE, parseForm(reader))
+			expr = L(S_QUOTE, parseForm(reader))
 			break
 		case '~':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_UNQUOTE, parseForm(reader))
+			expr = L(S_UNQUOTE, parseForm(reader))
 			break
 		case '~@':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_SPLICE_UNQUOTE, parseForm(reader))
+			expr = L(S_SPLICE_UNQUOTE, parseForm(reader))
 			break
 		case '#': {
 			reader.next()
@@ -214,7 +212,7 @@ function parseForm(reader: Reader): any {
 			if (type === '(') {
 				// Syntactic sugar for anonymous function: #( )
 				sugar = [reader.prevEndOffset(), reader.offset()]
-				val = L(S_FN_SUGAR, parseForm(reader))
+				expr = L(S_FN_SUGAR, parseForm(reader))
 			} else {
 				throw new GlispError(`Invalid reader macro: #${type}`)
 			}
@@ -226,42 +224,41 @@ function parseForm(reader: Reader): any {
 			sugar = [reader.prevEndOffset(), reader.offset()]
 			const meta = parseForm(reader)
 			if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
-			const expr = parseForm(reader)
-			val = L(S_WITH_META_SUGAR, meta, expr)
+			expr = L(S_WITH_META_SUGAR, meta, parseForm(reader))
 			break
 		}
 		case '@':
 			// Syntactic sugar for deref
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_DEREF, parseForm(reader))
+			expr = L(S_DEREF, parseForm(reader))
 			break
 		// list
 		case ')':
 			throw new GlispError("unexpected ')'")
 		case '(':
-			val = parseList(reader)
+			expr = parseList(reader)
 			break
 		// vector
 		case ']':
 			throw new Error("unexpected ']'")
 		case '[':
-			val = parseColl(reader, '[', ']')
+			expr = parseColl(reader, '[', ']')
 			break
 		// hash-map
 		case '}':
 			throw new Error("unexpected '}'")
 		case '{':
-			val = parseMap(reader)
+			expr = parseMap(reader)
 			break
 
 		// atom
 		default:
-			val = parseAtom(reader)
+			expr = parseAtom(reader)
 	}
 
-	if (isList(val)) {
-		val[M_ISSUGAR] = !!sugar
+	if (isList(expr)) {
+		;(expr as any).isSugar = !!sugar
 
 		if (sugar) {
 			// Save str info
@@ -277,11 +274,11 @@ function parseForm(reader: Reader): any {
 
 			delimiters.push('')
 
-			val[M_DELIMITERS] = delimiters
+			expr[M_DELIMITERS] = delimiters
 		}
 	}
 
-	return val
+	return expr
 }
 
 export class BlankException extends Error {}
@@ -297,8 +294,6 @@ export function parse(str: string): Expr {
 	if (reader.index < tokens.length - 1) {
 		throw new GlispError('Invalid end of file')
 	}
-
 	markParent(exp)
-
 	return exp
 }

@@ -1,4 +1,4 @@
-import {M_AST, M_ISMACRO, M_ISSUGAR, M_PARAMS} from './symbols'
+import {M_AST, M_ISMACRO, M_PARAMS} from './symbols'
 import {
 	Expr,
 	ExprList as ExprList,
@@ -54,7 +54,7 @@ const NameForSugarSymbol = new Map<string, string>([
  * 糖衣構文のキャラクタを返す。そのリストが糖衣構文かどうかは、パース時に既に決定されている
  */
 export function getSugarPrefix(exp: ExprList): string | null {
-	if (!exp[M_ISSUGAR]) {
+	if (!exp.isSugar) {
 		return null
 	}
 
@@ -103,7 +103,7 @@ export function printExpr(expr: Expr): string {
 		const content = insertDelimiters(elmStrs, delimiters)
 
 		if (isExpList) {
-			return expr[M_ISSUGAR] ? content : '(' + content + ')'
+			return expr.isSugar ? content : '(' + content + ')'
 		} else if (isExpVector) {
 			return '[' + content + ']'
 		} else {

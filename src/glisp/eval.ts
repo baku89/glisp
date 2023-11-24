@@ -1,12 +1,11 @@
 /* eslint-ignore @typescript-eslint/no-use-before-define */
 
-import {capital} from 'case'
 import {mapValues} from 'lodash'
 import {isReactive, toRaw} from 'vue'
 
 import Env from './env'
 import {printExpr} from './print'
-import {M_AST, M_ENV, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
+import {M_AST, M_ENV, M_ISMACRO, M_PARAMS} from './symbols'
 import {
 	createFn,
 	createList,
@@ -15,9 +14,8 @@ import {
 	ExprBind,
 	ExprFnThis,
 	ExprForm,
+	ExprList,
 	ExprMap,
-	ExprVector,
-	getType,
 	GlispError,
 	isExprFn,
 	isFunc,
@@ -48,7 +46,7 @@ function evalQuote(expr: Expr, env: Env): Expr {
 		return evaluate(expr[1], env)
 	}
 
-	const ret: ExprVector = expr.flatMap(e => {
+	const ret = expr.flatMap(e => {
 		if (isList(e) && isSymbolFor(e[0], 'splice-unquote')) {
 			return evaluate(e[1], env)
 		} else {
@@ -72,13 +70,17 @@ function macroexpand(exp: Expr, env: Env) {
 	}
 
 	if (exp !== exp && isList(originalExp)) {
-		originalExp[M_EXPAND] = {type: 'constant', exp: exp}
+		originalExp.expandInfo = {type: 'constant', exp: exp}
 	}
 
 	return exp
 }
 
-function evalAtom(this: void | ExprFnThis, exp: Expr, env: Env) {
+function evalAtom(
+	this: void | ExprFnThis,
+	exp: Exclude<Expr, ExprList>,
+	env: Env
+) {
 	if (isSymbol(exp)) {
 		return env.get(exp)
 	} else if (Array.isArray(exp)) {
@@ -116,21 +118,13 @@ function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 		// Apply list
 		const [first] = expr
 
-		if (!isSymbol(first) && !isFunc(first)) {
-			throw new GlispError(
-				`${capital(getType(first))} ${printExpr(
-					first
-				)} is not a function. First element of list always should be a function.`
-			)
-		}
-
-		switch (isSymbol(first) ? first.value : first) {
+		switch (isSymbol(first) ? first.value : null) {
 			case 'def': {
 				const [, sym, form] = expr
 				if (!isSymbol(sym) || form === undefined) {
 					throw new GlispError('Invalid form of def')
 				}
-				expr[M_EXPAND] = {
+				expr.expandInfo = {
 					type: 'unchange',
 				}
 				return env.set(sym, evaluate.call(this, form, env))
@@ -140,7 +134,7 @@ function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 				if (!isSymbol(sym) || form === undefined) {
 					throw new GlispError('Invalid form of defvar')
 				}
-				expr[M_EXPAND] = {
+				expr.expandInfo = {
 					type: 'unchange',
 				}
 				return env.set(sym, evaluate.call(this, form, env))
@@ -159,7 +153,7 @@ function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 				}
 				env = letEnv
 				const ret = body.length === 1 ? body[0] : L(S_DO, ...body)
-				expr[M_EXPAND] = {
+				expr.expandInfo = {
 					type: 'env',
 					exp: ret,
 					env: letEnv,
@@ -313,24 +307,26 @@ function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 			}
 			default: {
 				// is a function call
-
 				// Evaluate all of parameters at first
 				const [fn, ...params] = expr.map(e => evaluate.call(this, e, env))
 
-				if (fn instanceof Function) {
-					if (isExprFn(fn)) {
-						env = new Env(
-							fn[M_ENV],
-							fn[M_PARAMS],
-							params,
-							isSymbol(first) ? first.value : undefined
-						)
-						expr = fn[M_AST]
-						// continue TCO loop
-						break
-					} else {
-						return fn.apply({callerEnv: env}, params)
-					}
+				if (!isFunc(fn)) {
+					console.log(printExpr(expr), expr)
+					throw new GlispError(`${printExpr(fn)} is not a function.`)
+				}
+
+				if (isExprFn(fn)) {
+					env = new Env(
+						fn[M_ENV],
+						fn[M_PARAMS],
+						params,
+						isSymbol(first) ? first.value : undefined
+					)
+					expr = fn[M_AST]
+					// continue TCO loop
+					break
+				} else {
+					return fn.apply({callerEnv: env}, params)
 				}
 			}
 		}

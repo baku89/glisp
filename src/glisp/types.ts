@@ -3,10 +3,7 @@ import {
 	M_AST,
 	M_DELIMITERS,
 	M_ENV,
-	M_EXPAND,
-	M_ISLIST,
 	M_ISMACRO,
-	M_ISSUGAR,
 	M_META,
 	M_PARAMS,
 	M_PARENT,
@@ -69,12 +66,6 @@ export interface ExprMap extends ExprNodeBase {
 	[keyword: string]: Expr
 }
 
-export interface ExprList extends Array<Expr>, ExprNodeBase {
-	[M_ISLIST]: true
-	[M_ISSUGAR]: boolean
-	[M_EXPAND]?: ExpandInfo
-}
-
 export type ExprSeq = ExprList | Expr[]
 
 export type ExprWithMeta = ExprFn | ExprColl
@@ -109,14 +100,11 @@ export function getType(obj: any): ExprType {
 			if (obj === null) {
 				return 'null'
 			} else if (Array.isArray(obj)) {
-				const isList = M_ISLIST in obj && obj[M_ISLIST]
-				return isList ? 'list' : 'vector'
+				return (obj as any)[M_TYPE] === 'list' ? 'list' : 'vector'
 			} else if (obj instanceof Float32Array) {
 				return 'vector'
-			} else if ((obj as any)[M_TYPE] === 'symbol') {
-				return 'symbol'
-			} else if ((obj as any)[M_TYPE] === 'atom') {
-				return 'atom'
+			} else if (M_TYPE in obj) {
+				return obj[M_TYPE]
 			} else {
 				return 'map'
 			}
@@ -140,7 +128,7 @@ export function getType(obj: any): ExprType {
 	}
 }
 
-export type ExprColl = ExprMap | ExprList | Expr[]
+export type ExprColl = ExprMap | ExprList | ExprVector
 
 export const isColl = (v?: Expr): v is ExprColl => {
 	return isList(v) || isVector(v) || isMap(v)
@@ -159,7 +147,7 @@ export type ExprPrim = number | string | boolean | null
 
 export type ExprForm = ExprSymbol | ExprAtom | ExprFn | ExprJSFn | ExprColl
 
-export type Expr = ExprPrim | ExprForm
+export type Expr = ExprPrim | ExprForm | Expr[]
 
 export interface ExprCollSelection {
 	outer: ExprColl
@@ -274,22 +262,26 @@ export const isKeyword = (obj: Expr | undefined): obj is string =>
 export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 
 // List
+
+export interface ExprList extends Array<Expr>, ExprNodeBase {
+	[M_TYPE]: 'list'
+	isSugar?: boolean
+	expandInfo?: ExpandInfo
+}
+
 export const isList = (obj: Expr | undefined): obj is ExprList => {
-	// below code is identical to `getType(obj) === 'list'`
-	return Array.isArray(obj) && !!(obj as any)[M_ISLIST]
+	return Array.isArray(obj) && (obj as any)[M_TYPE] === 'list'
 }
 
 export function createList(...coll: Expr[]): ExprList {
-	const list = coll as ExprList
-	list[M_ISLIST] = true
-	return list
+	;(coll as any)[M_TYPE] = 'list'
+	return coll as ExprList
 }
 
 // Vectors
-export const isVector = (obj: Expr | undefined): obj is Expr[] => {
-	// below code is identical to `getType(obj) === 'vector'`
+export const isVector = (obj: Expr | undefined): obj is ExprVector => {
 	return (
-		(Array.isArray(obj) && (!(M_ISLIST in obj) || !obj[M_ISLIST])) ||
+		(Array.isArray(obj) && (obj as any)[M_TYPE] !== 'list') ||
 		obj instanceof Float32Array
 	)
 }

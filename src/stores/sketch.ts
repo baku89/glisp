@@ -1,6 +1,14 @@
 import {pausableWatch} from '@vueuse/core'
 import {defineStore} from 'pinia'
-import {computed, Ref, ref, ref as shallowRef, toRaw, watch} from 'vue'
+import {
+	computed,
+	readonly,
+	Ref,
+	ref,
+	ref as shallowRef,
+	toRaw,
+	watch,
+} from 'vue'
 
 import {
 	Expr,
@@ -32,7 +40,6 @@ export const useSketchStore = defineStore('sketch', () => {
 	) as Ref<ExprList>
 
 	const evaluated = computed(() => {
-		markParent(expr.value)
 		return ViewScope.eval(toRaw(expr.value))
 	})
 
@@ -128,11 +135,12 @@ export const useSketchStore = defineStore('sketch', () => {
 		if (!isList(newExpr)) {
 			throw new Error('Invalid replacement')
 		}
+		markParent(newExpr)
 		expr.value = newExpr
 	}
 
 	return {
-		expr,
+		expr: readonly(expr),
 		evaluated,
 		code,
 

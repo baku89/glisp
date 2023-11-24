@@ -7,7 +7,7 @@ import ConsoleScope from '@/scopes/console'
 import Env from './env'
 import {getEvaluated} from './eval'
 import {generateDefaultDelimiters, printExpr} from './print'
-import {M_DELIMITERS, M_EXPAND, M_ISSUGAR, M_META, M_PARENT} from './symbols'
+import {M_DELIMITERS, M_META, M_PARENT} from './symbols'
 import {
 	canAttachMeta,
 	createList,
@@ -126,7 +126,7 @@ export function replaceExpr(
 	} else {
 		// Hash map
 		const key = Object.keys(parent)[index]
-		;(newParent as ExprMap)[key] = replaced
+		newParent[key] = replaced
 	}
 
 	newParent[M_DELIMITERS] = parent[M_DELIMITERS]
@@ -163,7 +163,6 @@ export function deleteExp(exp: ExprColl) {
 	}
 
 	copyDelimiters(newParent, parent)
-	markParent(newParent)
 
 	replaceExpr(parent, newParent)
 
@@ -578,17 +577,17 @@ export function findElementIndex(expr: Expr, parent: ExprColl) {
 }
 
 export function markParent(exp: Expr) {
-	if (!isColl(exp)) {
-		return
-	}
+	if (typeof exp === 'object' && exp !== null) {
+		if (isColl(exp)) {
+			const children = isSeq(exp) ? exp : Object.values(exp)
 
-	const children = isSeq(exp) ? exp : Object.values(exp)
-
-	for (const child of children) {
-		if (isColl(child)) {
-			child[M_PARENT] = exp
+			for (const child of children) {
+				if (typeof child === 'object' && child !== null) {
+					child[M_PARENT] = exp
+					markParent(child)
+				}
+			}
 		}
-		markParent(child)
 	}
 }
 
@@ -644,7 +643,7 @@ export function findExpByRange(
 		// Sequential
 
 		// Add the length of open-paren
-		let offset = isList(expr) && expr[M_ISSUGAR] ? 0 : 1
+		let offset = isList(expr) && expr.isSugar ? 0 : 1
 		const delimiters = getDelimiters(expr)
 		const elmStrs = getElementStrs(expr)
 
@@ -698,6 +697,7 @@ export function getRangeOfExpr(
 	expr: ExprColl,
 	root: ExprColl
 ): [begin: number, end: number] | null {
+	console.log('getRangeOfExpr')
 	let start = 0
 	const length = printExpr(expr).length
 
@@ -718,7 +718,7 @@ export function getRangeOfExpr(
 		const index = findElementIndex(expr, parent)
 
 		if (isSeq(parent)) {
-			start += isList(parent) && parent[M_ISSUGAR] ? 0 : '('.length
+			start += isList(parent) && parent.isSugar ? 0 : '('.length
 			start += delimiters.slice(0, index + 1).join('').length
 			start += elmStrs.slice(0, index).join('').length
 		} else if (isMap(parent)) {
@@ -760,9 +760,9 @@ export function getParent(expr: Expr) {
 	return null
 }
 
-export function expandExp(exp: Expr, env: Env) {
-	if (isList(exp) && M_EXPAND in exp && exp[M_EXPAND]) {
-		const info = exp[M_EXPAND]
+export function expandExp(exp: Expr) {
+	if (isList(exp) && exp.expandInfo) {
+		const info = exp.expandInfo
 		switch (info.type) {
 			case 'constant':
 				return info.exp
@@ -772,7 +772,7 @@ export function expandExp(exp: Expr, env: Env) {
 				return exp
 		}
 	} else {
-		return getEvaluated(exp, env)
+		return getEvaluated(exp)
 	}
 }
 
@@ -850,7 +850,7 @@ export function clone(expr: Expr, deep = false): Expr {
 		const children: Expr[] = deep ? expr.map(e => clone(e as any, true)) : expr
 		const cloned = createList(...children)
 		cloned[M_DELIMITERS] = getDelimiters(expr)
-		cloned[M_ISSUGAR] = expr[M_ISSUGAR]
+		;(cloned as any).isSugar = expr.isSugar
 		return cloned
 	} else if (isVector(expr)) {
 		const children = deep ? expr.map(c => clone(c as any, true)) : [...expr]
