@@ -175,7 +175,7 @@ const Exports = [
 		),
 	],
 	[
-		'fn-sugar',
+		'curry',
 		setMeta(
 			() => null,
 			convertJSObjectToExprMap({

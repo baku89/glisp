@@ -16,7 +16,7 @@ import {markParent} from './utils'
 const S_QUOTE = S('quote')
 const S_UNQUOTE = S('unquote')
 const S_SPLICE_UNQUOTE = S('splice-unquote')
-const S_FN_SUGAR = S('fn-sugar')
+const S_FN_SUGAR = S('curry')
 const S_WITH_META_SUGAR = S('with-meta-sugar')
 const S_DEREF = S('deref')
 
