@@ -94,26 +94,25 @@ function evalAtom(this: void | ExprFnThis, exp: Expr, env: Env) {
 	}
 }
 
-function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
+/**
+ * Non-memoized version of `evaluate`
+ */
+function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 	let counter = 0
 	while (counter++ < 1e6) {
-		if (!isList(exp)) {
-			return evalAtom.call(this, exp, env)
-		}
-
 		// Expand macro
-		exp = macroexpand(exp, env)
+		expr = macroexpand(expr, env)
 
-		if (!isList(exp)) {
-			return evalAtom.call(this, exp, env)
+		if (!isList(expr)) {
+			return evalAtom.call(this, expr, env)
 		}
 
-		if (exp.length === 0) {
+		if (expr.length === 0) {
 			return null
 		}
 
 		// Apply list
-		const [first] = exp
+		const [first] = expr
 
 		if (!isSymbol(first) && !isFunc(first)) {
 			throw new GlispError(
@@ -125,28 +124,28 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 
 		switch (isSymbol(first) ? first.value : first) {
 			case 'def': {
-				const [, sym, form] = exp
+				const [, sym, form] = expr
 				if (!isSymbol(sym) || form === undefined) {
 					throw new GlispError('Invalid form of def')
 				}
-				exp[M_EXPAND] = {
+				expr[M_EXPAND] = {
 					type: 'unchange',
 				}
 				return env.set(sym, evaluate.call(this, form, env))
 			}
 			case 'defvar': {
-				const [, sym, form] = exp
+				const [, sym, form] = expr
 				if (!isSymbol(sym) || form === undefined) {
 					throw new GlispError('Invalid form of defvar')
 				}
-				exp[M_EXPAND] = {
+				expr[M_EXPAND] = {
 					type: 'unchange',
 				}
 				return env.set(sym, evaluate.call(this, form, env))
 			}
 			case 'let': {
 				const letEnv = new Env(env)
-				const [, binds, ...body] = exp
+				const [, binds, ...body] = expr
 				if (!isVector(binds)) {
 					throw new GlispError('Invalid bind-expr in let')
 				}
@@ -158,17 +157,17 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				}
 				env = letEnv
 				const ret = body.length === 1 ? body[0] : L(S_DO, ...body)
-				exp[M_EXPAND] = {
+				expr[M_EXPAND] = {
 					type: 'env',
 					exp: ret,
 					env: letEnv,
 				}
-				exp = ret
+				expr = ret
 				break // continue TCO loop
 			}
 			case 'binding': {
 				const bindingEnv = new Env(undefined, undefined, undefined, 'binding')
-				const [, binds, ..._body] = exp
+				const [, binds, ..._body] = expr
 				if (!isSeq(binds)) {
 					throw new GlispError('Invalid bind-expr in binding')
 				}
@@ -192,23 +191,23 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				return env.getAllSymbols()
 			}
 			case 'fn-params': {
-				const fn = evaluate.call(this, exp[1], env)
+				const fn = evaluate.call(this, expr[1], env)
 				return isExprFn(fn) ? [...fn[M_PARAMS]] : null
 			}
 			case 'eval*': {
 				if (!this) {
 					throw new GlispError('Cannot find the caller env')
 				}
-				const expanded = evaluate.call(this, exp[1], env)
-				exp = evaluate.call(this, expanded, this ? this.callerEnv : env)
+				const expanded = evaluate.call(this, expr[1], env)
+				expr = evaluate.call(this, expanded, this ? this.callerEnv : env)
 				break // continue TCO loop
 			}
 			case 'quote': {
-				return evalQuote(exp[1], env)
+				return evalQuote(expr[1], env)
 			}
 			case '=>': {
-				const [, , body] = exp
-				let [, params] = exp
+				const [, , body] = expr
+				let [, params] = expr
 				if (isMap(params)) {
 					params = [params]
 				}
@@ -232,7 +231,7 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				)
 			}
 			case 'fn-sugar': {
-				const body = exp[1]
+				const body = expr[1]
 				return createFn(
 					function (...args) {
 						return evaluate.call(this, body, new Env(env, [], args, 'fn-sugar'))
@@ -243,8 +242,8 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				)
 			}
 			case 'macro': {
-				const [, , body] = exp
-				let [, params] = exp
+				const [, , body] = expr
+				let [, params] = expr
 				if (isMap(params)) {
 					params = [params]
 				}
@@ -274,10 +273,10 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				return macro
 			}
 			case 'macroexpand': {
-				return macroexpand(exp[1], env)
+				return macroexpand(expr[1], env)
 			}
 			case 'try': {
-				const [, testExp, catchExp] = exp
+				const [, testExp, catchExp] = expr
 				try {
 					return evaluate.call(this, testExp, env)
 				} catch (exc) {
@@ -302,26 +301,26 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 				}
 			}
 			case 'do': {
-				if (exp.length === 1) {
+				if (expr.length === 1) {
 					return null
 				}
-				evaluate.call(this, exp.slice(1, -1), env)
-				const ret = exp[exp.length - 1]
-				exp = ret
+				evaluate.call(this, expr.slice(1, -1), env)
+				const ret = expr[expr.length - 1]
+				expr = ret
 				break // continue TCO loop
 			}
 			case 'if': {
-				const [, _test, thenExp, elseExp] = exp
+				const [, _test, thenExp, elseExp] = expr
 				const test = evaluate.call(this, _test, env)
 				const ret = test ? thenExp : elseExp !== undefined ? elseExp : null
-				exp = ret
+				expr = ret
 				break // continue TCO loop
 			}
 			default: {
 				// is a function call
 
 				// Evaluate all of parameters at first
-				const [fn, ...params] = exp.map(e => evaluate.call(this, e, env))
+				const [fn, ...params] = expr.map(e => evaluate.call(this, e, env))
 
 				if (fn instanceof Function) {
 					if (isExprFn(fn)) {
@@ -331,7 +330,7 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 							params,
 							isSymbol(first) ? first.value : undefined
 						)
-						exp = fn[M_AST]
+						expr = fn[M_AST]
 						// continue TCO loop
 						break
 					} else {
@@ -345,12 +344,16 @@ function evaluate2(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
 	throw new Error('Exceed the maximum TCO stacks')
 }
 
-export function evaluate(this: void | ExprFnThis, exp: Expr, env: Env): Expr {
-	const evaluated = evaluate2.call(this, exp, env)
-
-	if (typeof exp === 'object' && exp !== null) {
-		;(exp as any)[M_EVAL] = evaluated
+export function evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
+	if (typeof expr === 'object' && expr !== null) {
+		if (M_EVAL in expr) {
+			return expr[M_EVAL] as Expr
+		} else {
+			const evaluated = _evaluate.call(this, expr, env)
+			;(expr as any)[M_EVAL] = evaluated
+			return evaluated
+		}
 	}
 
-	return evaluated
+	return _evaluate.call(this, expr, env)
 }
