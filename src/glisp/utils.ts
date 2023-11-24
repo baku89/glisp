@@ -4,7 +4,7 @@ import {mapValues} from 'lodash'
 
 import ConsoleScope from '@/scopes/console'
 
-import {Env} from '.'
+import Env from './env'
 import {generateDefaultDelimiters, printExpr} from './print'
 import {
 	M_DELIMITERS,
