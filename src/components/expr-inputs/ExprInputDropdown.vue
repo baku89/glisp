@@ -1,32 +1,30 @@
 <template>
-	<InputDropdown
-		:value="value"
-		:values="values"
+	<Tq.InputDropdown
+		:modelValue="value"
+		:options="values"
 		:labels="labels"
-		@input="onInput"
+		@update:modelValue="onInput"
 	/>
 </template>
 
 <script lang="ts" setup>
-import {PropType} from 'vue'
+import Tq from 'tweeq'
 
 import {Expr} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
-interface Props {
-	value: Expr
-	values: PropType<string[] | number[]>
+import {PropBase} from './types'
+
+interface Props extends PropBase {
+	values: string[] | number[]
 	labels: string[]
 }
 
-defineProps<Props>()
-const emit = defineEmits<{
-	input: [Expr]
-	'end-tweak': []
-}>()
+const props = defineProps<Props>()
 
-function onInput(value: string) {
-	emit('input', value)
-	emit('end-tweak')
+const sketch = useSketchStore()
+
+function onInput(newExpr: Expr) {
+	sketch.replace(props.parent, props.value, newExpr)
 }
 </script>
-@/glis[/types

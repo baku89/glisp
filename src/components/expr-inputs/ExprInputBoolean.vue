@@ -1,58 +1,30 @@
 <template>
-	<div class="ExprInputBoolean">
-		<InputBoolean
-			class="ExprInputBoolean__input"
-			:class="{exp: isExp}"
-			:value="evaluated"
-			@input="onInput"
-		/>
-		<ExprSelectButton
-			v-if="isExp"
-			:value="value"
-			@select="$emit('select', $event)"
-		/>
-	</div>
+	<Tq.InputCheckbox
+		class="ExprInputBoolean__input"
+		:class="{exp: isExp}"
+		:modelValue="evaluated"
+		@update:modelValue="onInput"
+	/>
 </template>
 
 <script lang="ts" setup>
+import Tq from 'tweeq'
 import {computed} from 'vue'
 
-import {InputBoolean} from '@/components/inputs'
-import {Expr, ExprSeq, ExprSymbol, getEvaluated, reverseEval} from '@/glisp'
+import {getEvaluated} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
-import ExprSelectButton from './ExprSelectButton.vue'
+import {PropBase} from './types'
 
-interface Props {
-	value: boolean | ExprSeq | ExprSymbol
-}
+interface Props extends PropBase {}
 const props = defineProps<Props>()
 
-const emit = defineEmits<{
-	input: [value: Expr]
-	select: [value: Expr]
-	'end-tweak': []
-}>()
+const sketch = useSketchStore()
 
 const isExp = computed(() => typeof props.value !== 'boolean')
 const evaluated = computed(() => (getEvaluated(props.value) ? true : false))
 
-function onInput(value: boolean) {
-	let newValue: Expr = value
-
-	if (isExp.value) {
-		newValue = reverseEval(value, props.value)
-	}
-
-	emit('input', newValue)
-	emit('end-tweak')
+function onInput(newExpr: boolean) {
+	sketch.replace(props.parent, props.value, newExpr)
 }
 </script>
-
-<style lang="stylus">
-.ExprInputBoolean
-	display flex
-
-	&__input
-		margin-right 0.5rem
-</style>
-@/glis[/reader@/glis[/types@/glis[/utils

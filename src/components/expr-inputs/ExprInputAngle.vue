@@ -1,64 +1,48 @@
 <template>
 	<div class="ExprInputAngle">
-		<ExprInputNumber
-			class="ExprInputAngle__input"
-			:compact="true"
-			:value="value"
-			:validator="validator"
-			@input="onInput($event.value)"
-			@select="$emit('select', $event)"
-			@end-tweak="$emit('end-tweak')"
-		/>
-		<InputRotery
-			class="ExprInputAngle__rotery"
-			:value="evaluated"
-			@input="onInput"
-			@end-tweak="$emit('end-tweak')"
-		/>
+		<ExprInputNumber :value="value" />
+		<Tq.InputRotery :modelValue="evaluated" @update:modelValue="onInput" />
 	</div>
 </template>
 
 <script lang="ts" setup>
-import {computed} from 'vue'
+import Tq from 'tweeq'
+import {computed, toRaw} from 'vue'
 
-import {Expr, ExprSeq, ExprSymbol, getEvaluated, reverseEval} from '@/glisp'
+import {Expr, getEvaluated} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
-interface Props {
-	value: number | ExprSeq | ExprSymbol
+import {PropBase} from './types'
+
+interface Props extends PropBase {
 	validator: (v: number) => number | null
 }
 
 const props = defineProps<Props>()
 
-const emit = defineEmits<{
-	input: [value: Expr]
-	select: [value: Expr]
-	'end-tweak': []
-}>()
+const sketch = useSketchStore()
 
 const evaluated = computed(() => {
-	return getEvaluated(props.value) as number
+	const expr = toRaw(props.value)
+
+	const evaluated = getEvaluated(expr)
+
+	if (typeof evaluated === 'number') {
+		return evaluated
+	}
+
+	throw new Error('Not a number')
 })
 
-function onInput(value: Expr) {
-	let newExp = value
-	if (typeof newExp === 'number') {
-		// Executes backward evalution
-		newExp = reverseEval(newExp, props.value)
-	}
-	emit('input', newExp)
+function onInput(newExpr: Expr) {
+	sketch.replace(props.parent, props.value, newExpr)
 }
 </script>
 
-<style lang="stylus">
+<style lang="stylus" scoped>
 @import '../style/common.styl'
 
 .ExprInputAngle
 	display flex
 	align-items center
-	line-height $input-height
-
-	&__input
-		margin-right $input-horiz-margin
 </style>
-@/glis[/types@/glis[/utils

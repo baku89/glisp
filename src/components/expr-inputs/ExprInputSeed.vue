@@ -1,42 +1,26 @@
 <template>
 	<div class="ExprInputSeed">
-		<ExprInputNumber
-			class="ExprInputSeed__input"
-			:compact="true"
-			:value="value"
-			:validator="validator"
-			@input="onInput($event.value)"
-			@select="$emit('select', $event)"
-			@end-tweak="$emit('end-tweak')"
-		/>
-		<InputSeed class="ExprInputSeed__shuffle" @input="onInput" />
+		<ExprInputNumber :value="value" />
+		<Tq.InputSeed class="ExprInputSeed__shuffle" @input="onInput" />
 	</div>
 </template>
 
 <script lang="ts" setup>
-import {Expr, ExprSeq, ExprSymbol, reverseEval} from '@/glisp'
+import Tq from 'tweeq'
 
-interface Props {
-	value: number | ExprSeq | ExprSymbol
-	validator: (v: number) => number | null
-}
+import {Expr} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
+
+import {PropBase} from './types'
+
+interface Props extends PropBase {}
 
 const props = defineProps<Props>()
 
-const emit = defineEmits<{
-	input: [value: Expr]
-	select: [value: Expr]
-	'end-tweak': []
-}>()
+const sketch = useSketchStore()
 
-function onInput(value: Expr) {
-	let newExp = value
-	if (typeof newExp === 'number') {
-		// Executes backward evalution
-		newExp = reverseEval(newExp, props.value)
-	}
-	emit('input', newExp)
-	emit('end-tweak')
+function onInput(newExpr: Expr) {
+	sketch.replace(props.parent, props.value, newExpr)
 }
 </script>
 
