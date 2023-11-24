@@ -29,8 +29,8 @@ import {
 	isSymbolFor,
 	isVector,
 	keywordFor as K,
+	parse,
 	printExpr,
-	readStr,
 	replaceExpr,
 	symbolFor as S,
 	symbolFor,
@@ -201,7 +201,7 @@ export default function useAppCommands({
 		fetch(url as string).then(async res => {
 			if (res.ok) {
 				const code = await res.text()
-				const expr = readStr(toSketchCode(code)) as ExprColl
+				const expr = parse(toSketchCode(code)) as ExprColl
 				updateExpr(expr)
 				setActiveExpr(null)
 				editingExp.value = expr
@@ -334,7 +334,7 @@ export default function useAppCommands({
 		const newOuter = cloneExpr(parent) as ExprSeq
 
 		navigator.clipboard.readText().then((str: string) => {
-			const exp = readStr(str)
+			const exp = parse(str)
 
 			newOuter.splice(index + 1, 0, exp)
 			copyDelimiters(newOuter, parent)

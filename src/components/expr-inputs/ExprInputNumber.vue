@@ -39,7 +39,7 @@ function onInput(newExpr: number) {
 	// if (typeof value === 'string') {
 	// 	let ret
 	// 	try {
-	// 		ret = readStr(value)
+	// 		ret = parse(value)
 	// 	} catch (e) {
 	// 		return
 	// 	}

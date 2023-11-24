@@ -14,7 +14,7 @@ import {
 	markParent,
 	printer,
 	printExpr,
-	readStr,
+	parse,
 	replaceExpr,
 	TextRange,
 } from '@/glisp'
@@ -28,7 +28,7 @@ export const useSketchStore = defineStore('sketch', () => {
   (circle [0 0] 100))`)
 
 	const expr = shallowRef(
-		readStr(preText + code.value + postText)
+		parse(preText + code.value + postText)
 	) as Ref<ExprList>
 
 	const evaluated = computed(() => {
@@ -91,7 +91,7 @@ export const useSketchStore = defineStore('sketch', () => {
 	// Update code
 	const codeWatcher = pausableWatch(code, () => {
 		try {
-			const parsed = readStr(preText + code.value + postText)
+			const parsed = parse(preText + code.value + postText)
 			if (!isList(parsed)) {
 				throw new Error('Not a list')
 			}

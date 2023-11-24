@@ -95,7 +95,7 @@ function tokenize(str: string): Token[] {
 	return results
 }
 
-function readAtom(reader: Reader) {
+function parseAtom(reader: Reader) {
 	const token = reader.next()
 
 	if (typeof token === 'string') {
@@ -132,7 +132,7 @@ function readAtom(reader: Reader) {
 }
 
 // read list of tokens
-function readColl(reader: Reader, start: string, end: string) {
+function parseColl(reader: Reader, start: string, end: string) {
 	const exp: ExprVector = []
 
 	const delimiters: string[] = []
@@ -152,7 +152,7 @@ function readColl(reader: Reader, start: string, end: string) {
 		const delimiter = reader.getStr(reader.prevEndOffset(), reader.offset())
 		delimiters.push(delimiter)
 
-		exp.push(readForm(reader))
+		exp.push(parseForm(reader))
 	}
 
 	// Save a delimiter between a last element and a end tag
@@ -167,21 +167,21 @@ function readColl(reader: Reader, start: string, end: string) {
 }
 
 // read vector of tokens
-function readList(reader: Reader) {
-	const exp = readColl(reader, '(', ')')
+function parseList(reader: Reader) {
+	const exp = parseColl(reader, '(', ')')
 	;(exp as ExprSeq)[M_ISLIST] = true
 	return exp
 }
 
 // read hash-map key/value pairs
-function readHashMap(reader: Reader) {
-	const lst = readColl(reader, '{', '}')
+function parseMap(reader: Reader) {
+	const lst = parseColl(reader, '{', '}')
 	const map = assocBang({} as ExprMap, ...lst)
 	map[M_DELIMITERS] = lst[M_DELIMITERS]
 	return map
 }
 
-function readForm(reader: Reader): any {
+function parseForm(reader: Reader): any {
 	let val: Expr = null
 
 	// Set offset array value if the form is syntaxic sugar.
@@ -196,17 +196,17 @@ function readForm(reader: Reader): any {
 		case '`':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_QUOTE, readForm(reader))
+			val = L(S_QUOTE, parseForm(reader))
 			break
 		case '~':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_UNQUOTE, readForm(reader))
+			val = L(S_UNQUOTE, parseForm(reader))
 			break
 		case '~@':
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_SPLICE_UNQUOTE, readForm(reader))
+			val = L(S_SPLICE_UNQUOTE, parseForm(reader))
 			break
 		case '#': {
 			reader.next()
@@ -214,7 +214,7 @@ function readForm(reader: Reader): any {
 			if (type === '(') {
 				// Syntactic sugar for anonymous function: #( )
 				sugar = [reader.prevEndOffset(), reader.offset()]
-				val = L(S_FN_SUGAR, readForm(reader))
+				val = L(S_FN_SUGAR, parseForm(reader))
 			} else {
 				throw new GlispError(`Invalid reader macro: #${type}`)
 			}
@@ -224,9 +224,9 @@ function readForm(reader: Reader): any {
 			// Syntactic sugar for with-meta
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			const meta = readForm(reader)
+			const meta = parseForm(reader)
 			if (sugar) sugar.push(reader.prevEndOffset(), reader.offset())
-			const expr = readForm(reader)
+			const expr = parseForm(reader)
 			val = L(S_WITH_META_SUGAR, meta, expr)
 			break
 		}
@@ -234,30 +234,30 @@ function readForm(reader: Reader): any {
 			// Syntactic sugar for deref
 			reader.next()
 			sugar = [reader.prevEndOffset(), reader.offset()]
-			val = L(S_DEREF, readForm(reader))
+			val = L(S_DEREF, parseForm(reader))
 			break
 		// list
 		case ')':
 			throw new GlispError("unexpected ')'")
 		case '(':
-			val = readList(reader)
+			val = parseList(reader)
 			break
 		// vector
 		case ']':
 			throw new Error("unexpected ']'")
 		case '[':
-			val = readColl(reader, '[', ']')
+			val = parseColl(reader, '[', ']')
 			break
 		// hash-map
 		case '}':
 			throw new Error("unexpected '}'")
 		case '{':
-			val = readHashMap(reader)
+			val = parseMap(reader)
 			break
 
 		// atom
 		default:
-			val = readAtom(reader)
+			val = parseAtom(reader)
 	}
 
 	if (isList(val)) {
@@ -286,13 +286,13 @@ function readForm(reader: Reader): any {
 
 export class BlankException extends Error {}
 
-export function readStr(str: string): Expr {
+export function parse(str: string): Expr {
 	const tokens = tokenize(str)
 	if (tokens.length === 0) {
 		throw new BlankException()
 	}
 	const reader = new Reader(tokens, str)
-	const exp = readForm(reader)
+	const exp = parseForm(reader)
 
 	if (reader.index < tokens.length - 1) {
 		throw new GlispError('Invalid end of file')

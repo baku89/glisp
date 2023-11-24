@@ -1,8 +1,8 @@
 import {vsprintf} from 'sprintf-js'
 
 import interop from './interop'
+import {parse} from './parse'
 import {printer, printExpr} from './print'
-import {readStr} from './read'
 import {Expr, GlispError, symbolFor as S} from './types'
 import {convertJSObjectToExprMap, setMeta} from './utils'
 
@@ -64,7 +64,7 @@ const Exports = [
 	],
 
 	// I/O
-	['read-string', readStr],
+	['read-string', parse],
 	['slurp', slurp],
 
 	// Interop

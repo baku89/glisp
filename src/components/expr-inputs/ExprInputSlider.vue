@@ -36,7 +36,7 @@
 <script lang="ts" setup>
 import {computed, toRaw} from 'vue'
 
-import {readStr} from '@/glisp'
+import {parse} from '@/glisp'
 import {
 	createList as L,
 	Expr,
@@ -135,7 +135,7 @@ function onInput(value: number | string) {
 	if (typeof value === 'string') {
 		let ret
 		try {
-			ret = readStr(value)
+			ret = parse(value)
 		} catch (e) {
 			return
 		}

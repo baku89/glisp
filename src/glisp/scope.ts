@@ -5,8 +5,8 @@ import path from '@/glisp-lib/path'
 
 import Env from './env'
 import {evaluate} from './eval'
+import {BlankException, parse} from './parse'
 import {printer, printExpr} from './print'
-import {BlankException, readStr} from './read'
 import ReplCore from './repl-core'
 import {Expr, GlispError, symbolFor as S} from './types'
 
@@ -115,7 +115,7 @@ export class Scope<T> {
 
 	readEval(str: string): Expr | undefined {
 		try {
-			return this.eval(readStr(str))
+			return this.eval(parse(str))
 		} catch (err) {
 			if (err instanceof BlankException) {
 				return null

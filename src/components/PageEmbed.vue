@@ -4,7 +4,7 @@ import 'normalize.css'
 import {computed, Ref, ref, watch} from 'vue'
 
 import GlispEditor from '@/components/GlispEditor'
-import {BlankException, Expr, printer, printExpr, readStr} from '@/glisp'
+import {BlankException, Expr, parse, printer, printExpr} from '@/glisp'
 import ConsoleScope from '@/scopes/console'
 import ViewScope from '@/scopes/view'
 import {computeTheme} from '@/theme'
@@ -68,7 +68,7 @@ watch(
 		const evalCode = `(sketch\n${code}\n)`
 		let _exp
 		try {
-			_exp = readStr(evalCode)
+			_exp = parse(evalCode)
 		} catch (err) {
 			if (!(err instanceof BlankException)) {
 				printer.error(err)

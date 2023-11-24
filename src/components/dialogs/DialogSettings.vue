@@ -2,14 +2,14 @@
 import {computed, ref} from 'vue'
 
 import DEFAULT_SETTINGS from '@/default-settings.glisp?raw'
-import {readStr} from '@/glisp'
+import {parse} from '@/glisp'
 
 const code = ref(localStorage.getItem('settings') || DEFAULT_SETTINGS)
 
 const hasParseError = computed(() => {
 	const codeStr = code.value
 	try {
-		readStr(`(do\n${codeStr}\n)`)
+		parse(`(do\n${codeStr}\n)`)
 	} catch (e) {
 		return true
 	}
