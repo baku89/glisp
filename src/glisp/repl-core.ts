@@ -142,16 +142,6 @@ const Exports = [
 		),
 	],
 	[
-		'fn-params',
-		setMeta(
-			() => null,
-			convertJSObjectToExprMap({
-				doc: 'Gets the list of a function parameter',
-				params: [{label: 'Function', type: 'symbol'}],
-			})
-		),
-	],
-	[
 		'eval*',
 		setMeta(
 			() => null,

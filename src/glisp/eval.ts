@@ -190,10 +190,6 @@ function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 			case 'get-all-symbols': {
 				return env.getAllSymbols()
 			}
-			case 'fn-params': {
-				const fn = evaluate.call(this, expr[1], env)
-				return isExprFn(fn) ? [...fn[M_PARAMS]] : null
-			}
 			case 'eval*': {
 				if (!this) {
 					throw new GlispError('Cannot find the caller env')
