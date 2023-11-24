@@ -6,7 +6,6 @@ export const M_ISMACRO = Symbol.for('isMacro')
 export const M_ISLIST = Symbol.for('isList')
 export const M_TYPE = Symbol.for('type')
 
-export const M_EVAL = Symbol.for('eval')
 export const M_PARENT = Symbol.for('parent')
 export const M_EXPAND = Symbol.for('expand')
 

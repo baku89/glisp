@@ -3,7 +3,6 @@ import {
 	M_AST,
 	M_DELIMITERS,
 	M_ENV,
-	M_EVAL,
 	M_EXPAND,
 	M_ISLIST,
 	M_ISMACRO,
@@ -61,7 +60,6 @@ interface ExprNodeBase {
 	/**
 	 * Caches the evaluated value of the node
 	 */
-	[M_EVAL]?: Expr
 	[M_META]?: Expr
 	[M_DELIMITERS]?: string[]
 	[M_PARENT]?: ExprColl
@@ -253,7 +251,6 @@ export const isString = (obj: Expr | undefined): obj is string =>
 // Symbol
 export interface ExprSymbol {
 	[M_TYPE]: 'symbol'
-	[M_EVAL]?: Expr
 	value: string
 }
 
