@@ -9,7 +9,6 @@ import Voronoi from 'voronoi'
 import {
 	assocBang,
 	createList as L,
-	createVector,
 	Expr,
 	GlispError,
 	isMap,
@@ -468,7 +467,7 @@ function alignMatrixAtLength(offset: number, path: PathType): Expr {
 	const ret = getChildPaperPathByLength(paperPath, offset)
 
 	if (!ret) {
-		return createVector(...mat2d.ident)
+		return [...mat2d.ident]
 	}
 
 	const {offset: childOffset, path: childPath} = ret
@@ -480,7 +479,7 @@ function alignMatrixAtLength(offset: number, path: PathType): Expr {
 
 	mat = mat2d.rotate(mat, tangent.angleInRadians)
 
-	return createVector(...mat)
+	return [...mat]
 }
 
 // Iteration

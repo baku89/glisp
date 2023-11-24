@@ -12,7 +12,6 @@ import {
 	canAttachMeta,
 	createList,
 	createList as L,
-	createVector,
 	Expr,
 	ExprColl,
 	ExprFn,
@@ -854,10 +853,9 @@ export function clone(expr: Expr, deep = false): Expr {
 		cloned[M_ISSUGAR] = expr[M_ISSUGAR]
 		return cloned
 	} else if (isVector(expr)) {
-		const children = deep ? expr.map(c => clone(c as any, true)) : expr
-		const cloned = createVector(...children)
-		cloned[M_DELIMITERS] = getDelimiters(expr)
-		return cloned
+		const children = deep ? expr.map(c => clone(c as any, true)) : [...expr]
+		;(children as any)[M_DELIMITERS] = getDelimiters(expr)
+		return children
 	} else if (isMap(expr)) {
 		const cloned = deep
 			? {

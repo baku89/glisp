@@ -75,11 +75,7 @@ export interface ExprList extends Array<Expr>, ExprNodeBase {
 	[M_EXPAND]?: ExpandInfo
 }
 
-export interface ExprVector extends Array<Expr>, ExprNodeBase {
-	[M_ISLIST]?: false
-}
-
-export type ExprSeq = ExprList | ExprVector
+export type ExprSeq = ExprList | Expr[]
 
 export type ExprWithMeta = ExprFn | ExprColl
 
@@ -144,7 +140,7 @@ export function getType(obj: any): ExprType {
 	}
 }
 
-export type ExprColl = ExprMap | ExprList | ExprVector
+export type ExprColl = ExprMap | ExprList | Expr[]
 
 export const isColl = (v?: Expr): v is ExprColl => {
 	return isList(v) || isVector(v) || isMap(v)
@@ -280,7 +276,7 @@ export const keywordFor = (k: string) => KEYWORD_PREFIX + k
 // List
 export const isList = (obj: Expr | undefined): obj is ExprList => {
 	// below code is identical to `getType(obj) === 'list'`
-	return Array.isArray(obj) && M_ISLIST in obj && (obj[M_ISLIST] ?? false)
+	return Array.isArray(obj) && !!(obj as any)[M_ISLIST]
 }
 
 export function createList(...coll: Expr[]): ExprList {
@@ -290,21 +286,12 @@ export function createList(...coll: Expr[]): ExprList {
 }
 
 // Vectors
-export const isVector = (obj: Expr | undefined): obj is ExprVector => {
+export const isVector = (obj: Expr | undefined): obj is Expr[] => {
 	// below code is identical to `getType(obj) === 'vector'`
 	return (
 		(Array.isArray(obj) && (!(M_ISLIST in obj) || !obj[M_ISLIST])) ||
 		obj instanceof Float32Array
 	)
-}
-
-export function createVector(...coll: Expr[]) {
-	coll.forEach(child => {
-		if (isColl(child)) {
-			child[M_PARENT] = coll as ExprSeq
-		}
-	})
-	return coll as ExprSeq
 }
 
 // Maps
