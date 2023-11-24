@@ -1,14 +1,6 @@
 import {computed, Ref} from 'vue'
 
-import {
-	clone,
-	Expr,
-	ExprSeq,
-	ExprSymbol,
-	getEvaluated,
-	isVector,
-	reverseEval,
-} from '@/glisp'
+import {clone, Expr, ExprSeq, ExprSymbol, isVector, reverseEval} from '@/glisp'
 
 /**
  * Refs and event handles for ExprInputVec2, Rect2d, Mat2d
@@ -17,6 +9,7 @@ export default function useNumericVectorUpdator(
 	exp: Ref<ExprSeq | ExprSymbol>,
 	emit: (event: 'input', value: Expr) => void
 ) {
+	const sketch = useSketchStore()
 	const isValueSeparated = computed(() => isVector(exp.value))
 
 	const nonReactiveValues = computed(() => {

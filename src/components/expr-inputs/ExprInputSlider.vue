@@ -34,7 +34,7 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, toRaw} from 'vue'
+import {computed} from 'vue'
 
 import {parse} from '@/glisp'
 import {
@@ -42,14 +42,12 @@ import {
 	Expr,
 	ExprSeq,
 	ExprSymbol,
-	getEvaluated,
-	getFn,
-	getFnInfo,
 	getMapValue,
 	isList,
 	keywordFor as K,
 	reverseEval,
 } from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
 interface Props {
 	value: ExprSymbol | number | ExprSeq
@@ -63,6 +61,8 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const sketch = useSketchStore()
+
 const emit = defineEmits<{
 	input: [value: Expr]
 	select: [value: Expr]
@@ -73,7 +73,7 @@ const display = computed(() => {
 	if (typeof props.value === 'number') {
 		return {mode: 'number', isExp: false}
 	} else if (isList(props.value) && props.value.length === 2) {
-		const info = getFnInfo(toRaw(props.value))
+		const info = getFnInfo(props.value)
 
 		if (info) {
 			const inverseFn = getMapValue(info.meta, 'inverse', 'fn')

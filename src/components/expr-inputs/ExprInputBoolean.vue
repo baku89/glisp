@@ -11,7 +11,6 @@
 import Tq from 'tweeq'
 import {computed} from 'vue'
 
-import {getEvaluated} from '@/glisp'
 import {useSketchStore} from '@/stores/sketch'
 
 import {PropBase} from './types'

@@ -161,16 +161,11 @@ export const isAtom = (v: Expr | undefined): v is ExprAtom => {
 	return getType(v) === 'atom'
 }
 
-export type Expr =
-	| number
-	| string
-	| boolean
-	| null
-	| ExprSymbol
-	| ExprAtom
-	| ExprFn
-	| ExprJSFn
-	| ExprColl
+export type ExprPrim = number | string | boolean | null
+
+export type ExprForm = ExprSymbol | ExprAtom | ExprFn | ExprJSFn | ExprColl
+
+export type Expr = ExprPrim | ExprForm
 
 export interface ExprCollSelection {
 	outer: ExprColl
@@ -258,7 +253,7 @@ export const isString = (obj: Expr | undefined): obj is string =>
 // Symbol
 export interface ExprSymbol {
 	[M_TYPE]: 'symbol'
-	[M_EVAL]: Expr
+	[M_EVAL]?: Expr
 	value: string
 }
 
@@ -272,7 +267,6 @@ export const isSymbolFor = (obj: any, name: string): obj is ExprSymbol =>
 export function symbolFor(value: string): ExprSymbol {
 	return {
 		[M_TYPE]: 'symbol',
-		[M_EVAL]: null,
 		value,
 	}
 }

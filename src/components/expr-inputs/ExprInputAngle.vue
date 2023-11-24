@@ -9,7 +9,7 @@
 import Tq from 'tweeq'
 import {computed, toRaw} from 'vue'
 
-import {Expr, getEvaluated} from '@/glisp'
+import {Expr} from '@/glisp'
 import {useSketchStore} from '@/stores/sketch'
 
 import {PropBase} from './types'

@@ -1,3 +1,5 @@
+import {Env} from './env'
+import {getEvaluated} from './eval'
 import {M_PARAMS} from './symbols'
 import {
 	assocBang,
@@ -11,12 +13,7 @@ import {
 	keywordFor as K,
 	symbolFor,
 } from './types'
-import {
-	convertExprCollToJSObject,
-	getEvaluated,
-	getParamLabel,
-	getStructType,
-} from './utils'
+import {convertExprCollToJSObject, getParamLabel, getStructType} from './utils'
 
 interface SchemaBase {
 	type: string
@@ -257,7 +254,11 @@ export function extractParams(exp: ExprSeq): ExprSeq {
 	}
 }
 
-function generateFixedUISchema(schemaParams: Schema[], params: Expr[]) {
+function generateFixedUISchema(
+	schemaParams: Schema[],
+	params: Expr[],
+	env: Env
+) {
 	// Deep clone the schema
 	const uiSchema = schemaParams.map(sch => ({...sch}))
 
@@ -318,7 +319,7 @@ function generateFixedUISchema(schemaParams: Schema[], params: Expr[]) {
 	}
 
 	// Extract the parameters from the list
-	const evaluatedParams = params.map(p => getEvaluated(p))
+	const evaluatedParams = params.map(p => getEvaluated(p, env))
 
 	// Assign the value
 	for (let i = 0; i < uiSchema.length; i++) {

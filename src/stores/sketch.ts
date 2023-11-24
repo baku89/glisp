@@ -12,9 +12,9 @@ import {
 	isColl,
 	isList,
 	markParent,
+	parse,
 	printer,
 	printExpr,
-	parse,
 	replaceExpr,
 	TextRange,
 } from '@/glisp'
@@ -33,7 +33,7 @@ export const useSketchStore = defineStore('sketch', () => {
 
 	const evaluated = computed(() => {
 		markParent(expr.value)
-		return ViewScope.eval(expr.value)
+		return ViewScope.eval(toRaw(expr.value))
 	})
 
 	const selectedExprs = shallowRef([]) as Ref<ExprColl[]>

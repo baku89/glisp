@@ -21,8 +21,4 @@ function onSetup(scope: Scope<ViewScopeOption>, option: ViewScopeOption) {
 	scope.pushBinding(env)
 }
 
-export function createViewScope() {
-	return new Scope<ViewScopeOption>(AppScope, 'view', onSetup)
-}
-
-export default createViewScope()
+export default new Scope<ViewScopeOption>(AppScope, 'view', onSetup)

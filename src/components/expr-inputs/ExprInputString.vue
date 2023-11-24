@@ -21,7 +21,8 @@
 import Tq from 'tweeq'
 import {computed} from 'vue'
 
-import {Expr, ExprSeq, ExprSymbol, getEvaluated, reverseEval} from '@/glisp'
+import {Expr, ExprSeq, ExprSymbol, reverseEval} from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
 import ExprSelectButton from './ExprSelectButton.vue'
 
@@ -32,6 +33,8 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const sketch = useSketchStore()
 
 const emit = defineEmits<{
 	input: [value: Expr]

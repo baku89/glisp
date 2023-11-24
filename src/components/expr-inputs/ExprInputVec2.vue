@@ -24,7 +24,7 @@ import {vec2} from 'linearly'
 import Tq from 'tweeq'
 import {computed, toRaw} from 'vue'
 
-import {Expr, getEvaluated, isVector} from '@/glisp'
+import {Expr, isVector} from '@/glisp'
 import {useSketchStore} from '@/stores/sketch'
 
 import ExprInputNumber from './ExprInputNumber.vue'

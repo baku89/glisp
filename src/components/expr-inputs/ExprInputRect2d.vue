@@ -17,7 +17,7 @@ import {computed} from '@vue/reactivity'
 import {vec4} from 'linearly'
 import {toRaw} from 'vue'
 
-import {Expr, getEvaluated, getStructType} from '@/glisp'
+import {Expr, getStructType} from '@/glisp'
 import {useSketchStore} from '@/stores/sketch'
 
 import ExprInputNumber from './ExprInputNumber.vue'

@@ -57,7 +57,6 @@ import {
 	Expr,
 	ExprSeq,
 	ExprSymbol,
-	getEvaluated,
 	isList,
 	isSymbolFor,
 	isVector,
@@ -70,6 +69,8 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const sketch = useSketchStore()
 
 const emit = defineEmits<{
 	input: [value: Expr]

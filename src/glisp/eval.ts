@@ -2,10 +2,11 @@
 
 import {capital} from 'case'
 import {mapValues} from 'lodash'
+import {isReactive, toRaw} from 'vue'
 
 import Env from './env'
 import {printExpr} from './print'
-import {M_AST, M_ENV, M_EVAL, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
+import {M_AST, M_ENV, M_EXPAND, M_ISMACRO, M_PARAMS} from './symbols'
 import {
 	createFn,
 	createList,
@@ -13,6 +14,7 @@ import {
 	Expr,
 	ExprBind,
 	ExprFnThis,
+	ExprForm,
 	ExprMap,
 	ExprVector,
 	getType,
@@ -337,16 +339,40 @@ function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 	throw new Error('Exceed the maximum TCO stacks')
 }
 
+const EvaluatedMapForEnv = new WeakMap<Env, WeakMap<ExprForm, Expr>>()
+const EvaluatedMap = new WeakMap<ExprForm, Expr>()
+
 export function evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
+	if (isReactive(expr)) {
+		throw new Error('expr is reactive')
+	}
+
 	if (typeof expr === 'object' && expr !== null) {
-		if (M_EVAL in expr) {
-			return expr[M_EVAL] as Expr
+		const envMap = EvaluatedMapForEnv.get(env) ?? new WeakMap()
+		EvaluatedMapForEnv.set(env, envMap)
+
+		if (envMap.has(expr)) {
+			return envMap.get(expr) as Expr
 		} else {
 			const evaluated = _evaluate.call(this, expr, env)
-			;(expr as any)[M_EVAL] = evaluated
+			envMap.set(expr, evaluated)
+			EvaluatedMap.set(expr, evaluated)
 			return evaluated
 		}
 	}
 
 	return _evaluate.call(this, expr, env)
+}
+
+export function getEvaluated(expr: Expr): Expr {
+	expr = toRaw(expr)
+	if (typeof expr === 'object' && expr !== null) {
+		if (!EvaluatedMap.has(expr)) {
+			throw new Error('expr is not evaluated')
+		}
+
+		return EvaluatedMap.get(expr) as Expr
+	} else {
+		return expr
+	}
 }

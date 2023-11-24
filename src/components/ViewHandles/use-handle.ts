@@ -10,8 +10,6 @@ import {
 	ExprColl,
 	ExprMap,
 	ExprSeq,
-	getEvaluated,
-	getFnInfo,
 	getMapValue,
 	isMap,
 	isVector,
@@ -20,6 +18,7 @@ import {
 	reverseEval,
 } from '@/glisp'
 import {getSVGPathData, getSVGPathDataRecursive} from '@/path-utils'
+import {useSketchStore} from '@/stores/sketch'
 
 interface ClassList {
 	[name: string]: true
@@ -57,6 +56,8 @@ export default function useHandle(
 	viewTransform: Ref<mat2d>,
 	viewEl: Ref<HTMLElement | null>
 ) {
+	const sketch = useSketchStore()
+
 	const draggingIndex = ref<[number, number] | null>(null)
 	const rawPrevPos = ref(vec2.zero)
 	const fnInfo = computed(() => selectedExp.value.map(getFnInfo))

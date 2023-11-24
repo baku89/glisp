@@ -24,16 +24,18 @@ import {
 	convertExprCollToJSObject,
 	Expr,
 	ExprSeq,
-	getEvaluated,
 	getMapValue,
 	getMeta,
 } from '@/glisp'
+import {useSketchStore} from '@/stores/sketch'
 
 interface Props {
 	value: ExprSeq
 }
 
 const props = defineProps<Props>()
+
+const sketch = useSketchStore()
 
 const emit = defineEmits<{
 	input: [value: Expr]

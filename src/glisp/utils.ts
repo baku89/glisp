@@ -5,15 +5,9 @@ import {mapValues} from 'lodash'
 import ConsoleScope from '@/scopes/console'
 
 import Env from './env'
+import {getEvaluated} from './eval'
 import {generateDefaultDelimiters, printExpr} from './print'
-import {
-	M_DELIMITERS,
-	M_EVAL,
-	M_EXPAND,
-	M_ISSUGAR,
-	M_META,
-	M_PARENT,
-} from './symbols'
+import {M_DELIMITERS, M_EXPAND, M_ISSUGAR, M_META, M_PARENT} from './symbols'
 import {
 	canAttachMeta,
 	createList,
@@ -767,7 +761,7 @@ export function getParent(expr: Expr) {
 	return null
 }
 
-export function expandExp(exp: Expr) {
+export function expandExp(exp: Expr, env: Env) {
 	if (isList(exp) && M_EXPAND in exp && exp[M_EXPAND]) {
 		const info = exp[M_EXPAND]
 		switch (info.type) {
@@ -779,7 +773,7 @@ export function expandExp(exp: Expr) {
 				return exp
 		}
 	} else {
-		return getEvaluated(exp)
+		return getEvaluated(exp, env)
 	}
 }
 
@@ -882,14 +876,6 @@ export function clone(expr: Expr, deep = false): Expr {
 		return Object.assign(fn, expr)
 	} else if (isSymbol(expr)) {
 		return symbolFor(expr.value)
-	} else {
-		return expr
-	}
-}
-
-export function getEvaluated(expr: Expr): Expr {
-	if (isColl(expr) || isSymbol(expr)) {
-		return expr[M_EVAL] ?? expr
 	} else {
 		return expr
 	}
