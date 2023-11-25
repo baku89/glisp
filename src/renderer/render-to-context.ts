@@ -1,3 +1,5 @@
+import {mat2d} from 'linearly'
+
 import {printExpr} from '@/glisp/print'
 import {Expr, ExprMap, GlispError, isMap} from '@/glisp/types'
 import {iterateSegment, PathType} from '@/path-utils'
@@ -25,12 +27,10 @@ export default function renderToContext(
 
 				switch (cmd) {
 					case 'transform': {
-						const [mat, ...children] = rest as [number[], ...Expr[]]
+						const [mat, ...children] = rest as [mat2d, ...Expr[]]
 
 						ctx.save()
-						ctx.transform(
-							...(mat as [number, number, number, number, number, number])
-						)
+						ctx.transform(...mat)
 						draw(children, styles)
 						ctx.restore()
 						break
@@ -85,7 +85,7 @@ export default function renderToContext(
 
 						if (isMap(options)) {
 							for (const [k, v] of Object.entries(options)) {
-								settings[(k as string).slice(1)] = v
+								settings[k] = v
 							}
 						}
 
@@ -114,23 +114,16 @@ export default function renderToContext(
 		if (!(ctx instanceof Path2D)) {
 			ctx.beginPath()
 		}
-		for (const [c, ...pts] of iterateSegment(path.slice(1))) {
+		for (const [c, ...pts] of iterateSegment(path)) {
 			switch (c) {
 				case 'M':
-					ctx.moveTo(pts[0][0], pts[0][1])
+					ctx.moveTo(...pts[0])
 					break
 				case 'L':
-					ctx.lineTo(pts[0][0], pts[0][1])
+					ctx.lineTo(...pts[0])
 					break
 				case 'C':
-					ctx.bezierCurveTo(
-						pts[0][0],
-						pts[0][1],
-						pts[1][0],
-						pts[1][1],
-						pts[2][0],
-						pts[2][1]
-					)
+					ctx.bezierCurveTo(...pts[0], ...pts[1], ...pts[2])
 					break
 				case 'Z':
 					ctx.closePath()
@@ -179,16 +172,11 @@ export default function renderToContext(
 	) {
 		styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
 
-		const drawOrders = styles.map(s => ({
-			fill: s['fill'],
-			stroke: s['stroke'],
-		}))
-
 		let ignoreFill = false,
 			ignoreStroke = false
 
-		for (let i = drawOrders.length - 1; i >= 0; i--) {
-			const order = drawOrders[i]
+		for (let i = styles.length - 1; i >= 0; i--) {
+			const order = styles[i]
 
 			if (ignoreFill) order.fill = false
 			if (ignoreStroke) order.stroke = false
@@ -222,7 +210,7 @@ export default function renderToContext(
 				}
 			}
 
-			if (drawOrders[i].fill) {
+			if (styles[i].fill) {
 				if (Array.isArray(content)) {
 					drawPath(ctx, content)
 					ctx.fill()
@@ -233,7 +221,7 @@ export default function renderToContext(
 					}
 				}
 			}
-			if (drawOrders[i].stroke) {
+			if (styles[i].stroke) {
 				if (Array.isArray(content)) {
 					drawPath(ctx, content)
 					ctx.stroke()

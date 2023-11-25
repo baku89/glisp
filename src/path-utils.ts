@@ -2,10 +2,8 @@ import {mat2d, vec2} from 'linearly'
 
 import {Expr, GlispError, isVector} from '@/glisp'
 
-export type Vec2 = number[] | vec2
-
-export type PathType = (string | Vec2)[]
-export type SegmentType = [string, ...Vec2[]]
+export type PathType = (string | vec2)[]
+export type SegmentType = [string, ...vec2[]]
 
 export function isPath(exp: any): exp is PathType {
 	return isVector(exp) && exp[0] === 'path'
@@ -16,7 +14,7 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 		throw new GlispError('Invalid path')
 	}
 
-	let start = path[0].toString().startsWith('path') ? 1 : 0
+	let start = path[0] === 'path' ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
 		if (i === l || typeof path[i] === 'string') {
@@ -63,7 +61,7 @@ export function getSVGPathDataRecursive(exp: Expr): string {
 			return path
 		} else {
 			return path.map(p =>
-				isVector(p as Expr) ? vec2.transformMat2d(p as vec2, transform) : p
+				typeof p === 'string' ? p : vec2.transformMat2d(p, transform)
 			)
 		}
 	}
@@ -83,20 +81,13 @@ export function convertToPath2D(exp: PathType) {
 	for (const [cmd, ...pts] of iterateSegment(exp)) {
 		switch (cmd) {
 			case 'M':
-				path.moveTo(...(pts[0] as [number, number]))
+				path.moveTo(...pts[0])
 				break
 			case 'L':
-				path.lineTo(...(pts[0] as [number, number]))
+				path.lineTo(...pts[0])
 				break
 			case 'C':
-				path.bezierCurveTo(
-					pts[0][0],
-					pts[0][1],
-					pts[1][0],
-					pts[1][1],
-					pts[2][0],
-					pts[2][1]
-				)
+				path.bezierCurveTo(...pts[0], ...pts[1], ...pts[2])
 				break
 			case 'Z':
 				path.closePath()

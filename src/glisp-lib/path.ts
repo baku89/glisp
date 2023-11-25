@@ -21,7 +21,6 @@ import {
 	iterateSegment,
 	PathType,
 	SegmentType,
-	Vec2,
 } from '@/path-utils'
 import {partition} from '@/utils'
 
@@ -53,7 +52,7 @@ function createPaperPath(path: PathType): paper.CompoundPath {
 		return PaperPathCaches.get(path) as paper.CompoundPath
 	}
 
-	if (path[0].toString().startsWith('path')) {
+	if (path[0] === 'path') {
 		path = path.slice(1)
 	}
 
@@ -122,7 +121,7 @@ function getChildPaperPathByLength(path: paper.CompoundPath, offset: number) {
 	}
 }
 
-function getBezier(points: Vec2[]) {
+function getBezier(points: vec2[]) {
 	const coords = points.map(([x, y]) => ({x, y}))
 	if (coords.length !== 4) {
 		throw new GlispError('Invalid point count for cubic bezier')
@@ -322,7 +321,7 @@ function toBeziers(path: PathType) {
 	for (const line of iterateSegment(path)) {
 		const [cmd, ...args] = line
 
-		let s: Vec2 = [NaN, NaN]
+		let s: vec2 = [NaN, NaN]
 
 		switch (cmd) {
 			case 'M':
