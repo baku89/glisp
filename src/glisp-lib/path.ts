@@ -12,7 +12,6 @@ import {
 	Expr,
 	GlispError,
 	isMap,
-	keywordFor as K,
 	printExpr,
 	symbolFor as S,
 } from '@/glisp'
@@ -28,14 +27,6 @@ import {partition} from '@/utils'
 
 const EPSILON = 1e-5
 
-const K_PATH = K('path'),
-	K_M = K('M'),
-	K_L = K('L'),
-	K_C = K('C'),
-	K_Z = K('Z'),
-	K_H = K('H'),
-	K_V = K('V')
-
 const SIN_Q = [0, 1, 0, -1]
 const COS_Q = [1, 0, -1, 0]
 const HALF_PI = Math.PI / 2
@@ -50,7 +41,7 @@ const UNIT_QUAD_BEZIER = new Bezier([
 const unsignedMod = (x: number, y: number) => ((x % y) + y) % y
 
 function createEmptyPath(): PathType {
-	return [K_PATH]
+	return ['path']
 }
 
 paper.setup(new paper.Size(1, 1))
@@ -62,7 +53,7 @@ function createPaperPath(path: PathType): paper.CompoundPath {
 		return PaperPathCaches.get(path) as paper.CompoundPath
 	}
 
-	if (path[0].toString().startsWith(K_PATH)) {
+	if (path[0].toString().startsWith('path')) {
 		path = path.slice(1)
 	}
 
@@ -87,17 +78,17 @@ function getExprPathFromPaper(
 		.unarc()
 		.unshort()
 		.iterate((seg, _, x, y) => {
-			let cmd = K(seg[0])
-			const pts = partition(2, seg.slice(1)) as number[][]
+			let cmd = seg[0]
+			const pts = partition(2, (seg as number[]).slice(1)) as number[][]
 
 			switch (cmd) {
-				case K_H:
+				case 'H':
 					pts[0] = [pts[0][0], y]
-					cmd = K_L
+					cmd = 'L'
 					break
-				case K_V:
+				case 'V':
 					pts[0] = [x, pts[0][0]]
-					cmd = K_L
+					cmd = 'L'
 					break
 			}
 
@@ -151,18 +142,18 @@ export function* iterateCurve(path: PathType): Generator<SegmentType> {
 
 	for (const [cmd, ...points] of iterateSegment(path)) {
 		switch (cmd) {
-			case K_M:
-				yield [K_M, ...points]
+			case 'M':
+				yield ['M', ...points]
 				first = points[0]
 				prev = points[0]
 				break
-			case K_L:
-			case K_C:
+			case 'L':
+			case 'C':
 				yield [cmd, prev, ...points] as SegmentType
 				prev = points[points.length - 1]
 				break
-			case K_Z:
-				yield [K_Z, prev, first] as SegmentType
+			case 'Z':
+				yield ['Z', prev, first] as SegmentType
 				break
 		}
 	}
@@ -174,7 +165,7 @@ function dragAnchor(path: PathType, index: number, delta: vec2) {
 
 	let origAnchor: vec2
 
-	if (draggingSeg[0] === K_C) {
+	if (draggingSeg[0] === 'C') {
 		// Anchor itself
 		origAnchor = vec2.clone(draggingSeg[3] as vec2)
 		const anchor = vec2.add(origAnchor, delta)
@@ -193,9 +184,9 @@ function dragAnchor(path: PathType, index: number, delta: vec2) {
 	// Out handle
 	let nextIndex = index + 1 < segs.length ? index + 1 : null
 
-	if (nextIndex !== null && segs[nextIndex][0] === K_Z) {
+	if (nextIndex !== null && segs[nextIndex][0] === 'Z') {
 		for (nextIndex = index - 1; nextIndex >= 0; nextIndex--) {
-			if (segs[nextIndex][0] === K_M) {
+			if (segs[nextIndex][0] === 'M') {
 				if (vec2.dist(origAnchor, segs[nextIndex][1] as vec2) < EPSILON) {
 					// Start Anchor
 					const startAnchor = vec2.clone(segs[nextIndex][1] as vec2)
@@ -210,14 +201,14 @@ function dragAnchor(path: PathType, index: number, delta: vec2) {
 		}
 	}
 	if (nextIndex !== null) {
-		if (segs[nextIndex][0] === K_C) {
+		if (segs[nextIndex][0] === 'C') {
 			const outHandle = vec2.clone(segs[nextIndex][1] as vec2)
 			vec2.add(outHandle, outHandle, delta)
 			segs[nextIndex][1] = outHandle
 		}
 	}
 
-	return [K_PATH, ...segs.flat()]
+	return ['path', ...segs.flat()]
 }
 
 function dragHandle(
@@ -230,7 +221,7 @@ function dragHandle(
 	const segs = Array.from(iterateSegment(path))
 	const draggingSeg = segs[index]
 
-	if (type === K('handle-in')) {
+	if (type === 'handle-in') {
 		const origInHandle = vec2.clone(draggingSeg[2] as vec2)
 		const inHandle = vec2.add(origInHandle, delta)
 		draggingSeg[2] = inHandle
@@ -238,9 +229,9 @@ function dragHandle(
 		// Out handle
 		let nextIndex = index + 1 < segs.length ? index + 1 : null
 
-		if (nextIndex !== null && segs[nextIndex][0] === K_Z) {
+		if (nextIndex !== null && segs[nextIndex][0] === 'Z') {
 			for (nextIndex = index - 1; nextIndex >= 0; nextIndex--) {
-				if (segs[nextIndex][0] === K_M) {
+				if (segs[nextIndex][0] === 'M') {
 					if (
 						vec2.dist(draggingSeg[3] as vec2, segs[nextIndex][1] as vec2) <
 						EPSILON
@@ -254,7 +245,7 @@ function dragHandle(
 			}
 		}
 
-		if (nextIndex !== null && segs[nextIndex][0] === K_C) {
+		if (nextIndex !== null && segs[nextIndex][0] === 'C') {
 			const anchor = draggingSeg[3] as vec2
 			const outHandle = vec2.clone(segs[nextIndex][1] as vec2)
 			const outHandleDir = vec2.sub(outHandle, anchor)
@@ -272,7 +263,7 @@ function dragHandle(
 				segs[nextIndex][1] = vec2.scaleAndAdd(anchor, dir, len)
 			}
 		}
-	} else if (type === K('handle-out')) {
+	} else if (type === 'handle-out') {
 		const origOutHandle = vec2.clone(draggingSeg[1] as vec2)
 		const outHandle = vec2.add(origOutHandle, delta)
 		draggingSeg[1] = outHandle
@@ -280,14 +271,14 @@ function dragHandle(
 		// In handle
 		let prevIndex = index - 1 >= 0 ? index - 1 : null
 
-		if (prevIndex !== null && segs[prevIndex][0] === K_M) {
+		if (prevIndex !== null && segs[prevIndex][0] === 'M') {
 			const anchor = segs[prevIndex][1] as vec2
 
 			for (prevIndex = index + 1; prevIndex < segs.length; prevIndex++) {
-				if (segs[prevIndex][0] === K_Z) {
+				if (segs[prevIndex][0] === 'Z') {
 					if (
 						!(
-							segs[--prevIndex][0] === K_C &&
+							segs[--prevIndex][0] === 'C' &&
 							vec2.dist(segs[prevIndex][3] as vec2, anchor) < EPSILON
 						)
 					) {
@@ -298,7 +289,7 @@ function dragHandle(
 			}
 		}
 
-		if (prevIndex !== null && segs[prevIndex][0] === K_C) {
+		if (prevIndex !== null && segs[prevIndex][0] === 'C') {
 			const anchor = segs[prevIndex][3] as vec2
 			const inHandle = vec2.clone(segs[prevIndex][2] as vec2)
 			const inHandleDir = vec2.sub(inHandle, anchor)
@@ -318,15 +309,15 @@ function dragHandle(
 		}
 	}
 
-	return [K_PATH, ...segs.flat()]
+	return ['path', ...segs.flat()]
 }
 
 function closedQ(path: PathType) {
-	return path.slice(-1)[0] === K_Z
+	return path.slice(-1)[0] === 'Z'
 }
 
 function toBeziers(path: PathType) {
-	const ret: PathType = [K_PATH]
+	const ret: PathType = ['path']
 
 	for (const line of iterateSegment(path)) {
 		const [cmd, ...args] = line
@@ -334,16 +325,16 @@ function toBeziers(path: PathType) {
 		let s: Vec2 = [NaN, NaN]
 
 		switch (cmd) {
-			case K_M:
-			case K_C:
+			case 'M':
+			case 'C':
 				s = args[0]
 				ret.push(...line)
 				break
-			case K_Z:
+			case 'Z':
 				ret.push(...line)
 				break
-			case K_L:
-				ret.push(K_L, s, ...args, ...args)
+			case 'L':
+				ret.push('L', s, ...args, ...args)
 				break
 			default:
 				throw new Error(`Invalid d-path command: ${printExpr(cmd)}`)
@@ -362,15 +353,15 @@ function pathJoin(...paths: PathType[]) {
 	let mergedPath = paths
 		.map(p => p.slice(1))
 		.flat()
-		.map((v, i) => (i > 0 && v === K_M ? K_L : v))
-		.filter(v => v !== K_Z)
+		.map((v, i) => (i > 0 && v === 'M' ? 'L' : v))
+		.filter(v => v !== 'Z')
 
 	// Delete zero-length :L command
 	mergedPath = Array.from(iterateCurve(mergedPath))
 		.filter(
-			c => !(c[0] === K_L && vec2.dist(c[1] as vec2, c[2] as vec2) < EPSILON)
+			c => !(c[0] === 'L' && vec2.dist(c[1] as vec2, c[2] as vec2) < EPSILON)
 		)
-		.map(c => (c[0] === K_M ? c : [c[0], ...c.slice(2)]))
+		.map(c => (c[0] === 'M' ? c : [c[0], ...c.slice(2)]))
 		.flat()
 
 	// close path if possible
@@ -381,17 +372,17 @@ function pathJoin(...paths: PathType[]) {
 		const lastPt = lastSeg[lastSeg.length - 1] as vec2
 
 		if (vec2.dist(firstPt, lastPt) < EPSILON) {
-			if (lastSeg[0] === K_L) {
-				segs.splice(segs.length - 1, 1, [K_Z])
-			} else if (lastSeg[0] === K_C) {
-				segs.push([K_Z])
+			if (lastSeg[0] === 'L') {
+				segs.splice(segs.length - 1, 1, ['Z'])
+			} else if (lastSeg[0] === 'C') {
+				segs.push(['Z'])
 			}
 
 			mergedPath = segs.flat()
 		}
 	}
 
-	return [K_PATH, ...mergedPath]
+	return ['path', ...mergedPath]
 }
 
 function pathTransform(transform: mat2d, path: PathType) {
@@ -604,11 +595,11 @@ function pathArc([x, y]: vec2, r: number, start: number, end: number): Expr[] {
 	}
 
 	return [
-		K_PATH,
-		K_M,
+		'path',
+		'M',
 		points[0],
 		...partition(3, points.slice(1))
-			.map(pts => [K_C, ...pts])
+			.map(pts => ['C', ...pts])
 			.flat(),
 	]
 }
@@ -717,10 +708,10 @@ function pathBounds(path: PathType) {
 		right = -Infinity,
 		bottom = -Infinity
 
-	if (path[0].toString().startsWith(K_PATH)) {
+	if (path[0].toString().startsWith('path')) {
 		for (const [cmd, ...pts] of iterateCurve(path)) {
 			switch (cmd) {
-				case K_M: {
+				case 'M': {
 					const pt = pts[0]
 					left = Math.min(left, pt[0])
 					top = Math.min(top, pt[1])
@@ -728,13 +719,13 @@ function pathBounds(path: PathType) {
 					bottom = Math.max(bottom, pt[1])
 					break
 				}
-				case K_L:
+				case 'L':
 					left = Math.min(left, pts[0][0], pts[1][0])
 					top = Math.min(top, pts[0][1], pts[1][1])
 					right = Math.max(right, pts[0][0], pts[1][0])
 					bottom = Math.max(bottom, pts[0][1], pts[1][1])
 					break
-				case K_C: {
+				case 'C': {
 					const {x, y} = getBezier(pts).bbox()
 					left = Math.min(left, x.min)
 					top = Math.min(top, y.min)
@@ -827,14 +818,14 @@ function pathVoronoi(
 
 	if (mode === 'edge') {
 		return [
-			K_PATH,
+			'path',
 			...diagram.edges
-				.map(({va, vb}) => [K_M, [va.x, va.y], K_L, [vb.x, vb.y]])
+				.map(({va, vb}) => ['M', [va.x, va.y], 'L', [vb.x, vb.y]])
 				.flat(),
 		]
 	}
 
-	return [K_PATH]
+	return ['path']
 }
 
 const Exports = [

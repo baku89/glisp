@@ -10,7 +10,6 @@ import {
 	isMap,
 	isSeq,
 	isSymbol,
-	keywordFor,
 	symbolFor,
 } from './types'
 
@@ -76,10 +75,6 @@ export default class Env {
 					this.set(binds[i + 1] as ExprSymbol, exps.slice(i))
 					i++
 					continue
-				} else if (bind === keywordFor('as')) {
-					// :as destruction
-					this.set(binds[i + 1] as ExprSymbol, [...exps])
-					break
 				}
 
 				switch (bindType) {
@@ -120,21 +115,15 @@ export default class Env {
 							hashExps = []
 
 						for (const [key, sym] of Object.entries(bind)) {
-							if (key === keywordFor('as')) {
-								// :as destruction
-								hashBinds.push(sym)
-								hashExps.push(exp)
-							} else {
-								if (!(key in (exp as ExprMap))) {
-									throw new GlispError(
-										`[${this.name}] The destruction keyword :${key.slice(
-											1
-										)} does not exist on the parameter`
-									)
-								}
-								hashBinds.push(sym)
-								hashExps.push((exp as ExprMap)[key])
+							if (!(key in (exp as ExprMap))) {
+								throw new GlispError(
+									`[${this.name}] The destruction keyword :${key.slice(
+										1
+									)} does not exist on the parameter`
+								)
 							}
+							hashBinds.push(sym)
+							hashExps.push((exp as ExprMap)[key])
 						}
 
 						this.bindAll(hashBinds, hashExps)

@@ -2,44 +2,44 @@
 ;; Defining new type of primitives
 
 (def=> star
-  {:doc "Generates a star path"
+  {doc: "Generates a star path"
 
    ;; Parameter annotation
-   :params
-   [{:label "Center" :type "vec2"}
-    {:label "#  Vertices" :type "number"
-     :validator #(round (max 2 %))}
-    {:label "Radius 0" :type "number"
-     :validator #(max 0 %)}
-    {:label "Radius 1" :type "number"
-     :validator #(max 0 %)}]
+   params:
+   [{label: "Center" type: "vec2"}
+    {label: "#  Vertices" type: "number"
+     validator: #(round (max 2 %))}
+    {label: "Radius 0" type: "number"
+     validator: #(max 0 %)}
+    {label: "Radius 1" type: "number"
+     validator: #(max 0 %)}]
 
    ;; Handles definition
-   :handles
-   {:draw
+   handles:
+   {draw:
     ;; Returns a list of handles with ID
     ;; from the function's parameters
-    (=> {:params [c n rmin rmax]}
+    (=> {params: [c n rmin rmax]}
       (let [rmin-angle (/ PI n)]
-        [{:id :center :type "point" :pos c}
-         {:id :rmin
-          :type "arrow"
-          :pos (vec2/+
+        [{id: center: type: "point" pos: c}
+         {id: rmin:
+          type: "arrow"
+          pos: (vec2/+
                 c
                 (vec2/dir rmin-angle rmin))
-          :angle rmin-angle}
-         {:id :rmax
-          :type "arrow"
-          :pos (vec2/+ c [rmax 0])}]))
-    :drag
+          angle: rmin-angle}
+         {id: rmax:
+          type: "arrow"
+          pos: (vec2/+ c [rmax 0])}]))
+    drag:
     ;; In turn, returns new parameters
     ;; from the handle's ID and position
-    (=> {:id id :pos pos
-         :params [c n rmin rmax]}
+    (=> {id: id pos: pos
+         params: [c n rmin rmax]}
       (case id
-        :center [pos n rmin rmax]
-        :rmin [c n (vec2/dist c pos) rmax]
-        :rmax [c n rmin (vec2/dist c pos)]))}}
+        center: [pos n rmin rmax]
+        rmin: [c n (vec2/dist c pos) rmax]
+        rmax: [c n rmin (vec2/dist c pos)]))}}
 
   ;; Function body
   [c n rmin rmax]
@@ -49,7 +49,7 @@
                  r (if (mod i 2) rmin rmax)]
              (vec2/+ c (vec2/dir a r))))))
 
-:start-sketch
+"start-sketch"
 
 (background "#C5B3AE")
 

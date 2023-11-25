@@ -16,7 +16,7 @@
 (def *modes* (atom []))
 
 (def=> defmode [mode-name handlers]
-  (swap! *modes* conj {:name (name mode-name) :handlers handlers}))
+  (swap! *modes* conj {name: (name mode-name) handlers: handlers}))
 
 ;; Atoms
 (def *app-background* (atom null))
@@ -24,18 +24,18 @@
 ;; Sketch
 (defmacro sketch [& body]
   (let [evaluated-body (eval* body)
-        start-line-num (inc (last-index-of evaluated-body :start-sketch))
+        start-line-num (inc (last-index-of evaluated-body "start-sketch"))
         sketch-body (filter element? (drop start-line-num evaluated-body))]
-    `[:g :_ ~@sketch-body]))
+    `["g" "_" ~@sketch-body]))
 
 ;; Pens and Hands
 ;; (defmacro begin-draw
-;;   {:private true}
+;;   {private: true}
 ;;   [state]
 ;;   `(def ~state null))
 
 ;; (defmacro draw
-;;   {:private true}
+;;   {private: true}
 ;;   [f state input]
 ;;   `(do
 ;;      (def __ret__ (~f ~state ~input))
@@ -46,14 +46,14 @@
 ;; (def $hands [])
 
 ;; (defmacro defpen
-;;   {:private true}
+;;   {private: true}
 ;;   [name params body]
 ;;   `(do
 ;;      (def ~name (=> ~params ~body))
 ;;      (def $pens (conj $pens `~name))))
 
 ;; (defmacro defhand
-;;   {:private true}
+;;   {private: true}
 ;;   [name params body]
 ;;   `(do
 ;;      (def ~name (=> ~params ~body))

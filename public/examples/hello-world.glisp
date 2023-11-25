@@ -17,4 +17,4 @@
  ;; Text
  (style (fill "#ff4684")
         (text "Hello World" [0 0]
-              :size 25)))
+              size: 25)))

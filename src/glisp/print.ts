@@ -4,7 +4,6 @@ import {
 	ExprList as ExprList,
 	isAtom,
 	isFunc,
-	isKeyword,
 	isList,
 	isMap,
 	isSeq as isVector,
@@ -94,7 +93,7 @@ export function printExpr(expr: Expr): string {
 			if (isExpVector) {
 				elmStrs = expr.map(printExpr)
 			} else {
-				elmStrs = Object.entries(expr).flat().map(printExpr)
+				elmStrs = Object.entries(expr).flatMap(([k, v]) => [k, printExpr(v)])
 			}
 		}
 
@@ -114,17 +113,11 @@ export function printExpr(expr: Expr): string {
 	} else if (typeof expr === 'boolean') {
 		return expr.toString()
 	} else if (typeof expr === 'string') {
-		if (isKeyword(expr)) {
-			return `:${expr.slice(1)}`
-		} else {
-			return `"${expr}"`
-		}
+		return `"${expr}"`
 	} else if (expr === null) {
 		return 'null'
 	} else if (isSymbol(expr)) {
 		return expr.value
-	} else if (isKeyword(expr)) {
-		return ':' + expr.slice(1)
 	} else if (isFunc(expr)) {
 		if (M_AST in expr) {
 			const params = printExpr(expr[M_PARAMS])

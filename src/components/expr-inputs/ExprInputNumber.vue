@@ -50,7 +50,7 @@ function onInput(newExpr: number) {
 	// 	if (display.value.mode === 'unit') {
 	// 		const unitValue = (fn.value as any)(value as any)
 	// 		validated = (display.value.inverseFn as any)({
-	// 			[K('return')]: props.validator(unitValue),
+	// 			['return']: props.validator(unitValue),
 	// 		})[0]
 	// 	} else {
 	// 		validated = props.validator(value)

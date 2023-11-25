@@ -1,5 +1,4 @@
 import {GlispError} from './types'
-import {convertJSObjectToExprMap} from './utils'
 
 export default {
 	resolveJS(str: string): [any, any] {
@@ -15,12 +14,5 @@ export default {
 		} else {
 			return [globalThis, eval(str)]
 		}
-	},
-	jsToExpr(obj: any) {
-		if (obj === null || obj === undefined) {
-			return null
-		}
-
-		return convertJSObjectToExprMap(obj)
 	},
 }

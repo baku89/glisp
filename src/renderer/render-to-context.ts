@@ -1,12 +1,5 @@
 import {printExpr} from '@/glisp/print'
-import {
-	Expr,
-	ExprMap,
-	GlispError,
-	isKeyword,
-	isMap,
-	keywordFor as K,
-} from '@/glisp/types'
+import {Expr, ExprMap, GlispError, isMap} from '@/glisp/types'
 import {iterateSegment, PathType} from '@/path-utils'
 import {partition} from '@/utils'
 
@@ -23,7 +16,7 @@ export default function renderToContext(
 		if (Array.isArray(expr) && expr.length > 0) {
 			const [elm, ...rest] = expr as any[]
 
-			if (!isKeyword(elm)) {
+			if (typeof elm !== 'string') {
 				for (const child of expr) {
 					draw(child, styles)
 				}
@@ -31,7 +24,7 @@ export default function renderToContext(
 				const cmd = elm.replace(/#.*$/, '')
 
 				switch (cmd) {
-					case K('transform'): {
+					case 'transform': {
 						const [mat, ...children] = rest as [number[], ...Expr[]]
 
 						ctx.save()
@@ -42,12 +35,12 @@ export default function renderToContext(
 						ctx.restore()
 						break
 					}
-					case K('g'): {
+					case 'g': {
 						const children = rest.slice(1)
 						draw(children, styles)
 						break
 					}
-					case K('style'): {
+					case 'style': {
 						const [attrs, ...children] = rest
 						styles = [
 							...styles,
@@ -56,7 +49,7 @@ export default function renderToContext(
 						draw(children, styles)
 						break
 					}
-					case K('clip'): {
+					case 'clip': {
 						const [clipPath, ...children] = rest
 						// Enable Clip
 						ctx.save()
@@ -74,12 +67,12 @@ export default function renderToContext(
 						ctx.restore()
 						break
 					}
-					case K('path'): {
+					case 'path': {
 						drawPath(ctx, expr as PathType)
 						applyDrawStyle(styles, defaultStyle, expr as PathType)
 						break
 					}
-					case K('text'): {
+					case 'text': {
 						// Text representation:
 						// (:text "Text" x y {:option1 value1...})
 						const [text, [x, y], options] = rest
@@ -123,13 +116,13 @@ export default function renderToContext(
 		}
 		for (const [c, ...pts] of iterateSegment(path.slice(1))) {
 			switch (c) {
-				case K('M'):
+				case 'M':
 					ctx.moveTo(pts[0][0], pts[0][1])
 					break
-				case K('L'):
+				case 'L':
 					ctx.lineTo(pts[0][0], pts[0][1])
 					break
-				case K('C'):
+				case 'C':
 					ctx.bezierCurveTo(
 						pts[0][0],
 						pts[0][1],
@@ -139,7 +132,7 @@ export default function renderToContext(
 						pts[2][1]
 					)
 					break
-				case K('Z'):
+				case 'Z':
 					ctx.closePath()
 					break
 				default: {
@@ -155,9 +148,9 @@ export default function renderToContext(
 		} else if (Array.isArray(style)) {
 			const [type, params] = style as [string, ExprMap]
 			switch (type) {
-				case K('linear-gradient'): {
-					const [x0, y0, x1, y1] = params[K('points')] as number[]
-					const stops = params[K('stops')] as (string | number)[]
+				case 'linear-gradient': {
+					const [x0, y0, x1, y1] = params['points'] as number[]
+					const stops = params['stops'] as (string | number)[]
 					const grad = ctx.createLinearGradient(x0, y0, x1, y1)
 					for (const [offset, color] of partition(2, stops)) {
 						if (typeof offset !== 'number' || typeof color !== 'string') {
@@ -187,8 +180,8 @@ export default function renderToContext(
 		styles = styles.length > 0 ? styles : defaultStyle ? [defaultStyle] : []
 
 		const drawOrders = styles.map(s => ({
-			fill: s[K('fill')],
-			stroke: s[K('stroke')],
+			fill: s['fill'],
+			stroke: s['stroke'],
 		}))
 
 		let ignoreFill = false,
@@ -209,22 +202,22 @@ export default function renderToContext(
 			const style = styles[i]
 			for (const [k, v] of Object.entries(style)) {
 				switch (k) {
-					case K('fill-color'):
+					case 'fill-color':
 						ctx.fillStyle = createContextStyle(v as string)
 						break
-					case K('stroke-color'):
+					case 'stroke-color':
 						ctx.strokeStyle = createContextStyle(v as string)
 						break
-					case K('stroke-width'):
+					case 'stroke-width':
 						ctx.lineWidth = v as number
 						break
-					case K('stroke-cap'):
+					case 'stroke-cap':
 						ctx.lineCap = v as CanvasLineCap
 						break
-					case K('stroke-join'):
+					case 'stroke-join':
 						ctx.lineJoin = v as CanvasLineJoin
 						break
-					case K('stroke-dash'):
+					case 'stroke-dash':
 						ctx.setLineDash(v as number[])
 				}
 			}

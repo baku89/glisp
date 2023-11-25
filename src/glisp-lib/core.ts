@@ -11,14 +11,12 @@ import {
 	getMeta,
 	getType,
 	GlispError,
-	isKeyword,
 	isList,
 	isMap,
 	isSeq,
 	isString,
 	isSymbol,
 	isVector,
-	keywordFor,
 	printExpr,
 	setMeta,
 	symbolFor as S,
@@ -27,18 +25,16 @@ import {
 import {partition} from '@/utils'
 
 const Exports = [
-	['type', x => keywordFor(getType(x) as string)],
+	['type', x => getType(x)],
 	['null?', (x: Expr) => x === null],
 	['true?', (x: Expr) => x === true],
 	['false?', (x: Expr) => x === false],
 	['boolean?', (x: Expr) => typeof x === 'boolean'],
 	['number?', (x: Expr) => typeof x === 'number'],
 	['string?', isString],
-	['keyword?', isKeyword],
 	['fn?', (x: Expr) => getType(x) === 'fn'],
 	['macro?', (x: Expr) => getType(x) === 'macro'],
 
-	['keyword', keywordFor],
 	['symbol', S],
 	['symbol?', isSymbol],
 

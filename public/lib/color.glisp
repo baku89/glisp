@@ -6,17 +6,17 @@
   (string? x))
 
 (def=> color/gray
-  {:return {:type "string" :ui "color"}}
+  {return: {type: "string" ui: "color"}}
   [v]
   (def b (* v 255))
   (format "rgb(%d,%d,%d)" b b b))
 
 (def=> color/rgb
-  {:params [{:label "Red" :type "number" :validator clamp01}
-            {:label "Green" :type "number" :validator clamp01}
-            {:label "Blue" :type "number" :validator clamp01}
-            {:label "Alpha" :type "number" :validator clamp01 :default 1}]
-   :return {:type "string" :ui "color"}}
+  {params: [{label: "Red" type: "number" validator: clamp01}
+            {label: "Green" type: "number" validator: clamp01}
+            {label: "Blue" type: "number" validator: clamp01}
+            {label: "Alpha" type: "number" validator: clamp01 default: 1}]
+   return: {type: "string" ui: "color"}}
   [r g b & a]
   (if (zero? (count a))
     (format "rgb(%d,%d,%d)" (* r 255) (* g 255) (* b 255))
@@ -24,11 +24,11 @@
 (defalias rgb color/rgb)
 
 (def=> color/hsl
-  {:params [{:label "Hue" :type "number" :validator #(clamp 0 TWO_PI %)}
-            {:label "Saturation" :type "number" :validator clamp01}
-            {:label "Lightness" :type "number" :validator clamp01}
-            {:label "Alpha" :type "number" :validator clamp01 :default 1}]
-   :return {:type "string" :ui "color"}}
+  {params: [{label: "Hue" type: "number" validator: #(clamp 0 TWO_PI %)}
+            {label: "Saturation" type: "number" validator: clamp01}
+            {label: "Lightness" type: "number" validator: clamp01}
+            {label: "Alpha" type: "number" validator: clamp01 default: 1}]
+   return: {type: "string" ui: "color"}}
   [h s l & a]
   (if (zero? (count a))
     (format "hsl(%d,%s,%s)"
@@ -44,34 +44,34 @@
 
 (annotate-fn!
  color/mix
- {:doc "Mixes two colors"
-  :params [{:label "Color1" :type "string" :ui "color"}
-           {:label "Color2" :type "string" :ui "color"}
-           {:label "Ratio" :type "number" :ui "slider"
-            :min 0 :max 1 :default 0.5 :validator clamp01}
-           {:label "Mode" :type "string" :ui "dropdown" :default "lrgb"
-            :values ["lrgb" "rgb" "hsl"]}]
-  :return {:type "string" :ui "color"}})
+ {doc: "Mixes two colors"
+  params: [{label: "Color1" type: "string" ui: "color"}
+           {label: "Color2" type: "string" ui: "color"}
+           {label: "Ratio" type: "number" ui: "slider"
+            min: 0 max: 1 default: 0.5 validator: clamp01}
+           {label: "Mode" type: "string" ui: "dropdown" default: "lrgb"
+            values: ["lrgb" "rgb" "hsl"]}]
+  return: {type: "string" ui: "color"}})
 
 (annotate-fn!
  color/brighten
- {:doc "Brightens the color"
-  :params [{:label "Color" :type "string" :ui "color"}
-           {:label "Value" :type "number" :default 1}]
-  :return {:type "string" :ui "color"}})
+ {doc: "Brightens the color"
+  params: [{label: "Color" type: "string" ui: "color"}
+           {label: "Value" type: "number" default: 1}]
+  return: {type: "string" ui: "color"}})
 
 (annotate-fn!
  color/darken
- {:doc "Darkens the color"
-  :params [{:label "Color" :type "string" :ui "color"}
-           {:label "Value" :type "number" :default 1}]
-  :return {:type "string" :ui "color"}})
+ {doc: "Darkens the color"
+  params: [{label: "Color" type: "string" ui: "color"}
+           {label: "Value" type: "number" default: 1}]
+  return: {type: "string" ui: "color"}})
 
 (annotate-fn!
  color/invert
- {:doc "Inverts the color"
-  :params [{:label "Color" :type "string" :ui "color"}
-           {:label "mode" :type "string" :ui "dropdown" :default "rgb"
-            :values ["rgb" "hsl"]}]
-  :inverse (=> {:return ret :params params}
+ {doc: "Inverts the color"
+  params: [{label: "Color" type: "string" ui: "color"}
+           {label: "mode" type: "string" ui: "dropdown" default: "rgb"
+            values: ["rgb" "hsl"]}]
+  inverse: (=> {return: ret params: params}
              [(apply color/invert (replace-nth params 0 ret))])})

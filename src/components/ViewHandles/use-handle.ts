@@ -10,10 +10,11 @@ import {
 	ExprColl,
 	ExprMap,
 	ExprSeq,
+	getEvaluated,
+	getFnInfo,
 	getMapValue,
 	isMap,
 	isVector,
-	keywordFor as K,
 	replaceExpr,
 	reverseEval,
 } from '@/glisp'
@@ -33,21 +34,6 @@ interface Handle {
 	yTransform?: string
 	path?: string
 }
-
-const K_ANGLE = K('angle'),
-	K_ID = K('id'),
-	K_GUIDE = K('guide'),
-	K_POS = K('pos'),
-	K_TYPE = K('type'),
-	K_DRAW = K('draw'),
-	K_DRAG = K('drag'),
-	K_CHANGE_ID = K('change-id'),
-	K_PATH = K('path'),
-	K_CLASS = K('class'),
-	K_PREV_POS = K('prev-pos'),
-	K_PARAMS = K('params'),
-	K_RETURN = K('return'),
-	K_REPLACE = K('replace')
 
 const POINTABLE_HANDLE_TYPES = new Set(['translate', 'arrow', 'dia', 'point'])
 
@@ -124,15 +110,15 @@ export default function useHandle(
 		handleCallbacks.value.map((cb, index) => {
 			if (!cb) return []
 
-			const drawHandle = cb[K_DRAW]
+			const drawHandle = cb['draw']
 
 			if (typeof drawHandle !== 'function') {
 				return []
 			}
 
 			const options = {
-				[K_PARAMS]: params.value[index],
-				[K_RETURN]: returnedValue.value[index],
+				['params']: params.value[index],
+				['return']: returnedValue.value[index],
 			}
 
 			let handles
@@ -148,9 +134,9 @@ export default function useHandle(
 			}
 
 			return handles.map((h: any) => {
-				const type = h[K_TYPE] as string
-				const guide = !!h[K_GUIDE]
-				const classList = ((h[K_CLASS] as string) || '')
+				const type = h['type'] as string
+				const guide = !!h['guide']
+				const classList = ((h['class'] as string) || '')
 					.split(' ')
 					.filter(c => !!c)
 				const cls = {} as ClassList
@@ -162,12 +148,12 @@ export default function useHandle(
 				let yRotate = 0
 
 				if (POINTABLE_HANDLE_TYPES.has(type)) {
-					const [x, y] = h[K_POS]
+					const [x, y] = h['pos']
 					xform = mat2d.translate(xform, [x, y])
 				}
 
 				if (type === 'arrow') {
-					const angle = h[K_ANGLE] || 0
+					const angle = h['angle'] || 0
 					xform = mat2d.rotate(xform, angle)
 				} else if (type === 'dia') {
 					xform = [1, 0, 0, 1, xform[4], xform[5]]
@@ -194,14 +180,14 @@ export default function useHandle(
 					type,
 					cls,
 					guide,
-					id: h[K_ID],
+					id: h['id'],
 					transform: `matrix(${xform.join(',')})`,
 				}
 
 				if (type === 'translate') {
 					ret.yTransform = `rotate(${(yRotate * 180) / Math.PI})`
 				} else if (type === 'path') {
-					ret.path = getSVGPathData(h[K_PATH])
+					ret.path = getSVGPathData(h['path'])
 				}
 
 				return ret
@@ -235,7 +221,7 @@ export default function useHandle(
 			return
 		}
 
-		const dragHandle = callbacks[K_DRAG]
+		const dragHandle = callbacks['drag']
 
 		if (typeof dragHandle !== 'function') {
 			return
@@ -261,10 +247,10 @@ export default function useHandle(
 		const handle = handles.value[selectedIndex][handleIndex]
 
 		const eventInfo = {
-			[K_ID]: handle.id === undefined ? null : handle.id,
-			[K_POS]: pos,
-			[K_PREV_POS]: prevPos,
-			[K_PARAMS]: _params,
+			id: handle.id === undefined ? null : handle.id,
+			pos: pos,
+			'prev-pos': prevPos,
+			params: _params,
 		} as ExprMap
 
 		rawPrevPos.value = rawPos
@@ -285,9 +271,9 @@ export default function useHandle(
 		let updatedIndices: number[] | undefined = undefined
 
 		if (isMap(result)) {
-			const retParams = result[K_PARAMS]
-			const replace = result[K_REPLACE]
-			const changeId = result[K_CHANGE_ID]
+			const retParams = result['params']
+			const replace = result['replace']
+			const changeId = result['change-id']
 
 			if (isVector(retParams)) {
 				newParams = retParams

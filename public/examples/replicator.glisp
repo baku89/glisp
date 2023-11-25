@@ -7,7 +7,7 @@
                (range (dec n)))
        (map #(path/transform % path))))
 
-:start-sketch
+"start-sketch"
 
 (background "#08101D")
 

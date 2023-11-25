@@ -36,7 +36,7 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {parse} from '@/glisp'
+import {getEvaluated, getFn, getFnInfo, parse} from '@/glisp'
 import {
 	createList as L,
 	Expr,
@@ -44,10 +44,8 @@ import {
 	ExprSymbol,
 	getMapValue,
 	isList,
-	keywordFor as K,
 	reverseEval,
 } from '@/glisp'
-import {useSketchStore} from '@/stores/sketch'
 
 interface Props {
 	value: ExprSymbol | number | ExprSeq
@@ -60,8 +58,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
-const sketch = useSketchStore()
 
 const emit = defineEmits<{
 	input: [value: Expr]
@@ -111,7 +107,7 @@ const displayValue = computed(() => {
 const innerMin = computed(() => {
 	if (display.value.mode === 'unit') {
 		return (display.value.inverseFn as any)({
-			[K('return')]: props.min,
+			return: props.min,
 		})[0]
 	} else {
 		return props.min
@@ -121,7 +117,7 @@ const innerMin = computed(() => {
 const innerMax = computed(() => {
 	if (display.value.mode === 'unit') {
 		return (display.value.inverseFn as any)({
-			[K('return')]: props.max,
+			return: props.max,
 		})[0]
 	} else {
 		return props.max
@@ -148,7 +144,7 @@ function onInput(value: number | string) {
 		if (display.value.mode === 'unit') {
 			const unitValue = (fn.value as any)(value as any)
 			validated = (display.value.inverseFn as any)({
-				[K('return')]: props.validator(unitValue),
+				return: props.validator(unitValue),
 			})[0]
 		} else {
 			validated = props.validator(value)

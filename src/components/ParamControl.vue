@@ -33,7 +33,6 @@ import {computed, toRaw} from 'vue'
 import * as ExprInputComponents from '@/components/expr-inputs'
 import {
 	clone,
-	convertExprCollToJSObject,
 	createList as L,
 	Expr,
 	ExprList,
@@ -43,8 +42,6 @@ import {
 	getMapValue,
 	getParent,
 	isColl,
-	keywordFor as K,
-	keywordFor,
 	Schema,
 	SchemaVector,
 	symbolFor,
@@ -65,7 +62,6 @@ const inputComponents: Record<string, any> = {
 	string: ExprInputComponents.ExprInputString,
 	color: ExprInputComponents.ExprInputColor,
 	dropdown: ExprInputComponents.ExprInputDropdown,
-	keyword: ExprInputComponents.ExprInputKeyword,
 	symbol: ExprInputComponents.ExprInputSymbol,
 	boolean: ExprInputComponents.ExprInputBoolean,
 	vec2: ExprInputComponents.ExprInputVec2,
@@ -80,13 +76,12 @@ const TypeDefaults = {
 	number: 0,
 	string: '',
 	symbol: symbolFor('_'),
-	keyword: keywordFor('_'),
 	boolean: false,
 	vec2: [0, 0],
 	rect2d: [0, 0, 1, 1],
 	mat2d: [1, 0, 0, 1, 0, 0],
 	size2d: L(symbolFor('vec2/size'), 1, 1, false),
-	path: [K('path')],
+	path: ['path'],
 	exp: null,
 	any: null,
 } as {[type: string]: Expr}
@@ -109,18 +104,17 @@ const schema = computed<Schema[]>(() => {
 	if (!fnInfo.value) return []
 
 	const meta = fnInfo.value.meta
-	const malSchema = getMapValue(meta, 'params')
+	let schema = getMapValue(meta, 'params')
 
-	if (!isColl(malSchema)) {
+	if (!isColl(schema)) {
 		return null
 	}
-
-	// Convert to JS Object
-	let schema = convertExprCollToJSObject(malSchema)
-
 	// Add label
 	if (Array.isArray(schema)) {
-		schema = generateSchemaParamLabel(schema as any, fnInfo.value.fn as any)
+		schema = generateSchemaParamLabel(
+			schema as any,
+			fnInfo.value.fn as any
+		) as any
 	}
 	return schema
 })
@@ -163,8 +157,8 @@ function insertParam(i: number) {
 
 	if (vectorSchema.insert) {
 		value = (vectorSchema.insert as any)({
-			[K('params')]: params.value.slice(variadicPos.value),
-			[K('index')]: i - variadicPos.value,
+			['params']: params.value.slice(variadicPos.value),
+			['index']: i - variadicPos.value,
 		})
 	} else if ('default' in variadicSchema) {
 		value = variadicSchema.default as Expr

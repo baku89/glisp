@@ -5,7 +5,7 @@
 
   ; Initialize state
     (if (null? (first state))
-      (def state `((quasiquote :path) false false false)))
+      (def state `((quasiquote path:) false false false)))
 
     (let
      (; State

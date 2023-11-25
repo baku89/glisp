@@ -26,7 +26,6 @@ import {
 	isSymbol,
 	isSymbolFor,
 	isVector,
-	keywordFor as K,
 	parse,
 	printExpr,
 	replaceExpr,
@@ -35,7 +34,6 @@ import {
 } from '@/glisp'
 import AppScope from '@/scopes/app'
 import ViewScope from '@/scopes/view'
-import {useSketchStore} from '@/stores/sketch'
 
 import {toSketchCode} from '../utils'
 
@@ -56,8 +54,6 @@ export default function useAppCommands({
 	setActiveExpr: (exp: ExprColl | null) => any
 	setSelectedExp: (exp: ExprColl[]) => void
 }) {
-	const sketch = useSketchStore()
-
 	AppScope.def('expand-selected', () => {
 		if (!activeExp.value) {
 			return false
@@ -275,8 +271,8 @@ export default function useAppCommands({
 
 			const originalParams = structType ? [exp] : exp.slice(1)
 			const payload = {
-				[K('params')]: originalParams.map(p => getEvaluated(p)),
-				[K('transform')]: xform as Expr,
+				['params']: originalParams.map(p => getEvaluated(p)),
+				['transform']: xform as Expr,
 			} as ExprMap
 
 			const modifier = transformFn(payload)

@@ -1,8 +1,6 @@
 import {mat2d, vec2} from 'linearly'
 
-import {Expr, GlispError, isKeyword, isVector, keywordFor as K} from '@/glisp'
-
-const K_PATH = K('path')
+import {Expr, GlispError, isVector} from '@/glisp'
 
 export type Vec2 = number[] | vec2
 
@@ -10,7 +8,7 @@ export type PathType = (string | Vec2)[]
 export type SegmentType = [string, ...Vec2[]]
 
 export function isPath(exp: any): exp is PathType {
-	return isVector(exp) && exp[0] === K_PATH
+	return isVector(exp) && exp[0] === 'path'
 }
 
 export function* iterateSegment(path: PathType): Generator<SegmentType> {
@@ -18,10 +16,10 @@ export function* iterateSegment(path: PathType): Generator<SegmentType> {
 		throw new GlispError('Invalid path')
 	}
 
-	let start = path[0].toString().startsWith(K_PATH) ? 1 : 0
+	let start = path[0].toString().startsWith('path') ? 1 : 0
 
 	for (let i = start + 1, l = path.length; i <= l; i++) {
-		if (i === l || isKeyword(path[i] as Expr)) {
+		if (i === l || typeof path[i] === 'string') {
 			yield path.slice(start, i) as SegmentType
 			start = i
 		}
@@ -37,15 +35,15 @@ export function getSVGPathDataRecursive(exp: Expr): string {
 		}
 
 		switch (exp[0]) {
-			case K('path'):
+			case 'path':
 				return getSVGPathData(transformPath(exp as PathType, transform))
-			case K('style'): {
+			case 'style': {
 				return exp
 					.slice(2)
 					.map(e => convertPath(e, transform))
 					.join(' ')
 			}
-			case K('transform'): {
+			case 'transform': {
 				const newTransform = mat2d.mul(
 					transform ?? mat2d.identity,
 					exp[1] as mat2d.Mutable
@@ -72,30 +70,25 @@ export function getSVGPathDataRecursive(exp: Expr): string {
 }
 
 export function getSVGPathData(path: PathType) {
-	if (path[0].toString().startsWith(K_PATH)) {
+	if (path[0].toString().startsWith('path')) {
 		path = path.slice(1)
 	}
 
-	return path.map(x => (isKeyword(x as Expr) ? x.slice(1) : x)).join(' ')
+	return path.join(' ')
 }
-
-const K_M = K('M'),
-	K_L = K('L'),
-	K_C = K('C'),
-	K_Z = K('Z')
 
 export function convertToPath2D(exp: PathType) {
 	const path = new Path2D()
 
 	for (const [cmd, ...pts] of iterateSegment(exp)) {
 		switch (cmd) {
-			case K_M:
+			case 'M':
 				path.moveTo(...(pts[0] as [number, number]))
 				break
-			case K_L:
+			case 'L':
 				path.lineTo(...(pts[0] as [number, number]))
 				break
-			case K_C:
+			case 'C':
 				path.bezierCurveTo(
 					pts[0][0],
 					pts[0][1],
@@ -105,7 +98,7 @@ export function convertToPath2D(exp: PathType) {
 					pts[2][1]
 				)
 				break
-			case K_Z:
+			case 'Z':
 				path.closePath()
 		}
 	}

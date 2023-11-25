@@ -1,28 +1,28 @@
 ;; Keybinds
-(set-keybind "mod+e" `(do (expand-selected) (tag-history :undo)))
+(set-keybind "mod+e" `(do (expand-selected) (tag-history undo:)))
 (set-keybind "mod+p" `(select-outer))
-(set-keybind "mod+g" `(do (group-selected) (tag-history :undo)))
-(set-keybind "up" `(do (transform-selected (translate [0 -1])) (tag-history :undo)))
-(set-keybind "down" `(do (transform-selected (translate [0 1])) (tag-history :undo)))
-(set-keybind "right" `(do (transform-selected (translate [1 0])) (tag-history :undo)))
-(set-keybind "left" `(do (transform-selected (translate [-1 0])) (tag-history :undo)))
-(set-keybind "shift+up" `(do (transform-selected (translate [0 -10])) (tag-history :undo)))
-(set-keybind "shift+down" `(do (transform-selected (translate [0 10])) (tag-history :undo)))
-(set-keybind "shift+right" `(do (transform-selected (translate [10 0])) (tag-history :undo)))
-(set-keybind "shift+left" `(do (transform-selected (translate [-10 0])) (tag-history :undo)))
-(set-keybind "alt+up" `(do (transform-selected (translate [0 -0.1])) (tag-history :undo)))
-(set-keybind "alt+down" `(do (transform-selected (translate [0 0.1])) (tag-history :undo)))
-(set-keybind "alt+right" `(do (transform-selected (translate [0.1 0])) (tag-history :undo)))
-(set-keybind "alt+left" `(do (transform-selected (translate [-0.1 0])) (tag-history :undo)))
-(set-keybind "mod+z" `(revert-history :undo))
+(set-keybind "mod+g" `(do (group-selected) (tag-history undo:)))
+(set-keybind "up" `(do (transform-selected (translate [0 -1])) (tag-history undo:)))
+(set-keybind "down" `(do (transform-selected (translate [0 1])) (tag-history undo:)))
+(set-keybind "right" `(do (transform-selected (translate [1 0])) (tag-history undo:)))
+(set-keybind "left" `(do (transform-selected (translate [-1 0])) (tag-history undo:)))
+(set-keybind "shift+up" `(do (transform-selected (translate [0 -10])) (tag-history undo:)))
+(set-keybind "shift+down" `(do (transform-selected (translate [0 10])) (tag-history undo:)))
+(set-keybind "shift+right" `(do (transform-selected (translate [10 0])) (tag-history undo:)))
+(set-keybind "shift+left" `(do (transform-selected (translate [-10 0])) (tag-history undo:)))
+(set-keybind "alt+up" `(do (transform-selected (translate [0 -0.1])) (tag-history undo:)))
+(set-keybind "alt+down" `(do (transform-selected (translate [0 0.1])) (tag-history undo:)))
+(set-keybind "alt+right" `(do (transform-selected (translate [0.1 0])) (tag-history undo:)))
+(set-keybind "alt+left" `(do (transform-selected (translate [-0.1 0])) (tag-history undo:)))
+(set-keybind "mod+z" `(revert-history undo:))
 (set-keybind "mod+alt+z" `(revert-history))
 (set-keybind "mod+s" `(download-sketch))
-(set-keybind "backspace" `(do (delete-selected) (tag-history :undo)))
-(set-keybind "delete" `(do (delete-selected) (tag-history :undo)))
+(set-keybind "backspace" `(do (delete-selected) (tag-history undo:)))
+(set-keybind "delete" `(do (delete-selected) (tag-history undo:)))
 (set-keybind "mod+c" `(copy-selected))
-(set-keybind "mod+v" `(do (paste-from-clipboard) (tag-history :undo)))
-(set-keybind "mod+x" `(do (copy-selected) (delete-selected) (tag-history :undo)))
-(set-keybind "mod+d" `(do (copy-selected) (paste-from-clipboard) (tag-history :undo)))
+(set-keybind "mod+v" `(do (paste-from-clipboard) (tag-history undo:)))
+(set-keybind "mod+x" `(do (copy-selected) (delete-selected) (tag-history undo:)))
+(set-keybind "mod+d" `(do (copy-selected) (paste-from-clipboard) (tag-history undo:)))
 (set-keybind "esc" `(reset-mode))
 
 ;; Global Menu
@@ -56,74 +56,74 @@
 (reset! *modes* [])
 
 (defmode "select"
-  {:label "Select"
-   :icon {:type "fontawesome" :value "fas fa-mouse-pointer"}
-   :setup (=> [] {:path null})
-   :move (=> {:pos pos}
-           {:path (detect-hit pos)})
-   :press (=> {:path path :pos pos}
+  {label: "Select"
+   icon: {type: "fontawesome" value: "fas fa-mouse-pointer"}
+   setup: (=> [] {path: null})
+   move: (=> {pos: pos}
+           {path: (detect-hit pos)})
+   press: (=> {path: path pos: pos}
             (let [already-selected (item-selected? path)]
               (if path
-                (if (modifier-pressed? :ctrl)
+                (if (modifier-pressed? ctrl:)
                   (if-not already-selected
                     (toggle-item-selection path))
                   (select-items [path]))
                 (select-items []))
-              {:path path
-               :prev-pos pos
-               :deselect already-selected}))
-   :drag (=> {:prev-pos prev-pos
-              :pos pos
-              :path path
-              :deselect deselect}
+              {path: path
+               prev-pos: pos
+               deselect: already-selected}))
+   drag: (=> {prev-pos: prev-pos
+              pos: pos
+              path: path
+              deselect: deselect}
            (do (transform-selected
                 (translate (vec2/- pos prev-pos)))
-               {:prev-pos pos
-                :path path
-                :deselect false}))
-   :release (=> {:path path :deselect deselect}
+               {prev-pos: pos
+                path: path
+                deselect: false}))
+   release: (=> {path: path deselect: deselect}
               (when (and deselect
-                         (modifier-pressed? :ctrl))
+                         (modifier-pressed? ctrl:))
                 (toggle-item-selection path)
-                {:path path}))})
+                {path: path}))})
 
 (defmode "polyline"
-  {:label "Polyline"
-   :icon {:type "character" :value "⏢"}
-   :setup (=> [] {:item null :path null})
-   :press (=> {:item item :pos pos :path path}
+  {label: "Polyline"
+   icon: {type: "character" value: "⏢"}
+   setup: (=> [] {item: null path: null})
+   press: (=> {item: item pos: pos path: path}
             (if (null? item)
               (let [item `(polyline ~pos)
                     path (insert-item item)]
-                (tag-history :undo)
-                {:item item
-                 :path path})
+                (tag-history undo:)
+                {item: item
+                 path: path})
               (let [item (lst (concat item [pos]))]
                 (replace-item path item)
-                (tag-history :undo)
-                {:item item
-                 :path path})))})
+                (tag-history undo:)
+                {item: item
+                 path: path})))})
 
 (defmode "circle"
-  {:label "Circle"
-   :icon {:type "character" :value "●"}
-   :press (=> {:pos pos}
-            {:center pos
-             :path (insert-item `(circle ~pos 0))})
-   :drag (=> {:center center :path path :pos pos}
+  {label: "Circle"
+   icon: {type: "character" value: "●"}
+   press: (=> {pos: pos}
+            {center: pos
+             path: (insert-item `(circle ~pos 0))})
+   drag: (=> {center: center path: path pos: pos}
            (do
              (replace-item path `(circle ~center ~(vec2/dist center pos)))
-             {:path path :center center}))
-   :release (=> [] (tag-history :undo))})
+             {path: path center: center}))
+   release: (=> [] (tag-history undo:))})
 
 (defmode "rectangle"
-  {:label "Rectangle"
-   :icon {:type "character" :value "■"}
-   :press (=> {:pos pos}
-            {:origin pos
-             :path (insert-item `(rect [~@pos 0 0]))})
-   :drag (=> {:origin origin :path path :pos pos}
+  {label: "Rectangle"
+   icon: {type: "character" value: "■"}
+   press: (=> {pos: pos}
+            {origin: pos
+             path: (insert-item `(rect [~@pos 0 0]))})
+   drag: (=> {origin: origin path: path pos: pos}
            (do
              (replace-item path `(rect ~(rect2d/from-to origin pos)))
-             {:path path :origin origin}))
-   :release (=> [] (tag-history :undo))})
+             {path: path origin: origin}))
+   release: (=> [] (tag-history undo:))})

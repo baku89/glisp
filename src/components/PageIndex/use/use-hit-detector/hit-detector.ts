@@ -1,23 +1,7 @@
 import {vec2} from 'linearly'
 
-import {
-	Expr,
-	ExprMap,
-	ExprSeq,
-	getEvaluated,
-	isKeyword,
-	isList,
-	isVector,
-	keywordFor as K,
-} from '@/glisp'
+import {Expr, ExprMap, ExprSeq, getEvaluated, isList, isVector} from '@/glisp'
 import {convertToPath2D, PathType} from '@/path-utils'
-
-const K_PATH = K('path'),
-	K_TRANSFORM = K('transform'),
-	K_STYLE = K('style'),
-	K_FILL = K('fill'),
-	K_STROKE = K('stroke'),
-	K_STROKE_WIDTH = K('stroke-width')
 
 export class HitDetector {
 	private ctx: CanvasRenderingContext2D
@@ -55,17 +39,17 @@ export class HitDetector {
 			const command = evaluated[0]
 
 			switch (command) {
-				case K_PATH: {
+				case 'path': {
 					const path = this.getPath2D(evaluated)
-					const hasFill = !!hitStyle[K_FILL]
-					const hasStroke = !!hitStyle[K_STROKE]
+					const hasFill = !!hitStyle['fill']
+					const hasStroke = !!hitStyle['stroke']
 					if (hasFill) {
 						if (this.ctx.isPointInPath(path, pos[0], pos[1])) {
 							return exp
 						}
 					}
 					if (hasStroke || (!hasFill && !hasStroke)) {
-						const width = Math.max((hitStyle[K_STROKE_WIDTH] as number) || 0, 4)
+						const width = Math.max((hitStyle['stroke-width'] as number) || 0, 4)
 						this.ctx.lineWidth = width
 						if (this.ctx.isPointInStroke(path, pos[0], pos[1])) {
 							return exp
@@ -73,7 +57,7 @@ export class HitDetector {
 					}
 					break
 				}
-				case K_TRANSFORM: {
+				case 'transform': {
 					const [, xform] = evaluated
 					const [, , ...body] = exp as ExprSeq
 					this.ctx.save()
@@ -84,7 +68,7 @@ export class HitDetector {
 					this.ctx.restore()
 					return ret
 				}
-				case K_STYLE: {
+				case 'style': {
 					const [, styles] = evaluated
 					const [, , ...body] = exp as ExprSeq
 					let mergedStyles = {...hitStyle}
@@ -100,10 +84,10 @@ export class HitDetector {
 					return ret
 				}
 				default:
-					if (isKeyword(command)) {
-						const body = (exp as ExprSeq).slice(1)
-						return this.analyzeVector(pos, body, hitStyle)
-					}
+				// if (isKeyword(command)) {
+				// 	const body = (exp as ExprSeq).slice(1)
+				// 	return this.analyzeVector(pos, body, hitStyle)
+				// }
 			}
 		} else if (isList(exp)) {
 			return this.analyzeVector(pos, exp.slice(1), hitStyle)

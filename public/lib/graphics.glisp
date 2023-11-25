@@ -3,16 +3,16 @@
 
 (def=> apply-draw-handle [f & xs]
   (let [hf (-> (fn-meta f)
-               (get :handles)
-               (get :draw))]
+               (get handles:)
+               (get draw:))]
     (if (fn? hf)
       (apply hf xs)
       (throw "Handle draw function does not exists"))))
 
 (def=> apply-drag-handle [f & xs]
   (let [hf (-> (fn-meta f)
-               (get :handles)
-               (get :drag))]
+               (get handles:)
+               (get drag:))]
     (if (fn? hf)
       (apply hf xs)
       (throw "Handle on-drag function does not exists"))))
@@ -35,24 +35,24 @@
   (let [get-merged-path
         (=> [body]
           (if (vector? body)
-            (if (keyword? (first body))
+            (if (string? (first body))
               (let [tag (tagtype body)]
                 (cond
 
                   ;; Path
-                  (= tag :path)
+                  (= tag path:)
                   body
 
                   ;; Transform
-                  (= tag :transform)
+                  (= tag transform:)
                   (path/transform (second body)
                                   (get-merged-path `[~@(slice body 2)]))
 
                   ;; Clip
-                  (= tag :clip)
+                  (= tag clip:)
                   (second body)
 
-                  :else
+                  else:
                   (get-merged-path `[~@(slice body 2)])))
 
               ;; Just a vector
@@ -90,22 +90,22 @@
          xs))
 
 (def=> guide/dotted-stroke [& xs]
-  (style (stroke *guide-color* 1 :dash [2 2])
+  (style (stroke *guide-color* 1 dash: [2 2])
          xs))
 
 (def=> graphics/g
-  {:doc "Creates a element group with attributes"
-   :params [{:label "Attribute" :type "exp"}
-            {:type "vector"
-             :variadic true
-             :items {:label "Body" :type "exp"}}]
-   :viewport-transform (=> [attrs & body]
-                         (if (contains? attrs :transform)
-                           (spy `[null ~@(repeat (get attrs :transform)
+  {doc: "Creates a element group with attributes"
+   params: [{label: "Attribute" type: "exp"}
+            {type: "vector"
+             variadic: true
+             items: {label: "Body" type: "exp"}}]
+   viewport-transform: (=> [attrs & body]
+                         (if (contains? attrs transform:)
+                           (spy `[null ~@(repeat (get attrs transform:)
                                                 (count body))])))}
   [attrs & body]
-  (let [attr-transform (get attrs :transform)
-        attr-style (get attrs :style)]
+  (let [attr-transform (get attrs transform:)
+        attr-style (get attrs style:)]
     (cond
       (and attr-transform attr-style)
       `(transform ~attr-transform (style ~attr-style ~@body))
@@ -116,38 +116,38 @@
       attr-style
       `(style ~attr-style ~@body)
 
-      :else
-      `[:g :_ ~@body])))
+      else:
+      `["g" "_" ~@body])))
 (defalias g graphics/g)
 
 (defmacro graphics/transform
-  {:doc "Transforms elements"
-   :params [{:label "Transform" :type "mat2d"}
-            {:type "vector"
-             :variadic true
-             :items {:label "Body" :type "exp"}}]
-   :viewport-transform (=> [xform & body]
+  {doc: "Transforms elements"
+   params: [{label: "Transform" type: "mat2d"}
+            {type: "vector"
+             variadic: true
+             items: {label: "Body" type: "exp"}}]
+   viewport-transform: (=> [xform & body]
                          `[null ~@(repeat xform (count body))])
-   :transform (=> {:params [xform & body]
-                   :transform delta-xform}
-                {:replace [0 (mat2d/* xform delta-xform)]})
-   :return {:type "item"}}
+   transform: (=> {params: [xform & body]
+                   transform: delta-xform}
+                {replace: [0 (mat2d/* xform delta-xform)]})
+   return: {type: "item"}}
   [xform & body]
   (let [local-xform (eval* xform)
         global-xform (mat2d/* (eval* *transform*)
                               local-xform)]
     ;; NOTE: This is not efficient since `xform` will be evaluated twice
     `(binding [*transform* ~global-xform]
-       [:transform ~xform ~@body])))
+       [transform: ~xform ~@body])))
 (defalias transform graphics/transform)
 
 (defmacro graphics/style
-  {:doc "Applies a style to elements"
-   :params [{:label "Style" :type "exp"}
-            {:type "vector"
-             :variadic true
-             :items  {:label "Body" :type "exp"}}]
-   :return {:type "item"}}
+  {doc: "Applies a style to elements"
+   params: [{label: "Style" type: "exp"}
+            {type: "vector"
+             variadic: true
+             items:  {label: "Body" type: "exp"}}]
+   return: {type: "item"}}
   [styles & body]
   (let [evaluated-styles (eval* (if (vector? styles)
                                   styles
@@ -157,150 +157,150 @@
                      (map #(vector (symbol (str "*" (name (first %)) "*"))
                                    (second %))
                           (entries merged-style)))]
-    `(binding ~binds [:style ~evaluated-styles ~@body])))
+    `(binding ~binds ["style" ~evaluated-styles ~@body])))
 (defalias style graphics/style)
 
 (def=> graphics/background
-  {:doc "Fill the entire view with a color"
-   :params [{:type "string" :ui "color" :desc "A background color"}]}
+  {doc: "Fill the entire view with a color"
+   params: [{type: "string" ui: "color" desc: "A background color"}]}
   [color]
   (reset! *app-background* color))
 (defalias background graphics/background)
 
-(def=> element? [a] (and (vector? a) (keyword? (first a))))
+(def=> element? [a] (and (vector? a) (string? (first a))))
 
 ;; Transform
 (def=> view-center
-  {:doc "Returns the center of view"
-   :return {:type "vec2"}
-   :handles {:draw (=> {:return mat}
-                     [{:type "translate" :pos (take 4 mat)}])}}
+  {doc: "Returns the center of view"
+   return: {type: "vec2"}
+   handles: {draw: (=> {return: mat}
+                     [{type: "translate" pos: (take 4 mat)}])}}
   []
   (vec2/scale *size* .5))
 
 ;; Style
 (def=> graphics/fill
-  {:doc "Creates a fill property"
-   :params [{:label "Color" :type "string" :ui "color" :desc "Color to fill"}]
-   :compact-params [{:type "string" :ui "color"}]}
+  {doc: "Creates a fill property"
+   params: [{label: "Color" type: "string" ui: "color" desc: "Color to fill"}]
+   compact-params: [{type: "string" ui: "color"}]}
   [& xs]
   (if (zero? (count xs))
-    {:fill true}
-    {:fill true :fill-color (first xs)}))
+    {fill: true}
+    {fill: true fill-color: (first xs)}))
 (defalias fill graphics/fill)
 
 (def=> graphics/no-fill
-  {:doc "Disables all the previous fill styles"
-   :params []}
-  [] {:fill false})
+  {doc: "Disables all the previous fill styles"
+   params: []}
+  [] {fill: false})
 (defalias no-fill graphics/no-fill)
 
 (def=> graphics/stroke
-  {:doc "Creates a stroke property"
-   :params [{:label "Color" :type "string" :ui "color"}
-            {:label "Width" :type "number"
-             :validator #(max 0 %)}
-            {:variadic true
-             :type "map"
-             :items [{:key :cap :type "string"
-                      :ui "dropdown" :default "round"
-                      :values ["butt" "round" "square"]}
-                     {:key :join :type "string"
-                      :ui "dropdown" :default "round"
-                      :values ["bevel" "round" "miter"]}]}]
-   :compact-params [{:label "" :type "string" :ui "color"}
-                    {:label "W" :type "number"}]}
+  {doc: "Creates a stroke property"
+   params: [{label: "Color" type: "string" ui: "color"}
+            {label: "Width" type: "number"
+             validator: #(max 0 %)}
+            {variadic: true
+             type: "map"
+             items: [{key: "cap" type: "string"
+                      ui: "dropdown" default: "round"
+                      values: ["butt" "round" "square"]}
+                     {key: "join" type: "string"
+                      ui: "dropdown" default: "round"
+                      values: ["bevel" "round" "miter"]}]}]
+   compact-params: [{label: "" type: "string" ui: "color"}
+                    {label: "W" type: "number"}]}
   [color width & options]
   (let [params (apply hash-map options)]
     (->> params
          (seq params)
          (map (=> [[k v]] [(keyword (str "stroke-" (name k))) v]))
-         (apply concat [:stroke true :stroke-color color :stroke-width width])
+         (apply concat [stroke: true stroke:-color color stroke:-width width])
          (apply hash-map))))
 (defalias stroke graphics/stroke)
 
 (def=> graphics/no-stroke
-  {:doc "Disables all the previous stroke styles"
-   :params []}
-  [] {:stroke false})
+  {doc: "Disables all the previous stroke styles"
+   params: []}
+  [] {stroke: false})
 (defalias no-stroke graphics/no-stroke)
 
 ;; Shape Functions
 (def=> graphics/text
-  {:doc "Generates a text shape"
-   :params [{:type "string" :multiline true}
-            {:type "vec2"}
-            {:type "map"
-             :variadic true
-             :items [{:key :size :type "number" :default 12}
-                     {:key :font :type "string" :default "Fira Code"}
-                     {:key :align :type "string" :ui "dropdown" :default "center"
-                      :values ["left" "center" "right" "start" "end"]}
-                     {:key :baseline :type "string" :ui "dropdown" :default "middle"
-                      :values ["top" "hanging" "middle"
+  {doc: "Generates a text shape"
+   params: [{type: "string" multiline: true}
+            {type: "vec2"}
+            {type: "map"
+             variadic: true
+             items: [{key: "size" type: "number" default: 12}
+                     {key: "font" type: "string" default: "Fira Code"}
+                     {key: "align" type: "string" ui: "dropdown" default: "center"
+                      values: ["left" "center" "right" "start" "end"]}
+                     {key: "baseline" type: "string" ui: "dropdown" default: "middle"
+                      values: ["top" "hanging" "middle"
                                "alphabetic" "ideographic" "bottom"]}]}]
-   :handles {:draw (=> {:params [_ pos & xs]}
+   handles: {draw: (=> {params: [_ pos & xs]}
                      (let [args (apply hash-map xs)
-                           size (get args :size 12)]
-                       [{:id :pos
-                         :type "translate"
-                         :pos pos}
-                        {:id :size
-                         :type "path"
-                         :path (ngon pos size 4)}]))
-             :drag (=> {:id id :pos p :params params}
+                           size (get args size: 12)]
+                       [{id: pos:
+                         type: "translate"
+                         pos: pos}
+                        {id: "size"
+                         type: "path"
+                         path: (ngon pos size 4)}]))
+             drag: (=> {id: id pos: p params: params}
                      (case id
-                       :pos (replace-nth params 1 p)
-                       :size (let [dir (vec2/- (nth params 1) p)
+                       pos: (replace-nth params 1 p)
+                       size: (let [dir (vec2/- (nth params 1) p)
                                    size (+ (abs (.x dir)) (abs (.y dir)))
                                    args (->> (drop 2 params)
                                              (apply hash-map)
-                                             (#(assoc % :size size))
+                                             (#(assoc % "size" size))
                                              (entries)
                                              (apply concat))]
                                `[~@(take 2 params) ~@args])))}}
   [text pos & xs]
-  [:text text pos (apply hash-map xs)])
+  [text: text pos (apply hash-map xs)])
 
 (defalias text graphics/text)
 
 (def=> graphics/point-cloud
-  {:doc "Creates vector of points"
-   :params [{:type "vector"
-             :variadic true
-             :items {:label "Point" :type "vec2"}}]
-   :handles {:draw (=> {:params pts}
-                     (map-indexed (=> [i p] {:id i :type "point" :pos p}) pts))
-             :drag (=> {:id i :pos p}
-                     {:replace [i p]})}}
+  {doc: "Creates vector of points"
+   params: [{type: "vector"
+             variadic: true
+             items: {label: "Point" type: "vec2"}}]
+   handles: {draw: (=> {params: pts}
+                     (map-indexed (=> [i p] {id: i type: "point" pos: p}) pts))
+             drag: (=> {id: i pos: p}
+                     {replace: [i p]})}}
   [& pts]
   (vec pts))
 (defalias point-cloud graphics/point-cloud)
 
 (def=> point-cloud/scatter
-  {:doc "Scatters points"
-   :params [{:type "vec2"}
-            {:type "number"}
-            {:type "number" :validator #(round (max 0 %))}
-            {:type "number" :ui "seed"}]
-   :handles {:draw (=> {:params [center radius]
-                        :return ret}
-                     [{:type "path" :guide true
-                       :path (apply concat
-                                    [:path]
+  {doc: "Scatters points"
+   params: [{type: "vec2"}
+            {type: "number"}
+            {type: "number" validator: #(round (max 0 %))}
+            {type: "number" ui: "seed"}]
+   handles: {draw: (=> {params: [center radius]
+                        return: ret}
+                     [{type: "path" guide: true
+                       path: (apply concat
+                                    [path:]
                                     (map #(vector :M (vec2/+ % [-2 -2]) :L (vec2/+ % [2  2])
                                                   :M (vec2/+ % [-2  2]) :L (vec2/+ % [2 -2])) ret))}
-                      {:type "path" :id :radius :class "dashed" :path (circle center radius)}
-                      {:type "arrow" :id :radius
-                       :pos (vec2/+ center [radius 0])}
-                      {:id :center
-                       :type "translate"
-                       :pos center}])
-             :drag (=> {:id id :pos p
-                        :params [center radius n seed]}
+                      {type: "path" id: radius: class: "dashed" path: (circle center radius)}
+                      {type: "arrow" id: radius:
+                       pos: (vec2/+ center [radius 0])}
+                      {id: center:
+                       type: "translate"
+                       pos: center}])
+             drag: (=> {id: id pos: p
+                        params: [center radius n seed]}
                      (case id
-                       :center [p radius n seed]
-                       :radius [center (vec2/dist center p) n seed]))}}
+                       center: [p radius n seed]
+                       radius: [center (vec2/dist center p) n seed]))}}
   [center radius n seed]
   (let [seed-offset (rnd seed)]
     (map (=> [i]

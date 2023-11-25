@@ -1,4 +1,4 @@
-import {Expr, ExprMap, keywordFor as K} from '@/glisp/types'
+import {Expr, ExprMap} from '@/glisp/types'
 
 import renderToContext from '../render-to-context'
 import {CanvasRenderOptions} from './index'
@@ -49,10 +49,10 @@ export default class CanvasRenderer {
 		// default style
 		const defaultStyle: ExprMap | null = settings.guideColor
 			? {
-					[K('stroke')]: true,
-					[K('stroke-color')]: settings.guideColor,
-					[K('stroke-width')]: 1,
-					[K('stroke-dash')]: [2, 4],
+					stroke: true,
+					'stroke-color': settings.guideColor,
+					'stroke-width': 1,
+					'stroke-dash': [2, 4],
 			  }
 			: null
 

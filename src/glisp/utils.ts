@@ -25,15 +25,12 @@ import {
 	GlispError,
 	isColl,
 	isFunc,
-	isKeyword,
 	isList,
 	isMap,
 	isSeq,
 	isSymbol,
 	isSymbolFor,
 	isVector,
-	keywordFor as K,
-	keywordFor,
 	symbolFor,
 } from './types'
 
@@ -42,7 +39,7 @@ import {
  */
 export function getStructType(exp: Expr): StructTypes | undefined {
 	if (isVector(exp)) {
-		if (exp[0] === K('path')) {
+		if (exp[0] === 'path') {
 			return 'path'
 		}
 		if (exp.length <= 6) {
@@ -196,12 +193,11 @@ export function getMapValue(
 			exp = exp[key]
 		} else {
 			// map key
-			const kw = keywordFor(key)
-			if (!isMap(exp) || !(kw in exp)) {
+			if (!isMap(exp) || !(key in exp)) {
 				return defaultValue !== undefined ? defaultValue : null
 			}
 
-			exp = exp[kw]
+			exp = exp[key]
 		}
 
 		keys.shift()
@@ -276,8 +272,8 @@ export function reverseEval(exp: Expr, original: Expr, forceOverwrite = false) {
 
 				// Compute the original parameter
 				const result = inverseFn({
-					[K('return')]: exp,
-					[K('params')]: evaluatedParams,
+					['return']: exp,
+					['params']: evaluatedParams,
 				} as ExprMap)
 
 				if (!isVector(result) && !isMap(result)) {
@@ -289,8 +285,8 @@ export function reverseEval(exp: Expr, original: Expr, forceOverwrite = false) {
 				let updatedIndices: number[] | undefined = undefined
 
 				if (isMap(result)) {
-					const params = result[K('params')]
-					const replace = result[K('replace')]
+					const params = result['params']
+					const replace = result['replace']
 
 					if (isVector(params)) {
 						newParams = params
@@ -423,8 +419,8 @@ export function computeExpTransform(exp: Expr): mat2d {
 	return xform
 }
 
-const K_PARAMS = K('params')
-const K_REPLACE = K('replace')
+const K_PARAMS = 'params'
+const K_REPLACE = 'replace'
 
 export function applyParamModifier(modifier: Expr, originalParams: Expr[]) {
 	if (!isVector(modifier) && !isMap(modifier)) {
@@ -600,36 +596,6 @@ export function markParent(exp: Expr) {
 	}
 }
 
-export function convertJSObjectToExprMap(obj: any): Expr {
-	if (Array.isArray(obj)) {
-		return obj.map(v => convertJSObjectToExprMap(v))
-	} else if (isMap(obj)) {
-		const ret = {} as ExprMap
-		for (const [key, value] of Object.entries(obj)) {
-			ret[keywordFor(key)] = convertJSObjectToExprMap(value)
-		}
-		return ret
-	} else if (isSymbol(obj) || obj instanceof Function) {
-		return obj
-	} else {
-		return obj
-	}
-}
-
-export function convertExprCollToJSObject(exp: Expr): any {
-	if (isMap(exp)) {
-		const ret: {[Key: string]: Expr} = {}
-		for (const [key, value] of Object.entries(exp)) {
-			const jsKey = getName(key)
-			ret[jsKey] = convertExprCollToJSObject(value)
-		}
-		return ret
-	} else if (isSeq(exp)) {
-		return (exp as Expr[]).map(e => convertExprCollToJSObject(e))
-	} else {
-		return exp
-	}
-}
 export function findExpByRange(
 	expr: Expr,
 	start: number,
@@ -919,6 +885,6 @@ export function setMeta(a: Expr, m: Expr) {
  * @param exp A bind expression
  */
 export function getParamLabel(exp: Expr) {
-	const str = isKeyword(exp) ? exp.slice(1) : printExpr(exp)
+	const str = typeof exp === 'string' ? exp : printExpr(exp)
 	return str.length === 1 ? str : capital(str)
 }

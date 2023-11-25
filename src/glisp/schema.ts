@@ -9,10 +9,9 @@ import {
 	ExprSymbol,
 	getType,
 	isExprFn,
-	keywordFor as K,
 	symbolFor,
 } from './types'
-import {convertExprCollToJSObject, getParamLabel, getStructType} from './utils'
+import {getParamLabel, getStructType} from './utils'
 
 interface SchemaBase {
 	type: string
@@ -192,7 +191,6 @@ const DEFAULT_VALUE = {
 	number: 0,
 	boolean: true,
 	string: '',
-	keyword: K('_'),
 	symbol: symbolFor('_'),
 	color: '#000000',
 	vec2: [0, 0],
@@ -369,9 +367,7 @@ function generateFixedUISchema(schemaParams: Schema[], params: Expr[]) {
 function generateDynamicUISchema(schemaParams: SchemaDynamic, params: Expr[]) {
 	const toSchema = schemaParams['to-schema']
 
-	const uiSchema = convertExprCollToJSObject(
-		toSchema({[K('params')]: params})
-	) as Schema[]
+	const uiSchema = toSchema({['params']: params}) as Schema[]
 
 	for (const sch of uiSchema) {
 		const value = sch.value as Expr
@@ -469,7 +465,7 @@ function updateParamsByDynamicUISchema(
 	const params = uiSchema.map(s => s.value as Expr)
 	params[index] = value
 	const toParams = schuema['to-params']
-	return toParams({[K('values')]: params}) as Expr[]
+	return toParams({['values']: params}) as Expr[]
 }
 
 /**

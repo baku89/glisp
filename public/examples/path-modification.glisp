@@ -1,30 +1,30 @@
 (def=> cloud
-  {:handles
-   {:draw (=> {:params [x0 x1 y width]}
-            [{:type "path" :path (line [x0 y] [x1 y])
-              :class "dashed"}
-             {:id :start
-              :type "point" :pos [x0 y]}
-             {:id :end
-              :type "point" :pos [x1 y]}
-             {:id :width
-              :type "arrow" :pos [x0 (+ y width)]
-              :angle HALF_PI}])
-    :drag (=> {:id id :pos p :params [x0 x1 y width]}
+  {handles:
+   {draw: (=> {params: [x0 x1 y width]}
+            [{type: "path" path: (line [x0 y] [x1 y])
+              class: "dashed"}
+             {id: start:
+              type: "point" pos: [x0 y]}
+             {id: end:
+              type: "point" pos: [x1 y]}
+             {id: width:
+              type: "arrow" pos: [x0 (+ y width)]
+              angle: HALF_PI}])
+    drag: (=> {id: id pos: p params: [x0 x1 y width]}
             (case id
-              :start [(.x p) x1 (.y p) width]
-              :end [x0 (.x p) (.y p) width]
-              :width [x0 x1 y (abs (- (.y p) y))]))}}
+              start: [(.x p) x1 (.y p) width]
+              end: [x0 (.x p) (.y p) width]
+              width: [x0 x1 y (abs (- (.y p) y))]))}}
   [x0 x1 y width]
   (path/offset-stroke width
                       (line [x0 y] [x1 y])))
 
-:start-sketch
+"start-sketch"
 
 (background "#BCDEDE")
 
-(g {:style (stroke "#F34386" 4)
-    :transform (translate [62 198])}
+(g {style: (stroke "#F34386" 4)
+    transform: (translate [62 198])}
 
    (def p
      (path/unite

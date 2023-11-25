@@ -1,7 +1,7 @@
 import dateFormat from 'dateformat'
 import FileSaver from 'file-saver'
 
-import {convertJSObjectToExprMap, Expr, printer, Scope, setMeta} from '@/glisp'
+import {Expr, printer, Scope, setMeta} from '@/glisp'
 
 import ViewScope from './view'
 
@@ -44,7 +44,7 @@ ConsoleScope.def(
 		(url: Expr) => {
 			return generateSketchURL(url as string)
 		},
-		convertJSObjectToExprMap({
+		{
 			doc: 'Generates Code URL',
 			params: [
 				{
@@ -53,7 +53,7 @@ ConsoleScope.def(
 				},
 			],
 			'initial-params': [''],
-		})
+		}
 	)
 )
 

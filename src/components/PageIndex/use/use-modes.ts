@@ -2,14 +2,7 @@ import {mat2d, vec2} from 'linearly'
 import {computed, Ref, ref, watch} from 'vue'
 
 import useMouseEvents from '@/components/use/use-mouse-events'
-import {
-	assocBang,
-	convertExprCollToJSObject,
-	ExprAtom,
-	ExprMap,
-	isMap,
-	keywordFor,
-} from '@/glisp'
+import {assocBang, ExprAtom, ExprMap, isMap, keywordFor} from '@/glisp'
 import AppScope from '@/scopes/app'
 import ConsoleScope from '@/scopes/console'
 import {getHTMLElement} from '@/utils'
@@ -37,11 +30,7 @@ export function useModes(
 ) {
 	// Force enable keyboard state to retrieve modifiers
 
-	const modes = ref(
-		convertExprCollToJSObject(
-			(ConsoleScope.var('*modes*') as ExprAtom).value
-		) as Mode[]
-	)
+	const modes = ref((ConsoleScope.var('*modes*') as ExprAtom).value as Mode[])
 
 	let state: ExprMap
 

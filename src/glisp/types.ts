@@ -121,12 +121,7 @@ export function getType(obj: any): ExprType {
 			return isMacro ? 'macro' : 'fn'
 		}
 		case 'string':
-			switch (obj[0]) {
-				case KEYWORD_PREFIX:
-					return 'keyword'
-				default:
-					return 'string'
-			}
+			return 'string'
 		case 'number':
 			return 'number'
 		case 'boolean':
@@ -250,15 +245,6 @@ export function symbolFor(value: string): ExprSymbol {
 	}
 }
 
-// Keyword
-const KEYWORD_PREFIX = '\u029e'
-
-// Use \u029e as the prefix of keyword instead of colon (:) for AST object
-export const isKeyword = (obj: Expr | undefined): obj is string =>
-	getType(obj) === 'keyword'
-
-export const keywordFor = (k: string) => KEYWORD_PREFIX + k
-
 // List
 export interface ExprList extends Array<Expr>, ExprCollBase {
 	[M_TYPE]: 'list'
@@ -295,6 +281,7 @@ export function assocBang(hm: ExprMap, ...args: any[]) {
 		if (typeof args[i] !== 'string') {
 			throw new GlispError('Hash map can only use string/symbol/keyword as key')
 		}
+
 		hm[args[i]] = args[i + 1]
 	}
 	return hm

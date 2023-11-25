@@ -5,10 +5,9 @@ import {
 	Expr,
 	ExprCollBase,
 	ExprList,
-	ExprMap,
 	GlispError,
 	isList,
-	keywordFor,
+	isSymbol,
 	symbolFor as S,
 } from './types'
 import {markParent} from './utils'
@@ -112,8 +111,6 @@ function parseAtom(reader: Reader) {
 				.replace(/\\(.)/g, (_: any, c: string) => (c === 'n' ? '\n' : c)) // handle new line
 		} else if (token[0] === '"') {
 			throw new GlispError("Expected '\"', got EOF")
-		} else if (token[0] === ':') {
-			return keywordFor(token.slice(1))
 		} else if (token === 'null') {
 			return null
 		} else if (token === 'true') {
@@ -176,7 +173,18 @@ function parseList(reader: Reader) {
 // read hash-map key/value pairs
 function parseMap(reader: Reader) {
 	const coll = parseColl(reader, '{', '}')
-	const map = assocBang({} as ExprMap, ...coll)
+	for (let i = 0; i < coll.length; i += 2) {
+		const key = coll[i]
+		if (!isSymbol(key)) {
+			throw new GlispError('Hash map can only use string as key')
+		}
+		if (!key.value.endsWith(':')) {
+			console.log('ke', key)
+			throw new GlispError('Hash map key must end with ":"')
+		}
+		coll[i] = key.value
+	}
+	const map = assocBang({}, ...coll)
 	map[M_DELIMITERS] = (coll as ExprCollBase)[M_DELIMITERS]
 	return map
 }

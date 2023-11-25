@@ -19,14 +19,7 @@
 <script lang="ts" setup>
 import {computed} from 'vue'
 
-import {
-	clone,
-	convertExprCollToJSObject,
-	Expr,
-	ExprSeq,
-	getMapValue,
-	getMeta,
-} from '@/glisp'
+import {clone, Expr, ExprSeq, getEvaluated, getMapValue, getMeta} from '@/glisp'
 import {useSketchStore} from '@/stores/sketch'
 
 interface Props {
@@ -49,10 +42,7 @@ const params = computed(() => {
 const fn = computed(() => getEvaluated(props.value[0]))
 
 const schemes = computed(
-	() =>
-		convertExprCollToJSObject(
-			getMapValue(getMeta(fn.value), 'compact-params', 'vector')
-		) || null
+	() => getMapValue(getMeta(fn.value), 'compact-params', 'vector') || null
 )
 
 function updateParamAt(value: Expr, i: number) {
