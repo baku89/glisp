@@ -3,18 +3,18 @@
    {draw: (=> {params: [x0 x1 y width]}
             [{type: "path" path: (line [x0 y] [x1 y])
               class: "dashed"}
-             {id: start:
+             {id: "start"
               type: "point" pos: [x0 y]}
-             {id: end:
+             {id: "end"
               type: "point" pos: [x1 y]}
-             {id: width:
+             {id: "width"
               type: "arrow" pos: [x0 (+ y width)]
               angle: HALF_PI}])
     drag: (=> {id: id pos: p params: [x0 x1 y width]}
             (case id
-              start: [(.x p) x1 (.y p) width]
-              end: [x0 (.x p) (.y p) width]
-              width: [x0 x1 y (abs (- (.y p) y))]))}}
+              "start" [(.x p) x1 (.y p) width]
+              "end" [x0 (.x p) (.y p) width]
+              "width" [x0 x1 y (abs (- (.y p) y))]))}}
   [x0 x1 y width]
   (path/offset-stroke width
                       (line [x0 y] [x1 y])))

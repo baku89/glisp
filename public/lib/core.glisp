@@ -67,7 +67,7 @@
 
 (def=> fn-meta [f]
   (def fm (meta f))
-  (def alias (get fm alias:-for))
+  (def alias (get fm "alias-for"))
   (if alias
     (get alias meta:)
     fm))
@@ -155,11 +155,11 @@
 
 (def=> column
   {doc: "Returns a vector of numbers from *from* to *to* (both inclusive) with each of element is multiplied by *step*"
-   params: [{label: "From" type: "number" desc: "From" validator: #(round %)}
-            {label: "To" type: "number" desc: "To" validator: #(round %)}
+   params: [{label: "From" type: "number" desc: "From" validator: round}
+            {label: "To" type: "number" desc: "To" validator: round}
             {label: "Step" type: "number" desc: "Step"}]}
   [from to step]
-  (vec (map #(* % step) (range from (inc to)))))
+  (vec (map (=> [v] (* v step)) (range from (inc to)))))
 
 (def for
   ^{doc: "Make a iteration loop"
@@ -172,9 +172,9 @@
     (=> [binds]
       (let
        [pairs (partition 2 binds)
-        entries (filter #(symbol? (first %)) pairs)
+        entries (filter (=> [x] (symbol? (first x))) pairs)
         options (->> pairs
-                     (filter #(string? (first %)))
+                     (filter (=> [v] (string? (first x))))
                      (apply concat)
                      (apply hash-map))]
         [entries options]))]
@@ -274,16 +274,6 @@
 (def=> mapcat [& xs]
   (apply concat (apply map xs)))
 
-
-(def=> match-elements [pred lst]
-  (if (sequential? lst)
-    (if (and (element? lst) (pred lst))
-      ;; Match
-      [lst]
-
-      ;; Not match but sequence
-      (remove null? (mapcat #(match-elements pred %) lst)))))
-
 (def=> glisp [] (println "Glisp, an acronym for Graphical LISP, is the prototyping project of what if a design tool meets a way of creative coding and obtain the self-bootstrapping power of LISP."))
 
 (def=> identity [x] x)
@@ -336,7 +326,7 @@
 
 (def gensym
   (let [counter (atom 0)]
-    #(symbol (str "G__" (swap! counter inc)))))
+    (=> [x] (symbol (str "G__" (swap! counter inc))))))
 
 ;;  List 
 (def=> replace-nth [coll idx val]

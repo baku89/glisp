@@ -142,13 +142,6 @@ const Exports = [
 		}),
 	],
 	[
-		'curry',
-		setMeta(() => null, {
-			doc: 'syntactic sugar for (=> [] *form*)',
-			params: [],
-		}),
-	],
-	[
 		'macro',
 		setMeta(() => null, {
 			doc: '',

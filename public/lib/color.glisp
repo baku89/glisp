@@ -24,7 +24,7 @@
 (defalias rgb color/rgb)
 
 (def=> color/hsl
-  {params: [{label: "Hue" type: "number" validator: #(clamp 0 TWO_PI %)}
+  {params: [{label: "Hue" type: "number" validator: (=> [x] (clamp 0 TWO_PI x))}
             {label: "Saturation" type: "number" validator: clamp01}
             {label: "Lightness" type: "number" validator: clamp01}
             {label: "Alpha" type: "number" validator: clamp01 default: 1}]

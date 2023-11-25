@@ -15,7 +15,6 @@ import {markParent} from './utils'
 const S_QUOTE = S('quote')
 const S_UNQUOTE = S('unquote')
 const S_SPLICE_UNQUOTE = S('splice-unquote')
-const S_FN_SUGAR = S('curry')
 const S_WITH_META_SUGAR = S('with-meta-sugar')
 const S_DEREF = S('deref')
 
@@ -217,16 +216,7 @@ function parseForm(reader: Reader): any {
 			expr = L(S_SPLICE_UNQUOTE, parseForm(reader))
 			break
 		case '#': {
-			reader.next()
-			const type = reader.peek()
-			if (type === '(') {
-				// Syntactic sugar for anonymous function: #( )
-				sugar = [reader.prevEndOffset(), reader.offset()]
-				expr = L(S_FN_SUGAR, parseForm(reader))
-			} else {
-				throw new GlispError(`Invalid reader macro: #${type}`)
-			}
-			break
+			throw new GlispError('Invalid reader macro #')
 		}
 		case '^': {
 			// Syntactic sugar for with-meta

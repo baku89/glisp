@@ -8,11 +8,11 @@
    params:
    [{label: "Center" type: "vec2"}
     {label: "#  Vertices" type: "number"
-     validator: #(round (max 2 %))}
+     validator: (=> [v] (round (max 2 v)))}
     {label: "Radius 0" type: "number"
-     validator: #(max 0 %)}
+     validator: (=> [v] (max 0 v))}
     {label: "Radius 1" type: "number"
-     validator: #(max 0 %)}]
+     validator: (=> [v] (max 0 v))}]
 
    ;; Handles definition
    handles:
@@ -21,14 +21,14 @@
     ;; from the function's parameters
     (=> {params: [c n rmin rmax]}
       (let [rmin-angle (/ PI n)]
-        [{id: center: type: "point" pos: c}
-         {id: rmin:
+        [{id: "center" type: "point" pos: c}
+         {id: "rmin"
           type: "arrow"
           pos: (vec2/+
                 c
                 (vec2/dir rmin-angle rmin))
           angle: rmin-angle}
-         {id: rmax:
+         {id: "rmax"
           type: "arrow"
           pos: (vec2/+ c [rmax 0])}]))
     drag:
@@ -37,9 +37,9 @@
     (=> {id: id pos: pos
          params: [c n rmin rmax]}
       (case id
-        center: [pos n rmin rmax]
-        rmin: [c n (vec2/dist c pos) rmax]
-        rmax: [c n rmin (vec2/dist c pos)]))}}
+        "center" [pos n rmin rmax]
+        "rmin" [c n (vec2/dist c pos) rmax]
+        "rmax" [c n rmin (vec2/dist c pos)]))}}
 
   ;; Function body
   [c n rmin rmax]

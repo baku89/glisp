@@ -154,8 +154,10 @@
                                   [styles]))
         merged-style (merge-hash-map evaluated-styles)
         binds (apply concat
-                     (map #(vector (symbol (str "*" (name (first %)) "*"))
-                                   (second %))
+                     (map (=> [x] (vector (symbol (str "*"
+                                                       (name (first x))
+                                                       "*"))
+                                   (second x)))
                           (entries merged-style)))]
     `(binding ~binds ["style" ~evaluated-styles ~@body])))
 (defalias style graphics/style)
@@ -199,7 +201,7 @@
   {doc: "Creates a stroke property"
    params: [{label: "Color" type: "string" ui: "color"}
             {label: "Width" type: "number"
-             validator: #(max 0 %)}
+             validator: (=> [x] (max 0 x))}
             {variadic: true
              type: "map"
              items: [{key: "cap" type: "string"
@@ -215,7 +217,7 @@
     (->> params
          (seq params)
          (map (=> [[k v]] [(keyword (str "stroke-" (name k))) v]))
-         (apply concat [stroke: true stroke:-color color stroke:-width width])
+         (apply concat ["stroke" true "stroke-color" color "stroke-width" width])
          (apply hash-map))))
 (defalias stroke graphics/stroke)
 
@@ -242,7 +244,7 @@
    handles: {draw: (=> {params: [_ pos & xs]}
                      (let [args (apply hash-map xs)
                            size (get args size: 12)]
-                       [{id: pos:
+                       [{id: "pos"
                          type: "translate"
                          pos: pos}
                         {id: "size"
@@ -250,17 +252,17 @@
                          path: (ngon pos size 4)}]))
              drag: (=> {id: id pos: p params: params}
                      (case id
-                       pos: (replace-nth params 1 p)
-                       size: (let [dir (vec2/- (nth params 1) p)
+                       "pos" (replace-nth params 1 p)
+                       "size" (let [dir (vec2/- (nth params 1) p)
                                    size (+ (abs (.x dir)) (abs (.y dir)))
                                    args (->> (drop 2 params)
                                              (apply hash-map)
-                                             (#(assoc % "size" size))
+                                             (=> [x] (assoc x "size" size))
                                              (entries)
                                              (apply concat))]
                                `[~@(take 2 params) ~@args])))}}
   [text pos & xs]
-  [text: text pos (apply hash-map xs)])
+  ["text" text pos (apply hash-map xs)])
 
 (defalias text graphics/text)
 
@@ -281,26 +283,30 @@
   {doc: "Scatters points"
    params: [{type: "vec2"}
             {type: "number"}
-            {type: "number" validator: #(round (max 0 %))}
+            {type: "number" validator: (=> [x] (round (max 0 x)))}
             {type: "number" ui: "seed"}]
    handles: {draw: (=> {params: [center radius]
                         return: ret}
                      [{type: "path" guide: true
                        path: (apply concat
-                                    [path:]
-                                    (map #(vector :M (vec2/+ % [-2 -2]) :L (vec2/+ % [2  2])
-                                                  :M (vec2/+ % [-2  2]) :L (vec2/+ % [2 -2])) ret))}
-                      {type: "path" id: radius: class: "dashed" path: (circle center radius)}
-                      {type: "arrow" id: radius:
+                                    ["path"]
+                                    (map (=> [x]
+                                             (vector "M" (vec2/+ x [-2 -2])
+                                                     "L" (vec2/+ x [2 2])
+                                                     "M" (vec2/+ x [-2 2])
+                                                     "M" (vec2/+ x [2 -2])))
+                                         ret))}
+                      {type: "path" id: "radius" class: "dashed" path: (circle center radius)}
+                      {type: "arrow" id: "radius"
                        pos: (vec2/+ center [radius 0])}
-                      {id: center:
+                      {id: "center"
                        type: "translate"
                        pos: center}])
              drag: (=> {id: id pos: p
                         params: [center radius n seed]}
                      (case id
-                       center: [p radius n seed]
-                       radius: [center (vec2/dist center p) n seed]))}}
+                       "center" [p radius n seed]
+                       "radius" [center (vec2/dist center p) n seed]))}}
   [center radius n seed]
   (let [seed-offset (rnd seed)]
     (map (=> [i]

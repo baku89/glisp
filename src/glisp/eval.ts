@@ -219,17 +219,6 @@ function _evaluate(this: void | ExprFnThis, expr: Expr, env: Env): Expr {
 					params as ExprBind
 				)
 			}
-			case 'curry': {
-				const body = expr[1]
-				return createFn(
-					function (...args) {
-						return evaluate.call(this, body, new Env(env, [], args, 'curry'))
-					},
-					body,
-					env,
-					[]
-				)
-			}
 			case 'macro': {
 				const [, , body] = expr
 				let [, params] = expr

@@ -330,12 +330,12 @@
                       {type: "path" class: "dashed"
                        guide: true
                        path: (line v (vec2/scale v sc))}
-                      {id: scale: type: "arrow" pos: p angle: (vec2/angle v)}
-                      {id: end: type: "point" pos: v}])
-             drag: (=> {id: id pos: p params: [v sc]}
+                      {id: "scale" type: "arrow" pos: p angle: (vec2/angle v)}
+                      {id: "end" type: "point" pos: v}])
+             drag: (=> {id: "id" pos: p params: [v sc]}
                      (case id
-                       scale: {replace: [1 (/ (vec2/dot p v) (vec2/sqr-len v))]}
-                       end: {replace: [0 p]}))}
+                       "scale" {replace: [1 (/ (vec2/dot p v) (vec2/sqr-len v))]}
+                       "end" {replace: [0 p]}))}
    return: {type: "vec2"}}
   [v s]
   [(* s (.x v))
@@ -414,19 +414,22 @@
                      [{type: "path" class: "dashed"
                        guide: true
                        path: (line a b)}
-                      {id: lerp: type: "arrow" pos: p angle: (vec2/angle (vec2/- b a))}
-                      {id: a: type: "point" pos: a}
-                      {id: b: type: "point" pos: b}])
+                      {id: "lerp"
+                       type: "arrow"
+                       pos: p
+                       angle: (vec2/angle (vec2/- b a))}
+                      {id: "a" type: "point" pos: a}
+                      {id: "b" type: "point" pos: b}])
              drag: (=> {id: id pos: p params: [a b t]}
                      (let [ab (vec2/- b a)]
                        (case id
-                         lerp:
+                         "lerp"
                          {replace:
                           [2
                            (/ (vec2/dot (vec2/- p a) ab)
                               (vec2/sqr-len ab))]}
-                         a: {replace: [0 p]}
-                         b: {replace: [1 p]})))}}
+                         "a" {replace: [0 p]}
+                         "b" {replace: [1 p]})))}}
   [a b t]
   [(lerp (.x a) (.x b) t)
    (lerp (.y a) (.y b) t)])
@@ -468,15 +471,15 @@
                            axis-x (vec2/scale-add t [a b] 80)
                            axis-y (vec2/scale-add t [c d] 80)
                            corner (vec2/scale-add t (vec2/+ [a b] [c d]) 80)]
-                       [{id: axis:-x type: "path" class: "axis-x" guide: true path: (line t axis-x)}
-                        {id: axis:-y type: "path" class: "axis-y" guide: true path: (line t axis-y)}
-                        {id: r: type: "path" class: "dashed" path: (circle t 40)}
-                        {id: sx: type: "path" class: "dashed" path: (line axis-x corner)}
-                        {id: sy: type: "path" class: "dashed" path: (line axis-y corner)}
-                        {id: x: type: "point" pos: axis-x}
-                        {id: y: type: "point" pos: axis-y}
-                        {id: s: type: "point" pos: corner}
-                        {id: t: type: "translate" pos: t}]))
+                       [{id: "axis-x" type: "path" class: "axis-x" guide: true path: (line t axis-x)}
+                        {id: "axis-y" type: "path" class: "axis-y" guide: true path: (line t axis-y)}
+                        {id: "r" type: "path" class: "dashed" path: (circle t 40)}
+                        {id: "sx" type: "path" class: "dashed" path: (line axis-x corner)}
+                        {id: "sy" type: "path" class: "dashed" path: (line axis-y corner)}
+                        {id: "x" type: "point" pos: axis-x}
+                        {id: "y" type: "point" pos: axis-y}
+                        {id: "s" type: "point" pos: corner}
+                        {id: "t" type: "translate" pos: t}]))
              drag: (=> {id: id
                         pos: p
                         prev-pos: pp
@@ -485,11 +488,11 @@
                            x (take 2 m)
                            y (slice m 2 4)]
                        (case id
-                         t: [`[~@x ~@y ~@p]]
-                         x: [`[~@(vec2/scale (vec2/- p t) (/ 80)) ~@y ~@t]]
-                         y: [`[~@x ~@(vec2/scale (vec2/- p t) (/ 80)) ~@t]]
+                         "t" [`[~@x ~@y ~@p]]
+                         "x" [`[~@(vec2/scale (vec2/- p t) (/ 80)) ~@y ~@t]]
+                         "y" [`[~@x ~@(vec2/scale (vec2/- p t) (/ 80)) ~@t]]
 
-                         r: (let [angle-delta (calc-dragged-rotation
+                         "r" (let [angle-delta (calc-dragged-rotation
                                                center: t
                                                pos: p
                                                prev-pos: pp
@@ -501,9 +504,9 @@
                          ;; Scale
                          (let [s (vec2/scale (vec2/transform-mat2d (mat2d/invert m) p) (/ 80))]
                            (case id
-                             sx: [`[~@(vec2/scale x (.x s)) ~@y ~@t]]
-                             sy: [`[~@x ~@(vec2/scale y (.y s)) ~@t]]
-                             s: [`[~@(vec2/scale x (.x s)) ~@(vec2/scale y (.y s)) ~@t]])))))}
+                             "sx" [`[~@(vec2/scale x (.x s)) ~@y ~@t]]
+                             "sy" [`[~@x ~@(vec2/scale y (.y s)) ~@t]]
+                             "s" [`[~@(vec2/scale x (.x s)) ~@(vec2/scale y (.y s)) ~@t]])))))}
    return: {type: "mat2d"}}
   [x] x)
 
@@ -571,24 +574,27 @@
                      (let [sx (* x 40)
                            sy (* y 40)]
                        [{type: "path" class: "dashed" guide: true
-                         path: [path:
-                                :M [0 0] :L [sx 0]
-                                :M [0 0] :L [0 sy]
-                                :M [sx 0] :L [0 (- sy)] :L [(- sx) 0] :L [0 sy]]}
-                        {type: "path"  id: uniform: path: (line [sx 0] [0 sy])}
-                        {type: "translate" id: non:-uni pos: [sx sy]}
-                        {type: "arrow" id: axis:-x  pos: [sx 0]}
-                        {type: "arrow" id: axis:-y  pos: [0 sy] angle: HALF_PI}]))
+                         path: ["path"
+                                "M" [0 0] "L" [sx 0]
+                                "M" [0 0] "L" [0 sy]
+                                "M" [sx 0]
+                                "L" [0 (- sy)]
+                                "L" [(- sx) 0]
+                                "L" [0 sy]]}
+                        {type: "path"  id: "uniform" path: (line [sx 0] [0 sy])}
+                        {type: "translate" id: "non-uni" pos: [sx sy]}
+                        {type: "arrow" id: "axis-x"  pos: [sx 0]}
+                        {type: "arrow" id: "axis-y"  pos: [0 sy] angle: HALF_PI}]))
              drag: (=> {id: id pos: p
                         params: [[x y]]}
                      (let [_x (/ (.x p) 40)
                            _y (/ (.y p) 40)]
                        (case id
-                         uniform: [[(+ _x (* (/ x y) _y))
+                         "uniform" [[(+ _x (* (/ x y) _y))
                                     (+ _y (* (/ y x) _x))]]
-                         non:-uni [[_x _y]]
-                         axis:-x  [[_x y]]
-                         axis:-y  [[x _y]])))}}
+                         "non-uni" [[_x _y]]
+                         "axis-x"  [[_x y]]
+                         "axis-y"  [[x _y]])))}}
   [[x y]]
   [x 0 0 y 0 0])
 
@@ -599,9 +605,13 @@
    handles: {draw: (=> {params: [x]}
                      (let [sx (* x 40)]
                        [{type: "path" class: "dashed" guide: true
-                         path: [path:
-                                :M [0 0] :L [sx 0]
-                                :L [0 -40] :L [(- sx) 0] :L [0 40] :L [sx 0]]}
+                         path: ["path"
+                                "M" [0 0]
+                                "L" [sx 0]
+                                "L" [0 -40]
+                                "L" [(- sx) 0]
+                                "L" [0 40]
+                                "L" [sx 0]]}
                         {type: "arrow" pos: [sx 0]}]))
              drag: (=> {pos: [px]}
                      [(/ px 40)])}}
@@ -614,9 +624,12 @@
    handles: {draw: (=> {params: [y]}
                      (let [sy (* y 40)]
                        [{type: "path" class: "dashed" guide: true
-                         path: [path:
-                                :M [0 0] :L [0 sy]
-                                :L [-40 0] :L [0 (- sy)] :L [40 0] :L [0 sy]]}
+                         path: ["path"
+                                "M" [0 0] "L" [0 sy]
+                                "L" [-40 0]
+                                "L" [0 (- sy)]
+                                "L" [40 0]
+                                "L" [0 sy]]}
                         {type: "arrow" pos: [0 sy] angle: HALF_PI}]))
              drag: (=> {pos: [_ py]}
                      [(/ py 40)])}}
@@ -629,22 +642,22 @@
 ;;    handles: {draw: (=> {params: [scale]}
 ;;                      (let [s (* scale 40)]
 ;;                        [{type: "path" class: "dashed" guide: true
-;;                          path: [path:
-;;                                 :M [0 0] :L [x 0]
-;;                                 :M [0 0] :L [0 s]
-;;                                 :M [s 0] :L [0 (- s)] :L [(- s) 0] :L [0 s]]}
-;;                         {type: "path"  id: uniform: path: (line [sx 0] [0 sy])}
-;;                         {type: "translate" id: non:-uni pos: [sx sy]}]))
+;;                          path: ["path"
+;;                                 "M" [0 0] "L" [x 0]
+;;                                 "M" [0 0] "L" [0 s]
+;;                                 "M" [s 0] "L" [0 (- s)] "L" [(- s) 0] "L" [0 s]]}
+;;                         {type: "path"  id: "uniform" path: (line [sx 0] [0 sy])}
+;;                         {type: "translate" id: "non-uni" pos: [sx sy]}]))
 ;;              drag: (=> {id: id pos: p
 ;;                         params: [[x y]]}
 ;;                      (let [_x (/ (.x p) 40)
 ;;                            _y (/ (.y p) 40)]
 ;;                        (case id
-;;                          uniform: [[(+ _x (* (/ x y) _y))
+;;                          "uniform" [[(+ _x (* (/ x y) _y))
 ;;                                     (+ _y (* (/ y x) _x))]]
-;;                          non:-uni [[_x _y]]
-;;                          axis:-x  [[_x y]]
-;;                          axis:-y  [[x _y]])))}}
+;;                          "non-uni" [[_x _y]]
+;;                          "axis-x"  [[_x y]]
+;;                          "axis-y"  [[x _y]])))}}
 ;;   [scale]
 ;;   [scale 0 0 scale 0 0])
 
@@ -748,30 +761,30 @@
    handles:
    {draw: (=> {params: [[x y w h]]}
             [; center
-             {type: "translate" id: center:
+             {type: "translate" id: "center"
               pos: (vec2/scale-add [x y] [w h] .5)}
              ; edges
-             {type: "path" id: left: path: (line [x y] [x (+ y h)])}
-             {type: "path" id: top: path: (line [x y] [(+ x w) y])}
-             {type: "path" id: right: path: (line [(+ x w) y] (vec2/+ [x y] [w h]))}
-             {type: "path" id: bottom: path: (line [x (+ y h)] (vec2/+ [x y] [w h]))}
+             {type: "path" id: "left" path: (line [x y] [x (+ y h)])}
+             {type: "path" id: "top" path: (line [x y] [(+ x w) y])}
+             {type: "path" id: "right" path: (line [(+ x w) y] (vec2/+ [x y] [w h]))}
+             {type: "path" id: "bottom" path: (line [x (+ y h)] (vec2/+ [x y] [w h]))}
              ; corners
-             {type: "point" id: top:-left pos: [x y]}
-             {type: "point" id: top:-right pos: [(+ x w) y]}
-             {type: "point" id: bottom:-left pos: [x (+ y h)]}
-             {type: "point" id: bottom:-right pos: (vec2/+ [x y] [w h])}])
+             {type: "point" id: "top-left" pos: [x y]}
+             {type: "point" id: "top-right" pos: [(+ x w) y]}
+             {type: "point" id: "bottom-left" pos: [x (+ y h)]}
+             {type: "point" id: "bottom-right" pos: (vec2/+ [x y] [w h])}])
     drag: (=> {id: id pos: [px py]
                params: [[x y w h]]}
             (case id
-              center: [[(- px (/ w 2)) (- py (/ h 2)) w h]]
-              left:  [[px y (- (+ x w) px) h]]
-              top:   [[x py w (- (+ y h) py)]]
-              right: [[x y (- px x) h]]
-              bottom: [[x y w (- py y)]]
-              top:-left [[px py (- (+ x w) px) (- (+ y h) py)]]
-              top:-right [[x py (- px x) (- (+ y h) py)]]
-              bottom:-left [[px y (- (+ x w) px) (- py y)]]
-              bottom:-right [[x y (- px x) (- py y)]]))}}
+              "center" [[(- px (/ w 2)) (- py (/ h 2)) w h]]
+              "left"  [[px y (- (+ x w) px) h]]
+              "top"   [[x py w (- (+ y h) py)]]
+              "right" [[x y (- px x) h]]
+              "bottom" [[x y w (- py y)]]
+              "top-left" [[px py (- (+ x w) px) (- (+ y h) py)]]
+              "top-right" [[x py (- px x) (- (+ y h) py)]]
+              "bottom-left" [[px y (- (+ x w) px) (- py y)]]
+              "bottom-right" [[x y (- px x) (- py y)]]))}}
   [[x y w h]] [x y w h])
 
 (def rect2d/left first)
@@ -806,12 +819,12 @@
    handles: {draw: (=> {params: [from to] return: ret}
                      [{type: "path" guide: true
                        path: (rect ret)}
-                      {id: from: type: "translate" pos: from}
-                      {id: to: type: "translate" pos: to}])
+                      {id: "from" type: "translate" pos: from}
+                      {id: "to" type: "translate" pos: to}])
              drag: (=> {id: id pos: p params: [from to]}
                      (case id
-                       from: {replace: [0 p]}
-                       to: {replace: [1 p]}))}
+                       "from" {replace: [0 p]}
+                       "to" {replace: [1 p]}))}
    return: {type: "rect2d"}}
   [from to]
   [(min (.x from) (.x to))
@@ -830,20 +843,20 @@
                          path: (rect r)}
                         {type: "path" guide: true
                          path: (rect ret)}
-                        {id: left: type: "arrow"
+                        {id: "left" type: "arrow"
                          pos: [(- (rect2d/left r) h) (.y c)]}
-                        {id: right: type: "arrow"
+                        {id: "right" type: "arrow"
                          pos: [(+ (rect2d/right r) h) (.y c)]}
-                        {id: top: type: "arrow" angle: HALF_PI
+                        {id: "top" type: "arrow" angle: HALF_PI
                          pos: [(.x c) (- (rect2d/top r) v)]}
-                        {id: bottom: type: "arrow" angle: HALF_PI
+                        {id: "bottom" type: "arrow" angle: HALF_PI
                          pos: [(.x c) (+ (rect2d/bottom r) v)]}]))
              drag: (=> {id: id pos: [px py] params: [h v r]}
                      (case id
-                       left: {replace: [0 (- (rect2d/left r) px)]}
-                       right: {replace: [0 (- px (rect2d/right r))]}
-                       top: {replace: [1 (- (rect2d/top r) py)]}
-                       bottom: {replace: [1 (- py (rect2d/bottom r))]}))}
+                       "left" {replace: [0 (- (rect2d/left r) px)]}
+                       "right" {replace: [0 (- px (rect2d/right r))]}
+                       "top" {replace: [1 (- (rect2d/top r) py)]}
+                       "bottom" {replace: [1 (- py (rect2d/bottom r))]}))}
    inverse: (=> {return: ret params: [h v src]}
               (let [old-ret (rect2d/expand h v src)
                     h (if (!= (rect2d/left old-ret)
@@ -891,10 +904,10 @@
 ;; Combination
 (def=> combination/product [& xs]
   (if (=  1 (count xs))
-    (map #(vector %) (first xs))
+    (map vector (first xs))
     (apply concat
            (map
-            (=> [R] (map #(vec (concat R %)) (last xs)))
+            (=> [R] (map (=> [x] (vec (concat R x))) (last xs)))
             (if (= 2 (count xs))
               (first xs)
               (apply combination/product (butlast xs)))))))

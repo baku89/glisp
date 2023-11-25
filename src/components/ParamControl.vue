@@ -229,7 +229,6 @@ function deleteParam(i: number) {
 	&:hover
 		z-index 10
 		opacity 1
-
 	.icon
 		position absolute
 		right 2px

@@ -10,7 +10,6 @@ import {
 	isMap,
 	isSeq,
 	isSymbol,
-	symbolFor,
 } from './types'
 
 export default class Env {
@@ -49,13 +48,6 @@ export default class Env {
 		} else {
 			return this
 		}
-	}
-
-	public getAllSymbols() {
-		const merged = this.outer
-			? new Map({...this.outer.data, ...this.data})
-			: this.data
-		return Array.from(merged.keys()).map(v => symbolFor(v))
 	}
 
 	public bindAll(binds: ExprBind, exps: Expr[]) {
@@ -157,10 +149,6 @@ export default class Env {
 	}
 
 	public find(symbol: ExprSymbol): Expr | void {
-		// if (!isSymbol(symbol)) {
-		// 	throw 'FIND not symbol'
-		// }
-
 		// First, search binding
 		const bindings = this.root.bindings
 		if (bindings.length > 0) {
@@ -173,15 +161,6 @@ export default class Env {
 
 		if (this.data.has(symbol.value)) {
 			return this.data.get(symbol.value)
-		}
-
-		let argIndex
-		if (
-			symbol.value[0] === '%' &&
-			this.exps &&
-			this.exps.length >= (argIndex = parseInt(symbol.value.slice(1)) - 1 || 0)
-		) {
-			return this.exps[argIndex]
 		}
 
 		if (this.outer !== null) {

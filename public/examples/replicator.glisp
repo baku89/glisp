@@ -2,10 +2,10 @@
 
 (def=> path/replicator
   [xform n path]
-  (->> (reduce #(conj % (mat2d/* (last %) xform))
+  (->> (reduce (=> [x] (conj x (mat2d/* (last x) xform)))
                [(mat2d/ident)]
                (range (dec n)))
-       (map #(path/transform % path))))
+       (map (=> [x] (path/transform x path)))))
 
 "start-sketch"
 
