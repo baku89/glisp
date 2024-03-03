@@ -1,14 +1,12 @@
 {
 	"root": true,
-	"parser": "vue-eslint-parser",
 	"env": {
 		"node": true
 	},
 	"extends": [
 		"eslint:recommended",
 		"plugin:@typescript-eslint/recommended",
-		"plugin:vue/recommended",
-		"plugin:prettier-vue/recommended",
+
 		"prettier"
 	],
 	"parserOptions": {
@@ -16,12 +14,7 @@
 		"ecmaVersion": 2022,
 		"sourceType": "module"
 	},
-	"plugins": [
-		"@typescript-eslint",
-		"simple-import-sort",
-		"unused-imports",
-		"jest"
-	],
+	"plugins": ["@typescript-eslint", "simple-import-sort", "unused-imports"],
 	"rules": {
 		"arrow-body-style": "off",
 		"prefer-arrow-callback": "off",
@@ -33,11 +26,6 @@
 		"@typescript-eslint/no-explicit-any": "off",
 		"@typescript-eslint/explicit-module-boundary-types": "off",
 		"simple-import-sort/imports": "error",
-		"unused-imports/no-unused-imports-ts": "error",
-		"vue/require-default-prop": "off",
-		"vue/no-multiple-template-root": "off",
-		"vue/multi-word-component-names": "off",
-		"vue/no-v-model-argument": "off",
-		"vue/attribute-hyphenation": "off"
+		"unused-imports/no-unused-imports-ts": "error"
 	}
 }

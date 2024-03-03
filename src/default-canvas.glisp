@@ -1,3 +1,0 @@
-(style
- (fill "crimson")
- (circle [0 0] 100))
