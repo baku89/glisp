@@ -1,39 +1,63 @@
 export type Ast =
-	| App
-	| Scope
 	| Sym
-	| Function
+	| List
+	| Scope
+	| ((...args: any[]) => Ast)
 	| number
 	| string
 	| null
 	| boolean
+	| Prim
+	| typeof Unit
+	| Ast[]
 
-export const Ast = Symbol('Ast')
+export const Type = Symbol('Type')
 
-export type App = {
-	[Ast]: 'App'
-	items: Ast[]
+export class Prim {
+	readonly [Type] = 'Prim'
+
+	constructor(readonly value: number | string | boolean) {}
+
+	toPrimitive(): number | string | boolean {
+		return this.value
+	}
 }
 
-export function app(...items: Ast[]): App {
-	return {[Ast]: 'App', items}
+export type List = {
+	readonly [Type]: 'List'
+	readonly items: Ast[]
+}
+
+export function list(...items: Ast[]): List {
+	return {[Type]: 'List', items}
 }
 
 export type Scope = {
-	[Ast]: 'Scope'
-	vars: {[name: string]: Ast}
-	ret?: Ast
+	readonly [Type]: 'Scope'
+	readonly vars: {[name: string]: Ast}
+	readonly ret?: Ast
 }
 
 export function scope(vars: {[name: string]: Ast}): Scope {
-	return {[Ast]: 'Scope', vars}
+	return {[Type]: 'Scope', vars}
+}
+
+export function isScope(ast: Ast): ast is Scope {
+	return (
+		typeof ast === 'object' &&
+		ast !== null &&
+		!Array.isArray(ast) &&
+		ast[Type] === 'Scope'
+	)
 }
 
 export type Sym = {
-	[Ast]: 'Sym'
-	name: string
+	readonly [Type]: 'Sym'
+	readonly name: string
 }
 
 export function sym(name: TemplateStringsArray): Sym {
-	return {[Ast]: 'Sym', name: name[0]}
+	return {[Type]: 'Sym', name: name[0]}
 }
+
+export const Unit = Symbol('Unit')
