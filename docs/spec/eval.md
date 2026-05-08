@@ -18,10 +18,31 @@ The AST is the parse-time structure. Despite the name, it is a **concrete syntax
 Each node carries:
 
 - A list of syntactic children (head + arguments for applications, fields for records, elements for vectors, etc.).
-- An array of **inter-child trivia** — whitespace and comments between syntactic positions. For a node with `n` children, the trivia array has `n + 1` slots: one before the first child, one after the last, and one between each pair.
+- An array of **inter-position trivia** — whitespace and comments between the structural positions of the node. The number of slots depends on the node type's template (see below).
 - Attached `^{...}` metadata.
 
 Delimiters (`(`, `)`, `[`, `]`, `{`, `}`, `:` between record key and value, `=` between let-binding name and value, `^` introducing metadata, etc.) are **not** stored on the node. They are implied by the node's type at print time.
+
+### Trivia per node type
+
+For each node type, the number of trivia slots reflects the syntactic positions in its template. Some delimiters allow whitespace on both sides (flexible); others are glued to the adjacent token (sticky):
+
+| Node type | Children | Trivia slots | Notes |
+|---|---|---|---|
+| Application `(head arg0 … argN)` | `1 + N` (head + args) | `N + 2` | inside `(` and `)` |
+| Vector `[e0 … eN]` | `N + 1` | `N + 2` | inside `[` and `]` |
+| Record outer `{f0 … fN}` | `N + 1` fields | `N + 2` | inside `{` and `}` |
+| Let-block outer `{b0 … bN-1 expr?}` | `N` bindings + optional trailing expr | (count + 1) | inside `{` and `}` |
+| Record-field `name: value` | 2 | 2 | flexible: trivia allowed on both sides of `:` |
+| Let-binding `name = value` | 2 | 2 | flexible: trivia allowed on both sides of `=` |
+| Kwarg `key=value` | 2 | 2 | flexible: trivia allowed on both sides of `=` |
+| Metadata-attached `^{meta} expr` | 2 | 1 | `^` is **sticky** to `{`; trivia only between `^{...}` and `expr` |
+| Quasiquote `` `expr `` | 1 | 0 | **sticky**: backtick glued to next form |
+| Unquote `~expr` | 1 | 0 | **sticky** |
+| Unquote-splice `~@expr` | 1 | 0 | **sticky** |
+| Path `../...`, `./...` | atom-internal | 0 | path tokens are single atoms; no trivia inside |
+
+The flexible/sticky split is chosen so layout-affecting delimiters (`:`, `=`) accommodate multi-line forms, while prefix-style modifiers (`^`, `` ` ``, `~`, `~@`) remain visually attached to what they modify.
 
 No parent pointer. The "where am I in the tree" information is supplied by the env at evaluation time. Subtrees are immutable and freely shareable / graftable across other trees. Source positions are not stored explicitly; they are derivable by walking trivia.
 
