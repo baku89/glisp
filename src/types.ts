@@ -96,6 +96,7 @@ export type AST =
 	| PathAST
 	| QuoteAST
 	| UnquoteAST
+	| SpreadAST
 	| SpliceAST
 	| MetaAST
 
@@ -253,6 +254,27 @@ export class UnquoteAST extends ASTNode {
 	}
 }
 
+/**
+ * Spread: `...expr`. Inlines the operand's elements into the surrounding
+ * call / vector / record / quasiquote. Stays as `...expr` regardless of
+ * whether it appears inside a quasiquote — for the quasiquote-specific
+ * "evaluate and splice" form, use `SpliceAST` (`...~expr`).
+ */
+export class SpreadAST extends ASTNode {
+	readonly kind = 'spread' as const
+	constructor(public readonly expr: AST) {
+		super()
+	}
+}
+
+/**
+ * Unquote-splice: `...~expr`. Only meaningful inside a quasiquote — evaluates
+ * `expr` (popping the quote level) and splices the resulting elements into
+ * the surrounding form.
+ *
+ * For non-evaluating spread (`...xs` regardless of quasiquote context), use
+ * `SpreadAST`.
+ */
 export class SpliceAST extends ASTNode {
 	readonly kind = 'splice' as const
 	constructor(public readonly expr: AST) {
@@ -289,6 +311,7 @@ export const isFn = (a: AST): a is FnAST => a.kind === 'fn'
 export const isPath = (a: AST): a is PathAST => a.kind === 'path'
 export const isQuote = (a: AST): a is QuoteAST => a.kind === 'quote'
 export const isUnquote = (a: AST): a is UnquoteAST => a.kind === 'unquote'
+export const isSpread = (a: AST): a is SpreadAST => a.kind === 'spread'
 export const isSplice = (a: AST): a is SpliceAST => a.kind === 'splice'
 export const isMeta = (a: AST): a is MetaAST => a.kind === 'meta'
 

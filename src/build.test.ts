@@ -13,6 +13,7 @@ import {
 	quote,
 	record,
 	splice,
+	spread,
 	sym,
 	unquote,
 	vec,
@@ -106,10 +107,11 @@ describe('AST builders', () => {
 		expect(path('..', 'vec', 0).segments).toEqual(['..', 'vec', 0])
 	})
 
-	it('quote, unquote, splice wrap an expression', () => {
+	it('quote, unquote, spread, splice wrap an expression', () => {
 		const x = sym('x')
 		expect(quote(x)).toEqual({ kind: 'quote', expr: x })
 		expect(unquote(x)).toEqual({ kind: 'unquote', expr: x })
+		expect(spread(x)).toEqual({ kind: 'spread', expr: x })
 		expect(splice(x)).toEqual({ kind: 'splice', expr: x })
 	})
 
@@ -193,7 +195,7 @@ describe('AST builders', () => {
 
 	it('fn supports generics', () => {
 		// (=> (T) (xs: [...T] i: number): T (xs i))
-		const xsType = vec(splice(sym('T')))
+		const xsType = vec(spread(sym('T')))
 		const ast = fn(
 			[
 				{ name: 'xs', type: xsType },

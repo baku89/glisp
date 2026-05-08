@@ -27,6 +27,7 @@ import {
 	QuoteAST,
 	RecordAST,
 	SpliceAST,
+	SpreadAST,
 	SymAST,
 	UnquoteAST,
 	type Unit,
@@ -161,7 +162,19 @@ export function unquote(expr: AST): UnquoteAST {
 	return new UnquoteAST(expr)
 }
 
-/** Unquote-splice / spread: `...~expr` (in quasiquote) or `...xs` (in call/vec/record). */
+/**
+ * Spread: `...expr`. Inlines the operand into the surrounding call / vec /
+ * record / quasiquote. Use this for variadic/spread positions; it remains
+ * `...expr` even inside a quasiquote.
+ */
+export function spread(expr: AST): SpreadAST {
+	return new SpreadAST(expr)
+}
+
+/**
+ * Unquote-splice: `...~expr`. Only meaningful inside a quasiquote. For
+ * non-evaluating spread, use `spread()` instead.
+ */
 export function splice(expr: AST): SpliceAST {
 	return new SpliceAST(expr)
 }
@@ -199,6 +212,7 @@ export const g = {
 	path,
 	quote,
 	unquote,
+	spread,
 	splice,
 	meta,
 	print,

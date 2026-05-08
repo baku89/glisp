@@ -12,6 +12,7 @@ import {
 	quote,
 	record,
 	splice,
+	spread,
 	sym,
 	unquote,
 	vec,
@@ -144,15 +145,38 @@ describe('print', () => {
 		expect(print(path('..'))).toBe('../')
 	})
 
-	it('prints quasiquote / unquote / spread', () => {
+	it('prints quasiquote / unquote / spread / splice', () => {
 		expect(print(quote(sym('x')))).toBe('`x')
 		expect(print(unquote(sym('x')))).toBe('~x')
-		// spread (outside quote): ...xs
-		expect(print(splice(sym('xs')))).toBe('...xs')
-		// inside quote: ...~xs
-		expect(print(quote(call(sym('+'), splice(sym('xs')))))).toBe(
-			'`(+ ...~xs)'
-		)
+		// spread: ...xs (regardless of quasiquote context)
+		expect(print(spread(sym('xs')))).toBe('...xs')
+		// unquote-splice: ...~xs (only meaningful inside quasiquote)
+		expect(print(splice(sym('xs')))).toBe('...~xs')
+	})
+
+	it('spread and unquote-splice can both appear inside a quasiquote', () => {
+		// `(~f ...xs)   — head is unquoted, args is a plain spread (no eval)
+		expect(
+			print(quote(call(unquote(sym('f')), spread(sym('xs')))))
+		).toBe('`(~f ...xs)')
+		// `(foo ...~xs)  — eval-and-splice
+		expect(
+			print(quote(call(sym('foo'), splice(sym('xs')))))
+		).toBe('`(foo ...~xs)')
+	})
+
+	it('spread element inside a vector', () => {
+		// [x ...y]   →  VecAST([SymAST('x'), SpreadAST(SymAST('y'))])
+		expect(print(vec(sym('x'), spread(sym('y'))))).toBe('[x ...y]')
+		expect(
+			print(vec(lit(1), spread(sym('xs')), lit(4)))
+		).toBe('[1 ...xs 4]')
+	})
+
+	it('spread argument inside a call', () => {
+		expect(
+			print(call(sym('f'), sym('a'), spread(sym('xs')), sym('b')))
+		).toBe('(f a ...xs b)')
 	})
 
 	it('prints metadata', () => {

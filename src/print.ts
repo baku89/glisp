@@ -19,51 +19,47 @@ import {
 } from './types.js'
 
 export function print(ast: AST): string {
-	return printAST(ast, false)
+	return printAST(ast)
 }
 
-/**
- * @param inQuote whether we're inside a quasiquote region (for splice form)
- */
-function printAST(ast: AST, inQuote: boolean): string {
+function printAST(ast: AST): string {
 	switch (ast.kind) {
 		case 'lit':
 			return printLit(ast.value)
 		case 'sym':
 			return ast.name
 		case 'call': {
-			const positional = [ast.head, ...ast.args].map(a => printAST(a, inQuote))
+			const positional = [ast.head, ...ast.args].map(printAST)
 			const kw: string[] = []
 			if (ast.kwargs) {
 				for (const [k, v] of ast.kwargs) {
-					kw.push(`${k}=${printAST(v, inQuote)}`)
+					kw.push(`${k}=${printAST(v)}`)
 				}
 			}
 			return `(${[...positional, ...kw].join(' ')})`
 		}
 		case 'access':
-			return `${printAST(ast.target, inQuote)}.${ast.key}`
+			return `${printAST(ast.target)}.${ast.key}`
 		case 'vec':
-			return `[${ast.elements.map(e => printAST(e, inQuote)).join(' ')}]`
+			return `[${ast.elements.map(printAST).join(' ')}]`
 		case 'record':
-			return printRecord(ast, inQuote)
+			return printRecord(ast)
 		case 'let':
-			return printLet(ast, inQuote)
+			return printLet(ast)
 		case 'fn':
-			return printFn(ast, inQuote)
+			return printFn(ast)
 		case 'path':
 			return printPath(ast.segments)
 		case 'quote':
-			return '`' + printAST(ast.expr, true)
+			return '`' + printAST(ast.expr)
 		case 'unquote':
-			return '~' + printAST(ast.expr, false)
+			return '~' + printAST(ast.expr)
+		case 'spread':
+			return '...' + printAST(ast.expr)
 		case 'splice':
-			// inside quasiquote: `...~expr`; otherwise spread `...expr`
-			return inQuote
-				? '...~' + printAST(ast.expr, false)
-				: '...' + printAST(ast.expr, inQuote)
+			return '...~' + printAST(ast.expr)
 		case 'meta':
-			return `^${printAST(ast.metadata, inQuote)} ${printAST(ast.expr, inQuote)}`
+			return `^${printAST(ast.metadata)} ${printAST(ast.expr)}`
 	}
 }
 
@@ -104,46 +100,44 @@ function stringLiteral(s: string): string {
 	)
 }
 
-function printRecord(ast: RecordAST, inQuote: boolean): string {
+function printRecord(ast: RecordAST): string {
 	const entries: string[] = []
 	for (const [k, v] of ast.fields) {
 		const optMark = ast.optional?.has(k) ? '?' : ''
-		entries.push(`${k}${optMark}: ${printAST(v, inQuote)}`)
+		entries.push(`${k}${optMark}: ${printAST(v)}`)
 	}
 	return `{${entries.join(' ')}}`
 }
-// (iteration is the same — `fields` is now an array of pairs and
-// `for...of` walks it in order, including duplicates.)
 
-function printLet(ast: LetAST, inQuote: boolean): string {
+function printLet(ast: LetAST): string {
 	const parts: string[] = []
 	for (const [name, expr] of ast.bindings) {
-		parts.push(`${name} = ${printAST(expr, inQuote)}`)
+		parts.push(`${name} = ${printAST(expr)}`)
 	}
 	if (ast.body !== null) {
-		parts.push(printAST(ast.body, inQuote))
+		parts.push(printAST(ast.body))
 	}
 	return `{${parts.join(' ')}}`
 }
 
-function printFn(ast: FnAST, inQuote: boolean): string {
+function printFn(ast: FnAST): string {
 	const segments: string[] = ['=>']
 	if (ast.generics.length > 0) {
 		segments.push(`(${ast.generics.join(' ')})`)
 	}
-	const params = ast.params.map(p => printParam(p, inQuote)).join(' ')
-	segments.push(`(${params}): ${printAST(ast.returnType, inQuote)}`)
+	const params = ast.params.map(printParam).join(' ')
+	segments.push(`(${params}): ${printAST(ast.returnType)}`)
 	if (ast.body !== null) {
-		segments.push(printAST(ast.body, inQuote))
+		segments.push(printAST(ast.body))
 	}
 	return `(${segments.join(' ')})`
 }
 
-function printParam(p: FnParam, inQuote: boolean): string {
+function printParam(p: FnParam): string {
 	let name = p.name
 	if (p.optional) name += '?'
 	if (p.variadic) name = '...' + name
-	return `${name}: ${printAST(p.type, inQuote)}`
+	return `${name}: ${printAST(p.type)}`
 }
 
 function printPath(
