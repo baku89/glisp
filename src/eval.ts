@@ -75,13 +75,18 @@ type MemoState =
 /**
  * Per-evaluation context shared across all recursive `evaluate` calls.
  * Holds the memo cache for cycle detection and result reuse.
+ *
+ * The outer map is a `WeakMap` keyed by the AST instance — when an AST
+ * subtree becomes unreachable elsewhere, its memo entries can be garbage
+ * collected automatically. The inner map is a regular `Map` because `Env`
+ * may be `null` (the root sentinel), which `WeakMap` cannot key.
  */
 export interface EvalContext {
-	readonly memo: Map<AST, Map<Env, MemoState>>
+	readonly memo: WeakMap<AST, Map<Env, MemoState>>
 }
 
 function newContext(): EvalContext {
-	return { memo: new Map() }
+	return { memo: new WeakMap() }
 }
 
 function lookupMemo(ctx: EvalContext, ast: AST, env: Env): MemoState | undefined {
