@@ -136,6 +136,12 @@ This is what lets literal forms play double duty:
 
 `[...T]` is the special case of a tuple type with no fixed prefix and a rest of `T` — the type of "any-length vector of `T`". `[T1 T2 ...T3]` mixes fixed and rest. The rest spread may appear only at the end (see [Type constructors](#type-constructors)).
 
+### What type slots do *not* mean
+
+A type-slot annotation like `x: number` always reads as "x has type `number`" — that is, x is a numeric value. It is **not** read as "x is the singleton whose only inhabitant is the type value `number`". Glisp does not introduce singleton types over type values; you cannot say "x must be the type value `number`, nothing else". If you need to constrain a value to a literal-set membership, use `enum` (which is for value literals like `"red"`, `42`, etc., not for type values).
+
+This rule keeps the meaning of every annotation unambiguous: the right side of `:` always describes the *kind of values* the slot accepts, never a specific value pinned by identity.
+
 ## Types are callable: cast
 
 A type value, when applied to a single argument, casts/validates the argument:
