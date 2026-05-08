@@ -139,14 +139,16 @@ Accessor `.` is syntactic sugar that desugars to the call form. Dynamic keys (va
 
 A path atom references an AST position relative to the current expression by walking the container structure (the AST tree).
 
-- `./name` — `name` in the immediate parent AST node.
-- `../name` — `name` in the grandparent.
-- Each additional `.` walks one more AST level up: `.../name` reaches the great-grandparent, `..../name` the level above that, and so on.
-- After the dots, segments may chain with `/`: `./record/key`, `../vec/0`.
+A path is a sequence of segments separated by `/`. Each segment is one of:
 
-Distinguishing path from spread/splice: a path always has a `/` (or end-of-token) after the leading dots. A token of the shape `...name` (no slash) is a spread/splice, not a path. The rule is unambiguous in both directions.
+- `.` — stay at the current node (no-op; required as the first segment when the path otherwise starts with a name).
+- `..` — go up to the immediate parent AST node.
+- a name — descend into a named child (record field, kwarg, let-binding, function parameter).
+- an integer — descend into a positional child (vector element, positional argument).
 
-Segments are names (record fields, kwargs, let-block bindings, function parameters) or integers (vector elements, positional arguments).
+`..` may be repeated arbitrarily by chaining with `/` to walk further up: `../..` is two levels up, `../../..` is three, and so on. There is no special "deeper" syntax — chained `..` segments are how depth is expressed.
+
+Distinguishing path from spread/splice: a path always begins with `./` or `../` and contains at least one `/`. A token of the shape `...name` (no slash) is a spread/splice, not a path.
 
 ```glisp
 {width: 100
@@ -307,7 +309,7 @@ A unary `...` prefix expands its operand into the surrounding form. The same pre
 
 The operand of `...` must evaluate to a vector (in call/vector/quasiquote-splice contexts) or to a record (in record context). Type mismatch falls back per the usual rules.
 
-The `...` of a spread is always followed directly by an identifier or `~`. This distinguishes it from path forms, which always have a `/` after the dots (see [Path](#path----and-)). The rule scales to any number of dots: `...xs` is spread, `.../xs` is a 3-level path, `..../xs` is a 4-level path, etc.
+The `...` of a spread is always followed directly by an identifier or `~`. This distinguishes it from path forms, which always begin with `./` or `../` and contain a `/` (see [Path](#path----and-)).
 
 ## Special forms
 
@@ -541,7 +543,7 @@ The result of ``...` is itself a Glisp value (a syntax tree).
 | `\|>`         | pipe special form                                      |
 | `%`           | partial-application placeholder                        |
 | `.`           | member accessor (record field / vector index)          |
-| `..`          | path: each additional `.` walks one more AST level up  |
+| `..`          | path segment: parent of the current node (chain via `/`) |
 | `/`           | division atom; path separator after `.` or `..`        |
 
 

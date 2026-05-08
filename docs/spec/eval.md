@@ -146,11 +146,15 @@ Frames without `bindings` (records, vectors, applications, quasiquotes) are skip
 
 ## Path lookup
 
-For a path atom with `k` leading `.` characters (`./...` is `k=1`, `../...` is `k=2`, ...) followed by zero or more `/segment` parts at env `e`:
+A path atom carries a sequence of segments. Each segment is one of: `'..'` (go up to parent), a name, or an integer.
 
-1. Walk `e` up by `k` frames. The frame reached is the **target frame**; its `ast` is the **target AST node**.
-2. From the target, descend through the segments. A segment is a name (record field, kwarg name, let-block binding, function parameter) or an integer (an index into the syntactic children of the node, in source order).
-3. The result is the evaluation node `(target_AST, env_at_target)`.
+To resolve a path at env `e`, start with the env's top frame (representing the AST node containing the path) and process segments in order:
+
+1. `'..'` — pop one frame off `e` (move to the parent's frame). The resulting frame is the new "current frame".
+2. a name — interpret it as a child name within the current frame's AST node (record field, kwarg name, let-block binding, function parameter).
+3. an integer — interpret it as an index into the syntactic children of the current frame's AST node, in source order.
+
+After processing all segments, the result is the evaluation node `(target_AST, env_at_target)`. When the path runs out of frames to pop (popping above top-level) or a name/integer fails to address a child, a diagnostic is emitted and the path yields `()`.
 
 For a function application `(head arg0 arg1 ...)`, the indices are `0` = head, `1` = `arg0`, `2` = `arg1`, etc. For a vector `[e0 e1 ...]`, indices are `0` = `e0`, `1` = `e1`, etc.
 

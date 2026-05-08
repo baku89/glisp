@@ -120,24 +120,26 @@ export interface FnAST extends ASTBase {
 }
 
 /**
- * Path atom. `dots` is the number of leading `.` characters (>= 1); each dot
- * walks one AST level up. `segments` is the chain after the dots.
+ * Path atom. A path is a sequence of segments separated by `/`. Each segment
+ * is `'..'` (go up to parent), a name (descend into a named child), or an
+ * integer index (descend into a positional child). The `'.'` segment (stay
+ * here) is allowed in syntax but not stored as an AST segment — it is a
+ * no-op needed only to disambiguate paths starting with a name.
  *
- *   ./foo            → dots: 1, segments: ['foo']
- *   ../foo           → dots: 2, segments: ['foo']
- *   ../foo/bar       → dots: 2, segments: ['foo', 'bar']
- *   ../vec/0         → dots: 2, segments: ['vec', 0]
- *   ./               → dots: 1, segments: []                 (the parent itself)
+ *   ./foo            → segments: ['foo']
+ *   ../foo           → segments: ['..', 'foo']
+ *   ../../foo        → segments: ['..', '..', 'foo']        (parent's parent)
+ *   ../foo/bar       → segments: ['..', 'foo', 'bar']
+ *   ../vec/0         → segments: ['..', 'vec', 0]
+ *   ./               → segments: []                          (the current node itself)
+ *   ../              → segments: ['..']                      (the parent itself)
  *
- * Any number of dots is allowed; deeper paths (3+) are valid but rare.
- *
- * Distinguishing path from spread (`...`): a path always has `/` (or end-of-
- * token) after the leading dots. `...xs` is spread; `.../xs` is a path.
+ * Distinguishing path from spread (`...`): a path always begins with `./` or
+ * `../` and contains a `/`. `...xs` (no slash) is a spread.
  */
 export interface PathAST extends ASTBase {
 	readonly kind: 'path'
-	readonly dots: number
-	readonly segments: ReadonlyArray<string | number>
+	readonly segments: ReadonlyArray<'..' | string | number>
 }
 
 export interface QuoteAST extends ASTBase {
