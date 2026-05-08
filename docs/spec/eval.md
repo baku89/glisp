@@ -161,22 +161,35 @@ In the second role `()` flows through untyped positions (let-block bindings, vec
 
 ## Diagnostics
 
-Evaluation never throws. Diagnostics (errors, warnings, info) are produced as a parallel side channel keyed by evaluation node:
+Evaluation never throws. Each evaluation produces a set of diagnostics alongside its value. A diagnostic carries the location at which it was produced:
 
 ```
-DiagnosticsTable: Map<(AST, Env), Diagnostics>
+Diagnostic = {
+  level:   'error' | 'warning' | 'info'
+  message: string
+  source:  (AST, Env)        ;; the evaluation node that produced it
+}
+
+Diagnostics = Set<Diagnostic>
 ```
 
-Because evaluation nodes have stable identity, primitive values do not need to be wrapped to carry diagnostics. The host queries diagnostics by the evaluation node, not by the value.
+The diagnostics attached to an evaluation node are the **union** of:
 
-The memoization cache and the diagnostics table share the same key space. Each entry takes one of three states (see [Cycle detection](#cycle-detection)):
+- Diagnostics produced directly at this node (type mismatch, unresolvable name, path failure, cycle, etc.).
+- Diagnostics propagated from every sub-evaluation reached during this evaluation.
+
+So evaluating `(* (+ "undo" 4) 20)` carries up the type-mismatch diagnostic from `(+ "undo" 4)` to the surrounding `(* ... 20)`. The host can query the outermost evaluation node and obtain every diagnostic that occurred below it.
+
+Diagnostics are stored on the same memo cache as values, with a three-state shape (see [Cycle detection](#cycle-detection)):
 
 ```
 State    = InProgress | Computed { value: Value, diagnostics: Diagnostics }
 MemoCache: Map<(AST, Env), State>
 ```
 
-A missing entry is implicitly "not computed yet". The evaluator's return value is a plain `Value`; diagnostic information is reached via the evaluation node.
+A missing entry is implicitly "not computed yet". Because `eval` is pure, the same evaluation node always yields the same value and the same diagnostic set, so the cache is consistent.
+
+The evaluator's return value is a plain `Value`. Diagnostic information is reached via the evaluation node, not the value itself, so primitive values do not need to be wrapped.
 
 ## Static name resolution pass
 
