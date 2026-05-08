@@ -298,12 +298,19 @@ For an extern-typed value, the host **must** provide the conversion via the exte
 What type should fit in this AST slot? Answers that question without requiring the slot's current contents to actually have that type.
 
 ```ts
-g.expectedTypeAt(parentAst, position, env): TypeHandle
+type Position = string | number | (string | number)[]
+
+g.expectedTypeAt(parentAst, position: Position, env): TypeHandle
 ```
 
 - `parentAst`: the AST whose interior slot we are asking about.
-- `position`: the slot identifier inside `parentAst` — a string field name, an integer index, or a structured path like `['param', 0, 'type']`.
+- `position`: the slot identifier inside `parentAst`:
+  - a `string` is a field name (`'body'`, `'x'`, `'returnType'`, etc.)
+  - a `number` is a positional index (`0` for the first argument of a call, `1` for the second element of a vector, etc.)
+  - a `(string | number)[]` is a structured path that descends through nested slots (e.g. `['params', 0, 'type']`)
 - `env`: the env in which `parentAst` is evaluated. Needed because slot types may reference type values pulled from env-bound names.
+
+`Position` is a host-API navigation aid, not a Glisp `path` AST. It addresses "which slot inside this parent" from the TS side; Glisp's `g.path` (`./foo`, `../bar`) addresses positions inside a running program, with a different starting point and dot-counting rule.
 
 ```ts
 // parentAst = (=> (x: number y: number): number body)
