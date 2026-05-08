@@ -8,3 +8,5 @@
 export * from './types.js'
 export * from './build.js'
 export * from './print.js'
+export * from './lex.js'
+export * from './parse.js'
