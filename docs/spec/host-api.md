@@ -227,25 +227,65 @@ See [eval.md](./eval.md#environment) for the underlying frame-chain model.
 
 Any JS value that does not correspond to a Glisp built-in type can still flow through Glisp as an opaque value. From Glisp's perspective such values inhabit `top` and have no introspectable structure; they pass through unchanged.
 
-Hosts can declare a named opaque type to enable casting and type-checking:
+Hosts can declare a named opaque type to enable casting and type-checking. The same `g.opaque` API covers both monomorphic types (`Date`) and generic type constructors (`Observable<T>`):
 
 ```ts
-const DateType = g.declareOpaque<Date>('Date', {
+// monomorphic
+const DateType = g.opaque<Date>('Date', {
   guard: (v): v is Date => v instanceof Date,
   default: new Date(0),
 })
 
-const env = g.prelude.bind('today', {
-  type: g.fn({}).returns(DateType),
-  fn: () => new Date()
+// generic (1-argument type constructor)
+const Observable = g.opaque<Observable<any>>('Observable', {
+  arity: 1,
+  guard: (v): v is Observable<any> => v instanceof Observable,
+  default: () => EMPTY,
+})
+
+const env = g.prelude.with({
+  today: g.def(g.fn({}).returns(DateType), () => new Date()),
+  numbers: g.def(Observable(g.number), of(1, 2, 3)),
+  names:   g.def(Observable(g.string), of('a', 'b')),
 })
 ```
 
 - `guard` is the runtime predicate used at cast sites (`(Date v)` validates and returns `v` if `guard(v)` is true).
 - `default` is the standard metadata default returned on cast failure.
-- The first type argument to `declareOpaque` is the TS type, used by `g.infer` so that opaque values flow through with their JS static type intact.
+- The first TS type argument to `g.opaque` is the JS class/interface; `g.infer` propagates it so opaque values keep their JS static type.
+- `arity: N` makes the result a type constructor that takes `N` Glisp-type arguments. Without `arity` (or `arity: 0`), the opaque is monomorphic.
+- Generic opaque types compare by name + the identity of their type arguments. The runtime `guard` does not see the type arguments — the JS class is checked, but element-type validity is the host's responsibility (a `Observable<number>` cast can't actually verify the stream emits numbers).
 
-Convention: opaque types are named with an uppercase initial (`Date`, `URL`, `Map`), per the [naming convention](./types.md#naming-convention).
+Convention: opaque types are named with an uppercase initial (`Date`, `URL`, `Map`, `Observable`), per the [naming convention](./types.md#naming-convention).
+
+## Function overloading
+
+A single name can dispatch to one of several implementations based on argument types. `g.overload` collects multiple `[type, value]` pairs into a single overloaded function:
+
+```ts
+const vec2 = g.record({ x: g.number, y: g.number })
+
+const env = g.prelude.with({
+  '+': g.overload(
+    [g.fn({a: g.number, b: g.number}).returns(g.number),
+     (a, b) => a + b],
+    [g.fn({a: vec2, b: vec2}).returns(vec2),
+     (a, b) => ({ x: a.x + b.x, y: a.y + b.y })],
+  )
+})
+```
+
+Dispatch rule: at a call site `(+ a b)`, the evaluator scans the overload candidates in declared order and picks the first whose parameter types match the actual argument types. If none match, the call falls back per the standard type-mismatch handling.
+
+In Glisp source, the same overload form is available as the `overload` special form:
+
+```glisp
++ = (overload
+      (=> (a: number b: number): number ...)
+      (=> (a: vec2 b: vec2): vec2 ...))
+```
+
+Open: ranking when multiple candidates match (most-specific-wins, vs. declared-order, vs. ambiguity error). See Open questions.
 
 ## Functions across the boundary
 
