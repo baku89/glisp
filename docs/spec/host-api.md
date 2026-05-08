@@ -135,56 +135,45 @@ The host assembles a Glisp environment by deriving from the prelude (or any othe
 ```ts
 const empty = g.emptyEnv()                     // env with no bindings (testing / sandbox)
 const prelude = g.prelude                      // the standard env Glisp ships with
-
-const env = g.prelude
-  .with('add', addType, (a, b) => a + b)
-  .with('mul', mulType, (a, b) => a * b)
 ```
-
-Each `.with(...)` returns a **new env value**; the parent env is unchanged. Envs are first-class JS values: multiple envs can coexist for parallel evaluations, scoped extensions, A/B comparisons, etc.
 
 `g.prelude` is the parentless root env that ships with Glisp's built-in operations (`+`, `-`, `*`, `?`, `|>`, `vector`, ...). Any user-built env derives from it (or from `g.emptyEnv()` if the host wants to start from nothing).
 
-This API mirrors [eval.md](./eval.md#environment)'s frame chain: `g.prelude` is the root frame, each `.with(...)` extends with one more top-level binding.
-
 ### Bindings
 
-`.with(name, type, value)` is the single-binding form, with three positional arguments. There is no `{type, fn}` struct: the same shape covers functions and constants alike.
-
-```ts
-const env = g.prelude
-  // function
-  .with('add',
-        g.fn({ a: g.number, b: g.number }).returns(g.number),
-        (a, b) => a + b)
-  // numeric constant
-  .with('pi', g.number, 3.14159)
-  // record value
-  .with('config',
-        g.record({ port: g.number, host: g.string }),
-        { port: 8080, host: 'localhost' })
-  // enum value
-  .with('mode', g.enum('debug', 'release'), 'release')
-```
-
-`.withAll({...})` registers multiple bindings at once, as `[type, value]` tuples:
+`.with({...})` extends an env with one or more bindings, returning a new env. Bindings are passed as a record where each entry is a `[type, value]` tuple:
 
 ```ts
 const numFn = g.fn({ a: g.number, b: g.number }).returns(g.number)
 
-const env = g.prelude.withAll({
+const env = g.prelude.with({
+  // functions
   add: [numFn, (a, b) => a + b],
   mul: [numFn, (a, b) => a * b],
-  pi:  [g.number, 3.14159],
+
+  // numeric constant
+  pi: [g.number, 3.14159],
+
+  // record value
+  config: [g.record({ port: g.number, host: g.string }),
+           { port: 8080, host: 'localhost' }],
+
+  // enum value
+  mode: [g.enum('debug', 'release'), 'release'],
 })
 ```
 
+The same shape handles functions and constants — `value` is just a JS value that marshals to the declared type. A single binding is the same record form, just with one entry: `g.prelude.with({ pi: [g.number, 3.14159] })`. Bulk registration is the common case (a host typically exposes a whole module's worth of names at once), so the API has no separate single-binding shorthand.
+
 - `type` is the binding's Glisp type, built via value builders (preferred — enables TS inference) or via `g.parse(string)`.
-- `value` is any JS value that marshals to the declared type. For function bindings, it's a plain JS function — no wrappers needed. The TS type of `value` must satisfy `g.infer<typeof type>`, otherwise it's a compile-time error.
+- `value` is any JS value that marshals to the declared type. For functions, a plain JS function. The TS type of `value` must satisfy `g.infer<typeof type>`, otherwise it's a compile-time error.
+- `.with({...})` returns a new env; the original is unchanged. Multiple `.with` calls can be chained to layer additional scopes.
 
 The type is always required — there is no inference-from-value shortcut. This keeps the host API symmetric with Glisp's "types are always explicit" stance for function definitions.
 
 All metadata (`label`, `doc`, `default`, ...) attaches to the type itself via `^{...}`.
+
+This API mirrors [eval.md](./eval.md#environment)'s frame chain: `g.prelude` is the root frame, each `.with({...})` extends with another set of top-level bindings.
 
 ## Evaluation
 
