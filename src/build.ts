@@ -12,6 +12,9 @@ import type {
 	AccessAST,
 	AST,
 	CallAST,
+	FnAST,
+	FnParam,
+	LetAST,
 	LitAST,
 	MetaAST,
 	PathAST,
@@ -92,6 +95,53 @@ export function path(
 	return { kind: 'path', segments }
 }
 
+/**
+ * Let-block: bindings followed by an optional trailing expression.
+ *
+ *   letBlock([['a', lit(10)], ['b', lit(20)]], call(sym('+'), sym('a'), sym('b')))
+ *   // → {a = 10  b = 20  (+ a b)}
+ *
+ * Exported as `g.let` (the keyword form is allowed as a property name).
+ */
+export function letBlock(
+	bindings: ReadonlyArray<readonly [string, AST]>,
+	body: AST | null = null
+): LetAST {
+	return { kind: 'let', bindings, body }
+}
+
+/**
+ * Function literal AST.
+ *
+ *   fn(
+ *     [{ name: 'x', type: sym('number') }, { name: 'y', type: sym('number') }],
+ *     sym('number'),
+ *     call(sym('+'), sym('x'), sym('y'))
+ *   )
+ *   // → (=> (x: number y: number): number (+ x y))
+ *
+ * For function-type expressions (no body), pass `null` for `body`.
+ * For generics, pass a list of type-variable names in `options.generics`.
+ *
+ * The chain form `g.fn({...}).returns(R)` documented in host-api.md is the
+ * value builder (constructs a type value); the AST builder here is the lower-
+ * level shape-construction utility.
+ */
+export function fn(
+	params: ReadonlyArray<FnParam>,
+	returnType: AST,
+	body: AST | null = null,
+	options?: { readonly generics?: ReadonlyArray<string> }
+): FnAST {
+	return {
+		kind: 'fn',
+		generics: options?.generics ?? [],
+		params,
+		returnType,
+		body,
+	}
+}
+
 /** Quasiquote: `` `expr ``. */
 export function quote(expr: AST): QuoteAST {
 	return { kind: 'quote', expr }
@@ -131,6 +181,8 @@ export const g = {
 	access,
 	vec,
 	record,
+	let: letBlock,
+	fn,
 	path,
 	quote,
 	unquote,

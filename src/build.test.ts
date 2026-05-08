@@ -4,6 +4,9 @@ import {
 	access,
 	call,
 	callKw,
+	fn,
+	g,
+	letBlock,
 	lit,
 	meta,
 	path,
@@ -14,7 +17,18 @@ import {
 	unquote,
 	vec,
 } from './build.js'
-import { isAccess, isCall, isLit, isMeta, isPath, isRecord, isVec, UNIT } from './types.js'
+import {
+	isAccess,
+	isCall,
+	isFn,
+	isLet,
+	isLit,
+	isMeta,
+	isPath,
+	isRecord,
+	isVec,
+	UNIT,
+} from './types.js'
 
 describe('AST builders', () => {
 	it('lit returns LitAST with the given value', () => {
@@ -116,5 +130,70 @@ describe('AST builders', () => {
 			],
 		}
 		expect(call(sym('+'), lit(1), lit(2))).toEqual(expected)
+	})
+
+	it('letBlock holds bindings and an optional body', () => {
+		// {a = 10 b = 20 (+ a b)}
+		const ast = letBlock(
+			[
+				['a', lit(10)],
+				['b', lit(20)],
+			],
+			call(sym('+'), sym('a'), sym('b'))
+		)
+		expect(isLet(ast)).toBe(true)
+		expect(ast.bindings).toHaveLength(2)
+		expect(ast.bindings[0]).toEqual(['a', lit(10)])
+		expect(ast.body).toEqual(call(sym('+'), sym('a'), sym('b')))
+
+		// {a = 10}  (no trailing expression)
+		const noBody = letBlock([['a', lit(10)]])
+		expect(noBody.body).toBeNull()
+	})
+
+	it('fn builds a function literal AST', () => {
+		// (=> (x: number y: number): number (+ x y))
+		const ast = fn(
+			[
+				{ name: 'x', type: sym('number') },
+				{ name: 'y', type: sym('number') },
+			],
+			sym('number'),
+			call(sym('+'), sym('x'), sym('y'))
+		)
+		expect(isFn(ast)).toBe(true)
+		expect(ast.params).toHaveLength(2)
+		expect(ast.returnType).toEqual(sym('number'))
+		expect(ast.body).toEqual(call(sym('+'), sym('x'), sym('y')))
+		expect(ast.generics).toEqual([])
+	})
+
+	it('fn with no body is a function-type expression', () => {
+		const ast = fn(
+			[{ name: 'x', type: sym('number') }],
+			sym('number'),
+			null
+		)
+		expect(ast.body).toBeNull()
+	})
+
+	it('fn supports generics', () => {
+		// (=> (T) (xs: [...T] i: number): T (xs i))
+		const xsType = vec(splice(sym('T')))
+		const ast = fn(
+			[
+				{ name: 'xs', type: xsType },
+				{ name: 'i', type: sym('number') },
+			],
+			sym('T'),
+			call(sym('xs'), sym('i')),
+			{ generics: ['T'] }
+		)
+		expect(ast.generics).toEqual(['T'])
+	})
+
+	it('g namespace exposes "let" via property access', () => {
+		const ast = g.let([['a', g.lit(10)]], g.sym('a'))
+		expect(isLet(ast)).toBe(true)
 	})
 })
