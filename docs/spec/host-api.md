@@ -32,19 +32,33 @@ glisp.bind('add', {
 ```
 
 - `name`: the identifier the value is bound to in the Glisp environment.
-- `type`: a Glisp type AST, built either via `g.parse(string)` or via the combinator API (see below).
+- `type`: a Glisp **type value**, built either via type combinators (preferred — enables TS inference) or via `g.parse(string)` (returns an AST that gets evaluated internally).
 - `fn`: the JS implementation. Plain JS function — no marshaling wrappers required. Glisp passes JS-native values as arguments and receives a JS-native value as the result.
 
-Because `type` is a Glisp value, all metadata (`label`, `doc`, `default`, etc.) attaches to the type itself via the standard `^{...}` mechanism — there is no separate metadata field on the binding.
+Because the type is a Glisp value, all metadata (`label`, `doc`, `default`, etc.) attaches to the type itself via the standard `^{...}` mechanism — there is no separate metadata field on the binding.
 
-## AST and type construction
+## Two construction paths: AST vs. type values
 
-Two equivalent paths:
+The host has two ways to express Glisp expressions/types in TS, with different trade-offs:
 
-1. **Parse**: `g.parse(source) → AST`. The string is parsed as Glisp source; the resulting AST may be used as either an expression or a type (Glisp does not distinguish at the AST level).
-2. **Combinators**: `g.*` functions that build AST nodes directly. This path enables TypeScript type inference via `g.infer<T>`.
+| Path                    | Returns           | Env-resolved? | `g.infer` applicable? |
+| ----------------------- | ----------------- | ------------- | --------------------- |
+| `g.parse(string)`       | AST               | No            | No                    |
+| AST builders (below)    | AST               | No            | No                    |
+| Type combinators (below)| **Type value**    | Yes           | Yes                   |
 
-### AST builders
+The distinction matters because:
+
+- An **AST** is a syntactic tree. A symbol like `Person` or `(vector Person)` cannot be resolved to a type without an environment — the AST is just sitting there waiting to be evaluated.
+- A **type value** is the result of evaluating a type expression. It is self-contained on the TS side: `g.number` is the literal type value, `g.vector(g.number)` composes value-level pieces, and no Glisp env lookup is needed.
+
+`g.infer<T>` operates on type values only, because that is where the TS side has enough information to derive a static type. AST handles do not carry resolution.
+
+`bind` accepts either: a type value is used directly; an AST is evaluated internally to obtain a type value.
+
+### AST builders (no TS inference)
+
+These produce raw AST handles. Useful for building Glisp source programmatically (macros, code generation, splicing into quasiquotes), but not for declaring types to `bind`.
 
 | Builder                                | Produces                | Example                                                              |
 | -------------------------------------- | ----------------------- | -------------------------------------------------------------------- |
@@ -61,11 +75,11 @@ Two equivalent paths:
 
 `g.lit` distinguishes JS primitive types automatically: `g.lit(42)` produces a number literal, `g.lit("hi")` a string literal, `g.lit(true)` a boolean literal. This is unambiguous because `g.lit` always wraps a value, never an identifier — for identifiers, use `g.sym`.
 
-### Type combinators
+### Type combinators (TS inference)
 
-Glisp types are values, so they share the same AST. For convenience, primitive types are exposed as constants:
+These produce **type values** — TS-side handles that are already resolved and ready to drive `g.infer<T>`. Primitive types are exposed as constants; compound types are produced by composition.
 
-| Combinator                            | Produces                                  |
+| Combinator                            | Produces (type value)                     |
 | ------------------------------------- | ----------------------------------------- |
 | `g.number`                            | the `number` type                         |
 | `g.string`                            | the `string` type                         |
@@ -75,23 +89,25 @@ Glisp types are values, so they share the same AST. For convenience, primitive t
 | `g.bottom`                            | the `!` (bottom) type                     |
 | `g.vector(T)`                         | `(vector T)`                              |
 | `g.enum(...values)`                   | `(enum v1 v2 ...)`                        |
-| `g.fn(...paramTypes).returns(T)`      | function type AST                         |
-| `g.record({ key: T, ... })`           | record type AST (keys are field names)    |
+| `g.fn(...paramTypes).returns(T)`      | function type                             |
+| `g.record({ key: T, ... })`           | record type                               |
+
+Type combinators only accept other type values as arguments — they cannot consume raw ASTs. This keeps the input to `g.infer` always env-free.
 
 ### Metadata
 
-Attach metadata to any AST via `.meta(...)`:
+Attach metadata to any type value via `.meta(...)`:
 
 ```ts
 const Width = g.number.meta({ default: 100, label: 'Width' })
-// equivalent: g.parse('^{default: 100 label: "Width"} number')
+// runtime-equivalent: ^{default: 100 label: "Width"} number
 ```
 
 Metadata layers as specified in [types.md](./types.md#metadata).
 
 ## TS static-type inference: `g.infer<T>`
 
-`g.infer<T>` is a TypeScript conditional type that maps a Glisp type AST (held statically in TS as a typed handle) to its corresponding TS static type:
+`g.infer<T>` is a TypeScript conditional type that maps a **type value** (a TS-side handle constructed via type combinators) to its corresponding TS static type. It is undefined for raw AST handles.
 
 ```ts
 const userType = g.record({ name: g.string, age: g.number })
