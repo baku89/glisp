@@ -223,6 +223,21 @@ Use `g.def` whenever the inferred type is wrong or under-specified for the bindi
 - `.with({...})` returns a new env; the original is unchanged. Multiple `.with` calls can be chained to layer additional scopes.
 - All metadata attaches to the type itself via `^{...}` or `.meta(...)` — no separate metadata field on the binding.
 
+#### Shadowing
+
+When a `.with({...})` defines a name that is already bound in the parent env, the new binding **shadows** the parent — the derived env sees the closer binding, the parent env is unchanged. This is silent, no diagnostic.
+
+```ts
+const env1 = g.prelude.with({ pi: 3.14 })
+const env2 = env1.with({ pi: 3.14159 })     // env2 sees pi = 3.14159
+const env3 = env1.with({ tau: 6.28 })       // env3 sees pi = 3.14, tau = 6.28
+// env1 itself remains unchanged: pi = 3.14
+```
+
+This is the standard lexical-scope behavior — name-lookup walks frames innermost-first per [eval.md](./eval.md#bare-name-lookup).
+
+Within a single `.with({...})` record, a duplicate JS object key is a JS-level concern (object literals last-key-wins, often flagged by linters); the host API receives only the final entry.
+
 This API mirrors [eval.md](./eval.md#environment)'s frame chain: `g.prelude` is the root frame, each `.with({...})` extends with another set of top-level bindings.
 
 ## Evaluation
