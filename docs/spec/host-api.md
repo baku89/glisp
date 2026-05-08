@@ -52,6 +52,7 @@ The `g` namespace contains all the builders for ASTs and values. Two flavors liv
 | `g.record({ k: ... })`               | record type **or** record AST | overload    | see below                                                     |
 | `g.fn({ name: T, ... }).returns(R)`  | function type                 | value       | see below                                                     |
 | `... .body(expr)`                    | function literal AST          | AST         | continues from `.returns(R)`                                  |
+| `g.generic(['T', ...], cb)`          | generic value                 | value       | see below                                                     |
 
 ### Overloaded builders
 
@@ -84,7 +85,27 @@ g.fn({ a: g.number, b: g.number })
 
 The chain has three stages. Stopping at `.returns(R)` yields the function-type value. Continuing with `.body(expr)` yields the function-literal AST. `g.fn(params)` alone is a non-final intermediate and cannot be passed as a `type` (TS type-checks this).
 
-Function-type parameters are taken as an **object literal**: keys are parameter names, values are parameter types. Insertion order is the parameter order. Parameter names are part of the function type — see [Function literal](./syntax.md#function-literal).
+Function-type parameters are taken as an **object literal**: keys are parameter names, values are parameter types. Insertion order is the parameter order. Parameter names are required at the syntax level but do not affect type identity (see [Function-type equality](./types.md#function-type-equality)).
+
+### Generics — `g.generic`
+
+`g.generic(['T', 'U', ...], callback)` introduces type variables. The callback receives the type variables as a record and returns the type that uses them:
+
+```ts
+const indexer = g.generic(['T'], ({ T }) =>
+  g.fn({ xs: g.vector(T), i: g.number }).returns(T)
+)
+
+type Indexer = g.infer<typeof indexer>
+//   = <T>(xs: T[], i: number) => T
+
+// multiple type variables
+const swap = g.generic(['T', 'U'], ({ T, U }) =>
+  g.fn({ a: T, b: U }).returns(g.record({ x: U, y: T }))
+)
+```
+
+Inside the callback, type variables are first-class values usable wherever a value-builder is expected. They are inferred at call sites in Glisp, exactly like Glisp's own generic functions ([Generics](./types.md#generics)).
 
 ### `g.lit` vs `g.sym`
 

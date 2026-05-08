@@ -28,6 +28,19 @@ Literal types (e.g. `42` as a singleton type) are not introduced. Use `enum` for
 
 Keyword literal (`:foo`) is not introduced. Record keys are written with bare symbols followed by `:`.
 
+#### String escape sequences
+
+| Escape    | Meaning            |
+| --------- | ------------------ |
+| `\n`      | newline            |
+| `\r`      | carriage return    |
+| `\t`      | tab                |
+| `\"`      | double quote       |
+| `\\`      | backslash          |
+| `\uXXXX`  | unicode codepoint  |
+
+Any other backslash sequence is a syntax error.
+
 ### Identifiers (symbols)
 
 Bare identifiers are symbols, resolved in the lexical environment.
@@ -236,7 +249,16 @@ Rules:
 - A keyword whose name is not a parameter of the callee emits a diagnostic.
 - A required parameter (no `?` suffix) that receives no binding emits a diagnostic; the slot is filled with the parameter type's `default`.
 - An optional parameter (`?` suffix) that receives no binding silently uses the parameter type's `default`.
-- Variadic parameters (`...rest`) collect remaining positional arguments only; they cannot be filled by keyword.
+- A variadic parameter `...rest` collects the remaining positional arguments into a vector. It can also be filled by keyword as a single vector value (`rest=[1 2 3]`). Mixing the two — positional rest-elements *and* a same-named kwarg — is a double-binding error.
+
+```glisp
+;; (=> (init: number ...rest: (vector number) name?: string): number ...)
+
+(f 1 2 3 4)                          ;; init=1, rest=[2 3 4]
+(f 1 2 3 name="foo")                 ;; init=1, rest=[2 3], name="foo"
+(f init=1 rest=[2 3 4] name="foo")   ;; all keyword; rest given as a single vector
+(f 1 2 rest=[3 4])                   ;; ❌ double binding of rest
+```
 
 ## Spread — `...`
 
