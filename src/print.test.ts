@@ -167,6 +167,15 @@ describe('print', () => {
 		)
 	})
 
+	it('exposes .print() as a method on every AST node', () => {
+		expect(lit(42).print()).toBe('42')
+		expect(sym('foo').print()).toBe('foo')
+		expect(call(sym('+'), lit(1), lit(2)).print()).toBe('(+ 1 2)')
+		expect(vec(lit(1), lit(2)).print()).toBe('[1 2]')
+		expect(record({ x: lit(10) }).print()).toBe('{x: 10}')
+		expect(path('..', 'foo').print()).toBe('../foo')
+	})
+
 	it('round-trips a moderately nested expression', () => {
 		// (=> (n: number): number {a = (* n 2) (+ a 1)})
 		const ast = fn(

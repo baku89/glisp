@@ -12,6 +12,8 @@
  * - clean `toEqual` semantics (vitest only compares own enumerable properties)
  */
 
+import { print as printImpl } from './print.js'
+
 // -----------------------------------------------------------------------------
 // Unit
 // -----------------------------------------------------------------------------
@@ -65,6 +67,15 @@ export abstract class ASTNode {
 			fields.set(k, liftMetaField(v))
 		}
 		return new MetaAST(new RecordAST(fields), this as unknown as AST)
+	}
+
+	/**
+	 * Render this AST back to its Glisp source form (no env needed —
+	 * `print` is purely structural). For `value → source`, compose
+	 * `g.toAst(value, env)` with `.print()`.
+	 */
+	print(): string {
+		return printImpl(this as unknown as AST)
 	}
 }
 
