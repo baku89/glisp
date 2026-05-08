@@ -304,4 +304,3 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 ## Open questions
 
 - Module / import syntax.
-- Whether `?` has uses beyond optional field/argument (e.g. cast probe, type predicate).
