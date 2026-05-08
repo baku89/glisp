@@ -302,6 +302,11 @@ describe('parse — metadata', () => {
 			meta({ label: lit('x'), default: lit(0) }, sym('number'))
 		)
 	})
+
+	it('rejects stacked metadata wraps', () => {
+		// `^{a: 1} ^{b: 2} expr` — must be combined into one ^{...}
+		expect(() => parse('^{a: 1} ^{b: 2} foo')).toThrow(ParseError)
+	})
 })
 
 describe('parse — round-trip', () => {

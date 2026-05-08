@@ -406,6 +406,14 @@ class Parser {
 			content[name] = this.expression()
 		}
 		this.advance() // '}'
+		// Metadata cannot stack — `^{...} ^{...} expr` is a syntax error.
+		// Combine fields into a single `^{...}` instead.
+		if (this.peek().kind === '^') {
+			throw this.error(
+				this.peek(),
+				'metadata cannot wrap another metadata; combine fields into a single ^{...}'
+			)
+		}
 		const expr = this.expression()
 		return meta(content, expr)
 	}
