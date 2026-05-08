@@ -55,6 +55,7 @@ The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via build
 | `'lit'`    | literal              | a `number`, `string`, `boolean`, or the `unit` value          |
 | `'sym'`    | symbol               | a bare identifier referring to a binding                       |
 | `'call'`   | application          | `(head arg0 arg1 ...)`                                        |
+| `'access'` | accessor sugar       | `target.key`. Same eval semantics as `Call(target, [Lit(key)])`; distinct kind for source round-trip |
 | `'vec'`    | vector literal       | `[e0 e1 ...]`                                                  |
 | `'record'` | record literal | `{x: 10 y: 20}`. The same AST shape expresses a record type when its field values happen to be type values (handled by the type system, not by a different `kind`). |
 | `'let'`    | let-block            | `{name = expr ...}`                                           |

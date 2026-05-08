@@ -133,9 +133,7 @@ a.b.c            ;; → ((a "b") "c"), left-associative
 (make-point).x   ;; left side may be an arbitrary expression
 ```
 
-Accessor `.` is syntactic sugar that desugars to the call form. Dynamic keys (variables, expressions) are written in the call form: `(rec keyVar)`, `(arr (+ i 1))`.
-
-The CST records which notation was used (call form vs. accessor sugar) on each call node so `unparse` can reproduce the original source. Both forms have identical evaluation semantics; the distinction is purely syntactic.
+Accessor `.` is syntactic sugar that has the same evaluation semantics as the call form `(rec key)` / `(arr i)`. Dynamic keys (variables, expressions) must be written in call form. The CST keeps a distinct `'access'` AST kind for the dot notation so `unparse` can reproduce the source as written.
 
 ### Path — `./` and `../`
 

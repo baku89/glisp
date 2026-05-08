@@ -27,6 +27,7 @@ export type AST =
 	| LitAST
 	| SymAST
 	| CallAST
+	| AccessAST
 	| VecAST
 	| RecordAST
 	| LetAST
@@ -65,21 +66,27 @@ export interface SymAST extends ASTBase {
  *
  * Spread arguments at the call site are represented as `SpliceAST` inside
  * `args` (e.g. `(f a ...xs b)` becomes args = [a, splice(xs), b]).
- *
- * `style` records the syntactic notation used in the source for round-tripping:
- * - `'call'` (default): parenthesized application `(head a b ...)`.
- * - `'access'`: accessor sugar `head.key` — args must be exactly one literal
- *   (string field name or integer index), and `kwargs` must be absent.
- *
- * The two styles share evaluation semantics; the flag exists purely so
- * `unparse` can reproduce the source as written.
  */
 export interface CallAST extends ASTBase {
 	readonly kind: 'call'
 	readonly head: AST
 	readonly args: ReadonlyArray<AST>
 	readonly kwargs?: ReadonlyMap<string, AST>
-	readonly style?: 'call' | 'access'
+}
+
+/**
+ * Accessor sugar: `target.key`. Has the same evaluation semantics as
+ * `Call(target, [Lit(key)])` (a one-argument call with a literal key), but
+ * is kept as a distinct AST node so `unparse` can reproduce dot notation.
+ *
+ * - `target`: any expression yielding a record or vector at runtime.
+ * - `key`: a literal name (string for record fields) or integer index
+ *   (number for vector elements). Dynamic keys must use call form instead.
+ */
+export interface AccessAST extends ASTBase {
+	readonly kind: 'access'
+	readonly target: AST
+	readonly key: string | number
 }
 
 /** Vector literal. */
@@ -183,6 +190,7 @@ export interface MetaAST extends ASTBase {
 export const isLit = (a: AST): a is LitAST => a.kind === 'lit'
 export const isSym = (a: AST): a is SymAST => a.kind === 'sym'
 export const isCall = (a: AST): a is CallAST => a.kind === 'call'
+export const isAccess = (a: AST): a is AccessAST => a.kind === 'access'
 export const isVec = (a: AST): a is VecAST => a.kind === 'vec'
 export const isRecord = (a: AST): a is RecordAST => a.kind === 'record'
 export const isLet = (a: AST): a is LetAST => a.kind === 'let'
