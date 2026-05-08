@@ -200,3 +200,72 @@ export const isQuote = (a: AST): a is QuoteAST => a.kind === 'quote'
 export const isUnquote = (a: AST): a is UnquoteAST => a.kind === 'unquote'
 export const isSplice = (a: AST): a is SpliceAST => a.kind === 'splice'
 export const isMeta = (a: AST): a is MetaAST => a.kind === 'meta'
+
+// -----------------------------------------------------------------------------
+// Environment (per docs/spec/eval.md — Environment)
+// -----------------------------------------------------------------------------
+
+/**
+ * An environment is a chain of frames, each describing one level of enclosing
+ * scope (and providing the ancestor structure that path navigation walks).
+ * `null` is the root sentinel above top-level.
+ */
+export type Env = Frame | null
+
+/**
+ * A single frame in the env chain.
+ *
+ * - `ast`: the AST node this frame represents (let-block, function literal,
+ *   record, vector, application, quasiquoted form, ...).
+ * - `parent`: one frame up; `null` only at the root.
+ * - `bindings`: present only on scope-introducing frames (top-level, let-block,
+ *   function body). Maps each name to its right-hand-side AST plus the env
+ *   that AST is to be evaluated in. See eval.md's frame table for details.
+ */
+export interface Frame {
+	readonly ast: AST
+	readonly parent: Env
+	readonly bindings?: ReadonlyMap<string, BindingTarget>
+}
+
+/**
+ * A binding's target: the unevaluated AST and the env in which it is to be
+ * evaluated. Lazy semantics — actual evaluation only happens when the name is
+ * forced.
+ */
+export interface BindingTarget {
+	readonly ast: AST
+	readonly env: Env
+}
+
+// -----------------------------------------------------------------------------
+// Diagnostics (per docs/spec/eval.md — Diagnostics)
+// -----------------------------------------------------------------------------
+
+export type DiagnosticLevel = 'error' | 'warning' | 'info'
+
+/**
+ * A single diagnostic emitted during evaluation. `source` identifies the
+ * evaluation node where the diagnostic originated.
+ *
+ * Evaluation never throws — diagnostics flow on a parallel channel; values
+ * fall back via the `default` mechanism (see types.md).
+ */
+export interface Diagnostic {
+	readonly level: DiagnosticLevel
+	readonly message: string
+	readonly source: EvaluationNode
+}
+
+/**
+ * Identifies a specific evaluation: an AST node together with the env in
+ * which it is being evaluated. The same AST under different envs is a
+ * different evaluation node.
+ */
+export interface EvaluationNode {
+	readonly ast: AST
+	readonly env: Env
+}
+
+/** Bag of diagnostics propagated alongside a value. */
+export type Diagnostics = ReadonlySet<Diagnostic>

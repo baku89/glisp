@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
 	type AST,
+	type Diagnostic,
+	type Env,
+	type Frame,
 	isCall,
 	isLit,
 	isSym,
@@ -47,5 +50,38 @@ describe('AST types — smoke', () => {
 		for (const x of [n, s, b, u]) {
 			expect(isLit(x)).toBe(true)
 		}
+	})
+})
+
+describe('Env / Frame — smoke', () => {
+	it('null is a valid env (root sentinel)', () => {
+		const env: Env = null
+		expect(env).toBeNull()
+	})
+
+	it('frame chains through parent', () => {
+		const root: Frame = {
+			ast: { kind: 'lit', value: UNIT },
+			parent: null,
+		}
+		const child: Frame = {
+			ast: { kind: 'sym', name: 'x' },
+			parent: root,
+		}
+		expect(child.parent).toBe(root)
+		expect(root.parent).toBeNull()
+	})
+})
+
+describe('Diagnostic — smoke', () => {
+	it('carries level, message, and source evaluation node', () => {
+		const ast: AST = { kind: 'sym', name: 'unknown' }
+		const d: Diagnostic = {
+			level: 'error',
+			message: 'unresolvable name',
+			source: { ast, env: null },
+		}
+		expect(d.level).toBe('error')
+		expect(d.source.ast).toBe(ast)
 	})
 })
