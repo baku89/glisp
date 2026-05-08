@@ -335,9 +335,24 @@ A bare `%` in any expression turns its **smallest enclosing** `(...)`, `[...]`, 
 
 Expansion is bottom-up: the innermost `%` is consumed first, so each `%` belongs to its smallest enclosing `(...)`/`[...]`/`{...}`. Nesting is unambiguous.
 
-Restrictions:
-- `%` may not appear directly inside a function literal `(=> ...)`. The literal already declares its arguments explicitly; mixing `%` would be ambiguous. Syntax error.
-- Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> (a b) ...)` explicitly.
+`%` can appear inside the body of a function literal too — it just yields a higher-order result:
+
+```glisp
+(=> (x: number): (=> (y: number): number) (* x %))
+;; ≡ (=> (x: number): (=> (y: number): number) (=> (y) (* x y)))
+;; → number → (number → number)
+```
+
+The inner `(=> (y) ...)` is a *desugaring artifact*, not source-level Glisp; its parameter type is inferred from context (here, `number` follows from `*`). See [eval.md](./eval.md#--partial-application-desugaring) for the inference rule.
+
+Restrictions on where `%` may appear:
+- **Type positions** (the right of `:`, parameter type slots, return type slots) — `%` is not a type and cannot stand in a type position.
+- **Parameter lists** of `(=> ...)` — `(=> (% : T) ...)` is invalid; parameters must be named identifiers.
+- **Record keys** — `{%: 10}` is invalid; keys must be identifiers.
+
+Anywhere else (expression positions inside calls, vectors, records, function bodies, quasiquotes), `%` is fine.
+
+Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> (a: T b: U): R ...)` explicitly.
 
 The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 %)` becomes a function via the `%` expansion, then `|>` applies it. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
 

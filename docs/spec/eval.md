@@ -182,15 +182,18 @@ Three forms have evaluation semantics that go beyond ordinary function applicati
 
 #### `%` — partial-application desugaring
 
-`%` is rewritten to a function literal by a pre-evaluation pass over the AST. The pass is bottom-up: any node N ∈ {Application, Vector, Record} that directly contains the bare token `%` is replaced with
+`%` is rewritten to a function literal by a pre-evaluation pass over the AST. The pass is bottom-up: any node N ∈ {Application, Vector, Record} that directly contains the bare token `%` is replaced with an internal function-literal AST equivalent to
 
 ```
-(=> (x) [N with all % occurrences replaced by x])
+(=> (x: T) [N with all % occurrences replaced by x])
 ```
+
+where the parameter type `T` is **inferred from context** during the type-inference pass — typically from how the surrounding expression uses N's value. The desugared literal is *internal*: the source-level rule "every parameter must be named with a type annotation" applies to user-written code, not to AST nodes synthesized by this pass. The inference pass closes the gap by deriving `T`.
 
 Bottom-up order ensures `%` binds to its **smallest** enclosing form. After this pass:
 
-- The AST contains no remaining bare `%` tokens, except possibly inside a `(=> ...)` literal — that case is a syntax error and emits a diagnostic.
+- The AST contains no remaining bare `%` tokens at expression positions; any leftover `%` (in a type position, parameter list, or record key — see [syntax.md](./syntax.md#partial-application--)) is a syntax error.
+- A function literal `(=> ...)` may legitimately enclose a desugared sub-expression: `(=> (x: number): R (* x %))` becomes `(=> (x: number): R (=> (y: number) (* x y)))`, a higher-order result. The outer literal's body now contains an inner literal — both are valid.
 - All subsequent `eval` / `expand` proceeds on a `%`-free AST.
 
 #### `?` — match
