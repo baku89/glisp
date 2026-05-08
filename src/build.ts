@@ -8,6 +8,7 @@
  * Spec: docs/spec/host-api.md — Builders
  */
 
+import { print } from './print.js'
 import type {
 	AccessAST,
 	AST,
@@ -188,4 +189,5 @@ export const g = {
 	unquote,
 	splice,
 	meta,
+	print,
 }
