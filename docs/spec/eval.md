@@ -13,12 +13,16 @@ The AST and the env are kept separate because they capture different things:
 
 ## AST tree
 
-The AST is the parse-time structure. Each node has:
+The AST is the parse-time structure. Despite the name, it is a **concrete syntax tree (CST)**: every node retains the source-level details — delimiters (`(`, `)`, `[`, `]`, `{`, `}`), whitespace, and comments — that are required to reproduce the original source verbatim.
+
+Each node has:
 
 - A list of syntactic children (head + arguments for applications, fields for records, elements for vectors, etc.).
-- Static metadata: source position, attached `^{...}` metadata.
+- Delimiter tokens it owns directly.
+- Trivia (leading and trailing whitespace and comments) attached to its tokens.
+- Attached `^{...}` metadata.
 
-No parent pointer. The "where am I in the tree" information is supplied by the env at evaluation time.
+No parent pointer. The "where am I in the tree" information is supplied by the env at evaluation time. Subtrees are immutable and freely shareable / graftable across other trees. Source positions are not stored explicitly; they are derivable by walking trivia.
 
 ## Environment
 
