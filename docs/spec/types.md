@@ -67,10 +67,39 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | Form | Description |
 |---|---|
 | `(vector T)` | vectors of `T` |
-| `(=> (a: T1 b: T2 ...): R)` | Function type (parameter names are part of the type) |
-| `(enum v1 v2 ...)` | enumeration of literal values |
+| `(=> (a: T1 b: T2 ...): R)` | Function type (parameter names are required syntactically; not part of identity) |
+| `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
+| `(refine T pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)` |
 
-`enum` is the mechanism for finite sets of literal values. Members are validated by membership test at cast time.
+`enum` is the mechanism for finite sets of literal values. Members must share a single base type; validation at cast time is membership in the value set.
+
+`refine` is the mechanism for value-restricted subtypes — a base type narrowed by a predicate. The cast `(refine T pred)(v)` first casts `v` to `T`; if that succeeds, `pred(v)` is called; if `pred` returns true, the value is accepted, otherwise the standard default fallback applies.
+
+```glisp
+ColorCode = (refine string (=> (s: string): boolean
+                              (and (= (size s) 7)
+                                   (= (s 0) "#"))))
+
+(ColorCode "#FF0000")    ;; → "#FF0000"
+(ColorCode "hello")      ;; → default fallback (size mismatch)
+
+NonNegative = (refine number (=> (n: number): boolean (>= n 0)))
+```
+
+`refine` does not introduce subtyping. A `ColorCode` value is a distinct type from `string`; passing it where `string` is expected requires an explicit cast `(string c)` (which trivially succeeds since the underlying representation is the same). `enum` could in principle be expressed as a special-cased `refine`, but is kept as its own constructor for readability of the common literal-set case.
+
+## Recursive types
+
+Recursive type definitions use named bindings in a let-block. Glisp's let-bindings are self-referential — a binding's right-hand side may reference the binding's own name — so:
+
+```glisp
+{
+  Tree = (record value: number children: (vector Tree))
+  ...
+}
+```
+
+defines a recursive type. There is no anonymous recursive-type form (`(rec X ...)`); naming the type via let is the recommended pattern.
 
 ## Types are callable: cast
 
@@ -174,8 +203,8 @@ Hindley-Milner-style unification. Generics are inferred at call sites.
 
 ## Open questions
 
-- Whether to adopt a "types as sets of values" model (would introduce union types, literal types, set-inclusion subtyping).
-- Recursive type definitions and how naming/equality interacts.
+- Anonymous recursive types `(rec X ...)`. Currently named bindings cover the use cases; revisit if a clear motivation appears.
 - Whether function types carry their own metadata (e.g. purity/effect annotations).
 - Diagnostics propagation mechanism: Boxed value, `WeakMap<Value, Diagnostics>`, or hybrid (the primitive-key problem).
-- TypeScript-side type derivation: how rich a TS type can be derived from a Glisp `Type` value.
+- TypeScript-side type derivation for `refine`-based subtypes: how to surface the predicate constraint in the inferred TS type.
+- Sum types / ADTs: not introduced. Tagged-record-by-convention covers the common cases; revisit if needed.

@@ -251,13 +251,16 @@ Rules:
 - An optional parameter (`?` suffix) that receives no binding silently uses the parameter type's `default`.
 - A variadic parameter `...rest` collects the remaining positional arguments into a vector. It can also be filled by keyword as a single vector value (`rest=[1 2 3]`). Mixing the two — positional rest-elements *and* a same-named kwarg — is a double-binding error.
 
-```glisp
-;; (=> (init: number ...rest: (vector number) name?: string): number ...)
+A variadic parameter is always the last one in the parameter list (see [Variadic parameters](#variadic-parameters)). Optional parameters must therefore precede the variadic, never follow it — this avoids the parse ambiguity TS's "no optional after rest" rule guards against.
 
-(f 1 2 3 4)                          ;; init=1, rest=[2 3 4]
-(f 1 2 3 name="foo")                 ;; init=1, rest=[2 3], name="foo"
-(f init=1 rest=[2 3 4] name="foo")   ;; all keyword; rest given as a single vector
-(f 1 2 rest=[3 4])                   ;; ❌ double binding of rest
+```glisp
+;; (=> (init: number name?: string ...rest: (vector number)): number ...)
+
+(f 1)                                 ;; init=1, name unspecified, rest=[]
+(f 1 "foo" 2 3)                       ;; init=1, name="foo", rest=[2 3]
+(f 1 2 3)                             ;; ❌ second positional must satisfy `string` for `name`
+(f 1 name="foo" rest=[2 3])           ;; all keyword
+(f init=1 rest=[2 3 4])               ;; name is omitted (optional)
 ```
 
 ## Spread — `...`
