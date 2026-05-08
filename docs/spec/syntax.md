@@ -195,6 +195,17 @@ The block contents determine the kind:
 {a = 10 (foo) (+ a 1)}         ;; ❌ syntax error: only one trailing bare expression allowed
 ```
 
+#### Duplicate names
+
+A record may not list the same field name twice. A let-block may not bind the same name twice. The duplicate is a diagnostic, but evaluation does not throw — it is **recoverable**: the **last entry wins** and overrides earlier ones.
+
+```glisp
+{x: 10 x: 20}                  ;; → {x: 20}, diagnostic: duplicate field x
+{a = 10 a = 20 a}              ;; → 20,      diagnostic: duplicate binding a
+```
+
+The last-wins rule keeps the language consistent with hosts whose serialization layers (JS object literals, JSON parsers, many config formats) drop earlier duplicates silently.
+
 ## Functions
 
 ### Function literal
