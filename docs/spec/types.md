@@ -22,13 +22,23 @@ Types can be `let`-bound, passed as arguments, returned from functions, quoted.
 
 ## Equality
 
-Types are compared by identity / structural form of the base type. Two types are equal iff they are constructed identically modulo metadata.
+Types are compared by their **structural form**, modulo metadata. Two types are equal iff they are built from the same primitive / constructor with equal arguments, regardless of whether they share memory identity. Two distinct AST nodes that construct the same type produce equal types.
 
 ```glisp
 ^{default: 1} number  ==  ^{default: 0} number   ;; same type (metadata ignored for equality)
 number  !=  string
 (vector number)  ==  (vector number)
 ```
+
+### Function-type equality
+
+A function type is identified by its **list of parameter types** (positional, in declared order) and its **return type**. Parameter *names* are part of the function value's keyword-argument interface but **not** part of the type identity:
+
+```glisp
+(=> (a: number b: number): number)  ==  (=> (x: number y: number): number)
+```
+
+Two functions of these types are interchangeable at any slot expecting that type. Calls that use keyword arguments still need to supply the receiving function's actual parameter names — that is a per-value concern, not a type concern.
 
 ## Subtyping
 
