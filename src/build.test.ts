@@ -214,6 +214,53 @@ describe('AST builders', () => {
 	})
 })
 
+describe('Value builders (type values)', () => {
+	it('primitive type constants are bare symbols', () => {
+		expect(g.number).toEqual(sym('number'))
+		expect(g.string).toEqual(sym('string'))
+		expect(g.boolean).toEqual(sym('boolean'))
+		expect(g.unit).toEqual(sym('unit'))
+		expect(g.top).toEqual(sym('_'))
+		expect(g.bottom).toEqual(sym('!'))
+		expect(g.ast).toEqual(sym('ast'))
+	})
+
+	it('primitive type constants print to lowercase names', () => {
+		expect(g.number.print()).toBe('number')
+		expect(g.string.print()).toBe('string')
+		expect(g.top.print()).toBe('_')
+		expect(g.bottom.print()).toBe('!')
+		expect(g.ast.print()).toBe('ast')
+	})
+
+	it('vector(T) produces a [...T] AST', () => {
+		expect(g.vector(g.number).print()).toBe('[...number]')
+		expect(g.vector(g.vector(g.number)).print()).toBe('[...[...number]]')
+	})
+
+	it('enum(...vs) produces an (enum ...) call AST', () => {
+		expect(g.enum('round', 'butt', 'square').print()).toBe(
+			'(enum "round" "butt" "square")'
+		)
+		expect(g.enum(1, 2, 3).print()).toBe('(enum 1 2 3)')
+	})
+
+	it('value builders compose with fn for type-position use', () => {
+		// (=> (xs: [...number] i: number): number ...)
+		const ast = fn(
+			[
+				{ name: 'xs', type: g.vector(g.number) },
+				{ name: 'i', type: g.number },
+			],
+			g.number,
+			null
+		)
+		expect(ast.print()).toBe(
+			'(=> (xs: [...number] i: number): number)'
+		)
+	})
+})
+
 describe('Edge cases', () => {
 	it('lit stores strings verbatim, escaping only happens at print', () => {
 		const s = lit('a\nb\tc')

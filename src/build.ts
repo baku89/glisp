@@ -194,6 +194,50 @@ export function meta(content: MetaContent, expr: AST): MetaAST {
 }
 
 // -----------------------------------------------------------------------------
+// Value builders — Glisp type values
+//
+// These produce ASTs that, when evaluated against the standard prelude,
+// resolve to the corresponding Glisp type values. Until the evaluator is in
+// place they're handled as plain AST handles; the host API contract is
+// preserved (per docs/spec/host-api.md).
+// -----------------------------------------------------------------------------
+
+/** The `number` type. */
+export const numberType: SymAST = sym('number')
+/** The `string` type. */
+export const stringType: SymAST = sym('string')
+/** The `boolean` type. */
+export const booleanType: SymAST = sym('boolean')
+/** The `unit` type. */
+export const unitType: SymAST = sym('unit')
+/** The `_` (top) type. */
+export const topType: SymAST = sym('_')
+/** The `!` (bottom) type. */
+export const bottomType: SymAST = sym('!')
+/** The `ast` type — type of quoted forms / macro inputs and outputs. */
+export const astType: SymAST = sym('ast')
+
+/**
+ * `[...T]` — vector type with element type `T`. Renders as `[...T]` in source.
+ */
+export function vectorType(T: AST): VecAST {
+	return vec(spread(T))
+}
+
+/**
+ * `(enum v1 v2 ...)` — enum type with the given literal values. Each value
+ * is auto-lifted to a `LitAST`.
+ */
+function enumValueOf(v: number | string | boolean): AST {
+	return lit(v)
+}
+export function enumType(
+	...values: ReadonlyArray<number | string | boolean>
+): CallAST {
+	return call(sym('enum'), ...values.map(enumValueOf))
+}
+
+// -----------------------------------------------------------------------------
 // `g` namespace
 // -----------------------------------------------------------------------------
 
@@ -202,6 +246,7 @@ export function meta(content: MetaContent, expr: AST): MetaAST {
  * by name; some hosts prefer the namespaced form (`g.lit(...)`) per the spec.
  */
 export const g = {
+	// AST builders
 	lit,
 	sym,
 	call,
@@ -218,4 +263,14 @@ export const g = {
 	splice,
 	meta,
 	print,
+	// Value builders (type values)
+	number: numberType,
+	string: stringType,
+	boolean: booleanType,
+	unit: unitType,
+	top: topType,
+	bottom: bottomType,
+	ast: astType,
+	vector: vectorType,
+	enum: enumType,
 }
