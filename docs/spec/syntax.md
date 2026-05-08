@@ -227,17 +227,25 @@ A function takes **at least one value parameter**. A zero-parameter function `(=
 
 ### Variadic parameters
 
-A parameter prefixed with `...` is variadic: it collects the remaining positional arguments into a vector. The type after `:` is the **element type**, not the full vector type — the vector wrapping is implicit because variadic always means "many of this":
+A parameter prefixed with `...` is variadic: it collects the remaining positional arguments into a vector. The type after `:` is the **element type** — the outer vector wrapping is implicit, because variadic always means "many of this":
 
 ```glisp
-(=> (...xs: number): number ...)
+(=> (...xs: number): number ...)              ;; xs : [...number]
 (=> (init: number ...rest: number): number ...)
 ```
 
 - A variadic parameter must appear last in the value parameter list.
 - Each collected argument is checked against the element type.
 - At most one variadic parameter per function.
-- The element-type shorthand is the **only** allowed form. Writing the explicit vector type (`...rest: [...number]` or the deprecated `(vector number)`) at this position is rejected.
+
+The element type is *just a type* — there is no special restriction on what it may be. If the element type happens to be itself a vector type, the variadic parameter ends up as a vector of vectors:
+
+```glisp
+(=> (...rows: [...number]): number ...)
+;; rows : [...[...number]]    — a vector of number vectors (2-D)
+```
+
+That is valid, just usually not the intent. The shorthand `...rest: T` is canonical for the common case "many T's"; nesting falls out from the rule.
 
 See [Spread](#spread--) for how to call variadic functions and for spread in vectors, records, and quasiquote.
 

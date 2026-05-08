@@ -66,13 +66,21 @@ A type constructor is a value that, when applied to one or more arguments, produ
 
 | Form | Description |
 |---|---|
-| `[...T]` | vector of `T` |
+| `[T1 T2 ... Tn]` | tuple type: fixed `n` elements with the given types (in order) |
+| `[T1 T2 ... Tn ...Trest]` | tuple with a trailing rest: first `n` fixed, then any number of `Trest` |
+| `[...T]` | rest-only tuple — equivalent to "vector of `T`" with no fixed prefix |
 | `{k1: T1 k2: T2 ...}` | record with the given field types (same shape as a record value) |
 | `(=> (a: T1 b: T2 ...): R)` | Function type (parameter names are required syntactically; not part of identity) |
 | `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
 | `(refine T pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)` |
 
-Vector and record types share their syntax with the corresponding value literals. The interpretation depends on the slot in which the AST appears — see [Type interpretation at type slots](#type-interpretation-at-type-slots).
+Tuple, vector, and record types share their syntax with the corresponding value literals. The interpretation depends on the slot in which the AST appears — see [Type interpretation at type slots](#type-interpretation-at-type-slots).
+
+Notes on tuple types:
+
+- The rest part `...T` may appear **only as the last element**. A middle rest like `[T1 ...T2 T3]` is rejected.
+- A tuple of zero fixed elements with no rest is `[]`, the type whose only inhabitant is the empty vector.
+- Equality is structural: `[number number] == [number number]`, `[number string] != [string number]`.
 
 `enum` is the mechanism for finite sets of literal values. Members must share a single base type; validation at cast time is membership in the value set.
 
@@ -110,22 +118,23 @@ A **type slot** is a position in the AST where a type is expected — the right 
 
 At a type slot the AST is evaluated, then the resulting value is interpreted as a type:
 
-| Value form                                                          | Interpreted as                                |
-| ------------------------------------------------------------------- | --------------------------------------------- |
-| A value that is already a type                                      | itself                                        |
-| A record value whose field values are all types                     | record type with those field types            |
-| A vector value whose elements are all types sharing one common type | vector type with that element type            |
-| Anything else                                                       | type error; default fallback applies          |
+| Value form                                                              | Interpreted as                                                       |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| A value that is already a type                                          | itself                                                               |
+| A record value whose field values are all types                         | record type with those field types                                   |
+| A vector value whose elements are all types (rest spread `...T` allowed at the end) | tuple type with the fixed element types and an optional rest |
+| Anything else                                                           | type error; default fallback applies                                 |
 
 This is what lets literal forms play double duty:
 
 | Kind     | Value form         | Type form               |
 | -------- | ------------------ | ----------------------- |
 | record   | `{x: 10 y: 20}`    | `{x: number y: number}` |
+| tuple    | `[1 "a"]`          | `[number string]`       |
 | vector   | `[1 2 3]`          | `[...number]`           |
 | function | (closure)          | `(=> (a: T): R)`        |
 
-`[...T]` is exactly a single-element vector value `[T]` re-read at a type slot — the rule above lifts a one-type-element vector to a vector type with that element type. Writing more elements (`[T1 T2]`) is rejected unless the elements are equal types; tuple-style heterogeneous vector types are not introduced.
+`[...T]` is the special case of a tuple type with no fixed prefix and a rest of `T` — the type of "any-length vector of `T`". `[T1 T2 ...T3]` mixes fixed and rest. The rest spread may appear only at the end (see [Type constructors](#type-constructors)).
 
 ## Types are callable: cast
 
