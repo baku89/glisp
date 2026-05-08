@@ -76,6 +76,21 @@ A type value, when applied to a single argument, casts/validates the argument:
 
 The host's `cast(t, v)` is a thin wrapper that calls the type value.
 
+### Constant-function lifting
+
+When the target of a cast is a function type `(=> (...): R)` and the input `v` is **not** a function, the cast tries to interpret `v` as the return value of a constant function:
+
+- If `v` casts to `R`, the result is a constant function `(=> (...): R v)` — calling it ignores its arguments and returns `v`.
+- Otherwise, the standard default fallback applies.
+
+```glisp
+(map 20 [1 2 3])         ;; → [20 20 20]   (20 lifted to (=> (x: number): number 20))
+(filter true [1 2 3])    ;; → [1 2 3]      (true lifted to a constant true predicate)
+(map "n/a" [1 2 3])      ;; → ["n/a" "n/a" "n/a"]
+```
+
+Lifting only happens at cast time, in slots that expect a function type. Outside cast contexts a value's identity is unchanged. This rule complements the ban on zero-parameter functions: instead of writing `(=> (): T body)` (which is a syntax error), pass `body` directly wherever a function is expected.
+
 ## Metadata
 
 Any value (including types) can be wrapped with metadata via `^{...}` prefix.
