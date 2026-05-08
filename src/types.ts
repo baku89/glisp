@@ -120,8 +120,18 @@ export interface FnAST extends ASTBase {
 }
 
 /**
- * Path atom: `./...` or `../...`. Per syntax.md, dots are limited to 1 or 2.
- * `segments` may be empty (pure dots, e.g. `..`).
+ * Path atom. Per syntax.md, dots are limited to 1 or 2:
+ *
+ *   ./foo        → dots: 1, segments: ['foo']            (parent's foo)
+ *   ../foo       → dots: 2, segments: ['foo']            (grandparent's foo)
+ *   ../foo/bar   → dots: 2, segments: ['foo', 'bar']
+ *   ../vec/0     → dots: 2, segments: ['vec', 0]
+ *   ./           → dots: 1, segments: []                 (the parent itself)
+ *
+ * Three or more dots are reserved for spread/splice/variadic and have no
+ * path representation. Deeper-than-grandparent references must be expressed
+ * via bare-name lookup through enclosing let-blocks or function parameters,
+ * not via path syntax — see syntax.md — Path.
  */
 export interface PathAST extends ASTBase {
 	readonly kind: 'path'
