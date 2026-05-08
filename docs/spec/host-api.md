@@ -332,6 +332,22 @@ The expected type is computed statically from the parent's type (the head's sign
 
 This is the API GUI tooling calls when displaying completion, type hints, or wiring suggestions for a cursor position.
 
+### `g.unparse(ast)` — AST → source string
+
+Renders an AST back to Glisp source text. Combined with `g.toAst`, it produces a `value → source` round-trip.
+
+```ts
+g.unparse(g.parse('(+ 1 2)'))             // → "(+ 1 2)"
+g.unparse(g.toAst({x: 10, y: 20}, env))   // → "{x: 10 y: 20}"
+```
+
+Trivia handling:
+
+- An AST originating from `g.parse` retains its inter-position trivia (whitespace, comments), so `unparse(parse(s))` reproduces `s` verbatim.
+- An AST originating from builders has no trivia, so `unparse` formats it with default whitespace consistent with the rules in [syntax.md](./syntax.md).
+
+A user-facing **`print` function** in the Glisp language (callable as `(print value)`) is just a host binding wrapping `g.unparse(g.toAst(v, env))`. Whether it ships as part of the standard prelude is part of the Prelude-boundary question (see Open questions).
+
 ## External types
 
 Any JS value that does not correspond to a Glisp built-in type can flow through Glisp via an externally-declared type. From Glisp's perspective such values inhabit a named external type whose internals are not introspectable; they pass through unchanged.
