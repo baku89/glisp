@@ -106,6 +106,22 @@ When `eval` recurses into a sub-expression, it passes the sub-AST and the *same*
 - The forced result is memoized on `(binding_AST, binding_env)` and reused on subsequent forces.
 - Forcing happens when a value is needed: as the operand of a primitive operation, as the value being cast, as the predicate of a conditional, when read by the host, etc.
 
+### Cycle detection
+
+The memoization cache holds three states per evaluation node:
+
+```
+State = NotComputed | InProgress | Computed { value, diagnostics }
+```
+
+When forcing `(AST, env)`:
+
+- `Computed`: return the cached value.
+- `InProgress`: a cycle is detected. Return `()` and emit a diagnostic. Do not transition state — the in-progress entry remains so the outer evaluation that started this cycle finishes normally and writes `Computed`.
+- `NotComputed`: transition to `InProgress`, evaluate, store `Computed`, return.
+
+Examples like `{a: ./b  b: ./a}` resolve via this rule: each field becomes `()`, which is then coerced to its declared type's default at the next typed slot.
+
 ### Quasiquoted forms
 
 Within `` `(...) ``, sub-expressions are not evaluated; the form is data. Only `~expr` and `~@expr` are evaluated, in the surrounding env. The result of `` `... `` is a syntax-tree value.
@@ -156,7 +172,6 @@ Before evaluation, a static resolution pass walks the AST and verifies that ever
 ## Open questions
 
 - **Default fallback propagation**: when a sub-expression's evaluation falls back to a default value, how does the diagnostic propagate up the surrounding expression?
-- **Cycle detection**: a path or recursive binding that loops back to itself (`{a: ./b  b: ./a}`) needs to be detected and resolved to default fallback.
 - **Path env reconstruction**: precisely how `env_at_target` is computed for a path that lands inside a different scope (e.g. inside a function literal that has not been called).
 - **Partial evaluation**: any evaluation node is in principle evaluable. What host API surfaces this for tooling?
 - **Incremental / differential evaluation**: when an input AST node is replaced, what is the cache invalidation rule?
