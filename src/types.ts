@@ -175,37 +175,53 @@ export class VecAST extends ASTNode {
 }
 
 /**
- * Record literal. Fields are stored as an array of `[name, value]` pairs in
- * source order, so duplicate keys are preserved at the AST level. Evaluation
- * reduces them with last-wins semantics and emits a diagnostic
- * (see syntax.md — Duplicate names).
+ * One entry inside a record literal. Either a `[name, value]` pair (a normal
+ * field), or a `SpreadAST` (a `...rec` element that merges another record's
+ * fields at this position).
+ */
+export type RecordEntry = readonly [string, AST] | SpreadAST
+
+/**
+ * Record literal. Fields are stored as an ordered array of entries — pair
+ * fields and spread elements coexist in source order. Duplicate keys (after
+ * spreads have been expanded by eval) reduce with last-wins semantics and
+ * emit a diagnostic (see syntax.md — Duplicate names).
  */
 export class RecordAST extends ASTNode {
 	readonly kind = 'record' as const
 	constructor(
-		public readonly fields: ReadonlyArray<readonly [string, AST]>,
+		public readonly fields: ReadonlyArray<RecordEntry>,
 		public readonly optional?: ReadonlySet<string>
 	) {
 		super()
 	}
 
 	/**
-	 * Look up a field by name, applying last-wins semantics for duplicates.
-	 * Returns `undefined` if the key is absent.
+	 * Look up a *statically declared* field by name, applying last-wins for
+	 * duplicate pairs. Spread entries are ignored — they require runtime
+	 * evaluation to resolve. Returns `undefined` if the key is absent at the
+	 * literal level.
 	 */
 	get(key: string): AST | undefined {
 		for (let i = this.fields.length - 1; i >= 0; i--) {
 			const entry = this.fields[i]
-			if (entry !== undefined && entry[0] === key) return entry[1]
+			if (entry === undefined) continue
+			if (entry instanceof SpreadAST) continue
+			if (entry[0] === key) return entry[1]
 		}
 		return undefined
 	}
 
 	override print(): string {
 		const entries: string[] = []
-		for (const [k, v] of this.fields) {
-			const optMark = this.optional?.has(k) ? '?' : ''
-			entries.push(`${k}${optMark}: ${v.print()}`)
+		for (const entry of this.fields) {
+			if (entry instanceof SpreadAST) {
+				entries.push(entry.print())
+			} else {
+				const [k, v] = entry
+				const optMark = this.optional?.has(k) ? '?' : ''
+				entries.push(`${k}${optMark}: ${v.print()}`)
+			}
 		}
 		return `{${entries.join(' ')}}`
 	}

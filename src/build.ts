@@ -26,6 +26,7 @@ import {
 	PathAST,
 	QuoteAST,
 	RecordAST,
+	type RecordEntry,
 	SpliceAST,
 	SpreadAST,
 	SymAST,
@@ -75,22 +76,23 @@ export function vec(...elements: ReadonlyArray<AST>): VecAST {
 }
 
 /**
- * Record literal: `{k1: v1 k2: v2 ...}`.
+ * Record literal: `{k1: v1 k2: v2 ...rec ...}`.
  *
  * Two input forms:
  *
  * - **Object literal** `{x: lit(1), y: lit(2)}` — keys collapse per JS rules
- *   (no duplicates can be expressed via this form).
- * - **Array of pairs** `[['x', lit(1)], ['x', lit(2)]]` — preserves duplicates
- *   so the AST can carry the source's literal repetition; evaluation will
- *   apply last-wins and emit a diagnostic.
+ *   (no duplicates / no spreads expressible).
+ * - **Array of entries** `[['x', lit(1)], spread(sym('rec')), ['y', lit(2)]]` —
+ *   preserves duplicates and lets `SpreadAST` entries appear inline. Evaluation
+ *   applies last-wins (after expanding spreads) and emits a diagnostic for
+ *   duplicates.
  */
 export function record(
 	fields:
 		| Readonly<Record<string, AST>>
-		| ReadonlyArray<readonly [string, AST]>
+		| ReadonlyArray<RecordEntry>
 ): RecordAST {
-	const arr: ReadonlyArray<readonly [string, AST]> = Array.isArray(fields)
+	const arr: ReadonlyArray<RecordEntry> = Array.isArray(fields)
 		? fields
 		: Object.entries(fields)
 	return new RecordAST(arr)

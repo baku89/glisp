@@ -253,6 +253,25 @@ describe('Edge cases', () => {
 		expect(ast.get('x')).toEqual(lit(2))
 	})
 
+	it('record can contain spread entries', () => {
+		// {a: 1 ...rec b: 2}
+		const ast = record([
+			['a', lit(1)],
+			spread(sym('rec')),
+			['b', lit(2)],
+		])
+		expect(ast.fields).toHaveLength(3)
+		expect(ast.fields[1]).toBeInstanceOf(
+			(spread(sym('x'))).constructor
+		)
+		// .get() ignores spread entries
+		expect(ast.get('a')).toEqual(lit(1))
+		expect(ast.get('b')).toEqual(lit(2))
+		expect(ast.get('rec')).toBeUndefined()
+		// print form
+		expect(ast.print()).toBe('{a: 1 ...rec b: 2}')
+	})
+
 	it('record preserves duplicates when built from an array of pairs', () => {
 		// Array form retains the source's repetition so eval can apply
 		// last-wins + emit a diagnostic per spec.
