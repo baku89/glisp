@@ -246,3 +246,12 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 | `_|_` | Bottom type |
 | `;` | one-line comment |
 | `#| ... |#` | multi-line comment |
+
+## Open questions
+
+- Identifier character set (especially `/`, `.`, `?`, `!`).
+- Record field access syntax: what is `key` in `(rec key)`?
+- Implicit doc-string sugar: leading string literal in a function body as `^{doc: "..."}`?
+- Multi-line string literal syntax.
+- Module / import syntax.
+- Whether `Unit` is a dedicated literal token distinct from empty `()`.

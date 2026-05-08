@@ -133,3 +133,11 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 ### Algorithm
 
 Hindley-Milner-style unification. Generics are inferred at call sites.
+
+## Open questions
+
+- Whether to adopt a "types as sets of values" model (would introduce union types, literal types, set-inclusion subtyping).
+- Recursive type definitions and how naming/equality interacts.
+- Whether function types carry their own metadata (e.g. purity/effect annotations).
+- Diagnostics propagation mechanism: Boxed value, `WeakMap<Value, Diagnostics>`, or hybrid (the primitive-key problem).
+- TypeScript-side type derivation: how rich a TS type can be derived from a Glisp `Type` value.
