@@ -259,41 +259,51 @@ The `ast` argument does not need to be a structural descendant of any AST refere
 
 See [eval.md](./eval.md#environment) for the underlying frame-chain model.
 
-## Opaque host values
+## Host-provided types
 
-Any JS value that does not correspond to a Glisp built-in type can still flow through Glisp as an opaque value. From Glisp's perspective such values inhabit `top` and have no introspectable structure; they pass through unchanged.
+Any JS value that does not correspond to a Glisp built-in type can flow through Glisp via a host-declared type. From Glisp's perspective such values inhabit a named foreign type whose internals are not introspectable; they pass through unchanged.
 
-Hosts can declare a named opaque type to enable casting and type-checking. The same `g.opaque` API covers both monomorphic types (`Date`) and generic type constructors (`Observable<T>`):
+`g.host` declares such a type. The same API covers both **monomorphic** types (`Date`) and **generic** type constructors of arity 1 (`Observable<T>`):
 
 ```ts
 // monomorphic
-const DateType = g.opaque<Date>('Date', {
+const DateType = g.host<Date>('Date', {
   guard: (v): v is Date => v instanceof Date,
   default: new Date(0),
 })
 
 // generic (1-argument type constructor)
-const Observable = g.opaque<Observable<any>>('Observable', {
+const Observable = g.host<Observable<any>>('Observable', {
   arity: 1,
   guard: (v): v is Observable<any> => v instanceof Observable,
-  default: () => EMPTY,
+  default: <T>() => EMPTY as Observable<T>,
 })
 
 const env = g.prelude.with({
-  // impure host op: nominal `unit` parameter makes the call site visible
   today: g.def(g.fn({tick: g.unit}).returns(DateType), () => new Date()),
   numbers: g.def(Observable(g.number), of(1, 2, 3)),
   names:   g.def(Observable(g.string), of('a', 'b')),
 })
 ```
 
-- `guard` is the runtime predicate used at cast sites (`(Date v)` validates and returns `v` if `guard(v)` is true).
-- `default` is the standard metadata default returned on cast failure.
-- The first TS type argument to `g.opaque` is the JS class/interface; `g.infer` propagates it so opaque values keep their JS static type.
-- `arity: N` makes the result a type constructor that takes `N` Glisp-type arguments. Without `arity` (or `arity: 0`), the opaque is monomorphic.
-- Generic opaque types compare by name + the identity of their type arguments. The runtime `guard` does not see the type arguments — the JS class is checked, but element-type validity is the host's responsibility (a `Observable<number>` cast can't actually verify the stream emits numbers).
+### TS inference for `g.host`
 
-Convention: opaque types are named with an uppercase initial (`Date`, `URL`, `Map`, `Observable`), per the [naming convention](./types.md#naming-convention).
+The TS type argument is propagated by `g.infer`:
+
+- **Monomorphic**: `g.infer<typeof DateType>` is `Date`.
+- **Generic**: `g.infer<typeof Observable(g.number)>` is `Observable<number>`. The element type is captured at the call to `Observable(...)` and woven into the JS type via TS's higher-rank generics.
+
+Concretely, the generic form of `g.host<JSCtor>(name, options)` returns a function `(t: TypeHandle<T>) => OpaqueTypeHandle<JSCtor with T substituted>`, so calling `Observable(g.number)` yields a handle whose inferred TS type is `Observable<number>`. This enables the `bind` site's `value` to be type-checked against the parameterized form (`fn: () => Observable<number>` rather than `() => Observable<any>`).
+
+### Semantics
+
+- `guard` is the runtime predicate used at cast sites (`(Date v)` validates and returns `v` if `guard(v)` is true).
+- `default` is the metadata default returned on cast failure. For generic types, `default` is a parametrized factory.
+- `arity: 1` makes the result a unary type constructor. Without `arity` (or `arity: 0`), the type is monomorphic.
+- Generic types compare by **name + identity of the type argument**. The runtime `guard` checks only the JS class — element-type validity is the host's responsibility (a `Observable<number>` cast can't verify the stream actually emits numbers).
+- Higher arities (`arity >= 2`) are not currently supported. If a multi-parameter generic is needed, the host can compose with records or wrap with another generic.
+
+Convention: host-provided types are named with an uppercase initial (`Date`, `URL`, `Map`, `Observable`), per the [naming convention](./types.md#naming-convention).
 
 ## Function overloading
 
