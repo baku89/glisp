@@ -191,6 +191,20 @@ describe('AST builders', () => {
 		expect(ast.body).toBeNull()
 	})
 
+	it('fn accepts the concise object form for params', () => {
+		// fn({a: number, b: number}, ...) — no per-param flags needed
+		const ast = fn(
+			{ x: sym('number'), y: sym('number') },
+			sym('number'),
+			call(sym('+'), sym('x'), sym('y'))
+		)
+		expect(isFn(ast)).toBe(true)
+		expect(ast.params).toEqual([
+			{ name: 'x', type: sym('number') },
+			{ name: 'y', type: sym('number') },
+		])
+	})
+
 	it('fn supports generics', () => {
 		// (=> (T) (xs: [...T] i: number): T (xs i))
 		const xsType = vec(splice(sym('T')))
@@ -209,5 +223,84 @@ describe('AST builders', () => {
 	it('g namespace exposes "let" via property access', () => {
 		const ast = g.let([['a', g.lit(10)]], g.sym('a'))
 		expect(isLet(ast)).toBe(true)
+	})
+})
+
+describe('Edge cases', () => {
+	it('lit stores strings verbatim, escaping only happens at print', () => {
+		const s = lit('a\nb\tc')
+		expect(s.value).toBe('a\nb\tc') // raw, with actual newline / tab
+		expect(s.print()).toBe('"a\\nb\\tc"') // escaped at print
+	})
+
+	it('lit preserves backslash and quote characters', () => {
+		const s = lit('back\\slash and "quote"')
+		expect(s.value).toBe('back\\slash and "quote"')
+		expect(s.print()).toBe('"back\\\\slash and \\"quote\\""')
+	})
+
+	it('lit handles unicode and control chars', () => {
+		const s = lit('')
+		expect(s.value).toBe('')
+		expect(s.print()).toBe('"\\u0001\\u0007"')
+	})
+
+	it('sym performs no validation — invalid identifiers still build an AST', () => {
+		// Builders are pure shape constructors; lint/parser handles validity.
+		expect(sym('').name).toBe('')
+		expect(sym('123').name).toBe('123')
+		expect(sym('has space').name).toBe('has space')
+		expect(sym('?').name).toBe('?')
+		// Their printed output may be invalid Glisp source — that's the host's
+		// responsibility to prevent at the input layer.
+	})
+
+	it('record collapses duplicate keys via JS object semantics', () => {
+		// Building with `{x: a, x: b}` in JS source collapses to one entry
+		// per JS rules — the builder receives an already-deduplicated object.
+		// This test constructs the duplicate dynamically to exercise the path
+		// without triggering JS's "duplicate key" warning.
+		const obj: Record<string, AST> = {}
+		obj.x = lit(1)
+		obj.x = lit(2)
+		const ast = record(obj)
+		expect(ast.fields.size).toBe(1)
+		expect(ast.fields.get('x')).toEqual(lit(2))
+	})
+
+	it('letBlock with duplicate names: both bindings preserved at AST level', () => {
+		// Duplicates in array form are kept as-is; eval applies last-wins
+		// semantics + emits a diagnostic (per syntax.md).
+		const ast = letBlock(
+			[
+				['a', lit(1)],
+				['a', lit(2)],
+			],
+			sym('a')
+		)
+		expect(ast.bindings).toHaveLength(2)
+		expect(ast.bindings[0]).toEqual(['a', lit(1)])
+		expect(ast.bindings[1]).toEqual(['a', lit(2)])
+	})
+
+	it('vec with no elements builds an empty vector AST', () => {
+		expect(vec().elements).toHaveLength(0)
+		expect(vec().print()).toBe('[]')
+	})
+
+	it('record with no fields builds an empty record AST', () => {
+		expect(record({}).fields.size).toBe(0)
+		expect(record({}).print()).toBe('{}')
+	})
+
+	it('access can chain (left-associative) without limits', () => {
+		const ast = access(access(access(sym('a'), 'b'), 'c'), 'd')
+		expect(ast.print()).toBe('a.b.c.d')
+	})
+
+	it('path with mixed names and indices preserves segment kinds', () => {
+		const ast = path('..', 'vec', 0, 'name')
+		expect(ast.segments).toEqual(['..', 'vec', 0, 'name'])
+		expect(ast.print()).toBe('../vec/0/name')
 	})
 })
