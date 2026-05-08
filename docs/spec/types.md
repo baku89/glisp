@@ -10,7 +10,7 @@ Value ::=
     | string s
     | boolean b
     | unit
-    | vector [Value]
+    | Vector [Value]
     | Record {key → Value}
     | Function ...
     | Type ...
@@ -27,7 +27,7 @@ Types are compared by their **structural form**, modulo metadata. Two types are 
 ```glisp
 ^{default: 1} number  ==  ^{default: 0} number   ;; same type (metadata ignored for equality)
 number  !=  string
-(vector number)  ==  (vector number)
+[...number]  ==  [...number]
 ```
 
 ### Function-type equality
@@ -66,10 +66,13 @@ A type constructor is a value that, when applied to one or more arguments, produ
 
 | Form | Description |
 |---|---|
-| `(vector T)` | vectors of `T` |
+| `[...T]` | vector of `T` |
+| `{k1: T1 k2: T2 ...}` | record with the given field types (same shape as a record value) |
 | `(=> (a: T1 b: T2 ...): R)` | Function type (parameter names are required syntactically; not part of identity) |
 | `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
 | `(refine T pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)` |
+
+Vector and record types share their syntax with the corresponding value literals. The interpretation depends on the slot in which the AST appears — see [Type interpretation at type slots](#type-interpretation-at-type-slots).
 
 `enum` is the mechanism for finite sets of literal values. Members must share a single base type; validation at cast time is membership in the value set.
 
@@ -94,12 +97,35 @@ Recursive type definitions use named bindings in a let-block. Glisp's let-bindin
 
 ```glisp
 {
-  Tree = (record value: number children: (vector Tree))
+  Tree = {value: number children: [...Tree]}
   ...
 }
 ```
 
 defines a recursive type. There is no anonymous recursive-type form (`(rec X ...)`); naming the type via let is the recommended pattern.
+
+## Type interpretation at type slots
+
+A **type slot** is a position in the AST where a type is expected — the right of `:` in a parameter or record-field annotation, the return-type position of `(=> ... : T ...)`, the target of a cast `(T v)`, and the equivalent positions in metadata.
+
+At a type slot the AST is evaluated, then the resulting value is interpreted as a type:
+
+| Value form                                                          | Interpreted as                                |
+| ------------------------------------------------------------------- | --------------------------------------------- |
+| A value that is already a type                                      | itself                                        |
+| A record value whose field values are all types                     | record type with those field types            |
+| A vector value whose elements are all types sharing one common type | vector type with that element type            |
+| Anything else                                                       | type error; default fallback applies          |
+
+This is what lets literal forms play double duty:
+
+| Kind     | Value form         | Type form               |
+| -------- | ------------------ | ----------------------- |
+| record   | `{x: 10 y: 20}`    | `{x: number y: number}` |
+| vector   | `[1 2 3]`          | `[...number]`           |
+| function | (closure)          | `(=> (a: T): R)`        |
+
+`[...T]` is exactly a single-element vector value `[T]` re-read at a type slot — the rule above lifts a one-type-element vector to a vector type with that element type. Writing more elements (`[T1 T2]`) is rejected unless the elements are equal types; tuple-style heterogeneous vector types are not introduced.
 
 ## Types are callable: cast
 
@@ -108,7 +134,7 @@ A type value, when applied to a single argument, casts/validates the argument:
 ```glisp
 (number 42)                 ;; → 42
 (number "hello")            ;; → default fallback
-((vector number) [1 2 3])   ;; → [1 2 3]
+([...number] [1 2 3])       ;; → [1 2 3]
 (JoinType "round")          ;; → "round"   (JoinType = (enum "round" "butt" "square"))
 (JoinType "diamond")        ;; → default fallback
 ```
@@ -191,9 +217,9 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 - Generic type parameters at call sites.
 
 ```glisp
-(=> (T) (xs: (vector T) i: number): T (xs i))
+(=> (T) (xs: [...T] i: number): T (xs i))
 
-((=> (T) (xs: (vector T) i: number): T (xs i)) [1 2 3] 0)
+((=> (T) (xs: [...T] i: number): T (xs i)) [1 2 3] 0)
 ;; T is inferred from the argument as number; result type is number.
 ```
 

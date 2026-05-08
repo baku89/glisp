@@ -47,7 +47,7 @@ The `g` namespace contains all the builders for ASTs and values. Two flavors liv
 | `g.top`                              | the `_` (top) type            | value       | `g.top`                                                       |
 | `g.bottom`                           | the `!` (bottom) type         | value       | `g.bottom`                                                    |
 | `g.ast`                              | the `ast` type                | value       | `g.ast` — used to type macro arguments                        |
-| `g.vector(T)`                        | `(vector T)` type             | value       | `g.vector(g.number)`                                          |
+| `g.vector(T)`                        | `[...T]` type                 | value       | `g.vector(g.number)`                                          |
 | `g.enum(...vs)`                      | `(enum v1 v2 ...)` type       | value       | `g.enum('round', 'butt')`                                     |
 | `g.record({ k: ... })`               | record type **or** record AST | overload    | see below                                                     |
 | `g.fn({ name: T, ... }).returns(R)`  | function type                 | value       | see below                                                     |
@@ -170,7 +170,7 @@ const env = g.prelude.with({
   pi: 3.14159,                                       //  → number
   greeting: "hello",                                  //  → string
   flags: true,                                        //  → boolean
-  palette: ['red', 'green', 'blue'],                  //  → (vector string)
+  palette: ['red', 'green', 'blue'],                  //  → [...string]
   config: { port: 8080, host: 'localhost' },          //  → {port: number, host: string}
 
   // explicit type via g.def — required for functions, optional otherwise
@@ -192,7 +192,7 @@ For most JS values, the Glisp type is uniquely determined by the value:
 | `"hello"`                      | `string`                            |
 | `true`, `false`                | `boolean`                           |
 | `Symbol.for('glisp.unit')`     | `unit`                              |
-| `[1, 2, 3]`                    | `(vector number)`                   |
+| `[1, 2, 3]`                    | `[...number]`                       |
 | `{x: 10, y: 20}`               | record `{x: number, y: number}`     |
 
 These can be passed as plain JS — no wrapper needed.

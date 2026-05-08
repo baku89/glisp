@@ -120,7 +120,7 @@ Empty `()` is the unit value.
 []
 ```
 
-A vector is a value of type `(vector T)` for some element type `T`.
+A vector is a value of type `[...T]` for some element type `T`.
 
 ### Accessor — `.`
 
@@ -227,16 +227,17 @@ A function takes **at least one value parameter**. A zero-parameter function `(=
 
 ### Variadic parameters
 
-A parameter prefixed with `...` is variadic: it collects the remaining positional arguments into a vector.
+A parameter prefixed with `...` is variadic: it collects the remaining positional arguments into a vector. The type after `:` is the **element type**, not the full vector type — the vector wrapping is implicit because variadic always means "many of this":
 
 ```glisp
-(=> (...xs: (vector number)): number ...)
-(=> (init: number ...rest: (vector number)): number ...)
+(=> (...xs: number): number ...)
+(=> (init: number ...rest: number): number ...)
 ```
 
 - A variadic parameter must appear last in the value parameter list.
-- Its type must be `(vector T)` for some `T`. Each collected argument is checked against `T`.
+- Each collected argument is checked against the element type.
 - At most one variadic parameter per function.
+- The element-type shorthand is the **only** allowed form. Writing the explicit vector type (`...rest: [...number]` or the deprecated `(vector number)`) at this position is rejected.
 
 See [Spread](#spread--) for how to call variadic functions and for spread in vectors, records, and quasiquote.
 
@@ -265,7 +266,7 @@ Rules:
 A variadic parameter is always the last one in the parameter list (see [Variadic parameters](#variadic-parameters)). Optional parameters must therefore precede the variadic, never follow it — this avoids the parse ambiguity TS's "no optional after rest" rule guards against.
 
 ```glisp
-;; (=> (init: number name?: string ...rest: (vector number)): number ...)
+;; (=> (init: number name?: string ...rest: number): number ...)
 
 (f 1)                                 ;; init=1, name unspecified, rest=[]
 (f 1 "foo" 2 3)                       ;; init=1, name="foo", rest=[2 3]
@@ -426,7 +427,7 @@ Any expression can be prefixed with `^{...}` to attach metadata:
 ^{doc: "Square the number"} (=> (x: number): number (* x x))
 ^{label: "Width"} 100
 ^{label: "Origin"} {x: 0 y: 0}
-^{label: "2D Point"} (vector number)
+^{label: "2D Point"} [...number]
 ```
 
 The `{...}` after `^` is a record literal (uses `:` for keys).
@@ -451,9 +452,10 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `Top`, a
 ### Type constructors
 
 ```glisp
-(vector number)                          ;; vector of number
+[...number]                              ;; vector of number
 (=> (a: number b: number): number)       ;; function type
 (enum "round" "butt" "square")           ;; enumeration of values
+{x: number y: number}                    ;; record type
 ```
 
 `enum` takes literal values and produces a type that validates against membership in the value set. `"round"` itself remains of type `string`, distinct from any `enum` containing it.
@@ -465,7 +467,7 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `Top`, a
 ```glisp
 (number 42)                       ;; → 42
 (number "hello")                  ;; → default fallback
-((vector number) [1 2 3])         ;; → [1 2 3]
+([...number] [1 2 3])             ;; → [1 2 3]
 (JoinType "round")                ;; → "round"  (JoinType = (enum "round" "butt" "square"))
 (JoinType "diamond")              ;; → default fallback
 ```
@@ -479,7 +481,7 @@ There is no subtyping. Types are nominal/equality-based. `enum` membership is ch
 A generic parameter list is written as a leading parens of bare names before the value parameter list:
 
 ```glisp
-(=> (T) (xs: (vector T) i: number): T (xs i))
+(=> (T) (xs: [...T] i: number): T (xs i))
 (=> (T U) (a: T b: U): T a)
 ```
 
