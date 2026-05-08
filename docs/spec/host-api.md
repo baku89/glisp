@@ -332,21 +332,30 @@ The expected type is computed statically from the parent's type (the head's sign
 
 This is the API GUI tooling calls when displaying completion, type hints, or wiring suggestions for a cursor position.
 
-### `g.unparse(ast)` — AST → source string
+### `g.print(ast)` — AST → source string
 
 Renders an AST back to Glisp source text. Combined with `g.toAst`, it produces a `value → source` round-trip.
 
 ```ts
-g.unparse(g.parse('(+ 1 2)'))             // → "(+ 1 2)"
-g.unparse(g.toAst({x: 10, y: 20}, env))   // → "{x: 10 y: 20}"
+g.print(g.parse('(+ 1 2)'))             // → "(+ 1 2)"
+g.print(g.toAst({x: 10, y: 20}, env))   // → "{x: 10 y: 20}"
 ```
 
 Trivia handling:
 
-- An AST originating from `g.parse` retains its inter-position trivia (whitespace, comments), so `unparse(parse(s))` reproduces `s` verbatim.
-- An AST originating from builders has no trivia, so `unparse` formats it with default whitespace consistent with the rules in [syntax.md](./syntax.md).
+- An AST originating from `g.parse` retains its inter-position trivia (whitespace, comments), so `g.print(g.parse(s))` reproduces `s` verbatim.
+- An AST originating from builders has no trivia, so `g.print` formats it with default whitespace consistent with the rules in [syntax.md](./syntax.md).
 
-A user-facing **`print` function** in the Glisp language (callable as `(print value)`) is just a host binding wrapping `g.unparse(g.toAst(v, env))`. Whether it ships as part of the standard prelude is part of the Prelude-boundary question (see Open questions).
+The Glisp language can also expose a `print` function callable as `(print value)`. It is a host binding, conventionally:
+
+```ts
+print: g.def(
+  g.fn({v: g.top}).returns(g.string),
+  (v) => g.print(g.toAst(v, env))
+)
+```
+
+The TS `g.print` and the Glisp-level `print` share a name but live on different layers — one is a host utility on ASTs, the other is a function value bound in the Glisp environment that operates on values. Whether `print` ships in the standard prelude is part of the Prelude-boundary question (see Open questions).
 
 ## External types
 
