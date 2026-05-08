@@ -96,19 +96,31 @@ a.b.c            ;; → ((a "b") "c"), left-associative
 
 Accessor `.` is syntactic sugar that desugars to the call form. Dynamic keys (variables, expressions) are written in the call form: `(rec keyVar)`, `(arr (+ i 1))`.
 
-### Path — `../`
+### Path — `./` and `../`
 
-A path atom references a name in an ancestor scope. It is a sequence of one or more `..` segments separated by `/`, followed by `/` and a name.
+A path atom references an AST position relative to the current expression by walking the container structure (the AST tree).
+
+- `./name` — `name` in the immediate parent AST node.
+- `../name` — `name` in the grandparent.
+- Each additional `.` walks one more AST level up.
+- After the dots, segments may chain with `/`: `./record/key`, `../vec/0`.
+
+Segments are names (record fields, kwargs, let-block bindings, function parameters) or integers (vector elements, positional arguments).
 
 ```glisp
-../x         ;; one scope level up, lookup 'x'
-../../foo    ;; two scope levels up
-../x.y       ;; resolve 'x' one level up, then access field 'y' (accessor sugar)
+{width: 100
+ height: ./width                ;; parent = record, sibling 'width' = 100
+ area: (* ../width ../height)}  ;; grandparent (call's parent) = record, lookup width/height
+
+[10 ./0]                        ;; parent = vector, element 0 = 10 → vector evaluates to [10 10]
+
+{a = 10
+ b = [(/ ../../a 2)]}           ;; ../../ to climb out of both vector and let-block
 ```
 
-Each `..` walks up one enclosing scope (let-block or function literal). The trailing name is resolved in that ancestor scope.
+Paths walk every AST level, including records, vectors, function applications, and quasi-quotes. Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
 
-There is no absolute path form (no leading `/...`). Lexical lookup of an unqualified name `x` walks outward through enclosing scopes as usual; `../x` makes the walk explicit and limits it to a precise depth, e.g. to refer past a shadowed binding.
+There is no absolute path form (no leading `/...`).
 
 ### Optional fields and arguments — `?`
 
@@ -303,7 +315,7 @@ The result of ``...` is itself a Glisp value (a syntax tree).
 | `;`           | one-line comment                                       |
 | `?`           | optional field / argument suffix                       |
 | `.`           | member accessor (record field / vector index)          |
-| `..`          | path: one scope level up                               |
+| `..`          | path: one more AST level up                            |
 | `/`           | division atom; path separator after `..`               |
 
 
