@@ -42,6 +42,7 @@ There is no subtyping. Types are nominal/equality-based.
 | `string` | All strings |
 | `boolean` | `true`, `false` |
 | `unit` | `()` |
+| `ast` | Any AST node (the value form of a quoted expression / a macro's input or output) |
 | `Top` (`_`) | Any value |
 | `Bottom` (`!`) | No value |
 

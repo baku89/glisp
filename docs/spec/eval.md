@@ -48,19 +48,21 @@ No parent pointer. The "where am I in the tree" information is supplied by the e
 
 ## Environment
 
-The env is the chain of ancestor AST nodes from the top-level down to (but not including) the AST currently being evaluated. Each frame records which AST node it represents, plus optional bindings introduced by that node.
+The env is the **scope context** in which an AST is evaluated: a chain of frames, each describing one level of enclosing scope (and providing the ancestor structure that path navigation walks).
 
 ```
 Env  ::= null            ;; root sentinel (above top-level)
        | Frame
 Frame = {
-  ast:      ASTNode            ;; the AST node at this level
+  ast:      ASTNode            ;; the AST node this frame represents
   parent:   Env                ;; one level up
   bindings: Map<Name, (AST, Env)>?   ;; only on scope-introducing frames
 }
 ```
 
-Every ancestor AST node — let-blocks, function literals, records, vectors, function applications, quasiquoted forms — appears as a frame. Records, vectors, applications, and quasiquotes contribute no `bindings` (transparent to bare-name lookup) but participate in path navigation.
+When `eval` recurses into a syntactic child of the current AST, the env naturally tracks the ancestor chain — every let-block, function literal, record, vector, application, and quasiquoted form is pushed as a frame on the way down. Records, vectors, applications, and quasiquotes contribute no `bindings` (transparent to bare-name lookup) but participate in path navigation.
+
+However, **the env and the AST being evaluated are independent**: for a host-driven `eval(ast, env)`, the AST need not be a structural descendant of `env`'s top frame. The env is only consulted for name and path resolution; it does not constrain what AST may be evaluated against it. Hosts can synthesize an AST on the fly, or pull a sub-expression out of a larger tree, and evaluate it against any env that supplies the names and ancestor levels the AST refers to.
 
 Three kinds of frames carry `bindings`:
 

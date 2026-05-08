@@ -1,102 +1,94 @@
 # Glisp Host API
 
-The host is the JS/TS application embedding Glisp. This document specifies how the host exchanges values with Glisp, binds host functions into the Glisp environment, and constructs Glisp ASTs and types from the host side.
+The host is the JS/TS application embedding Glisp. This document specifies how the host exchanges values with Glisp, constructs Glisp ASTs and types from the host side, and assembles environments in which Glisp programs are evaluated.
 
 ## Core principle: runtime values are plain JS
 
-After evaluation, a Glisp value is the corresponding plain JS value, with no wrapper layer. Marshaling is automatic in both directions: a JS value handed to Glisp is interpreted as the matching Glisp value, and a Glisp value handed back to the host is the matching JS value.
+After evaluation, a Glisp value is the corresponding plain JS value, with no wrapper layer. Marshaling is automatic in both directions.
 
-| Glisp value      | JS representation                                  |
-| ---------------- | -------------------------------------------------- |
-| `number`         | `number`                                           |
-| `string`         | `string`                                           |
-| `boolean`        | `boolean`                                          |
-| `unit` (`()`)    | `Symbol.for('glisp.unit')`                         |
-| `vector`         | `Array`                                            |
-| `record`         | plain `object` (string keys)                       |
-| Closure          | callable `function`                                |
-| Type             | callable `function` (cast) with marker property    |
-| AST (`` `expr ``)| opaque AST handle (separate kind)                  |
+| Glisp value         | JS representation                                  |
+| ------------------- | -------------------------------------------------- |
+| `number`            | `number`                                           |
+| `string`            | `string`                                           |
+| `boolean`           | `boolean`                                          |
+| `unit` (`()`)       | `Symbol.for('glisp.unit')`                         |
+| `vector`            | `Array`                                            |
+| `record`            | plain `object` (string keys)                       |
+| Closure             | callable `function`                                |
+| Type                | callable `function` (cast) with marker property    |
+| `ast` (quoted form) | AST handle                                         |
 
-`unit` is a registered Symbol rather than `null` or `undefined`, so it cannot be confused with JS values of those forms (e.g. JSON parse results, missing object keys). The Symbol is stable across modules via `Symbol.for`.
+`unit` is a registered Symbol rather than `null`/`undefined`, so it cannot be confused with JS values of those forms (e.g. JSON parse results, missing object keys). The Symbol is stable across modules via `Symbol.for`.
 
-## Bindings
+`ast`-typed values (results of quasiquoted forms, macro inputs/outputs) appear in JS as **AST handles**. The same handle plays a dual role in the host API: it can be used as an AST under construction (a child of `g.call`, `g.vec`, etc.) **and** as a runtime value of Glisp type `ast`. There is no separate "AST value" wrapper.
 
-`glisp.bind(name, { type, fn })` exposes a host value to Glisp under `name`:
+## Builders — `g.*`
+
+The `g` namespace contains all the builders for ASTs and values. Two flavors live in the same namespace:
+
+- **AST builders** produce raw AST handles (no env resolution). Used to construct Glisp source programmatically, splice into quasiquotes, or as runtime `ast`-typed values.
+- **Value builders** produce values whose meaning is fully resolved on the TS side. Used as the `type` of a binding and as inputs to `g.infer<T>`.
+
+| Builder                              | Returns                       | Flavor      | Example                                                       |
+| ------------------------------------ | ----------------------------- | ----------- | ------------------------------------------------------------- |
+| `g.parse(source)`                    | AST                           | AST         | `g.parse('(+ 1 2)')`                                          |
+| `g.lit(jsValue)`                     | literal AST                   | AST         | `g.lit(42)` → `42`                                            |
+| `g.sym(name)`                        | symbol AST                    | AST         | `g.sym('+')` → `+`                                            |
+| `g.call(head, ...args)`              | application AST               | AST         | `g.call(g.sym('+'), g.lit(1), g.lit(2))` → `(+ 1 2)`          |
+| `g.vec(...elements)`                 | vector AST                    | AST         | `g.vec(g.lit(1), g.lit(2))` → `[1 2]`                         |
+| `g.path(dots, ...segments)`          | path AST                      | AST         | `g.path(2, 'width')` → `../width`                             |
+| `g.quote(expr)`                      | quasiquote AST                | AST         | `g.quote(g.lit(1))` → `` `1 ``                                |
+| `g.unquote(expr)`                    | unquote AST                   | AST         | `g.unquote(g.sym('x'))` → `~x`                                |
+| `g.splice(expr)`                     | splice AST                    | AST         | `g.splice(g.sym('xs'))` → `...~xs`                            |
+| `g.number`                           | the `number` type             | value       | `g.number`                                                    |
+| `g.string`                           | the `string` type             | value       | `g.string`                                                    |
+| `g.boolean`                          | the `boolean` type            | value       | `g.boolean`                                                   |
+| `g.unit`                             | the `unit` type               | value       | `g.unit`                                                      |
+| `g.top`                              | the `_` (top) type            | value       | `g.top`                                                       |
+| `g.bottom`                           | the `!` (bottom) type         | value       | `g.bottom`                                                    |
+| `g.ast`                              | the `ast` type                | value       | `g.ast` — used to type macro arguments                        |
+| `g.vector(T)`                        | `(vector T)` type             | value       | `g.vector(g.number)`                                          |
+| `g.enum(...vs)`                      | `(enum v1 v2 ...)` type       | value       | `g.enum('round', 'butt')`                                     |
+| `g.record({ k: ... })`               | record type **or** record AST | overload    | see below                                                     |
+| `g.fn({ name: T, ... }).returns(R)`  | function type                 | value       | see below                                                     |
+| `... .body(expr)`                    | function literal AST          | AST         | continues from `.returns(R)`                                  |
+
+### Overloaded builders
+
+Two builders accept arguments that decide their flavor:
+
+**`g.record({ key: ... })`** — overload by argument flavor:
 
 ```ts
-glisp.bind('add', {
-  type: g.fn({ a: g.number, b: g.number }).returns(g.number),
-  fn: (a, b) => a + b
-})
+g.record({ x: g.number })          // all values → record TYPE: {x: number}
+g.record({ x: g.lit(10) })          // all ASTs   → record AST:  {x: 10}
+g.record({ x: g.number,
+           y: g.lit(10) })          // mixed      → TS error
 ```
 
-- `name`: the identifier the value is bound to in the Glisp environment.
-- `type`: a Glisp **value** (specifically a type value), built either via value builders (preferred — enables TS inference) or via `g.parse(string)` (returns an AST that gets evaluated internally).
-- `fn`: the JS implementation. Plain JS function — no marshaling wrappers required. Glisp passes JS-native values as arguments and receives a JS-native value as the result.
+The TS type system enforces "all-values" or "all-ASTs"; mixing is rejected at compile time.
 
-Because the type is itself a Glisp value, all metadata (`label`, `doc`, `default`, etc.) attaches to the type via the standard `^{...}` mechanism — there is no separate metadata field on the binding.
+**`g.fn(...)`** — staged builder:
 
-## Two construction paths: values vs. ASTs
+```ts
+g.fn({ a: g.number, b: g.number })
+//   ↓ FnParamsBuilder — params only; not yet usable
 
-The host has two ways to express Glisp things in TS, with different trade-offs:
+  .returns(g.number)
+//   ↓ FnTypeOrBody — function TYPE value (usable as `type` field, in g.infer, etc.)
+//                    .body(expr) optionally continues to make it an AST instead
 
-| Path                    | Returns          | Env-resolved? | `g.infer` applicable? |
-| ----------------------- | ---------------- | ------------- | --------------------- |
-| `g.parse(string)`       | AST              | No            | No                    |
-| AST builders (`g.ast.*`)| AST              | No            | No                    |
-| Value builders (`g.*`)  | **Glisp value**  | Yes           | Yes                   |
+  .body(g.call(g.sym('+'), g.sym('a'), g.sym('b')))
+//   ↓ FnAST — function literal AST (=> (a: number b: number): number (+ a b))
+```
 
-The distinction matters because:
+The chain has three stages. Stopping at `.returns(R)` yields the function-type value. Continuing with `.body(expr)` yields the function-literal AST. `g.fn(params)` alone is a non-final intermediate and cannot be passed as a `type` (TS type-checks this).
 
-- An **AST** is a syntactic tree. A symbol like `Person` or `(vector Person)` cannot be resolved to a value without an environment — the AST is just sitting there waiting to be evaluated.
-- A **value** is the result of evaluation. Type values, in particular, are self-contained on the TS side: `g.number` is the literal type value, `g.vector(g.number)` composes value-level pieces, and no Glisp env lookup is needed.
+Function-type parameters are taken as an **object literal**: keys are parameter names, values are parameter types. Insertion order is the parameter order. Parameter names are part of the function type — see [Function literal](./syntax.md#function-literal).
 
-`g.infer<T>` operates on values only, because that is where the TS side has enough information to derive a static type. AST handles do not carry resolution.
+### `g.lit` vs `g.sym`
 
-`bind` accepts either path: a value is used directly; an AST is evaluated internally to obtain a value.
-
-(Note: most non-type Glisp values — numbers, strings, vectors, records of plain data — round-trip as JS-native values, so the host rarely needs to construct them via `g.*`. The value builders are mainly used to construct *type values*, which have no JS-native form.)
-
-### AST builders — `g.ast.*`
-
-These produce raw AST handles. Useful for building Glisp source programmatically (macros, code generation, splicing into quasiquotes), but not for `g.infer`.
-
-| Builder                                  | Produces                | Example                                                                  |
-| ---------------------------------------- | ----------------------- | ------------------------------------------------------------------------ |
-| `g.ast.lit(value)`                       | literal AST             | `g.ast.lit(42)` → `42`                                                   |
-| `g.ast.sym(name)`                        | symbol AST              | `g.ast.sym('+')` → `+`                                                   |
-| `g.ast.call(head, ...args)`              | application AST         | `g.ast.call(g.ast.sym('+'), g.ast.lit(1), g.ast.lit(2))` → `(+ 1 2)`     |
-| `g.ast.vec(...elements)`                 | vector AST              | `g.ast.vec(g.ast.lit(1), g.ast.lit(2))` → `[1 2]`                        |
-| `g.ast.record({ k: v, ... })`            | record AST              | `g.ast.record({ x: g.ast.lit(10) })` → `{x: 10}`                         |
-| `g.ast.fn(params).returns(T).body(expr)` | function literal AST    | see below                                                                |
-| `g.ast.path(dots, ...segments)`          | path AST                | `g.ast.path(2, 'width')` → `../width`                                    |
-| `g.ast.quote(expr)`                      | quasiquote AST          | `g.ast.quote(g.ast.lit(1))` → `` `1 ``                                   |
-| `g.ast.unquote(expr)`                    | unquote AST             | `g.ast.unquote(g.ast.sym('x'))` → `~x`                                   |
-| `g.ast.splice(expr)`                     | unquote-splice AST      | `g.ast.splice(g.ast.sym('xs'))` → `...~xs`                               |
-
-`g.ast.lit` distinguishes JS primitive types automatically: `g.ast.lit(42)` produces a number literal, `g.ast.lit("hi")` a string literal, `g.ast.lit(true)` a boolean literal. This is unambiguous because `g.ast.lit` always wraps a value, never an identifier — for identifiers, use `g.ast.sym`.
-
-### Value builders — `g.*`
-
-These produce **values** — TS-side handles whose meaning is fully resolved on the TS side and which drive `g.infer<T>`. In practice the values you construct here are almost always type values, since other Glisp values have JS-native forms.
-
-| Builder                                    | Produces (value)                                          |
-| ------------------------------------------ | --------------------------------------------------------- |
-| `g.number`                                 | the `number` type                                         |
-| `g.string`                                 | the `string` type                                         |
-| `g.boolean`                                | the `boolean` type                                        |
-| `g.unit`                                   | the `unit` type                                           |
-| `g.top`                                    | the `_` (top) type                                        |
-| `g.bottom`                                 | the `!` (bottom) type                                     |
-| `g.vector(T)`                              | `(vector T)`                                              |
-| `g.enum(...values)`                        | `(enum v1 v2 ...)`                                        |
-| `g.fn({ name: T, ... }).returns(R)`        | function type, with named parameters in declared order    |
-| `g.record({ key: T, ... })`                | record type                                               |
-
-The function-type builder takes parameters as an **object literal**: keys are parameter names, values are parameter types. The order of keys is the parameter order (JS preserves insertion order for string keys). Parameter names are part of the function's type and are required (see [Function literal](./syntax.md#function-literal)).
-
-Value builders only accept other values as arguments — they cannot consume raw ASTs. This keeps the input to `g.infer` always env-free.
+`g.lit` distinguishes JS primitive types automatically: `g.lit(42)` produces a number literal, `g.lit("hi")` a string literal, `g.lit(true)` a boolean literal. It always wraps a value, never an identifier — for identifiers, use `g.sym`.
 
 ### Metadata
 
@@ -111,7 +103,7 @@ Metadata layers as specified in [types.md](./types.md#metadata).
 
 ## TS static-type inference: `g.infer<T>`
 
-`g.infer<T>` is a TypeScript conditional type that maps a **value** (a TS-side handle constructed via value builders) to its corresponding TS static type. It is undefined for raw AST handles.
+`g.infer<T>` is a TypeScript conditional type that maps a **value** (built via value builders) to its corresponding TS static type. It is undefined for raw AST handles.
 
 ```ts
 const userType = g.record({ name: g.string, age: g.number })
@@ -129,36 +121,96 @@ type Color = g.infer<typeof colors>
 const points = g.vector(g.record({ x: g.number, y: g.number }))
 type Points = g.infer<typeof points>
 //   = { x: number; y: number }[]
+
+type AnyAST = g.infer<typeof g.ast>
+//   = ASTHandle (an opaque branded type)
 ```
 
-For function types, `g.infer` produces a positional JS function signature whose parameter names match the value-builder's keys.
+For function types, `g.infer` produces a positional JS function whose parameter names match the value-builder's keys. `unit` infers to `typeof g.unit` (the registered Symbol).
 
-`glisp.bind` uses this to type-check the `fn`: the function's signature must match `g.infer<typeof type>`, otherwise TS reports a compile-time error.
+## Environments
+
+The host assembles a Glisp environment by deriving from the prelude (or any other env) via **immutable extension**. There is no global mutable state, no install-time side effect.
 
 ```ts
-// ✗ TS error: fn must be (a: number, b: number) => number
-glisp.bind('add', {
-  type: g.fn({ a: g.number, b: g.number }).returns(g.number),
-  fn: (a: string) => a
+const empty = g.emptyEnv()                     // env with no bindings (testing / sandbox)
+const prelude = g.prelude                      // the standard env Glisp ships with
+
+const env = g.prelude
+  .bind('add', { type: addType, fn: (a, b) => a + b })
+  .bind('mul', { type: mulType, fn: (a, b) => a * b })
+```
+
+Each `.bind(...)` returns a **new env value**; the parent env is unchanged. Envs are first-class JS values: multiple envs can coexist for parallel evaluations, scoped extensions, A/B comparisons, etc.
+
+`g.prelude` is the parentless root env that ships with Glisp's built-in operations (`+`, `-`, `*`, `?`, `|>`, `vector`, ...). Any user-built env derives from it (or from `g.emptyEnv()` if the host wants to start from nothing).
+
+This API mirrors [eval.md](./eval.md#environment)'s frame chain: `g.prelude` is the root frame, each `.bind(...)` extends with one more top-level binding (or one more parented frame, depending on how the host chooses to model multiple binds — see Open questions on module structure).
+
+### Bindings
+
+`.bind(name, type, value)` is the single-binding form. There is no `{type, fn}` struct: the value is just a plain JS value (a function, a number, anything that marshals).
+
+```ts
+const env = g.prelude
+  .bind('add',
+        g.fn({ a: g.number, b: g.number }).returns(g.number),
+        (a, b) => a + b)
+  .bind('pi',
+        g.number,
+        3.14159)
+```
+
+`.bindAll({...})` registers multiple bindings at once. Each entry is a `[type, value]` tuple:
+
+```ts
+const numFn = g.fn({ a: g.number, b: g.number }).returns(g.number)
+
+const env = g.prelude.bindAll({
+  add: [numFn, (a, b) => a + b],
+  mul: [numFn, (a, b) => a * b],
+  pi:  [g.number, 3.14159],
 })
 ```
 
-Symbol unit: `g.infer<typeof g.unit>` is the type of `Symbol.for('glisp.unit')`.
+- `type` is the binding's Glisp type, built via value builders (preferred — enables TS inference) or via `g.parse(string)`.
+- `value` is any JS value that marshals to the declared type. For function bindings, it's a plain JS function — no wrappers needed. The TS type of `value` must satisfy `g.infer<typeof type>`, otherwise it's a compile-time error.
+
+All metadata (`label`, `doc`, `default`, ...) attaches to the type itself via `^{...}`.
+
+## Evaluation
+
+```ts
+glisp.eval(ast, env)        // → JS-native value
+glisp.expand(ast, env)      // → AST (one expansion step, per eval.md)
+glisp.resolve(ast, env)     // → resolved binding for a symbol/path AST
+glisp.diagnose(ast, env)    // → diagnostic set produced by this evaluation node
+```
+
+Each takes the AST and the env explicitly. There is no implicit "global env"; the host always supplies one.
+
+The `ast` argument does not need to be a structural descendant of any AST referenced by `env`. The env is purely the *scope context* used for name and path resolution; physical containment in some larger AST tree is irrelevant. This means the host can:
+
+- Evaluate any sub-expression of a parsed program by handing in just that node along with an env that captures its enclosing scope.
+- Evaluate the same AST under multiple different envs (e.g. with shadowed bindings) without rebuilding the AST.
+- Synthesize an AST on the fly via builders and evaluate it against an existing env.
+
+See [eval.md](./eval.md#environment) for the underlying frame-chain model.
 
 ## Opaque host values
 
-Any JS value that does not correspond to a Glisp built-in type can still flow through Glisp as an opaque value. From Glisp's perspective such values inhabit `top` and have no introspectable structure; they can be passed around and returned to the host unchanged.
+Any JS value that does not correspond to a Glisp built-in type can still flow through Glisp as an opaque value. From Glisp's perspective such values inhabit `top` and have no introspectable structure; they pass through unchanged.
 
 Hosts can declare a named opaque type to enable casting and type-checking:
 
 ```ts
-const DateType = glisp.declareOpaque<Date>('Date', {
+const DateType = g.declareOpaque<Date>('Date', {
   guard: (v): v is Date => v instanceof Date,
   default: new Date(0),
 })
 
-glisp.bind('today', {
-  type: g.fn().returns(DateType),
+const env = g.prelude.bind('today', {
+  type: g.fn({}).returns(DateType),
   fn: () => new Date()
 })
 ```
@@ -174,14 +226,13 @@ Convention: opaque types are named with an uppercase initial (`Date`, `URL`, `Ma
 Both directions are automatic:
 
 - **Host → Glisp**: bind a JS function. Inside Glisp it is callable like any other function value.
-- **Glisp → host**: a Glisp Closure exposed to JS is a callable JS function. Calling it forces evaluation in the closure's captured environment and returns a JS value.
-- **JS callbacks passed into Glisp**: a JS function passed as an argument is callable from Glisp directly. (Glisp does not introspect the function's parameter list; the binding's declared type at the receiving slot is what's checked.)
+- **Glisp → host**: a Glisp Closure surfaced to JS is a callable JS function. Calling it forces evaluation in the closure's captured env and returns a JS value.
+- **JS callbacks passed into Glisp**: a JS function passed as an argument is callable from Glisp directly. Glisp does not introspect the JS function's parameter list; the receiving slot's declared type is what's checked.
 
 ## Open questions
 
-- **Evaluation API surface**: what does the host call to evaluate a top-level form, evaluate any sub-AST, run `expand` for ladder navigation, run static name resolution, etc.
-- **Diagnostics API**: how diagnostics are queried per evaluation node (per [eval.md](./eval.md#diagnostics)).
-- **Prelude boundary**: which functions are defined in Glisp source (Prelude) versus bound from the host as primitives. Numeric ops (`+`, `*`, `<`) are likely host-bound; higher-order helpers (`map`, `filter`, `reduce`) are written in Glisp.
-- **Top-level structure**: a single evaluable program vs. a module system with imports/exports.
+- **Diagnostics API surface**: how `glisp.diagnose` returns the diagnostic set, query by sub-AST, severity filtering, etc.
+- **Prelude boundary**: which functions are defined in Glisp source (Prelude) vs. host-bound primitives. Numeric ops (`+`, `*`, `<`) are likely host-bound; higher-order helpers (`map`, `filter`, `reduce`) are written in Glisp.
+- **Module / multi-file structure**: a single evaluable program vs. a module system with imports/exports. Affects whether `.bind` extends top-level or pushes a new frame.
 - **Incremental / differential evaluation**: how the host signals AST changes and what the host receives in return.
-- **Bidirectional evaluation**: editing a result, inferring corresponding inputs.
+- **Bidirectional evaluation**: editing a result, inferring the corresponding input.
