@@ -46,6 +46,24 @@ The flexible/sticky split is chosen so layout-affecting delimiters (`:`, `=`) ac
 
 No parent pointer. The "where am I in the tree" information is supplied by the env at evaluation time. Subtrees are immutable and freely shareable / graftable across other trees. Source positions are not stored explicitly; they are derivable by walking trivia.
 
+### AST equality
+
+Two ASTs are equal when they have the same **structural form**, compared recursively:
+
+- Same node type (Application, Vector, Record, Let-block, etc.).
+- Same children in the same order, each pair recursively equal.
+- Same primitive value for atoms — numbers by IEEE 754 equality, strings by code-point sequence, booleans by identity, the unit literal compared as itself.
+
+Equality **ignores**:
+
+- **Trivia** (whitespace, comments). `(+ 1 2)` and `(+   1   2)` are equal ASTs.
+- **Attached metadata `^{...}`**, in line with the rule that metadata does not affect type or value identity ([types.md — Equality](./types.md#equality)).
+- **Memory identity**. Two distinct AST instances with the same structure are equal.
+
+This is the structural meaning used by `expand`'s fixed-point check, host comparisons, and macro logic.
+
+The memoization cache (see [Cycle detection](#cycle-detection)) is keyed by `(AST instance, env instance)` — **identity-based**, not structure-based — for performance. Two structurally equal but distinct AST instances are different memo keys; that is intentional and harmless because each instance still evaluates to the same value.
+
 ## Environment
 
 The env is the **scope context** in which an AST is evaluated: a chain of frames, each describing one level of enclosing scope (and providing the ancestor structure that path navigation walks).
