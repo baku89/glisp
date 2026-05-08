@@ -156,8 +156,15 @@ describe('print', () => {
 	})
 
 	it('prints metadata', () => {
-		const m = record({ label: lit('Width') })
-		expect(print(meta(m, lit(100)))).toBe('^{label: "Width"} 100')
+		expect(print(meta({ label: lit('Width') }, lit(100)))).toBe(
+			'^{label: "Width"} 100'
+		)
+	})
+
+	it('prints metadata via fluent .meta() with auto-lit', () => {
+		expect(print(lit(100).meta({ label: 'Width', default: 100 }))).toBe(
+			'^{label: "Width" default: 100} 100'
+		)
 	})
 
 	it('round-trips a moderately nested expression', () => {

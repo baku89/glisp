@@ -63,7 +63,7 @@ function printAST(ast: AST, inQuote: boolean): string {
 				? '...~' + printAST(ast.expr, false)
 				: '...' + printAST(ast.expr, inQuote)
 		case 'meta':
-			return `^${printAST(ast.meta, inQuote)} ${printAST(ast.expr, inQuote)}`
+			return `^${printAST(ast.metadata, inQuote)} ${printAST(ast.expr, inQuote)}`
 	}
 }
 

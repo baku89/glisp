@@ -176,10 +176,15 @@ export interface SpliceAST extends ASTBase {
 	readonly expr: AST
 }
 
-/** Metadata-attached expression `^{...} expr`. */
+/**
+ * Metadata-attached expression `^{...} expr`.
+ *
+ * `metadata` (rather than `meta`) is the field name, to avoid clashing with
+ * the `.meta(...)` builder method on AST handles.
+ */
 export interface MetaAST extends ASTBase {
 	readonly kind: 'meta'
-	readonly meta: RecordAST
+	readonly metadata: RecordAST
 	readonly expr: AST
 }
 

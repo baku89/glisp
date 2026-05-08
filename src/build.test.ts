@@ -114,10 +114,24 @@ describe('AST builders', () => {
 	})
 
 	it('meta wraps an expression with a metadata record', () => {
-		const m = record({ label: lit('Width') })
-		const ast = meta(m, lit(100))
+		// new shape: meta takes content directly, auto-lifting primitives
+		const ast = meta({ label: 'Width', default: 100 }, lit(100))
 		expect(isMeta(ast)).toBe(true)
-		expect(ast.meta).toBe(m)
+		expect(ast.metadata.fields.get('label')).toEqual(lit('Width'))
+		expect(ast.metadata.fields.get('default')).toEqual(lit(100))
+	})
+
+	it('expr.meta(content) is the fluent equivalent', () => {
+		const ast = lit(100).meta({ label: 'Width', default: 100 })
+		expect(isMeta(ast)).toBe(true)
+		expect(ast.metadata.fields.get('label')).toEqual(lit('Width'))
+		expect(ast.expr).toEqual({ kind: 'lit', value: 100 })
+	})
+
+	it('.meta() method does not appear in toEqual comparisons (non-enumerable)', () => {
+		// builder-constructed AST should still equal a plain literal
+		expect(lit(42)).toEqual({ kind: 'lit', value: 42 })
+		expect(sym('+')).toEqual({ kind: 'sym', name: '+' })
 	})
 
 	it('produces an AST equivalent to (+ 1 2) end-to-end', () => {
