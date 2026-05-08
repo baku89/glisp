@@ -272,6 +272,5 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 - Implicit doc-string sugar: leading string literal in a function body as `^{doc: "..."}`?
 - Multi-line string literal syntax.
 - Module / import syntax.
-- Whether `Unit` is a dedicated literal token distinct from empty `()`.
 - Whether `?` has uses beyond optional field/argument (e.g. cast probe, type predicate).
 - Whether `.` becomes a syntactic accessor (`record.field`) or remains a candidate identifier character.
