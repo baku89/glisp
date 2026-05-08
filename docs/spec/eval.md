@@ -83,7 +83,15 @@ For a path atom with `k` leading `.` characters (`./...` is `k=1`, `../...` is `
 
 For a function application `(head arg0 arg1 ...)`, the indices are `0` = head, `1` = `arg0`, `2` = `arg1`, etc. For a vector `[e0 e1 ...]`, indices are `0` = `e0`, `1` = `e1`, etc.
 
-`env_at_target` is the env that surrounds the target AST node — it is computed by following `e` up through scope frames whose corresponding AST contains or equals the target. In practice this means: the env active at the target node's nearest enclosing scope-introducing form. It is the env in which the target AST would be evaluated if encountered there directly.
+`env_at_target` is the env that the target AST would be evaluated in if reached by ordinary recursive descent from the top-level: walk the AST from top-level down to the target, pushing a frame at each scope-introducing form on the way:
+
+- **Let-block** entered: push a frame whose bindings are the let-block's `name = value` pairs (with self-referential `parent`).
+- **Function literal** entered (i.e. path traverses into a function literal's body without a call): push a parameter frame whose bindings are **empty**, and whose `parent` is the lexical env that would have captured the literal at that position.
+- **Top-level**: the host's initial env.
+
+For path traversals that stay within scope-flat structures (records, vectors, applications, quasiquotes), `env_at_target` equals the current env — no pop/push is needed.
+
+When a path lands inside an uncalled function body, parameter references resolve to nothing and yield `()`, which is then handled by the missing-value machinery at the next typed slot.
 
 If the parent walk takes the path above top-level, or a segment fails to address any child, emit a diagnostic and yield `()` (see [Failure as `()`](#failure-as-)).
 
@@ -172,7 +180,6 @@ Before evaluation, a static resolution pass walks the AST and verifies that ever
 ## Open questions
 
 - **Default fallback propagation**: when a sub-expression's evaluation falls back to a default value, how does the diagnostic propagate up the surrounding expression?
-- **Path env reconstruction**: precisely how `env_at_target` is computed for a path that lands inside a different scope (e.g. inside a function literal that has not been called).
 - **Partial evaluation**: any evaluation node is in principle evaluable. What host API surfaces this for tooling?
 - **Incremental / differential evaluation**: when an input AST node is replaced, what is the cache invalidation rule?
 - **Bidirectional evaluation**: editing a result value, how is the corresponding input inferred?
