@@ -259,6 +259,72 @@ The `ast` argument does not need to be a structural descendant of any AST refere
 
 See [eval.md](./eval.md#environment) for the underlying frame-chain model.
 
+## Reflection
+
+Two utilities help GUI-style hosts work with values and positions in an AST.
+
+### `g.toAst(value, env)` — value → AST
+
+Reverse-direction conversion: given a Glisp value and an env, produce an AST whose evaluation against `env` yields the same value.
+
+```ts
+g.toAst(42, env)              // → AST: 42 (number literal)
+g.toAst([1, 2, 3], env)       // → AST: [1 2 3]
+g.toAst({x: 10, y: 20}, env)  // → AST: {x: 10 y: 20}
+g.toAst(piValue, env)         // → AST: pi  (if env binds pi to that value)
+g.toAst(g.number, env)        // → AST: number (the bare symbol from the prelude)
+```
+
+The result satisfies `eval(g.toAst(v, env), env) ≡ v` (modulo marshaling and equality).
+
+Conversion strategy by value kind:
+
+| Value kind          | Reified AST                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| `number`/`string`/`boolean`/`unit` | corresponding literal                              |
+| vector              | `[...]` AST, elements reified recursively                          |
+| record              | `{...}` AST, field values reified recursively                      |
+| Closure             | the function literal AST stored in the closure                     |
+| Type                | a bare symbol if env binds it; otherwise built structurally (`[...T]`, `{x: T}`, `(=> (a: T): R)`, etc.) |
+| AST handle (`ast`-typed value) | a quasiquoted form `` `expr ``                          |
+| Extern value (`g.extern`-typed) | the value of the extern type's `toAst` option (see below) |
+
+When multiple bindings in `env` resolve to the same value, the implementation picks the first found by lookup order; the choice is otherwise unspecified.
+
+For an extern-typed value, the host **must** provide the conversion via the extern type declaration. Without it, `g.toAst` cannot construct an AST — the call emits a diagnostic and yields the unit AST as a fallback.
+
+### `g.expectedTypeAt(parentAst, position, env)` — slot's expected type
+
+What type should fit in this AST slot? Answers that question without requiring the slot's current contents to actually have that type.
+
+```ts
+g.expectedTypeAt(parentAst, position, env): TypeHandle
+```
+
+- `parentAst`: the AST whose interior slot we are asking about.
+- `position`: the slot identifier inside `parentAst` — a string field name, an integer index, or a structured path like `['param', 0, 'type']`.
+- `env`: the env in which `parentAst` is evaluated. Needed because slot types may reference type values pulled from env-bound names.
+
+```ts
+// parentAst = (=> (x: number y: number): number body)
+g.expectedTypeAt(parentAst, 'body', env)
+//   → number  (the body must produce the declared return type)
+
+// parentAst = (f a b), f : (=> (x: number y: number): number)
+g.expectedTypeAt(parentAst, 1, env)
+//   → number  (arg 0 is 'a' for x)
+
+// parentAst = {x: 10 y: 20}  in a slot expecting {x: number y: number}
+g.expectedTypeAt(parentAst, 'x', env)
+//   → number
+```
+
+This is required because `eval(ast, env)` decouples ast from env's structural lineage — there is no inherent "where in the tree am I" for a free-floating ast. To ask about a position, the host names the parent and the slot.
+
+The expected type is computed statically from the parent's type (the head's signature, the receiving record/tuple type, the function's return-type slot, etc.). When the parent itself has no constraint (e.g. a let-block binding's right-hand side, or any expression position not flowing into a typed slot), the result is `top` — anything is accepted.
+
+This is the API GUI tooling calls when displaying completion, type hints, or wiring suggestions for a cursor position.
+
 ## External types
 
 Any JS value that does not correspond to a Glisp built-in type can flow through Glisp via an externally-declared type. From Glisp's perspective such values inhabit a named external type whose internals are not introspectable; they pass through unchanged.
@@ -270,6 +336,7 @@ Any JS value that does not correspond to a Glisp built-in type can flow through 
 const DateType = g.extern<Date>('Date', {
   guard: (v): v is Date => v instanceof Date,
   default: new Date(0),
+  toAst: (d) => g.call(g.sym('Date.parse'), g.lit(d.toISOString())),
 })
 
 // generic (1-argument type constructor)
@@ -277,6 +344,7 @@ const Observable = g.extern<Observable<any>>('Observable', {
   arity: 1,
   guard: (v): v is Observable<any> => v instanceof Observable,
   default: <T>() => EMPTY as Observable<T>,
+  // toAst omitted — Observable values are stream-like and cannot be losslessly serialized to an AST
 })
 
 const env = g.prelude.with({
@@ -299,9 +367,12 @@ Concretely, the generic form of `g.extern<JSCtor>(name, options)` returns a func
 
 - `guard` is the runtime predicate used at cast sites (`(Date v)` validates and returns `v` if `guard(v)` is true).
 - `default` is the metadata default returned on cast failure. For generic types, `default` is a parametrized factory.
+- `toAst` (optional) maps a JS value of this type to an AST whose evaluation reproduces the value. Used by `g.toAst` (see [Reflection](#reflection)). Without it, `g.toAst` cannot serialize values of this extern type and emits a diagnostic.
 - `arity: 1` makes the result a unary type constructor. Without `arity` (or `arity: 0`), the type is monomorphic.
 - Generic types compare by **name + identity of the type argument**. The runtime `guard` checks only the JS class — element-type validity is the host's responsibility (a `Observable<number>` cast can't verify the stream actually emits numbers).
 - Higher arities (`arity >= 2`) are not currently supported. If a multi-parameter generic is needed, the host can compose with records or wrap with another generic.
+
+Whether to provide `toAst` is up to the host. Self-describing values (`Date`, `URL`, plain data wrappers) are typically convertible. Effectful or stream-like values (`Observable`, file handles, sockets) generally are not.
 
 Convention: external types are named with an uppercase initial (`Date`, `URL`, `Map`, `Observable`), per the [naming convention](./types.md#naming-convention).
 
