@@ -135,6 +135,8 @@ a.b.c            ;; → ((a "b") "c"), left-associative
 
 Accessor `.` is syntactic sugar that desugars to the call form. Dynamic keys (variables, expressions) are written in the call form: `(rec keyVar)`, `(arr (+ i 1))`.
 
+The CST records which notation was used (call form vs. accessor sugar) on each call node so `unparse` can reproduce the original source. Both forms have identical evaluation semantics; the distinction is purely syntactic.
+
 ### Path — `./` and `../`
 
 A path atom references an AST position relative to the current expression by walking the container structure (the AST tree).
