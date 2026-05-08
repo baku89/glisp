@@ -1,33 +1,30 @@
 # Glisp Syntax
 
-Status: **draft**, in active design discussion.
-
 ## Design principles
 
-- S-expression based. The grammar of glim explored non-S-expression syntax but the conclusion was to keep S-expressions.
+- S-expression based.
 - No English keywords. Reserved tokens are symbolic (`=>`, `***`, `_|_`, `^`, etc.).
 - Whitespace is the only separator. No commas. Newlines are whitespace.
-- Code-as-data (homoiconic): quoted expressions are first-class values.
+- Code-as-data: quoted expressions are first-class values.
 
 ## Tokens
 
-### Literals (core)
+### Literals
 
 | Form | Type |
 |---|---|
-| `42`, `3.14`, `-7`, `1e-5` | `Number` (single unified numeric type, IEEE 754 double internally) |
+| `42`, `3.14`, `-7`, `1e-5` | `Number` |
 | `"hello"`, `"with\nescape"` | `String` |
 | `true`, `false` | `Boolean` |
-| `()` | `Unit` (empty function application; see [Structure](#structure)) |
+| `()` | `Unit` |
 | `***` | `Top` |
 | `_|_` | `Bottom` |
 
-Out of core (deferred or handled by extension libraries):
+`Number` is a single unified numeric type, IEEE 754 double internally.
 
-- Rational literal `1/2` — use `(rational 1 2)` from a stdlib instead.
-- Angle literal `20rad` — graphics-domain extension.
-- Color literal `#ff0000` — graphics-domain extension.
-- Literal types (e.g. `42` as a singleton type) — not supported. Use `Enum` (see [Types](#types)) for enumerated values.
+Literal types (e.g. `42` as a singleton type) are not introduced. Use `Enum` for enumerated values.
+
+Keyword literal (`:foo`) is not introduced. Record keys are written with bare symbols followed by `:`.
 
 ### Identifiers (symbols)
 
@@ -36,10 +33,6 @@ Bare identifiers are symbols, resolved in the lexical environment.
 ```glisp
 foo bar baz?  +  *  multiply-by-2
 ```
-
-Allowed characters: TBD (likely Lisp-traditional: alphanumerics, `+ - * / ? ! < > = & | ^ % $`, with restriction that the first character is not a digit).
-
-Keyword literal (`:foo`) is **not** introduced. Record keys are written with bare symbols followed by `:`.
 
 ### Comments
 
@@ -51,11 +44,11 @@ Keyword literal (`:foo`) is **not** introduced. Record keys are written with bar
 ### `(...)` — function application / value invocation
 
 ```glisp
-(+ 1 2 3)            ;; function application → 6
-((if c f g) x)       ;; head can be any expression that evaluates to a value
-([1 2 3] 0)          ;; vector invocation → 1 (element access)
-({x: 10 y: 20} key)  ;; record invocation → field access (key syntax TBD)
-(Number 42)          ;; type invocation → cast / validate
+(+ 1 2 3)            ;; → 6
+((if c f g) x)       ;; head can be any expression
+([1 2 3] 0)          ;; vector invocation → 1
+({x: 10 y: 20} key)  ;; record invocation → field access
+(Number 42)          ;; type invocation → cast
 (Number "hello")     ;; cast failure → default fallback
 ```
 
@@ -75,8 +68,8 @@ Empty `()` is the unit value.
 
 ```glisp
 [1 2 3]
-[(+ 1 2) (+ 3 4)]    ;; → [3 7] (elements are evaluated)
-[]                   ;; empty vector
+[(+ 1 2) (+ 3 4)]    ;; → [3 7]
+[]
 ```
 
 A vector is a value of type `(Vector T)` for some element type `T`.
@@ -105,10 +98,10 @@ The block contents determine the kind:
 ```glisp
 (=> (x: Number y: Number): Number (* x y))
 (=> <T> (x: T): T x)                          ;; generic
-(=> (Number Number): Number)                   ;; function type (no body)
+(=> (Number Number): Number)                  ;; function type (no body)
 ```
 
-Argument signature is **mandatory**. Inside the body, types are inferred.
+Argument signature and return type are mandatory. Inside the body, types are inferred.
 
 ### Application — keyword arguments
 
@@ -125,7 +118,7 @@ Named arguments are written with `=`:
 ```glisp
 (x: Number)              ;; argument
 (=> (...): Number ...)   ;; return type
-{x: 10}                  ;; record key (with the value as the right-hand side)
+{x: 10}                  ;; record key
 ^{label: "..."}          ;; metadata record key
 ```
 
@@ -139,7 +132,7 @@ Named arguments are written with `=`:
  (+ a b)}
 ```
 
-The same `=` is reused for keyword arguments at function application sites; context disambiguates.
+The same `=` is reused for keyword arguments at function application sites.
 
 ## Metadata — `^{...}` prefix
 
@@ -158,18 +151,18 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 ### Metadata semantics
 
 - **Equality**: metadata does not affect type equality. `^{default: 1} Number` and `^{default: 0} Number` are the same type.
-- **Inheritance**: when a derived value/type is created (e.g. by metadata override), unset keys are inherited from the parent. Set keys override (last-write-wins merge).
-- **`default`** is the only metadata key with semantic meaning to the language core: when the value is missing or a type mismatch / runtime error occurs, the `default` of the expected type is returned.
-- **Other keys** (`label`, `color`, `icon`, `doc`, ...) are passed through transparently. They have no effect on evaluation. The host (TS/JS, GUI, IDE, etc.) can attach typed hints for these keys.
+- **Inheritance**: when a derived value/type is created, unset keys are inherited from the parent. Set keys override (last-write-wins merge).
+- **`default`** is the only metadata key with semantic meaning to the language core: when type mismatch or runtime error occurs, the `default` of the expected type is returned.
+- **Other keys** (`label`, `color`, `icon`, `doc`, ...) have no effect on evaluation. The host attaches typed hints for these keys.
 
 ### `default` fallback timing
 
 The `default` of the expected type is substituted in any of:
 
-- Function application: when an argument is type-mismatched, that argument is replaced with the type's default.
-- `cast` (i.e. `(T value)`): when `value` does not validate as `T`, the result is the default of `T`.
-- Any expression evaluation: if a runtime error occurs and the surrounding context expects a specific type, the default is returned.
-- **Static**: if type checking can determine that an expression will fail, the default is substituted at compile time without waiting for runtime.
+- Function application: a type-mismatched argument is replaced with the parameter type's default.
+- Cast `(T value)`: when `value` does not validate as `T`, the result is the default of `T`.
+- Any expression evaluation: a runtime error in a context expecting type `T` is replaced by `T`'s default.
+- Static-time: when the type checker proves an expression will fail, the substitution happens at compile time.
 
 ## Types
 
@@ -185,7 +178,7 @@ The `default` of the expected type is substituted in any of:
 (Enum "round" "butt" "square")    ;; enumeration of values
 ```
 
-`Enum` takes literal values and produces a type that validates against membership in the value set.
+`Enum` takes literal values and produces a type that validates against membership in the value set. `"round"` itself remains of type `String`, distinct from any `Enum` containing it.
 
 ### Type as cast
 
@@ -195,15 +188,13 @@ The `default` of the expected type is substituted in any of:
 (Number 42)                       ;; → 42
 (Number "hello")                  ;; → default fallback
 ((Vector Number) [1 2 3])         ;; → [1 2 3]
-(JoinType "round")                ;; with JoinType = (Enum "round" "butt" "square") → "round"
+(JoinType "round")                ;; → "round"  (JoinType = (Enum "round" "butt" "square"))
 (JoinType "diamond")              ;; → default fallback
 ```
 
 ### Subtyping
 
-There is **no** subtyping. Types are nominal/equality-based. `Enum` membership is checked at cast time, not modeled as `"round" <: JoinType`.
-
-(Future extension: a "types as sets of values" view is left open. If introduced, it would unify `Enum`, `Union`, and literal types under set-inclusion subtyping. For now, intentionally not committed.)
+There is no subtyping. Types are nominal/equality-based. `Enum` membership is checked at cast time, not modeled as `"round" <: JoinType`.
 
 ### Generics
 
@@ -221,22 +212,22 @@ Code-as-data via Clojure-style quasiquoting:
 
 | Form | Meaning |
 |---|---|
-| `` `expr `` | quasiquote: produce the expression itself as a value (an `Expr` value) |
+| `` `expr `` | quasiquote: produce the expression itself as a value |
 | `~expr` | unquote: evaluate `expr` and splice its result into the surrounding quasiquote |
-| `~@expr` | unquote-splice: evaluate `expr` (must be a list/vector) and splice its elements |
+| `~@expr` | unquote-splice: evaluate `expr` and splice its elements |
 
 ```glisp
 `(+ 1 ~x ~@xs)
 ```
 
-The result of `` `... `` is itself a Glisp value (a syntax tree). This is the foundation for macros and templating.
+The result of `` `... `` is itself a Glisp value (a syntax tree).
 
 ## Top / Bottom
 
-- `***` is the top type — every value inhabits it. Useful as a "any" in metadata-laden contexts.
-- `_|_` is the bottom type — no value inhabits it. The type of expressions that never produce a value (e.g. infinite loops, errors).
+- `***` is the top type — every value inhabits it.
+- `_|_` is the bottom type — no value inhabits it.
 
-## Reserved syntactic forms (summary)
+## Reserved syntactic forms
 
 | Token | Role |
 |---|---|
@@ -255,12 +246,3 @@ The result of `` `... `` is itself a Glisp value (a syntax tree). This is the fo
 | `_|_` | Bottom type |
 | `;` | one-line comment |
 | `#| ... |#` | multi-line comment |
-
-## Open questions (TBD)
-
-- Identifier character set (especially handling of `/`, `.`, `?`, `!`).
-- Record field access syntax: `(rec key)` — what is `key`? Bare symbol lookups in the lexical env, conflicting with field names. Options: string `"key"`, quoted symbol `` `key ``, or a special accessor form.
-- Implicit doc-string sugar: should the leading string literal in a function body desugar to `^{doc: "..."}`?
-- Multi-line string literal syntax.
-- Module / import syntax.
-- Whether `Unit` should be its own dedicated literal token (currently overlaps with empty `()`).
