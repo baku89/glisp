@@ -50,8 +50,8 @@ Reserved (not allowed in identifiers): `? : = . ^ ~ ' \` , ; ( ) [ ] { } # @` an
 ```glisp
 (+ 1 2 3)            ;; → 6
 ((if c f g) x)       ;; head can be any expression
-([1 2 3] 0)          ;; vector invocation → 1
-({x: 10 y: 20} key)  ;; record invocation → field access
+([1 2 3] 0)          ;; vector invocation → 1 (index)
+({x: 10 y: 20} "x")  ;; record invocation → field access by string key
 (Number 42)          ;; type invocation → cast
 (Number "hello")     ;; cast failure → default fallback
 ```
@@ -62,8 +62,8 @@ All values are callable; the calling behavior is determined by the value's type:
 |---|---|
 | Function | apply |
 | Type | cast / validate |
-| Vector | element access |
-| Record | field access |
+| Vector | element access by integer index |
+| Record | field access by string key |
 | Other (Number, String, ...) | type mismatch → default fallback |
 
 Empty `()` is the unit value.
@@ -77,6 +77,19 @@ Empty `()` is the unit value.
 ```
 
 A vector is a value of type `(Vector T)` for some element type `T`.
+
+### Accessor — `.`
+
+Member access on records and vectors. The right of `.` is a literal name (for records, becomes a string key) or an integer (for vectors, becomes an index); the left is any expression that evaluates to a record or vector.
+
+```glisp
+point.x          ;; → (point "x")
+arr.2            ;; → (arr 2)
+a.b.c            ;; → ((a "b") "c"), left-associative
+(make-point).x   ;; left side may be an arbitrary expression
+```
+
+Accessor `.` is syntactic sugar that desugars to the call form. Dynamic keys (variables, expressions) are written in the call form: `(rec keyVar)`, `(arr (+ i 1))`.
 
 ### Optional fields and arguments — `?`
 
@@ -265,10 +278,9 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 | `;` | one-line comment |
 | `#| ... |#` | multi-line comment |
 | `?` | optional field / argument suffix |
+| `.` | member accessor (record field / vector index) |
 
 ## Open questions
 
-- Record field access syntax: what is `key` in `(rec key)`?
 - Module / import syntax.
 - Whether `?` has uses beyond optional field/argument (e.g. cast probe, type predicate).
-- Whether `.` becomes a syntactic accessor (`record.field`) or remains a candidate identifier character.
