@@ -114,30 +114,35 @@ export function letBlock(
 }
 
 /**
- * Function literal AST.
+ * Function literal / function-type AST.
  *
- *   fn(
- *     [
- *       { name: 'x', type: sym('number') },
- *       { name: 'y', type: sym('number') },
- *     ],
- *     sym('number'),
- *     call(sym('+'), sym('x'), sym('y')),
- *   )
- *   // → (=> (x: number y: number): number (+ x y))
+ * Always returns a plain `FnAST` (with `body = null` — i.e. a function-type
+ * expression). Chain `.withBody(expr)` and/or `.withGenerics(...)` on the
+ * result to add a body and generic parameters; both produce a new FnAST.
  *
- * For function-type expressions (no body), pass `null` for `body`.
- * For generics, pass a list of type-variable names in `options.generics`.
+ *   fn({a: g.number, b: g.number}, g.number)
+ *   // → (=> (a: number b: number): number)   — function type value
  *
- * `optional`, `variadic` flags live on each `FnParam` entry.
+ *   fn({a: g.number, b: g.number}, g.number).withBody(call(sym('+'), sym('a'), sym('b')))
+ *   // → (=> (a: number b: number): number (+ a b))   — function literal AST
+ *
+ *   fn({xs: g.vector(g.sym('T'))}, g.sym('T'))
+ *     .withGenerics('T')
+ *     .withBody(...)
+ *
+ * `params` accepts either the array form (with optional/variadic flags) or
+ * an object literal `{name: type, ...}` for the common all-required case.
  */
 export function fn(
-	params: ReadonlyArray<FnParam>,
-	returnType: AST,
-	body: AST | null = null,
-	options?: { readonly generics?: ReadonlyArray<string> }
+	params:
+		| ReadonlyArray<FnParam>
+		| Readonly<Record<string, AST>>,
+	returnType: AST
 ): FnAST {
-	return new FnAST(options?.generics ?? [], params, returnType, body)
+	const paramArray: ReadonlyArray<FnParam> = Array.isArray(params)
+		? params
+		: Object.entries(params).map(([name, type]) => ({ name, type }))
+	return new FnAST([], paramArray, returnType, null)
 }
 
 /**

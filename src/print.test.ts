@@ -96,28 +96,20 @@ describe('print', () => {
 				{ name: 'x', type: sym('number') },
 				{ name: 'y', type: sym('number') },
 			],
-			sym('number'),
-			call(sym('+'), sym('x'), sym('y'))
-		)
+			sym('number')
+		).withBody(call(sym('+'), sym('x'), sym('y')))
 		expect(print(ast)).toBe('(=> (x: number y: number): number (+ x y))')
 	})
 
 	it('prints function types (no body)', () => {
-		const ast = fn(
-			[{ name: 'x', type: sym('number') }],
-			sym('number'),
-			null
-		)
+		const ast = fn([{ name: 'x', type: sym('number') }], sym('number'))
 		expect(print(ast)).toBe('(=> (x: number): number)')
 	})
 
 	it('prints generic functions', () => {
-		const ast = fn(
-			[{ name: 'x', type: sym('T') }],
-			sym('T'),
-			sym('x'),
-			{ generics: ['T'] }
-		)
+		const ast = fn([{ name: 'x', type: sym('T') }], sym('T'))
+			.withGenerics('T')
+			.withBody(sym('x'))
 		expect(print(ast)).toBe('(=> (T) (x: T): T x)')
 	})
 
@@ -128,8 +120,7 @@ describe('print', () => {
 				{ name: 'name', type: sym('string'), optional: true },
 				{ name: 'rest', type: sym('number'), variadic: true },
 			],
-			sym('number'),
-			null
+			sym('number')
 		)
 		expect(print(ast)).toBe(
 			'(=> (init: number name?: string ...rest: number): number)'
@@ -204,7 +195,8 @@ describe('print', () => {
 		// (=> (n: number): number {a = (* n 2) (+ a 1)})
 		const ast = fn(
 			[{ name: 'n', type: sym('number') }],
-			sym('number'),
+			sym('number')
+		).withBody(
 			letBlock(
 				[['a', call(sym('*'), sym('n'), lit(2))]],
 				call(sym('+'), sym('a'), lit(1))

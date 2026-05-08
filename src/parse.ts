@@ -242,7 +242,10 @@ class Parser {
 			body = this.expression()
 		}
 		this.expect(')')
-		return fn(params, returnType, body, { generics })
+		let result = fn(params, returnType)
+		if (generics.length > 0) result = result.withGenerics(...generics)
+		if (body !== null) result = result.withBody(body)
+		return result
 	}
 
 	private tryParseBareNameList(): string[] | null {

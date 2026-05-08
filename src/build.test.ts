@@ -174,9 +174,8 @@ describe('AST builders', () => {
 				{ name: 'x', type: sym('number') },
 				{ name: 'y', type: sym('number') },
 			],
-			sym('number'),
-			call(sym('+'), sym('x'), sym('y'))
-		)
+			sym('number')
+		).withBody(call(sym('+'), sym('x'), sym('y')))
 		expect(isFn(ast)).toBe(true)
 		expect(ast.params).toHaveLength(2)
 		expect(ast.returnType).toEqual(sym('number'))
@@ -185,11 +184,7 @@ describe('AST builders', () => {
 	})
 
 	it('fn with no body is a function-type expression', () => {
-		const ast = fn(
-			[{ name: 'x', type: sym('number') }],
-			sym('number'),
-			null
-		)
+		const ast = fn([{ name: 'x', type: sym('number') }], sym('number'))
 		expect(ast.body).toBeNull()
 	})
 
@@ -201,10 +196,10 @@ describe('AST builders', () => {
 				{ name: 'xs', type: xsType },
 				{ name: 'i', type: sym('number') },
 			],
-			sym('T'),
-			call(sym('xs'), sym('i')),
-			{ generics: ['T'] }
+			sym('T')
 		)
+			.withGenerics('T')
+			.withBody(call(sym('xs'), sym('i')))
 		expect(ast.generics).toEqual(['T'])
 	})
 
@@ -245,6 +240,37 @@ describe('Value builders (type values)', () => {
 		expect(g.enum(1, 2, 3).print()).toBe('(enum 1 2 3)')
 	})
 
+	it('fn() chain — object form for params', () => {
+		// fn({a: number, b: number}, number) → function type value
+		const ast = fn({ a: g.number, b: g.number }, g.number)
+		expect(ast.params).toEqual([
+			{ name: 'a', type: g.number },
+			{ name: 'b', type: g.number },
+		])
+		expect(ast.body).toBeNull()
+		expect(ast.print()).toBe('(=> (a: number b: number): number)')
+	})
+
+	it('fn() chain — .withBody() turns a type value into an AST', () => {
+		const ty = fn({ a: g.number, b: g.number }, g.number)
+		const ast = ty.withBody(call(sym('+'), sym('a'), sym('b')))
+		expect(ast.body).toEqual(call(sym('+'), sym('a'), sym('b')))
+		expect(ty.body).toBeNull() // original is unchanged
+	})
+
+	it('fn() chain — .withGenerics() adds generic params', () => {
+		const ast = fn({ x: sym('T') }, sym('T')).withGenerics('T')
+		expect(ast.generics).toEqual(['T'])
+		expect(ast.print()).toBe('(=> (T) (x: T): T)')
+	})
+
+	it('fn() chain — full .withGenerics().withBody()', () => {
+		const ast = fn({ x: sym('T') }, sym('T'))
+			.withGenerics('T')
+			.withBody(sym('x'))
+		expect(ast.print()).toBe('(=> (T) (x: T): T x)')
+	})
+
 	it('value builders compose with fn for type-position use', () => {
 		// (=> (xs: [...number] i: number): number ...)
 		const ast = fn(
@@ -252,11 +278,41 @@ describe('Value builders (type values)', () => {
 				{ name: 'xs', type: g.vector(g.number) },
 				{ name: 'i', type: g.number },
 			],
-			g.number,
-			null
+			g.number
 		)
 		expect(ast.print()).toBe(
 			'(=> (xs: [...number] i: number): number)'
+		)
+	})
+})
+
+describe('record overload — type vs runtime field content', () => {
+	// Per host-api.md, `record({...})` works the same shape whether the
+	// fields hold type values or runtime values; the distinction is at the
+	// type-slot interpretation layer (eval), not the AST.
+
+	it('all-type-value fields → record shape that reads as a record TYPE', () => {
+		// {x: number y: number} — used in a type slot, this is a record type
+		const ast = record({ x: g.number, y: g.number })
+		expect(ast.print()).toBe('{x: number y: number}')
+		expect(ast.get('x')).toEqual(g.number)
+	})
+
+	it('all-AST-value fields → record literal AST', () => {
+		// {x: 10 y: 20} — runtime record
+		const ast = record({ x: lit(10), y: lit(20) })
+		expect(ast.print()).toBe('{x: 10 y: 20}')
+		expect(ast.get('x')).toEqual(lit(10))
+	})
+
+	it('mixed (type values + runtime values) builds the same shape', () => {
+		// {schema: {x: number} data: {x: 10}} — nesting type values inside a
+		// runtime record. The AST shape is uniform.
+		const schema = record({ x: g.number })
+		const data = record({ x: lit(10) })
+		const ast = record({ schema, data })
+		expect(ast.print()).toBe(
+			'{schema: {x: number} data: {x: 10}}'
 		)
 	})
 })

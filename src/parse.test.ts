@@ -195,9 +195,8 @@ describe('parse — functions', () => {
 					{ name: 'x', type: sym('number'), optional: false, variadic: false },
 					{ name: 'y', type: sym('number'), optional: false, variadic: false },
 				],
-				sym('number'),
-				call(sym('+'), sym('x'), sym('y'))
-			)
+				sym('number')
+			).withBody(call(sym('+'), sym('x'), sym('y')))
 		)
 	})
 
@@ -208,8 +207,7 @@ describe('parse — functions', () => {
 					{ name: 'a', type: sym('number'), optional: false, variadic: false },
 					{ name: 'b', type: sym('number'), optional: false, variadic: false },
 				],
-				sym('number'),
-				null
+				sym('number')
 			)
 		)
 	})
@@ -218,10 +216,10 @@ describe('parse — functions', () => {
 		expect(parse('(=> (T) (x: T): T x)')).toEqual(
 			fn(
 				[{ name: 'x', type: sym('T'), optional: false, variadic: false }],
-				sym('T'),
-				sym('x'),
-				{ generics: ['T'] }
+				sym('T')
 			)
+				.withGenerics('T')
+				.withBody(sym('x'))
 		)
 	})
 
@@ -236,8 +234,7 @@ describe('parse — functions', () => {
 					{ name: 'name', type: sym('string'), optional: true, variadic: false },
 					{ name: 'rest', type: sym('number'), optional: false, variadic: true },
 				],
-				sym('number'),
-				null
+				sym('number')
 			)
 		)
 	})

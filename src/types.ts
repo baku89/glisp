@@ -265,6 +265,10 @@ function printFnParam(p: FnParam): string {
 /**
  * Function literal. With `body: null` it expresses a pure function-type
  * (no implementation), used in type positions.
+ *
+ * Chain methods `.withGenerics(...)` and `.withBody(expr)` produce a new
+ * FnAST; the original is unchanged. The method names use `with*` to avoid
+ * clashing with the same-name fields.
  */
 export class FnAST extends ASTNode {
 	readonly kind = 'fn' as const
@@ -275,6 +279,17 @@ export class FnAST extends ASTNode {
 		public readonly body: AST | null
 	) {
 		super()
+	}
+
+	/** Return a new FnAST with the given generic-parameter names. */
+	withGenerics(...names: string[]): FnAST {
+		return new FnAST(names, this.params, this.returnType, this.body)
+	}
+
+	/** Return a new FnAST with the given body expression (turns a function
+	 * type into a function literal). */
+	withBody(expr: AST): FnAST {
+		return new FnAST(this.generics, this.params, this.returnType, expr)
 	}
 
 	override print(): string {
