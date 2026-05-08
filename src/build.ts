@@ -75,12 +75,24 @@ export function vec(...elements: ReadonlyArray<AST>): VecAST {
 
 /**
  * Record literal: `{k1: v1 k2: v2 ...}`.
- * Field iteration order matches the order of keys in the input object.
+ *
+ * Two input forms:
+ *
+ * - **Object literal** `{x: lit(1), y: lit(2)}` — keys collapse per JS rules
+ *   (no duplicates can be expressed via this form).
+ * - **Array of pairs** `[['x', lit(1)], ['x', lit(2)]]` — preserves duplicates
+ *   so the AST can carry the source's literal repetition; evaluation will
+ *   apply last-wins and emit a diagnostic.
  */
 export function record(
-	fields: Readonly<Record<string, AST>>
+	fields:
+		| Readonly<Record<string, AST>>
+		| ReadonlyArray<readonly [string, AST]>
 ): RecordAST {
-	return new RecordAST(new Map(Object.entries(fields)))
+	const arr: ReadonlyArray<readonly [string, AST]> = Array.isArray(fields)
+		? fields
+		: Object.entries(fields)
+	return new RecordAST(arr)
 }
 
 /**

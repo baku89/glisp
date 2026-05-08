@@ -112,6 +112,8 @@ function printRecord(ast: RecordAST, inQuote: boolean): string {
 	}
 	return `{${entries.join(' ')}}`
 }
+// (iteration is the same — `fields` is now an array of pairs and
+// `for...of` walks it in order, including duplicates.)
 
 function printLet(ast: LetAST, inQuote: boolean): string {
 	const parts: string[] = []

@@ -62,9 +62,9 @@ export abstract class ASTNode {
 	 *   // → MetaAST { metadata: {label: "Width" default: 100}, expr: 100 }
 	 */
 	meta(content: MetaContent): MetaAST {
-		const fields = new Map<string, AST>()
+		const fields: Array<readonly [string, AST]> = []
 		for (const [k, v] of Object.entries(content)) {
-			fields.set(k, liftMetaField(v))
+			fields.push([k, liftMetaField(v)])
 		}
 		return new MetaAST(new RecordAST(fields), this as unknown as AST)
 	}
@@ -153,17 +153,33 @@ export class VecAST extends ASTNode {
 }
 
 /**
- * Record literal. Keys are ordered (insertion order). The same shape doubles
- * as a record type when its field values are type values
- * (see types.md — Type interpretation at type slots).
+ * Record literal. Fields are stored as an array of `[name, value]` pairs in
+ * source order, so duplicate keys are preserved at the AST level. Evaluation
+ * reduces them with last-wins semantics and emits a diagnostic
+ * (see syntax.md — Duplicate names).
+ *
+ * The same shape doubles as a record type when its field values are type
+ * values (see types.md — Type interpretation at type slots).
  */
 export class RecordAST extends ASTNode {
 	readonly kind = 'record' as const
 	constructor(
-		public readonly fields: ReadonlyMap<string, AST>,
+		public readonly fields: ReadonlyArray<readonly [string, AST]>,
 		public readonly optional?: ReadonlySet<string>
 	) {
 		super()
+	}
+
+	/**
+	 * Look up a field by name, applying last-wins semantics for duplicates.
+	 * Returns `undefined` if the key is absent.
+	 */
+	get(key: string): AST | undefined {
+		for (let i = this.fields.length - 1; i >= 0; i--) {
+			const entry = this.fields[i]
+			if (entry !== undefined && entry[0] === key) return entry[1]
+		}
+		return undefined
 	}
 }
 

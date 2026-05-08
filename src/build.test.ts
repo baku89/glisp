@@ -89,8 +89,8 @@ describe('AST builders', () => {
 		// {x: 10 y: 20}
 		const ast = record({ x: lit(10), y: lit(20) })
 		expect(isRecord(ast)).toBe(true)
-		expect([...ast.fields.keys()]).toEqual(['x', 'y'])
-		expect(ast.fields.get('x')).toEqual(lit(10))
+		expect(ast.fields.map(([k]) => k)).toEqual(['x', 'y'])
+		expect(ast.get('x')).toEqual(lit(10))
 	})
 
 	it('path encodes segments including ".."', () => {
@@ -117,14 +117,14 @@ describe('AST builders', () => {
 		// new shape: meta takes content directly, auto-lifting primitives
 		const ast = meta({ label: 'Width', default: 100 }, lit(100))
 		expect(isMeta(ast)).toBe(true)
-		expect(ast.metadata.fields.get('label')).toEqual(lit('Width'))
-		expect(ast.metadata.fields.get('default')).toEqual(lit(100))
+		expect(ast.metadata.get('label')).toEqual(lit('Width'))
+		expect(ast.metadata.get('default')).toEqual(lit(100))
 	})
 
 	it('expr.meta(content) is the fluent equivalent', () => {
 		const ast = lit(100).meta({ label: 'Width', default: 100 })
 		expect(isMeta(ast)).toBe(true)
-		expect(ast.metadata.fields.get('label')).toEqual(lit('Width'))
+		expect(ast.metadata.get('label')).toEqual(lit('Width'))
 		expect(ast.expr).toEqual({ kind: 'lit', value: 100 })
 	})
 
@@ -241,17 +241,27 @@ describe('Edge cases', () => {
 		// responsibility to prevent at the input layer.
 	})
 
-	it('record collapses duplicate keys via JS object semantics', () => {
-		// Building with `{x: a, x: b}` in JS source collapses to one entry
-		// per JS rules — the builder receives an already-deduplicated object.
-		// This test constructs the duplicate dynamically to exercise the path
-		// without triggering JS's "duplicate key" warning.
+	it('record collapses duplicates when built from an object literal', () => {
+		// Object form goes through JS's last-wins; only one entry survives.
 		const obj: Record<string, AST> = {}
 		obj.x = lit(1)
 		obj.x = lit(2)
 		const ast = record(obj)
-		expect(ast.fields.size).toBe(1)
-		expect(ast.fields.get('x')).toEqual(lit(2))
+		expect(ast.fields).toHaveLength(1)
+		expect(ast.get('x')).toEqual(lit(2))
+	})
+
+	it('record preserves duplicates when built from an array of pairs', () => {
+		// Array form retains the source's repetition so eval can apply
+		// last-wins + emit a diagnostic per spec.
+		const ast = record([
+			['x', lit(1)],
+			['x', lit(2)],
+		])
+		expect(ast.fields).toHaveLength(2)
+		expect(ast.fields[0]).toEqual(['x', lit(1)])
+		expect(ast.fields[1]).toEqual(['x', lit(2)])
+		expect(ast.get('x')).toEqual(lit(2)) // last-wins via .get()
 	})
 
 	it('letBlock with duplicate names: both bindings preserved at AST level', () => {
@@ -275,7 +285,7 @@ describe('Edge cases', () => {
 	})
 
 	it('record with no fields builds an empty record AST', () => {
-		expect(record({}).fields.size).toBe(0)
+		expect(record({}).fields).toHaveLength(0)
 		expect(record({}).print()).toBe('{}')
 	})
 
