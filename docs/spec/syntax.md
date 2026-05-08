@@ -159,9 +159,6 @@ Segments are names (record fields, kwargs, let-block bindings, function paramete
 
 (+ x ./1)                       ;; in a call, child 0 is head (+), child 1 is x, child 2 is ./1
                                 ;; ./1 = child 1 = x → equivalent to (+ x x)
-
-{a = 10
- b = [(/ .../a 2)]}             ;; 3 dots: call → vector → let-block, then segment `a` selects the binding
 ```
 
 Paths walk every AST level, including records, vectors, function applications, and quasi-quotes. Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.

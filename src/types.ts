@@ -128,8 +128,8 @@ export interface FnAST extends ASTBase {
  *   ../foo/bar       → dots: 2, segments: ['foo', 'bar']
  *   ../vec/0         → dots: 2, segments: ['vec', 0]
  *   ./               → dots: 1, segments: []                 (the parent itself)
- *   .../foo          → dots: 3, segments: ['foo']            (great-grandparent's foo)
- *   ..../a           → dots: 4, segments: ['a']
+ *
+ * Any number of dots is allowed; deeper paths (3+) are valid but rare.
  *
  * Distinguishing path from spread (`...`): a path always has `/` (or end-of-
  * token) after the leading dots. `...xs` is spread; `.../xs` is a path.
