@@ -56,7 +56,7 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | Form | Description |
 |---|---|
 | `(vector T)` | vectors of `T` |
-| `(=> (T1 T2 ...): T)` | Function type |
+| `(=> (a: T1 b: T2 ...): R)` | Function type (parameter names are part of the type) |
 | `(enum v1 v2 ...)` | enumeration of literal values |
 
 `enum` is the mechanism for finite sets of literal values. Members are validated by membership test at cast time.

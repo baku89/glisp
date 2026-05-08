@@ -188,14 +188,16 @@ The block contents determine the kind:
 
 ```glisp
 (=> (x: number y: number): number (* x y))
-(=> (T) (x: T): T x)                          ;; generic
-(=> (T U) (a: T b: U): T a)                   ;; multiple generics
-(=> (number number): number)                  ;; function type (no body)
+(=> (T) (x: T): T x)                                ;; generic
+(=> (T U) (a: T b: U): T a)                         ;; multiple generics
+(=> (a: number b: number): number)                  ;; function type (no body)
 ```
 
 Argument signature and return type are mandatory. Inside the body, types are inferred.
 
 When two parens lists appear before the return type `:`, the first is the generic parameter list (bare names) and the second is the value parameter list (`name: Type` entries). When one list appears, it is the value parameter list.
+
+Every value parameter must have a name. There is no anonymous parameter form (e.g. `(=> (number number): number)` is invalid). Parameter names are part of the function's interface — they enable keyword-argument calls (see [Application — keyword arguments](#application--keyword-arguments)) — so they remain required even in body-less function-type expressions.
 
 ### Variadic parameters
 
@@ -344,10 +346,10 @@ The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 
 `:` annotates a name with its type:
 
 ```glisp
-(x: number)              ;; argument
-(=> (...): number ...)   ;; return type
-{x: 10}                  ;; record key
-^{label: "..."}          ;; metadata record key
+(x: number)                            ;; argument
+(=> (a: number): number ...)           ;; return type after `:`
+{x: 10}                                ;; record key
+^{label: "..."}                        ;; metadata record key
 ```
 
 ## Local binding
@@ -396,9 +398,9 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `Top`, a
 ### Type constructors
 
 ```glisp
-(vector number)                   ;; vector of number
-(=> (number number): number)      ;; function type
-(enum "round" "butt" "square")    ;; enumeration of values
+(vector number)                          ;; vector of number
+(=> (a: number b: number): number)       ;; function type
+(enum "round" "butt" "square")           ;; enumeration of values
 ```
 
 `enum` takes literal values and produces a type that validates against membership in the value set. `"round"` itself remains of type `string`, distinct from any `enum` containing it.
