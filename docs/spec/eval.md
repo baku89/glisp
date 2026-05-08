@@ -160,18 +160,55 @@ When forcing `(AST, env)`:
 
 Examples like `{a: ./b  b: ./a}` resolve via this rule: each field becomes `()`, which is then coerced to its declared type's default at the next typed slot.
 
-### Quasiquoted forms
+### Quasiquoted forms during evaluation
 
-Within `` `(...) ``, sub-expressions are not evaluated; the form is data. Only `~expr` and `~@expr` are evaluated, in the surrounding env. The result of `` `... `` is a syntax-tree value.
+The macro-related annotations (`` ` ``, `~`, `~@`) are **transparent during evaluation**. `eval` produces the same value as if the annotations were not present. The annotations only matter for `expand` (see [Multi-step evaluation](#multi-step-evaluation--abstraction-ladder)).
+
+In particular, `eval((pow 2 3), env)` yields the final value `8` directly; there is no intermediate AST construction during normal evaluation.
 
 ### Paths across quasiquote boundaries
 
-A path inside a quasiquoted region behaves differently depending on whether it sits inside an unquote:
+For `expand`, where quasiquote/unquote do affect tree construction, paths inside an unquote skip the matched quasiquote/unquote pair: `.` counts from the position of the canceled quasiquote rather than the path's lexical position. This matches the intuition that `~` "lifts the expression out" to the surrounding scope.
 
-- **Inside `~expr` or `~@expr`**: the path is evaluated. Path resolution treats the matched quasiquote/unquote pair as transparent — the `.` count starts from the position of the quasiquote (the form being canceled), not from the path's lexical position. This matches the intuition that `~` "lifts the expression out" to the surrounding scope.
-- **In a purely quoted region (not inside `~`)**: the path atom is not evaluated. It remains as path data in the resulting syntax-tree value, to be resolved later if the form is spliced into evaluable position elsewhere.
+In a purely quoted region (not inside `~`), path atoms remain as data in the resulting AST, to be resolved later when the form is spliced into evaluable position elsewhere.
 
-Nested quasiquote/unquote pairs cancel level by level: each `~` undoes one enclosing `` ` ``. A path appearing under the innermost active unquote resolves relative to the position of the corresponding canceled quasiquote.
+Nested quasiquote/unquote pairs cancel level by level.
+
+## Multi-step evaluation / Abstraction ladder
+
+A core design principle of Glisp: **every expression has an abstraction ladder** — a chain of progressively-more-evaluated forms with the same final value. Hosts (in particular visual / GUI editors) can show, edit, and reason at any rung.
+
+Concrete example:
+
+```glisp
+pow = (=> (x: Number a: Number): Number `(* ~@(repeat x a)))
+
+(pow (+ 1 1) 3)                              ;; rung 0: source
+(* (+ 1 1) (+ 1 1) (+ 1 1))                  ;; rung 1: one expansion step
+8                                            ;; rung ∞: final value
+```
+
+This is the language analogue of "Expand Appearance" in vector graphics editors: any sub-form can be replaced by a more concrete form below it on the ladder, or its final value, without changing meaning.
+
+### Two operations
+
+```
+eval:    (AST, Env) → Value
+expand:  (AST, Env) → AST           ;; one expansion step, returns intermediate AST
+```
+
+- `eval` produces the final value. It treats macro-related annotations as transparent.
+- `expand` performs one expansion step. It substitutes a call's body with its arguments, respecting `` ` ``, `~`, `~@` as a template for shaping the result AST. Repeated `expand` calls climb down the ladder.
+
+Both operations agree on the final value: `eval(AST, env)` equals `eval(expand(AST, env), env)`.
+
+### Hygiene (future work)
+
+`expand`'s substitution is not the textual replacement that would suffice in a hygienic-free system. Symbols in the body (e.g. `*`) refer to bindings in the body's defining scope; if the call site has shadowed those names, naive substitution would capture the wrong binding.
+
+A correct `expand` rewrites such free references in the body into paths that re-anchor to the original binding (e.g. `*` may be rewritten to `../../../*` referring to the Prelude). This is the standard hygienic-macro problem.
+
+The first implementation may use naive substitution; hygienic rewriting is a planned extension.
 
 ## Failure as `()`
 

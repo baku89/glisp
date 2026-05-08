@@ -15,5 +15,6 @@
 5. Metadata as a separate value-layer, attached via `^{...}` prefix. Only `default` has language-core semantic meaning; other keys are host-defined.
 6. Evaluation never throws. Failures fall back to the expected type's `default`. Errors flow on a parallel diagnostics channel.
 7. All values are callable: function → apply, type → cast, vector → index, record → field, others → fallback.
-8. Code-as-data. Backquote produces syntax-tree values; `~`/`~@` for splicing.
-9. Language core only. No UI, IDE, or graphics features.
+8. Code-as-data. `` ` ``, `~`, `~@` are transparent during evaluation; they shape the intermediate AST produced by the separate `expand` operation.
+9. Abstraction ladder. Every expression has progressively-more-evaluated forms with the same final value. Visual / GUI hosts can show, edit, and reason at any rung. `expand` walks one step down the ladder; `eval` jumps to the bottom.
+10. Language core only. No UI, IDE, or graphics features in the language itself — but the design assumes a visual / GUI host as the primary consumer.
