@@ -214,11 +214,25 @@ See [Spread](#spread--) for how to call variadic functions and for spread in vec
 
 ### Application — keyword arguments
 
-Named arguments are written with `=`:
+Any positional parameter of a function can be passed by name at the call site using `name=value`. No special declaration is required at the definition: every parameter is automatically callable both positionally and by keyword.
 
 ```glisp
-(fn arg0 arg1 key0=value0 key1=value1)
+(=> (x: Number y: Number z: Number): Number (* x y z))
+
+(f 2 3 4)              ;; all positional → 24
+(f x=2 y=3 z=4)        ;; all keyword → 24
+(f 2 z=4 y=3)          ;; positional first, then keyword in any order → 24
+(f y=3 x=2 z=4)        ;; keyword only, in any order → 24
 ```
+
+Rules:
+
+- Once a keyword argument appears in a call, no further positional argument may follow.
+- Each parameter must receive at most one binding (positional or keyword, not both). Double-binding emits a diagnostic.
+- A keyword whose name is not a parameter of the callee emits a diagnostic.
+- A required parameter (no `?` suffix) that receives no binding emits a diagnostic; the slot is filled with the parameter type's `default`.
+- An optional parameter (`?` suffix) that receives no binding silently uses the parameter type's `default`.
+- Variadic parameters (`...rest`) collect remaining positional arguments only; they cannot be filled by keyword.
 
 ## Spread — `...`
 
