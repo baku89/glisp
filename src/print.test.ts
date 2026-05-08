@@ -9,7 +9,6 @@ import {
 	lit,
 	meta,
 	path,
-	print,
 	quote,
 	record,
 	splice,
@@ -18,6 +17,7 @@ import {
 	unquote,
 	vec,
 } from './build.js'
+import { print } from './print.js'
 import { UNIT } from './types.js'
 
 describe('print', () => {
