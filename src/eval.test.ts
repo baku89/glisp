@@ -283,6 +283,204 @@ describe('evaluate — call', () => {
 // Macro-related transparency
 // -----------------------------------------------------------------------------
 
+describe('evaluate — call: kwargs / variadic / optional', () => {
+	it('kwargs match parameters by name', () => {
+		// ((=> (a: number b: number): number a) b=20 a=10)  → 10
+		const closure = fn(
+			[
+				{ name: 'a', type: sym('number') },
+				{ name: 'b', type: sym('number') },
+			],
+			sym('number')
+		).withBody(sym('a'))
+		const r = evaluate(parse('(f b=20 a=10)'), makeTopLevel({ f: closure }))
+		expect(r.value).toBe(10)
+	})
+
+	it('positional + kwarg combination works', () => {
+		// (f 1 b=20)  with (a, b) → a=1, b=20
+		const closure = fn(
+			[
+				{ name: 'a', type: sym('number') },
+				{ name: 'b', type: sym('number') },
+			],
+			sym('number')
+		).withBody(sym('b'))
+		const r = evaluate(parse('(f 1 b=20)'), makeTopLevel({ f: closure }))
+		expect(r.value).toBe(20)
+	})
+
+	it('double-binding (positional + kwarg same name) emits a diagnostic', () => {
+		const closure = fn(
+			[{ name: 'a', type: sym('number') }],
+			sym('number')
+		).withBody(sym('a'))
+		const r = evaluate(parse('(f 1 a=2)'), makeTopLevel({ f: closure }))
+		expect(r.diagnostics.some(d => d.message.includes('double binding'))).toBe(
+			true
+		)
+	})
+
+	it('missing required parameter emits a diagnostic', () => {
+		const closure = fn(
+			[{ name: 'a', type: sym('number') }],
+			sym('number')
+		).withBody(sym('a'))
+		const r = evaluate(parse('(f)'), makeTopLevel({ f: closure }))
+		expect(
+			r.diagnostics.some(d => d.message.includes('missing required'))
+		).toBe(true)
+	})
+
+	it('optional parameter is silently filled with unit', () => {
+		const closure = fn(
+			[
+				{ name: 'a', type: sym('number') },
+				{ name: 'b', type: sym('string'), optional: true },
+			],
+			sym('number')
+		).withBody(sym('a'))
+		const r = evaluate(parse('(f 10)'), makeTopLevel({ f: closure }))
+		expect(r.value).toBe(10)
+		expect(r.diagnostics).toEqual([]) // silent
+	})
+
+	it('variadic parameter collects rest into a vector', () => {
+		// (f 1 2 3 4) where f = (=> (init: number ...rest: number): number ?)
+		// We make the body return rest itself so we can inspect it.
+		const closure = fn(
+			[
+				{ name: 'init', type: sym('number') },
+				{ name: 'rest', type: sym('number'), variadic: true },
+			],
+			sym('number')
+		).withBody(sym('rest'))
+		const r = evaluate(parse('(f 1 2 3 4)'), makeTopLevel({ f: closure }))
+		expect(r.value).toEqual([2, 3, 4])
+	})
+
+	it('variadic via kwarg gives a single vector', () => {
+		const closure = fn(
+			[{ name: 'rest', type: sym('number'), variadic: true }],
+			sym('number')
+		).withBody(sym('rest'))
+		const r = evaluate(parse('(f rest=[10 20])'), makeTopLevel({ f: closure }))
+		expect(r.value).toEqual([10, 20])
+	})
+
+	it('unknown kwarg emits a diagnostic', () => {
+		const closure = fn(
+			[{ name: 'a', type: sym('number') }],
+			sym('number')
+		).withBody(sym('a'))
+		const r = evaluate(parse('(f a=1 zzz=2)'), makeTopLevel({ f: closure }))
+		expect(r.diagnostics.some(d => d.message.includes('unknown'))).toBe(true)
+	})
+})
+
+describe('evaluate — call: spread args', () => {
+	it('spread inlines a vec literal directly (lazy)', () => {
+		// (f a ...[2 3] d) — inlined
+		const closure = fn(
+			[
+				{ name: 'a', type: sym('number') },
+				{ name: 'b', type: sym('number') },
+				{ name: 'c', type: sym('number') },
+				{ name: 'd', type: sym('number') },
+			],
+			sym('number')
+		).withBody(vec(sym('a'), sym('b'), sym('c'), sym('d')))
+		const r = evaluate(parse('(f 1 ...[2 3] 4)'), makeTopLevel({ f: closure }))
+		expect(r.value).toEqual([1, 2, 3, 4])
+	})
+
+	it('spread of a bound vector evaluates and reifies elements', () => {
+		const closure = fn(
+			[
+				{ name: 'a', type: sym('number') },
+				{ name: 'b', type: sym('number') },
+				{ name: 'c', type: sym('number') },
+			],
+			sym('number')
+		).withBody(vec(sym('a'), sym('b'), sym('c')))
+		const env = makeTopLevel({
+			f: closure,
+			xs: vec(lit(2), lit(3)),
+		})
+		const r = evaluate(parse('(f 1 ...xs)'), env)
+		expect(r.value).toEqual([1, 2, 3])
+	})
+})
+
+describe('evaluate — special form ? (match)', () => {
+	it('matches by value equality', () => {
+		// (? 2 1 "one" 2 "two" _ "other")
+		const r = evaluate(parse('(? 2 1 "one" 2 "two" _ "other")'), emptyEnv)
+		expect(r.value).toBe('two')
+	})
+
+	it('falls through to the _ catch-all', () => {
+		const r = evaluate(parse('(? 99 1 "one" 2 "two" _ "other")'), emptyEnv)
+		expect(r.value).toBe('other')
+	})
+
+	it('returns unit when no clause matches and no catch-all', () => {
+		const r = evaluate(parse('(? 99 1 "one" 2 "two")'), emptyEnv)
+		expect(r.value).toBe(UNIT)
+	})
+
+	it('odd-args-only enforcement', () => {
+		const r = evaluate(parse('(? 1 2 3 4)'), emptyEnv)
+		expect(r.diagnostics.some(d => d.message.includes('odd'))).toBe(true)
+	})
+
+	it('uses bare names that resolve in env', () => {
+		const env = makeTopLevel({ x: lit(7) })
+		const r = evaluate(parse('(? 7 x "match" _ "no")'), env)
+		expect(r.value).toBe('match')
+	})
+})
+
+describe('evaluate — special form |> (pipe)', () => {
+	it('chains a single host function', () => {
+		const inc = (n: unknown) => (n as number) + 1
+		const env = makeTopLevel({ inc: lit(inc as never) })
+		const r = evaluate(parse('(|> 5 inc)'), env)
+		expect(r.value).toBe(6)
+	})
+
+	it('chains multiple host functions', () => {
+		const inc = (n: unknown) => (n as number) + 1
+		const dbl = (n: unknown) => (n as number) * 2
+		const env = makeTopLevel({
+			inc: lit(inc as never),
+			dbl: lit(dbl as never),
+		})
+		// 5 → inc → 6 → dbl → 12
+		const r = evaluate(parse('(|> 5 inc dbl)'), env)
+		expect(r.value).toBe(12)
+	})
+
+	it('chains a closure step', () => {
+		// (|> 5 ((=> (x: number): number x)))  — identity
+		const idClosure = fn(
+			[{ name: 'x', type: sym('number') }],
+			sym('number')
+		).withBody(sym('x'))
+		const env = makeTopLevel({ id: idClosure })
+		const r = evaluate(parse('(|> 5 id)'), env)
+		expect(r.value).toBe(5)
+	})
+
+	it('non-function step emits a diagnostic', () => {
+		const env = makeTopLevel({ x: lit(42) })
+		const r = evaluate(parse('(|> 5 x)'), env)
+		expect(r.diagnostics.some(d => d.message.includes('not a function'))).toBe(
+			true
+		)
+	})
+})
+
 describe('evaluate — quasiquote transparency', () => {
 	it('` x evaluates as if the backtick were absent', () => {
 		expect(evaluate(parse('`42'), emptyEnv).value).toBe(42)

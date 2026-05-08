@@ -141,6 +141,10 @@ class Parser {
 			case 'identifier':
 				this.advance()
 				return sym(t.value as string)
+			case '?':
+				// Bare `?` is the match special form head.
+				this.advance()
+				return sym('?')
 			case 'pathSegments':
 				this.advance()
 				return path(...(t.value as ReadonlyArray<'..' | string | number>))
