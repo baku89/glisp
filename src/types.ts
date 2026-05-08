@@ -120,22 +120,23 @@ export interface FnAST extends ASTBase {
 }
 
 /**
- * Path atom. Per syntax.md, dots are limited to 1 or 2:
+ * Path atom. `dots` is the number of leading `.` characters (>= 1); each dot
+ * walks one AST level up. `segments` is the chain after the dots.
  *
- *   ./foo        → dots: 1, segments: ['foo']            (parent's foo)
- *   ../foo       → dots: 2, segments: ['foo']            (grandparent's foo)
- *   ../foo/bar   → dots: 2, segments: ['foo', 'bar']
- *   ../vec/0     → dots: 2, segments: ['vec', 0]
- *   ./           → dots: 1, segments: []                 (the parent itself)
+ *   ./foo            → dots: 1, segments: ['foo']
+ *   ../foo           → dots: 2, segments: ['foo']
+ *   ../foo/bar       → dots: 2, segments: ['foo', 'bar']
+ *   ../vec/0         → dots: 2, segments: ['vec', 0]
+ *   ./               → dots: 1, segments: []                 (the parent itself)
+ *   .../foo          → dots: 3, segments: ['foo']            (great-grandparent's foo)
+ *   ..../a           → dots: 4, segments: ['a']
  *
- * Three or more dots are reserved for spread/splice/variadic and have no
- * path representation. Deeper-than-grandparent references must be expressed
- * via bare-name lookup through enclosing let-blocks or function parameters,
- * not via path syntax — see syntax.md — Path.
+ * Distinguishing path from spread (`...`): a path always has `/` (or end-of-
+ * token) after the leading dots. `...xs` is spread; `.../xs` is a path.
  */
 export interface PathAST extends ASTBase {
 	readonly kind: 'path'
-	readonly dots: 1 | 2
+	readonly dots: number
 	readonly segments: ReadonlyArray<string | number>
 }
 
