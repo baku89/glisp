@@ -141,37 +141,66 @@ const prelude = g.prelude                      // the standard env Glisp ships w
 
 ### Bindings
 
-`.with({...})` extends an env with one or more bindings, returning a new env. Bindings are passed as a record where each entry is a `[type, value]` tuple:
+`.with({...})` extends an env with one or more bindings, returning a new env. Each entry's value is either a plain JS value (whose type is inferred) or a `g.def(type, value)` marker (where the type is declared explicitly).
 
 ```ts
-const numFn = g.fn({ a: g.number, b: g.number }).returns(g.number)
-
 const env = g.prelude.with({
-  // functions
-  add: [numFn, (a, b) => a + b],
-  mul: [numFn, (a, b) => a * b],
+  // type-inferred from JS value
+  pi: 3.14159,                                       //  → number
+  greeting: "hello",                                  //  → string
+  flags: true,                                        //  → boolean
+  palette: ['red', 'green', 'blue'],                  //  → (vector string)
+  config: { port: 8080, host: 'localhost' },          //  → {port: number, host: string}
 
-  // numeric constant
-  pi: [g.number, 3.14159],
-
-  // record value
-  config: [g.record({ port: g.number, host: g.string }),
-           { port: 8080, host: 'localhost' }],
-
-  // enum value
-  mode: [g.enum('debug', 'release'), 'release'],
+  // explicit type via g.def — required for functions, optional otherwise
+  add: g.def(
+    g.fn({ a: g.number, b: g.number }).returns(g.number),
+    (a, b) => a + b
+  ),
+  mode: g.def(g.enum('debug', 'release'), 'release'),  // override the default 'string' inference
 })
 ```
 
-The same shape handles functions and constants — `value` is just a JS value that marshals to the declared type. A single binding is the same record form, just with one entry: `g.prelude.with({ pi: [g.number, 3.14159] })`. Bulk registration is the common case (a host typically exposes a whole module's worth of names at once), so the API has no separate single-binding shorthand.
+#### When inference suffices
+
+For most JS values, the Glisp type is uniquely determined by the value:
+
+| JS value                       | Inferred Glisp type                 |
+| ------------------------------ | ----------------------------------- |
+| `42`, `3.14`                   | `number`                            |
+| `"hello"`                      | `string`                            |
+| `true`, `false`                | `boolean`                           |
+| `Symbol.for('glisp.unit')`     | `unit`                              |
+| `[1, 2, 3]`                    | `(vector number)`                   |
+| `{x: 10, y: 20}`               | record `{x: number, y: number}`     |
+
+These can be passed as plain JS — no wrapper needed.
+
+#### When `g.def` is required
+
+A JS function carries no Glisp-type information at runtime: parameter and return types are not visible. Functions therefore must be wrapped with `g.def(type, value)` to declare their Glisp type:
+
+```ts
+add: g.def(
+  g.fn({ a: g.number, b: g.number }).returns(g.number),
+  (a, b) => a + b
+)
+```
+
+#### When `g.def` is optional but useful
+
+Use `g.def` whenever the inferred type is wrong or under-specified for the binding's intended role:
+
+- An `enum`-typed constant: `g.def(g.enum('debug', 'release'), 'release')` instead of plain `'release'` (which infers to `string`).
+- A value that should carry metadata: `g.def(g.number.meta({label: 'Width', default: 100}), 100)`.
+- An `ast`-typed value held as a TS-side `AST` handle: when the inference would not pick `ast`.
+
+#### Semantics
 
 - `type` is the binding's Glisp type, built via value builders (preferred — enables TS inference) or via `g.parse(string)`.
-- `value` is any JS value that marshals to the declared type. For functions, a plain JS function. The TS type of `value` must satisfy `g.infer<typeof type>`, otherwise it's a compile-time error.
+- `value` (whether wrapped or plain) must satisfy `g.infer<typeof type>` — TS catches mismatches at compile time.
 - `.with({...})` returns a new env; the original is unchanged. Multiple `.with` calls can be chained to layer additional scopes.
-
-The type is always required — there is no inference-from-value shortcut. This keeps the host API symmetric with Glisp's "types are always explicit" stance for function definitions.
-
-All metadata (`label`, `doc`, `default`, ...) attaches to the type itself via `^{...}`.
+- All metadata attaches to the type itself via `^{...}` or `.meta(...)` — no separate metadata field on the binding.
 
 This API mirrors [eval.md](./eval.md#environment)'s frame chain: `g.prelude` is the root frame, each `.with({...})` extends with another set of top-level bindings.
 
