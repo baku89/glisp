@@ -8,12 +8,16 @@
 
 ## Core premise
 
-Glisp is shaped by two complementary use cases:
+Glisp is designed to move freely between several modes of use:
 
-- **Visual / GUI editing**: a GUI host edits the AST directly. The language should never produce a state where the host cannot show something, the user should not have to invent names just to share intermediate values, edits should preserve formatting and trivia, and the host should be able to show and reason at any depth of evaluation.
-- **Declarative description files**: a project file, configuration, or document is itself a Glisp program. It can be written as pure static data and progressively enhanced with bindings, cross-references, and macros — gaining programmability, modularity, and DRY without giving up its declarative readability.
+- **Structural GUI editing** (Scratch-like): the AST is exposed as visual blocks; the user edits structurally.
+- **Direct manipulation** (canvas-like): the AST is hidden; the user manipulates the result on a viewport, and the AST is updated underneath via bidirectional evaluation.
+- **Textual programming** (classical source editing): the user types code in a text editor.
+- **Description files** (config / project / document): a Glisp program is also a serializable, declarative file that an application can read and write. It can start as pure static data and be progressively enhanced with bindings, cross-references, and macros — gaining programmability, modularity, and DRY without giving up declarative readability.
 
-Most of the design choices below follow from taking these two premises seriously together. The language core itself contains no UI, IDE, or graphics features — those belong to host applications — but the language is shaped throughout by the assumption that the consumer is either a visual editor or a description-file reader.
+The same language must serve all of these. The implication: the **syntax and sugar are kept minimal**, because mode-to-mode round-tripping breaks if any one mode introduces forms the others cannot represent.
+
+Most of the design choices below follow from this. The language core itself contains no UI, IDE, or graphics features — those belong to host applications — but the language is shaped throughout by the assumption that hosts span this full range of use modes.
 
 ## Derived principles
 
