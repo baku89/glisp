@@ -136,10 +136,10 @@ A trailing `?` on a record field name or function parameter name marks it as opt
 (=> (x: Number y?: String): Number ...)              ;; optional argument y
 ```
 
-Semantics:
+Semantics (in conjunction with the `()` missing-value signal — see [types.md](./types.md)):
 
-- **Required** field/argument absent → diagnostic (warning/error) + fallback to the type's `default`.
-- **Optional** field/argument absent → no diagnostic, fallback to the type's `default`.
+- A missing or `()` value at a **required** slot triggers the type's `default` and emits a diagnostic.
+- A missing or `()` value at an **optional** slot triggers the type's `default` silently.
 
 ### `{...}` — record or let-block
 
@@ -227,12 +227,7 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 
 ### `default` fallback timing
 
-The `default` of the expected type is substituted in any of:
-
-- Function application: a type-mismatched argument is replaced with the parameter type's default.
-- Cast `(T value)`: when `value` does not validate as `T`, the result is the default of `T`.
-- Any expression evaluation: a runtime error in a context expecting type `T` is replaced by `T`'s default.
-- Static-time: when the type checker proves an expression will fail, the substitution happens at compile time.
+See [types.md](./types.md) for the canonical specification. In summary, default is substituted when `()` arrives at a typed slot, or when a non-`()` type mismatch occurs at a typed slot. Required slots emit diagnostics; optional slots (`?`) do not.
 
 ## Types
 

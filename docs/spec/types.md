@@ -95,18 +95,26 @@ The language core assigns semantic meaning only to:
 
 | Key | Meaning |
 |---|---|
-| `default` | Fallback value when type mismatch or error |
+| `default` | Fallback value when `()` arrives at a typed slot of this type, or when a non-`()` type mismatch occurs |
 
 All other keys are unrestricted. Hosts may register typed schemas for them via the host API.
 
-### Default fallback timing
+### `()` and default fallback
 
-`default` is substituted in any of these situations:
+`()` (the Unit literal) plays a dual role:
 
-- Function application: a type-mismatched argument is replaced with the parameter type's default before the body runs.
-- Cast: `(T v)` returns `T`'s default when `v` does not validate as `T`.
-- Any evaluation: a runtime error in a context expecting type `T` is replaced by `T`'s default.
-- Static-time: when the type checker proves an expression will fail, the substitution happens at compile time.
+- As an explicit value, it is the unique inhabitant of `Unit`.
+- As an implicit signal, it represents "value cannot be determined" — the canonical missing-value sentinel produced by any evaluator failure (unresolvable name, path failure, out-of-bounds access, cycle, etc.).
+
+`()` is polymorphic: it is accepted at any typed slot. When `()` arrives at a slot whose declared type is `T`, it is coerced to `T`'s `default` metadata value.
+
+Default substitution happens in any of these situations:
+
+- **`()` arrives at a typed slot**: function parameter, record field declared with `:`, cast `(T v)`, predicate of `if`, etc. The slot's `default` is used.
+  - For required slots: a diagnostic is emitted at the substitution site.
+  - For optional slots (declared with `?`): substitution is silent.
+- **Non-`()` type mismatch at a typed slot**: a diagnostic is emitted and the slot's `default` is used.
+- **Static-time**: when the type checker proves an expression will fail, the substitution happens at compile time without waiting for runtime.
 
 Evaluation never throws at the language level. Errors and warnings flow on a parallel diagnostics channel.
 

@@ -69,7 +69,7 @@ For a bare name `x` at env `e`:
 resolve(x, e): (AST, Env)
 ```
 
-Walk `e`'s frame chain. At each frame, check whether its `bindings` contain `x`. Return the innermost found `(AST, env)` pair. If no frame contains `x`, emit a diagnostic and yield the surrounding context's expected default.
+Walk `e`'s frame chain. At each frame, check whether its `bindings` contain `x`. Return the innermost found `(AST, env)` pair. If no frame contains `x`, emit a diagnostic and yield `()` as the resolved value (see [Failure as `()`](#failure-as-)).
 
 The walk covers only scope frames; AST nesting (records, vectors, applications) does not appear in the env, so it is automatically transparent to bare-name lookup.
 
@@ -85,7 +85,7 @@ For a function application `(head arg0 arg1 ...)`, the indices are `0` = head, `
 
 `env_at_target` is the env that surrounds the target AST node — it is computed by following `e` up through scope frames whose corresponding AST contains or equals the target. In practice this means: the env active at the target node's nearest enclosing scope-introducing form. It is the env in which the target AST would be evaluated if encountered there directly.
 
-If the parent walk takes the path above top-level, or a segment fails to address any child, emit a diagnostic and yield the surrounding context's expected default.
+If the parent walk takes the path above top-level, or a segment fails to address any child, emit a diagnostic and yield `()` (see [Failure as `()`](#failure-as-)).
 
 Path navigation traverses the full AST tree; records, vectors, applications, and quasiquotes participate (unlike bare-name lookup). Wrapping an expression in a vector therefore changes the dot-count required to reach an outer position.
 
@@ -109,6 +109,27 @@ When `eval` recurses into a sub-expression, it passes the sub-AST and the *same*
 ### Quasiquoted forms
 
 Within `` `(...) ``, sub-expressions are not evaluated; the form is data. Only `~expr` and `~@expr` are evaluated, in the surrounding env. The result of `` `... `` is a syntax-tree value.
+
+## Failure as `()`
+
+`()` (the Unit literal) is the canonical signal for "value cannot be determined". Any evaluator failure produces `()`:
+
+- Unresolvable bare name (no frame in the chain has the name).
+- Path navigating above top-level or addressing a non-existent child.
+- Out-of-bounds access (`[].1`, `(rec "missing-key")`).
+- Cycle detected during forcing.
+- Sub-expression that cannot be reduced to a value for any reason.
+
+`()` is polymorphic in the sense that it is accepted at any typed slot (function parameter, record field declared with `:`, cast). When `()` arrives at a typed slot of type `T`, it is coerced to `T`'s `default` metadata value (see [types.md](./types.md)).
+
+A diagnostic is emitted at the failure source and at the coercion site (with optional suppression for declared-optional positions).
+
+The dual role of `()`:
+
+- As an explicit value: the unique inhabitant of `Unit`.
+- As an implicit signal: "missing", coerced to the slot type's default at typed slots.
+
+In the second role `()` flows through untyped positions (let-block bindings, vector elements, intermediate expressions) and is only converted at a slot that carries a type expectation.
 
 ## Diagnostics
 
