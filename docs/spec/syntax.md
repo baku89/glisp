@@ -435,7 +435,7 @@ Any expression can be prefixed with `^{...}` to attach metadata:
 ^{doc: "Square the number"} (=> (x: number): number (* x x))
 ^{label: "Width"} 100
 ^{label: "Origin"} {x: 0 y: 0}
-^{label: "2D Point"} [...number]
+^{label: "2D Point"} [number number]
 ```
 
 The `{...}` after `^` is a record literal (uses `:` for keys).
