@@ -255,6 +255,15 @@ expand:  (AST, Env) → AST           ;; one expansion step, returns intermediat
 
 Both operations agree on the final value: `eval(AST, env)` equals `eval(expand(AST, env), env)`.
 
+### Termination of `expand`
+
+A single call to `expand` always terminates. Two cases:
+
+1. **Fixed point**: if the AST has nothing left to expand (it is not a macro call, or it is a primitive form), `expand` returns the AST unchanged. Calling `expand` again on this result yields the same AST — `expand(expand(x)) == expand(x)`.
+2. **Cycle**: if `expand`'s template substitution recurses into an `(AST, env)` already being expanded (the same `InProgress` state used by `eval`'s [Cycle detection](#cycle-detection)), it stops, leaves that node unchanged, and emits a diagnostic. This guards against directly or mutually self-referential macros.
+
+A host iterating `expand` to reach a fully-expanded form should stop when the result equals the input (fixed-point reached). A higher-level `expandAll(ast, env, options)` may be provided that does the iteration with a configurable depth limit; the limit guards against pathologically slow but non-cyclic expansion.
+
 ### Hygiene (future work)
 
 `expand`'s substitution is not the textual replacement that would suffice in a hygienic-free system. Symbols in the body (e.g. `*`) refer to bindings in the body's defining scope; if the call site has shadowed those names, naive substitution would capture the wrong binding.
