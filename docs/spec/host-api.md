@@ -259,21 +259,21 @@ The `ast` argument does not need to be a structural descendant of any AST refere
 
 See [eval.md](./eval.md#environment) for the underlying frame-chain model.
 
-## Host-provided types
+## External types
 
-Any JS value that does not correspond to a Glisp built-in type can flow through Glisp via a host-declared type. From Glisp's perspective such values inhabit a named foreign type whose internals are not introspectable; they pass through unchanged.
+Any JS value that does not correspond to a Glisp built-in type can flow through Glisp via an externally-declared type. From Glisp's perspective such values inhabit a named external type whose internals are not introspectable; they pass through unchanged.
 
-`g.host` declares such a type. The same API covers both **monomorphic** types (`Date`) and **generic** type constructors of arity 1 (`Observable<T>`):
+`g.extern` declares such a type. The same API covers both **monomorphic** types (`Date`) and **generic** type constructors of arity 1 (`Observable<T>`):
 
 ```ts
 // monomorphic
-const DateType = g.host<Date>('Date', {
+const DateType = g.extern<Date>('Date', {
   guard: (v): v is Date => v instanceof Date,
   default: new Date(0),
 })
 
 // generic (1-argument type constructor)
-const Observable = g.host<Observable<any>>('Observable', {
+const Observable = g.extern<Observable<any>>('Observable', {
   arity: 1,
   guard: (v): v is Observable<any> => v instanceof Observable,
   default: <T>() => EMPTY as Observable<T>,
@@ -286,14 +286,14 @@ const env = g.prelude.with({
 })
 ```
 
-### TS inference for `g.host`
+### TS inference for `g.extern`
 
 The TS type argument is propagated by `g.infer`:
 
 - **Monomorphic**: `g.infer<typeof DateType>` is `Date`.
 - **Generic**: `g.infer<typeof Observable(g.number)>` is `Observable<number>`. The element type is captured at the call to `Observable(...)` and woven into the JS type via TS's higher-rank generics.
 
-Concretely, the generic form of `g.host<JSCtor>(name, options)` returns a function `(t: TypeHandle<T>) => OpaqueTypeHandle<JSCtor with T substituted>`, so calling `Observable(g.number)` yields a handle whose inferred TS type is `Observable<number>`. This enables the `bind` site's `value` to be type-checked against the parameterized form (`fn: () => Observable<number>` rather than `() => Observable<any>`).
+Concretely, the generic form of `g.extern<JSCtor>(name, options)` returns a function `(t: TypeHandle<T>) => ExternTypeHandle<JSCtor with T substituted>`, so calling `Observable(g.number)` yields a handle whose inferred TS type is `Observable<number>`. This enables the `bind` site's `value` to be type-checked against the parameterized form (`fn: () => Observable<number>` rather than `() => Observable<any>`).
 
 ### Semantics
 
@@ -303,7 +303,7 @@ Concretely, the generic form of `g.host<JSCtor>(name, options)` returns a functi
 - Generic types compare by **name + identity of the type argument**. The runtime `guard` checks only the JS class — element-type validity is the host's responsibility (a `Observable<number>` cast can't verify the stream actually emits numbers).
 - Higher arities (`arity >= 2`) are not currently supported. If a multi-parameter generic is needed, the host can compose with records or wrap with another generic.
 
-Convention: host-provided types are named with an uppercase initial (`Date`, `URL`, `Map`, `Observable`), per the [naming convention](./types.md#naming-convention).
+Convention: external types are named with an uppercase initial (`Date`, `URL`, `Map`, `Observable`), per the [naming convention](./types.md#naming-convention).
 
 ## Function overloading
 
