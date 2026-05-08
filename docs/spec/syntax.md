@@ -199,6 +199,8 @@ When two parens lists appear before the return type `:`, the first is the generi
 
 Every value parameter must have a name. There is no anonymous parameter form (e.g. `(=> (number number): number)` is invalid). Parameter names are part of the function's interface — they enable keyword-argument calls (see [Application — keyword arguments](#application--keyword-arguments)) — so they remain required even in body-less function-type expressions.
 
+A function takes **at least one value parameter**. A zero-parameter function `(=> (): T body)` is a syntax error: in a purely functional language the body's value is fully determined by its lexical context, so "calling" the function is indistinguishable from referencing the body directly — `body` and `((=> (): T body))` are the same expression. Use the body in place. Hosts that need to expose an impure operation (e.g. `Date.now()`) conventionally insert a nominal `unit` parameter, making the call site visible: `(=> (tick: unit): Date ...)`.
+
 ### Variadic parameters
 
 A parameter prefixed with `...` is variadic: it collects the remaining positional arguments into a vector.

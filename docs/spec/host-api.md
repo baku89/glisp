@@ -244,7 +244,8 @@ const Observable = g.opaque<Observable<any>>('Observable', {
 })
 
 const env = g.prelude.with({
-  today: g.def(g.fn({}).returns(DateType), () => new Date()),
+  // impure host op: nominal `unit` parameter makes the call site visible
+  today: g.def(g.fn({tick: g.unit}).returns(DateType), () => new Date()),
   numbers: g.def(Observable(g.number), of(1, 2, 3)),
   names:   g.def(Observable(g.string), of('a', 'b')),
 })
