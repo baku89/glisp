@@ -275,7 +275,11 @@ const env = g.prelude.with({
 })
 ```
 
-Dispatch rule: at a call site `(+ a b)`, the evaluator scans the overload candidates in declared order and picks the first whose parameter types match the actual argument types. If none match, the call falls back per the standard type-mismatch handling.
+Dispatch rule: at a call site `(+ a b)`, the evaluator scans the overload candidates **in declared order** and picks the first whose parameter types accept the actual arguments (i.e. each argument casts successfully against the candidate's parameter type). If none match, the call falls back per the standard type-mismatch handling.
+
+Authors are responsible for ordering candidates from most-specific to least-specific. Putting a broad signature (e.g. parameters typed `_`) first would shadow narrower ones below it.
+
+This is the same dispatch shape as `?` (match): linear scan, first match wins, no "most-specific" ranking. The evaluator runs one algorithm for both forms.
 
 In Glisp source, the same overload form is available as the `overload` special form:
 
@@ -284,8 +288,6 @@ In Glisp source, the same overload form is available as the `overload` special f
       (=> (a: number b: number): number ...)
       (=> (a: vec2 b: vec2): vec2 ...))
 ```
-
-Open: ranking when multiple candidates match (most-specific-wins, vs. declared-order, vs. ambiguity error). See Open questions.
 
 ## Functions across the boundary
 
