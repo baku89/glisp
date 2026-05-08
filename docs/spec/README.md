@@ -4,6 +4,7 @@
 
 - [`syntax.md`](./syntax.md) — Concrete syntax: tokens, structure (`()`, `[]`, `{}`), functions, metadata `^{...}`, quoting.
 - [`types.md`](./types.md) — Type system: values-as-types, type constructors, metadata semantics, cast, inference.
+- [`eval.md`](./eval.md) — Evaluation model: scopes, name resolution, lazy semantics, DAG, diagnostics.
 
 ## Design pillars
 
