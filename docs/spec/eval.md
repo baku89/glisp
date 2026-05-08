@@ -372,5 +372,5 @@ Before evaluation, a static resolution pass walks the AST and verifies that ever
 
 - **Default fallback propagation**: when a sub-expression's evaluation falls back to a default value, how does the diagnostic propagate up the surrounding expression?
 - **Partial evaluation**: any evaluation node is in principle evaluable. What host API surfaces this for tooling?
-- **Incremental / differential evaluation**: when an input AST node is replaced, what is the cache invalidation rule?
+- **Incremental / differential evaluation**: when an input AST node is replaced, the memo cache invalidates exactly along the path from the change site to the root (because every ancestor AST and env frame on that path is a new instance). Practical incrementality therefore depends on the host preserving **structural sharing** of unchanged sub-trees and env frames; with sharing, re-evaluation cost is O(change depth) rather than O(tree size). The host-API surface for "replace this AST node, give me a refreshed root" is unspecified.
 - **Bidirectional evaluation**: editing a result value, how is the corresponding input inferred?
