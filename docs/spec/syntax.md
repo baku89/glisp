@@ -301,6 +301,3 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 | `..` | path: one scope level up |
 | `/` | division atom; path separator after `..` |
 
-## Open questions
-
-- Module / import syntax.
