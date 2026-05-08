@@ -82,35 +82,26 @@ function numberLiteral(n: number): string {
 
 function stringLiteral(s: string): string {
 	// Glisp escapes per syntax.md: \n \r \t \" \\ \uXXXX
-	let out = '"'
-	for (const ch of s) {
-		switch (ch) {
-			case '\n':
-				out += '\\n'
-				break
-			case '\r':
-				out += '\\r'
-				break
-			case '\t':
-				out += '\\t'
-				break
-			case '"':
-				out += '\\"'
-				break
-			case '\\':
-				out += '\\\\'
-				break
-			default: {
-				const code = ch.codePointAt(0)!
-				if (code < 0x20) {
-					out += '\\u' + code.toString(16).padStart(4, '0')
-				} else {
-					out += ch
-				}
+	return (
+		'"' +
+		s.replace(/[\n\r\t"\\\u0000-\u001f]/g, (ch) => {
+			switch (ch) {
+				case '\n':
+					return '\\n'
+				case '\r':
+					return '\\r'
+				case '\t':
+					return '\\t'
+				case '"':
+					return '\\"'
+				case '\\':
+					return '\\\\'
+				default:
+					return '\\u' + ch.codePointAt(0)!.toString(16).padStart(4, '0')
 			}
-		}
-	}
-	return out + '"'
+		}) +
+		'"'
+	)
 }
 
 function printRecord(ast: RecordAST, inQuote: boolean): string {
