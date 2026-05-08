@@ -26,8 +26,8 @@ Three kinds of frames:
 | Frame | `parent` | `bindings` |
 |---|---|---|
 | Top-level | `null` | host-provided initial bindings |
-| Let-block `{a = ... b = ... ...}` | enclosing frame | each `name → (RHS-AST, this-frame)` (self-referential, enables recursive bindings) |
-| Function body | the closure's captured lexical env | each `parameter → (argument-AST, caller's env)` |
+| Let-block `{a = ... b = ... ...}` | enclosing frame | each `name → (value-AST, this-frame)` where `value-AST` is the expression on the right of `=` (self-referential, enables recursive bindings) |
+| Function body | the closure's captured lexical env | each `parameter → (argument-AST, caller's env)` where `argument-AST` is the expression passed at the call site |
 
 Records (`{x: 10}`), vectors (`[...]`), function applications (`(fn args)`), and quasiquoted forms (`` `(...) ``) do not introduce frames.
 
