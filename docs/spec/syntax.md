@@ -3,7 +3,7 @@
 ## Design principles
 
 - S-expression based.
-- No English keywords. Reserved tokens are symbolic (`=>`, `***`, `_|_`, `^`, etc.).
+- No English keywords. Reserved tokens are symbolic (`=>`, `_`, `!`, `^`, etc.).
 - Whitespace is the only separator. No commas. Newlines are whitespace.
 - Code-as-data: quoted expressions are first-class values.
 
@@ -18,8 +18,8 @@
 | `"hello"`, `"with\nescape"` | `String`  |
 | `true`, `false`             | `Boolean` |
 | `()`                        | `Unit`    |
-| `***`                       | `Top`     |
-| `_\|_`                      | `Bottom`  |
+| `_`                         | `Top`     |
+| `!`                         | `Bottom`  |
 
 
 `Number` is a single unified numeric type, IEEE 754 double internally.
@@ -38,6 +38,16 @@ foo bar baz!  +  *  multiply-by-2  >=  is-empty
 
 Allowed characters: alphanumerics and `+ - * < > & | % _ ! $`. The first character must not be a digit.
 
+Several bare tokens are reserved and cannot stand alone as identifiers; embedded use within an identifier is still fine:
+
+| Bare token | Reserved meaning                            | Embedded example (still valid) |
+| ---------- | ------------------------------------------- | ------------------------------ |
+| `_`        | `Top` type literal                          | `_x`, `foo_bar`                |
+| `!`        | `Bottom` type literal                       | `is-empty!`                    |
+| `%`        | partial-application placeholder             | `URL%encoded`                  |
+| `\|>`      | pipe special form                           | (none — distinct from `\|`)    |
+| `?`        | match special form (head); optional suffix  | (none — `?` already reserved)  |
+
 Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` and whitespace.
 
 `/` standing alone is an atom referring to the division function (the same role `+` `-` `*` play as bare-token operator atoms). It is not part of identifiers because it doubles as the path separator (see [Path](#path)).
@@ -45,6 +55,22 @@ Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` 
 ### Comments
 
 One-line only: `; ...`. Comments run to the end of the line.
+
+## Whitespace
+
+Whitespace separates tokens. Newlines are whitespace; commas are not used.
+
+Adjacent elements at the same nesting level must be separated by at least one whitespace character. A closing bracket (`)`, `]`, `}`) cannot directly abut another token. The following are syntax errors:
+
+```glisp
+[[1][2]]      ;; ❌ — write [[1] [2]]
+(foo)(bar)    ;; ❌ — write (foo) (bar)
+(+ 1 2)3      ;; ❌ — write (+ 1 2) 3
+```
+
+This is stricter than traditional Lisp (where closing brackets implicitly terminate tokens). The benefit is regular tokenization and trivial whole-tree text rewrites: a primitive-level find/replace never has to worry about token boundaries hidden inside `]a` or `)(`.
+
+Opening brackets in succession (`((`, `[[`, `[(`, `({`, ...) are not element boundaries and need no separator.
 
 ## Structure
 
@@ -102,8 +128,9 @@ A path atom references an AST position relative to the current expression by wal
 
 - `./name` — `name` in the immediate parent AST node.
 - `../name` — `name` in the grandparent.
-- Each additional `.` walks one more AST level up.
 - After the dots, segments may chain with `/`: `./record/key`, `../vec/0`.
+
+Path supports two levels only (`.` and `..`). Three or more dots (`...`) are reserved for spread/splice/variadic forms; a token of the shape `.../foo` is not a path. Deeper references should use bare-name lookup via let-block bindings or function parameters instead.
 
 Segments are names (record fields, kwargs, let-block bindings, function parameters) or integers (vector elements, positional arguments).
 
@@ -118,9 +145,6 @@ Segments are names (record fields, kwargs, let-block bindings, function paramete
 
 (+ x ./1)                       ;; in a call, child 0 is head (+), child 1 is x, child 2 is ./1
                                 ;; ./1 = child 1 = x → equivalent to (+ x x)
-
-{a = 10
- b = [(/ ../../../a 2)]}        ;; 3 dots: path → call → vector → let-block
 ```
 
 Paths walk every AST level, including records, vectors, function applications, and quasi-quotes. Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
@@ -173,6 +197,21 @@ Argument signature and return type are mandatory. Inside the body, types are inf
 
 When two parens lists appear before the return type `:`, the first is the generic parameter list (bare names) and the second is the value parameter list (`name: Type` entries). When one list appears, it is the value parameter list.
 
+### Variadic parameters
+
+A parameter prefixed with `...` is variadic: it collects the remaining positional arguments into a vector.
+
+```glisp
+(=> (...xs: (Vector Number)): Number ...)
+(=> (init: Number ...rest: (Vector Number)): Number ...)
+```
+
+- A variadic parameter must appear last in the value parameter list.
+- Its type must be `(Vector T)` for some `T`. Each collected argument is checked against `T`.
+- At most one variadic parameter per function.
+
+See [Spread](#spread--) for how to call variadic functions and for spread in vectors, records, and quasiquote.
+
 ### Application — keyword arguments
 
 Named arguments are written with `=`:
@@ -180,6 +219,111 @@ Named arguments are written with `=`:
 ```glisp
 (fn arg0 arg1 key0=value0 key1=value1)
 ```
+
+## Spread — `...`
+
+A unary `...` prefix expands its operand into the surrounding form. The same prefix is used in four places, with one consistent meaning ("inline these elements here"):
+
+| Context              | Form                  | Effect                                                            |
+| -------------------- | --------------------- | ----------------------------------------------------------------- |
+| Function call        | `(f a ...xs b)`       | spreads vector `xs` as positional arguments                       |
+| Vector literal       | `[1 ...xs 4]`         | inlines elements of `xs` into the vector                          |
+| Record literal       | `{a: 1 ...rec b: 2}`  | merges fields of `rec` into the record (later keys win)           |
+| Quasiquote (splice)  | `` `(foo ...~xs) ``   | unquote-splice: evaluates `xs` and inlines its elements           |
+
+```glisp
+{xs = [2 3]
+ (+ 1 ...xs 4)}                     ;; → 10
+[0 ...[1 2 3] 4]                    ;; → [0 1 2 3 4]
+{a: 1 ...{b: 2 c: 3} d: 4}          ;; → {a: 1 b: 2 c: 3 d: 4}
+{base = {a: 1 b: 2}
+ {...base b: 99}}                   ;; → {a: 1 b: 99} (later key wins)
+`(foo ...~xs bar)                   ;; xs evaluates to [1 2 3] → `(foo 1 2 3 bar)
+```
+
+The operand of `...` must evaluate to a vector (in call/vector/quasiquote-splice contexts) or to a record (in record context). Type mismatch falls back per the usual rules.
+
+The `...` of a spread is always followed directly by an identifier or `~`. This distinguishes it from path forms, which always have a `/` after the dots — and Glisp paths only go up to two dots (see [Path](#path----and-)).
+
+## Special forms
+
+Three forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), and `%` (partial-application placeholder). They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
+
+### Match — `?`
+
+`?` is a head-position special form that branches on the value of its first argument. Subsequent arguments form a flat sequence of `pattern result` pairs.
+
+```glisp
+(? value
+   pattern1 result1
+   pattern2 result2
+   ...
+   _        fallback)
+```
+
+- Patterns are scanned in order; the first matching clause's result is returned.
+- A pattern that is a **type** (e.g. `Number`, `String`, `(Enum "round" "butt")`, `_`) matches when the value casts successfully. `_` (Top) matches anything, so it serves as the fallthrough catch-all.
+- A pattern that is a **value** (literal or otherwise) matches by value equality.
+- If no clause matches, the result is `()`.
+- All `result` expressions must have the same type (no union). The type of the whole `?` form is that common result type.
+- The argument count after `value` must be even (clauses come in pairs); otherwise it is a syntax error.
+
+`if` is just a special case of `?`:
+
+```glisp
+(? cond  true thenExpr  _ elseExpr)     ;; if-then-else via match
+```
+
+No separate `if` form is provided.
+
+### Pipe — `|>`
+
+`|>` chains values through a sequence of steps. Each step is applied as a function to the value flowing in.
+
+```glisp
+(|> input step1 step2 ... stepN)
+```
+
+- `input` is evaluated; its value flows into `step1`, whose result flows into `step2`, and so on.
+- Each `stepK` evaluates to a function (after `%` expansion if applicable; see below). The function is called with the flowing value as its sole argument.
+- The result of the whole `|>` is the output of `stepN`.
+
+```glisp
+(|> 5 double)              ;; ≡ (double 5)
+(|> 5 double show)         ;; ≡ (show (double 5))
+(|> 5 (+ 2 %))             ;; ≡ ((=> (x) (+ 2 x)) 5) → 7
+(|> 5 (f a % b))           ;; ≡ ((=> (x) (f a x b)) 5) → (f a 5 b)
+```
+
+When `input` itself is `%`, the entire `|>` form is the function (function composition):
+
+```glisp
+(|> % f g)                 ;; ≡ (=> (x) (g (f x)))   — function composition
+(|> % (+ 2 %))             ;; ≡ (=> (x) (+ 2 x))
+(map (|> % double) xs)     ;; pass (=> (x) (double x)) to map
+```
+
+### Partial application — `%`
+
+A bare `%` in any expression turns its **smallest enclosing** `(...)`, `[...]`, or `{...}` into a single-argument function. The argument replaces every occurrence of `%` within that enclosing form.
+
+```glisp
+(f % y)              ;; ≡ (=> (x) (f x y))
+(* 2 %)              ;; ≡ (=> (x) (* 2 x))
+(map (* 2 %) xs)     ;; ≡ (map (=> (x) (* 2 x)) xs)
+[% %]                ;; ≡ (=> (x) [x x])
+{a: (+ % 1)}         ;; ≡ {a: (=> (x) (+ x 1))}     — only (+ % 1) is wrapped
+(* % %)              ;; ≡ (=> (x) (* x x))           — same x reused
+(g (f %) (h %))      ;; ≡ (g (=> (x) (f x)) (=> (y) (h y)))   — independent functions
+```
+
+Expansion is bottom-up: the innermost `%` is consumed first, so each `%` belongs to its smallest enclosing `(...)`/`[...]`/`{...}`. Nesting is unambiguous.
+
+Restrictions:
+- `%` may not appear directly inside a function literal `(=> ...)`. The literal already declares its arguments explicitly; mixing `%` would be ambiguous. Syntax error.
+- Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> (a b) ...)` explicitly.
+
+The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 %)` becomes a function via the `%` expansion, then `|>` applies it. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
 
 ## Type annotation
 
@@ -233,7 +377,7 @@ See [types.md](./types.md) for the canonical specification. In summary, default 
 
 ### Built-in primitive types
 
-The built-in primitive types are `Number`, `String`, `Boolean`, `Unit`, `Top`, and `Bottom`. Their literal forms: `()` for `Unit`, `***` for `Top`, `_|_` for `Bottom`.
+The built-in primitive types are `Number`, `String`, `Boolean`, `Unit`, `Top`, and `Bottom`. Their literal forms: `()` for `Unit`, `_` for `Top`, `!` for `Bottom`.
 
 ### Type constructors
 
@@ -281,19 +425,19 @@ Code-as-data via Clojure-style quasiquoting:
 | ----------- | ------------------------------------------------------------------------------ |
 | `` `expr `` | quasiquote: produce the expression itself as a value                           |
 | `~expr`     | unquote: evaluate `expr` and splice its result into the surrounding quasiquote |
-| `~@expr`    | unquote-splice: evaluate `expr` and splice its elements                        |
+| `...~expr`  | unquote-splice: evaluate `expr` and splice its elements                        |
 
 
 ```glisp
-`(+ 1 ~x ~@xs)
+`(+ 1 ~x ...~xs)
 ```
 
 The result of ``...` is itself a Glisp value (a syntax tree).
 
 ## Top / Bottom
 
-- `***` is the top type — every value inhabits it.
-- `_|_` is the bottom type — no value inhabits it.
+- `_` is the top type — every value inhabits it.
+- `!` is the bottom type — no value inhabits it.
 
 ## Reserved syntactic forms
 
@@ -309,13 +453,15 @@ The result of ``...` is itself a Glisp value (a syntax tree).
 | `^{...}`      | metadata attachment                                    |
 | `` ` ``       | quasiquote                                             |
 | `~`           | unquote                                                |
-| `~@`          | unquote-splice                                         |
-| `***`         | Top type                                               |
-| `_\|_`        | Bottom type                                            |
+| `...`         | spread / variadic / unquote-splice (with `~`)          |
+| `_`           | Top type                                               |
+| `!`           | Bottom type                                            |
 | `;`           | one-line comment                                       |
-| `?`           | optional field / argument suffix                       |
+| `?`           | match special form (head); optional field/arg suffix   |
+| `\|>`         | pipe special form                                      |
+| `%`           | partial-application placeholder                        |
 | `.`           | member accessor (record field / vector index)          |
-| `..`          | path: one more AST level up                            |
-| `/`           | division atom; path separator after `..`               |
+| `..`          | path: grandparent (one more AST level up)              |
+| `/`           | division atom; path separator after `.` or `..`        |
 
 

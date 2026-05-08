@@ -42,8 +42,8 @@ There is no subtyping. Types are nominal/equality-based.
 | `String` | All strings |
 | `Boolean` | `true`, `false` |
 | `Unit` | `()` |
-| `Top` (`***`) | Any value |
-| `Bottom` (`_|_`) | No value |
+| `Top` (`_`) | Any value |
+| `Bottom` (`!`) | No value |
 
 ## Type constructors
 

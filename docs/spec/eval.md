@@ -39,10 +39,10 @@ For each node type, the number of trivia slots reflects the syntactic positions 
 | Metadata-attached `^{meta} expr` | 2 | 1 | `^` is **sticky** to `{`; trivia only between `^{...}` and `expr` |
 | Quasiquote `` `expr `` | 1 | 0 | **sticky**: backtick glued to next form |
 | Unquote `~expr` | 1 | 0 | **sticky** |
-| Unquote-splice `~@expr` | 1 | 0 | **sticky** |
+| Unquote-splice `...~expr` | 1 | 0 | **sticky** |
 | Path `../...`, `./...` | atom-internal | 0 | path tokens are single atoms; no trivia inside |
 
-The flexible/sticky split is chosen so layout-affecting delimiters (`:`, `=`) accommodate multi-line forms, while prefix-style modifiers (`^`, `` ` ``, `~`, `~@`) remain visually attached to what they modify.
+The flexible/sticky split is chosen so layout-affecting delimiters (`:`, `=`) accommodate multi-line forms, while prefix-style modifiers (`^`, `` ` ``, `~`, `...~`) remain visually attached to what they modify.
 
 No parent pointer. The "where am I in the tree" information is supplied by the env at evaluation time. Subtrees are immutable and freely shareable / graftable across other trees. Source positions are not stored explicitly; they are derivable by walking trivia.
 
@@ -162,7 +162,7 @@ Examples like `{a: ./b  b: ./a}` resolve via this rule: each field becomes `()`,
 
 ### Quasiquoted forms during evaluation
 
-The macro-related annotations (`` ` ``, `~`, `~@`) are **transparent during evaluation**. `eval` produces the same value as if the annotations were not present. The annotations only matter for `expand` (see [Multi-step evaluation](#multi-step-evaluation--abstraction-ladder)).
+The macro-related annotations (`` ` ``, `~`, `...~`) are **transparent during evaluation**. `eval` produces the same value as if the annotations were not present. The annotations only matter for `expand` (see [Multi-step evaluation](#multi-step-evaluation--abstraction-ladder)).
 
 In particular, `eval((pow 2 3), env)` yields the final value `8` directly; there is no intermediate AST construction during normal evaluation.
 
@@ -181,7 +181,7 @@ A core design principle of Glisp: **every expression has an abstraction ladder**
 Concrete example:
 
 ```glisp
-pow = (=> (x: Number a: Number): Number `(* ~@(repeat x a)))
+pow = (=> (x: Number a: Number): Number `(* ...~(repeat x a)))
 
 (pow (+ 1 1) 3)                              ;; rung 0: source
 (* (+ 1 1) (+ 1 1) (+ 1 1))                  ;; rung 1: one expansion step
@@ -198,7 +198,7 @@ expand:  (AST, Env) → AST           ;; one expansion step, returns intermediat
 ```
 
 - `eval` produces the final value. It treats macro-related annotations as transparent.
-- `expand` performs one expansion step. It substitutes a call's body with its arguments, respecting `` ` ``, `~`, `~@` as a template for shaping the result AST. Repeated `expand` calls climb down the ladder.
+- `expand` performs one expansion step. It substitutes a call's body with its arguments, respecting `` ` ``, `~`, `...~` as a template for shaping the result AST. Repeated `expand` calls climb down the ladder.
 
 Both operations agree on the final value: `eval(AST, env)` equals `eval(expand(AST, env), env)`.
 

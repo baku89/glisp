@@ -32,7 +32,7 @@ These follow from the GUI-primary premise:
 7. **DAG with memoization**. Shared sub-computations form a graph; memoization keyed on `(AST, env)` makes sharing explicit and supports incremental re-evaluation when one node changes.
 8. **All values are callable**. Function → apply, type → cast, vector → index, record → field. The GUI exposes one uniform "feed something in" affordance per node.
 9. **Metadata as a separate value-layer**. `^{...}` carries `default`, `label`, `color`, `icon`, `doc`, etc. The core only assigns meaning to `default`; the rest is for hosts.
-10. **Code-as-data with macro transparency**. `` ` ``, `~`, `~@` shape the AST produced by `expand` but are transparent in `eval`. The host can climb the ladder; the runtime gets the final value.
+10. **Code-as-data with macro transparency**. `` ` ``, `~`, `...~` shape the AST produced by `expand` but are transparent in `eval`. The host can climb the ladder; the runtime gets the final value.
 
 ## Foundational language choices
 
