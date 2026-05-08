@@ -144,11 +144,14 @@ The block contents determine the kind:
 
 ```glisp
 (=> (x: Number y: Number): Number (* x y))
-(=> <T> (x: T): T x)                          ;; generic
+(=> (T) (x: T): T x)                          ;; generic
+(=> (T U) (a: T b: U): T a)                   ;; multiple generics
 (=> (Number Number): Number)                  ;; function type (no body)
 ```
 
 Argument signature and return type are mandatory. Inside the body, types are inferred.
+
+When two parens lists appear before the return type `:`, the first is the generic parameter list (bare names) and the second is the value parameter list (`name: Type` entries). When one list appears, it is the value parameter list.
 
 ### Application — keyword arguments
 
@@ -245,10 +248,11 @@ There is no subtyping. Types are nominal/equality-based. `Enum` membership is ch
 
 ### Generics
 
-`<T>` introduces a type parameter:
+A generic parameter list is written as a leading parens of bare names before the value parameter list:
 
 ```glisp
-(=> <T> (xs: (Vector T) i: Number): T (xs i))
+(=> (T) (xs: (Vector T) i: Number): T (xs i))
+(=> (T U) (a: T b: U): T a)
 ```
 
 Parameter scope is the surrounding function literal.
@@ -284,7 +288,6 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 | `:` | type annotation, return type, record key, metadata key |
 | `=` | local binding, keyword argument |
 | `=>` | function literal |
-| `<T>` | generic parameter list |
 | `^{...}` | metadata attachment |
 | `` ` `` | quasiquote |
 | `~` | unquote |

@@ -124,9 +124,9 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 - Generic type parameters at call sites.
 
 ```glisp
-(=> <T> (xs: (Vector T) i: Number): T (xs i))
+(=> (T) (xs: (Vector T) i: Number): T (xs i))
 
-((=> <T> (xs: (Vector T) i: Number): T (xs i)) [1 2 3] 0)
+((=> (T) (xs: (Vector T) i: Number): T (xs i)) [1 2 3] 0)
 ;; T is inferred from the argument as Number; result type is Number.
 ```
 
