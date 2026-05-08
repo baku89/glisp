@@ -11,14 +11,16 @@
 
 ### Literals
 
-| Form | Type |
-|---|---|
-| `42`, `3.14`, `-7`, `1e-5` | `Number` |
-| `"hello"`, `"with\nescape"` | `String` |
-| `true`, `false` | `Boolean` |
-| `()` | `Unit` |
-| `***` | `Top` |
-| `_|_` | `Bottom` |
+
+| Form                        | Type      |
+| --------------------------- | --------- |
+| `42`, `3.14`, `-7`, `1e-5`  | `Number`  |
+| `"hello"`, `"with\nescape"` | `String`  |
+| `true`, `false`             | `Boolean` |
+| `()`                        | `Unit`    |
+| `***`                       | `Top`     |
+| `_\|_`                      | `Bottom`  |
+
 
 `Number` is a single unified numeric type, IEEE 754 double internally.
 
@@ -42,8 +44,7 @@ Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` 
 
 ### Comments
 
-- One-line: `; ...`
-- Multi-line: `#| ... |#`
+One-line only: `; ...`. Comments run to the end of the line.
 
 ## Structure
 
@@ -60,13 +61,15 @@ Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` 
 
 All values are callable; the calling behavior is determined by the value's type:
 
-| Value type | `(value args...)` |
-|---|---|
-| Function | apply |
-| Type | cast / validate |
-| Vector | element access by integer index |
-| Record | field access by string key |
+
+| Value type                  | `(value args...)`                |
+| --------------------------- | -------------------------------- |
+| Function                    | apply                            |
+| Type                        | cast / validate                  |
+| Vector                      | element access by integer index  |
+| Record                      | field access by string key       |
 | Other (Number, String, ...) | type mismatch → default fallback |
+
 
 Empty `()` is the unit value.
 
@@ -200,10 +203,10 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 
 ### Metadata semantics
 
-- **Equality**: metadata does not affect type equality. `^{default: 1} Number` and `^{default: 0} Number` are the same type.
-- **Inheritance**: when a derived value/type is created, unset keys are inherited from the parent. Set keys override (last-write-wins merge).
-- **`default`** is the only metadata key with semantic meaning to the language core: when type mismatch or runtime error occurs, the `default` of the expected type is returned.
-- **Other keys** (`label`, `color`, `icon`, `doc`, ...) have no effect on evaluation. The host attaches typed hints for these keys.
+- Equality: metadata does not affect type equality. `^{default: 1} Number` and `^{default: 0} Number` are the same type.
+- Inheritance: when a derived value/type is created, unset keys are inherited from the parent. Set keys override (last-write-wins merge).
+- The `default` key is the only metadata key with semantic meaning to the language core: when type mismatch or runtime error occurs, the `default` of the expected type is returned.
+- Other keys (`label`, `color`, `icon`, `doc`, ...) have no effect on evaluation. The host attaches typed hints for these keys.
 
 ### `default` fallback timing
 
@@ -218,7 +221,7 @@ The `default` of the expected type is substituted in any of:
 
 ### Built-in primitive types
 
-`Number`, `String`, `Boolean`, `Unit`, `Top` (`***`), `Bottom` (`_|_`).
+The built-in primitive types are `Number`, `String`, `Boolean`, `Unit`, `Top`, and `Bottom`. Their literal forms: `()` for `Unit`, `***` for `Top`, `_|_` for `Bottom`.
 
 ### Type constructors
 
@@ -261,17 +264,19 @@ Parameter scope is the surrounding function literal.
 
 Code-as-data via Clojure-style quasiquoting:
 
-| Form | Meaning |
-|---|---|
-| `` `expr `` | quasiquote: produce the expression itself as a value |
-| `~expr` | unquote: evaluate `expr` and splice its result into the surrounding quasiquote |
-| `~@expr` | unquote-splice: evaluate `expr` and splice its elements |
+
+| Form        | Meaning                                                                        |
+| ----------- | ------------------------------------------------------------------------------ |
+| `` `expr `` | quasiquote: produce the expression itself as a value                           |
+| `~expr`     | unquote: evaluate `expr` and splice its result into the surrounding quasiquote |
+| `~@expr`    | unquote-splice: evaluate `expr` and splice its elements                        |
+
 
 ```glisp
 `(+ 1 ~x ~@xs)
 ```
 
-The result of `` `... `` is itself a Glisp value (a syntax tree).
+The result of ``...` is itself a Glisp value (a syntax tree).
 
 ## Top / Bottom
 
@@ -280,24 +285,25 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 
 ## Reserved syntactic forms
 
-| Token | Role |
-|---|---|
-| `(...)` | function/value application |
-| `[...]` | vector |
-| `{...}` | record / let-block |
-| `:` | type annotation, return type, record key, metadata key |
-| `=` | local binding, keyword argument |
-| `=>` | function literal |
-| `^{...}` | metadata attachment |
-| `` ` `` | quasiquote |
-| `~` | unquote |
-| `~@` | unquote-splice |
-| `***` | Top type |
-| `_|_` | Bottom type |
-| `;` | one-line comment |
-| `#| ... |#` | multi-line comment |
-| `?` | optional field / argument suffix |
-| `.` | member accessor (record field / vector index) |
-| `..` | path: one scope level up |
-| `/` | division atom; path separator after `..` |
+
+| Token         | Role                                                   |
+| ------------- | ------------------------------------------------------ |
+| `(...)`       | function/value application                             |
+| `[...]`       | vector                                                 |
+| `{...}`       | record / let-block                                     |
+| `:`           | type annotation, return type, record key, metadata key |
+| `=`           | local binding, keyword argument                        |
+| `=>`          | function literal                                       |
+| `^{...}`      | metadata attachment                                    |
+| `` ` ``       | quasiquote                                             |
+| `~`           | unquote                                                |
+| `~@`          | unquote-splice                                         |
+| `***`         | Top type                                               |
+| `_\|_`        | Bottom type                                            |
+| `;`           | one-line comment                                       |
+| `?`           | optional field / argument suffix                       |
+| `.`           | member accessor (record field / vector index)          |
+| `..`          | path: one scope level up                               |
+| `/`           | division atom; path separator after `..`               |
+
 
