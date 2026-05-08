@@ -46,6 +46,27 @@ The flexible/sticky split is chosen so layout-affecting delimiters (`:`, `=`) ac
 
 No parent pointer. The "where am I in the tree" information is supplied by the env at evaluation time. Subtrees are immutable and freely shareable / graftable across other trees. Source positions are not stored explicitly; they are derivable by walking trivia.
 
+### AST node kinds
+
+The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via builders (`g.lit`, `g.sym`, etc. — see [host-api.md](./host-api.md)) and rarely need to inspect them, but for macro tooling or formatters that do, the `kind` set is fixed:
+
+| `kind`     | Node                 | Notes                                                         |
+| ---------- | -------------------- | ------------------------------------------------------------- |
+| `'lit'`    | literal              | a `number`, `string`, `boolean`, or the `unit` value          |
+| `'sym'`    | symbol               | a bare identifier referring to a binding                       |
+| `'call'`   | application          | `(head arg0 arg1 ...)`                                        |
+| `'vec'`    | vector literal       | `[e0 e1 ...]`                                                  |
+| `'record'` | record literal or record type | the same node carries either runtime fields or type fields |
+| `'let'`    | let-block            | `{name = expr ...}`                                           |
+| `'fn'`     | function literal     | `(=> ...)` with parameters, return type, optional body        |
+| `'path'`   | path                 | `./...`, `../...`                                             |
+| `'quote'`  | quasiquote           | `` `expr ``                                                   |
+| `'unquote'`| unquote              | `~expr`                                                        |
+| `'splice'` | unquote-splice       | `...~expr`                                                    |
+| `'meta'`   | metadata-attached    | `^{...} expr`                                                 |
+
+The detailed field shape per kind is left to the implementation (e.g. how kwargs are represented inside `'call'`, how generics are stored on `'fn'`). Hosts that pattern-match should rely only on `kind` and on field accessors documented by the implementation.
+
 ### AST equality
 
 Two ASTs are equal when they have the same **structural form**, compared recursively:
