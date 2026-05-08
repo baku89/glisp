@@ -14,17 +14,17 @@
 
 | Form                        | Type      |
 | --------------------------- | --------- |
-| `42`, `3.14`, `-7`, `1e-5`  | `Number`  |
-| `"hello"`, `"with\nescape"` | `String`  |
-| `true`, `false`             | `Boolean` |
-| `()`                        | `Unit`    |
+| `42`, `3.14`, `-7`, `1e-5`  | `number`  |
+| `"hello"`, `"with\nescape"` | `string`  |
+| `true`, `false`             | `boolean` |
+| `()`                        | `unit`    |
 | `_`                         | `Top`     |
 | `!`                         | `Bottom`  |
 
 
-`Number` is a single unified numeric type, IEEE 754 double internally.
+`number` is a single unified numeric type, IEEE 754 double internally.
 
-Literal types (e.g. `42` as a singleton type) are not introduced. Use `Enum` for enumerated values.
+Literal types (e.g. `42` as a singleton type) are not introduced. Use `enum` for enumerated values.
 
 Keyword literal (`:foo`) is not introduced. Record keys are written with bare symbols followed by `:`.
 
@@ -81,8 +81,8 @@ Opening brackets in succession (`((`, `[[`, `[(`, `({`, ...) are not element bou
 ((if c f g) x)       ;; head can be any expression
 ([1 2 3] 0)          ;; vector invocation → 1 (index)
 ({x: 10 y: 20} "x")  ;; record invocation → field access by string key
-(Number 42)          ;; type invocation → cast
-(Number "hello")     ;; cast failure → default fallback
+(number 42)          ;; type invocation → cast
+(number "hello")     ;; cast failure → default fallback
 ```
 
 All values are callable; the calling behavior is determined by the value's type:
@@ -92,9 +92,9 @@ All values are callable; the calling behavior is determined by the value's type:
 | --------------------------- | -------------------------------- |
 | Function                    | apply                            |
 | Type                        | cast / validate                  |
-| Vector                      | element access by integer index  |
+| vector                      | element access by integer index  |
 | Record                      | field access by string key       |
-| Other (Number, String, ...) | type mismatch → default fallback |
+| Other (number, string, ...) | type mismatch → default fallback |
 
 
 Empty `()` is the unit value.
@@ -107,7 +107,7 @@ Empty `()` is the unit value.
 []
 ```
 
-A vector is a value of type `(Vector T)` for some element type `T`.
+A vector is a value of type `(vector T)` for some element type `T`.
 
 ### Accessor — `.`
 
@@ -156,8 +156,8 @@ There is no absolute path form (no leading `/...`).
 A trailing `?` on a record field name or function parameter name marks it as optional:
 
 ```glisp
-{x: Number  y?: String}                              ;; record type with optional y
-(=> (x: Number y?: String): Number ...)              ;; optional argument y
+{x: number  y?: string}                              ;; record type with optional y
+(=> (x: number y?: string): number ...)              ;; optional argument y
 ```
 
 Semantics (in conjunction with the `()` missing-value signal — see [types.md](./types.md)):
@@ -187,10 +187,10 @@ The block contents determine the kind:
 ### Function literal
 
 ```glisp
-(=> (x: Number y: Number): Number (* x y))
+(=> (x: number y: number): number (* x y))
 (=> (T) (x: T): T x)                          ;; generic
 (=> (T U) (a: T b: U): T a)                   ;; multiple generics
-(=> (Number Number): Number)                  ;; function type (no body)
+(=> (number number): number)                  ;; function type (no body)
 ```
 
 Argument signature and return type are mandatory. Inside the body, types are inferred.
@@ -202,12 +202,12 @@ When two parens lists appear before the return type `:`, the first is the generi
 A parameter prefixed with `...` is variadic: it collects the remaining positional arguments into a vector.
 
 ```glisp
-(=> (...xs: (Vector Number)): Number ...)
-(=> (init: Number ...rest: (Vector Number)): Number ...)
+(=> (...xs: (vector number)): number ...)
+(=> (init: number ...rest: (vector number)): number ...)
 ```
 
 - A variadic parameter must appear last in the value parameter list.
-- Its type must be `(Vector T)` for some `T`. Each collected argument is checked against `T`.
+- Its type must be `(vector T)` for some `T`. Each collected argument is checked against `T`.
 - At most one variadic parameter per function.
 
 See [Spread](#spread--) for how to call variadic functions and for spread in vectors, records, and quasiquote.
@@ -217,7 +217,7 @@ See [Spread](#spread--) for how to call variadic functions and for spread in vec
 Any positional parameter of a function can be passed by name at the call site using `name=value`. No special declaration is required at the definition: every parameter is automatically callable both positionally and by keyword.
 
 ```glisp
-(=> (x: Number y: Number z: Number): Number (* x y z))
+(=> (x: number y: number z: number): number (* x y z))
 
 (f 2 3 4)              ;; all positional → 24
 (f x=2 y=3 z=4)        ;; all keyword → 24
@@ -241,7 +241,7 @@ A unary `...` prefix expands its operand into the surrounding form. The same pre
 | Context              | Form                  | Effect                                                            |
 | -------------------- | --------------------- | ----------------------------------------------------------------- |
 | Function call        | `(f a ...xs b)`       | spreads vector `xs` as positional arguments                       |
-| Vector literal       | `[1 ...xs 4]`         | inlines elements of `xs` into the vector                          |
+| vector literal       | `[1 ...xs 4]`         | inlines elements of `xs` into the vector                          |
 | Record literal       | `{a: 1 ...rec b: 2}`  | merges fields of `rec` into the record (later keys win)           |
 | Quasiquote (splice)  | `` `(foo ...~xs) ``   | unquote-splice: evaluates `xs` and inlines its elements           |
 
@@ -276,7 +276,7 @@ Three forms have built-in semantics beyond ordinary function application: `?` (m
 ```
 
 - Patterns are scanned in order; the first matching clause's result is returned.
-- A pattern that is a **type** (e.g. `Number`, `String`, `(Enum "round" "butt")`, `_`) matches when the value casts successfully. `_` (Top) matches anything, so it serves as the fallthrough catch-all.
+- A pattern that is a **type** (e.g. `number`, `string`, `(enum "round" "butt")`, `_`) matches when the value casts successfully. `_` (Top) matches anything, so it serves as the fallthrough catch-all.
 - A pattern that is a **value** (literal or otherwise) matches by value equality.
 - If no clause matches, the result is `()`.
 - All `result` expressions must have the same type (no union). The type of the whole `?` form is that common result type.
@@ -344,8 +344,8 @@ The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 
 `:` annotates a name with its type:
 
 ```glisp
-(x: Number)              ;; argument
-(=> (...): Number ...)   ;; return type
+(x: number)              ;; argument
+(=> (...): number ...)   ;; return type
 {x: 10}                  ;; record key
 ^{label: "..."}          ;; metadata record key
 ```
@@ -367,18 +367,18 @@ The same `=` is reused for keyword arguments at function application sites.
 Any expression can be prefixed with `^{...}` to attach metadata:
 
 ```glisp
-^{default: 1 label: "Count"} Number
-^{doc: "Square the number"} (=> (x: Number): Number (* x x))
+^{default: 1 label: "Count"} number
+^{doc: "Square the number"} (=> (x: number): number (* x x))
 ^{label: "Width"} 100
 ^{label: "Origin"} {x: 0 y: 0}
-^{label: "2D Point"} (Vector Number)
+^{label: "2D Point"} (vector number)
 ```
 
 The `{...}` after `^` is a record literal (uses `:` for keys).
 
 ### Metadata semantics
 
-- Equality: metadata does not affect type equality. `^{default: 1} Number` and `^{default: 0} Number` are the same type.
+- Equality: metadata does not affect type equality. `^{default: 1} number` and `^{default: 0} number` are the same type.
 - Inheritance: when a derived value/type is created, unset keys are inherited from the parent. Set keys override (last-write-wins merge).
 - The `default` key is the only metadata key with semantic meaning to the language core: when type mismatch or runtime error occurs, the `default` of the expected type is returned.
 - Other keys (`label`, `color`, `icon`, `doc`, ...) have no effect on evaluation. The host attaches typed hints for these keys.
@@ -391,40 +391,40 @@ See [types.md](./types.md) for the canonical specification. In summary, default 
 
 ### Built-in primitive types
 
-The built-in primitive types are `Number`, `String`, `Boolean`, `Unit`, `Top`, and `Bottom`. Their literal forms: `()` for `Unit`, `_` for `Top`, `!` for `Bottom`.
+The built-in primitive types are `number`, `string`, `boolean`, `unit`, `Top`, and `Bottom`. Their literal forms: `()` for `unit`, `_` for `Top`, `!` for `Bottom`.
 
 ### Type constructors
 
 ```glisp
-(Vector Number)                   ;; vector of Number
-(=> (Number Number): Number)      ;; function type
-(Enum "round" "butt" "square")    ;; enumeration of values
+(vector number)                   ;; vector of number
+(=> (number number): number)      ;; function type
+(enum "round" "butt" "square")    ;; enumeration of values
 ```
 
-`Enum` takes literal values and produces a type that validates against membership in the value set. `"round"` itself remains of type `String`, distinct from any `Enum` containing it.
+`enum` takes literal values and produces a type that validates against membership in the value set. `"round"` itself remains of type `string`, distinct from any `enum` containing it.
 
 ### Type as cast
 
 `(T value)` casts/validates `value` as `T`:
 
 ```glisp
-(Number 42)                       ;; → 42
-(Number "hello")                  ;; → default fallback
-((Vector Number) [1 2 3])         ;; → [1 2 3]
-(JoinType "round")                ;; → "round"  (JoinType = (Enum "round" "butt" "square"))
+(number 42)                       ;; → 42
+(number "hello")                  ;; → default fallback
+((vector number) [1 2 3])         ;; → [1 2 3]
+(JoinType "round")                ;; → "round"  (JoinType = (enum "round" "butt" "square"))
 (JoinType "diamond")              ;; → default fallback
 ```
 
 ### Subtyping
 
-There is no subtyping. Types are nominal/equality-based. `Enum` membership is checked at cast time, not modeled as `"round" <: JoinType`.
+There is no subtyping. Types are nominal/equality-based. `enum` membership is checked at cast time, not modeled as `"round" <: JoinType`.
 
 ### Generics
 
 A generic parameter list is written as a leading parens of bare names before the value parameter list:
 
 ```glisp
-(=> (T) (xs: (Vector T) i: Number): T (xs i))
+(=> (T) (xs: (vector T) i: number): T (xs i))
 (=> (T U) (a: T b: U): T a)
 ```
 

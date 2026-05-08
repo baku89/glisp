@@ -6,11 +6,11 @@ Values and types share a single ADT. A type is itself a value of the language. T
 
 ```
 Value ::=
-    | Number n
-    | String s
-    | Boolean b
-    | Unit
-    | Vector [Value]
+    | number n
+    | string s
+    | boolean b
+    | unit
+    | vector [Value]
     | Record {key → Value}
     | Function ...
     | Type ...
@@ -25,9 +25,9 @@ Types can be `let`-bound, passed as arguments, returned from functions, quoted.
 Types are compared by identity / structural form of the base type. Two types are equal iff they are constructed identically modulo metadata.
 
 ```glisp
-^{default: 1} Number  ==  ^{default: 0} Number   ;; same type (metadata ignored for equality)
-Number  !=  String
-(Vector Number)  ==  (Vector Number)
+^{default: 1} number  ==  ^{default: 0} number   ;; same type (metadata ignored for equality)
+number  !=  string
+(vector number)  ==  (vector number)
 ```
 
 ## Subtyping
@@ -38,12 +38,16 @@ There is no subtyping. Types are nominal/equality-based.
 
 | Type | Inhabitants |
 |---|---|
-| `Number` | All numeric values (IEEE 754 double internally) |
-| `String` | All strings |
-| `Boolean` | `true`, `false` |
-| `Unit` | `()` |
+| `number` | All numeric values (IEEE 754 double internally) |
+| `string` | All strings |
+| `boolean` | `true`, `false` |
+| `unit` | `()` |
 | `Top` (`_`) | Any value |
 | `Bottom` (`!`) | No value |
+
+### Naming convention
+
+Built-in primitive type names are **lowercase**: `number`, `string`, `boolean`, `unit`, `vector`, `enum`. Host-imported types and user-defined types are conventionally **uppercase-initial**: `Date`, `URL`, `JoinType`, `Point`. The convention is not enforced (identifier syntax allows either case) but signals the type's origin at a glance.
 
 ## Type constructors
 
@@ -51,21 +55,21 @@ A type constructor is a value that, when applied to one or more arguments, produ
 
 | Form | Description |
 |---|---|
-| `(Vector T)` | Vectors of `T` |
+| `(vector T)` | vectors of `T` |
 | `(=> (T1 T2 ...): T)` | Function type |
-| `(Enum v1 v2 ...)` | Enumeration of literal values |
+| `(enum v1 v2 ...)` | enumeration of literal values |
 
-`Enum` is the mechanism for finite sets of literal values. Members are validated by membership test at cast time.
+`enum` is the mechanism for finite sets of literal values. Members are validated by membership test at cast time.
 
 ## Types are callable: cast
 
 A type value, when applied to a single argument, casts/validates the argument:
 
 ```glisp
-(Number 42)                 ;; → 42
-(Number "hello")            ;; → default fallback
-((Vector Number) [1 2 3])   ;; → [1 2 3]
-(JoinType "round")          ;; → "round"   (JoinType = (Enum "round" "butt" "square"))
+(number 42)                 ;; → 42
+(number "hello")            ;; → default fallback
+((vector number) [1 2 3])   ;; → [1 2 3]
+(JoinType "round")          ;; → "round"   (JoinType = (enum "round" "butt" "square"))
 (JoinType "diamond")        ;; → default fallback
 ```
 
@@ -76,8 +80,8 @@ The host's `cast(t, v)` is a thin wrapper that calls the type value.
 Any value (including types) can be wrapped with metadata via `^{...}` prefix.
 
 ```glisp
-^{default: 1 label: "Count"} Number
-^{doc: "Square"} (=> (x: Number): Number (* x x))
+^{default: 1 label: "Count"} number
+^{doc: "Square"} (=> (x: number): number (* x x))
 ^{label: "Width"} 100
 ```
 
@@ -101,9 +105,9 @@ All other keys are unrestricted. Hosts may register typed schemas for them via t
 
 ### `()` and default fallback
 
-`()` (the Unit literal) plays a dual role:
+`()` (the unit literal) plays a dual role:
 
-- As an explicit value, it is the unique inhabitant of `Unit`.
+- As an explicit value, it is the unique inhabitant of `unit`.
 - As an implicit signal, it represents "value cannot be determined" — the canonical missing-value sentinel produced by any evaluator failure (unresolvable name, path failure, out-of-bounds access, cycle, etc.).
 
 `()` is polymorphic: it is accepted at any typed slot. When `()` arrives at a slot whose declared type is `T`, it is coerced to `T`'s `default` metadata value.
@@ -132,10 +136,10 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 - Generic type parameters at call sites.
 
 ```glisp
-(=> (T) (xs: (Vector T) i: Number): T (xs i))
+(=> (T) (xs: (vector T) i: number): T (xs i))
 
-((=> (T) (xs: (Vector T) i: Number): T (xs i)) [1 2 3] 0)
-;; T is inferred from the argument as Number; result type is Number.
+((=> (T) (xs: (vector T) i: number): T (xs i)) [1 2 3] 0)
+;; T is inferred from the argument as number; result type is number.
 ```
 
 ### Algorithm
