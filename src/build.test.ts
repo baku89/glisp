@@ -191,20 +191,6 @@ describe('AST builders', () => {
 		expect(ast.body).toBeNull()
 	})
 
-	it('fn accepts the concise object form for params', () => {
-		// fn({a: number, b: number}, ...) — no per-param flags needed
-		const ast = fn(
-			{ x: sym('number'), y: sym('number') },
-			sym('number'),
-			call(sym('+'), sym('x'), sym('y'))
-		)
-		expect(isFn(ast)).toBe(true)
-		expect(ast.params).toEqual([
-			{ name: 'x', type: sym('number') },
-			{ name: 'y', type: sym('number') },
-		])
-	})
-
 	it('fn supports generics', () => {
 		// (=> (T) (xs: [...T] i: number): T (xs i))
 		const xsType = vec(splice(sym('T')))

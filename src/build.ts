@@ -101,51 +101,28 @@ export function letBlock(
 /**
  * Function literal AST.
  *
- * Two ways to specify parameters:
- *
- * 1. **Object form** (concise, all-required) — the keys are parameter names,
- *    the values are types:
- *
- *      fn({ x: sym('number'), y: sym('number') }, sym('number'), body)
- *
- * 2. **Array form** (full) — needed for `optional`, `variadic`, or any case
- *    where a parameter carries flags:
- *
- *      fn(
- *        [
- *          { name: 'init', type: sym('number') },
- *          { name: 'name', type: sym('string'), optional: true },
- *          { name: 'rest', type: sym('number'), variadic: true },
- *        ],
- *        sym('number'),
- *        body,
- *      )
+ *   fn(
+ *     [
+ *       { name: 'x', type: sym('number') },
+ *       { name: 'y', type: sym('number') },
+ *     ],
+ *     sym('number'),
+ *     call(sym('+'), sym('x'), sym('y')),
+ *   )
+ *   // → (=> (x: number y: number): number (+ x y))
  *
  * For function-type expressions (no body), pass `null` for `body`.
  * For generics, pass a list of type-variable names in `options.generics`.
+ *
+ * `optional`, `variadic` flags live on each `FnParam` entry.
  */
 export function fn(
-	params: Readonly<Record<string, AST>>,
-	returnType: AST,
-	body?: AST | null,
-	options?: { readonly generics?: ReadonlyArray<string> }
-): FnAST
-export function fn(
 	params: ReadonlyArray<FnParam>,
-	returnType: AST,
-	body?: AST | null,
-	options?: { readonly generics?: ReadonlyArray<string> }
-): FnAST
-export function fn(
-	params: ReadonlyArray<FnParam> | Readonly<Record<string, AST>>,
 	returnType: AST,
 	body: AST | null = null,
 	options?: { readonly generics?: ReadonlyArray<string> }
 ): FnAST {
-	const paramArray: ReadonlyArray<FnParam> = Array.isArray(params)
-		? params
-		: Object.entries(params).map(([name, type]) => ({ name, type }))
-	return new FnAST(options?.generics ?? [], paramArray, returnType, body)
+	return new FnAST(options?.generics ?? [], params, returnType, body)
 }
 
 /**
