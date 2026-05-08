@@ -31,8 +31,12 @@ Keyword literal (`:foo`) is not introduced. Record keys are written with bare sy
 Bare identifiers are symbols, resolved in the lexical environment.
 
 ```glisp
-foo bar baz?  +  *  multiply-by-2
+foo bar baz!  +  *  multiply-by-2  >=  is-empty
 ```
+
+Allowed characters: alphanumerics and `+ - * / < > & | % _ ! $`. The first character must not be a digit.
+
+Reserved (not allowed in identifiers): `? : = . ^ ~ ' \` , ; ( ) [ ] { } # @` and whitespace.
 
 ### Comments
 
@@ -73,6 +77,20 @@ Empty `()` is the unit value.
 ```
 
 A vector is a value of type `(Vector T)` for some element type `T`.
+
+### Optional fields and arguments — `?`
+
+A trailing `?` on a record field name or function parameter name marks it as optional:
+
+```glisp
+{x: Number  y?: String}                              ;; record type with optional y
+(=> (x: Number y?: String): Number ...)              ;; optional argument y
+```
+
+Semantics:
+
+- **Required** field/argument absent → diagnostic (warning/error) + fallback to the type's `default`.
+- **Optional** field/argument absent → no diagnostic, fallback to the type's `default`.
 
 ### `{...}` — record or let-block
 
@@ -246,12 +264,14 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 | `_|_` | Bottom type |
 | `;` | one-line comment |
 | `#| ... |#` | multi-line comment |
+| `?` | optional field / argument suffix |
 
 ## Open questions
 
-- Identifier character set (especially `/`, `.`, `?`, `!`).
 - Record field access syntax: what is `key` in `(rec key)`?
 - Implicit doc-string sugar: leading string literal in a function body as `^{doc: "..."}`?
 - Multi-line string literal syntax.
 - Module / import syntax.
 - Whether `Unit` is a dedicated literal token distinct from empty `()`.
+- Whether `?` has uses beyond optional field/argument (e.g. cast probe, type predicate).
+- Whether `.` becomes a syntactic accessor (`record.field`) or remains a candidate identifier character.
