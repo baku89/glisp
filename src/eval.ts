@@ -21,6 +21,7 @@
  * - `expand`
  */
 
+import { desugar } from './desugar.js'
 import {
 	type AST,
 	type BindingTarget,
@@ -100,16 +101,19 @@ function storeMemo(ast: AST, env: Env, state: MemoState): void {
 
 /** Evaluate `ast` against `env`. Never throws. */
 export function evaluate(ast: AST, env: Env): EvalResult {
-	const cached = lookupMemo(ast, env)
+	// `%` desugaring runs before any further work. The pass is cached
+	// per-AST so repeated evaluations of the same source pay only once.
+	const desugared = desugar(ast)
+	const cached = lookupMemo(desugared, env)
 	if (cached !== undefined) {
 		if (cached.kind === 'in-progress') {
-			return fail(ast, env, 'cycle detected')
+			return fail(desugared, env, 'cycle detected')
 		}
 		return cached.result
 	}
-	storeMemo(ast, env, { kind: 'in-progress' })
-	const result = evaluateInner(ast, env)
-	storeMemo(ast, env, { kind: 'computed', result })
+	storeMemo(desugared, env, { kind: 'in-progress' })
+	const result = evaluateInner(desugared, env)
+	storeMemo(desugared, env, { kind: 'computed', result })
 	return result
 }
 
