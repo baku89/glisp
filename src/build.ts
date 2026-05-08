@@ -12,7 +12,6 @@
  * Spec: docs/spec/host-api.md — Builders
  */
 
-import { print } from './print.js'
 import {
 	AccessAST,
 	type AST,
@@ -33,6 +32,14 @@ import {
 	type Unit,
 	VecAST,
 } from './types.js'
+
+/**
+ * Render an AST back to source. Equivalent to `ast.print()`; provided as a
+ * top-level function for the `g.print` API namespace.
+ */
+export function print(ast: AST): string {
+	return ast.print()
+}
 
 // -----------------------------------------------------------------------------
 // AST builders

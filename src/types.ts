@@ -6,13 +6,9 @@
  * - docs/spec/eval.md (AST node kinds)
  * - docs/spec/types.md
  *
- * AST nodes are class instances. The class system gives us:
- * - prototype-based methods (`.meta()`) without enumerable-property hacks
- * - `instanceof` checks alongside `kind`-based discrimination
- * - clean `toEqual` semantics (vitest only compares own enumerable properties)
+ * AST nodes are class instances. Each subclass overrides `print()` so the
+ * source rendering is polymorphic — no central switch.
  */
-
-import { print as printImpl } from './print.js'
 
 // -----------------------------------------------------------------------------
 // Unit
@@ -57,9 +53,6 @@ export abstract class ASTNode {
 	 * Attach metadata to this node. Returns a new `MetaAST` wrapping the
 	 * current expression with a record of the given fields. Plain JS values
 	 * in the content map are auto-lifted to `LitAST`.
-	 *
-	 *   lit(100).meta({ label: 'Width', default: 100 })
-	 *   // → MetaAST { metadata: {label: "Width" default: 100}, expr: 100 }
 	 */
 	meta(content: MetaContent): MetaAST {
 		const fields: Array<readonly [string, AST]> = []
@@ -70,13 +63,10 @@ export abstract class ASTNode {
 	}
 
 	/**
-	 * Render this AST back to its Glisp source form (no env needed —
-	 * `print` is purely structural). For `value → source`, compose
-	 * `g.toAst(value, env)` with `.print()`.
+	 * Render this AST back to its Glisp source form. Each subclass overrides
+	 * this with its own emission logic.
 	 */
-	print(): string {
-		return printImpl(this as unknown as AST)
-	}
+	abstract print(): string
 }
 
 function liftMetaField(v: MetaFieldValue): AST {
@@ -105,6 +95,14 @@ export class LitAST extends ASTNode {
 	constructor(public readonly value: number | string | boolean | Unit) {
 		super()
 	}
+
+	override print(): string {
+		const v = this.value
+		if (v === UNIT) return '()'
+		if (typeof v === 'number') return v.toString()
+		if (typeof v === 'string') return printStringLiteral(v)
+		return v ? 'true' : 'false'
+	}
 }
 
 export class SymAST extends ASTNode {
@@ -112,14 +110,18 @@ export class SymAST extends ASTNode {
 	constructor(public readonly name: string) {
 		super()
 	}
+
+	override print(): string {
+		return this.name
+	}
 }
 
 /**
  * Application AST. `args` is positional; `kwargs` are keyword arguments
  * (any positional parameter may be passed by name — see syntax.md).
  *
- * Spread arguments at the call site are represented as `SpliceAST` inside
- * `args` (e.g. `(f a ...xs b)` becomes args = [a, splice(xs), b]).
+ * Spread arguments at the call site are represented as `SpreadAST` inside
+ * `args` (e.g. `(f a ...xs b)` becomes args = [a, spread(xs), b]).
  */
 export class CallAST extends ASTNode {
 	readonly kind = 'call' as const
@@ -129,6 +131,17 @@ export class CallAST extends ASTNode {
 		public readonly kwargs?: ReadonlyMap<string, AST>
 	) {
 		super()
+	}
+
+	override print(): string {
+		const positional = [this.head, ...this.args].map(a => a.print())
+		const kw: string[] = []
+		if (this.kwargs) {
+			for (const [k, v] of this.kwargs) {
+				kw.push(`${k}=${v.print()}`)
+			}
+		}
+		return `(${[...positional, ...kw].join(' ')})`
 	}
 }
 
@@ -144,12 +157,20 @@ export class AccessAST extends ASTNode {
 	) {
 		super()
 	}
+
+	override print(): string {
+		return `${this.target.print()}.${this.key}`
+	}
 }
 
 export class VecAST extends ASTNode {
 	readonly kind = 'vec' as const
 	constructor(public readonly elements: ReadonlyArray<AST>) {
 		super()
+	}
+
+	override print(): string {
+		return `[${this.elements.map(e => e.print()).join(' ')}]`
 	}
 }
 
@@ -158,9 +179,6 @@ export class VecAST extends ASTNode {
  * source order, so duplicate keys are preserved at the AST level. Evaluation
  * reduces them with last-wins semantics and emits a diagnostic
  * (see syntax.md — Duplicate names).
- *
- * The same shape doubles as a record type when its field values are type
- * values (see types.md — Type interpretation at type slots).
  */
 export class RecordAST extends ASTNode {
 	readonly kind = 'record' as const
@@ -182,6 +200,15 @@ export class RecordAST extends ASTNode {
 		}
 		return undefined
 	}
+
+	override print(): string {
+		const entries: string[] = []
+		for (const [k, v] of this.fields) {
+			const optMark = this.optional?.has(k) ? '?' : ''
+			entries.push(`${k}${optMark}: ${v.print()}`)
+		}
+		return `{${entries.join(' ')}}`
+	}
 }
 
 export class LetAST extends ASTNode {
@@ -192,6 +219,17 @@ export class LetAST extends ASTNode {
 	) {
 		super()
 	}
+
+	override print(): string {
+		const parts: string[] = []
+		for (const [name, expr] of this.bindings) {
+			parts.push(`${name} = ${expr.print()}`)
+		}
+		if (this.body !== null) {
+			parts.push(this.body.print())
+		}
+		return `{${parts.join(' ')}}`
+	}
 }
 
 export interface FnParam {
@@ -199,6 +237,13 @@ export interface FnParam {
 	readonly type: AST
 	readonly optional?: boolean
 	readonly variadic?: boolean
+}
+
+function printFnParam(p: FnParam): string {
+	let name = p.name
+	if (p.optional) name += '?'
+	if (p.variadic) name = '...' + name
+	return `${name}: ${p.type.print()}`
 }
 
 /**
@@ -214,6 +259,19 @@ export class FnAST extends ASTNode {
 		public readonly body: AST | null
 	) {
 		super()
+	}
+
+	override print(): string {
+		const segments: string[] = ['=>']
+		if (this.generics.length > 0) {
+			segments.push(`(${this.generics.join(' ')})`)
+		}
+		const params = this.params.map(printFnParam).join(' ')
+		segments.push(`(${params}): ${this.returnType.print()}`)
+		if (this.body !== null) {
+			segments.push(this.body.print())
+		}
+		return `(${segments.join(' ')})`
 	}
 }
 
@@ -238,6 +296,14 @@ export class PathAST extends ASTNode {
 	) {
 		super()
 	}
+
+	override print(): string {
+		if (this.segments.length === 0) return './'
+		const head = this.segments[0] === '..' ? '../' : './'
+		const rest =
+			this.segments[0] === '..' ? this.segments.slice(1) : this.segments
+		return head + rest.map(String).join('/')
+	}
 }
 
 export class QuoteAST extends ASTNode {
@@ -245,12 +311,20 @@ export class QuoteAST extends ASTNode {
 	constructor(public readonly expr: AST) {
 		super()
 	}
+
+	override print(): string {
+		return '`' + this.expr.print()
+	}
 }
 
 export class UnquoteAST extends ASTNode {
 	readonly kind = 'unquote' as const
 	constructor(public readonly expr: AST) {
 		super()
+	}
+
+	override print(): string {
+		return '~' + this.expr.print()
 	}
 }
 
@@ -265,20 +339,25 @@ export class SpreadAST extends ASTNode {
 	constructor(public readonly expr: AST) {
 		super()
 	}
+
+	override print(): string {
+		return '...' + this.expr.print()
+	}
 }
 
 /**
  * Unquote-splice: `...~expr`. Only meaningful inside a quasiquote — evaluates
  * `expr` (popping the quote level) and splices the resulting elements into
  * the surrounding form.
- *
- * For non-evaluating spread (`...xs` regardless of quasiquote context), use
- * `SpreadAST`.
  */
 export class SpliceAST extends ASTNode {
 	readonly kind = 'splice' as const
 	constructor(public readonly expr: AST) {
 		super()
+	}
+
+	override print(): string {
+		return '...~' + this.expr.print()
 	}
 }
 
@@ -294,6 +373,47 @@ export class MetaAST extends ASTNode {
 	) {
 		super()
 	}
+
+	override print(): string {
+		return `^${this.metadata.print()} ${this.expr.print()}`
+	}
+}
+
+// -----------------------------------------------------------------------------
+// String-literal printer (Glisp escape rules per syntax.md)
+// -----------------------------------------------------------------------------
+
+function printStringLiteral(s: string): string {
+	let out = '"'
+	for (const ch of s) {
+		switch (ch) {
+			case '\n':
+				out += '\\n'
+				break
+			case '\r':
+				out += '\\r'
+				break
+			case '\t':
+				out += '\\t'
+				break
+			case '"':
+				out += '\\"'
+				break
+			case '\\':
+				out += '\\\\'
+				break
+			default: {
+				const code = ch.codePointAt(0)
+				if (code !== undefined && code < 0x20) {
+					out += '\\u' + code.toString(16).padStart(4, '0')
+				} else {
+					out += ch
+				}
+				break
+			}
+		}
+	}
+	return out + '"'
 }
 
 // -----------------------------------------------------------------------------
