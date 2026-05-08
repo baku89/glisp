@@ -165,13 +165,14 @@ DiagnosticsTable: Map<(AST, Env), Diagnostics>
 
 Because evaluation nodes have stable identity, primitive values do not need to be wrapped to carry diagnostics. The host queries diagnostics by the evaluation node, not by the value.
 
-The memoization cache and the diagnostics table share the same key space:
+The memoization cache and the diagnostics table share the same key space. Each entry takes one of three states (see [Cycle detection](#cycle-detection)):
 
 ```
-MemoCache: Map<(AST, Env), { value: Value, diagnostics: Diagnostics }>
+State    = InProgress | Computed { value: Value, diagnostics: Diagnostics }
+MemoCache: Map<(AST, Env), State>
 ```
 
-The evaluator's return value is a plain `Value`. Diagnostic information is reached via the evaluation node.
+A missing entry is implicitly "not computed yet". The evaluator's return value is a plain `Value`; diagnostic information is reached via the evaluation node.
 
 ## Static name resolution pass
 
