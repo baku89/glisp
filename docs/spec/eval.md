@@ -56,7 +56,7 @@ The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via build
 | `'sym'`    | symbol               | a bare identifier referring to a binding                       |
 | `'call'`   | application          | `(head arg0 arg1 ...)`                                        |
 | `'vec'`    | vector literal       | `[e0 e1 ...]`                                                  |
-| `'record'` | record literal or record type | the same node carries either runtime fields or type fields |
+| `'record'` | record literal | `{x: 10 y: 20}`. The same AST shape expresses a record type when its field values happen to be type values (handled by the type system, not by a different `kind`). |
 | `'let'`    | let-block            | `{name = expr ...}`                                           |
 | `'fn'`     | function literal     | `(=> ...)` with parameters, return type, optional body        |
 | `'path'`   | path                 | `./...`, `../...`                                             |
