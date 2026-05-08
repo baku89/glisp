@@ -5,6 +5,11 @@
  * - docs/spec/syntax.md
  * - docs/spec/eval.md (AST node kinds)
  * - docs/spec/types.md
+ *
+ * AST nodes are class instances. The class system gives us:
+ * - prototype-based methods (`.meta()`) without enumerable-property hacks
+ * - `instanceof` checks alongside `kind`-based discrimination
+ * - clean `toEqual` semantics (vitest only compares own enumerable properties)
  */
 
 // -----------------------------------------------------------------------------
@@ -23,6 +28,51 @@ export type Unit = typeof UNIT
 // AST
 // -----------------------------------------------------------------------------
 
+/**
+ * Inter-position trivia (whitespace, comments) attached to each AST node.
+ * Slot count and stickiness rules per node type are documented in eval.md.
+ *
+ * Builder-constructed ASTs have no trivia; parse-constructed ASTs preserve it.
+ */
+export type Trivia = ReadonlyArray<string>
+
+/**
+ * Values accepted by the `.meta(...)` method: AST nodes, or JS primitives that
+ * are auto-lifted to `LitAST`.
+ */
+export type MetaFieldValue = AST | number | string | boolean | Unit
+export type MetaContent = Readonly<Record<string, MetaFieldValue>>
+
+/**
+ * Base class for all AST nodes. Subclasses set `kind` as a literal type so
+ * the class hierarchy doubles as a discriminated union when narrowing.
+ */
+export abstract class ASTNode {
+	abstract readonly kind: string
+	readonly trivia?: Trivia
+
+	/**
+	 * Attach metadata to this node. Returns a new `MetaAST` wrapping the
+	 * current expression with a record of the given fields. Plain JS values
+	 * in the content map are auto-lifted to `LitAST`.
+	 *
+	 *   lit(100).meta({ label: 'Width', default: 100 })
+	 *   // → MetaAST { metadata: {label: "Width" default: 100}, expr: 100 }
+	 */
+	meta(content: MetaContent): MetaAST {
+		const fields = new Map<string, AST>()
+		for (const [k, v] of Object.entries(content)) {
+			fields.set(k, liftMetaField(v))
+		}
+		return new MetaAST(new RecordAST(fields), this as unknown as AST)
+	}
+}
+
+function liftMetaField(v: MetaFieldValue): AST {
+	if (v instanceof ASTNode) return v as AST
+	return new LitAST(v)
+}
+
 export type AST =
 	| LitAST
 	| SymAST
@@ -38,26 +88,18 @@ export type AST =
 	| SpliceAST
 	| MetaAST
 
-/**
- * Inter-position trivia (whitespace, comments) attached to each AST node.
- * Slot count and stickiness rules per node type are documented in eval.md.
- *
- * Builder-constructed ASTs have no trivia; parse-constructed ASTs preserve it.
- */
-export type Trivia = ReadonlyArray<string>
-
-export interface ASTBase {
-	readonly trivia?: Trivia
+export class LitAST extends ASTNode {
+	readonly kind = 'lit' as const
+	constructor(public readonly value: number | string | boolean | Unit) {
+		super()
+	}
 }
 
-export interface LitAST extends ASTBase {
-	readonly kind: 'lit'
-	readonly value: number | string | boolean | Unit
-}
-
-export interface SymAST extends ASTBase {
-	readonly kind: 'sym'
-	readonly name: string
+export class SymAST extends ASTNode {
+	readonly kind = 'sym' as const
+	constructor(public readonly name: string) {
+		super()
+	}
 }
 
 /**
@@ -67,53 +109,61 @@ export interface SymAST extends ASTBase {
  * Spread arguments at the call site are represented as `SpliceAST` inside
  * `args` (e.g. `(f a ...xs b)` becomes args = [a, splice(xs), b]).
  */
-export interface CallAST extends ASTBase {
-	readonly kind: 'call'
-	readonly head: AST
-	readonly args: ReadonlyArray<AST>
-	readonly kwargs?: ReadonlyMap<string, AST>
+export class CallAST extends ASTNode {
+	readonly kind = 'call' as const
+	constructor(
+		public readonly head: AST,
+		public readonly args: ReadonlyArray<AST>,
+		public readonly kwargs?: ReadonlyMap<string, AST>
+	) {
+		super()
+	}
 }
 
 /**
  * Accessor sugar: `target.key`. Has the same evaluation semantics as
- * `Call(target, [Lit(key)])` (a one-argument call with a literal key), but
- * is kept as a distinct AST node so `unparse` can reproduce dot notation.
- *
- * - `target`: any expression yielding a record or vector at runtime.
- * - `key`: a literal name (string for record fields) or integer index
- *   (number for vector elements). Dynamic keys must use call form instead.
+ * `Call(target, [Lit(key)])`, but kept as a distinct kind for unparse.
  */
-export interface AccessAST extends ASTBase {
-	readonly kind: 'access'
-	readonly target: AST
-	readonly key: string | number
+export class AccessAST extends ASTNode {
+	readonly kind = 'access' as const
+	constructor(
+		public readonly target: AST,
+		public readonly key: string | number
+	) {
+		super()
+	}
 }
 
-/** Vector literal. */
-export interface VecAST extends ASTBase {
-	readonly kind: 'vec'
-	readonly elements: ReadonlyArray<AST>
+export class VecAST extends ASTNode {
+	readonly kind = 'vec' as const
+	constructor(public readonly elements: ReadonlyArray<AST>) {
+		super()
+	}
 }
 
 /**
  * Record literal. Keys are ordered (insertion order). The same shape doubles
  * as a record type when its field values are type values
  * (see types.md — Type interpretation at type slots).
- *
- * `optional` records the field names that carried a `?` suffix. Empty / absent
- * when none are optional. (Optional only meaningful in record-type context.)
  */
-export interface RecordAST extends ASTBase {
-	readonly kind: 'record'
-	readonly fields: ReadonlyMap<string, AST>
-	readonly optional?: ReadonlySet<string>
+export class RecordAST extends ASTNode {
+	readonly kind = 'record' as const
+	constructor(
+		public readonly fields: ReadonlyMap<string, AST>,
+		public readonly optional?: ReadonlySet<string>
+	) {
+		super()
+	}
 }
 
-/** Let-block: bindings followed by an optional trailing expression. */
-export interface LetAST extends ASTBase {
-	readonly kind: 'let'
-	readonly bindings: ReadonlyArray<readonly [string, AST]>
-	readonly body: AST | null
+export class LetAST extends ASTNode {
+	readonly kind = 'let' as const
+	constructor(
+		public readonly bindings: ReadonlyArray<readonly [string, AST]>,
+		public readonly body: AST | null
+	) {
+		super()
+	}
 }
 
 export interface FnParam {
@@ -127,69 +177,78 @@ export interface FnParam {
  * Function literal. With `body: null` it expresses a pure function-type
  * (no implementation), used in type positions.
  */
-export interface FnAST extends ASTBase {
-	readonly kind: 'fn'
-	readonly generics: ReadonlyArray<string>
-	readonly params: ReadonlyArray<FnParam>
-	readonly returnType: AST
-	readonly body: AST | null
+export class FnAST extends ASTNode {
+	readonly kind = 'fn' as const
+	constructor(
+		public readonly generics: ReadonlyArray<string>,
+		public readonly params: ReadonlyArray<FnParam>,
+		public readonly returnType: AST,
+		public readonly body: AST | null
+	) {
+		super()
+	}
 }
 
 /**
  * Path atom. A path is a sequence of segments separated by `/`. Each segment
  * is `'..'` (go up to parent), a name (descend into a named child), or an
- * integer index (descend into a positional child). The `'.'` segment (stay
- * here) is allowed in syntax but not stored as an AST segment — it is a
- * no-op needed only to disambiguate paths starting with a name.
+ * integer index (descend into a positional child).
  *
  *   ./foo            → segments: ['foo']
  *   ../foo           → segments: ['..', 'foo']
- *   ../../foo        → segments: ['..', '..', 'foo']        (parent's parent)
+ *   ../../foo        → segments: ['..', '..', 'foo']
  *   ../foo/bar       → segments: ['..', 'foo', 'bar']
- *   ../vec/0         → segments: ['..', 'vec', 0]
- *   ./               → segments: []                          (the current node itself)
- *   ../              → segments: ['..']                      (the parent itself)
+ *   ./               → segments: []
  *
  * Distinguishing path from spread (`...`): a path always begins with `./` or
  * `../` and contains a `/`. `...xs` (no slash) is a spread.
  */
-export interface PathAST extends ASTBase {
-	readonly kind: 'path'
-	readonly segments: ReadonlyArray<'..' | string | number>
+export class PathAST extends ASTNode {
+	readonly kind = 'path' as const
+	constructor(
+		public readonly segments: ReadonlyArray<'..' | string | number>
+	) {
+		super()
+	}
 }
 
-export interface QuoteAST extends ASTBase {
-	readonly kind: 'quote'
-	readonly expr: AST
+export class QuoteAST extends ASTNode {
+	readonly kind = 'quote' as const
+	constructor(public readonly expr: AST) {
+		super()
+	}
 }
 
-export interface UnquoteAST extends ASTBase {
-	readonly kind: 'unquote'
-	readonly expr: AST
+export class UnquoteAST extends ASTNode {
+	readonly kind = 'unquote' as const
+	constructor(public readonly expr: AST) {
+		super()
+	}
 }
 
-/** Unquote-splice (`...~expr`). Doubles as the host-API spread when used at
- * call/vector/record sites — see syntax.md — Spread.
- */
-export interface SpliceAST extends ASTBase {
-	readonly kind: 'splice'
-	readonly expr: AST
+export class SpliceAST extends ASTNode {
+	readonly kind = 'splice' as const
+	constructor(public readonly expr: AST) {
+		super()
+	}
 }
 
 /**
  * Metadata-attached expression `^{...} expr`.
- *
- * `metadata` (rather than `meta`) is the field name, to avoid clashing with
- * the `.meta(...)` builder method on AST handles.
+ * Field is `metadata` (not `meta`) to avoid clashing with the `.meta()` method.
  */
-export interface MetaAST extends ASTBase {
-	readonly kind: 'meta'
-	readonly metadata: RecordAST
-	readonly expr: AST
+export class MetaAST extends ASTNode {
+	readonly kind = 'meta' as const
+	constructor(
+		public readonly metadata: RecordAST,
+		public readonly expr: AST
+	) {
+		super()
+	}
 }
 
 // -----------------------------------------------------------------------------
-// Convenience type guards
+// Convenience type guards (still useful for narrowing in switch/case)
 // -----------------------------------------------------------------------------
 
 export const isLit = (a: AST): a is LitAST => a.kind === 'lit'
@@ -219,13 +278,6 @@ export type Env = Frame | null
 
 /**
  * A single frame in the env chain.
- *
- * - `ast`: the AST node this frame represents (let-block, function literal,
- *   record, vector, application, quasiquoted form, ...).
- * - `parent`: one frame up; `null` only at the root.
- * - `bindings`: present only on scope-introducing frames (top-level, let-block,
- *   function body). Maps each name to its right-hand-side AST plus the env
- *   that AST is to be evaluated in. See eval.md's frame table for details.
  */
 export interface Frame {
 	readonly ast: AST
@@ -233,11 +285,6 @@ export interface Frame {
 	readonly bindings?: ReadonlyMap<string, BindingTarget>
 }
 
-/**
- * A binding's target: the unevaluated AST and the env in which it is to be
- * evaluated. Lazy semantics — actual evaluation only happens when the name is
- * forced.
- */
 export interface BindingTarget {
 	readonly ast: AST
 	readonly env: Env
@@ -249,28 +296,15 @@ export interface BindingTarget {
 
 export type DiagnosticLevel = 'error' | 'warning' | 'info'
 
-/**
- * A single diagnostic emitted during evaluation. `source` identifies the
- * evaluation node where the diagnostic originated.
- *
- * Evaluation never throws — diagnostics flow on a parallel channel; values
- * fall back via the `default` mechanism (see types.md).
- */
 export interface Diagnostic {
 	readonly level: DiagnosticLevel
 	readonly message: string
 	readonly source: EvaluationNode
 }
 
-/**
- * Identifies a specific evaluation: an AST node together with the env in
- * which it is being evaluated. The same AST under different envs is a
- * different evaluation node.
- */
 export interface EvaluationNode {
 	readonly ast: AST
 	readonly env: Env
 }
 
-/** Bag of diagnostics propagated alongside a value. */
 export type Diagnostics = ReadonlySet<Diagnostic>

@@ -1,22 +1,27 @@
 /**
  * AST builders for the host API.
  *
- * Each function returns a fresh AST node. Construction has no env-resolution
- * step; what comes out is a raw syntactic tree, equivalent to what a parser
- * would produce (minus trivia).
+ * Each function returns a fresh AST class instance. Construction has no
+ * env-resolution step; what comes out is a raw syntactic tree, equivalent
+ * to what a parser would produce (minus trivia).
+ *
+ * The AST nodes themselves carry a `.meta(content)` method (defined on the
+ * `ASTNode` base class), so the fluent form `lit(100).meta({ label: 'Width' })`
+ * works on every builder result without per-builder wrapping.
  *
  * Spec: docs/spec/host-api.md — Builders
  */
 
 import { print } from './print.js'
-import type {
+import {
 	AccessAST,
-	AST,
+	type AST,
 	CallAST,
 	FnAST,
-	FnParam,
+	type FnParam,
 	LetAST,
 	LitAST,
+	type MetaContent,
 	MetaAST,
 	PathAST,
 	QuoteAST,
@@ -24,114 +29,48 @@ import type {
 	SpliceAST,
 	SymAST,
 	UnquoteAST,
-	Unit,
+	type Unit,
 	VecAST,
 } from './types.js'
-
-// -----------------------------------------------------------------------------
-// .meta() method support
-// -----------------------------------------------------------------------------
-
-/**
- * Values accepted as metadata field values: AST, or a JS primitive that is
- * auto-lifted to a `LitAST`.
- */
-type MetaFieldValue = AST | number | string | boolean | Unit
-
-type MetaContent = Readonly<Record<string, MetaFieldValue>>
-
-/**
- * AST handle augmented with a `.meta(content)` method for fluent metadata
- * attachment: `lit(100).meta({ label: 'Width', default: 100 })` builds the
- * same AST as `meta(record({...}), lit(100))`.
- *
- * The method is added as a **non-enumerable** property so it doesn't appear
- * in `toEqual` comparisons, JSON.stringify, or object spreads — only the
- * data shape matters for equality.
- */
-export type Withable<T extends AST> = T & {
-	meta(content: MetaContent): MetaAST
-}
-
-function isAST(v: unknown): v is AST {
-	return typeof v === 'object' && v !== null && 'kind' in v
-}
-
-function liftField(v: MetaFieldValue): AST {
-	return isAST(v) ? v : lit(v)
-}
-
-/**
- * Attach a non-enumerable `.meta()` method to an AST and return it typed as
- * `Withable<T>`. Internal helper for builder return values.
- */
-function attach<T extends AST>(ast: T): Withable<T> {
-	Object.defineProperty(ast, 'meta', {
-		value(content: MetaContent): MetaAST {
-			const fields: Record<string, AST> = {}
-			for (const [k, v] of Object.entries(content)) {
-				fields[k] = liftField(v)
-			}
-			return attach({
-				kind: 'meta',
-				metadata: record(fields),
-				expr: ast,
-			})
-		},
-		enumerable: false,
-		writable: false,
-		configurable: false,
-	})
-	return ast as Withable<T>
-}
 
 // -----------------------------------------------------------------------------
 // AST builders
 // -----------------------------------------------------------------------------
 
 /** Literal AST. Distinguishes between number / string / boolean / unit by JS type. */
-export function lit(value: number | string | boolean | Unit): Withable<LitAST> {
-	return attach({ kind: 'lit', value })
+export function lit(value: number | string | boolean | Unit): LitAST {
+	return new LitAST(value)
 }
 
 /** Symbol (bare identifier) AST. Use this for identifiers; `lit` is for values. */
-export function sym(name: string): Withable<SymAST> {
-	return attach({ kind: 'sym', name })
+export function sym(name: string): SymAST {
+	return new SymAST(name)
 }
 
 /** Application: `(head a b ...)`. */
-export function call(
-	head: AST,
-	...args: ReadonlyArray<AST>
-): Withable<CallAST> {
-	return attach({ kind: 'call', head, args })
+export function call(head: AST, ...args: ReadonlyArray<AST>): CallAST {
+	return new CallAST(head, args)
 }
 
 /**
  * Application with keyword arguments: `(head a b k1=v1 k2=v2)`.
- * Plain positional + keyword combination; keyword arg values are AST nodes.
  */
 export function callKw(
 	head: AST,
 	args: ReadonlyArray<AST>,
 	kwargs: Readonly<Record<string, AST>>
-): Withable<CallAST> {
-	return attach({
-		kind: 'call',
-		head,
-		args,
-		kwargs: new Map(Object.entries(kwargs)),
-	})
+): CallAST {
+	return new CallAST(head, args, new Map(Object.entries(kwargs)))
 }
 
 /** Accessor sugar: `target.key`. Equivalent in meaning to `Call(target, [Lit(key)])`. */
-export function access(target: AST, key: string | number): Withable<AccessAST> {
-	return attach({ kind: 'access', target, key })
+export function access(target: AST, key: string | number): AccessAST {
+	return new AccessAST(target, key)
 }
 
 /** Vector literal: `[e0 e1 ...]`. */
-export function vec(...elements: ReadonlyArray<AST>): Withable<VecAST> {
-	return attach({ kind: 'vec', elements })
+export function vec(...elements: ReadonlyArray<AST>): VecAST {
+	return new VecAST(elements)
 }
 
 /**
@@ -140,25 +79,8 @@ export function vec(...elements: ReadonlyArray<AST>): Withable<VecAST> {
  */
 export function record(
 	fields: Readonly<Record<string, AST>>
-): Withable<RecordAST> {
-	return attach({
-		kind: 'record',
-		fields: new Map(Object.entries(fields)),
-	})
-}
-
-/**
- * Path AST. Pass segments in order, where `'..'` means parent.
- *
- *   path('foo')          → ./foo
- *   path('..', 'foo')    → ../foo
- *   path('..', '..', 'a')→ ../../a
- *   path()               → ./    (the current node itself)
- */
-export function path(
-	...segments: ReadonlyArray<'..' | string | number>
-): Withable<PathAST> {
-	return attach({ kind: 'path', segments })
+): RecordAST {
+	return new RecordAST(new Map(Object.entries(fields)))
 }
 
 /**
@@ -172,8 +94,8 @@ export function path(
 export function letBlock(
 	bindings: ReadonlyArray<readonly [string, AST]>,
 	body: AST | null = null
-): Withable<LetAST> {
-	return attach({ kind: 'let', bindings, body })
+): LetAST {
+	return new LetAST(bindings, body)
 }
 
 /**
@@ -187,40 +109,43 @@ export function letBlock(
  *   // → (=> (x: number y: number): number (+ x y))
  *
  * For function-type expressions (no body), pass `null` for `body`.
- * For generics, pass a list of type-variable names in `options.generics`.
- *
- * The chain form `g.fn({...}).returns(R)` documented in host-api.md is the
- * value builder (constructs a type value); the AST builder here is the lower-
- * level shape-construction utility.
  */
 export function fn(
 	params: ReadonlyArray<FnParam>,
 	returnType: AST,
 	body: AST | null = null,
 	options?: { readonly generics?: ReadonlyArray<string> }
-): Withable<FnAST> {
-	return attach({
-		kind: 'fn',
-		generics: options?.generics ?? [],
-		params,
-		returnType,
-		body,
-	})
+): FnAST {
+	return new FnAST(options?.generics ?? [], params, returnType, body)
+}
+
+/**
+ * Path AST. Pass segments in order, where `'..'` means parent.
+ *
+ *   path('foo')          → ./foo
+ *   path('..', 'foo')    → ../foo
+ *   path('..', '..', 'a')→ ../../a
+ *   path()               → ./    (the current node itself)
+ */
+export function path(
+	...segments: ReadonlyArray<'..' | string | number>
+): PathAST {
+	return new PathAST(segments)
 }
 
 /** Quasiquote: `` `expr ``. */
-export function quote(expr: AST): Withable<QuoteAST> {
-	return attach({ kind: 'quote', expr })
+export function quote(expr: AST): QuoteAST {
+	return new QuoteAST(expr)
 }
 
 /** Unquote: `~expr`. */
-export function unquote(expr: AST): Withable<UnquoteAST> {
-	return attach({ kind: 'unquote', expr })
+export function unquote(expr: AST): UnquoteAST {
+	return new UnquoteAST(expr)
 }
 
 /** Unquote-splice / spread: `...~expr` (in quasiquote) or `...xs` (in call/vec/record). */
-export function splice(expr: AST): Withable<SpliceAST> {
-	return attach({ kind: 'splice', expr })
+export function splice(expr: AST): SpliceAST {
+	return new SpliceAST(expr)
 }
 
 /**
@@ -231,16 +156,8 @@ export function splice(expr: AST): Withable<SpliceAST> {
  * to literals). The fluent form `expr.meta({...})` is usually nicer; this
  * function exists for cases where the wrapping order is more natural.
  */
-export function meta(content: MetaContent, expr: AST): Withable<MetaAST> {
-	const fields: Record<string, AST> = {}
-	for (const [k, v] of Object.entries(content)) {
-		fields[k] = liftField(v)
-	}
-	return attach({
-		kind: 'meta',
-		metadata: record(fields),
-		expr,
-	})
+export function meta(content: MetaContent, expr: AST): MetaAST {
+	return expr.meta(content)
 }
 
 // -----------------------------------------------------------------------------
