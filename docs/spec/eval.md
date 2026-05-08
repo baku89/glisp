@@ -1,8 +1,16 @@
 # Glisp Evaluation Model
 
+## Evaluation node
+
+The fundamental unit of the evaluation model is an **evaluation node**: a pair `(AST, env)` of a syntax-tree node together with the environment in which it is to be evaluated.
+
+The same AST node under different envs is a different evaluation node and (in general) yields a different value. Conversely, two references that resolve to the same `(AST, env)` pair denote the very same evaluation, share the same memoized result, and form a single shared node in the evaluation DAG.
+
+Throughout this document, "AST position" is shorthand for an evaluation node `(AST, env)`.
+
 ## Environment
 
-An environment is **not** a `Map<Name, Value>` of evaluated values. It is a chain of frames, each rooted in a syntactic position. Bindings in a frame point to **AST positions to evaluate**, not to evaluated values.
+An environment is **not** a `Map<Name, Value>` of evaluated values. It is a chain of frames, each rooted in a syntactic position. Bindings in a frame point to **evaluation nodes** (`(AST, env)` pairs), not to evaluated values.
 
 ```
 Env  ::= null            ;; root sentinel
@@ -62,7 +70,7 @@ Walk up exactly `k` frames from `e`, then look up `name` in that frame. If `k` e
 eval: (AST, Env) → Value
 ```
 
-`eval` is a pure function. For any fixed `(AST, env)` pair the result is identical, so the result can be memoized on `(AST identity, env identity)`.
+`eval` is a pure function over evaluation nodes. For any fixed `(AST, env)` pair the result is identical, so the result can be memoized on `(AST identity, env identity)`. Memoization on the evaluation node is what makes shared sub-computations explicit as a DAG.
 
 ### Lazy semantics
 
@@ -84,8 +92,8 @@ Implementations may additionally cache resolved binding pointers on each name re
 ## Open questions
 
 - **Default fallback propagation**: when a sub-expression's evaluation falls back to a default value, how does the diagnostic and the default propagate up the surrounding expression?
-- **DAG-level sharing**: multiple `x` references in the same scope all resolve to the same `(binding_AST, binding_env)`. Memoization makes the shared computation explicit. What additional structure (if any) does the implementation expose to surface the DAG?
-- **Partial evaluation**: any `(AST, env)` is in principle evaluable. What host API surfaces this for tooling?
+- **DAG-level sharing**: multiple `x` references in the same scope all resolve to the same evaluation node. Memoization makes the shared computation explicit. What additional structure (if any) does the implementation expose to surface the DAG?
+- **Partial evaluation**: any evaluation node is in principle evaluable. What host API surfaces this for tooling?
 - **Incremental / differential evaluation**: when an input AST node is replaced, what is the cache invalidation rule?
 - **Bidirectional evaluation**: editing a result value, how is the corresponding input inferred?
 - **Diagnostics propagation mechanism**: Boxed value, `WeakMap<Value, Diagnostics>`, or hybrid. Primitive values cannot be `WeakMap` keys, requiring a side-channel.
