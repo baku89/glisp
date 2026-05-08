@@ -29,7 +29,7 @@ Three kinds of frames:
 | Let-block `{a = ... b = ... ...}` | enclosing frame | each `name → (value-AST, this-frame)` where `value-AST` is the expression on the right of `=` (self-referential, enables recursive bindings) |
 | Function body | the closure's captured lexical env | each `parameter → (argument-AST, caller's env)` where `argument-AST` is the expression passed at the call site |
 
-Records (`{x: 10}`), vectors (`[...]`), function applications (`(fn args)`), and quasiquoted forms (`` `(...) ``) do not introduce frames.
+Records (`{x: 10}`), vectors (`[...]`), function applications (`(fn args)`), and quasiquoted forms (`` `(...) ``) do not introduce frames; they are transparent to `..`. Path counts traverse scope levels (let-blocks and function literals), not AST nesting depth. This makes paths refactor-safe: wrapping an expression in a vector or function application does not change `../...` semantics.
 
 ## Closures
 
