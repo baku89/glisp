@@ -8,9 +8,12 @@
 
 ## Core premise
 
-Glisp's primary host is a visual / GUI editor in which users edit the AST directly without reading source text. Most of the design choices below are consequences of taking this premise seriously: the language should never produce a state in which the GUI cannot show *something*, the user should not have to invent names just to share intermediate values, edits should preserve formatting and trivia, and the host should be able to show and reason at any depth of evaluation.
+Glisp is shaped by two complementary use cases:
 
-The language core itself does not include UI, IDE, or graphics features — those belong to host applications — but the language is shaped throughout by the assumption that such a host exists.
+- **Visual / GUI editing**: a GUI host edits the AST directly. The language should never produce a state where the host cannot show something, the user should not have to invent names just to share intermediate values, edits should preserve formatting and trivia, and the host should be able to show and reason at any depth of evaluation.
+- **Declarative description files**: a project file, configuration, or document is itself a Glisp program. It can be written as pure static data and progressively enhanced with bindings, cross-references, and macros — gaining programmability, modularity, and DRY without giving up its declarative readability.
+
+Most of the design choices below follow from taking these two premises seriously together. The language core itself contains no UI, IDE, or graphics features — those belong to host applications — but the language is shaped throughout by the assumption that the consumer is either a visual editor or a description-file reader.
 
 ## Derived principles
 
