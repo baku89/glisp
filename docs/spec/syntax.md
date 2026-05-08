@@ -114,6 +114,11 @@ Segments are names (record fields, kwargs, let-block bindings, function paramete
 
 [10 ./0]                        ;; parent = vector, element 0 = 10 → vector evaluates to [10 10]
 
+[./1 "str with index 1"]        ;; ./1 = vector's element 1 → ["str with index 1" "str with index 1"]
+
+(+ x ./1)                       ;; in a call, child 0 is head (+), child 1 is x, child 2 is ./1
+                                ;; ./1 = child 1 = x → equivalent to (+ x x)
+
 {a = 10
  b = [(/ ../../a 2)]}           ;; ../../ to climb out of both vector and let-block
 ```

@@ -70,7 +70,9 @@ Walk up `e`'s frame chain; at each frame check whether its `bindings` (if any) c
 For a path atom with `k` leading `.` characters (so `./...` is `k=1`, `../...` is `k=2`, etc.) followed by zero or more `/segment` parts:
 
 1. From the current frame, walk up `k − 1` parents, then take that frame's parent. (Equivalently: each `.` walks one AST level up; the first `.` walks out of the path expression itself.)
-2. At that frame, descend through the segments. A segment is a name (record field, kwarg name, let-block binding, function parameter) or an integer (vector index, positional argument index). Each segment moves to the addressed child AST node.
+2. At that frame, descend through the segments. A segment is a name (record field, kwarg name, let-block binding, function parameter) or an integer (an index into the syntactic children of the node, in source order). Each segment moves to the addressed child AST node.
+
+   For a function application `(head arg0 arg1 ...)`, the indices are: `0` = head, `1` = `arg0`, `2` = `arg1`, etc. For a vector `[e0 e1 ...]`, indices are `0` = `e0`, `1` = `e1`, etc.
 3. The result is the evaluation node `(target_AST, target_env)`, where `target_env` is the frame at the addressed position.
 
 If the dots take the path above top-level, or a segment fails to address any child, emit a diagnostic and yield the surrounding context's expected default.
