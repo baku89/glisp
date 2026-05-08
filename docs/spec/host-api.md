@@ -303,6 +303,22 @@ Authors are responsible for ordering candidates from most-specific to least-spec
 
 This is the same dispatch shape as `?` (match): linear scan, first match wins, no "most-specific" ranking. The evaluator runs one algorithm for both forms.
 
+### TS inference for `g.overload`
+
+`g.infer<typeof overloadValue>` produces an **intersection of the candidate function types** — exactly TS's representation of an overloaded function:
+
+```ts
+const plus = g.overload(
+  [g.fn({a: g.number, b: g.number}).returns(g.number), (a, b) => a + b],
+  [g.fn({a: vec2, b: vec2}).returns(vec2), addVec2],
+)
+
+type Plus = g.infer<typeof plus>
+//   = ((a: number, b: number) => number) & ((a: vec2, b: vec2) => vec2)
+```
+
+TS's call-site type-checking picks the matching signature from the intersection. The `value` parts of the candidates must satisfy this intersection (each implementation matches its own signature; TS verifies this at `g.overload` call site).
+
 In Glisp source, the same overload form is available as the `overload` special form:
 
 ```glisp

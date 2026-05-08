@@ -208,3 +208,4 @@ Hindley-Milner-style unification. Generics are inferred at call sites.
 - Diagnostics propagation mechanism: Boxed value, `WeakMap<Value, Diagnostics>`, or hybrid (the primitive-key problem).
 - TypeScript-side type derivation for `refine`-based subtypes: how to surface the predicate constraint in the inferred TS type.
 - Sum types / ADTs: not introduced. Tagged-record-by-convention covers the common cases; revisit if needed.
+- **Type classes / constraint-based generics** (`(=> (T: Addable) (a: T b: T): T ...)`). v1 uses `overload` as a closed set of candidates. Type classes would add open extension (new instances declarable later) at the cost of a constraint syntax, instance declaration, and dictionary-passing implementation. Defer to v2; if introduced, `overload` may become syntactic sugar for a closed type-class definition.
