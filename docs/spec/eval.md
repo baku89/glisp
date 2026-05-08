@@ -164,6 +164,15 @@ Examples like `{a: ./b  b: ./a}` resolve via this rule: each field becomes `()`,
 
 Within `` `(...) ``, sub-expressions are not evaluated; the form is data. Only `~expr` and `~@expr` are evaluated, in the surrounding env. The result of `` `... `` is a syntax-tree value.
 
+### Paths across quasiquote boundaries
+
+A path inside a quasiquoted region behaves differently depending on whether it sits inside an unquote:
+
+- **Inside `~expr` or `~@expr`**: the path is evaluated. Path resolution treats the matched quasiquote/unquote pair as transparent — the `.` count starts from the position of the quasiquote (the form being canceled), not from the path's lexical position. This matches the intuition that `~` "lifts the expression out" to the surrounding scope.
+- **In a purely quoted region (not inside `~`)**: the path atom is not evaluated. It remains as path data in the resulting syntax-tree value, to be resolved later if the form is spliced into evaluable position elsewhere.
+
+Nested quasiquote/unquote pairs cancel level by level: each `~` undoes one enclosing `` ` ``. A path appearing under the innermost active unquote resolves relative to the position of the corresponding canceled quasiquote.
+
 ## Failure as `()`
 
 `()` (the Unit literal) is the canonical signal for "value cannot be determined". Any evaluator failure produces `()`:
@@ -227,4 +236,3 @@ Before evaluation, a static resolution pass walks the AST and verifies that ever
 - **Partial evaluation**: any evaluation node is in principle evaluable. What host API surfaces this for tooling?
 - **Incremental / differential evaluation**: when an input AST node is replaced, what is the cache invalidation rule?
 - **Bidirectional evaluation**: editing a result value, how is the corresponding input inferred?
-- **Paths across quasiquote boundaries**: do paths inside `~expr` traverse through the quasiquote frames or skip over them?
