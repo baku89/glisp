@@ -298,6 +298,39 @@ describe('evaluate — quasiquote transparency', () => {
 // Path lookup
 // -----------------------------------------------------------------------------
 
+describe('evaluate — cycle detection', () => {
+	it('a let-binding that references itself yields unit + diagnostic', () => {
+		// {a = a  a}  → cycle on a
+		const ast = letBlock([['a', sym('a')]], sym('a'))
+		const r = evaluate(ast, emptyEnv)
+		expect(r.value).toBe(UNIT)
+		expect(r.diagnostics.some(d => d.message.includes('cycle'))).toBe(true)
+	})
+
+	it('mutually recursive bindings detect a cycle', () => {
+		// {a = b  b = a  a}  → cycle
+		const ast = letBlock(
+			[
+				['a', sym('b')],
+				['b', sym('a')],
+			],
+			sym('a')
+		)
+		const r = evaluate(ast, emptyEnv)
+		expect(r.value).toBe(UNIT)
+		expect(r.diagnostics.some(d => d.message.includes('cycle'))).toBe(true)
+	})
+
+	it('memoization reuses results for repeated identical (ast, env)', () => {
+		// (Same AST referenced twice should evaluate once thanks to memo.)
+		// Hard to assert without an instrumented binding; we just ensure
+		// repeated lookups still produce the right answer.
+		const env = makeTopLevel({ x: lit(7) })
+		const ast = vec(sym('x'), sym('x'), sym('x'))
+		expect(evaluate(ast, env).value).toEqual([7, 7, 7])
+	})
+})
+
 describe('evaluate — path lookup', () => {
 	it('parent record field via ../', () => {
 		// {x: 10  y: ../x}  ; from inside the record, ../x looks at the record.

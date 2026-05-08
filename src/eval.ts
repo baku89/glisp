@@ -64,8 +64,61 @@ export class GlispClosure {
 // Public API
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// Memoization context
+// -----------------------------------------------------------------------------
+
+type MemoState =
+	| { readonly kind: 'in-progress' }
+	| { readonly kind: 'computed'; readonly result: EvalResult }
+
+/**
+ * Per-evaluation context shared across all recursive `evaluate` calls.
+ * Holds the memo cache for cycle detection and result reuse.
+ */
+export interface EvalContext {
+	readonly memo: Map<AST, Map<Env, MemoState>>
+}
+
+function newContext(): EvalContext {
+	return { memo: new Map() }
+}
+
+function lookupMemo(ctx: EvalContext, ast: AST, env: Env): MemoState | undefined {
+	return ctx.memo.get(ast)?.get(env)
+}
+
+function storeMemo(
+	ctx: EvalContext,
+	ast: AST,
+	env: Env,
+	state: MemoState
+): void {
+	let inner = ctx.memo.get(ast)
+	if (inner === undefined) {
+		inner = new Map()
+		ctx.memo.set(ast, inner)
+	}
+	inner.set(env, state)
+}
+
 /** Evaluate `ast` against `env`. Never throws. */
-export function evaluate(ast: AST, env: Env): EvalResult {
+export function evaluate(ast: AST, env: Env, ctx?: EvalContext): EvalResult {
+	const c = ctx ?? newContext()
+	const cached = lookupMemo(c, ast, env)
+	if (cached !== undefined) {
+		if (cached.kind === 'in-progress') {
+			return fail(ast, env, 'cycle detected')
+		}
+		return cached.result
+	}
+	storeMemo(c, ast, env, { kind: 'in-progress' })
+	const result = evaluateInner(ast, env, c)
+	storeMemo(c, ast, env, { kind: 'computed', result })
+	return result
+}
+
+function evaluateInner(ast: AST, env: Env, ctx: EvalContext): EvalResult {
 	switch (ast.kind) {
 		case 'lit':
 			return ok(ast.value)
@@ -75,11 +128,15 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 			if (target === null) {
 				return fail(ast, env, `unresolvable name: ${ast.name}`)
 			}
-			return evaluate(target.ast, target.env)
+			return evaluate(target.ast, target.env, ctx)
 		}
 
 		case 'vec': {
-			const { values, diagnostics } = evalListElements(ast.elements, env, ast)
+			const { values, diagnostics } = evalListElements(
+				ast.elements,
+				env,
+				ctx
+			)
 			return { value: values, diagnostics }
 		}
 
@@ -88,7 +145,7 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 			const diagnostics: Diagnostic[] = []
 			for (const entry of ast.fields) {
 				if (entry instanceof SpreadAST) {
-					const r = evaluate(entry.expr, env)
+					const r = evaluate(entry.expr, env, ctx)
 					push(diagnostics, r.diagnostics)
 					if (isPlainRecord(r.value)) {
 						Object.assign(result, r.value)
@@ -99,7 +156,7 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 					}
 				} else {
 					const [name, value] = entry
-					const r = evaluate(value, env)
+					const r = evaluate(value, env, ctx)
 					result[name] = r.value
 					push(diagnostics, r.diagnostics)
 				}
@@ -112,11 +169,11 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 			if (ast.body === null) {
 				return ok(UNIT)
 			}
-			return evaluate(ast.body, frame)
+			return evaluate(ast.body, frame, ctx)
 		}
 
 		case 'access': {
-			const targetResult = evaluate(ast.target, env)
+			const targetResult = evaluate(ast.target, env, ctx)
 			const diagnostics = [...targetResult.diagnostics]
 			const value = targetResult.value
 			if (Array.isArray(value) && typeof ast.key === 'number') {
@@ -155,16 +212,16 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 			return ok(new GlispClosure(ast, env))
 
 		case 'call':
-			return evalCall(ast, env)
+			return evalCall(ast, env, ctx)
 
 		case 'path':
-			return evalPath(ast.segments, env, ast)
+			return evalPath(ast.segments, env, ast, ctx)
 
 		// macro-related annotations are transparent during eval
 		case 'quote':
 		case 'unquote':
 		case 'splice':
-			return evaluate(ast.expr, env)
+			return evaluate(ast.expr, env, ctx)
 
 		case 'spread':
 			// A bare spread used outside a list-building context has no value.
@@ -172,7 +229,7 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 
 		case 'meta':
 			// Metadata is a parallel layer; eval just evaluates the underlying expr.
-			return evaluate(ast.expr, env)
+			return evaluate(ast.expr, env, ctx)
 	}
 }
 
@@ -229,13 +286,13 @@ function pushLetFrame(ast: AST & { bindings: ReadonlyArray<readonly [string, AST
 function evalListElements(
 	elements: ReadonlyArray<AST>,
 	env: Env,
-	parent: AST
+	ctx: EvalContext
 ): { values: unknown[]; diagnostics: Diagnostic[] } {
 	const values: unknown[] = []
 	const diagnostics: Diagnostic[] = []
 	for (const elem of elements) {
 		if (elem instanceof SpreadAST) {
-			const r = evaluate(elem.expr, env)
+			const r = evaluate(elem.expr, env, ctx)
 			push(diagnostics, r.diagnostics)
 			if (Array.isArray(r.value)) {
 				for (const v of r.value as unknown[]) values.push(v)
@@ -245,14 +302,12 @@ function evalListElements(
 				)
 			}
 		} else {
-			const r = evaluate(elem, env)
+			const r = evaluate(elem, env, ctx)
 			values.push(r.value)
 			push(diagnostics, r.diagnostics)
 		}
 	}
 	return { values, diagnostics }
-	// `parent` is captured for future enrichment; currently unused
-	void parent
 }
 
 // -----------------------------------------------------------------------------
@@ -264,9 +319,10 @@ function evalCall(
 		head: AST
 		args: ReadonlyArray<AST>
 	},
-	env: Env
+	env: Env,
+	ctx: EvalContext
 ): EvalResult {
-	const headResult = evaluate(ast.head, env)
+	const headResult = evaluate(ast.head, env, ctx)
 	const diagnostics = [...headResult.diagnostics]
 	const headValue = headResult.value
 
@@ -277,12 +333,12 @@ function evalCall(
 		const closure = headValue
 		const fnAst = closure.ast
 		if (fnAst.body === null) {
-			diagnostics.push(diag(ast, env, 'cannot call a function-type expression (no body)'))
+			diagnostics.push(
+				diag(ast, env, 'cannot call a function-type expression (no body)')
+			)
 			return { value: UNIT, diagnostics }
 		}
 		const map = new Map<string, BindingTarget>()
-		// Match positional args to params, lazily.
-		// Variadic / optional / kwargs are not yet implemented at this level.
 		for (let i = 0; i < fnAst.params.length; i++) {
 			const param = fnAst.params[i]!
 			const argAst = ast.args[i]
@@ -297,13 +353,13 @@ function evalCall(
 			parent: closure.capturedEnv,
 			bindings: map,
 		}
-		const r = evaluate(fnAst.body, bodyFrame)
+		const r = evaluate(fnAst.body, bodyFrame, ctx)
 		return { value: r.value, diagnostics: [...diagnostics, ...r.diagnostics] }
 	}
 
 	// Host-bound JS function — eval all args strictly, call.
 	if (typeof headValue === 'function') {
-		const evaluated = evalListElements(ast.args, env, ast)
+		const evaluated = evalListElements(ast.args, env, ctx)
 		push(diagnostics, evaluated.diagnostics)
 		try {
 			const result = (headValue as (...args: unknown[]) => unknown)(
@@ -328,7 +384,8 @@ function evalCall(
 function evalPath(
 	segments: ReadonlyArray<'..' | string | number>,
 	env: Env,
-	source: AST
+	source: AST,
+	ctx: EvalContext
 ): EvalResult {
 	// Path navigation per eval.md — Path lookup. Each '..' segment pops a
 	// frame; name/integer segments descend into the current frame's AST node.
@@ -361,7 +418,7 @@ function evalPath(
 	if (astHere === null) {
 		return ok(UNIT)
 	}
-	return evaluate(astHere, frame)
+	return evaluate(astHere, frame, ctx)
 }
 
 function childAt(node: AST, seg: string | number): AST | null {
