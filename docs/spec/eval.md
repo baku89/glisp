@@ -8,31 +8,35 @@ The same AST node under different envs is a different evaluation node and (in ge
 
 The AST and the env are kept separate because they capture different things:
 
-- **AST**: a static position in the syntax tree, fixed at parse time. AST nodes carry parent pointers so the tree can be walked structurally.
-- **Env**: a dynamic scope context, established when a scope-introducing form (let-block, function call) is entered.
+- **AST**: a static, immutable, pure tree, fixed at parse time. AST nodes do **not** carry parent pointers; subtrees can be freely shared, grafted, or transformed.
+- **Env**: a dynamic chain that represents both the ancestor AST positions and the scope context of the current evaluation. The ancestor information needed for path navigation lives here, not on the AST itself.
 
 ## AST tree
 
 The AST is the parse-time structure. Each node has:
 
 - A list of syntactic children (head + arguments for applications, fields for records, elements for vectors, etc.).
-- A parent pointer to the immediately enclosing AST node.
-- Static metadata: position, source, attached `^{...}` metadata.
+- Static metadata: source position, attached `^{...}` metadata.
 
-Path atoms (`./...`, `../...`) navigate the AST via these parent and child links. Path navigation does not consult the env.
+No parent pointer. The "where am I in the tree" information is supplied by the env at evaluation time.
 
 ## Environment
 
+The env is the chain of ancestor AST nodes from the top-level down to (but not including) the AST currently being evaluated. Each frame records which AST node it represents, plus optional bindings introduced by that node.
+
 ```
-Env  ::= null            ;; root sentinel
+Env  ::= null            ;; root sentinel (above top-level)
        | Frame
 Frame = {
-  parent:   Env
-  bindings: Map<Name, (AST, Env)>
+  ast:      ASTNode            ;; the AST node at this level
+  parent:   Env                ;; one level up
+  bindings: Map<Name, (AST, Env)>?   ;; only on scope-introducing frames
 }
 ```
 
-Three kinds of frames:
+Every ancestor AST node — let-blocks, function literals, records, vectors, function applications, quasiquoted forms — appears as a frame. Records, vectors, applications, and quasiquotes contribute no `bindings` (transparent to bare-name lookup) but participate in path navigation.
+
+Three kinds of frames carry `bindings`:
 
 | Frame | `parent` | `bindings` |
 |---|---|---|
@@ -40,7 +44,7 @@ Three kinds of frames:
 | Let-block `{a = ... b = ... ...}` | enclosing frame | each `name → (value-AST, this-frame)` where `value-AST` is the expression on the right of `=` (self-referential, enables recursive bindings) |
 | Function body | the closure's captured lexical env | each `parameter → (argument-AST, caller's env)` where `argument-AST` is the expression passed at the call site |
 
-Records, vectors, function applications, and quasiquoted forms do **not** introduce frames. They appear in the AST tree (and are reachable via paths) but contribute no bindings. The env is therefore changed only when entering a let-block, calling a function, or starting at the top level.
+When `eval` recurses into a child of the current AST, it pushes a new frame `{ ast: currentAST, parent: env, bindings: bindings-if-any }` and evaluates the child against the extended env.
 
 ## Closures
 
@@ -69,15 +73,15 @@ For a bare name `x` at env `e`:
 resolve(x, e): (AST, Env)
 ```
 
-Walk `e`'s frame chain. At each frame, check whether its `bindings` contain `x`. Return the innermost found `(AST, env)` pair. If no frame contains `x`, emit a diagnostic and yield `()` as the resolved value (see [Failure as `()`](#failure-as-)).
+Walk `e`'s frame chain. At each frame, check whether its `bindings` (if any) contain `x`. Return the innermost found `(AST, env)` pair. If no frame contains `x`, emit a diagnostic and yield `()` as the resolved value (see [Failure as `()`](#failure-as-)).
 
-The walk covers only scope frames; AST nesting (records, vectors, applications) does not appear in the env, so it is automatically transparent to bare-name lookup.
+Frames without `bindings` (records, vectors, applications, quasiquotes) are skipped — they are transparent to bare-name lookup.
 
 ## Path lookup
 
-For a path atom with `k` leading `.` characters (`./...` is `k=1`, `../...` is `k=2`, ...) followed by zero or more `/segment` parts at AST node `a`:
+For a path atom with `k` leading `.` characters (`./...` is `k=1`, `../...` is `k=2`, ...) followed by zero or more `/segment` parts at env `e`:
 
-1. Walk `a`'s parent pointers `k` times, reaching the **target AST node**.
+1. Walk `e` up by `k` frames. The frame reached is the **target frame**; its `ast` is the **target AST node**.
 2. From the target, descend through the segments. A segment is a name (record field, kwarg name, let-block binding, function parameter) or an integer (an index into the syntactic children of the node, in source order).
 3. The result is the evaluation node `(target_AST, env_at_target)`.
 
