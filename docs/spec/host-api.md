@@ -360,6 +360,18 @@ Both directions are automatic:
 - **Glisp → host**: a Glisp Closure surfaced to JS is a callable JS function. Calling it forces evaluation in the closure's captured env and returns a JS value.
 - **JS callbacks passed into Glisp**: a JS function passed as an argument is callable from Glisp directly. Glisp does not introspect the JS function's parameter list; the receiving slot's declared type is what's checked.
 
+### Captured environment of host-bound functions
+
+A Glisp closure is conceptually `(function literal AST, captured env)`. For functions imported from the host via `g.def(fnType, jsFn)`, there is no Glisp body — the function body is the host's JS implementation. The captured env slot of such a closure is the **empty env** (the root sentinel above top-level).
+
+The empty captured env is observably consistent:
+
+- Argument evaluation happens in the **caller's** env, per [eval.md — Environment](./eval.md#environment), regardless of host or Glisp origin.
+- Return values come back from JS directly; no env lookup is involved.
+- `expand` cannot descend into a host-bound function's body (it is JS, not AST). An empty captured env reflects "nothing to traverse."
+
+If a host-bound function needs lexical state (counters, caches, accumulators), the host writes a plain JS closure inside the bound JS function. Glisp does not provide a way to give a host-bound function an extended captured env.
+
 ## Open questions
 
 - **Diagnostics API surface**: how `glisp.diagnose` returns the diagnostic set, query by sub-AST, severity filtering, etc.
