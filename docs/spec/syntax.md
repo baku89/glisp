@@ -34,9 +34,11 @@ Bare identifiers are symbols, resolved in the lexical environment.
 foo bar baz!  +  *  multiply-by-2  >=  is-empty
 ```
 
-Allowed characters: alphanumerics and `+ - * / < > & | % _ ! $`. The first character must not be a digit.
+Allowed characters: alphanumerics and `+ - * < > & | % _ ! $`. The first character must not be a digit.
 
-Reserved (not allowed in identifiers): `? : = . ^ ~ ' \` , ; ( ) [ ] { } # @` and whitespace.
+Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` and whitespace.
+
+`/` standing alone is an atom referring to the division function (the same role `+` `-` `*` play as bare-token operator atoms). It is not part of identifiers because it doubles as the path separator (see [Path](#path)).
 
 ### Comments
 
@@ -90,6 +92,20 @@ a.b.c            ;; → ((a "b") "c"), left-associative
 ```
 
 Accessor `.` is syntactic sugar that desugars to the call form. Dynamic keys (variables, expressions) are written in the call form: `(rec keyVar)`, `(arr (+ i 1))`.
+
+### Path — `../`
+
+A path atom references a name in an ancestor scope. It is a sequence of one or more `..` segments separated by `/`, followed by `/` and a name.
+
+```glisp
+../x         ;; one scope level up, lookup 'x'
+../../foo    ;; two scope levels up
+../x.y       ;; resolve 'x' one level up, then access field 'y' (accessor sugar)
+```
+
+Each `..` walks up one enclosing scope (let-block or function literal). The trailing name is resolved in that ancestor scope.
+
+There is no absolute path form (no leading `/...`). Lexical lookup of an unqualified name `x` walks outward through enclosing scopes as usual; `../x` makes the walk explicit and limits it to a precise depth, e.g. to refer past a shadowed binding.
 
 ### Optional fields and arguments — `?`
 
@@ -279,6 +295,8 @@ The result of `` `... `` is itself a Glisp value (a syntax tree).
 | `#| ... |#` | multi-line comment |
 | `?` | optional field / argument suffix |
 | `.` | member accessor (record field / vector index) |
+| `..` | path: one scope level up |
+| `/` | division atom; path separator after `..` |
 
 ## Open questions
 
