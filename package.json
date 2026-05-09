@@ -20,6 +20,7 @@
   "author": "Baku Hashimoto <mail@baku89.com>",
   "devDependencies": {
     "@types/node": "^25.6.2",
+    "picocolors": "^1.1.1",
     "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

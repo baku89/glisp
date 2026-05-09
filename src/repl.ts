@@ -1,9 +1,9 @@
 /**
- * Minimal interactive REPL for trying out the language.
+ * Interactive REPL for trying out the language.
  *
  * Run with `npm run repl`.
  *
- * Each line is parsed and evaluated against a small starter env containing
+ * Each line is parsed and evaluated against a starter env containing
  * arithmetic, comparison, and a few utility functions bound from JS.
  *
  * Multi-line input: end a line with a trailing backslash `\` to continue.
@@ -19,6 +19,8 @@
 import { stdin as input, stdout as output } from 'node:process'
 import { createInterface } from 'node:readline/promises'
 
+import pc from 'picocolors'
+
 import { lit } from './build.js'
 import {
 	evaluate,
@@ -30,15 +32,50 @@ import {
 } from './eval.js'
 import { parse, ParseError } from './parse.js'
 import { print } from './print.js'
-import { type AST, type Env, type Frame, UNIT } from './types.js'
+import { type AST, type Diagnostic, type Env, type Frame, UNIT } from './types.js'
 
 // -----------------------------------------------------------------------------
-// Starter env — a tiny prelude of host-bound JS functions
+// Theme
+// -----------------------------------------------------------------------------
+
+const PROMPT = pc.cyan(pc.bold('glisp> '))
+const CONT_PROMPT = pc.dim('     | ')
+
+const theme = {
+	prompt: PROMPT,
+	cont: CONT_PROMPT,
+	number: pc.yellow,
+	string: pc.green,
+	boolean: pc.magenta,
+	keyword: pc.blue,
+	punct: pc.dim,
+	type: pc.cyan,
+	closure: pc.cyan,
+	hostfn: pc.dim,
+	unit: pc.dim,
+	error: pc.red,
+	warning: pc.yellow,
+	info: pc.cyan,
+	syntaxError: pc.red,
+	caret: pc.red,
+	hint: pc.dim,
+	header: pc.bold,
+}
+
+function welcome(): string {
+	return [
+		'',
+		theme.header(pc.cyan('  Glisp REPL  ')) +
+			theme.hint('— type an expression, or :help for commands.'),
+		'',
+	].join('\n')
+}
+
+// -----------------------------------------------------------------------------
+// Starter env
 // -----------------------------------------------------------------------------
 
 function buildStarterEnv(): Env {
-	// Primitive type values — callable for cast, with `fits` for type
-	// pattern matching in `?`.
 	const numberType = makeType('number', v => typeof v === 'number', 0)
 	const stringType = makeType('string', v => typeof v === 'string', '')
 	const booleanType = makeType(
@@ -50,21 +87,18 @@ function buildStarterEnv(): Env {
 	const topType = makeType('_', () => true, UNIT)
 	const bottomType = makeType('!', () => false, UNIT)
 
-	// Numeric binary op: each arg is cast to `number` before the call.
 	const num2 = (op: (a: number, b: number) => number) =>
 		makeTypedFn(
 			[numberType, numberType],
 			numberType,
 			(a, b) => op(a as number, b as number)
 		)
-	// Numeric comparison: number × number → boolean
 	const cmp2 = (op: (a: number, b: number) => boolean) =>
 		makeTypedFn(
 			[numberType, numberType],
 			booleanType,
 			(a, b) => op(a as number, b as number)
 		)
-	// Top-typed binary equality (any value compared by ===)
 	const eq2 = (op: (a: unknown, b: unknown) => boolean) =>
 		makeTypedFn([topType, topType], booleanType, op)
 
@@ -73,8 +107,6 @@ function buildStarterEnv(): Env {
 		string: lit(stringType as never),
 		boolean: lit(booleanType as never),
 		unit: lit(unitType as never),
-		// Note: `_` and `!` are reserved tokens (Top / Bottom literals); they
-		// don't need binding since the parser uses them directly.
 		top: lit(topType as never),
 		bottom: lit(bottomType as never),
 
@@ -88,15 +120,10 @@ function buildStarterEnv(): Env {
 		'>=': lit(cmp2((a, b) => a >= b) as never),
 		'==': lit(eq2((a, b) => a === b) as never),
 		'!=': lit(eq2((a, b) => a !== b) as never),
-		not: lit(
-			makeTypedFn([booleanType], booleanType, a => !a) as never
-		),
-		identity: lit(
-			makeTypedFn([topType], topType, a => a) as never
-		),
-		// `show` converts any value to its source-printed form (number 0 → "0").
+		not: lit(makeTypedFn([booleanType], booleanType, a => !a) as never),
+		identity: lit(makeTypedFn([topType], topType, a => a) as never),
 		show: lit(
-			makeTypedFn([topType], stringType, v => formatValue(v)) as never
+			makeTypedFn([topType], stringType, v => formatPlain(v)) as never
 		),
 		first: lit(
 			((xs: unknown) =>
@@ -115,10 +142,38 @@ function buildStarterEnv(): Env {
 }
 
 // -----------------------------------------------------------------------------
-// Pretty-print a result value
+// Value formatting
 // -----------------------------------------------------------------------------
 
 function formatValue(v: unknown): string {
+	if (v === UNIT) return theme.unit('()')
+	if (v === null) return theme.unit('null')
+	if (v === undefined) return theme.unit('undefined')
+	if (typeof v === 'string') return theme.string(JSON.stringify(v))
+	if (typeof v === 'number') return theme.number(String(v))
+	if (typeof v === 'boolean') return theme.boolean(String(v))
+	if (isTypeValue(v)) return theme.type(`<type ${v.typeName}>`)
+	if (v instanceof GlispClosure)
+		return theme.closure(`<closure ${print(v.ast)}>`)
+	if (typeof v === 'function') return theme.hostfn('<host-fn>')
+	if (Array.isArray(v)) {
+		return (
+			theme.punct('[') +
+			v.map(formatValue).join(' ') +
+			theme.punct(']')
+		)
+	}
+	if (typeof v === 'object') {
+		const entries = Object.entries(v as Record<string, unknown>).map(
+			([k, x]) => `${theme.keyword(k)}${theme.punct(':')} ${formatValue(x)}`
+		)
+		return theme.punct('{') + entries.join(' ') + theme.punct('}')
+	}
+	return String(v)
+}
+
+/** Plain (uncolored) variant for `show`. */
+function formatPlain(v: unknown): string {
 	if (v === UNIT) return '()'
 	if (v === null) return 'null'
 	if (v === undefined) return 'undefined'
@@ -127,14 +182,65 @@ function formatValue(v: unknown): string {
 	if (isTypeValue(v)) return `<type ${v.typeName}>`
 	if (v instanceof GlispClosure) return `<closure ${print(v.ast)}>`
 	if (typeof v === 'function') return '<host-fn>'
-	if (Array.isArray(v)) return `[${v.map(formatValue).join(' ')}]`
+	if (Array.isArray(v)) return `[${v.map(formatPlain).join(' ')}]`
 	if (typeof v === 'object') {
 		const entries = Object.entries(v as Record<string, unknown>).map(
-			([k, x]) => `${k}: ${formatValue(x)}`
+			([k, x]) => `${k}: ${formatPlain(x)}`
 		)
 		return `{${entries.join(' ')}}`
 	}
 	return String(v)
+}
+
+// -----------------------------------------------------------------------------
+// Diagnostic formatting
+// -----------------------------------------------------------------------------
+
+function formatDiagnostic(d: Diagnostic): string {
+	const tag =
+		d.level === 'error'
+			? theme.error('error')
+			: d.level === 'warning'
+				? theme.warning('warn')
+				: theme.info('info')
+	return `  ${tag} ${theme.hint('·')} ${d.message}`
+}
+
+function formatParseError(src: string, e: ParseError): string {
+	const lines: string[] = []
+	lines.push(theme.syntaxError('  syntax error') + theme.hint(' · ') + e.message)
+
+	// caret on the offending position
+	const lineInfo = lineAt(src, e.position)
+	if (lineInfo !== null) {
+		const { line, col, content } = lineInfo
+		lines.push(theme.hint(`  ${line + 1} | `) + content)
+		const caretIndent = ' '.repeat(`  ${line + 1} | `.length + col)
+		lines.push(caretIndent + theme.caret('^'))
+	}
+	return lines.join('\n')
+}
+
+function lineAt(
+	src: string,
+	pos: number
+): { line: number; col: number; content: string } | null {
+	if (pos < 0 || pos > src.length) return null
+	let lineStart = 0
+	let lineNum = 0
+	for (let i = 0; i < pos; i++) {
+		if (src[i] === '\n') {
+			lineNum++
+			lineStart = i + 1
+		}
+	}
+	let lineEnd = src.indexOf('\n', lineStart)
+	if (lineEnd === -1) lineEnd = src.length
+	return {
+		line: lineNum,
+		col: pos - lineStart,
+		content: src.slice(lineStart, lineEnd),
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -146,51 +252,57 @@ async function main(): Promise<void> {
 	let env: Env = starter
 	let lastSource: string | null = null
 
-	const rl = createInterface({ input, output, prompt: 'glisp> ' })
+	const rl = createInterface({ input, output, prompt: theme.prompt })
 
-	output.write('Glisp REPL — type an expression (or :help for commands).\n')
+	output.write(welcome())
 	rl.prompt()
 
 	let buffer = ''
+	let multiline = false
 
 	rl.on('line', line => {
-		// Multi-line continuation via trailing backslash.
+		// trailing backslash → continuation
 		if (line.endsWith('\\')) {
 			buffer += line.slice(0, -1) + '\n'
-			rl.setPrompt('     | ')
+			multiline = true
+			rl.setPrompt(theme.cont)
 			rl.prompt()
 			return
 		}
-		const src = (buffer + line).trim()
+		const fullSource = (buffer + line).trim()
+		const printedSource = multiline ? buffer + line : line
 		buffer = ''
-		rl.setPrompt('glisp> ')
+		multiline = false
+		rl.setPrompt(theme.prompt)
 
-		if (src === '') {
+		if (fullSource === '') {
 			rl.prompt()
 			return
 		}
 
-		if (src.startsWith(':')) {
-			env = handleCommand(src, env, starter, lastSource)
+		if (fullSource.startsWith(':')) {
+			env = handleCommand(fullSource, env, starter, lastSource)
 			rl.prompt()
 			return
 		}
 
 		try {
-			const ast = parse(src)
-			lastSource = src
+			const ast = parse(fullSource)
+			lastSource = fullSource
 			const r = evaluate(ast, env)
 			output.write(formatValue(r.value) + '\n')
 			for (const d of r.diagnostics) {
-				output.write(`  ${d.level}: ${d.message}\n`)
+				output.write(formatDiagnostic(d) + '\n')
 			}
 		} catch (e) {
 			if (e instanceof ParseError) {
-				output.write(`parse error: ${e.message}\n`)
-				output.write(`  at offset ${e.position}\n`)
+				output.write(formatParseError(printedSource, e) + '\n')
 			} else {
 				output.write(
-					`error: ${e instanceof Error ? e.message : String(e)}\n`
+					theme.error('  error') +
+						theme.hint(' · ') +
+						(e instanceof Error ? e.message : String(e)) +
+						'\n'
 				)
 			}
 		}
@@ -198,7 +310,7 @@ async function main(): Promise<void> {
 	})
 
 	rl.on('close', () => {
-		output.write('\nbye.\n')
+		output.write('\n' + theme.hint('bye.') + '\n')
 	})
 }
 
@@ -217,51 +329,66 @@ function handleCommand(
 		case 'help':
 			output.write(
 				[
-					'Commands:',
-					'  :env    — list current top-level bindings',
-					'  :ast    — print the AST of the previous input',
-					'  :reset  — restore the starter env',
-					'  :help   — show this help',
-					'  :quit   — exit (or Ctrl-D)',
+					theme.header('  Commands'),
+					`    ${theme.keyword(':env')}    ${theme.hint('— list current top-level bindings')}`,
+					`    ${theme.keyword(':ast')}    ${theme.hint('— print the AST of the previous input')}`,
+					`    ${theme.keyword(':reset')}  ${theme.hint('— restore the starter env')}`,
+					`    ${theme.keyword(':help')}   ${theme.hint('— show this help')}`,
+					`    ${theme.keyword(':quit')}   ${theme.hint('— exit (or Ctrl-D)')}`,
 					'',
-					'Use a trailing backslash for multi-line input.',
-				].join('\n') + '\n'
+					theme.hint('  Tip: end a line with `\\` to continue on the next.'),
+					'',
+				].join('\n')
 			)
 			return env
 		case 'env': {
 			const top = env as Frame | null
 			if (top === null || !top.bindings) {
-				output.write('(empty env)\n')
+				output.write(theme.hint('  (empty env)') + '\n')
 				return env
 			}
 			const names = [...top.bindings.keys()].sort()
-			output.write(names.join('  ') + '\n')
+			output.write(
+				'  ' +
+					names
+						.map(n => theme.keyword(n))
+						.join(theme.hint('  ')) +
+					'\n'
+			)
 			return env
 		}
 		case 'ast':
 			if (lastSource === null) {
-				output.write('(no previous input)\n')
+				output.write(theme.hint('  (no previous input)') + '\n')
 				return env
 			}
 			try {
 				const ast = parse(lastSource)
-				output.write(print(ast) + '\n')
+				output.write('  ' + theme.hint(print(ast)) + '\n')
 			} catch (e) {
 				output.write(
-					`error: ${e instanceof Error ? e.message : String(e)}\n`
+					theme.error('  error') +
+						theme.hint(' · ') +
+						(e instanceof Error ? e.message : String(e)) +
+						'\n'
 				)
 			}
 			return env
 		case 'reset':
-			output.write('(env reset)\n')
+			output.write(theme.hint('  (env reset)') + '\n')
 			return starter
 		default:
-			output.write(`unknown command: :${cmd}\n`)
+			output.write(theme.error(`  unknown command: :${cmd}`) + '\n')
 			return env
 	}
 }
 
 main().catch(e => {
-	output.write(`fatal: ${e instanceof Error ? e.message : String(e)}\n`)
+	output.write(
+		theme.error('fatal') +
+			' · ' +
+			(e instanceof Error ? e.message : String(e)) +
+			'\n'
+	)
 	process.exit(1)
 })
