@@ -57,21 +57,21 @@ export const unitType: TypeValue = makeType('unit', v => v === UNIT, UNIT)
 export const topType: TypeValue = makeType('_', () => true, UNIT)
 export const bottomType: TypeValue = makeType('!', () => false, UNIT)
 
-/**
- * Build an `IO` type with a payload type — the type the IO produces when
- * its `run()` is forced. Bare `IO` is sugar for `(IO _)`. The runtime
- * `fits` predicate cannot inspect the payload (it would require running
- * the action), so any `IO` instance fits any `(IO T)`; structural
- * compatibility between two parametric IOs flows through `typeFits`.
- */
+// Bare `IO` is `(IO _)`. `fits` cannot inspect the payload (would require
+// running the action), so any IO instance fits any (IO T); structural
+// compatibility between two parametric IOs flows through typeFits.
+const DEFAULT_IO = new IO('default IO', () => [])
+const ioCache: WeakMap<TypeValue, TypeValue> = new WeakMap()
+
 function makeIOType(payload: TypeValue): TypeValue {
-	const isTop = payload.typeName === '_'
-	const name = isTop ? 'IO' : `(IO ${payload.typeName})`
+	const cached = ioCache.get(payload)
+	if (cached !== undefined) return cached
+	const name = payload.typeName === '_' ? 'IO' : `(IO ${payload.typeName})`
 	const t: TypeValue = {
 		__glispType: true,
 		typeName: name,
 		fits: v => v instanceof IO,
-		default: new IO(`default ${name}`, () => []),
+		default: DEFAULT_IO,
 		shape: { kind: 'io', payload },
 		apply: typeArgs => {
 			if (typeArgs.length !== 1) {
@@ -82,6 +82,7 @@ function makeIOType(payload: TypeValue): TypeValue {
 			return makeIOType(typeArgs[0]!)
 		},
 	}
+	ioCache.set(payload, t)
 	return t
 }
 

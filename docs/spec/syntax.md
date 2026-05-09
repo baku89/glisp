@@ -58,14 +58,14 @@ Several bare tokens are reserved and cannot stand alone as identifiers; embedded
 | `_`        | `Top` type literal                          | `_x`, `foo_bar`                |
 | `!`        | `Bottom` type literal                       | `is-empty!`                    |
 | `%`        | partial-application placeholder             | `URL%encoded`                  |
-| `\|>`      | pipe special form                           | (none — distinct from `\|`)    |
-| `?`        | match special form (head); optional suffix  | (none — `?` already reserved)  |
+| `\|>`      | pipe special form                           | (none, distinct from `\|`)     |
+| `?`        | match special form (head); optional suffix  | (none, `?` already reserved)   |
+| `@`        | coerce special form head (`(@ T v)`)        | (none, `@` not an identifier char) |
+| `/`        | division function; also path separator      | (none, `/` not an identifier char) |
 
 Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` and whitespace.
 
-`/` standing alone is an atom referring to the division function (the same role `+` `-` `*` play as bare-token operator atoms). It is not part of identifiers because it doubles as the path separator (see [Path](#path)).
-
-`@` standing alone is the head of the coercion special form `(@ T v)` — see [Coerce — `@`](#coerce--).
+`/` and `@` are listed in the table for completeness even though they cannot appear inside an identifier; both are also single-character bare tokens with reserved bare-form meaning.
 
 ### Comments
 

@@ -95,7 +95,7 @@ export default defineUserConfig({
 			lang: 'ja-JP',
 			title: 'Glisp',
 			description:
-				'クリエイティブソフトに組み込むための小さなゲスト言語。TypeScript の上に乗り、デザインツール・モーションエディタ・ジェネラティブパイプラインを動かすコア',
+				'クリエイティブソフトに組み込むための小さな S 式言語。TypeScript アプリのライブラリとして動きます。',
 		},
 	},
 	bundler: viteBundler({

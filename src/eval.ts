@@ -153,11 +153,7 @@ export function makeType(
 }
 
 export function isTypeValue(v: unknown): v is TypeValue {
-	return (
-		v !== null &&
-		typeof v === 'object' &&
-		(v as { __glispType?: true }).__glispType === true
-	)
+	return v != null && (v as { __glispType?: true }).__glispType === true
 }
 
 /**
@@ -387,6 +383,61 @@ export function isIO(v: unknown): v is IO {
 // Static type inference lives in infer.ts. Internally exposed via the
 // `lookupBareName` helper below so infer can walk the same env chain.
 export { lookupBareName }
+
+// -----------------------------------------------------------------------------
+// Type-value head: parametric apply, or reject with `@` hint
+// -----------------------------------------------------------------------------
+
+function evalTypeApply(
+	head: TypeValue,
+	positional: ReadonlyArray<AST>,
+	kwargs: ReadonlyMap<string, AST> | undefined,
+	env: Env,
+	site: AST,
+	diagnostics: Diagnostic[]
+): EvalResult {
+	if (head.apply === undefined) {
+		diagnostics.push(
+			diag(
+				site,
+				env,
+				`${head.typeName} is a type — use (@ ${head.typeName} v) for coercion`
+			)
+		)
+		return { value: UNIT, diagnostics }
+	}
+	const typeArgs: TypeValue[] = []
+	for (const argAst of positional) {
+		const r = evaluate(argAst, env)
+		push(diagnostics, r.diagnostics)
+		if (!isTypeValue(r.value)) {
+			diagnostics.push(
+				diag(
+					argAst,
+					env,
+					`type constructor ${head.typeName} expects type arguments`
+				)
+			)
+			return { value: UNIT, diagnostics }
+		}
+		typeArgs.push(r.value)
+	}
+	if (kwargs && kwargs.size > 0) {
+		diagnostics.push(
+			diag(
+				site,
+				env,
+				`type constructor ${head.typeName} does not accept keyword arguments`
+			)
+		)
+	}
+	const result = head.apply(typeArgs)
+	if ('error' in result) {
+		diagnostics.push(diag(site, env, result.error))
+		return { value: UNIT, diagnostics }
+	}
+	return { value: result, diagnostics }
+}
 
 // -----------------------------------------------------------------------------
 // Typed host fn dispatch (static check + cast)
@@ -860,54 +911,11 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 		)
 	}
 
-	// Type values are not callable as casts. A type may opt into parametric
-	// construction by defining `apply` — `(IO T)` is the canonical example.
-	// For non-parametric types, the call is rejected with a hint to use `@`.
-	// Checked here, BEFORE the plain-record fall-through, since type
-	// values are branded plain objects that would otherwise look like
-	// records to the dispatch.
+	// Type values: check before record fall-through (a TypeValue is a
+	// branded plain object). Parametric types dispatch through `apply`;
+	// non-parametric ones reject with a hint to use `@`.
 	if (isTypeValue(headValue)) {
-		if (headValue.apply !== undefined) {
-			const typeArgs: TypeValue[] = []
-			for (const argAst of positional) {
-				const r = evaluate(argAst, inside)
-				push(diagnostics, r.diagnostics)
-				if (!isTypeValue(r.value)) {
-					diagnostics.push(
-						diag(
-							argAst,
-							inside,
-							`type constructor ${headValue.typeName} expects type arguments`
-						)
-					)
-					return { value: headValue, diagnostics }
-				}
-				typeArgs.push(r.value)
-			}
-			if (kwargs && kwargs.size > 0) {
-				diagnostics.push(
-					diag(
-						ast,
-						inside,
-						`type constructor ${headValue.typeName} does not accept keyword arguments`
-					)
-				)
-			}
-			const result = headValue.apply(typeArgs)
-			if ('error' in result) {
-				diagnostics.push(diag(ast, inside, result.error))
-				return { value: headValue, diagnostics }
-			}
-			return { value: result, diagnostics }
-		}
-		diagnostics.push(
-			diag(
-				ast,
-				inside,
-				`${headValue.typeName} is a type — use (@ ${headValue.typeName} v) for coercion`
-			)
-		)
-		return { value: headValue.default, diagnostics }
+		return evalTypeApply(headValue, positional, kwargs, inside, ast, diagnostics)
 	}
 
 	// Vector → element access by integer index.
