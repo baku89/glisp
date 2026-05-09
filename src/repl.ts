@@ -25,7 +25,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 
 import pc from 'picocolors'
 
-import { evaluate, GlispClosure, IOAction, isTypeValue } from './eval.js'
+import { evaluate, IOAction, isGlispClosure, isTypeValue } from './eval.js'
 import { infer } from './infer.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
@@ -83,8 +83,7 @@ function formatValue(v: unknown): string {
 	if (typeof v === 'boolean') return theme.boolean(String(v))
 	if (isTypeValue(v)) return theme.type(v.typeName)
 	if (v instanceof IOAction) return theme.type(`<IO ${v.description}>`)
-	if (v instanceof GlispClosure)
-		return theme.closure(`<closure ${print(v.ast)}>`)
+	if (isGlispClosure(v)) return theme.closure(`<closure ${print(v.ast)}>`)
 	if (typeof v === 'function') return theme.hostfn('<host-fn>')
 	if (Array.isArray(v)) {
 		return (

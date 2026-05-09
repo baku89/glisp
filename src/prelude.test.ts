@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { evaluate, isTypeValue } from './eval.js'
+import { evaluate, IOAction, isTypeValue } from './eval.js'
 import { infer } from './infer.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
@@ -71,6 +71,71 @@ describe('prelude — comparison (chain)', () => {
 		expect(evaluate(parse('(== 1 1 2)'), env).value).toBe(false)
 		expect(evaluate(parse('(!= 1 2 3)'), env).value).toBe(true)
 		expect(evaluate(parse('(!= 1 2 2)'), env).value).toBe(false)
+	})
+})
+
+describe('prelude — higher-order functions', () => {
+	const env = buildPrelude()
+
+	it('map applies fn elementwise', () => {
+		const r = evaluate(
+			parse('(map [1 2 3 4] (=> (x: number): number (* x x)))'),
+			env
+		)
+		expect(r.value).toEqual([1, 4, 9, 16])
+	})
+
+	it('filter retains elements where pred is truthy', () => {
+		const r = evaluate(
+			parse('(filter [1 2 3 4 5] (=> (x: number): boolean (> x 2)))'),
+			env
+		)
+		expect(r.value).toEqual([3, 4, 5])
+	})
+
+	it('reduce folds left-to-right with init', () => {
+		const r = evaluate(
+			parse(
+				'(reduce [1 2 3 4 5] 0 (=> (a: number b: number): number (+ a b)))'
+			),
+			env
+		)
+		expect(r.value).toBe(15)
+	})
+})
+
+describe('prelude — type constructors', () => {
+	const env = buildPrelude()
+
+	it('enum casts a member through to its value', () => {
+		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
+			.value as IOAction).run()
+		expect(evaluate(parse('(C "g")'), env).value).toBe('g')
+	})
+
+	it('enum falls back to first listed value on cast miss', () => {
+		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
+			.value as IOAction).run()
+		const r = evaluate(parse('(C "purple")'), env)
+		expect(r.value).toBe('r')
+		expect(
+			r.diagnostics.some(d => d.message.includes("doesn't accept"))
+		).toBe(true)
+	})
+
+	it('refine narrows base type with a predicate', () => {
+		;(evaluate(
+			parse(
+				'(def "Pos" (refine number 1 (=> (x: number): boolean (> x 0))))'
+			),
+			env
+		).value as IOAction).run()
+		expect(evaluate(parse('(Pos 5)'), env).value).toBe(5)
+		const fail = evaluate(parse('(Pos -3)'), env)
+		expect(fail.value).toBe(1) // declared default
+		expect(
+			fail.diagnostics.some(d => d.message.includes("doesn't accept"))
+		).toBe(true)
 	})
 })
 

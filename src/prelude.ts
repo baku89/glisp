@@ -21,6 +21,8 @@ import {
 } from './types.js'
 import {
 	IOAction,
+	isGlispClosure,
+	isTypeValue,
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
@@ -187,7 +189,130 @@ export function buildPrelude(): Env {
 			((xs: unknown) =>
 				Array.isArray(xs) ? xs.length : 0) as unknown as never
 		),
+
+		// higher-order
+		map: lit(makeMap() as never),
+		filter: lit(makeFilter() as never),
+		reduce: lit(makeReduce() as never),
+
+		// type constructors
+		enum: lit(makeEnum() as never),
+		refine: lit(makeRefine() as never),
 	})
+}
+
+// -----------------------------------------------------------------------------
+// Higher-order functions over vectors
+// -----------------------------------------------------------------------------
+
+/**
+ * `map` — apply a unary callable to every element of a vector. The callable
+ * is either a Glisp closure (callable as a JS fn per host-api.md) or a
+ * plain host JS function.
+ */
+function makeMap(): TypedHostFn {
+	const vecType = makeType('vector', Array.isArray, [])
+	const fnType = makeType(
+		'(=> (_): _)',
+		v => typeof v === 'function',
+		(_x: unknown) => UNIT
+	)
+	return makeTypedFn(
+		[vecType, fnType],
+		vecType,
+		(xs, fn) =>
+			(xs as unknown[]).map(x => (fn as (a: unknown) => unknown)(x)),
+		['xs', 'f']
+	)
+}
+
+function makeFilter(): TypedHostFn {
+	const vecType = makeType('vector', Array.isArray, [])
+	const predType = makeType(
+		'(=> (_): boolean)',
+		v => typeof v === 'function',
+		(_x: unknown) => false
+	)
+	return makeTypedFn(
+		[vecType, predType],
+		vecType,
+		(xs, p) =>
+			(xs as unknown[]).filter(x =>
+				Boolean((p as (a: unknown) => unknown)(x))
+			),
+		['xs', 'p']
+	)
+}
+
+function makeReduce(): TypedHostFn {
+	const vecType = makeType('vector', Array.isArray, [])
+	const fnType = makeType(
+		'(=> (_ _): _)',
+		v => typeof v === 'function',
+		(_a: unknown) => UNIT
+	)
+	return makeTypedFn(
+		[vecType, topType, fnType],
+		topType,
+		(xs, init, fn) =>
+			(xs as unknown[]).reduce(
+				(acc, x) => (fn as (a: unknown, b: unknown) => unknown)(acc, x),
+				init
+			),
+		['xs', 'init', 'f']
+	)
+}
+
+// -----------------------------------------------------------------------------
+// Type constructors — enum, refine
+// -----------------------------------------------------------------------------
+
+/**
+ * `(enum v0 v1 ...)` — produce a finite-set type whose values are exactly
+ * those listed. The default is the first listed value (or unit if empty).
+ */
+function makeEnum(): TypedHostFn {
+	return makeTypedFn(
+		[],
+		topType,
+		(...vs) => {
+			const set = new Set(vs)
+			const name = `(enum ${vs.map(showValue).join(' ')})`
+			const fallback = vs.length > 0 ? vs[0] : UNIT
+			return makeType(name, v => set.has(v), fallback)
+		},
+		undefined,
+		topType
+	)
+}
+
+/**
+ * `(refine base default pred)` — narrow `base` to the subset for which
+ * `pred(v)` returns truthy. The default is provided by the caller (since
+ * `base.default` may not satisfy `pred`).
+ *
+ * `pred` accepts either a Glisp closure or a host JS function — both are
+ * callable JS values per host-api.md.
+ */
+function makeRefine(): TypedHostFn {
+	return makeTypedFn(
+		[topType, topType, topType],
+		topType,
+		(base, defaultV, pred) => {
+			if (!isTypeValue(base)) return base
+			const predicate =
+				typeof pred === 'function'
+					? (pred as (x: unknown) => unknown)
+					: () => false
+			const name = `(refine ${base.typeName})`
+			return makeType(
+				name,
+				v => base.fits(v) && Boolean(predicate(v)),
+				defaultV
+			)
+		},
+		['base', 'default', 'pred']
+	)
 }
 
 // -----------------------------------------------------------------------------
@@ -202,11 +327,9 @@ function showValue(v: unknown): string {
 	if (typeof v === 'number' || typeof v === 'boolean') return String(v)
 	if (Array.isArray(v)) return `[${v.map(showValue).join(' ')}]`
 	if (v instanceof IOAction) return `<IO ${v.description}>`
-	if (typeof v === 'function') {
-		const fn = v as TypedHostFn
-		if (fn.__glispTypedFn) return '<host-fn>'
-		return '<host-fn>'
-	}
+	if (isTypeValue(v)) return v.typeName
+	if (isGlispClosure(v)) return '<closure>'
+	if (typeof v === 'function') return '<host-fn>'
 	if (typeof v === 'object') {
 		const entries = Object.entries(v as Record<string, unknown>).map(
 			([k, x]) => `${k}: ${showValue(x)}`

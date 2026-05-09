@@ -15,8 +15,9 @@ import {
 import {
 	emptyEnv,
 	evaluate,
-	GlispClosure,
 	IOAction,
+	isGlispClosure,
+	makeClosure,
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
@@ -186,8 +187,8 @@ describe('evaluate — fn literal', () => {
 			sym('x')
 		)
 		const r = evaluate(ast, env)
-		expect(r.value).toBeInstanceOf(GlispClosure)
-		expect((r.value as GlispClosure).capturedEnv).toBe(env)
+		expect(isGlispClosure(r.value)).toBe(true)
+		expect(isGlispClosure(r.value) && r.value.capturedEnv).toBe(env)
 	})
 })
 
@@ -956,7 +957,7 @@ describe('toAst — value → AST round trip', () => {
 			[{ name: 'x', type: sym('_') }],
 			sym('_')
 		).withBody(sym('x'))
-		const closure = new GlispClosure(closureAst, emptyEnv)
+		const closure = makeClosure(closureAst, emptyEnv)
 		expect(toAst(closure, emptyEnv)).toBe(closureAst)
 	})
 

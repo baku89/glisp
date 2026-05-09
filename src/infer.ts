@@ -15,7 +15,8 @@
 
 import {
 	evaluate,
-	GlispClosure,
+	type GlispClosure,
+	isGlispClosure,
 	isTypedHostFn,
 	isTypeValue,
 	lookupBareName,
@@ -36,20 +37,30 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 			// Lit holding a Glisp value (typed host fn, closure, type value).
 			// Useful at REPL `:type` prompts that resolve a name to a value.
 			if (isTypedHostFn(v)) return functionTypeOf(v)
-			if ((v as unknown) instanceof GlispClosure)
-				return closureTypeOf(v as unknown as GlispClosure)
+			if (isGlispClosure(v)) return closureTypeOf(v)
 			if (isTypeValue(v)) return v
 			return null
 		}
 		case 'sym': {
 			const target = lookupBareName(ast.name, env)
 			if (target === null) return null
+			// Prefer the runtime value's type when it carries specific shape
+			// information (a TypeValue itself, a typed host fn, a closure).
+			// This is what makes `:type Color` show `(enum ...)` rather than
+			// just `_` (the static return type of the `enum` constructor).
+			// Memoization makes the eval cheap on repeat lookups.
+			const v = evaluate(target.ast, target.env).value
+			if (isTypeValue(v)) return v
+			if (isTypedHostFn(v)) return functionTypeOf(v)
+			if (isGlispClosure(v)) return closureTypeOf(v)
+			// Otherwise fall back to static inference on the bound AST
+			// (covers primitive literals like `x = 42`).
 			return infer(target.ast, target.env)
 		}
 		case 'call': {
 			const headValue = evaluate(ast.head, env).value
 			if (isTypedHostFn(headValue)) return headValue.returnType
-			if (headValue instanceof GlispClosure) {
+			if (isGlispClosure(headValue)) {
 				const rt = evaluate(
 					headValue.ast.returnType,
 					headValue.capturedEnv

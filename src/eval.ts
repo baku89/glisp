@@ -38,17 +38,51 @@ export interface EvalResult {
 // -----------------------------------------------------------------------------
 
 /**
- * Internal representation of a Glisp function value: a function-literal AST
- * paired with the env in which the literal was created (lexical scope).
+ * Glisp function value. Per host-api.md, a Glisp closure surfaced to JS
+ * is a callable JS function: invoking it forces evaluation in the
+ * closure's captured env and returns the JS value.
  *
- * Per host-api.md the public-facing form is a callable JS function; this
- * class is the implementation detail wrapped for that purpose.
+ * The implementation is a regular JS function carrying brand-property
+ * marker `__glispClosure`, plus the function-literal AST and the env in
+ * which the literal was created. `instanceof`-style checks are not
+ * usable on a plain function, so dispatch goes through `isGlispClosure`.
  */
-export class GlispClosure {
-	constructor(
-		public readonly ast: FnAST,
-		public readonly capturedEnv: Env
-	) {}
+export interface GlispClosure {
+	(...args: unknown[]): unknown
+	readonly __glispClosure: true
+	readonly ast: FnAST
+	readonly capturedEnv: Env
+}
+
+export function makeClosure(ast: FnAST, capturedEnv: Env): GlispClosure {
+	const closure = function (
+		this: GlispClosure | undefined,
+		...args: unknown[]
+	): unknown {
+		return invokeClosureFromJS(closure, args)
+	} as unknown as GlispClosure
+	Object.defineProperty(closure, '__glispClosure', { value: true })
+	Object.defineProperty(closure, 'ast', { value: ast })
+	Object.defineProperty(closure, 'capturedEnv', { value: capturedEnv })
+	return closure
+}
+
+export function isGlispClosure(v: unknown): v is GlispClosure {
+	return (
+		typeof v === 'function' &&
+		(v as { __glispClosure?: true }).__glispClosure === true
+	)
+}
+
+/**
+ * Invoke a Glisp closure from JS. JS-side args are reified to ASTs
+ * (literal-wrapped) before being bound to parameters, so the closure
+ * sees them through the same lazy-binding path as a normal Glisp call.
+ */
+function invokeClosureFromJS(c: GlispClosure, args: unknown[]): unknown {
+	const argAsts = args.map(a => toAst(a, c.capturedEnv))
+	const r = applyClosure(c, argAsts, undefined, c.capturedEnv, c.ast, [])
+	return r.value
 }
 
 // -----------------------------------------------------------------------------
@@ -272,11 +306,16 @@ function callTypedHostFn(
 
 		// Static type check — confirmed mismatch lets us skip evaluation
 		// of the argument entirely and substitute the default. Top type
-		// (`_`) accepts anything, so skip the check when the parameter is
-		// declared as top.
-		if (paramType.typeName !== '_') {
+		// (`_`) accepts anything, so skip; function-shaped types share a
+		// single runtime representation (any callable) and should defer
+		// to runtime fits rather than static identity comparison.
+		if (paramType.typeName !== '_' && !isFunctionTypeName(paramType)) {
 			const inferred = infer(argAst, env)
-			if (inferred !== null && inferred !== paramType) {
+			if (
+				inferred !== null &&
+				inferred !== paramType &&
+				!isFunctionTypeName(inferred)
+			) {
 				diagnostics.push(
 					diag(
 						argAst,
@@ -490,7 +529,7 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 		}
 
 		case 'fn':
-			return ok(new GlispClosure(ast, env))
+			return ok(makeClosure(ast, env))
 
 		case 'call':
 			return evalCall(ast, env)
@@ -618,7 +657,7 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	const kwargs = ast.kwargs
 
 	// Glisp closure → push body frame, bind params lazily.
-	if (headValue instanceof GlispClosure) {
+	if (isGlispClosure(headValue)) {
 		return applyClosure(headValue, positional, kwargs, env, ast, diagnostics)
 	}
 
@@ -667,6 +706,34 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	// Typed host function — per-arg static type check + cast.
 	if (isTypedHostFn(headValue)) {
 		return callTypedHostFn(headValue, positional, kwargs, env, ast, diagnostics)
+	}
+
+	// Type value used as a cast: (T value). One arg, runs through fits/default
+	// with a diagnostic on rejection.
+	if (isTypeValue(headValue)) {
+		if (positional.length !== 1) {
+			diagnostics.push(
+				diag(ast, env, `${headValue.typeName} cast expects exactly one argument`)
+			)
+			return { value: headValue.default, diagnostics }
+		}
+		const r = evaluate(positional[0]!, env)
+		push(diagnostics, r.diagnostics)
+		if (r.value === UNIT) {
+			// () slot → silent default fallback (per types.md).
+			return { value: headValue.default, diagnostics }
+		}
+		if (!headValue.fits(r.value)) {
+			diagnostics.push(
+				diag(
+					positional[0]!,
+					env,
+					`${headValue.typeName} doesn't accept ${describeType(r.value)} value`
+				)
+			)
+			return { value: headValue.default, diagnostics }
+		}
+		return { value: headValue(r.value), diagnostics }
 	}
 
 	// Untyped host function — eval all positional args strictly.
@@ -900,14 +967,27 @@ function applyClosure(
 		argEnv: Env,
 		paramType: TypeValue | null
 	): void => {
-		if (paramType === null || paramType.typeName === '_') {
-			map.set(name, { ast: argAst, env: argEnv })
+		if (
+			paramType === null ||
+			paramType.typeName === '_' ||
+			isFunctionTypeName(paramType)
+		) {
+			map.set(
+				name,
+				paramType === null
+					? { ast: argAst, env: argEnv }
+					: { ast: argAst, env: argEnv, type: paramType }
+			)
 			return
 		}
 		// Static type check — a confirmed mismatch lets us skip evaluation
 		// of the argument entirely and substitute the type's default.
 		const inferred = infer(argAst, argEnv)
-		if (inferred !== null && inferred !== paramType) {
+		if (
+			inferred !== null &&
+			inferred !== paramType &&
+			!isFunctionTypeName(inferred)
+		) {
 			diagnostics.push(
 				diag(
 					argAst,
@@ -1204,7 +1284,7 @@ function evalPipe(ast: CallAST, env: Env): EvalResult {
 		push(diagnostics, stepResult.diagnostics)
 		const fnValue = stepResult.value
 
-		if (fnValue instanceof GlispClosure) {
+		if (isGlispClosure(fnValue)) {
 			const argAst = reifyPrimitive(value)
 			const r = applyClosure(fnValue, [argAst], undefined, env, stepAst, [])
 			push(diagnostics, r.diagnostics)
@@ -1330,16 +1410,25 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
 		typeof v === 'object' &&
 		v !== null &&
 		!Array.isArray(v) &&
-		!(v instanceof GlispClosure) &&
 		typeof v !== 'function'
 	)
+}
+
+/**
+ * Heuristic: a TypeValue whose name begins with `(=>` describes a
+ * function shape. Two such types are runtime-compatible (both back the
+ * same JS-callable representation) regardless of param/return-type
+ * specifics, so static identity comparison would over-reject them.
+ */
+function isFunctionTypeName(t: TypeValue): boolean {
+	return t.typeName.startsWith('(=>')
 }
 
 function describeType(v: unknown): string {
 	if (v === UNIT) return 'unit'
 	if (v === null) return 'null'
 	if (Array.isArray(v)) return 'vector'
-	if (v instanceof GlispClosure) return 'closure'
+	if (isGlispClosure(v)) return 'closure'
 	if (v instanceof IOAction) return 'IO'
 	if (isTypeValue(v)) return `type<${v.typeName}>`
 	return typeof v
@@ -1385,7 +1474,7 @@ export function toAst(value: unknown, env: Env): AST {
 	if (value === null || value === undefined) {
 		return new LitASTClass(UNIT)
 	}
-	if (value instanceof GlispClosure) {
+	if (isGlispClosure(value)) {
 		return value.ast
 	}
 	if (value instanceof ASTNodeClass) {
