@@ -716,6 +716,59 @@ describe('evaluate — closure parameter / return type cast', () => {
 	})
 })
 
+describe('evaluate — generic closure', () => {
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+	const stringType = makeType('string', v => typeof v === 'string', '')
+	const topType = makeType('_', () => true, UNIT)
+
+	const baseEnv = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			string: lit(stringType as never),
+			_: lit(topType as never),
+		})
+
+	it('identity over T: ((=> (T) (x: T): T x) 42) → 42', () => {
+		const r = evaluate(parse('((=> (T) (x: T): T x) 42)'), baseEnv())
+		expect(r.value).toBe(42)
+		expect(r.diagnostics).toEqual([])
+	})
+
+	it('identity over T preserves string type: ((=> (T) (x: T): T x) "hi")', () => {
+		// Pre-cast: T resolves to string, so the param cast is string→string,
+		// which does not coerce 42 (since the arg is "hi" — string).
+		const r = evaluate(parse('((=> (T) (x: T): T x) "hi")'), baseEnv())
+		expect(r.value).toBe('hi')
+		expect(r.diagnostics).toEqual([])
+	})
+
+	it('agreement across params: ((=> (T) (x: T y: T): T y) 1 2) → 2', () => {
+		const r = evaluate(
+			parse('((=> (T) (x: T y: T): T y) 1 2)'),
+			baseEnv()
+		)
+		expect(r.value).toBe(2)
+		expect(r.diagnostics).toEqual([])
+	})
+
+	it('conflicting witnesses produce a diagnostic', () => {
+		const r = evaluate(
+			parse('((=> (T) (x: T y: T): T y) 1 "hi")'),
+			baseEnv()
+		)
+		expect(
+			r.diagnostics.some(d => d.message.includes('generic T resolved'))
+		).toBe(true)
+	})
+
+	it('generic in return position: T propagates to declared return type', () => {
+		// Return type is T, body returns x. Calling with a number returns
+		// the number unchanged.
+		const r = evaluate(parse('((=> (T) (x: T): T x) 7)'), baseEnv())
+		expect(r.value).toBe(7)
+	})
+})
+
 // -----------------------------------------------------------------------------
 // Vector / record callable
 // -----------------------------------------------------------------------------

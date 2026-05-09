@@ -600,6 +600,86 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 }
 
 /**
+ * Build the env in which a closure's parameter / return type expressions
+ * are evaluated. Equal to `closure.capturedEnv` for non-generic functions;
+ * for generic ones, layered with a frame binding each generic name to the
+ * `TypeValue` inferred from the corresponding argument.
+ *
+ * Inference is shallow: only param.type that is a bare `sym(T)` where T is
+ * a generic name participates. The first concrete inference wins; later
+ * occurrences must agree (=== identity), otherwise a diagnostic.
+ */
+function resolveGenerics(
+	fnAst: FnAST,
+	positional: ReadonlyArray<AST>,
+	kwargs: ReadonlyMap<string, AST> | undefined,
+	callerEnv: Env,
+	capturedEnv: Env,
+	site: AST,
+	diagnostics: Diagnostic[]
+): Env {
+	if (fnAst.generics.length === 0) return capturedEnv
+
+	const genericNames = new Set(fnAst.generics)
+	const resolved = new Map<string, TypeValue>()
+	let posIdx = 0
+
+	const witness = (name: string, t: TypeValue, source: AST): void => {
+		const existing = resolved.get(name)
+		if (existing === undefined) {
+			resolved.set(name, t)
+			return
+		}
+		if (existing !== t) {
+			diagnostics.push(
+				diag(
+					source,
+					callerEnv,
+					`generic ${name} resolved to ${existing.typeName} earlier but argument here is ${t.typeName}`
+				)
+			)
+		}
+	}
+
+	for (const param of fnAst.params) {
+		// Only direct `sym(T)` participates — see top comment.
+		const isGenericParam =
+			param.type.kind === 'sym' && genericNames.has(param.type.name)
+
+		// Pick the arg AST that this param will see, mirroring the bind
+		// order in the main loop. Variadic / unmatched-and-no-kwarg params
+		// don't witness anything.
+		let argAst: AST | undefined
+		let argEnv: Env = callerEnv
+		if (param.variadic) {
+			posIdx = positional.length // consumes rest
+			argAst = undefined
+		} else if (posIdx < positional.length) {
+			argAst = positional[posIdx]
+			posIdx++
+		} else {
+			argAst = kwargs?.get(param.name)
+		}
+
+		if (isGenericParam && argAst !== undefined) {
+			const inferred = infer(argAst, argEnv)
+			if (inferred !== null) {
+				witness((param.type as { name: string }).name, inferred, argAst)
+			}
+		}
+	}
+
+	if (resolved.size === 0) return capturedEnv
+
+	const map = new Map<string, BindingTarget>()
+	const frame: Frame = { ast: fnAst, parent: capturedEnv, bindings: map }
+	for (const [name, t] of resolved) {
+		map.set(name, { ast: new LitASTClass(t as never), env: frame })
+	}
+	return frame
+}
+
+/**
  * Expand `...spread` entries in a call's positional arguments to a flat
  * AST list. A spread whose operand is a `VecAST` is inlined directly (lazy);
  * otherwise the operand is evaluated and primitive elements are wrapped as
@@ -672,19 +752,39 @@ function applyClosure(
 		return { value: UNIT, diagnostics }
 	}
 
+	// Resolve generic parameters from arg types via shallow unification:
+	// param.type that is a bare sym matching a generic name is bound to
+	// `infer(argAst, callerEnv)`. Repeated occurrences must agree; a
+	// conflict raises a diagnostic and the first binding wins.
+	//
+	// Anything more elaborate (nested type constructors, return-position
+	// constraints, default fallback when inference fails) is intentionally
+	// out of scope for this pass — generics here are a "shape match the
+	// obvious thing" mechanism, not a full HM-style solver.
+	const typeEvalEnv = resolveGenerics(
+		fnAst,
+		positional,
+		kwargs,
+		callerEnv,
+		closure.capturedEnv,
+		site,
+		diagnostics
+	)
+
 	const map = new Map<string, BindingTarget>()
 	let posIdx = 0
 
-	// Pre-evaluate each parameter's declared type in the closure's captured
-	// env (lexical scope). When the expression evaluates to a `TypeValue`,
-	// it drives both static checking at the call site and lazy
-	// cast-on-force at the use site. Otherwise the slot is untyped — a
-	// type expression that fails to resolve degrades silently rather than
-	// noising up the call's diagnostics, since the user already sees an
-	// error wherever the type itself is referenced.
+	// Pre-evaluate each parameter's declared type in the type-eval env
+	// (closure's captured env, optionally extended with resolved generics).
+	// When the expression evaluates to a `TypeValue`, it drives both
+	// static checking at the call site and lazy cast-on-force at the use
+	// site. Otherwise the slot is untyped — a type expression that fails
+	// to resolve degrades silently rather than noising up the call's
+	// diagnostics, since the user already sees an error wherever the
+	// type itself is referenced.
 	const paramTypes: Array<TypeValue | null> = []
 	for (const param of fnAst.params) {
-		const tr = evaluate(param.type, closure.capturedEnv)
+		const tr = evaluate(param.type, typeEvalEnv)
 		// `_` (top) is a no-op cast — skip it to keep error messages and the
 		// memo-cache key shape clean.
 		if (isTypeValue(tr.value) && tr.value.typeName !== '_') {
@@ -821,7 +921,7 @@ function applyClosure(
 
 	const bodyFrame: Frame = {
 		ast: fnAst,
-		parent: closure.capturedEnv,
+		parent: typeEvalEnv,
 		bindings: map,
 	}
 	const r = evaluate(fnAst.body, bodyFrame)
@@ -831,7 +931,7 @@ function applyClosure(
 	// with parameter binding. `_` is the top type, treated as a no-op.
 	// As with parameter types, an unresolvable return type expression
 	// degrades silently to "no return cast."
-	const rtResult = evaluate(fnAst.returnType, closure.capturedEnv)
+	const rtResult = evaluate(fnAst.returnType, typeEvalEnv)
 	if (isTypeValue(rtResult.value) && rtResult.value.typeName !== '_') {
 		push(diagnostics, rtResult.diagnostics)
 		const rt = rtResult.value
