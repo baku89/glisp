@@ -17,6 +17,7 @@ import {
 	isTypeValue,
 	toAst,
 } from '@core/eval.js'
+import { expand as coreExpand } from '@core/expand.js'
 import { infer as coreInfer } from '@core/infer.js'
 import { lex } from '@core/lex.js'
 import { parse, ParseError } from '@core/parse.js'
@@ -87,6 +88,8 @@ export interface Session {
 	readonly typeOf: (src: string) => ReplResult
 	/** Static-check an expression — returns diagnostics only. */
 	readonly check: (src: string) => ReplResult
+	/** One-step macro expansion. */
+	readonly expand: (src: string) => ReplResult
 	/** Reset the session env to a fresh prelude. */
 	readonly reset: () => void
 	/** Decide whether `src` looks structurally complete (for multi-line input). */
@@ -102,6 +105,7 @@ export function createSession(): Session {
 		run: src => runLine(src, env, runIO),
 		typeOf: src => typeOfLine(src, env),
 		check: src => checkLine(src, env),
+		expand: src => expandLine(src, env),
 		reset: () => {
 			env = buildPrelude()
 		},
@@ -215,6 +219,19 @@ function checkLine(src: string, env: Env): ReplResult {
 		}
 	}
 	return { tokens: [], diagnostics: ds.map(coreDiagnosticToView) }
+}
+
+function expandLine(src: string, env: Env): ReplResult {
+	let ast: AST
+	try {
+		ast = parse(src)
+	} catch (e) {
+		return { tokens: [], diagnostics: [parseErrorToDiagnostic(src, e)] }
+	}
+	const expanded = coreExpand(ast, env)
+	const out: Token[] = []
+	tokensForAst(expanded, out)
+	return { tokens: out, diagnostics: [] }
 }
 
 function typeOfLine(src: string, env: Env): ReplResult {
