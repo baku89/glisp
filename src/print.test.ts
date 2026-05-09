@@ -17,6 +17,7 @@ import {
 	unquote,
 	vec,
 } from './build.js'
+import { parse } from './parse.js'
 import { print } from './print.js'
 import { UNIT } from './types.js'
 
@@ -189,6 +190,35 @@ describe('print', () => {
 		expect(vec(lit(1), lit(2)).print()).toBe('[1 2]')
 		expect(record({ x: lit(10) }).print()).toBe('{x: 10}')
 		expect(path('..', 'foo').print()).toBe('../foo')
+	})
+
+	it('CST round-trip: print(parse(s)) preserves whitespace and comments', () => {
+		const cases = [
+			'(+ 1 2)',
+			'(+   1   2)',
+			'[1 2 3]',
+			'[1   2   3]',
+			'{x: 10 y: 20}',
+			'{x: 10  ; comment\n y: 20}',
+			'(=> (n: number): number (+ n 1))',
+			'^{label: "x"} 100',
+			'(f a=1 b=2)',
+			"`(f ~x ...~ys)",
+		]
+		for (const s of cases) {
+			expect(parse(s).print()).toBe(s)
+		}
+	})
+
+	it('CST round-trip: structural rendering kicks in after subtree replacement', () => {
+		// Parsing preserves whitespace; mutating the head produces a new
+		// CallAST without source, so it falls back to default formatting.
+		const orig = parse('(f   x   y)')
+		expect(orig.print()).toBe('(f   x   y)')
+		// Build a new call with the same args but a different head — no
+		// source attached, so structural rendering applies.
+		const replaced = call(sym('g'), ...(orig as { args: never[] }).args)
+		expect(replaced.print()).toBe('(g x y)')
 	})
 
 	it('round-trips a moderately nested expression', () => {

@@ -1,9 +1,11 @@
 /**
  * Parser: token sequence → AST.
  *
- * Recursive-descent. Trivia (whitespace, comments) are dropped during lex,
- * so the produced AST has no trivia attached — full CST round-trip is a
- * follow-up pass.
+ * Recursive-descent. Each constructed AST node is stamped with a
+ * `SourceRange` covering its full syntactic extent — enough for verbatim
+ * round-trip via `ASTNode.print()`, including comments and whitespace
+ * inside the node. Trivia outside the outermost node (leading / trailing
+ * whitespace at the program level) is the caller's concern.
  *
  * Spec: docs/spec/syntax.md
  */
@@ -95,20 +97,41 @@ class Parser {
 		this.expect('eof')
 	}
 
+	/**
+	 * Stamp an AST node with the source range from `start` through the end of
+	 * the last consumed token. Returns the same node for chaining.
+	 *
+	 * The `source` property is defined as non-enumerable so structural deep
+	 * equality (e.g. vitest's `toEqual`) treats parsed and builder-constructed
+	 * ASTs as equal — the source range is round-trip metadata, not part of
+	 * AST identity.
+	 */
+	private stamp<T extends AST>(start: number, ast: T): T {
+		const end = this.tokens[this.pos - 1]!.end
+		Object.defineProperty(ast, 'source', {
+			value: { text: this.source, start, end },
+			enumerable: false,
+			writable: true,
+			configurable: true,
+		})
+		return ast
+	}
+
 	// --- expressions ----------------------------------------------------------
 
 	/** Parse one expression, then collect any trailing `.key` accessors. */
 	expression(): AST {
+		const start = this.peek().start
 		let head = this.atom()
 		while (this.peek().kind === '.') {
 			this.advance()
 			const next = this.peek()
 			if (next.kind === 'identifier') {
 				this.advance()
-				head = access(head, next.value as string)
+				head = this.stamp(start, access(head, next.value as string))
 			} else if (next.kind === 'number') {
 				this.advance()
-				head = access(head, next.value as number)
+				head = this.stamp(start, access(head, next.value as number))
 			} else {
 				throw this.error(next, 'expected identifier or integer after `.`')
 			}
@@ -118,56 +141,60 @@ class Parser {
 
 	private atom(): AST {
 		const t = this.peek()
+		const start = t.start
 
 		switch (t.kind) {
 			case 'number':
 				this.advance()
-				return lit(t.value as number)
+				return this.stamp(start, lit(t.value as number))
 			case 'string':
 				this.advance()
-				return lit(t.value as string)
+				return this.stamp(start, lit(t.value as string))
 			case 'boolean':
 				this.advance()
-				return lit(t.value as boolean)
+				return this.stamp(start, lit(t.value as boolean))
 			case '()':
 				this.advance()
-				return lit(UNIT)
+				return this.stamp(start, lit(UNIT))
 			case '_':
 				this.advance()
-				return sym('_')
+				return this.stamp(start, sym('_'))
 			case '!':
 				this.advance()
-				return sym('!')
+				return this.stamp(start, sym('!'))
 			case 'identifier':
 				this.advance()
-				return sym(t.value as string)
+				return this.stamp(start, sym(t.value as string))
 			case '?':
 				// Bare `?` is the match special form head.
 				this.advance()
-				return sym('?')
+				return this.stamp(start, sym('?'))
 			case 'pathSegments':
 				this.advance()
-				return path(...(t.value as ReadonlyArray<'..' | string | number>))
+				return this.stamp(
+					start,
+					path(...(t.value as ReadonlyArray<'..' | string | number>))
+				)
 			case '(':
-				return this.parenForm()
+				return this.stamp(start, this.parenForm())
 			case '[':
-				return this.vectorForm()
+				return this.stamp(start, this.vectorForm())
 			case '{':
-				return this.braceForm()
+				return this.stamp(start, this.braceForm())
 			case '`':
 				this.advance()
-				return quote(this.atom())
+				return this.stamp(start, quote(this.atom()))
 			case '~':
 				this.advance()
-				return unquote(this.atom())
+				return this.stamp(start, unquote(this.atom()))
 			case '...':
 				this.advance()
-				return spread(this.atom())
+				return this.stamp(start, spread(this.atom()))
 			case '...~':
 				this.advance()
-				return splice(this.atom())
+				return this.stamp(start, splice(this.atom()))
 			case '^':
-				return this.metaForm()
+				return this.stamp(start, this.metaForm())
 			default:
 				throw this.error(t, `unexpected ${t.kind}`)
 		}

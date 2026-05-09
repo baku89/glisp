@@ -6,8 +6,10 @@
  * - docs/spec/eval.md (AST node kinds)
  * - docs/spec/types.md
  *
- * AST nodes are class instances. Each subclass overrides `print()` so the
- * source rendering is polymorphic — no central switch.
+ * AST nodes are class instances. The base `print()` returns a verbatim
+ * source slice when a `SourceRange` is stamped (set by the parser), and
+ * otherwise delegates to each subclass's `printStructural()` for
+ * builder-style rendering.
  */
 
 // -----------------------------------------------------------------------------
@@ -42,12 +44,31 @@ export type MetaFieldValue = AST | number | string | boolean | Unit
 export type MetaContent = Readonly<Record<string, MetaFieldValue>>
 
 /**
+ * Source-range stamp used to round-trip a parsed AST verbatim. The parser
+ * sets this on every node it produces; builder-constructed nodes leave it
+ * unset and fall back to structural rendering. The same `text` reference
+ * is shared across all nodes from one `parse()` call.
+ */
+export interface SourceRange {
+	readonly text: string
+	readonly start: number
+	readonly end: number
+}
+
+/**
  * Base class for all AST nodes. Subclasses set `kind` as a literal type so
  * the class hierarchy doubles as a discriminated union when narrowing.
  */
 export abstract class ASTNode {
 	abstract readonly kind: string
 	readonly trivia?: Trivia
+
+	/**
+	 * Original source range. Mutable on construction (the parser stamps it
+	 * after building the node). Builder-produced nodes leave it undefined
+	 * and `print()` falls through to structural rendering.
+	 */
+	source?: SourceRange
 
 	/**
 	 * Attach metadata to this node. Returns a new `MetaAST` wrapping the
@@ -63,10 +84,20 @@ export abstract class ASTNode {
 	}
 
 	/**
-	 * Render this AST back to its Glisp source form. Each subclass overrides
-	 * this with its own emission logic.
+	 * Render this AST back to Glisp source. If a source range is stamped,
+	 * returns the original text verbatim — preserving comments and the
+	 * exact whitespace layout. Otherwise delegates to `printStructural`,
+	 * which each subclass overrides for builder-style emission.
 	 */
-	abstract print(): string
+	print(): string {
+		if (this.source !== undefined) {
+			return this.source.text.slice(this.source.start, this.source.end)
+		}
+		return this.printStructural()
+	}
+
+	/** Builder-style rendering. Used when no source range is attached. */
+	abstract printStructural(): string
 }
 
 function liftMetaField(v: MetaFieldValue): AST {
@@ -96,7 +127,7 @@ export class LitAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		const v = this.value
 		if (v === UNIT) return '()'
 		if (typeof v === 'number') return v.toString()
@@ -111,7 +142,7 @@ export class SymAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		return this.name
 	}
 }
@@ -133,7 +164,7 @@ export class CallAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		const positional = [this.head, ...this.args].map(a => a.print())
 		const kw: string[] = []
 		if (this.kwargs) {
@@ -158,7 +189,7 @@ export class AccessAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		return `${this.target.print()}.${this.key}`
 	}
 }
@@ -169,7 +200,7 @@ export class VecAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		return `[${this.elements.map(e => e.print()).join(' ')}]`
 	}
 }
@@ -212,7 +243,7 @@ export class RecordAST extends ASTNode {
 		return undefined
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		const entries: string[] = []
 		for (const entry of this.fields) {
 			if (entry instanceof SpreadAST) {
@@ -236,7 +267,7 @@ export class LetAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		const parts: string[] = []
 		for (const [name, expr] of this.bindings) {
 			parts.push(`${name} = ${expr.print()}`)
@@ -292,7 +323,7 @@ export class FnAST extends ASTNode {
 		return new FnAST(this.generics, this.params, this.returnType, expr)
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		const segments: string[] = ['=>']
 		if (this.generics.length > 0) {
 			segments.push(`(${this.generics.join(' ')})`)
@@ -328,7 +359,7 @@ export class PathAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		if (this.segments.length === 0) return './'
 		const head = this.segments[0] === '..' ? '../' : './'
 		const rest =
@@ -343,7 +374,7 @@ export class QuoteAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		return '`' + this.expr.print()
 	}
 }
@@ -354,7 +385,7 @@ export class UnquoteAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		return '~' + this.expr.print()
 	}
 }
@@ -371,7 +402,7 @@ export class SpreadAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		return '...' + this.expr.print()
 	}
 }
@@ -387,7 +418,7 @@ export class SpliceAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		return '...~' + this.expr.print()
 	}
 }
@@ -405,7 +436,7 @@ export class MetaAST extends ASTNode {
 		super()
 	}
 
-	override print(): string {
+	override printStructural(): string {
 		return `^${this.metadata.print()} ${this.expr.print()}`
 	}
 }
