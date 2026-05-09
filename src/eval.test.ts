@@ -878,6 +878,25 @@ describe('evaluate — special form def (IO action)', () => {
 		).toBe(true)
 	})
 
+	it('undef removes a binding', () => {
+		const env = baseEnv()
+		;(evaluate(parse('(def "y" 1)'), env).value as IOAction).run()
+		expect(evaluate(parse('y'), env).value).toBe(1)
+		;(evaluate(parse('(undef "y")'), env).value as IOAction).run()
+		const after = evaluate(parse('y'), env)
+		expect(
+			after.diagnostics.some(d => d.message.includes('unresolvable'))
+		).toBe(true)
+	})
+
+	it('undef on a missing name reports a diagnostic at run-time', () => {
+		const env = baseEnv()
+		const action = evaluate(parse('(undef "never-bound")'), env)
+			.value as IOAction
+		const ds = action.run()
+		expect(ds.some(d => d.message.includes('not bound'))).toBe(true)
+	})
+
 	it('rebinding a name updates the prelude binding', () => {
 		const env = baseEnv()
 		;(evaluate(parse('(def "y" 1)'), env).value as IOAction).run()

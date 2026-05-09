@@ -602,6 +602,8 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 				return evalPipe(ast, env)
 			case 'def':
 				return evalDef(ast, env)
+			case 'undef':
+				return evalUndef(ast, env)
 		}
 	}
 
@@ -1131,6 +1133,40 @@ function evalDef(ast: CallAST, env: Env): EvalResult {
 	const action = new IOAction(`def ${JSON.stringify(name)}`, () => {
 		const map = target.bindings as Map<string, BindingTarget>
 		map.set(name, { ast: valueAst, env: target })
+		return []
+	})
+	return { value: action, diagnostics }
+}
+
+/**
+ * `(undef name)` — companion to `def`. Returns an `IOAction` that, when
+ * run, deletes the binding `name` from the topmost mutable scope. If the
+ * name isn't bound there, the action emits a diagnostic at run time.
+ */
+function evalUndef(ast: CallAST, env: Env): EvalResult {
+	if (ast.args.length !== 1) {
+		return fail(ast, env, 'undef expects exactly 1 argument: name')
+	}
+	const nameResult = evaluate(ast.args[0]!, env)
+	const diagnostics = [...nameResult.diagnostics]
+	const name = nameResult.value
+	if (typeof name !== 'string') {
+		diagnostics.push(
+			diag(ast.args[0]!, env, 'undef: name must evaluate to a string')
+		)
+		return { value: UNIT, diagnostics }
+	}
+	const target = topmostMutableFrame(env)
+	if (target === null) {
+		diagnostics.push(diag(ast, env, 'undef: no mutable scope to unbind from'))
+		return { value: UNIT, diagnostics }
+	}
+	const action = new IOAction(`undef ${JSON.stringify(name)}`, () => {
+		const map = target.bindings as Map<string, BindingTarget>
+		if (!map.has(name)) {
+			return [diag(ast, env, `undef: '${name}' is not bound`)]
+		}
+		map.delete(name)
 		return []
 	})
 	return { value: action, diagnostics }

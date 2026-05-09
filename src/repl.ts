@@ -16,8 +16,12 @@
  *   :quit   — exit (or Ctrl-D)
  */
 
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { stdin as input, stdout as output } from 'node:process'
 import { createInterface } from 'node:readline/promises'
+
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 
 import pc from 'picocolors'
 
@@ -241,6 +245,38 @@ function expandTopLevelSugar(src: string): string {
 }
 
 // -----------------------------------------------------------------------------
+// History persistence
+// -----------------------------------------------------------------------------
+
+const HISTORY_PATH = join(homedir(), '.glisp', 'history')
+const HISTORY_LIMIT = 1000
+
+function loadHistory(): string[] {
+	if (!existsSync(HISTORY_PATH)) return []
+	try {
+		return readFileSync(HISTORY_PATH, 'utf8')
+			.split('\n')
+			.filter(line => line !== '')
+			.slice(-HISTORY_LIMIT)
+	} catch {
+		return []
+	}
+}
+
+function saveHistory(lines: ReadonlyArray<string>): void {
+	try {
+		mkdirSync(join(homedir(), '.glisp'), { recursive: true })
+		// readline stores history newest-first; persist in chronological order.
+		writeFileSync(
+			HISTORY_PATH,
+			lines.slice(0, HISTORY_LIMIT).reverse().join('\n') + '\n'
+		)
+	} catch {
+		// best-effort — never crash the REPL on history I/O.
+	}
+}
+
+// -----------------------------------------------------------------------------
 // REPL loop
 // -----------------------------------------------------------------------------
 
@@ -249,7 +285,15 @@ async function main(): Promise<void> {
 	let env: Env = starter
 	let lastSource: string | null = null
 
-	const rl = createInterface({ input, output, prompt: theme.prompt })
+	const rl = createInterface({
+		input,
+		output,
+		prompt: theme.prompt,
+		// `history` is the array readline mutates — preload past sessions
+		// so up-arrow walks back through them.
+		history: loadHistory(),
+		historySize: HISTORY_LIMIT,
+	})
 
 	output.write(welcome())
 	rl.prompt()
@@ -339,6 +383,9 @@ async function main(): Promise<void> {
 	})
 
 	rl.on('close', () => {
+		// `history` is exposed on the readline interface; persist it
+		// before exiting so the next session sees these entries.
+		saveHistory((rl as unknown as { history: ReadonlyArray<string> }).history)
 		output.write('\n' + theme.hint('bye.') + '\n')
 	})
 }
@@ -366,11 +413,14 @@ function handleCommand(
 					`    ${theme.keyword(':env')}              ${theme.hint('— list current top-level bindings')}`,
 					`    ${theme.keyword(':ast')}              ${theme.hint('— print the AST of the previous input')}`,
 					`    ${theme.keyword(':type')} ${theme.hint('[expr]')}     ${theme.hint('— infer the type of expr (or the previous input)')}`,
+					`    ${theme.keyword(':doc')} ${theme.hint('<name>')}      ${theme.hint('— show a name\'s type and current value')}`,
 					`    ${theme.keyword(':reset')}            ${theme.hint('— restore the starter env')}`,
 					`    ${theme.keyword(':help')}             ${theme.hint('— show this help')}`,
 					`    ${theme.keyword(':quit')}             ${theme.hint('— exit (or Ctrl-D)')}`,
 					'',
-					theme.hint('  Tip: end a line with `\\` to continue on the next.'),
+					theme.hint('  Tips:'),
+					theme.hint('    - multi-line input wraps automatically when brackets are unbalanced.'),
+					theme.hint('    - top-level `name = expr` is sugar for `(def "name" expr)`.'),
 					'',
 				].join('\n')
 			)
@@ -445,6 +495,39 @@ function handleCommand(
 		case 'reset':
 			output.write(theme.hint('  (env reset)') + '\n')
 			return starter
+		case 'doc': {
+			if (args === '') {
+				output.write(theme.hint('  usage: :doc <name>') + '\n')
+				return env
+			}
+			try {
+				const ast = parse(args)
+				const t = infer(ast, env)
+				const r = evaluate(ast, env)
+				const lines: string[] = []
+				lines.push(
+					theme.keyword(args) +
+						' ' +
+						theme.hint(':') +
+						' ' +
+						theme.type(t === null ? '?' : t.typeName)
+				)
+				lines.push('  ' + theme.hint('=') + ' ' + formatValue(r.value))
+				output.write(lines.map(l => '  ' + l).join('\n') + '\n')
+			} catch (e) {
+				if (e instanceof ParseError) {
+					output.write(formatParseError(args, e) + '\n')
+				} else {
+					output.write(
+						theme.error('  error') +
+							theme.hint(' · ') +
+							(e instanceof Error ? e.message : String(e)) +
+							'\n'
+					)
+				}
+			}
+			return env
+		}
 		default:
 			output.write(theme.error(`  unknown command: :${head}`) + '\n')
 			return env
