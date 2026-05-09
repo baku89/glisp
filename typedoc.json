@@ -5,7 +5,9 @@
 	"exclude": [
 		"**/*.test.ts",
 		"**/repl.ts",
-		"**/index.ts"
+		"**/index.ts",
+		"**/desugar.ts",
+		"**/prelude.ts"
 	],
 	"out": "./docs/api",
 	"readme": "none",

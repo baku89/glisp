@@ -28,6 +28,13 @@ import {
 // Result type
 // -----------------------------------------------------------------------------
 
+/**
+ * What `evaluate` returns: the resolved JS value plus any diagnostics
+ * accumulated along the way. Evaluation never throws on user errors,
+ * so every reasonable host **must** check `diagnostics` after calling
+ * `evaluate` — `value` may be the spec-defined fallback (`()` or a
+ * type's default) when something went wrong.
+ */
 export interface EvalResult {
 	readonly value: unknown
 	readonly diagnostics: ReadonlyArray<Diagnostic>
@@ -54,6 +61,12 @@ export interface GlispClosure {
 	readonly capturedEnv: Env
 }
 
+/**
+ * Wrap a function-literal AST + the env it was defined in as a
+ * callable JS function (a `GlispClosure`). Hosts usually receive
+ * closures from the evaluator; call `makeClosure` directly only when
+ * constructing function values to inject from the host side.
+ */
 export function makeClosure(ast: FnAST, capturedEnv: Env): GlispClosure {
 	const closure = function (
 		this: GlispClosure | undefined,
@@ -111,6 +124,17 @@ export type TypeShape =
 	| { readonly kind: 'refine'; readonly base: TypeValue }
 	| { readonly kind: 'io'; readonly payload: TypeValue }
 
+/**
+ * Host-side representation of a Glisp type. `fits` is the runtime
+ * predicate ("is this JS value a member of the type?"), `default` is
+ * the value `coerceTo` (and the typed-slot fallback) substitutes when
+ * a value does not fit, and `shape` lets compatibility checks recurse
+ * through structured types (functions, enums, refinements, parametric
+ * IOs, etc.).
+ *
+ * Construct one via `makeType` / `makeFunctionType` rather than
+ * literal object syntax so the brand and shape stay consistent.
+ */
 export interface TypeValue {
 	readonly __glispType: true
 	readonly typeName: string
@@ -338,13 +362,12 @@ export function isTypedHostFn(v: unknown): v is TypedHostFn {
 // -----------------------------------------------------------------------------
 
 /**
- * A multi-variant function value: a sequence of variants (typed host fns
- * or Glisp closures) where the first one whose declared parameter types
- * match the call's arg types is chosen.
- *
- * Created by the `overload` special form. `eval` dispatches by walking
- * the call's args through `infer` + `typeFits` against each variant's
- * declared param types in order; the first match wins.
+ * A multi-variant function value: a sequence of variants (typed host
+ * fns or Glisp closures) where the first one whose declared parameter
+ * types match the call's argument types is chosen. Created by the
+ * `overload` special form. Dispatch walks the call's args through
+ * `infer` + `typeFits` against each variant's declared param types in
+ * order; the first match wins.
  */
 export class OverloadValue {
 	constructor(
@@ -352,6 +375,7 @@ export class OverloadValue {
 	) {}
 }
 
+/** Narrow `unknown` to `OverloadValue`. */
 export function isOverload(v: unknown): v is OverloadValue {
 	return v instanceof OverloadValue
 }
@@ -376,6 +400,7 @@ export class IO {
 	) {}
 }
 
+/** Narrow `unknown` to `IO`. */
 export function isIO(v: unknown): v is IO {
 	return v instanceof IO
 }
@@ -602,7 +627,18 @@ function storeMemo(ast: AST, env: Env, state: MemoState): void {
 	inner.set(env, state)
 }
 
-/** Evaluate `ast` against `env`. Never throws. */
+/**
+ * Evaluate `ast` against `env`. Never throws on user errors. Returns
+ * `{ value, diagnostics }`: `value` is the evaluated JS value (or the
+ * spec-defined fallback when something fails — usually `()` or the
+ * relevant type's `default`), and `diagnostics` collects every
+ * mismatch / lookup failure / arity error encountered along the way.
+ *
+ * Hosts that want strict behavior should treat any non-empty
+ * diagnostics as a failure. Hosts that want best-effort rendering
+ * (an editor mid-edit) can keep using `value` and surface the
+ * diagnostics in a separate channel.
+ */
 export function evaluate(ast: AST, env: Env): EvalResult {
 	// `%` desugaring runs before any further work. The pass is cached
 	// per-AST so repeated evaluations of the same source pay only once.
@@ -767,8 +803,22 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 // Env helpers
 // -----------------------------------------------------------------------------
 
+/** The empty (root) environment. Pass this to `evaluate` when no
+ * bindings are in scope — typically for self-contained literal /
+ * arithmetic expressions in tests or doc examples. */
 export const emptyEnv: Env = null
 
+/**
+ * Build a fresh top-level environment from a `{ name: ast }` record.
+ * Each binding is stored as an unevaluated AST + the new frame, so:
+ *   - bindings are evaluated lazily on first lookup,
+ *   - bindings may reference each other in any order (self-referential),
+ *   - and the standard memoization (see eval.md — Cycle detection)
+ *     applies.
+ *
+ * Use this to seed an env with host-provided values; for the standard
+ * Glisp prelude, see `prelude.ts`.
+ */
 export function makeTopLevel(
 	bindings: Readonly<Record<string, AST>>
 ): Env {

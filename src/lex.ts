@@ -17,6 +17,13 @@ import { UNIT, type Unit } from './types.js'
 // Token shape
 // -----------------------------------------------------------------------------
 
+/**
+ * Every kind of token the lexer emits. Punctuation kinds equal their
+ * source form (e.g. `'('`, `':'`, `'=>'`); the rest are descriptive
+ * names for variable-shape tokens (`'number'`, `'identifier'`, ...).
+ * The trailing `'eof'` token is always present so consumers can peek
+ * past the end without bounds-checking.
+ */
 export type TokenKind =
 	| '('
 	| ')'
@@ -44,6 +51,12 @@ export type TokenKind =
 	| 'pathSegments' // ./..., ../..., etc. — value carries parsed segments
 	| 'eof'
 
+/**
+ * A single lexed token: its `kind`, the verbatim source slice
+ * (`text`), the half-open source offsets (`[start, end)`), and a
+ * decoded `value` for kinds that carry one (numbers, strings,
+ * booleans, unit, paths).
+ */
 export interface Token {
 	readonly kind: TokenKind
 	readonly text: string  // verbatim source slice
@@ -56,6 +69,12 @@ export interface Token {
 // Public API
 // -----------------------------------------------------------------------------
 
+/**
+ * Tokenize Glisp source into a flat token sequence. Whitespace and
+ * `;`-style comments are skipped. The returned array always ends with
+ * an `{ kind: 'eof' }` token. Throws `LexError` on the first
+ * unrecoverable character (bad escape, unterminated string, etc.).
+ */
 export function lex(src: string): Token[] {
 	const tokens: Token[] = []
 	let pos = 0
@@ -464,6 +483,12 @@ function readIdentifierOrReserved(src: string, start: number): Token {
 // Errors
 // -----------------------------------------------------------------------------
 
+/**
+ * Thrown by `lex` on an unrecoverable input (an unexpected character,
+ * a bad string escape, an unterminated string, etc.). Carries the
+ * full source text and the byte offset where lexing gave up so a
+ * host can render a positional error message.
+ */
 export class LexError extends Error {
 	constructor(
 		message: string,

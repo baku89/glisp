@@ -39,6 +39,13 @@ import {
 // Public API
 // -----------------------------------------------------------------------------
 
+/**
+ * Parse Glisp source into an `AST`. Each node is stamped with a
+ * `SourceRange` so `print(ast)` round-trips back to the original
+ * verbatim text (modulo intentional source-canonicalization). Throws
+ * `LexError` (during tokenization) or `ParseError` (during structure
+ * parsing) on malformed input.
+ */
 export function parse(src: string): AST {
 	const parser = new Parser(lex(src), src)
 	const ast = parser.expression()
@@ -46,6 +53,12 @@ export function parse(src: string): AST {
 	return ast
 }
 
+/**
+ * Thrown by `parse` on a structural error (unexpected token, bad
+ * arity, malformed special form, etc.). Carries the full source text
+ * and the byte offset of the offending token so a host can render a
+ * positional error message.
+ */
 export class ParseError extends Error {
 	constructor(
 		message: string,

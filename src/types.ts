@@ -105,6 +105,11 @@ function liftMetaField(v: MetaFieldValue): AST {
 	return new LitAST(v)
 }
 
+/**
+ * Discriminated union of every AST node kind. Narrow with the `is*`
+ * predicates below or with a `switch (ast.kind)` over the literal
+ * `kind` field on each variant.
+ */
 export type AST =
 	| LitAST
 	| HostAST
@@ -122,6 +127,10 @@ export type AST =
 	| SpliceAST
 	| MetaAST
 
+/**
+ * AST node for a primitive literal: number, string, boolean, or unit
+ * (`()`). Evaluates to its `value` unchanged.
+ */
 export class LitAST extends ASTNode {
 	readonly kind = 'lit' as const
 	constructor(public readonly value: number | string | boolean | Unit) {
@@ -175,6 +184,12 @@ export class HostAST extends ASTNode {
 	}
 }
 
+/**
+ * AST node for a bare identifier. Evaluation looks `name` up in the
+ * current env's binding chain (see `eval.md` — name resolution).
+ * Special-form heads like `?`, `|>`, `def`, `@` arrive here too and
+ * are dispatched by name, not by lookup.
+ */
 export class SymAST extends ASTNode {
 	readonly kind = 'sym' as const
 	constructor(public readonly name: string) {
@@ -233,6 +248,12 @@ export class AccessAST extends ASTNode {
 	}
 }
 
+/**
+ * Vector literal `[e0 e1 ...]`. Evaluation produces a JS array;
+ * spread elements (`...xs`) are flattened by the evaluator at this
+ * position. In type position, a `[T1 T2 ...Trest]` shape is read as
+ * a tuple type (see `types.md`).
+ */
 export class VecAST extends ASTNode {
 	readonly kind = 'vec' as const
 	constructor(public readonly elements: ReadonlyArray<AST>) {
@@ -297,6 +318,13 @@ export class RecordAST extends ASTNode {
 	}
 }
 
+/**
+ * Let-block `{name = expr ... body}`. Bindings are self-referential
+ * (any binding may reference any other by name, in any order, which
+ * supports recursive definitions). `body` is the trailing expression
+ * whose value the block reduces to; `body: null` means the block
+ * itself is the record of bindings.
+ */
 export class LetAST extends ASTNode {
 	readonly kind = 'let' as const
 	constructor(
@@ -318,6 +346,11 @@ export class LetAST extends ASTNode {
 	}
 }
 
+/**
+ * One parameter slot in a `FnAST` signature: a name, a declared type
+ * (as an AST that is evaluated in the function's captured env), and
+ * the `optional?: ` / `...rest` markers from source.
+ */
 export interface FnParam {
 	readonly name: string
 	readonly type: AST
@@ -407,6 +440,11 @@ export class PathAST extends ASTNode {
 	}
 }
 
+/**
+ * Quasiquote: `` `expr ``. `expr` is treated as data, not evaluated,
+ * except where an `UnquoteAST` (`~expr`) or `SpliceAST` (`...~expr`)
+ * pops the quote level back. See eval.md — Quasiquoted forms.
+ */
 export class QuoteAST extends ASTNode {
 	readonly kind = 'quote' as const
 	constructor(public readonly expr: AST) {
@@ -418,6 +456,11 @@ export class QuoteAST extends ASTNode {
 	}
 }
 
+/**
+ * Unquote: `~expr` inside a quasiquote. Pops one quote level so the
+ * inner expression evaluates in the surrounding env. Outside a
+ * quasiquote, an unquote is a parse-time error.
+ */
 export class UnquoteAST extends ASTNode {
 	readonly kind = 'unquote' as const
 	constructor(public readonly expr: AST) {
@@ -521,6 +564,11 @@ function printStringLiteral(s: string): string {
 // Convenience type guards (still useful for narrowing in switch/case)
 // -----------------------------------------------------------------------------
 
+/**
+ * Type-predicate narrowers over the `AST` union. Each is equivalent to
+ * `ast.kind === '...'` but is written as a TS type-predicate so callers
+ * can compose them with `Array.filter`, `Array.find`, and similar.
+ */
 export const isLit = (a: AST): a is LitAST => a.kind === 'lit'
 export const isHost = (a: AST): a is HostAST => a.kind === 'host'
 export const isSym = (a: AST): a is SymAST => a.kind === 'sym'
@@ -578,17 +626,33 @@ export interface BindingTarget {
 // Diagnostics (per docs/spec/eval.md — Diagnostics)
 // -----------------------------------------------------------------------------
 
+/** Severity tag attached to a diagnostic. */
 export type DiagnosticLevel = 'error' | 'warning' | 'info'
 
+/**
+ * One error / warning / info entry produced by `evaluate`, `check`, or
+ * `infer`. The `source` pinpoints the offending AST node and the env
+ * it was evaluated against, so a host can show the message in context.
+ */
 export interface Diagnostic {
 	readonly level: DiagnosticLevel
 	readonly message: string
 	readonly source: EvaluationNode
 }
 
+/**
+ * The site at which a diagnostic was raised: an `(ast, env)` pair.
+ * The same AST node can be evaluated under different envs (a function
+ * called twice from different scopes), so both halves are needed to
+ * locate the diagnostic precisely.
+ */
 export interface EvaluationNode {
 	readonly ast: AST
 	readonly env: Env
 }
 
+/**
+ * Read-only collection of diagnostics. Used by APIs that aggregate
+ * diagnostics across many call sites (e.g. `check`).
+ */
 export type Diagnostics = ReadonlySet<Diagnostic>

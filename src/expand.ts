@@ -78,6 +78,17 @@ export function expandAll(
 	return ladder[ladder.length - 1]!
 }
 
+/**
+ * One step of macro expansion. If `ast` is a call to a Glisp closure
+ * with a body, substitute the closure's parameters with the call's
+ * argument ASTs throughout the body and return the resulting AST.
+ * Otherwise return `ast` unchanged.
+ *
+ * Reserved special forms (`?`, `|>`, `def`, `undef`, `overload`) are
+ * not expanded: expanding them would lose their custom dispatch
+ * semantics. For repeated expansion until a fixed point, see
+ * `expandLadder` and `expandAll`.
+ */
 export function expand(ast: AST, env: Env): AST {
 	if (ast.kind !== 'call') return ast
 

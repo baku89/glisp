@@ -30,6 +30,17 @@ import {
 } from './eval.js'
 import { type AST, type Env, UNIT } from './types.js'
 
+/**
+ * Statically infer the `TypeValue` of `ast` against `env` without
+ * evaluating it. Returns `null` when the inferred type cannot be
+ * determined (for example, a free variable, or an expression whose
+ * head is not a function-typed value).
+ *
+ * Used by `check.ts` to surface type-mismatch diagnostics without
+ * running the program, and by the evaluator's typed-host-fn path to
+ * skip evaluating arguments that already statically mismatch their
+ * declared parameter type.
+ */
 export function infer(ast: AST, env: Env): TypeValue | null {
 	switch (ast.kind) {
 		case 'lit': {

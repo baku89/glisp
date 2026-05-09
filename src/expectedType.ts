@@ -29,6 +29,18 @@ import {
 } from './eval.js'
 import { type AST, type Env } from './types.js'
 
+/**
+ * Return the `TypeValue` that a host editor should expect at `slot`
+ * inside `parent`. Used by GUI hosts to drive type-aware completion,
+ * placeholder rendering, and "what would fit here?" hints.
+ *
+ * Slot encoding (see file header): a number is a positional index for
+ * `call` / `vec`; a string is either a record / kwarg field name, or
+ * one of the `fn` slot tags (`'return'`, `'param:N'`).
+ *
+ * Returns `null` when no type information can be derived (an empty
+ * record, an untyped call head, an out-of-range slot, etc.).
+ */
 export function expectedTypeAt(
 	parent: AST,
 	slot: number | string,
