@@ -109,22 +109,47 @@ function formatDiagnostic(d: Diagnostic): string {
 			: d.level === 'warning'
 				? theme.warning('warn')
 				: theme.info('info')
-	return `  ${tag} ${theme.hint('·')} ${d.message}`
+
+	const header = `  ${tag} ${theme.hint('·')} ${d.message}`
+
+	// If the offending AST has a stamped source range, render the same
+	// caret + underline that parse errors get.
+	const range = d.source.ast.source
+	if (range !== undefined) {
+		return [header, ...renderSourceRange(range.text, range.start, range.end)]
+			.join('\n')
+	}
+	return header
 }
 
 function formatParseError(src: string, e: ParseError): string {
-	const lines: string[] = []
-	lines.push(theme.syntaxError('  syntax error') + theme.hint(' · ') + e.message)
+	return [
+		theme.syntaxError('  syntax error') + theme.hint(' · ') + e.message,
+		...renderSourceRange(src, e.position, e.position + 1),
+	].join('\n')
+}
 
-	// caret on the offending position
-	const lineInfo = lineAt(src, e.position)
-	if (lineInfo !== null) {
-		const { line, col, content } = lineInfo
-		lines.push(theme.hint(`  ${line + 1} | `) + content)
-		const caretIndent = ' '.repeat(`  ${line + 1} | `.length + col)
-		lines.push(caretIndent + theme.caret('^'))
-	}
-	return lines.join('\n')
+/**
+ * Render `text[start..end]` as a 2-line excerpt: the source line containing
+ * `start`, then a caret/underline pointing at the range. Multi-line ranges
+ * are clamped to the first line.
+ */
+function renderSourceRange(
+	text: string,
+	start: number,
+	end: number
+): string[] {
+	const lineInfo = lineAt(text, start)
+	if (lineInfo === null) return []
+	const { line, col, content } = lineInfo
+	const lineNumLabel = `  ${line + 1} | `
+	const caretIndent = ' '.repeat(lineNumLabel.length + col)
+	const span = Math.max(1, Math.min(end, text.indexOf('\n', start) === -1 ? text.length : text.indexOf('\n', start)) - start)
+	const underline = span > 1 ? '^' + '~'.repeat(span - 1) : '^'
+	return [
+		theme.hint(lineNumLabel) + content,
+		caretIndent + theme.caret(underline),
+	]
 }
 
 function lineAt(
@@ -146,6 +171,35 @@ function lineAt(
 		line: lineNum,
 		col: pos - lineStart,
 		content: src.slice(lineStart, lineEnd),
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Multi-line input — paren / bracket / brace / quote balance
+// -----------------------------------------------------------------------------
+
+/**
+ * Returns true when `src` is structurally incomplete and the REPL should
+ * prompt for another line instead of evaluating. We use a try-parse and
+ * inspect the failure mode — only "unterminated bracket" / EOF-shaped
+ * errors qualify as "needs more input"; an actual syntax error (e.g.
+ * `(=>])`) returns false so the caller can show the error promptly.
+ *
+ * An empty / whitespace-only buffer is considered complete (trivially).
+ */
+function isIncomplete(src: string): boolean {
+	if (src.trim() === '') return false
+	try {
+		parse(src)
+		return false
+	} catch (e) {
+		if (!(e instanceof ParseError)) return false
+		const msg = e.message
+		return (
+			/unterminated/.test(msg) ||
+			/got eof/.test(msg) ||
+			/unexpected eof/.test(msg)
+		)
 	}
 }
 
@@ -204,7 +258,9 @@ async function main(): Promise<void> {
 	let multiline = false
 
 	rl.on('line', line => {
-		// trailing backslash → continuation
+		// Trailing backslash forces continuation regardless of paren state —
+		// useful when the user wants to enter multi-line input that *would*
+		// otherwise be complete on the first line.
 		if (line.endsWith('\\')) {
 			buffer += line.slice(0, -1) + '\n'
 			multiline = true
@@ -212,8 +268,22 @@ async function main(): Promise<void> {
 			rl.prompt()
 			return
 		}
-		const fullSource = (buffer + line).trim()
-		const printedSource = multiline ? buffer + line : line
+
+		const candidate = buffer + line
+
+		// Auto-continuation: if the buffer-so-far has unclosed parens /
+		// brackets / braces / strings, treat this line as a continuation
+		// and prompt for more.
+		if (isIncomplete(candidate)) {
+			buffer = candidate + '\n'
+			multiline = true
+			rl.setPrompt(theme.cont)
+			rl.prompt()
+			return
+		}
+
+		const fullSource = candidate.trim()
+		const printedSource = multiline ? candidate : line
 		buffer = ''
 		multiline = false
 		rl.setPrompt(theme.prompt)
