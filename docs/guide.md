@@ -118,14 +118,16 @@ Like everything else, `?` does not throw — if no clause matches and there's no
 
 ## Pipe: `|>`
 
-`(|> input step ...)` threads `input` through each step. A step that's a function is called with the threaded value as its first arg; a step that's a call inserts the threaded value as the first positional arg.
+`(|> input step ...)` evaluates each step to a function and applies it to the threaded value. Steps must be function-valued, so partial calls use the `%` placeholder (desugared to a one-arg closure):
 
 ```glisp
 (|> 5
-  (* 2)            ;; 10
-  (+ 1)            ;; 11
+  (* 2 %)          ;; 10
+  (+ 1 %)          ;; 11
   (=> (n: number): number (* n n)))   ;; 121
 ```
+
+`(* 2 %)` desugars to `(=> (_0: _): _ (* 2 _0))`, which is what gets applied to the threaded value at each step.
 
 ## Let-blocks
 
