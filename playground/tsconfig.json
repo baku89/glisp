@@ -13,7 +13,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "verbatimModuleSyntax": true,
     "noEmit": true,
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"],
     "paths": {
       "@core/*": ["../src/*"]
     }
