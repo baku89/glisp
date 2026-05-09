@@ -20,6 +20,7 @@ import {
 	isTypedHostFn,
 	isTypeValue,
 	lookupBareName,
+	makeFunctionType,
 	makeType,
 	type TypedHostFn,
 	type TypeValue,
@@ -71,10 +72,9 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 		}
 		case 'fn':
 			// Function literal — produce its declared (=> ... ): T type.
-			// We synthesize a closure-shaped type without evaluating param /
-			// return type expressions; the printed name is just `printStructural`
-			// of the FnAST (sans body).
-			return makeFnLiteralType(ast)
+			// Resolve the literal's declared param / return types against
+			// the surrounding env to produce a function-shaped TypeValue.
+			return makeFnLiteralType(ast, env)
 		case 'meta':
 		case 'quote':
 		case 'unquote':
@@ -87,45 +87,71 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 	}
 }
 
-/** Build a TypeValue whose `typeName` describes a typed host fn's signature. */
+/** Build a TypeValue whose shape mirrors a typed host fn's signature. */
 function functionTypeOf(fn: TypedHostFn): TypeValue {
 	const cached = fnTypeCache.get(fn)
 	if (cached !== undefined) return cached
-	const params = fn.paramTypes.map((t, i) => {
-		const name = fn.paramNames?.[i] ?? `_${i}`
-		return `${name}: ${t.typeName}`
-	})
-	if (fn.variadicTail !== undefined) {
-		params.push(`...rest: ${fn.variadicTail.typeName}`)
-	}
-	const sig = `(=> (${params.join(' ')}): ${fn.returnType.typeName})`
-	const t = makeType(sig, () => false, UNIT)
+	const opts: {
+		paramNames?: ReadonlyArray<string>
+		variadicTail?: TypeValue
+	} = {}
+	if (fn.paramNames !== undefined) opts.paramNames = fn.paramNames
+	if (fn.variadicTail !== undefined) opts.variadicTail = fn.variadicTail
+	const t = makeFunctionType(fn.paramTypes, fn.returnType, opts)
 	fnTypeCache.set(fn, t)
 	return t
 }
 
-/** Build a TypeValue whose `typeName` describes a closure's signature. */
+/**
+ * Build a TypeValue for a closure value. Param / return types in the
+ * closure's FnAST are evaluated against the captured env to recover
+ * `TypeValue` shapes; positions that fail to resolve fall back to top.
+ */
 function closureTypeOf(c: GlispClosure): TypeValue {
 	const cached = closureTypeCache.get(c)
 	if (cached !== undefined) return cached
-	const t = makeType(renderFnSignature(c.ast), () => false, UNIT)
+	const t = closureFnLikeType(c.ast, c.capturedEnv)
 	closureTypeCache.set(c, t)
 	return t
 }
 
-function makeFnLiteralType(fnAst: import('./types.js').FnAST): TypeValue {
-	return makeType(renderFnSignature(fnAst), () => false, UNIT)
+/** Same as `closureTypeOf` but for a fresh function-literal AST + env. */
+function makeFnLiteralType(
+	fnAst: import('./types.js').FnAST,
+	env: Env
+): TypeValue {
+	return closureFnLikeType(fnAst, env)
 }
 
-function renderFnSignature(fnAst: import('./types.js').FnAST): string {
-	const params = fnAst.params.map(p => {
-		const variadicMark = p.variadic ? '...' : ''
-		const optionalMark = p.optional ? '?' : ''
-		return `${variadicMark}${p.name}${optionalMark}: ${p.type.print()}`
+function closureFnLikeType(
+	fnAst: import('./types.js').FnAST,
+	env: Env
+): TypeValue {
+	const top = lookupBareName('_', env)
+	const topType =
+		top !== null && isTypeValue(evaluate(top.ast, top.env).value)
+			? (evaluate(top.ast, top.env).value as TypeValue)
+			: makeType('_', () => true, UNIT)
+
+	const paramNames: string[] = []
+	const paramTypes: TypeValue[] = []
+	let variadicTail: TypeValue | undefined
+	for (const p of fnAst.params) {
+		const tr = evaluate(p.type, env)
+		const t = isTypeValue(tr.value) ? tr.value : topType
+		if (p.variadic) {
+			variadicTail = t
+		} else {
+			paramNames.push(p.name)
+			paramTypes.push(t)
+		}
+	}
+	const rr = evaluate(fnAst.returnType, env)
+	const returnType = isTypeValue(rr.value) ? rr.value : topType
+	return makeFunctionType(paramTypes, returnType, {
+		paramNames,
+		...(variadicTail !== undefined ? { variadicTail } : {}),
 	})
-	const generics =
-		fnAst.generics.length > 0 ? `(${fnAst.generics.join(' ')}) ` : ''
-	return `(=> ${generics}(${params.join(' ')}): ${fnAst.returnType.print()})`
 }
 
 const fnTypeCache: WeakMap<TypedHostFn, TypeValue> = new WeakMap()

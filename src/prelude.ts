@@ -24,6 +24,7 @@ import {
 	IOAction,
 	isGlispClosure,
 	isTypeValue,
+	makeFunctionType,
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
@@ -234,11 +235,7 @@ export function buildPrelude(): Env {
  */
 function makeMap(): TypedHostFn {
 	const vecType = makeType('vector', Array.isArray, [])
-	const fnType = makeType(
-		'(=> (_): _)',
-		v => typeof v === 'function',
-		(_x: unknown) => UNIT
-	)
+	const fnType = makeFunctionType([topType], topType, { paramNames: ['x'] })
 	return makeTypedFn(
 		[vecType, fnType],
 		vecType,
@@ -250,11 +247,9 @@ function makeMap(): TypedHostFn {
 
 function makeFilter(): TypedHostFn {
 	const vecType = makeType('vector', Array.isArray, [])
-	const predType = makeType(
-		'(=> (_): boolean)',
-		v => typeof v === 'function',
-		(_x: unknown) => false
-	)
+	const predType = makeFunctionType([topType], booleanType, {
+		paramNames: ['x'],
+	})
 	return makeTypedFn(
 		[vecType, predType],
 		vecType,
@@ -268,11 +263,9 @@ function makeFilter(): TypedHostFn {
 
 function makeReduce(): TypedHostFn {
 	const vecType = makeType('vector', Array.isArray, [])
-	const fnType = makeType(
-		'(=> (_ _): _)',
-		v => typeof v === 'function',
-		(_a: unknown) => UNIT
-	)
+	const fnType = makeFunctionType([topType, topType], topType, {
+		paramNames: ['acc', 'x'],
+	})
 	return makeTypedFn(
 		[vecType, topType, fnType],
 		topType,
@@ -301,7 +294,10 @@ function makeEnum(): TypedHostFn {
 			const set = new Set(vs)
 			const name = `(enum ${vs.map(showValue).join(' ')})`
 			const fallback = vs.length > 0 ? vs[0] : UNIT
-			return makeType(name, v => set.has(v), fallback)
+			return makeType(name, v => set.has(v), fallback, {
+				kind: 'enum',
+				values: set,
+			})
 		},
 		undefined,
 		topType
@@ -330,7 +326,8 @@ function makeRefine(): TypedHostFn {
 			return makeType(
 				name,
 				v => base.fits(v) && Boolean(predicate(v)),
-				defaultV
+				defaultV,
+				{ kind: 'refine', base }
 			)
 		},
 		['base', 'default', 'pred']

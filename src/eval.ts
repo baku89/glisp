@@ -89,11 +89,33 @@ function invokeClosureFromJS(c: GlispClosure, args: unknown[]): unknown {
 // Type value (callable cast with marker properties)
 // -----------------------------------------------------------------------------
 
+/**
+ * Structural shape of a TypeValue — recorded so type-compatibility checks
+ * can compare two types' insides rather than just their printed names.
+ *
+ * `kind: 'primitive'` is the default for opaque base types built via
+ * `makeType` (number, string, top, etc.); compatibility there is by
+ * `===` identity. The other kinds expose the constituent types so a
+ * checker can recurse: `function` has `paramTypes` / `returnType`,
+ * `enum` has its value set, `refine` keeps a pointer to the base.
+ */
+export type TypeShape =
+	| { readonly kind: 'primitive' }
+	| {
+			readonly kind: 'function'
+			readonly paramTypes: ReadonlyArray<TypeValue>
+			readonly returnType: TypeValue
+			readonly variadicTail?: TypeValue
+	  }
+	| { readonly kind: 'enum'; readonly values: ReadonlySet<unknown> }
+	| { readonly kind: 'refine'; readonly base: TypeValue }
+
 export interface TypeValue {
 	readonly __glispType: true
 	readonly typeName: string
 	readonly fits: (v: unknown) => boolean
 	readonly default: unknown
+	readonly shape: TypeShape
 	(v: unknown): unknown
 }
 
@@ -107,13 +129,15 @@ export interface TypeValue {
 export function makeType(
 	name: string,
 	fits: (v: unknown) => boolean,
-	defaultValue: unknown
+	defaultValue: unknown,
+	shape: TypeShape = { kind: 'primitive' }
 ): TypeValue {
 	const cast = (v: unknown): unknown => (fits(v) ? v : defaultValue)
 	Object.defineProperty(cast, '__glispType', { value: true })
 	Object.defineProperty(cast, 'typeName', { value: name })
 	Object.defineProperty(cast, 'fits', { value: fits })
 	Object.defineProperty(cast, 'default', { value: defaultValue })
+	Object.defineProperty(cast, 'shape', { value: shape })
 	return cast as unknown as TypeValue
 }
 
@@ -122,6 +146,84 @@ export function isTypeValue(v: unknown): v is TypeValue {
 		typeof v === 'function' &&
 		(v as { __glispType?: true }).__glispType === true
 	)
+}
+
+/**
+ * Build a function-shaped TypeValue carrying its declared parameter and
+ * return types. The runtime `fits` predicate accepts any callable (a
+ * function-shaped TypeValue does not constrain runtime arity); structural
+ * compatibility against another function type goes through `typeFits`,
+ * which compares the recorded shapes.
+ */
+export function makeFunctionType(
+	paramTypes: ReadonlyArray<TypeValue>,
+	returnType: TypeValue,
+	options?: {
+		paramNames?: ReadonlyArray<string>
+		variadicTail?: TypeValue
+	}
+): TypeValue {
+	const params = paramTypes.map((t, i) => {
+		const name = options?.paramNames?.[i] ?? `_${i}`
+		return `${name}: ${t.typeName}`
+	})
+	if (options?.variadicTail !== undefined) {
+		params.push(`...rest: ${options.variadicTail.typeName}`)
+	}
+	const name = `(=> (${params.join(' ')}): ${returnType.typeName})`
+	const shape: TypeShape = options?.variadicTail !== undefined
+		? {
+				kind: 'function',
+				paramTypes,
+				returnType,
+				variadicTail: options.variadicTail,
+			}
+		: { kind: 'function', paramTypes, returnType }
+	return makeType(name, v => typeof v === 'function', UNIT, shape)
+}
+
+/**
+ * Structural compatibility check: does a value of type `actual` fit a
+ * slot declared as `expected`?
+ *
+ * - `expected` being `_` (top) accepts anything.
+ * - Same TypeValue identity is compatible.
+ * - Two function types are compatible iff their param/return shapes
+ *   recursively are. Param matching is invariant for now — proper
+ *   contravariance can come with type inference of higher-order calls.
+ * - Otherwise, fall back to typeName equality (covers names that
+ *   resolve to identical primitives across env rebuilds).
+ */
+export function typeFits(actual: TypeValue, expected: TypeValue): boolean {
+	if (actual === expected) return true
+	if (expected.typeName === '_') return true
+	if (actual.typeName === '!') return true // bottom fits anything
+
+	if (
+		actual.shape.kind === 'function' &&
+		expected.shape.kind === 'function'
+	) {
+		const a = actual.shape
+		const e = expected.shape
+		// Either side variadic relaxes the arity check.
+		if (
+			a.variadicTail === undefined &&
+			e.variadicTail === undefined &&
+			a.paramTypes.length !== e.paramTypes.length
+		) {
+			return false
+		}
+		const len = Math.max(a.paramTypes.length, e.paramTypes.length)
+		for (let i = 0; i < len; i++) {
+			const ap = a.paramTypes[i] ?? a.variadicTail
+			const ep = e.paramTypes[i] ?? e.variadicTail
+			if (ap === undefined || ep === undefined) return false
+			if (!typeFits(ap, ep)) return false
+		}
+		return typeFits(a.returnType, e.returnType)
+	}
+
+	return actual.typeName === expected.typeName
 }
 
 // -----------------------------------------------------------------------------
@@ -304,28 +406,21 @@ function callTypedHostFn(
 			continue
 		}
 
-		// Static type check — confirmed mismatch lets us skip evaluation
-		// of the argument entirely and substitute the default. Top type
-		// (`_`) accepts anything, so skip; function-shaped types share a
-		// single runtime representation (any callable) and should defer
-		// to runtime fits rather than static identity comparison.
-		if (paramType.typeName !== '_' && !isFunctionTypeName(paramType)) {
-			const inferred = infer(argAst, env)
-			if (
-				inferred !== null &&
-				inferred !== paramType &&
-				!isFunctionTypeName(inferred)
-			) {
-				diagnostics.push(
-					diag(
-						argAst,
-						env,
-						`type mismatch: expected ${paramType.typeName}, got ${inferred.typeName}`
-					)
+		// Static type check — a confirmed mismatch lets us skip evaluation
+		// of the argument entirely and substitute the default. `typeFits`
+		// handles top, function-structural compat, and primitive identity
+		// uniformly.
+		const inferred = infer(argAst, env)
+		if (inferred !== null && !typeFits(inferred, paramType)) {
+			diagnostics.push(
+				diag(
+					argAst,
+					env,
+					`type mismatch: expected ${paramType.typeName}, got ${inferred.typeName}`
 				)
-				argValues.push(paramType.default)
-				continue
-			}
+			)
+			argValues.push(paramType.default)
+			continue
 		}
 
 		// Type compatible (or unknown) — evaluate, then runtime-cast.
@@ -967,27 +1062,14 @@ function applyClosure(
 		argEnv: Env,
 		paramType: TypeValue | null
 	): void => {
-		if (
-			paramType === null ||
-			paramType.typeName === '_' ||
-			isFunctionTypeName(paramType)
-		) {
-			map.set(
-				name,
-				paramType === null
-					? { ast: argAst, env: argEnv }
-					: { ast: argAst, env: argEnv, type: paramType }
-			)
+		if (paramType === null) {
+			map.set(name, { ast: argAst, env: argEnv })
 			return
 		}
 		// Static type check — a confirmed mismatch lets us skip evaluation
 		// of the argument entirely and substitute the type's default.
 		const inferred = infer(argAst, argEnv)
-		if (
-			inferred !== null &&
-			inferred !== paramType &&
-			!isFunctionTypeName(inferred)
-		) {
+		if (inferred !== null && !typeFits(inferred, paramType)) {
 			diagnostics.push(
 				diag(
 					argAst,
@@ -1412,16 +1494,6 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
 		!Array.isArray(v) &&
 		typeof v !== 'function'
 	)
-}
-
-/**
- * Heuristic: a TypeValue whose name begins with `(=>` describes a
- * function shape. Two such types are runtime-compatible (both back the
- * same JS-callable representation) regardless of param/return-type
- * specifics, so static identity comparison would over-reject them.
- */
-function isFunctionTypeName(t: TypeValue): boolean {
-	return t.typeName.startsWith('(=>')
 }
 
 function describeType(v: unknown): string {
