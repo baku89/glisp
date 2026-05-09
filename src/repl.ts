@@ -20,7 +20,7 @@ import { stdin as input, stdout as output } from 'node:process'
 import { createInterface } from 'node:readline/promises'
 
 import { lit } from './build.js'
-import { evaluate, GlispClosure, makeTopLevel } from './eval.js'
+import { evaluate, GlispClosure, isTypeValue, makeTopLevel, makeType } from './eval.js'
 import { parse, ParseError } from './parse.js'
 import { print } from './print.js'
 import { type AST, type Env, type Frame, UNIT } from './types.js'
@@ -37,7 +37,29 @@ function buildStarterEnv(): Env {
 		((a: unknown, b: unknown) =>
 			op(a as number, b as number)) as unknown as never
 
+	// Primitive type values — callable for cast, with `fits` for type
+	// pattern matching in `?`.
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+	const stringType = makeType('string', v => typeof v === 'string', '')
+	const booleanType = makeType(
+		'boolean',
+		v => typeof v === 'boolean',
+		false
+	)
+	const unitType = makeType('unit', v => v === UNIT, UNIT)
+	const topType = makeType('_', () => true, UNIT)
+	const bottomType = makeType('!', () => false, UNIT)
+
 	const bindings: Record<string, AST> = {
+		number: lit(numberType as never),
+		string: lit(stringType as never),
+		boolean: lit(booleanType as never),
+		unit: lit(unitType as never),
+		// Note: `_` and `!` are reserved tokens (Top / Bottom literals); they
+		// don't need binding since the parser uses them directly.
+		top: lit(topType as never),
+		bottom: lit(bottomType as never),
+
 		'+': lit(num2((a, b) => a + b)),
 		'-': lit(num2((a, b) => a - b)),
 		'*': lit(num2((a, b) => a * b)),
@@ -76,8 +98,9 @@ function formatValue(v: unknown): string {
 	if (v === undefined) return 'undefined'
 	if (typeof v === 'string') return JSON.stringify(v)
 	if (typeof v === 'number' || typeof v === 'boolean') return String(v)
-	if (typeof v === 'function') return '<host-fn>'
+	if (isTypeValue(v)) return `<type ${v.typeName}>`
 	if (v instanceof GlispClosure) return `<closure ${print(v.ast)}>`
+	if (typeof v === 'function') return '<host-fn>'
 	if (Array.isArray(v)) return `[${v.map(formatValue).join(' ')}]`
 	if (typeof v === 'object') {
 		const entries = Object.entries(v as Record<string, unknown>).map(

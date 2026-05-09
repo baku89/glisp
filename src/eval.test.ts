@@ -12,7 +12,14 @@ import {
 	sym,
 	vec,
 } from './build.js'
-import { emptyEnv, evaluate, GlispClosure, makeTopLevel } from './eval.js'
+import {
+	emptyEnv,
+	evaluate,
+	GlispClosure,
+	makeTopLevel,
+	makeType,
+	toAst,
+} from './eval.js'
 import { parse } from './parse.js'
 import { UNIT } from './types.js'
 
@@ -478,6 +485,129 @@ describe('evaluate — special form |> (pipe)', () => {
 		expect(r.diagnostics.some(d => d.message.includes('not a function'))).toBe(
 			true
 		)
+	})
+})
+
+// -----------------------------------------------------------------------------
+// Type values: cast and matching
+// -----------------------------------------------------------------------------
+
+describe('evaluate — type values (cast & match)', () => {
+	const numberType = makeType(
+		'number',
+		v => typeof v === 'number',
+		0
+	)
+	const stringType = makeType(
+		'string',
+		v => typeof v === 'string',
+		''
+	)
+	const envWithTypes = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			string: lit(stringType as never),
+		})
+
+	it('(number 42) returns 42 (cast pass)', () => {
+		expect(evaluate(parse('(number 42)'), envWithTypes()).value).toBe(42)
+	})
+
+	it('(number "hi") falls back to default (0)', () => {
+		expect(evaluate(parse('(number "hi")'), envWithTypes()).value).toBe(0)
+	})
+
+	it('(string 42) falls back to default ("")', () => {
+		expect(evaluate(parse('(string 42)'), envWithTypes()).value).toBe('')
+	})
+
+	it('? matches a type pattern with cast (no default consumed)', () => {
+		// (? 42 number "is-num" string "is-str" _ "other")
+		const env = envWithTypes()
+		const r = evaluate(
+			parse('(? 42 number "is-num" string "is-str" _ "other")'),
+			env
+		)
+		expect(r.value).toBe('is-num')
+	})
+
+	it('? type-pattern falls through when value does not fit', () => {
+		const env = envWithTypes()
+		const r = evaluate(
+			parse('(? true number "n" string "s" _ "other")'),
+			env
+		)
+		expect(r.value).toBe('other')
+	})
+})
+
+// -----------------------------------------------------------------------------
+// Vector / record callable
+// -----------------------------------------------------------------------------
+
+describe('evaluate — vector & record as callable', () => {
+	it('([1 2 3] 1) → 2', () => {
+		expect(evaluate(parse('([1 2 3] 1)'), emptyEnv).value).toBe(2)
+	})
+
+	it('({x: 10 y: 20} "x") → 10', () => {
+		expect(evaluate(parse('({x: 10 y: 20} "x")'), emptyEnv).value).toBe(10)
+	})
+
+	it('vector index out of bounds → unit + diagnostic', () => {
+		const r = evaluate(parse('([1 2] 5)'), emptyEnv)
+		expect(r.value).toBe(UNIT)
+		expect(r.diagnostics.some(d => d.message.includes('out of bounds'))).toBe(
+			true
+		)
+	})
+})
+
+// -----------------------------------------------------------------------------
+// toAst
+// -----------------------------------------------------------------------------
+
+describe('toAst — value → AST round trip', () => {
+	it('primitives become literal ASTs', () => {
+		expect(toAst(42, emptyEnv)).toEqual(lit(42))
+		expect(toAst('hi', emptyEnv)).toEqual(lit('hi'))
+		expect(toAst(true, emptyEnv)).toEqual(lit(true))
+		expect(toAst(UNIT, emptyEnv)).toEqual(lit(UNIT))
+	})
+
+	it('vectors recurse', () => {
+		expect(toAst([1, 2, 3], emptyEnv)).toEqual(
+			vec(lit(1), lit(2), lit(3))
+		)
+	})
+
+	it('records recurse', () => {
+		const ast = toAst({ x: 10, y: 20 }, emptyEnv)
+		expect(ast.kind).toBe('record')
+		expect(ast.print()).toBe('{x: 10 y: 20}')
+	})
+
+	it('closures use their function-literal AST', () => {
+		const closureAst = fn(
+			[{ name: 'x', type: sym('_') }],
+			sym('_')
+		).withBody(sym('x'))
+		const closure = new GlispClosure(closureAst, emptyEnv)
+		expect(toAst(closure, emptyEnv)).toBe(closureAst)
+	})
+
+	it('type values prefer a bound name from the env', () => {
+		const numberType = makeType('number', v => typeof v === 'number', 0)
+		const env = makeTopLevel({ number: lit(numberType as never) })
+		const ast = toAst(numberType, env)
+		expect(ast.kind).toBe('sym')
+		expect((ast as { name: string }).name).toBe('number')
+	})
+
+	it('eval(toAst(v, env), env) ≡ v for primitive containers', () => {
+		const v = { x: 1, y: [2, 3, 4] }
+		const r = evaluate(toAst(v, emptyEnv), emptyEnv)
+		expect(r.value).toEqual(v)
 	})
 })
 

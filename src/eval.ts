@@ -63,6 +63,45 @@ export class GlispClosure {
 }
 
 // -----------------------------------------------------------------------------
+// Type value (callable cast with marker properties)
+// -----------------------------------------------------------------------------
+
+export interface TypeValue {
+	readonly __glispType: true
+	readonly typeName: string
+	readonly fits: (v: unknown) => boolean
+	readonly default: unknown
+	(v: unknown): unknown
+}
+
+/**
+ * Build a primitive type value: callable for cast (`(T v)`), with a `fits`
+ * predicate the evaluator can use for non-fallback type-pattern matching.
+ *
+ * The `typeName` property is named that (rather than `name`) to avoid
+ * clashing with `Function.prototype.name`, which is non-writable.
+ */
+export function makeType(
+	name: string,
+	fits: (v: unknown) => boolean,
+	defaultValue: unknown
+): TypeValue {
+	const cast = (v: unknown): unknown => (fits(v) ? v : defaultValue)
+	Object.defineProperty(cast, '__glispType', { value: true })
+	Object.defineProperty(cast, 'typeName', { value: name })
+	Object.defineProperty(cast, 'fits', { value: fits })
+	Object.defineProperty(cast, 'default', { value: defaultValue })
+	return cast as unknown as TypeValue
+}
+
+export function isTypeValue(v: unknown): v is TypeValue {
+	return (
+		typeof v === 'function' &&
+		(v as { __glispType?: true }).__glispType === true
+	)
+}
+
+// -----------------------------------------------------------------------------
 // Public API
 // -----------------------------------------------------------------------------
 
@@ -332,8 +371,52 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 		return applyClosure(headValue, positional, kwargs, env, ast, diagnostics)
 	}
 
+	// Vector → element access by integer index.
+	if (Array.isArray(headValue)) {
+		if (positional.length !== 1) {
+			diagnostics.push(diag(ast, env, 'vector access expects one index'))
+			return { value: UNIT, diagnostics }
+		}
+		const idxR = evaluate(positional[0]!, env)
+		push(diagnostics, idxR.diagnostics)
+		const idx = idxR.value
+		if (typeof idx !== 'number') {
+			diagnostics.push(diag(ast, env, 'vector index must be a number'))
+			return { value: UNIT, diagnostics }
+		}
+		const got = headValue[idx]
+		if (got === undefined) {
+			diagnostics.push(diag(ast, env, `vector index out of bounds: ${idx}`))
+			return { value: UNIT, diagnostics }
+		}
+		return { value: got, diagnostics }
+	}
+
+	// Record → field access by string key.
+	if (isPlainRecord(headValue)) {
+		if (positional.length !== 1) {
+			diagnostics.push(diag(ast, env, 'record access expects one key'))
+			return { value: UNIT, diagnostics }
+		}
+		const keyR = evaluate(positional[0]!, env)
+		push(diagnostics, keyR.diagnostics)
+		const key = keyR.value
+		if (typeof key !== 'string') {
+			diagnostics.push(diag(ast, env, 'record key must be a string'))
+			return { value: UNIT, diagnostics }
+		}
+		const got = (headValue as Record<string, unknown>)[key]
+		if (got === undefined) {
+			diagnostics.push(diag(ast, env, `record field not found: ${key}`))
+			return { value: UNIT, diagnostics }
+		}
+		return { value: got, diagnostics }
+	}
+
 	// Host-bound JS function — eval all positional args strictly, ignore
 	// kwargs (host functions don't carry param-name info).
+	// Type values are also callable functions; the cast happens via the
+	// function call below (a type value's call is its cast).
 	if (typeof headValue === 'function') {
 		const argValues: unknown[] = []
 		for (const argAst of positional) {
@@ -559,7 +642,13 @@ function evalMatch(ast: CallAST, env: Env): EvalResult {
 }
 
 function matchValue(value: unknown, pattern: unknown): boolean {
-	// Type-cast based matching is not yet implemented; fall back to equality.
+	// If the pattern is a type value, use its `fits` predicate (non-fallback
+	// type test) — this is the spec's "pattern is a type → cast succeeds"
+	// branch without actually consuming the cast's default fallback.
+	if (isTypeValue(pattern)) {
+		return pattern.fits(value)
+	}
+	// Otherwise: structural equality.
 	return value === pattern
 }
 
@@ -714,5 +803,95 @@ function describeType(v: unknown): string {
 	if (v === null) return 'null'
 	if (Array.isArray(v)) return 'vector'
 	if (v instanceof GlispClosure) return 'closure'
+	if (isTypeValue(v)) return `type<${v.typeName}>`
 	return typeof v
+}
+
+// -----------------------------------------------------------------------------
+// toAst — convert a runtime value back to an AST that evaluates to the value.
+// -----------------------------------------------------------------------------
+
+import {
+	LitAST as LitASTClass,
+	QuoteAST as QuoteASTClass,
+	RecordAST as RecordASTClass,
+	SymAST as SymASTClass,
+	VecAST as VecASTClass,
+	ASTNode as ASTNodeClass,
+} from './types.js'
+
+/**
+ * Convert a runtime value to an AST handle that, when evaluated against
+ * the provided env, yields the same value (modulo marshaling).
+ *
+ * Strategy:
+ * - primitives → literal AST
+ * - vector / record → recurse over elements / fields
+ * - GlispClosure → its captured function-literal AST
+ * - AST handle → `` `expr `` (quasiquote wrap)
+ * - type value → bare symbol if env binds the name, else falls back to a
+ *   sym with the type's stored name
+ * - host JS function (non-type) → wrapped as a literal carrying the function
+ *
+ * Spec: docs/spec/host-api.md — `g.toAst`
+ */
+export function toAst(value: unknown, env: Env): AST {
+	if (
+		typeof value === 'number' ||
+		typeof value === 'string' ||
+		typeof value === 'boolean' ||
+		value === UNIT
+	) {
+		return new LitASTClass(value as never)
+	}
+	if (value === null || value === undefined) {
+		return new LitASTClass(UNIT)
+	}
+	if (value instanceof GlispClosure) {
+		return value.ast
+	}
+	if (value instanceof ASTNodeClass) {
+		return new QuoteASTClass(value as AST)
+	}
+	if (Array.isArray(value)) {
+		return new VecASTClass(value.map(v => toAst(v, env)))
+	}
+	if (isTypeValue(value)) {
+		const name = nameForBoundValue(env, value)
+		return new SymASTClass(name ?? value.typeName)
+	}
+	if (typeof value === 'function') {
+		// Host JS function with no Glisp metadata. Wrap as a literal so the
+		// runtime can still hand the function back; not idempotent through
+		// print/parse but preserves identity within a process.
+		return new LitASTClass(value as never)
+	}
+	if (typeof value === 'object') {
+		const entries: Array<readonly [string, AST]> = []
+		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+			entries.push([k, toAst(v, env)])
+		}
+		return new RecordASTClass(entries)
+	}
+	// Fallback — should be unreachable
+	return new LitASTClass(UNIT)
+}
+
+/**
+ * Walk the env's frame chain looking for a binding whose evaluated value
+ * is identical (`===`) to the given value. Returns the binding name if
+ * found. Used by toAst to prefer a bare symbol over a structural rebuild.
+ */
+function nameForBoundValue(env: Env, value: unknown): string | null {
+	let frame = env
+	while (frame !== null) {
+		if (frame.bindings) {
+			for (const [name, target] of frame.bindings) {
+				const r = evaluate(target.ast, target.env)
+				if (r.value === value) return name
+			}
+		}
+		frame = frame.parent
+	}
+	return null
 }
