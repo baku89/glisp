@@ -22,6 +22,7 @@
  */
 
 import { desugar } from './desugar.js'
+import { inferType } from './infer.js'
 import {
 	type AST,
 	type BindingTarget,
@@ -149,6 +150,99 @@ export function isTypedHostFn(v: unknown): v is TypedHostFn {
 		typeof v === 'function' &&
 		(v as { __glispTypedFn?: true }).__glispTypedFn === true
 	)
+}
+
+// Static type inference lives in infer.ts. Internally exposed via the
+// `lookupBareName` helper below so infer can walk the same env chain.
+export { lookupBareName }
+
+// -----------------------------------------------------------------------------
+// Typed host fn dispatch (static check + cast)
+// -----------------------------------------------------------------------------
+
+function callTypedHostFn(
+	fn: TypedHostFn,
+	positional: ReadonlyArray<AST>,
+	kwargs: ReadonlyMap<string, AST> | undefined,
+	env: Env,
+	site: AST,
+	priorDiagnostics: ReadonlyArray<Diagnostic>
+): EvalResult {
+	const diagnostics = [...priorDiagnostics]
+	const argValues: unknown[] = []
+
+	if (kwargs && kwargs.size > 0) {
+		diagnostics.push(
+			diag(site, env, 'cannot pass keyword arguments to a host function')
+		)
+	}
+
+	for (let i = 0; i < fn.paramTypes.length; i++) {
+		const paramType = fn.paramTypes[i]!
+		const argAst = positional[i]
+
+		// Missing required argument → diagnostic + paramType.default
+		if (argAst === undefined) {
+			diagnostics.push(
+				diag(
+					site,
+					env,
+					`missing argument for parameter ${i + 1} (expected ${paramType.typeName})`
+				)
+			)
+			argValues.push(paramType.default)
+			continue
+		}
+
+		// Static type check — confirmed mismatch lets us skip evaluation
+		// of the argument entirely and substitute the default.
+		const inferred = inferType(argAst, env)
+		if (inferred !== null && inferred !== paramType) {
+			diagnostics.push(
+				diag(
+					argAst,
+					env,
+					`type mismatch: expected ${paramType.typeName}, got ${inferred.typeName}`
+				)
+			)
+			argValues.push(paramType.default)
+			continue
+		}
+
+		// Type compatible (or unknown) — evaluate, then runtime-cast.
+		const r = evaluate(argAst, env)
+		push(diagnostics, r.diagnostics)
+		const v = r.value
+		if (v !== UNIT && !paramType.fits(v)) {
+			diagnostics.push(
+				diag(
+					argAst,
+					env,
+					`type mismatch at runtime: expected ${paramType.typeName}, got ${describeType(v)}`
+				)
+			)
+		}
+		argValues.push(paramType(v))
+	}
+
+	if (positional.length > fn.paramTypes.length) {
+		diagnostics.push(
+			diag(
+				site,
+				env,
+				`too many positional arguments: expected ${fn.paramTypes.length}, got ${positional.length}`
+			)
+		)
+	}
+
+	try {
+		const result = fn(...argValues)
+		return { value: result, diagnostics }
+	} catch (e) {
+		const message = e instanceof Error ? e.message : String(e)
+		diagnostics.push(diag(site, env, `host function threw: ${message}`))
+		return { value: UNIT, diagnostics }
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -463,10 +557,12 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 		return { value: got, diagnostics }
 	}
 
-	// Host-bound JS function — eval all positional args strictly, ignore
-	// kwargs (host functions don't carry param-name info).
-	// Type values are also callable functions; the cast happens via the
-	// function call below (a type value's call is its cast).
+	// Typed host function — per-arg static type check + cast.
+	if (isTypedHostFn(headValue)) {
+		return callTypedHostFn(headValue, positional, kwargs, env, ast, diagnostics)
+	}
+
+	// Untyped host function — eval all positional args strictly.
 	if (typeof headValue === 'function') {
 		const argValues: unknown[] = []
 		for (const argAst of positional) {

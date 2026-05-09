@@ -584,6 +584,47 @@ describe('evaluate — typed host function arg cast / default', () => {
 	it('(+) → 0  (both defaults)', () => {
 		expect(evaluate(parse('(+)'), envWithPlus()).value).toBe(0)
 	})
+
+	it('emits type-mismatch diagnostics for static mismatches', () => {
+		const r = evaluate(parse('(+ "str")'), envWithPlus())
+		expect(r.value).toBe(0)
+		expect(
+			r.diagnostics.some(d => d.message.includes('type mismatch'))
+		).toBe(true)
+	})
+
+	it('skips evaluation of arguments that are statically the wrong type', () => {
+		// We bind `show: top → string`. (+ (show 0)) statically rejects
+		// `(show 0)` because string ≠ number; `show` is never called.
+		let showCalled = 0
+		const numberType = makeType('number', v => typeof v === 'number', 0)
+		const stringType = makeType('string', v => typeof v === 'string', '')
+		const topType = makeType('_', () => true, UNIT)
+		const env = makeTopLevel({
+			number: lit(numberType as never),
+			string: lit(stringType as never),
+			top: lit(topType as never),
+			'+': lit(
+				makeTypedFn(
+					[numberType, numberType],
+					numberType,
+					(a, b) => (a as number) + (b as number)
+				) as never
+			),
+			show: lit(
+				makeTypedFn([topType], stringType, v => {
+					showCalled++
+					return String(v)
+				}) as never
+			),
+		})
+		const r = evaluate(parse('(+ (show 0))'), env)
+		expect(r.value).toBe(0)
+		expect(showCalled).toBe(0) // skipped due to static mismatch
+		expect(
+			r.diagnostics.some(d => d.message.includes('type mismatch'))
+		).toBe(true)
+	})
 })
 
 // -----------------------------------------------------------------------------

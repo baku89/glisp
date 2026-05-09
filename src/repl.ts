@@ -94,6 +94,10 @@ function buildStarterEnv(): Env {
 		identity: lit(
 			makeTypedFn([topType], topType, a => a) as never
 		),
+		// `show` converts any value to its source-printed form (number 0 → "0").
+		show: lit(
+			makeTypedFn([topType], stringType, v => formatValue(v)) as never
+		),
 		first: lit(
 			((xs: unknown) =>
 				Array.isArray(xs) ? xs[0] : UNIT) as unknown as never
