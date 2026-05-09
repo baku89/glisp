@@ -512,16 +512,27 @@ describe('evaluate — type values (cast & match)', () => {
 			string: lit(stringType as never),
 		})
 
-	it('(number 42) returns 42 (cast pass)', () => {
-		expect(evaluate(parse('(number 42)'), envWithTypes()).value).toBe(42)
+	it('(@ number 42) returns 42 (coerce pass)', () => {
+		expect(evaluate(parse('(@ number 42)'), envWithTypes()).value).toBe(42)
 	})
 
-	it('(number "hi") falls back to default (0)', () => {
-		expect(evaluate(parse('(number "hi")'), envWithTypes()).value).toBe(0)
+	it('(@ number "hi") falls back to default (0)', () => {
+		const r = evaluate(parse('(@ number "hi")'), envWithTypes())
+		expect(r.value).toBe(0)
+		expect(r.diagnostics.some(d => d.message.includes("doesn't accept"))).toBe(
+			true
+		)
 	})
 
-	it('(string 42) falls back to default ("")', () => {
-		expect(evaluate(parse('(string 42)'), envWithTypes()).value).toBe('')
+	it('(@ string 42) falls back to default ("")', () => {
+		expect(evaluate(parse('(@ string 42)'), envWithTypes()).value).toBe('')
+	})
+
+	it('(T v) is rejected with a hint to use @', () => {
+		const r = evaluate(parse('(number 42)'), envWithTypes())
+		expect(
+			r.diagnostics.some(d => d.message.includes('(@ number v)'))
+		).toBe(true)
 	})
 
 	it('? matches a type pattern with cast (no default consumed)', () => {

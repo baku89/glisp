@@ -107,31 +107,31 @@ describe('prelude — higher-order functions', () => {
 describe('prelude — type constructors', () => {
 	const env = buildPrelude()
 
-	it('enum casts a member through to its value', () => {
+	it('@ coerces an enum member through to its value', () => {
 		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
 			.value as IO).run()
-		expect(evaluate(parse('(C "g")'), env).value).toBe('g')
+		expect(evaluate(parse('(@ C "g")'), env).value).toBe('g')
 	})
 
-	it('enum falls back to first listed value on cast miss', () => {
+	it('@ on a non-member falls back to the first listed value', () => {
 		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
 			.value as IO).run()
-		const r = evaluate(parse('(C "purple")'), env)
+		const r = evaluate(parse('(@ C "purple")'), env)
 		expect(r.value).toBe('r')
 		expect(
 			r.diagnostics.some(d => d.message.includes("doesn't accept"))
 		).toBe(true)
 	})
 
-	it('refine narrows base type with a predicate', () => {
+	it('refine narrows base type via @', () => {
 		;(evaluate(
 			parse(
 				'(def "Pos" (refine number 1 (=> (x: number): boolean (> x 0))))'
 			),
 			env
 		).value as IO).run()
-		expect(evaluate(parse('(Pos 5)'), env).value).toBe(5)
-		const fail = evaluate(parse('(Pos -3)'), env)
+		expect(evaluate(parse('(@ Pos 5)'), env).value).toBe(5)
+		const fail = evaluate(parse('(@ Pos -3)'), env)
 		expect(fail.value).toBe(1) // declared default
 		expect(
 			fail.diagnostics.some(d => d.message.includes("doesn't accept"))

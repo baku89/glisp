@@ -116,15 +116,16 @@ export interface TypeValue {
 	readonly fits: (v: unknown) => boolean
 	readonly default: unknown
 	readonly shape: TypeShape
-	(v: unknown): unknown
 }
 
 /**
- * Build a primitive type value: callable for cast (`(T v)`), with a `fits`
- * predicate the evaluator can use for non-fallback type-pattern matching.
+ * Build a type value: a plain branded object carrying the type's name,
+ * `fits` predicate, default, and structural shape.
  *
- * The `typeName` property is named that (rather than `name`) to avoid
- * clashing with `Function.prototype.name`, which is non-writable.
+ * Type values are **not** callable — `(T v)` is rejected by the
+ * evaluator with a hint to use `(@ T v)` instead. The cast machinery
+ * still exists internally (typed slots, default fallback for missing
+ * args) but goes through `coerceTo`, not through invocation.
  */
 export function makeType(
 	name: string,
@@ -132,20 +133,31 @@ export function makeType(
 	defaultValue: unknown,
 	shape: TypeShape = { kind: 'primitive' }
 ): TypeValue {
-	const cast = (v: unknown): unknown => (fits(v) ? v : defaultValue)
-	Object.defineProperty(cast, '__glispType', { value: true })
-	Object.defineProperty(cast, 'typeName', { value: name })
-	Object.defineProperty(cast, 'fits', { value: fits })
-	Object.defineProperty(cast, 'default', { value: defaultValue })
-	Object.defineProperty(cast, 'shape', { value: shape })
-	return cast as unknown as TypeValue
+	return {
+		__glispType: true,
+		typeName: name,
+		fits,
+		default: defaultValue,
+		shape,
+	}
 }
 
 export function isTypeValue(v: unknown): v is TypeValue {
 	return (
-		typeof v === 'function' &&
+		v !== null &&
+		typeof v === 'object' &&
 		(v as { __glispType?: true }).__glispType === true
 	)
+}
+
+/**
+ * Coerce `v` through type `t`: return `v` itself if `t.fits(v)`,
+ * otherwise the type's default. Pure — never emits diagnostics. The
+ * caller is responsible for surfacing a type mismatch when relevant
+ * (see `evalCoerce` and `callTypedHostFn`).
+ */
+export function coerceTo(t: TypeValue, v: unknown): unknown {
+	return t.fits(v) ? v : t.default
 }
 
 /**
@@ -278,16 +290,16 @@ export function makeTypedFn(
 		for (let i = 0; i < paramTypes.length; i++) {
 			const t = paramTypes[i]!
 			const provided = i < args.length ? args[i] : t.default
-			cast.push(t(provided))
+			cast.push(coerceTo(t, provided))
 		}
 		if (variadicTail !== undefined) {
 			for (let i = paramTypes.length; i < args.length; i++) {
-				cast.push(variadicTail(args[i]))
+				cast.push(coerceTo(variadicTail, args[i]))
 			}
 		}
 		const result = fn(...cast)
-		// Cast the return value as well — guarantees the declared return type.
-		return returnType(result)
+		// Coerce the return value as well — guarantees the declared return type.
+		return coerceTo(returnType, result)
 	}
 	Object.defineProperty(wrapped, '__glispTypedFn', { value: true })
 	Object.defineProperty(wrapped, 'paramTypes', { value: paramTypes })
@@ -459,7 +471,7 @@ function callTypedHostFn(
 				)
 			)
 		}
-		argValues.push(paramType(v))
+		argValues.push(coerceTo(paramType, v))
 	}
 
 	if (
@@ -571,7 +583,7 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 					]
 					return { value: t.default, diagnostics }
 				}
-				return { value: t(r.value), diagnostics: r.diagnostics }
+				return { value: coerceTo(t, r.value), diagnostics: r.diagnostics }
 			}
 			return r
 		}
@@ -785,6 +797,8 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 				return evalMatch(ast, inside)
 			case '|>':
 				return evalPipe(ast, inside)
+			case '@':
+				return evalCoerce(ast, inside)
 			case 'def':
 				return evalDef(ast, inside)
 			case 'undef':
@@ -827,6 +841,22 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 			ast,
 			diagnostics
 		)
+	}
+
+	// Type values are not callable. Direct cast `(T v)` was removed —
+	// use `(@ T v)` for explicit coercion or pattern-match via `?`.
+	// Checked here, BEFORE the plain-record fall-through, since type
+	// values are branded plain objects that would otherwise look like
+	// records to the dispatch.
+	if (isTypeValue(headValue)) {
+		diagnostics.push(
+			diag(
+				ast,
+				inside,
+				`${headValue.typeName} is a type — use (@ ${headValue.typeName} v) for coercion`
+			)
+		)
+		return { value: headValue.default, diagnostics }
 	}
 
 	// Vector → element access by integer index.
@@ -883,37 +913,6 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 			ast,
 			diagnostics
 		)
-	}
-
-	// Type value used as a cast: (T value). One arg, runs through fits/default
-	// with a diagnostic on rejection.
-	if (isTypeValue(headValue)) {
-		if (positional.length !== 1) {
-			diagnostics.push(
-				diag(
-					ast,
-					inside,
-					`${headValue.typeName} cast expects exactly one argument`
-				)
-			)
-			return { value: headValue.default, diagnostics }
-		}
-		const r = evaluate(positional[0]!, inside)
-		push(diagnostics, r.diagnostics)
-		if (r.value === UNIT) {
-			return { value: headValue.default, diagnostics }
-		}
-		if (!headValue.fits(r.value)) {
-			diagnostics.push(
-				diag(
-					positional[0]!,
-					inside,
-					`${headValue.typeName} doesn't accept ${describeType(r.value)} value`
-				)
-			)
-			return { value: headValue.default, diagnostics }
-		}
-		return { value: headValue(r.value), diagnostics }
 	}
 
 	// Untyped host function — eval all positional args strictly.
@@ -1293,7 +1292,7 @@ function applyClosure(
 			)
 			return { value: rt.default, diagnostics }
 		}
-		return { value: rt(r.value), diagnostics }
+		return { value: coerceTo(rt, r.value), diagnostics }
 	}
 	return { value: r.value, diagnostics }
 }
@@ -1345,6 +1344,56 @@ function matchValue(value: unknown, pattern: unknown): boolean {
 	}
 	// Otherwise: structural equality.
 	return value === pattern
+}
+
+/**
+ * `(@ T v)` — explicit coercion. `T` must evaluate to a type value;
+ * `v` is then run through `T.fits`. On success the original `v` flows
+ * through; on failure the call returns `T.default` and emits a
+ * diagnostic. `()` always coerces silently to the type's default
+ * (matches the typed-slot convention in `types.md`).
+ *
+ * Replaces the now-removed `(T v)` cast form. Pattern matching via `?`
+ * remains the way to test a type without consuming the default.
+ */
+function evalCoerce(ast: CallAST, env: Env): EvalResult {
+	if (ast.args.length !== 2) {
+		return fail(
+			ast,
+			env,
+			'@ expects exactly 2 arguments: type and value'
+		)
+	}
+	const tResult = evaluate(ast.args[0]!, env)
+	const diagnostics = [...tResult.diagnostics]
+	const t = tResult.value
+	if (!isTypeValue(t)) {
+		diagnostics.push(
+			diag(
+				ast.args[0]!,
+				env,
+				`@: first argument must be a type, got ${describeType(t)}`
+			)
+		)
+		return { value: UNIT, diagnostics }
+	}
+	const vResult = evaluate(ast.args[1]!, env)
+	push(diagnostics, vResult.diagnostics)
+	const v = vResult.value
+	if (v === UNIT) {
+		return { value: t.default, diagnostics }
+	}
+	if (!t.fits(v)) {
+		diagnostics.push(
+			diag(
+				ast.args[1]!,
+				env,
+				`${t.typeName} doesn't accept ${describeType(v)} value`
+			)
+		)
+		return { value: t.default, diagnostics }
+	}
+	return { value: v, diagnostics }
 }
 
 /**

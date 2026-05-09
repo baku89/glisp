@@ -65,6 +65,8 @@ Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` 
 
 `/` standing alone is an atom referring to the division function (the same role `+` `-` `*` play as bare-token operator atoms). It is not part of identifiers because it doubles as the path separator (see [Path](#path)).
 
+`@` standing alone is the head of the coercion special form `(@ T v)` — see [Coerce — `@`](#coerce--).
+
 ### Comments
 
 One-line only: `; ...`. Comments run to the end of the line.
@@ -313,7 +315,7 @@ The `...` of a spread is always followed directly by an identifier or `~`. This 
 
 ## Special forms
 
-Five forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), `%` (partial-application placeholder), `def`, and `undef`. They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
+Six forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), `%` (partial-application placeholder), `@` (coerce), `def`, and `undef`. They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
 
 ### Match — `?`
 
@@ -405,6 +407,21 @@ Anywhere else (expression positions inside calls, vectors, records, function bod
 Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> (a: T b: U): R ...)` explicitly.
 
 The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 %)` becomes a function via the `%` expansion, then `|>` applies it. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
+
+### Coerce — `@`
+
+`(@ T v)` coerces a value through a type. `T` is evaluated as a type value, `v` is the input. On match `v` flows through; on mismatch the call returns `T`'s default and emits a diagnostic. `()` always coerces silently to the default.
+
+```glisp
+(@ number 42)            ;; → 42
+(@ number "hi")          ;; → 0   (default — diagnostic)
+(@ number ())            ;; → 0   (silent — () convention)
+(@ JoinType "diamond")   ;; → "round"   (default — diagnostic)
+```
+
+`@` is the **only** way to invoke the coerce/validate semantics on a type value. Calling a type value directly — `(number 42)` — is rejected with a diagnostic suggesting `(@ number 42)`. See [types.md — Coercion](./types.md#coercion-t-v) for the full semantics.
+
+For non-fallback type tests (membership without consuming the default), pattern-match via `?`.
 
 ### Bind / unbind — `def` and `undef`
 

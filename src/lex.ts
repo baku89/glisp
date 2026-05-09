@@ -135,6 +135,20 @@ export function lex(src: string): Token[] {
 			continue
 		}
 
+		// Bare `@` heads the coercion special form: `(@ T v)`. Single
+		// character; not part of any longer identifier.
+		if (ch === '@') {
+			tokens.push({
+				kind: 'identifier',
+				text: '@',
+				start: pos,
+				end: pos + 1,
+				value: '@',
+			})
+			pos++
+			continue
+		}
+
 		// string literal
 		if (ch === '"') {
 			const tok = readString(src, pos)
