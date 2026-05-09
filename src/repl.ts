@@ -245,6 +245,56 @@ function expandTopLevelSugar(src: string): string {
 }
 
 // -----------------------------------------------------------------------------
+// Tab completion
+// -----------------------------------------------------------------------------
+
+const COMMAND_NAMES = [
+	':env',
+	':ast',
+	':type',
+	':doc',
+	':reset',
+	':help',
+	':quit',
+]
+
+/**
+ * Completer signature per node:readline. Returns `[matches, partial]`.
+ *
+ * - At an empty buffer or at the very start of input, offer command names
+ *   (when the prefix begins with `:`) or all binding names.
+ * - Otherwise, take the last identifier-shaped token off the buffer and
+ *   complete it against the env's binding names.
+ */
+function completeLine(line: string, env: Env): [string[], string] {
+	// Slash command in head position
+	if (line.startsWith(':')) {
+		const matches = COMMAND_NAMES.filter(n => n.startsWith(line))
+		return [matches, line]
+	}
+	// Find a trailing identifier-shaped fragment (matches Glisp ident
+	// chars per lex.ts). Falls back to empty so nothing completes mid-paren.
+	const m = line.match(/[A-Za-z_!?+\-*<>&|%$/=][A-Za-z_0-9!?+\-*<>&|%$/=]*$/)
+	const partial = m === null ? '' : m[0]
+	if (partial === '') return [[], '']
+	const names = collectEnvNames(env)
+	const matches = names.filter(n => n.startsWith(partial))
+	return [matches, partial]
+}
+
+function collectEnvNames(env: Env): string[] {
+	const names = new Set<string>()
+	let frame = env
+	while (frame !== null) {
+		if (frame.bindings) {
+			for (const k of frame.bindings.keys()) names.add(k)
+		}
+		frame = frame.parent
+	}
+	return [...names].sort()
+}
+
+// -----------------------------------------------------------------------------
 // History persistence
 // -----------------------------------------------------------------------------
 
@@ -293,6 +343,9 @@ async function main(): Promise<void> {
 		// so up-arrow walks back through them.
 		history: loadHistory(),
 		historySize: HISTORY_LIMIT,
+		// Tab completion of bindings + slash commands. The closure reads
+		// the live `env` binding so newly-defined names complete too.
+		completer: (line: string) => completeLine(line, env),
 	})
 
 	output.write(welcome())
