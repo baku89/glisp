@@ -198,14 +198,20 @@ export function buildPrelude(): Env {
 		not: host(makeTypedFn([booleanType], booleanType, a => !a)),
 		identity: host(makeTypedFn([topType], topType, a => a)),
 		show: host(makeTypedFn([topType], stringType, v => showValue(v))),
-		first: host((xs: unknown) =>
-			Array.isArray(xs) ? xs[0] : UNIT
+		first: host(
+			makeTypedFn([vectorType], topType, xs =>
+				Array.isArray(xs) ? xs[0] : UNIT
+			)
 		),
-		last: host((xs: unknown) =>
-			Array.isArray(xs) ? xs[xs.length - 1] : UNIT
+		last: host(
+			makeTypedFn([vectorType], topType, xs =>
+				Array.isArray(xs) ? xs[xs.length - 1] : UNIT
+			)
 		),
-		count: host((xs: unknown) =>
-			Array.isArray(xs) ? xs.length : 0
+		count: host(
+			makeTypedFn([vectorType], numberType, xs =>
+				Array.isArray(xs) ? xs.length : 0
+			)
 		),
 
 		// higher-order
@@ -217,9 +223,11 @@ export function buildPrelude(): Env {
 		enum: host(makeEnum()),
 		refine: host(makeRefine()),
 
-		// math primitives
-		pi: host(Math.PI),
-		e: host(Math.E),
+		// math primitives — lit is the right wrapper for source-expressible
+		// values (numbers / strings / booleans / unit); host is for opaque
+		// host-side values without a literal form.
+		pi: lit(Math.PI),
+		e: lit(Math.E),
 		mod: host(
 			makeTypedFn(
 				[numberType, numberType],
@@ -285,27 +293,34 @@ export function buildPrelude(): Env {
 
 		// record ops
 		keys: host(
-			((rec: unknown) =>
+			makeTypedFn([recordType], vectorType, rec =>
 				rec !== null && typeof rec === 'object' && !Array.isArray(rec)
 					? Object.keys(rec)
-					: []) as (rec: unknown) => unknown[]
+					: []
+			)
 		),
 		values: host(
-			((rec: unknown) =>
+			makeTypedFn([recordType], vectorType, rec =>
 				rec !== null && typeof rec === 'object' && !Array.isArray(rec)
 					? Object.values(rec)
-					: []) as (rec: unknown) => unknown[]
+					: []
+			)
 		),
 		merge: host(
-			((a: unknown, b: unknown) =>
-				a !== null &&
-				typeof a === 'object' &&
-				!Array.isArray(a) &&
-				b !== null &&
-				typeof b === 'object' &&
-				!Array.isArray(b)
-					? { ...a, ...b }
-					: a) as (a: unknown, b: unknown) => unknown
+			makeTypedFn(
+				[recordType, recordType],
+				recordType,
+				(a, b) =>
+					a !== null &&
+					typeof a === 'object' &&
+					!Array.isArray(a) &&
+					b !== null &&
+					typeof b === 'object' &&
+					!Array.isArray(b)
+						? { ...a, ...b }
+						: a,
+				['a', 'b']
+			)
 		),
 	})
 
@@ -445,6 +460,15 @@ function makeRefine(): TypedHostFn {
 // -----------------------------------------------------------------------------
 
 const vectorType = makeType('vector', Array.isArray, [])
+const recordType = makeType(
+	'record',
+	v =>
+		v !== null &&
+		typeof v === 'object' &&
+		!Array.isArray(v) &&
+		typeof v !== 'function',
+	{}
+)
 
 function makeRange(): TypedHostFn {
 	return makeTypedFn(
