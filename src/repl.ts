@@ -25,12 +25,14 @@ import { lit } from './build.js'
 import {
 	evaluate,
 	GlispClosure,
+	IOAction,
 	isTypeValue,
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
 } from './eval.js'
 import { infer } from './infer.js'
+import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
 import { print } from './print.js'
 import { type AST, type Diagnostic, type Env, type Frame, UNIT } from './types.js'
@@ -87,6 +89,7 @@ function buildStarterEnv(): Env {
 	const unitType = makeType('unit', v => v === UNIT, UNIT)
 	const topType = makeType('_', () => true, UNIT)
 	const bottomType = makeType('!', () => false, UNIT)
+	const ioType = makeType('IO', v => v instanceof IOAction, UNIT)
 
 	const num2 = (op: (a: number, b: number) => number) =>
 		makeTypedFn(
@@ -110,6 +113,7 @@ function buildStarterEnv(): Env {
 		unit: lit(unitType as never),
 		top: lit(topType as never),
 		bottom: lit(bottomType as never),
+		IO: lit(ioType as never),
 
 		'+': lit(num2((a, b) => a + b) as never),
 		'-': lit(num2((a, b) => a - b) as never),
@@ -154,6 +158,7 @@ function formatValue(v: unknown): string {
 	if (typeof v === 'number') return theme.number(String(v))
 	if (typeof v === 'boolean') return theme.boolean(String(v))
 	if (isTypeValue(v)) return theme.type(`<type ${v.typeName}>`)
+	if (v instanceof IOAction) return theme.type(`<IO ${v.description}>`)
 	if (v instanceof GlispClosure)
 		return theme.closure(`<closure ${print(v.ast)}>`)
 	if (typeof v === 'function') return theme.hostfn('<host-fn>')
@@ -181,6 +186,7 @@ function formatPlain(v: unknown): string {
 	if (typeof v === 'string') return JSON.stringify(v)
 	if (typeof v === 'number' || typeof v === 'boolean') return String(v)
 	if (isTypeValue(v)) return `<type ${v.typeName}>`
+	if (v instanceof IOAction) return `<IO ${v.description}>`
 	if (v instanceof GlispClosure) return `<closure ${print(v.ast)}>`
 	if (typeof v === 'function') return '<host-fn>'
 	if (Array.isArray(v)) return `[${v.map(formatPlain).join(' ')}]`
@@ -245,6 +251,43 @@ function lineAt(
 }
 
 // -----------------------------------------------------------------------------
+// REPL-only syntactic sugar
+// -----------------------------------------------------------------------------
+
+/**
+ * Top-level `name = expr` is the REPL's sugar for `(def "name" expr)`.
+ *
+ * Detection uses the lexer so `==`, `=>`, `<=`, `>=`, `!=` (which all
+ * tokenize as identifiers / `=>`) don't trigger it — only a bare
+ * `<identifier> =` at the start of input does.
+ *
+ * The transform splices the original RHS source verbatim, so error
+ * positions inside the RHS line up with what the user typed.
+ */
+function expandTopLevelSugar(src: string): string {
+	let tokens
+	try {
+		tokens = lex(src)
+	} catch {
+		return src
+	}
+	const first = tokens[0]
+	const second = tokens[1]
+	if (
+		first === undefined ||
+		second === undefined ||
+		first.kind !== 'identifier' ||
+		second.kind !== '='
+	) {
+		return src
+	}
+	const name = first.value as string
+	const rest = src.slice(second.end).trim()
+	if (rest === '') return src
+	return `(def ${JSON.stringify(name)} ${rest})`
+}
+
+// -----------------------------------------------------------------------------
 // REPL loop
 // -----------------------------------------------------------------------------
 
@@ -288,10 +331,26 @@ async function main(): Promise<void> {
 		}
 
 		try {
-			const ast = parse(fullSource)
+			const expandedSource = expandTopLevelSugar(fullSource)
+			const ast = parse(expandedSource)
 			lastSource = fullSource
 			const r = evaluate(ast, env)
-			output.write(formatValue(r.value) + '\n')
+			// Top-level IO actions are run automatically — that's what
+			// `(def ...)` returns, and the user expects the REPL to apply it.
+			if (r.value instanceof IOAction) {
+				const effectDiagnostics = r.value.run()
+				output.write(
+					theme.unit('()') +
+						' ' +
+						theme.hint(`; ${r.value.description}`) +
+						'\n'
+				)
+				for (const d of effectDiagnostics) {
+					output.write(formatDiagnostic(d) + '\n')
+				}
+			} else {
+				output.write(formatValue(r.value) + '\n')
+			}
 			for (const d of r.diagnostics) {
 				output.write(formatDiagnostic(d) + '\n')
 			}

@@ -153,6 +153,30 @@ export function isTypedHostFn(v: unknown): v is TypedHostFn {
 	)
 }
 
+// -----------------------------------------------------------------------------
+// IO action — deferred effect
+// -----------------------------------------------------------------------------
+
+/**
+ * A computed effect awaiting execution. Created by special forms like
+ * `def` that mutate the env (or other side effects); a host runs them by
+ * calling `.run()`. The REPL forces top-level IO actions automatically;
+ * elsewhere they sit inert as `(IO ())`-typed values.
+ *
+ * `run` returns the diagnostics produced by the effect itself (e.g. a
+ * name collision when binding) so the host can surface them.
+ */
+export class IOAction {
+	constructor(
+		public readonly description: string,
+		public readonly run: () => ReadonlyArray<Diagnostic>
+	) {}
+}
+
+export function isIOAction(v: unknown): v is IOAction {
+	return v instanceof IOAction
+}
+
 // Static type inference lives in infer.ts. Internally exposed via the
 // `lookupBareName` helper below so infer can walk the same env chain.
 export { lookupBareName }
@@ -222,18 +246,22 @@ function callTypedHostFn(
 		}
 
 		// Static type check — confirmed mismatch lets us skip evaluation
-		// of the argument entirely and substitute the default.
-		const inferred = infer(argAst, env)
-		if (inferred !== null && inferred !== paramType) {
-			diagnostics.push(
-				diag(
-					argAst,
-					env,
-					`type mismatch: expected ${paramType.typeName}, got ${inferred.typeName}`
+		// of the argument entirely and substitute the default. Top type
+		// (`_`) accepts anything, so skip the check when the parameter is
+		// declared as top.
+		if (paramType.typeName !== '_') {
+			const inferred = infer(argAst, env)
+			if (inferred !== null && inferred !== paramType) {
+				diagnostics.push(
+					diag(
+						argAst,
+						env,
+						`type mismatch: expected ${paramType.typeName}, got ${inferred.typeName}`
+					)
 				)
-			)
-			argValues.push(paramType.default)
-			continue
+				argValues.push(paramType.default)
+				continue
+			}
 		}
 
 		// Type compatible (or unknown) — evaluate, then runtime-cast.
@@ -544,6 +572,8 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 				return evalMatch(ast, env)
 			case '|>':
 				return evalPipe(ast, env)
+			case 'def':
+				return evalDef(ast, env)
 		}
 	}
 
@@ -840,7 +870,7 @@ function applyClosure(
 		argEnv: Env,
 		paramType: TypeValue | null
 	): void => {
-		if (paramType === null) {
+		if (paramType === null || paramType.typeName === '_') {
 			map.set(name, { ast: argAst, env: argEnv })
 			return
 		}
@@ -1038,6 +1068,63 @@ function matchValue(value: unknown, pattern: unknown): boolean {
 	return value === pattern
 }
 
+/**
+ * `(def name expr)` — REPL/host primitive that lazily binds `name` to
+ * `expr` in the topmost mutable scope of the calling env. Returns an
+ * `IOAction`; the host runs it (in the REPL, top-level IO actions run
+ * automatically) which mutates the target frame's bindings.
+ *
+ * Crucially, `expr` is captured as an AST without being evaluated. The
+ * expression only runs when the bound name is later referenced, and
+ * memoization ensures it runs at most once.
+ */
+function evalDef(ast: CallAST, env: Env): EvalResult {
+	if (ast.args.length !== 2) {
+		return fail(ast, env, 'def expects exactly 2 arguments: name and expression')
+	}
+
+	const nameResult = evaluate(ast.args[0]!, env)
+	const diagnostics = [...nameResult.diagnostics]
+	const name = nameResult.value
+	if (typeof name !== 'string') {
+		diagnostics.push(
+			diag(ast.args[0]!, env, 'def: name must evaluate to a string')
+		)
+		return { value: UNIT, diagnostics }
+	}
+
+	const valueAst = ast.args[1]!
+	const target = topmostMutableFrame(env)
+	if (target === null) {
+		diagnostics.push(diag(ast, env, 'def: no mutable scope to bind into'))
+		return { value: UNIT, diagnostics }
+	}
+
+	const action = new IOAction(`def ${JSON.stringify(name)}`, () => {
+		const map = target.bindings as Map<string, BindingTarget>
+		map.set(name, { ast: valueAst, env: target })
+		return []
+	})
+	return { value: action, diagnostics }
+}
+
+/**
+ * Walk up the env chain and return the topmost frame whose `bindings`
+ * map is a real (mutable) `Map`. Used by `def` to find the prelude scope
+ * — outer frames win over inner ones so a `(def ...)` deep inside a
+ * let-block still affects the REPL prelude rather than a transient
+ * binding map that's about to go out of scope.
+ */
+function topmostMutableFrame(env: Env): Frame | null {
+	let frame = env
+	let chosen: Frame | null = null
+	while (frame !== null) {
+		if (frame.bindings instanceof Map) chosen = frame
+		frame = frame.parent
+	}
+	return chosen
+}
+
 function evalPipe(ast: CallAST, env: Env): EvalResult {
 	// (|> input step1 step2 ...)
 	if (ast.args.length === 0) {
@@ -1189,6 +1276,7 @@ function describeType(v: unknown): string {
 	if (v === null) return 'null'
 	if (Array.isArray(v)) return 'vector'
 	if (v instanceof GlispClosure) return 'closure'
+	if (v instanceof IOAction) return 'IO'
 	if (isTypeValue(v)) return `type<${v.typeName}>`
 	return typeof v
 }

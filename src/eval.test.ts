@@ -16,6 +16,7 @@ import {
 	emptyEnv,
 	evaluate,
 	GlispClosure,
+	IOAction,
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
@@ -823,6 +824,65 @@ describe('evaluate — generic closure', () => {
 		// the number unchanged.
 		const r = evaluate(parse('((=> (T) (x: T): T x) 7)'), baseEnv())
 		expect(r.value).toBe(7)
+	})
+})
+
+describe('evaluate — special form def (IO action)', () => {
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+
+	const baseEnv = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			'+': lit(
+				makeTypedFn(
+					[numberType, numberType],
+					numberType,
+					(a, b) => (a as number) + (b as number)
+				) as never
+			),
+		})
+
+	it('returns an IOAction without evaluating the value expression', () => {
+		const env = baseEnv()
+		const r = evaluate(parse('(def "y" (+ 20 30))'), env)
+		expect(r.value).toBeInstanceOf(IOAction)
+		expect(r.diagnostics).toEqual([])
+		// y is NOT yet bound — the action hasn't run.
+		const before = (env as { bindings?: Map<string, unknown> }).bindings
+		expect(before?.has('y')).toBe(false)
+	})
+
+	it('running the action binds the name; the body evaluates lazily', () => {
+		const env = baseEnv()
+		const r = evaluate(parse('(def "y" (+ 20 30))'), env)
+		;(r.value as IOAction).run()
+		const ref = evaluate(parse('y'), env)
+		expect(ref.value).toBe(50)
+	})
+
+	it('lazy: a binding to a failing expr does not error until referenced', () => {
+		const env = baseEnv()
+		;(evaluate(parse('(def "z" undefined-name)'), env).value as IOAction).run()
+		// Reference `z` to force evaluation — diagnostics show up here.
+		const ref = evaluate(parse('z'), env)
+		expect(
+			ref.diagnostics.some(d => d.message.includes('unresolvable'))
+		).toBe(true)
+	})
+
+	it('rejects a non-string name', () => {
+		const env = baseEnv()
+		const r = evaluate(parse('(def 42 1)'), env)
+		expect(
+			r.diagnostics.some(d => d.message.includes('name must evaluate to'))
+		).toBe(true)
+	})
+
+	it('rebinding a name updates the prelude binding', () => {
+		const env = baseEnv()
+		;(evaluate(parse('(def "y" 1)'), env).value as IOAction).run()
+		;(evaluate(parse('(def "y" 2)'), env).value as IOAction).run()
+		expect(evaluate(parse('y'), env).value).toBe(2)
 	})
 })
 
