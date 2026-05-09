@@ -313,7 +313,7 @@ The `...` of a spread is always followed directly by an identifier or `~`. This 
 
 ## Special forms
 
-Three forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), and `%` (partial-application placeholder). They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
+Five forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), `%` (partial-application placeholder), `def`, and `undef`. They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
 
 ### Match — `?`
 
@@ -405,6 +405,21 @@ Anywhere else (expression positions inside calls, vectors, records, function bod
 Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> (a: T b: U): R ...)` explicitly.
 
 The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 %)` becomes a function via the `%` expansion, then `|>` applies it. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
+
+### Bind / unbind — `def` and `undef`
+
+Both forms are head-position special forms that produce a deferred effect of type `IO`. The host runs the effect; until then, no scope has changed.
+
+```glisp
+(def "y" (+ 20 30))     ;; → IO action: bind "y" to (+ 20 30) lazily
+(undef "y")             ;; → IO action: remove "y" from the topmost mutable scope
+```
+
+`def` evaluates the first argument (which must be a string — the name) and captures the second argument as an AST without evaluating it. The expression is bound lazily: it runs at most once, the first time the name is referenced.
+
+`undef` evaluates its single string argument and produces an `IO` action that removes the name from the topmost mutable scope. Running an `undef` on a name that isn't currently bound there yields a run-time diagnostic.
+
+See [eval.md — `def` and `undef`](./eval.md) for the run-time semantics.
 
 ## Type annotation
 

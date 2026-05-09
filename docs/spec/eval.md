@@ -271,6 +271,25 @@ Evaluation:
 
 If any `stepK` does not evaluate to a function, the call FK(V) is a type error, handled by the standard default-fallback rules at the surrounding typed slot.
 
+#### `def` and `undef` — scope-mutating IO
+
+`(def name expr)` and `(undef name)` are special forms that produce **deferred effects** as values of type `IO`. The host runs the effect by invoking the value's `run` operation; until then, neither `name` nor `expr` has affected any scope.
+
+`def` evaluation:
+
+1. Force `name` to a string. A non-string emits a diagnostic and yields `()`.
+2. Capture `expr` as an AST without evaluating it.
+3. Locate the **topmost mutable frame** in the current env chain — the outermost frame whose `bindings` map is mutable (typically the prelude).
+4. Return an `IO` value whose `run` extends that frame's `bindings` with `name → (expr-AST, that frame)`.
+
+The captured AST is bound lazily: `expr` is evaluated only when something later references `name`, and the standard memoization (see [Cycle detection](#cycle-detection)) ensures it runs at most once per env.
+
+`undef` is the inverse: it returns an `IO` value whose `run` removes `name` from the topmost mutable frame, or emits a diagnostic at run-time if the name isn't bound there.
+
+Both forms only affect a frame whose `bindings` map is mutable. In an environment composed of immutable frames only — the design default for evaluator-side composition — running the IO is a no-op (with a diagnostic). The REPL and `g.def`-extended host envs supply a mutable top frame; pure evaluator embeddings do not.
+
+The `IO` type itself is a brand on the deferred-effect value. `eval` treats `IO`-typed values like any other value (no implicit forcing); explicit `run` is the host's responsibility.
+
 ## Multi-step evaluation / Abstraction ladder
 
 A core design principle of Glisp: **every expression has an abstraction ladder** — a chain of progressively-more-evaluated forms with the same final value. Hosts (in particular visual / GUI editors) can show, edit, and reason at any rung.

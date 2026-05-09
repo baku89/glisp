@@ -53,8 +53,11 @@ There is no subtyping. Types are nominal/equality-based.
 | `boolean` | `true`, `false` |
 | `unit` | `()` |
 | `ast` | Any AST node (the value form of a quoted expression / a macro's input or output) |
-| `Top` (`_`) | Any value |
-| `Bottom` (`!`) | No value |
+| `IO` | Deferred host effects — opaque values produced by `def`, `undef`, etc. (see [eval.md](./eval.md)) |
+| `_` (top) | Any value |
+| `!` (bottom) | No value |
+
+The top and bottom types are bound in the prelude under their syntactic names (`_` and `!`); they are not also exposed as longer aliases.
 
 ### Naming convention
 
@@ -72,7 +75,7 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | `{k1: T1 k2: T2 ...}` | record with the given field types (same shape as a record value) |
 | `(=> (a: T1 b: T2 ...): R)` | Function type (parameter names are required syntactically; not part of identity) |
 | `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
-| `(refine T pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)` |
+| `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)`, with an explicit default for failed casts |
 
 Tuple, vector, and record types share their syntax with the corresponding value literals. The interpretation depends on the slot in which the AST appears — see [Type interpretation at type slots](#type-interpretation-at-type-slots).
 
@@ -84,20 +87,23 @@ Notes on tuple types:
 
 `enum` is the mechanism for finite sets of literal values. Members must share a single base type; validation at cast time is membership in the value set.
 
-`refine` is the mechanism for value-restricted subtypes — a base type narrowed by a predicate. The cast `(refine T pred)(v)` first casts `v` to `T`; if that succeeds, `pred(v)` is called; if `pred` returns true, the value is accepted, otherwise the standard default fallback applies.
+`refine` is the mechanism for value-restricted subtypes — a base type narrowed by a predicate. The cast `(refine T default pred)(v)` first casts `v` to `T`; if that succeeds, `pred(v)` is called; if `pred` returns true, the value is accepted, otherwise the cast falls back to the explicit `default`. The default is supplied separately because `T`'s default need not satisfy `pred`.
 
 ```glisp
-ColorCode = (refine string (=> (s: string): boolean
-                              (and (= (size s) 7)
-                                   (= (s 0) "#"))))
+ColorCode = (refine string "#000000"
+                    (=> (s: string): boolean
+                       (and (= (size s) 7)
+                            (= (s 0) "#"))))
 
 (ColorCode "#FF0000")    ;; → "#FF0000"
-(ColorCode "hello")      ;; → default fallback (size mismatch)
+(ColorCode "hello")      ;; → "#000000" (default — size mismatch)
 
-NonNegative = (refine number (=> (n: number): boolean (>= n 0)))
+NonNegative = (refine number 0 (=> (n: number): boolean (>= n 0)))
 ```
 
 `refine` does not introduce subtyping. A `ColorCode` value is a distinct type from `string`; passing it where `string` is expected requires an explicit cast `(string c)` (which trivially succeeds since the underlying representation is the same). `enum` could in principle be expressed as a special-cased `refine`, but is kept as its own constructor for readability of the common literal-set case.
+
+When a type value is used as a callable (`(T v)`), a cast that does not fit `T` produces a diagnostic in addition to falling back to the default. This is the same surfacing rule typed function slots use: explicit cast and implicit slot share the diagnostic boundary so type mismatches are never silent.
 
 ## Recursive types
 
