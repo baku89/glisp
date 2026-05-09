@@ -4,21 +4,9 @@
  * Walks the AST and produces JS-native values per the host-api.md marshaling
  * table. Failures surface as `()` plus diagnostics — eval never throws.
  *
- * Currently implemented:
- * - literals, bare-name lookup
- * - vec / record / let-block
- * - accessor `.key`
- * - function literal → closure value
- * - call (host-bound JS function or Glisp closure)
- * - path lookup
- * - quote / unquote / splice are transparent (per eval.md)
- *
  * Not yet implemented:
- * - special forms `?` / `|>` / `%` desugaring
- * - kwargs at call sites
- * - cycle detection / memoization
- * - default fallback / type-cast machinery
- * - `expand`
+ * - `expand` / macro evaluation
+ * - generic-parameter resolution in `(=> (T) (params): T body)`
  */
 
 import { desugar } from './desugar.js'
@@ -310,7 +298,27 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 			if (target === null) {
 				return fail(ast, env, `unresolvable name: ${ast.name}`)
 			}
-			return evaluate(target.ast, target.env)
+			const r = evaluate(target.ast, target.env)
+			// If the binding has a declared type (e.g. closure parameter
+			// with `x: number`), cast the resolved value through that
+			// type — `fits` → return as-is, otherwise fall back to the
+			// type's default with a runtime diagnostic.
+			if (target.type !== undefined && isTypeValue(target.type)) {
+				const t = target.type
+				if (r.value !== UNIT && !t.fits(r.value)) {
+					const diagnostics = [
+						...r.diagnostics,
+						diag(
+							ast,
+							env,
+							`type mismatch at runtime: expected ${t.typeName}, got ${describeType(r.value)}`
+						),
+					]
+					return { value: t.default, diagnostics }
+				}
+				return { value: t(r.value), diagnostics: r.diagnostics }
+			}
+			return r
 		}
 
 		case 'vec': {
@@ -667,7 +675,61 @@ function applyClosure(
 	const map = new Map<string, BindingTarget>()
 	let posIdx = 0
 
+	// Pre-evaluate each parameter's declared type in the closure's captured
+	// env (lexical scope). When the expression evaluates to a `TypeValue`,
+	// it drives both static checking at the call site and lazy
+	// cast-on-force at the use site. Otherwise the slot is untyped — a
+	// type expression that fails to resolve degrades silently rather than
+	// noising up the call's diagnostics, since the user already sees an
+	// error wherever the type itself is referenced.
+	const paramTypes: Array<TypeValue | null> = []
 	for (const param of fnAst.params) {
+		const tr = evaluate(param.type, closure.capturedEnv)
+		// `_` (top) is a no-op cast — skip it to keep error messages and the
+		// memo-cache key shape clean.
+		if (isTypeValue(tr.value) && tr.value.typeName !== '_') {
+			push(diagnostics, tr.diagnostics)
+			paramTypes.push(tr.value)
+		} else {
+			paramTypes.push(null)
+		}
+	}
+
+	const bindParam = (
+		name: string,
+		argAst: AST,
+		argEnv: Env,
+		paramType: TypeValue | null
+	): void => {
+		if (paramType === null) {
+			map.set(name, { ast: argAst, env: argEnv })
+			return
+		}
+		// Static type check — a confirmed mismatch lets us skip evaluation
+		// of the argument entirely and substitute the type's default.
+		const inferred = infer(argAst, argEnv)
+		if (inferred !== null && inferred !== paramType) {
+			diagnostics.push(
+				diag(
+					argAst,
+					argEnv,
+					`type mismatch: expected ${paramType.typeName}, got ${inferred.typeName}`
+				)
+			)
+			map.set(name, {
+				ast: new LitASTClass(paramType.default as never),
+				env: null,
+			})
+			return
+		}
+		// Compatible (or unknown) → bind lazily, cast at force time.
+		map.set(name, { ast: argAst, env: argEnv, type: paramType })
+	}
+
+	for (let i = 0; i < fnAst.params.length; i++) {
+		const param = fnAst.params[i]!
+		const paramType = paramTypes[i]!
+
 		if (param.variadic) {
 			const kwargAst = kwargs?.get(param.name)
 			if (kwargAst !== undefined && posIdx < positional.length) {
@@ -690,6 +752,9 @@ function applyClosure(
 				} as never
 				posIdx = positional.length
 			}
+			// Variadic param's declared type is the element type; the
+			// binding itself is a vector of those. Skip lazy-cast for now
+			// (would require per-element rewriting) — bind untyped.
 			map.set(param.name, { ast: restAst, env: callerEnv })
 			continue
 		}
@@ -701,28 +766,42 @@ function applyClosure(
 					diag(site, callerEnv, `double binding of parameter ${param.name}`)
 				)
 			}
-			map.set(param.name, { ast: positional[posIdx]!, env: callerEnv })
+			bindParam(param.name, positional[posIdx]!, callerEnv, paramType)
 			posIdx++
 			continue
 		}
 
 		const kwargAst = kwargs?.get(param.name)
 		if (kwargAst !== undefined) {
-			map.set(param.name, { ast: kwargAst, env: callerEnv })
+			bindParam(param.name, kwargAst, callerEnv, paramType)
 			continue
 		}
 
 		if (param.optional) {
-			// silent default fallback (placeholder: bind to UNIT until
-			// the type-cast / metadata-default machinery lands)
-			map.set(param.name, { ast: { kind: 'lit', value: UNIT } as never, env: null })
+			// Optional missing → bind to the param type's default (silent
+			// fallback). With no declared type, fall back to UNIT.
+			const defaultValue = paramType !== null ? paramType.default : UNIT
+			map.set(param.name, {
+				ast: new LitASTClass(defaultValue as never),
+				env: null,
+			})
 			continue
 		}
 
 		diagnostics.push(
-			diag(site, callerEnv, `missing required parameter: ${param.name}`)
+			diag(
+				site,
+				callerEnv,
+				paramType !== null
+					? `missing required parameter ${param.name} (expected ${paramType.typeName})`
+					: `missing required parameter: ${param.name}`
+			)
 		)
-		map.set(param.name, { ast: { kind: 'lit', value: UNIT } as never, env: null })
+		const defaultValue = paramType !== null ? paramType.default : UNIT
+		map.set(param.name, {
+			ast: new LitASTClass(defaultValue as never),
+			env: null,
+		})
 	}
 
 	if (posIdx < positional.length) {
@@ -746,7 +825,29 @@ function applyClosure(
 		bindings: map,
 	}
 	const r = evaluate(fnAst.body, bodyFrame)
-	return { value: r.value, diagnostics: [...diagnostics, ...r.diagnostics] }
+	push(diagnostics, r.diagnostics)
+
+	// Cast the return value through the declared return type — symmetric
+	// with parameter binding. `_` is the top type, treated as a no-op.
+	// As with parameter types, an unresolvable return type expression
+	// degrades silently to "no return cast."
+	const rtResult = evaluate(fnAst.returnType, closure.capturedEnv)
+	if (isTypeValue(rtResult.value) && rtResult.value.typeName !== '_') {
+		push(diagnostics, rtResult.diagnostics)
+		const rt = rtResult.value
+		if (r.value !== UNIT && !rt.fits(r.value)) {
+			diagnostics.push(
+				diag(
+					fnAst.body,
+					callerEnv,
+					`return type mismatch: expected ${rt.typeName}, got ${describeType(r.value)}`
+				)
+			)
+			return { value: rt.default, diagnostics }
+		}
+		return { value: rt(r.value), diagnostics }
+	}
+	return { value: r.value, diagnostics }
 }
 
 // -----------------------------------------------------------------------------

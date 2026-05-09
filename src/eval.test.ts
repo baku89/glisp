@@ -627,6 +627,95 @@ describe('evaluate — typed host function arg cast / default', () => {
 	})
 })
 
+describe('evaluate — closure parameter / return type cast', () => {
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+	const stringType = makeType('string', v => typeof v === 'string', '')
+	const topType = makeType('_', () => true, UNIT)
+
+	const baseEnv = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			string: lit(stringType as never),
+			_: lit(topType as never),
+			show: lit(
+				makeTypedFn([topType], stringType, v => String(v)) as never
+			),
+		})
+
+	it('argument cast: ((=> (x: number): number x) "str") → 0', () => {
+		const r = evaluate(parse('((=> (x: number): number x) "str")'), baseEnv())
+		expect(r.value).toBe(0)
+		expect(r.diagnostics.some(d => d.message.includes('type mismatch'))).toBe(
+			true
+		)
+	})
+
+	it('static mismatch skips evaluation: ((=> (x: number): number x) (show 0))', () => {
+		let showCalled = 0
+		const env = makeTopLevel({
+			number: lit(numberType as never),
+			string: lit(stringType as never),
+			_: lit(topType as never),
+			show: lit(
+				makeTypedFn([topType], stringType, v => {
+					showCalled++
+					return String(v)
+				}) as never
+			),
+		})
+		const r = evaluate(parse('((=> (x: number): number x) (show 0))'), env)
+		expect(r.value).toBe(0)
+		expect(showCalled).toBe(0)
+		expect(r.diagnostics.some(d => d.message.includes('type mismatch'))).toBe(
+			true
+		)
+	})
+
+	it('compatible types pass through: ((=> (x: number): number x) 42) → 42', () => {
+		const r = evaluate(parse('((=> (x: number): number x) 42)'), baseEnv())
+		expect(r.value).toBe(42)
+		expect(r.diagnostics).toEqual([])
+	})
+
+	it('top-typed parameter is a no-op: ((=> (x: _): _ x) "str") → "str"', () => {
+		const r = evaluate(parse('((=> (x: _): _ x) "str")'), baseEnv())
+		expect(r.value).toBe('str')
+		expect(r.diagnostics).toEqual([])
+	})
+
+	it('missing required typed parameter falls back to type default', () => {
+		const r = evaluate(parse('((=> (x: number): number x))'), baseEnv())
+		expect(r.value).toBe(0)
+		expect(r.diagnostics.some(d => d.message.includes('missing'))).toBe(true)
+	})
+
+	it('optional typed parameter falls back to type default silently', () => {
+		const r = evaluate(parse('((=> (x?: number): number x))'), baseEnv())
+		expect(r.value).toBe(0)
+		expect(r.diagnostics).toEqual([])
+	})
+
+	it('return type cast: closure that returns wrong type → diagnostic + default', () => {
+		// Body returns a string, but declared return type is number.
+		// The body literally evaluates to "hello" — at runtime the cast
+		// fails and we substitute the number default (0).
+		const r = evaluate(
+			parse('((=> (x: _): number "hello") 1)'),
+			baseEnv()
+		)
+		expect(r.value).toBe(0)
+		expect(
+			r.diagnostics.some(d => d.message.includes('return type mismatch'))
+		).toBe(true)
+	})
+
+	it('return type passthrough: ((=> (x: _): number 42) ()) → 42', () => {
+		const r = evaluate(parse('((=> (x: _): number 42) ())'), baseEnv())
+		expect(r.value).toBe(42)
+		expect(r.diagnostics).toEqual([])
+	})
+})
+
 // -----------------------------------------------------------------------------
 // Vector / record callable
 // -----------------------------------------------------------------------------

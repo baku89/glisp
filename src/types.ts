@@ -489,6 +489,18 @@ export interface Frame {
 export interface BindingTarget {
 	readonly ast: AST
 	readonly env: Env
+	/**
+	 * Optional declared type for this binding — typically a function
+	 * parameter's declared type, eagerly evaluated when the closure was
+	 * applied. When set, the evaluator casts the resolved value through
+	 * this type at force time, driving the spec's "default fallback at
+	 * typed slots" behavior for closures.
+	 *
+	 * The shape is `TypeValue` (defined in eval.ts) but it lives here as
+	 * `unknown` to avoid a circular import — the evaluator's `isTypeValue`
+	 * brand check narrows it back at use sites.
+	 */
+	readonly type?: unknown
 }
 
 // -----------------------------------------------------------------------------
