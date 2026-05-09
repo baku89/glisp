@@ -1,0 +1,20 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"resolveJsonModule": true,
+		"esModuleInterop": true,
+		"jsx": "preserve",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"types": ["vite/client", "node"],
+		"verbatimModuleSyntax": false,
+		"paths": {
+			"@core/*": ["../src/*"]
+		}
+	},
+	"include": [
+		"./**/*.ts",
+		"./**/*.vue",
+		"../playground/src/**/*.vue",
+		"../playground/src/**/*.ts"
+	]
+}

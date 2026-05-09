@@ -17,11 +17,14 @@ import {
 	evaluate,
 	IO,
 	isGlispClosure,
+	isTypeValue,
 	makeClosure,
+	makeFunctionType,
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
 	toAst,
+	typeFits,
 } from './eval.js'
 import { parse } from './parse.js'
 import { UNIT } from './types.js'
@@ -1104,6 +1107,145 @@ describe('evaluate — cycle detection', () => {
 		const env = makeTopLevel({ x: lit(7) })
 		const ast = vec(sym('x'), sym('x'), sym('x'))
 		expect(evaluate(ast, env).value).toEqual([7, 7, 7])
+	})
+})
+
+describe('evaluate — coerce edge cases', () => {
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+	const stringType = makeType('string', v => typeof v === 'string', '')
+	const env = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			string: lit(stringType as never),
+		})
+
+	it('(@ T <unresolvable-name>) — silent default, no extra coerce-mismatch noise', () => {
+		// Unresolved name → `()` (silent failure per the "evaluation never
+		// throws" rule). `()` does not fit `number`, but coerce of an
+		// already-failed value is silent — only the lookup diagnostic surfaces.
+		const r = evaluate(parse('(@ number undefined-var)'), env())
+		expect(r.value).toBe(0)
+		// At least one diagnostic — for the lookup. We don't pin the exact
+		// shape, only that the coerce form does not silently swallow it.
+		expect(r.diagnostics.length).toBeGreaterThan(0)
+	})
+
+	it('coercion of () is silent (no diagnostic noise)', () => {
+		// (@ T ()) is the "give me the default" idiom — should not emit a
+		// type-mismatch diagnostic.
+		const r = evaluate(parse('(@ number ())'), env())
+		expect(r.value).toBe(0)
+		expect(
+			r.diagnostics.some(d => d.message.includes("doesn't accept"))
+		).toBe(false)
+	})
+
+	it('(@ T (@ T v)) is idempotent', () => {
+		const r = evaluate(parse('(@ number (@ number 42))'), env())
+		expect(r.value).toBe(42)
+		expect(r.diagnostics).toHaveLength(0)
+	})
+
+	it('(@ unbound-name v) — head fails to resolve to a type', () => {
+		// `T` is not bound → eval head produces unit + diagnostic; the
+		// coerce form must not crash and must surface a useful message.
+		const r = evaluate(parse('(@ NoSuchType 42)'), env())
+		// Result is the value verbatim or unit — but no exception.
+		expect(r.diagnostics.length).toBeGreaterThan(0)
+	})
+})
+
+describe('evaluate — typed host fn: multi-mismatch diagnostic accumulation', () => {
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+	const env = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			'+': lit(
+				makeTypedFn(
+					[],
+					numberType,
+					(...args) => (args as number[]).reduce((a, b) => a + b, 0),
+					undefined,
+					numberType
+				) as never
+			),
+		})
+
+	it('all arg mismatches surface as diagnostics, value still computed via defaults', () => {
+		// (+ "a" 2 "b") → 0 + 0 + 2 + 0 = 2 (two mismatches, one ok)
+		const r = evaluate(parse('(+ "a" 2 "b")'), env())
+		expect(r.value).toBe(2)
+		const mismatches = r.diagnostics.filter(d =>
+			d.message.includes('type mismatch')
+		)
+		expect(mismatches.length).toBe(2)
+	})
+})
+
+describe('evaluate — parametric IO (@-coerce / fits)', () => {
+	const ioType: import('./eval.js').TypeValue = (() => {
+		// Shadowed minimal env: re-create what prelude does without
+		// pulling the full prelude into this test bed. We just need
+		// `apply`-based dispatch and structural fits.
+		const make = (payload: import('./eval.js').TypeValue): import('./eval.js').TypeValue => {
+			const isTop = payload.typeName === '_'
+			return {
+				__glispType: true,
+				typeName: isTop ? 'IO' : `(IO ${payload.typeName})`,
+				fits: v => v instanceof IO,
+				default: new IO('default', () => []),
+				shape: { kind: 'io', payload },
+				apply: args => {
+					if (args.length !== 1) {
+						return { error: `IO expects 1 type argument, got ${args.length}` }
+					}
+					return make(args[0]!)
+				},
+			}
+		}
+		const top = makeType('_', () => true, UNIT)
+		return make(top)
+	})()
+
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+	const env = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			_: lit(makeType('_', () => true, UNIT) as never),
+			IO: lit(ioType as never),
+		})
+
+	it('(IO number) evaluates to a TypeValue with the parametric name', () => {
+		const r = evaluate(parse('(IO number)'), env())
+		expect(isTypeValue(r.value) && r.value.typeName).toBe('(IO number)')
+	})
+
+	it('typeFits: (IO !) fits (IO _) (covariant in payload)', () => {
+		const top = makeType('_', () => true, UNIT)
+		const bot = makeType('!', () => false, UNIT)
+		const make = (p: import('./eval.js').TypeValue): import('./eval.js').TypeValue => ({
+			__glispType: true,
+			typeName: p.typeName === '_' ? 'IO' : `(IO ${p.typeName})`,
+			fits: v => v instanceof IO,
+			default: new IO('d', () => []),
+			shape: { kind: 'io', payload: p },
+		})
+		expect(typeFits(make(bot), make(top))).toBe(true)
+		expect(typeFits(make(top), make(bot))).toBe(false)
+	})
+
+	it('typeFits: function-type covariance through param/return', () => {
+		const top = makeType('_', () => true, UNIT)
+		const num = makeType('number', v => typeof v === 'number', 0)
+		const fnNumNum = makeFunctionType([num], num)
+		const fnTopTop = makeFunctionType([top], top)
+		// `(=> (number): number)` should fit `(=> (_): _)` since
+		// param/return both fit through covariance — current impl is
+		// over-permissive but that's the documented behavior.
+		expect(typeFits(fnNumNum, fnTopTop)).toBe(true)
+		// Different arity → not compatible
+		const fnNoArg = makeFunctionType([], num)
+		expect(typeFits(fnNoArg, fnNumNum)).toBe(false)
 	})
 })
 

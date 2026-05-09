@@ -135,6 +135,50 @@ describe('lex — paths', () => {
 	})
 })
 
+describe('lex — comment edge cases', () => {
+	it('lone semicolon is a comment to EOL', () => {
+		expect(kinds(';')).toEqual([])
+		expect(kinds(';\n')).toEqual([])
+	})
+
+	it('comment without trailing newline is fine at EOF', () => {
+		expect(kinds('foo ; trailing no newline')).toEqual(['identifier'])
+		expect(kinds('; only comment, no newline')).toEqual([])
+	})
+
+	it('comment inside a call only consumes to EOL', () => {
+		expect(kinds('(a ; mid\nb)')).toEqual(['(', 'identifier', 'identifier', ')'])
+	})
+
+	it('semicolon inside a string is content, not a comment', () => {
+		expect(lex('";"')[0]).toMatchObject({ kind: 'string', value: ';' })
+	})
+
+	it('mixed tabs and spaces between tokens', () => {
+		expect(kinds('a\t b\t\tc')).toEqual([
+			'identifier',
+			'identifier',
+			'identifier',
+		])
+	})
+})
+
+describe('lex — bare @ for coerce', () => {
+	it('@ is a single-character identifier', () => {
+		expect(lex('@')[0]).toMatchObject({ kind: 'identifier', value: '@' })
+	})
+
+	it('@ as call head separates from following token', () => {
+		expect(kinds('(@ T v)')).toEqual([
+			'(',
+			'identifier',
+			'identifier',
+			'identifier',
+			')',
+		])
+	})
+})
+
 describe('lex — dot family disambiguation', () => {
 	it('. is the accessor token', () => {
 		expect(kinds('a.b')).toEqual(['identifier', '.', 'identifier'])

@@ -351,3 +351,40 @@ describe('parse — round-trip', () => {
 		}
 	})
 })
+
+describe('parse — special forms (parser is permissive)', () => {
+	// Special forms parse like ordinary calls — arity / well-formedness is
+	// checked at evaluation time. These tests pin that contract so a
+	// future tightening doesn't sneak in unnoticed.
+
+	it('(?) with no scrutinee parses (eval will reject)', () => {
+		const ast = parse('(?)')
+		expect(ast.kind).toBe('call')
+	})
+
+	it('(? v) with no clauses parses', () => {
+		expect(parse('(? 42)').kind).toBe('call')
+	})
+
+	it('(? v p1 r1 p2) — odd arity parses; eval will reject', () => {
+		expect(parse('(? 1 _ "a" 2)').kind).toBe('call')
+	})
+
+	it('(|>) with no input or steps parses', () => {
+		expect(parse('(|>)').kind).toBe('call')
+	})
+
+	it('(@ T) with one arg parses (eval will reject)', () => {
+		expect(parse('(@ number)').kind).toBe('call')
+	})
+
+	it('round-trips coerce form', () => {
+		const src = '(@ number 42)'
+		expect(roundTrip(src)).toBe(src)
+	})
+
+	it('round-trips IO-parametric form', () => {
+		const src = '(IO number)'
+		expect(roundTrip(src)).toBe(src)
+	})
+})
