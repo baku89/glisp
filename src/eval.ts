@@ -105,6 +105,12 @@ export interface TypedHostFn {
 	 * the call site emit a diagnostic — there's no way to route them.
 	 */
 	readonly paramNames?: ReadonlyArray<string>
+	/**
+	 * Optional element type for an open trailing variadic. When set, any
+	 * positional arguments past `paramTypes.length` are cast through this
+	 * type and forwarded as additional positional args.
+	 */
+	readonly variadicTail?: TypeValue
 }
 
 /**
@@ -118,13 +124,18 @@ export interface TypedHostFn {
  * Pass `paramNames` to enable kwargs at call sites — names are matched
  * positionally against `paramTypes`.
  *
+ * Pass `variadicTail` to make the last position open-ended (extra args are
+ * cast through the tail type and forwarded). Callers receive every cast
+ * arg — the wrapped JS function is responsible for any folding logic.
+ *
  * Spec: docs/spec/types.md — default fallback timing
  */
 export function makeTypedFn(
 	paramTypes: ReadonlyArray<TypeValue>,
 	returnType: TypeValue,
 	fn: (...args: unknown[]) => unknown,
-	paramNames?: ReadonlyArray<string>
+	paramNames?: ReadonlyArray<string>,
+	variadicTail?: TypeValue
 ): TypedHostFn {
 	const wrapped = (...args: unknown[]): unknown => {
 		const cast: unknown[] = []
@@ -132,6 +143,11 @@ export function makeTypedFn(
 			const t = paramTypes[i]!
 			const provided = i < args.length ? args[i] : t.default
 			cast.push(t(provided))
+		}
+		if (variadicTail !== undefined) {
+			for (let i = paramTypes.length; i < args.length; i++) {
+				cast.push(variadicTail(args[i]))
+			}
 		}
 		const result = fn(...cast)
 		// Cast the return value as well — guarantees the declared return type.
@@ -142,6 +158,9 @@ export function makeTypedFn(
 	Object.defineProperty(wrapped, 'returnType', { value: returnType })
 	if (paramNames !== undefined) {
 		Object.defineProperty(wrapped, 'paramNames', { value: paramNames })
+	}
+	if (variadicTail !== undefined) {
+		Object.defineProperty(wrapped, 'variadicTail', { value: variadicTail })
 	}
 	return wrapped as TypedHostFn
 }
@@ -228,8 +247,14 @@ function callTypedHostFn(
 		}
 	}
 
-	for (let i = 0; i < fn.paramTypes.length; i++) {
-		const paramType = fn.paramTypes[i]!
+	const totalSlots =
+		fn.variadicTail !== undefined
+			? Math.max(fn.paramTypes.length, effectivePositional.length)
+			: fn.paramTypes.length
+
+	for (let i = 0; i < totalSlots; i++) {
+		const paramType =
+			i < fn.paramTypes.length ? fn.paramTypes[i]! : fn.variadicTail!
 		const argAst = effectivePositional[i]
 
 		// Missing required argument → diagnostic + paramType.default
@@ -280,7 +305,10 @@ function callTypedHostFn(
 		argValues.push(paramType(v))
 	}
 
-	if (positional.length > fn.paramTypes.length) {
+	if (
+		fn.variadicTail === undefined &&
+		positional.length > fn.paramTypes.length
+	) {
 		diagnostics.push(
 			diag(
 				site,

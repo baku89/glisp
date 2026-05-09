@@ -120,6 +120,21 @@ export function lex(src: string): Token[] {
 			continue
 		}
 
+		// Bare `/` is the division operator (a single-character identifier).
+		// Path tokens like `./foo` and `../bar` are captured by the dot-family
+		// branch above before reaching here.
+		if (ch === '/') {
+			tokens.push({
+				kind: 'identifier',
+				text: '/',
+				start: pos,
+				end: pos + 1,
+				value: '/',
+			})
+			pos++
+			continue
+		}
+
 		// string literal
 		if (ch === '"') {
 			const tok = readString(src, pos)

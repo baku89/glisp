@@ -21,21 +21,13 @@ import { createInterface } from 'node:readline/promises'
 
 import pc from 'picocolors'
 
-import { lit } from './build.js'
-import {
-	evaluate,
-	GlispClosure,
-	IOAction,
-	isTypeValue,
-	makeTopLevel,
-	makeType,
-	makeTypedFn,
-} from './eval.js'
+import { evaluate, GlispClosure, IOAction, isTypeValue } from './eval.js'
 import { infer } from './infer.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
+import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
-import { type AST, type Diagnostic, type Env, type Frame, UNIT } from './types.js'
+import { type Diagnostic, type Env, type Frame, UNIT } from './types.js'
 
 // -----------------------------------------------------------------------------
 // Theme
@@ -75,78 +67,6 @@ function welcome(): string {
 }
 
 // -----------------------------------------------------------------------------
-// Starter env
-// -----------------------------------------------------------------------------
-
-function buildStarterEnv(): Env {
-	const numberType = makeType('number', v => typeof v === 'number', 0)
-	const stringType = makeType('string', v => typeof v === 'string', '')
-	const booleanType = makeType(
-		'boolean',
-		v => typeof v === 'boolean',
-		false
-	)
-	const unitType = makeType('unit', v => v === UNIT, UNIT)
-	const topType = makeType('_', () => true, UNIT)
-	const bottomType = makeType('!', () => false, UNIT)
-	const ioType = makeType('IO', v => v instanceof IOAction, UNIT)
-
-	const num2 = (op: (a: number, b: number) => number) =>
-		makeTypedFn(
-			[numberType, numberType],
-			numberType,
-			(a, b) => op(a as number, b as number)
-		)
-	const cmp2 = (op: (a: number, b: number) => boolean) =>
-		makeTypedFn(
-			[numberType, numberType],
-			booleanType,
-			(a, b) => op(a as number, b as number)
-		)
-	const eq2 = (op: (a: unknown, b: unknown) => boolean) =>
-		makeTypedFn([topType, topType], booleanType, op)
-
-	const bindings: Record<string, AST> = {
-		number: lit(numberType as never),
-		string: lit(stringType as never),
-		boolean: lit(booleanType as never),
-		unit: lit(unitType as never),
-		top: lit(topType as never),
-		bottom: lit(bottomType as never),
-		IO: lit(ioType as never),
-
-		'+': lit(num2((a, b) => a + b) as never),
-		'-': lit(num2((a, b) => a - b) as never),
-		'*': lit(num2((a, b) => a * b) as never),
-		'/': lit(num2((a, b) => a / b) as never),
-		'<': lit(cmp2((a, b) => a < b) as never),
-		'>': lit(cmp2((a, b) => a > b) as never),
-		'<=': lit(cmp2((a, b) => a <= b) as never),
-		'>=': lit(cmp2((a, b) => a >= b) as never),
-		'==': lit(eq2((a, b) => a === b) as never),
-		'!=': lit(eq2((a, b) => a !== b) as never),
-		not: lit(makeTypedFn([booleanType], booleanType, a => !a) as never),
-		identity: lit(makeTypedFn([topType], topType, a => a) as never),
-		show: lit(
-			makeTypedFn([topType], stringType, v => formatPlain(v)) as never
-		),
-		first: lit(
-			((xs: unknown) =>
-				Array.isArray(xs) ? xs[0] : UNIT) as unknown as never
-		),
-		last: lit(
-			((xs: unknown) =>
-				Array.isArray(xs) ? xs[xs.length - 1] : UNIT) as unknown as never
-		),
-		count: lit(
-			((xs: unknown) =>
-				Array.isArray(xs) ? xs.length : 0) as unknown as never
-		),
-	}
-	return makeTopLevel(bindings)
-}
-
-// -----------------------------------------------------------------------------
 // Value formatting
 // -----------------------------------------------------------------------------
 
@@ -157,7 +77,7 @@ function formatValue(v: unknown): string {
 	if (typeof v === 'string') return theme.string(JSON.stringify(v))
 	if (typeof v === 'number') return theme.number(String(v))
 	if (typeof v === 'boolean') return theme.boolean(String(v))
-	if (isTypeValue(v)) return theme.type(`<type ${v.typeName}>`)
+	if (isTypeValue(v)) return theme.type(v.typeName)
 	if (v instanceof IOAction) return theme.type(`<IO ${v.description}>`)
 	if (v instanceof GlispClosure)
 		return theme.closure(`<closure ${print(v.ast)}>`)
@@ -174,27 +94,6 @@ function formatValue(v: unknown): string {
 			([k, x]) => `${theme.keyword(k)}${theme.punct(':')} ${formatValue(x)}`
 		)
 		return theme.punct('{') + entries.join(' ') + theme.punct('}')
-	}
-	return String(v)
-}
-
-/** Plain (uncolored) variant for `show`. */
-function formatPlain(v: unknown): string {
-	if (v === UNIT) return '()'
-	if (v === null) return 'null'
-	if (v === undefined) return 'undefined'
-	if (typeof v === 'string') return JSON.stringify(v)
-	if (typeof v === 'number' || typeof v === 'boolean') return String(v)
-	if (isTypeValue(v)) return `<type ${v.typeName}>`
-	if (v instanceof IOAction) return `<IO ${v.description}>`
-	if (v instanceof GlispClosure) return `<closure ${print(v.ast)}>`
-	if (typeof v === 'function') return '<host-fn>'
-	if (Array.isArray(v)) return `[${v.map(formatPlain).join(' ')}]`
-	if (typeof v === 'object') {
-		const entries = Object.entries(v as Record<string, unknown>).map(
-			([k, x]) => `${k}: ${formatPlain(x)}`
-		)
-		return `{${entries.join(' ')}}`
 	}
 	return String(v)
 }
@@ -292,7 +191,7 @@ function expandTopLevelSugar(src: string): string {
 // -----------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-	const starter = buildStarterEnv()
+	const starter = buildPrelude()
 	let env: Env = starter
 	let lastSource: string | null = null
 
