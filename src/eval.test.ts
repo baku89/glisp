@@ -18,6 +18,7 @@ import {
 	GlispClosure,
 	makeTopLevel,
 	makeType,
+	makeTypedFn,
 	toAst,
 } from './eval.js'
 import { parse } from './parse.js'
@@ -538,6 +539,50 @@ describe('evaluate — type values (cast & match)', () => {
 			env
 		)
 		expect(r.value).toBe('other')
+	})
+})
+
+// -----------------------------------------------------------------------------
+// Typed host fn — argument cast + default fallback
+// -----------------------------------------------------------------------------
+
+describe('evaluate — typed host function arg cast / default', () => {
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+	const stringType = makeType('string', v => typeof v === 'string', '')
+	const booleanType = makeType(
+		'boolean',
+		v => typeof v === 'boolean',
+		false
+	)
+
+	const envWithPlus = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			string: lit(stringType as never),
+			boolean: lit(booleanType as never),
+			'+': lit(
+				makeTypedFn(
+					[numberType, numberType],
+					numberType,
+					(a, b) => (a as number) + (b as number)
+				) as never
+			),
+		})
+
+	it('(+ 1 2) → 3', () => {
+		expect(evaluate(parse('(+ 1 2)'), envWithPlus()).value).toBe(3)
+	})
+
+	it('(+ "str") → 0  (string→0 default + missing→0 default)', () => {
+		expect(evaluate(parse('(+ "str")'), envWithPlus()).value).toBe(0)
+	})
+
+	it('(+ "str" 5) → 5  (string→0 default, 5 passes through)', () => {
+		expect(evaluate(parse('(+ "str" 5)'), envWithPlus()).value).toBe(5)
+	})
+
+	it('(+) → 0  (both defaults)', () => {
+		expect(evaluate(parse('(+)'), envWithPlus()).value).toBe(0)
 	})
 })
 

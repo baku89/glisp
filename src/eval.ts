@@ -102,6 +102,56 @@ export function isTypeValue(v: unknown): v is TypeValue {
 }
 
 // -----------------------------------------------------------------------------
+// Typed host function — JS function with declared parameter and return types
+// -----------------------------------------------------------------------------
+
+export interface TypedHostFn {
+	(...args: unknown[]): unknown
+	readonly __glispTypedFn: true
+	readonly paramTypes: ReadonlyArray<TypeValue>
+	readonly returnType: TypeValue
+}
+
+/**
+ * Wrap a plain JS function with declared parameter and return types so the
+ * evaluator can cast each argument before the call (and fill missing ones
+ * with the parameter type's default). This is what gives `(+ "str")` the
+ * expected `0` rather than `"strundefined"` — `"str"` doesn't fit `number`,
+ * so the cast falls back to the default `0`, and the missing second argument
+ * is filled the same way.
+ *
+ * Spec: docs/spec/types.md — default fallback timing
+ */
+export function makeTypedFn(
+	paramTypes: ReadonlyArray<TypeValue>,
+	returnType: TypeValue,
+	fn: (...args: unknown[]) => unknown
+): TypedHostFn {
+	const wrapped = (...args: unknown[]): unknown => {
+		const cast: unknown[] = []
+		for (let i = 0; i < paramTypes.length; i++) {
+			const t = paramTypes[i]!
+			const provided = i < args.length ? args[i] : t.default
+			cast.push(t(provided))
+		}
+		const result = fn(...cast)
+		// Cast the return value as well — guarantees the declared return type.
+		return returnType(result)
+	}
+	Object.defineProperty(wrapped, '__glispTypedFn', { value: true })
+	Object.defineProperty(wrapped, 'paramTypes', { value: paramTypes })
+	Object.defineProperty(wrapped, 'returnType', { value: returnType })
+	return wrapped as TypedHostFn
+}
+
+export function isTypedHostFn(v: unknown): v is TypedHostFn {
+	return (
+		typeof v === 'function' &&
+		(v as { __glispTypedFn?: true }).__glispTypedFn === true
+	)
+}
+
+// -----------------------------------------------------------------------------
 // Public API
 // -----------------------------------------------------------------------------
 

@@ -20,7 +20,14 @@ import { stdin as input, stdout as output } from 'node:process'
 import { createInterface } from 'node:readline/promises'
 
 import { lit } from './build.js'
-import { evaluate, GlispClosure, isTypeValue, makeTopLevel, makeType } from './eval.js'
+import {
+	evaluate,
+	GlispClosure,
+	isTypeValue,
+	makeTopLevel,
+	makeType,
+	makeTypedFn,
+} from './eval.js'
 import { parse, ParseError } from './parse.js'
 import { print } from './print.js'
 import { type AST, type Env, type Frame, UNIT } from './types.js'
@@ -30,13 +37,6 @@ import { type AST, type Env, type Frame, UNIT } from './types.js'
 // -----------------------------------------------------------------------------
 
 function buildStarterEnv(): Env {
-	const num2 = (op: (a: number, b: number) => number) =>
-		((a: unknown, b: unknown) =>
-			op(a as number, b as number)) as unknown as never
-	const cmp2 = (op: (a: number, b: number) => boolean) =>
-		((a: unknown, b: unknown) =>
-			op(a as number, b as number)) as unknown as never
-
 	// Primitive type values — callable for cast, with `fits` for type
 	// pattern matching in `?`.
 	const numberType = makeType('number', v => typeof v === 'number', 0)
@@ -50,6 +50,24 @@ function buildStarterEnv(): Env {
 	const topType = makeType('_', () => true, UNIT)
 	const bottomType = makeType('!', () => false, UNIT)
 
+	// Numeric binary op: each arg is cast to `number` before the call.
+	const num2 = (op: (a: number, b: number) => number) =>
+		makeTypedFn(
+			[numberType, numberType],
+			numberType,
+			(a, b) => op(a as number, b as number)
+		)
+	// Numeric comparison: number × number → boolean
+	const cmp2 = (op: (a: number, b: number) => boolean) =>
+		makeTypedFn(
+			[numberType, numberType],
+			booleanType,
+			(a, b) => op(a as number, b as number)
+		)
+	// Top-typed binary equality (any value compared by ===)
+	const eq2 = (op: (a: unknown, b: unknown) => boolean) =>
+		makeTypedFn([topType, topType], booleanType, op)
+
 	const bindings: Record<string, AST> = {
 		number: lit(numberType as never),
 		string: lit(stringType as never),
@@ -60,18 +78,22 @@ function buildStarterEnv(): Env {
 		top: lit(topType as never),
 		bottom: lit(bottomType as never),
 
-		'+': lit(num2((a, b) => a + b)),
-		'-': lit(num2((a, b) => a - b)),
-		'*': lit(num2((a, b) => a * b)),
-		'/': lit(num2((a, b) => a / b)),
-		'<': lit(cmp2((a, b) => a < b)),
-		'>': lit(cmp2((a, b) => a > b)),
-		'<=': lit(cmp2((a, b) => a <= b)),
-		'>=': lit(cmp2((a, b) => a >= b)),
-		'==': lit(((a: unknown, b: unknown) => a === b) as unknown as never),
-		'!=': lit(((a: unknown, b: unknown) => a !== b) as unknown as never),
-		not: lit(((a: unknown) => !a) as unknown as never),
-		identity: lit(((a: unknown) => a) as unknown as never),
+		'+': lit(num2((a, b) => a + b) as never),
+		'-': lit(num2((a, b) => a - b) as never),
+		'*': lit(num2((a, b) => a * b) as never),
+		'/': lit(num2((a, b) => a / b) as never),
+		'<': lit(cmp2((a, b) => a < b) as never),
+		'>': lit(cmp2((a, b) => a > b) as never),
+		'<=': lit(cmp2((a, b) => a <= b) as never),
+		'>=': lit(cmp2((a, b) => a >= b) as never),
+		'==': lit(eq2((a, b) => a === b) as never),
+		'!=': lit(eq2((a, b) => a !== b) as never),
+		not: lit(
+			makeTypedFn([booleanType], booleanType, a => !a) as never
+		),
+		identity: lit(
+			makeTypedFn([topType], topType, a => a) as never
+		),
 		first: lit(
 			((xs: unknown) =>
 				Array.isArray(xs) ? xs[0] : UNIT) as unknown as never
