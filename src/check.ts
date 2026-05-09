@@ -79,7 +79,7 @@ function walk(ast: AST, env: Env, diagnostics: Diagnostic[]): void {
 		case 'fn':
 			if (ast.body !== null) walk(ast.body, env, diagnostics)
 			break
-		// lit / sym / path: terminals
+		// lit / host / sym / path: terminals
 	}
 }
 

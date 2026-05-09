@@ -60,6 +60,7 @@ function isPercent(ast: AST): boolean {
 function recurseChildren(ast: AST): AST {
 	switch (ast.kind) {
 		case 'lit':
+		case 'host':
 		case 'sym':
 		case 'path':
 			return ast

@@ -545,6 +545,9 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 		case 'lit':
 			return ok(ast.value)
 
+		case 'host':
+			return ok(ast.value)
+
 		case 'sym': {
 			const target = lookupBareName(ast.name, env)
 			if (target === null) {
@@ -1753,6 +1756,7 @@ function describeType(v: unknown): string {
 // -----------------------------------------------------------------------------
 
 import {
+	HostAST as HostASTClass,
 	LitAST as LitASTClass,
 	QuoteAST as QuoteASTClass,
 	RecordAST as RecordASTClass,
@@ -1796,6 +1800,11 @@ export function toAst(value: unknown, env: Env): AST {
 		if (name !== null) return new SymASTClass(name)
 		return value.ast
 	}
+	if (value instanceof IOAction) {
+		// IO actions have no source representation; wrap as host so they
+		// round-trip identity-wise.
+		return new HostASTClass(value)
+	}
 	if (value instanceof ASTNodeClass) {
 		return new QuoteASTClass(value as AST)
 	}
@@ -1810,10 +1819,11 @@ export function toAst(value: unknown, env: Env): AST {
 		// Typed or untyped host fn: prefer a bound name in env.
 		const name = nameForBoundValue(env, value)
 		if (name !== null) return new SymASTClass(name)
-		// Otherwise wrap as a literal carrying the function — not
-		// idempotent through print/parse but preserves identity within
-		// a process so the value survives a g.toAst → g.eval round trip.
-		return new LitASTClass(value as never)
+		// Otherwise wrap in a HostAST — preserves identity within a
+		// process so the value survives a g.toAst → g.eval round trip,
+		// at the cost of source-level round-trip (host values have no
+		// source representation).
+		return new HostASTClass(value)
 	}
 	if (typeof value === 'object') {
 		const entries: Array<readonly [string, AST]> = []
@@ -1822,8 +1832,8 @@ export function toAst(value: unknown, env: Env): AST {
 		}
 		return new RecordASTClass(entries)
 	}
-	// Fallback — should be unreachable
-	return new LitASTClass(UNIT)
+	// Fallback — wrap whatever it is verbatim. Identity preserved.
+	return new HostASTClass(value)
 }
 
 /**

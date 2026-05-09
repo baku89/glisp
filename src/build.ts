@@ -19,6 +19,7 @@ import {
 	CallAST,
 	FnAST,
 	type FnParam,
+	HostAST,
 	LetAST,
 	LitAST,
 	type MetaContent,
@@ -42,6 +43,16 @@ import {
 /** Literal AST. Distinguishes between number / string / boolean / unit by JS type. */
 export function lit(value: number | string | boolean | Unit): LitAST {
 	return new LitAST(value)
+}
+
+/**
+ * Host-value AST. Wraps a host-side value (TypeValue, TypedHostFn,
+ * GlispClosure, IOAction, opaque object) so the env can hand it back
+ * unchanged when evaluated. Distinct from `lit` because the source
+ * language has no way to express these values literally.
+ */
+export function host(value: unknown): HostAST {
+	return new HostAST(value)
 }
 
 /** Symbol (bare identifier) AST. Use this for identifiers; `lit` is for values. */
@@ -253,6 +264,7 @@ export function enumType(
 export const g = {
 	// AST builders
 	lit,
+	host,
 	sym,
 	call,
 	callKw,

@@ -97,6 +97,7 @@ function substitute(
 			return ast
 
 		case 'lit':
+		case 'host':
 		case 'path':
 			return ast
 

@@ -14,7 +14,7 @@
  * Spec: docs/spec/host-api.md
  */
 
-import { lit } from './build.js'
+import { host, lit } from './build.js'
 import {
 	type Env,
 	UNIT,
@@ -66,43 +66,61 @@ export const ioType: TypeValue = makeType(
 // -----------------------------------------------------------------------------
 
 /**
+ * Variant of `numberType` whose `default` is 1 — the multiplicative
+ * identity. Used as the variadic-tail type for `*` and `/` so that any
+ * argument that fails to evaluate to a number (e.g. `()`) coerces to 1
+ * rather than 0, matching the operator's algebraic identity.
+ */
+const numberOneType: TypeValue = makeType(
+	'number',
+	v => typeof v === 'number',
+	1
+)
+
+/**
  * `+` and `*` style: fold every arg through `op` starting from `identity`.
  * `(+) → 0`, `(+ x) → x`, `(+ a b c) → a+b+c`.
+ *
+ * `tailType` is the `numberType` variant whose default value matches the
+ * operator's identity (0 for `+`, 1 for `*`) — keeps the per-arg fallback
+ * coherent with the fold seed.
  */
 function variadicNumFold(
 	op: (a: number, b: number) => number,
-	identity: number
+	identity: number,
+	tailType: TypeValue
 ): TypedHostFn {
 	return makeTypedFn(
 		[],
 		numberType,
 		(...args) => (args as number[]).reduce(op, identity),
 		undefined,
-		numberType
+		tailType
 	)
 }
 
 /**
  * `-` and `/` style: the first arg is the seed; remaining args fold through
- * `op`. With a single arg, `unary(x)` is returned (negation / reciprocal).
- * With zero args, falls back to `zeroResult`.
+ * `op`. With a single arg, the operator's identity element seeds the fold
+ * (so `(- x)` = `0 - x` = `-x` and `(/ x)` = `1 / x`). With zero args,
+ * returns the identity element itself.
  */
 function variadicNumLeftFold(
 	op: (a: number, b: number) => number,
-	unary: (x: number) => number,
-	zeroResult: number
+	identity: number,
+	tailType: TypeValue
 ): TypedHostFn {
 	return makeTypedFn(
 		[],
 		numberType,
 		(...args) => {
 			const ns = args as number[]
-			if (ns.length === 0) return zeroResult
-			if (ns.length === 1) return unary(ns[0]!)
+			if (ns.length === 0) return identity
+			if (ns.length === 1) return op(identity, ns[0]!)
 			return ns.slice(1).reduce(op, ns[0]!)
 		},
 		undefined,
-		numberType
+		tailType
 	)
 }
 
@@ -152,55 +170,51 @@ function chainEq(want: boolean): TypedHostFn {
 export function buildPrelude(): Env {
 	const env = makeTopLevel({
 		// types
-		number: lit(numberType as never),
-		string: lit(stringType as never),
-		boolean: lit(booleanType as never),
-		unit: lit(unitType as never),
-		_: lit(topType as never),
-		'!': lit(bottomType as never),
-		IO: lit(ioType as never),
+		number: host(numberType),
+		string: host(stringType),
+		boolean: host(booleanType),
+		unit: host(unitType),
+		_: host(topType),
+		'!': host(bottomType),
+		IO: host(ioType),
 
-		// arithmetic
-		'+': lit(variadicNumFold((a, b) => a + b, 0) as never),
-		'*': lit(variadicNumFold((a, b) => a * b, 1) as never),
-		'-': lit(variadicNumLeftFold((a, b) => a - b, x => -x, 0) as never),
-		'/': lit(variadicNumLeftFold((a, b) => a / b, x => 1 / x, 1) as never),
+		// arithmetic — `+ -` use 0 as both fold seed and per-arg default;
+		// `* /` use 1.
+		'+': host(variadicNumFold((a, b) => a + b, 0, numberType)),
+		'*': host(variadicNumFold((a, b) => a * b, 1, numberOneType)),
+		'-': host(variadicNumLeftFold((a, b) => a - b, 0, numberType)),
+		'/': host(variadicNumLeftFold((a, b) => a / b, 1, numberOneType)),
 
 		// comparison
-		'<': lit(chainCmp((a, b) => a < b) as never),
-		'>': lit(chainCmp((a, b) => a > b) as never),
-		'<=': lit(chainCmp((a, b) => a <= b) as never),
-		'>=': lit(chainCmp((a, b) => a >= b) as never),
-		'==': lit(chainEq(true) as never),
-		'!=': lit(chainEq(false) as never),
+		'<': host(chainCmp((a, b) => a < b)),
+		'>': host(chainCmp((a, b) => a > b)),
+		'<=': host(chainCmp((a, b) => a <= b)),
+		'>=': host(chainCmp((a, b) => a >= b)),
+		'==': host(chainEq(true)),
+		'!=': host(chainEq(false)),
 
 		// utilities
-		not: lit(makeTypedFn([booleanType], booleanType, a => !a) as never),
-		identity: lit(makeTypedFn([topType], topType, a => a) as never),
-		show: lit(
-			makeTypedFn([topType], stringType, v => showValue(v)) as never
+		not: host(makeTypedFn([booleanType], booleanType, a => !a)),
+		identity: host(makeTypedFn([topType], topType, a => a)),
+		show: host(makeTypedFn([topType], stringType, v => showValue(v))),
+		first: host((xs: unknown) =>
+			Array.isArray(xs) ? xs[0] : UNIT
 		),
-		first: lit(
-			((xs: unknown) =>
-				Array.isArray(xs) ? xs[0] : UNIT) as unknown as never
+		last: host((xs: unknown) =>
+			Array.isArray(xs) ? xs[xs.length - 1] : UNIT
 		),
-		last: lit(
-			((xs: unknown) =>
-				Array.isArray(xs) ? xs[xs.length - 1] : UNIT) as unknown as never
-		),
-		count: lit(
-			((xs: unknown) =>
-				Array.isArray(xs) ? xs.length : 0) as unknown as never
+		count: host((xs: unknown) =>
+			Array.isArray(xs) ? xs.length : 0
 		),
 
 		// higher-order
-		map: lit(makeMap() as never),
-		filter: lit(makeFilter() as never),
-		reduce: lit(makeReduce() as never),
+		map: host(makeMap()),
+		filter: host(makeFilter()),
+		reduce: host(makeReduce()),
 
 		// type constructors
-		enum: lit(makeEnum() as never),
-		refine: lit(makeRefine() as never),
+		enum: host(makeEnum()),
+		refine: host(makeRefine()),
 	})
 
 	// Glisp-defined helpers — run a small bootstrap script of `def` actions.

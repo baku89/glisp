@@ -38,8 +38,10 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 			if (typeof v === 'string') return resolveTypeFromEnv(env, 'string')
 			if (typeof v === 'boolean') return resolveTypeFromEnv(env, 'boolean')
 			if (v === UNIT) return resolveTypeFromEnv(env, 'unit')
-			// Lit holding a Glisp value (typed host fn, closure, type value).
-			// Useful at REPL `:type` prompts that resolve a name to a value.
+			return null
+		}
+		case 'host': {
+			const v = ast.value
 			if (isTypedHostFn(v)) return functionTypeOf(v)
 			if (isGlispClosure(v)) return closureTypeOf(v)
 			if (isOverload(v)) return overloadTypeOf(v)

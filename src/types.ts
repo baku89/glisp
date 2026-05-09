@@ -107,6 +107,7 @@ function liftMetaField(v: MetaFieldValue): AST {
 
 export type AST =
 	| LitAST
+	| HostAST
 	| SymAST
 	| CallAST
 	| AccessAST
@@ -133,6 +134,44 @@ export class LitAST extends ASTNode {
 		if (typeof v === 'number') return v.toString()
 		if (typeof v === 'string') return printStringLiteral(v)
 		return v ? 'true' : 'false'
+	}
+}
+
+/**
+ * AST node carrying a host-side value verbatim. Used by the host API to
+ * surface values that the source language cannot otherwise express:
+ * type values (`number`, `_`, …), typed host fns (`+`, `*`, …),
+ * IO actions, and the like. Evaluating a `HostAST` yields its `value`
+ * unchanged.
+ *
+ * `print()` cannot round-trip a host value back to source — instead it
+ * shows a sensible label (the type's name for type values, `<host-fn>`
+ * for typed host fns, `<host-value>` otherwise). For idempotent display
+ * of bound names, callers should prefer `toAst` which looks the value
+ * up in `env` and returns the bound symbol when available.
+ */
+export class HostAST extends ASTNode {
+	readonly kind = 'host' as const
+	constructor(public readonly value: unknown) {
+		super()
+	}
+
+	override printStructural(): string {
+		const v = this.value as {
+			__glispType?: true
+			typeName?: string
+			__glispTypedFn?: true
+			__glispClosure?: true
+		} | null
+		if (v !== null && typeof v === 'object') {
+			if (v.__glispType === true && typeof v.typeName === 'string') {
+				return v.typeName
+			}
+			if (v.__glispTypedFn === true) return '<host-fn>'
+			if (v.__glispClosure === true) return '<closure>'
+		}
+		if (typeof v === 'function') return '<host-fn>'
+		return '<host-value>'
 	}
 }
 
@@ -483,6 +522,7 @@ function printStringLiteral(s: string): string {
 // -----------------------------------------------------------------------------
 
 export const isLit = (a: AST): a is LitAST => a.kind === 'lit'
+export const isHost = (a: AST): a is HostAST => a.kind === 'host'
 export const isSym = (a: AST): a is SymAST => a.kind === 'sym'
 export const isCall = (a: AST): a is CallAST => a.kind === 'call'
 export const isAccess = (a: AST): a is AccessAST => a.kind === 'access'
