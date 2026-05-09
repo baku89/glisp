@@ -139,6 +139,71 @@ describe('prelude — type constructors', () => {
 	})
 })
 
+describe('prelude — standard library', () => {
+	const env = buildPrelude()
+
+	it('range generates ascending and descending sequences', () => {
+		expect(evaluate(parse('(range 0 5)'), env).value).toEqual([0, 1, 2, 3, 4])
+		expect(evaluate(parse('(range 5 0)'), env).value).toEqual([5, 4, 3, 2, 1])
+	})
+
+	it('size dispatches between vector and string', () => {
+		expect(evaluate(parse('(size [1 2 3])'), env).value).toBe(3)
+		expect(evaluate(parse('(size "hello")'), env).value).toBe(5)
+	})
+
+	it('concat is variadic over both vectors and strings', () => {
+		expect(evaluate(parse('(concat [1 2] [3 4] [5])'), env).value).toEqual([
+			1, 2, 3, 4, 5,
+		])
+		expect(evaluate(parse('(concat "foo" "bar")'), env).value).toBe('foobar')
+	})
+
+	it('slice over vectors and strings', () => {
+		expect(
+			evaluate(parse('(slice [10 20 30 40 50] 1 4)'), env).value
+		).toEqual([20, 30, 40])
+		expect(evaluate(parse('(slice "abcdef" 2 5)'), env).value).toBe('cde')
+	})
+
+	it('math primitives', () => {
+		expect(evaluate(parse('(mod 10 3)'), env).value).toBe(1)
+		expect(evaluate(parse('(pow 2 10)'), env).value).toBe(1024)
+		expect(evaluate(parse('(sqrt 16)'), env).value).toBe(4)
+		expect(evaluate(parse('(floor 3.7)'), env).value).toBe(3)
+		expect(evaluate(parse('(ceil 3.2)'), env).value).toBe(4)
+		expect(evaluate(parse('pi'), env).value).toBe(Math.PI)
+	})
+
+	it('record ops', () => {
+		expect(evaluate(parse('(keys {x: 1 y: 2})'), env).value).toEqual([
+			'x',
+			'y',
+		])
+		expect(evaluate(parse('(values {x: 1 y: 2})'), env).value).toEqual([
+			1, 2,
+		])
+		expect(evaluate(parse('(merge {x: 1} {y: 2})'), env).value).toEqual({
+			x: 1,
+			y: 2,
+		})
+	})
+
+	it('string ops', () => {
+		expect(
+			evaluate(parse('(starts-with "hello world" "hello")'), env).value
+		).toBe(true)
+		expect(evaluate(parse('(split "a,b,c" ",")'), env).value).toEqual([
+			'a',
+			'b',
+			'c',
+		])
+		expect(evaluate(parse('(join ["a" "b" "c"] "-")'), env).value).toBe(
+			'a-b-c'
+		)
+	})
+})
+
 describe('prelude — :type signature display via infer', () => {
 	const env = buildPrelude()
 

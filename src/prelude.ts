@@ -28,6 +28,7 @@ import {
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
+	OverloadValue,
 	type TypedHostFn,
 	type TypeValue,
 } from './eval.js'
@@ -215,6 +216,97 @@ export function buildPrelude(): Env {
 		// type constructors
 		enum: host(makeEnum()),
 		refine: host(makeRefine()),
+
+		// math primitives
+		pi: host(Math.PI),
+		e: host(Math.E),
+		mod: host(
+			makeTypedFn(
+				[numberType, numberType],
+				numberType,
+				(a, b) => (a as number) % (b as number),
+				['a', 'b']
+			)
+		),
+		pow: host(
+			makeTypedFn(
+				[numberType, numberType],
+				numberType,
+				(a, b) => Math.pow(a as number, b as number),
+				['base', 'exp']
+			)
+		),
+		sqrt: host(
+			makeTypedFn([numberType], numberType, n => Math.sqrt(n as number))
+		),
+		floor: host(
+			makeTypedFn([numberType], numberType, n => Math.floor(n as number))
+		),
+		ceil: host(
+			makeTypedFn([numberType], numberType, n => Math.ceil(n as number))
+		),
+		round: host(
+			makeTypedFn([numberType], numberType, n => Math.round(n as number))
+		),
+
+		// vector / string ops
+		range: host(makeRange()),
+		reverse: host(makeReverse()),
+		slice: host(makeSliceOverload()),
+		size: host(makeSizeOverload()),
+		concat: host(makeConcatOverload()),
+		'starts-with': host(
+			makeTypedFn(
+				[stringType, stringType],
+				booleanType,
+				(s, p) => (s as string).startsWith(p as string),
+				['str', 'prefix']
+			)
+		),
+		split: host(
+			makeTypedFn(
+				[stringType, stringType],
+				makeType('vector', Array.isArray, []),
+				(s, sep) => (s as string).split(sep as string),
+				['str', 'sep']
+			)
+		),
+		join: host(
+			makeTypedFn(
+				[makeType('vector', Array.isArray, []), stringType],
+				stringType,
+				(xs, sep) =>
+					(xs as unknown[])
+						.map(v => (typeof v === 'string' ? v : showValue(v)))
+						.join(sep as string),
+				['xs', 'sep']
+			)
+		),
+
+		// record ops
+		keys: host(
+			((rec: unknown) =>
+				rec !== null && typeof rec === 'object' && !Array.isArray(rec)
+					? Object.keys(rec)
+					: []) as (rec: unknown) => unknown[]
+		),
+		values: host(
+			((rec: unknown) =>
+				rec !== null && typeof rec === 'object' && !Array.isArray(rec)
+					? Object.values(rec)
+					: []) as (rec: unknown) => unknown[]
+		),
+		merge: host(
+			((a: unknown, b: unknown) =>
+				a !== null &&
+				typeof a === 'object' &&
+				!Array.isArray(a) &&
+				b !== null &&
+				typeof b === 'object' &&
+				!Array.isArray(b)
+					? { ...a, ...b }
+					: a) as (a: unknown, b: unknown) => unknown
+		),
 	})
 
 	// Glisp-defined helpers — run a small bootstrap script of `def` actions.
@@ -346,6 +438,93 @@ function makeRefine(): TypedHostFn {
 		},
 		['base', 'default', 'pred']
 	)
+}
+
+// -----------------------------------------------------------------------------
+// Standard library: vectors, strings, records
+// -----------------------------------------------------------------------------
+
+const vectorType = makeType('vector', Array.isArray, [])
+
+function makeRange(): TypedHostFn {
+	return makeTypedFn(
+		[numberType, numberType],
+		vectorType,
+		(start, end) => {
+			const a = start as number
+			const b = end as number
+			const out: number[] = []
+			if (a <= b) {
+				for (let i = a; i < b; i++) out.push(i)
+			} else {
+				for (let i = a; i > b; i--) out.push(i)
+			}
+			return out
+		},
+		['start', 'end']
+	)
+}
+
+function makeReverse(): TypedHostFn {
+	return makeTypedFn([vectorType], vectorType, xs =>
+		(xs as unknown[]).slice().reverse()
+	)
+}
+
+/** `slice` overload: works on strings and vectors. */
+function makeSliceOverload(): OverloadValue {
+	const sliceVec = makeTypedFn(
+		[vectorType, numberType, numberType],
+		vectorType,
+		(xs, a, b) =>
+			(xs as unknown[]).slice(a as number, b as number),
+		['xs', 'start', 'end']
+	)
+	const sliceStr = makeTypedFn(
+		[stringType, numberType, numberType],
+		stringType,
+		(s, a, b) => (s as string).slice(a as number, b as number),
+		['str', 'start', 'end']
+	)
+	return new OverloadValue([sliceVec, sliceStr])
+}
+
+/** `size` overload: vector length / string length / record arity. */
+function makeSizeOverload(): OverloadValue {
+	const sizeVec = makeTypedFn(
+		[vectorType],
+		numberType,
+		xs => (xs as unknown[]).length
+	)
+	const sizeStr = makeTypedFn(
+		[stringType],
+		numberType,
+		s => (s as string).length
+	)
+	return new OverloadValue([sizeVec, sizeStr])
+}
+
+/** `concat` overload: strings or vectors, variadic. */
+function makeConcatOverload(): OverloadValue {
+	const concatVec = makeTypedFn(
+		[],
+		vectorType,
+		(...args) =>
+			(args as unknown[][]).reduce<unknown[]>(
+				(acc, xs) => acc.concat(xs),
+				[]
+			),
+		undefined,
+		vectorType
+	)
+	const concatStr = makeTypedFn(
+		[],
+		stringType,
+		(...args) => (args as string[]).join(''),
+		undefined,
+		stringType
+	)
+	return new OverloadValue([concatVec, concatStr])
 }
 
 // -----------------------------------------------------------------------------
