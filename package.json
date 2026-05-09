@@ -10,15 +10,17 @@
     "src"
   ],
   "scripts": {
+    "dev": "concurrently --names test,doc,api --prefix-colors auto npm:dev:test npm:dev:doc npm:dev:api",
+    "dev:test": "vitest",
+    "dev:doc": "vuepress dev docs",
+    "dev:api": "typedoc --watch",
     "build": "tsc",
+    "build:api": "typedoc",
+    "build:doc": "npm run build:api && vuepress build docs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "repl": "tsx src/repl.ts",
-    "dev:doc": "vuepress dev docs",
-    "dev:api": "typedoc --watch",
-    "build:api": "typedoc",
-    "build:doc": "npm run build:api && vuepress build docs"
+    "repl": "tsx src/repl.ts"
   },
   "license": "MIT",
   "author": "Baku Hashimoto <mail@baku89.com>",
@@ -28,6 +30,7 @@
     "@vuepress/bundler-vite": "^2.0.0-rc.26",
     "@vuepress/plugin-shiki": "^2.0.0-rc.123",
     "@vuepress/theme-default": "^2.0.0-rc.123",
+    "concurrently": "^9.2.1",
     "markdown-it-cjk-friendly": "^2.0.2",
     "picocolors": "^1.1.1",
     "sass-embedded": "^1.86.0",
