@@ -22,7 +22,7 @@
  */
 
 import { desugar } from './desugar.js'
-import { inferType } from './infer.js'
+import { infer } from './infer.js'
 import {
 	type AST,
 	type BindingTarget,
@@ -196,7 +196,7 @@ function callTypedHostFn(
 
 		// Static type check — confirmed mismatch lets us skip evaluation
 		// of the argument entirely and substitute the default.
-		const inferred = inferType(argAst, env)
+		const inferred = infer(argAst, env)
 		if (inferred !== null && inferred !== paramType) {
 			diagnostics.push(
 				diag(

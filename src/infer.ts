@@ -23,7 +23,7 @@ import {
 } from './eval.js'
 import { type AST, type Env, UNIT } from './types.js'
 
-export function inferType(ast: AST, env: Env): TypeValue | null {
+export function infer(ast: AST, env: Env): TypeValue | null {
 	switch (ast.kind) {
 		case 'lit': {
 			const v = ast.value
@@ -36,7 +36,7 @@ export function inferType(ast: AST, env: Env): TypeValue | null {
 		case 'sym': {
 			const target = lookupBareName(ast.name, env)
 			if (target === null) return null
-			return inferType(target.ast, target.env)
+			return infer(target.ast, target.env)
 		}
 		case 'call': {
 			const headValue = evaluate(ast.head, env).value
@@ -55,7 +55,7 @@ export function inferType(ast: AST, env: Env): TypeValue | null {
 		case 'unquote':
 		case 'splice':
 		case 'spread':
-			return inferType(ast.expr, env)
+			return infer(ast.expr, env)
 		case 'access':
 		default:
 			return null

@@ -30,6 +30,7 @@ import {
 	makeType,
 	makeTypedFn,
 } from './eval.js'
+import { infer } from './infer.js'
 import { parse, ParseError } from './parse.js'
 import { print } from './print.js'
 import { type AST, type Diagnostic, type Env, type Frame, UNIT } from './types.js'
@@ -320,8 +321,12 @@ function handleCommand(
 	starter: Env,
 	lastSource: string | null
 ): Env {
-	const cmd = src.slice(1).trim()
-	switch (cmd) {
+	const rest = src.slice(1).trim()
+	const spaceIdx = rest.search(/\s/)
+	const head = spaceIdx === -1 ? rest : rest.slice(0, spaceIdx)
+	const args = spaceIdx === -1 ? '' : rest.slice(spaceIdx + 1).trim()
+
+	switch (head) {
 		case 'quit':
 		case 'q':
 			process.exit(0)
@@ -330,11 +335,12 @@ function handleCommand(
 			output.write(
 				[
 					theme.header('  Commands'),
-					`    ${theme.keyword(':env')}    ${theme.hint('— list current top-level bindings')}`,
-					`    ${theme.keyword(':ast')}    ${theme.hint('— print the AST of the previous input')}`,
-					`    ${theme.keyword(':reset')}  ${theme.hint('— restore the starter env')}`,
-					`    ${theme.keyword(':help')}   ${theme.hint('— show this help')}`,
-					`    ${theme.keyword(':quit')}   ${theme.hint('— exit (or Ctrl-D)')}`,
+					`    ${theme.keyword(':env')}              ${theme.hint('— list current top-level bindings')}`,
+					`    ${theme.keyword(':ast')}              ${theme.hint('— print the AST of the previous input')}`,
+					`    ${theme.keyword(':type')} ${theme.hint('[expr]')}     ${theme.hint('— infer the type of expr (or the previous input)')}`,
+					`    ${theme.keyword(':reset')}            ${theme.hint('— restore the starter env')}`,
+					`    ${theme.keyword(':help')}             ${theme.hint('— show this help')}`,
+					`    ${theme.keyword(':quit')}             ${theme.hint('— exit (or Ctrl-D)')}`,
 					'',
 					theme.hint('  Tip: end a line with `\\` to continue on the next.'),
 					'',
@@ -350,9 +356,7 @@ function handleCommand(
 			const names = [...top.bindings.keys()].sort()
 			output.write(
 				'  ' +
-					names
-						.map(n => theme.keyword(n))
-						.join(theme.hint('  ')) +
+					names.map(n => theme.keyword(n)).join(theme.hint('  ')) +
 					'\n'
 			)
 			return env
@@ -374,11 +378,47 @@ function handleCommand(
 				)
 			}
 			return env
+		case 'type': {
+			const exprSource = args !== '' ? args : lastSource
+			if (exprSource === null) {
+				output.write(theme.hint('  (no expression to type)') + '\n')
+				return env
+			}
+			try {
+				const ast = parse(exprSource)
+				const t = infer(ast, env)
+				if (t === null) {
+					output.write(
+						'  ' + theme.hint('? (type unknown)') + '\n'
+					)
+				} else {
+					output.write(
+						'  ' +
+							theme.hint(':') +
+							' ' +
+							theme.type(t.typeName) +
+							'\n'
+					)
+				}
+			} catch (e) {
+				if (e instanceof ParseError) {
+					output.write(formatParseError(exprSource, e) + '\n')
+				} else {
+					output.write(
+						theme.error('  error') +
+							theme.hint(' · ') +
+							(e instanceof Error ? e.message : String(e)) +
+							'\n'
+					)
+				}
+			}
+			return env
+		}
 		case 'reset':
 			output.write(theme.hint('  (env reset)') + '\n')
 			return starter
 		default:
-			output.write(theme.error(`  unknown command: :${cmd}`) + '\n')
+			output.write(theme.error(`  unknown command: :${head}`) + '\n')
 			return env
 	}
 }
