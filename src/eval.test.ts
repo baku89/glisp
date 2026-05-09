@@ -1112,4 +1112,34 @@ describe('evaluate — path lookup', () => {
 		const r = evaluate(path('..', 'x'), inner)
 		expect(r.value).toBe(10)
 	})
+
+	it('positional sibling inside a call via ./N', () => {
+		// (+ 1 ./1) — slot 1 is the first arg (= 1), so this is (+ 1 1).
+		const numberType = makeType('number', v => typeof v === 'number', 0)
+		const env = makeTopLevel({
+			number: lit(numberType as never),
+			'+': lit(
+				makeTypedFn(
+					[],
+					numberType,
+					(...args) =>
+						(args as number[]).reduce((a, b) => a + b, 0),
+					undefined,
+					numberType
+				) as never
+			),
+		})
+		const r = evaluate(parse('(+ 1 ./1)'), env)
+		expect(r.value).toBe(2)
+	})
+
+	it('vec element via ./0', () => {
+		const r = evaluate(parse('[1 2 ./0]'), emptyEnv)
+		expect(r.value).toEqual([1, 2, 1])
+	})
+
+	it('record field via ./key', () => {
+		const r = evaluate(parse('{x: 10 y: ./x}'), emptyEnv)
+		expect(r.value).toEqual({ x: 10, y: 10 })
+	})
 })

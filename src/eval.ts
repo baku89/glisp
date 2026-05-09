@@ -574,27 +574,34 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 		}
 
 		case 'vec': {
-			const { values, diagnostics } = evalListElements(ast.elements, env)
+			// Push a transparent frame so paths inside elements (`./0`,
+			// `./1`, …) can navigate to siblings via the AST chain.
+			const inside = pushAncestor(ast, env)
+			const { values, diagnostics } = evalListElements(
+				ast.elements,
+				inside
+			)
 			return { value: values, diagnostics }
 		}
 
 		case 'record': {
+			const inside = pushAncestor(ast, env)
 			const result: Record<string, unknown> = {}
 			const diagnostics: Diagnostic[] = []
 			for (const entry of ast.fields) {
 				if (entry instanceof SpreadAST) {
-					const r = evaluate(entry.expr, env)
+					const r = evaluate(entry.expr, inside)
 					push(diagnostics, r.diagnostics)
 					if (isPlainRecord(r.value)) {
 						Object.assign(result, r.value)
 					} else {
 						diagnostics.push(
-							diag(entry, env, 'record spread operand must be a record')
+							diag(entry, inside, 'record spread operand must be a record')
 						)
 					}
 				} else {
 					const [name, value] = entry
-					const r = evaluate(value, env)
+					const r = evaluate(value, inside)
 					result[name] = r.value
 					push(diagnostics, r.diagnostics)
 				}
@@ -655,11 +662,13 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 		case 'path':
 			return evalPath(ast.segments, env, ast)
 
-		// macro-related annotations are transparent during eval
+		// macro-related annotations are transparent during eval, but the
+		// quote AST still pushes an ancestor frame so path navigation
+		// inside it walks `..` correctly across the boundary.
 		case 'quote':
 		case 'unquote':
 		case 'splice':
-			return evaluate(ast.expr, env)
+			return evaluate(ast.expr, pushAncestor(ast, env))
 
 		case 'spread':
 			// A bare spread used outside a list-building context has no value.
@@ -717,6 +726,16 @@ function pushLetFrame(ast: AST & { bindings: ReadonlyArray<readonly [string, AST
 	return frame
 }
 
+/**
+ * Push a transparent ancestor frame onto `env` whose `ast` is `node`.
+ * No bindings — bare-name lookup walks straight through it. Used so
+ * paths inside calls / vecs / records / quotes can navigate
+ * `./childIndex` and `..` correctly per docs/spec/eval.md.
+ */
+function pushAncestor(node: AST, env: Env): Env {
+	return { ast: node, parent: env }
+}
+
 // -----------------------------------------------------------------------------
 // Spread-aware list-element evaluation
 // -----------------------------------------------------------------------------
@@ -750,35 +769,48 @@ function evalListElements(
 // -----------------------------------------------------------------------------
 
 function evalCall(ast: CallAST, env: Env): EvalResult {
+	// Push a transparent ancestor frame so paths inside the call's head
+	// or args can navigate using `./N` (head=0, args=1..) and `..` to
+	// the surrounding scope. The frame is bindings-less, so bare-name
+	// lookup walks straight through it.
+	const inside = pushAncestor(ast, env)
+
 	// Special forms — dispatched by head's symbol name.
 	if (ast.head.kind === 'sym') {
 		switch (ast.head.name) {
 			case '?':
-				return evalMatch(ast, env)
+				return evalMatch(ast, inside)
 			case '|>':
-				return evalPipe(ast, env)
+				return evalPipe(ast, inside)
 			case 'def':
-				return evalDef(ast, env)
+				return evalDef(ast, inside)
 			case 'undef':
-				return evalUndef(ast, env)
+				return evalUndef(ast, inside)
 			case 'overload':
-				return evalOverload(ast, env)
+				return evalOverload(ast, inside)
 		}
 	}
 
-	const headResult = evaluate(ast.head, env)
+	const headResult = evaluate(ast.head, inside)
 	const diagnostics = [...headResult.diagnostics]
 	const headValue = headResult.value
 
 	// Expand spread elements in positional args (yields a flat AST list).
-	const expanded = expandPositionalArgs(ast.args, env)
+	const expanded = expandPositionalArgs(ast.args, inside)
 	push(diagnostics, expanded.diagnostics)
 	const positional = expanded.asts
 	const kwargs = ast.kwargs
 
 	// Glisp closure → push body frame, bind params lazily.
 	if (isGlispClosure(headValue)) {
-		return applyClosure(headValue, positional, kwargs, env, ast, diagnostics)
+		return applyClosure(
+			headValue,
+			positional,
+			kwargs,
+			inside,
+			ast,
+			diagnostics
+		)
 	}
 
 	// Overload → pick the first variant whose declared param types fit
@@ -788,7 +820,7 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 			headValue,
 			positional,
 			kwargs,
-			env,
+			inside,
 			ast,
 			diagnostics
 		)
@@ -797,19 +829,21 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	// Vector → element access by integer index.
 	if (Array.isArray(headValue)) {
 		if (positional.length !== 1) {
-			diagnostics.push(diag(ast, env, 'vector access expects one index'))
+			diagnostics.push(diag(ast, inside, 'vector access expects one index'))
 			return { value: UNIT, diagnostics }
 		}
-		const idxR = evaluate(positional[0]!, env)
+		const idxR = evaluate(positional[0]!, inside)
 		push(diagnostics, idxR.diagnostics)
 		const idx = idxR.value
 		if (typeof idx !== 'number') {
-			diagnostics.push(diag(ast, env, 'vector index must be a number'))
+			diagnostics.push(diag(ast, inside, 'vector index must be a number'))
 			return { value: UNIT, diagnostics }
 		}
 		const got = headValue[idx]
 		if (got === undefined) {
-			diagnostics.push(diag(ast, env, `vector index out of bounds: ${idx}`))
+			diagnostics.push(
+				diag(ast, inside, `vector index out of bounds: ${idx}`)
+			)
 			return { value: UNIT, diagnostics }
 		}
 		return { value: got, diagnostics }
@@ -818,19 +852,19 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	// Record → field access by string key.
 	if (isPlainRecord(headValue)) {
 		if (positional.length !== 1) {
-			diagnostics.push(diag(ast, env, 'record access expects one key'))
+			diagnostics.push(diag(ast, inside, 'record access expects one key'))
 			return { value: UNIT, diagnostics }
 		}
-		const keyR = evaluate(positional[0]!, env)
+		const keyR = evaluate(positional[0]!, inside)
 		push(diagnostics, keyR.diagnostics)
 		const key = keyR.value
 		if (typeof key !== 'string') {
-			diagnostics.push(diag(ast, env, 'record key must be a string'))
+			diagnostics.push(diag(ast, inside, 'record key must be a string'))
 			return { value: UNIT, diagnostics }
 		}
 		const got = (headValue as Record<string, unknown>)[key]
 		if (got === undefined) {
-			diagnostics.push(diag(ast, env, `record field not found: ${key}`))
+			diagnostics.push(diag(ast, inside, `record field not found: ${key}`))
 			return { value: UNIT, diagnostics }
 		}
 		return { value: got, diagnostics }
@@ -838,7 +872,14 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 
 	// Typed host function — per-arg static type check + cast.
 	if (isTypedHostFn(headValue)) {
-		return callTypedHostFn(headValue, positional, kwargs, env, ast, diagnostics)
+		return callTypedHostFn(
+			headValue,
+			positional,
+			kwargs,
+			inside,
+			ast,
+			diagnostics
+		)
 	}
 
 	// Type value used as a cast: (T value). One arg, runs through fits/default
@@ -846,21 +887,24 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	if (isTypeValue(headValue)) {
 		if (positional.length !== 1) {
 			diagnostics.push(
-				diag(ast, env, `${headValue.typeName} cast expects exactly one argument`)
+				diag(
+					ast,
+					inside,
+					`${headValue.typeName} cast expects exactly one argument`
+				)
 			)
 			return { value: headValue.default, diagnostics }
 		}
-		const r = evaluate(positional[0]!, env)
+		const r = evaluate(positional[0]!, inside)
 		push(diagnostics, r.diagnostics)
 		if (r.value === UNIT) {
-			// () slot → silent default fallback (per types.md).
 			return { value: headValue.default, diagnostics }
 		}
 		if (!headValue.fits(r.value)) {
 			diagnostics.push(
 				diag(
 					positional[0]!,
-					env,
+					inside,
 					`${headValue.typeName} doesn't accept ${describeType(r.value)} value`
 				)
 			)
@@ -873,13 +917,13 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	if (typeof headValue === 'function') {
 		const argValues: unknown[] = []
 		for (const argAst of positional) {
-			const r = evaluate(argAst, env)
+			const r = evaluate(argAst, inside)
 			argValues.push(r.value)
 			push(diagnostics, r.diagnostics)
 		}
 		if (kwargs && kwargs.size > 0) {
 			diagnostics.push(
-				diag(ast, env, 'cannot pass keyword arguments to a host function')
+				diag(ast, inside, 'cannot pass keyword arguments to a host function')
 			)
 		}
 		try {
@@ -889,12 +933,14 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 			return { value: result, diagnostics }
 		} catch (e) {
 			const message = e instanceof Error ? e.message : String(e)
-			diagnostics.push(diag(ast, env, `host function threw: ${message}`))
+			diagnostics.push(diag(ast, inside, `host function threw: ${message}`))
 			return { value: UNIT, diagnostics }
 		}
 	}
 
-	diagnostics.push(diag(ast, env, `cannot call ${describeType(headValue)}`))
+	diagnostics.push(
+		diag(ast, inside, `cannot call ${describeType(headValue)}`)
+	)
 	return { value: UNIT, diagnostics }
 }
 
