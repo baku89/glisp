@@ -8,6 +8,7 @@
  * idempotent: re-pasting it into the REPL yields the same value.
  */
 
+import { check as coreCheck } from '@core/check.js'
 import {
 	evaluate as coreEval,
 	IOAction,
@@ -84,6 +85,8 @@ export interface Session {
 	readonly run: (src: string) => ReplResult
 	/** Look up the inferred type of an expression. */
 	readonly typeOf: (src: string) => ReplResult
+	/** Static-check an expression — returns diagnostics only. */
+	readonly check: (src: string) => ReplResult
 	/** Reset the session env to a fresh prelude. */
 	readonly reset: () => void
 	/** Decide whether `src` looks structurally complete (for multi-line input). */
@@ -98,6 +101,7 @@ export function createSession(): Session {
 		bindings: () => collectNames(env),
 		run: src => runLine(src, env, runIO),
 		typeOf: src => typeOfLine(src, env),
+		check: src => checkLine(src, env),
 		reset: () => {
 			env = buildPrelude()
 		},
@@ -194,6 +198,23 @@ function runLine(
 		tokens: tokensForValue(r.value, env),
 		diagnostics,
 	}
+}
+
+function checkLine(src: string, env: Env): ReplResult {
+	let ast: AST
+	try {
+		ast = parse(src)
+	} catch (e) {
+		return { tokens: [], diagnostics: [parseErrorToDiagnostic(src, e)] }
+	}
+	const ds = coreCheck(ast, env)
+	if (ds.length === 0) {
+		return {
+			tokens: [{ kind: 'plain', text: '✓ no static type errors' }],
+			diagnostics: [],
+		}
+	}
+	return { tokens: [], diagnostics: ds.map(coreDiagnosticToView) }
 }
 
 function typeOfLine(src: string, env: Env): ReplResult {

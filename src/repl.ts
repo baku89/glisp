@@ -25,6 +25,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 
 import pc from 'picocolors'
 
+import { check } from './check.js'
 import {
 	evaluate,
 	IOAction,
@@ -323,6 +324,7 @@ const COMMAND_NAMES = [
 	':env',
 	':ast',
 	':type',
+	':check',
 	':doc',
 	':reset',
 	':help',
@@ -537,6 +539,7 @@ function handleCommand(
 					`    ${theme.keyword(':env')}              ${theme.hint('— list current top-level bindings')}`,
 					`    ${theme.keyword(':ast')}              ${theme.hint('— print the AST of the previous input')}`,
 					`    ${theme.keyword(':type')} ${theme.hint('[expr]')}     ${theme.hint('— infer the type of expr (or the previous input)')}`,
+					`    ${theme.keyword(':check')} ${theme.hint('[expr]')}    ${theme.hint('— static type-check expr (or the previous input)')}`,
 					`    ${theme.keyword(':doc')} ${theme.hint('<name>')}      ${theme.hint('— show a name\'s type and current value')}`,
 					`    ${theme.keyword(':reset')}            ${theme.hint('— restore the starter env')}`,
 					`    ${theme.keyword(':help')}             ${theme.hint('— show this help')}`,
@@ -641,6 +644,38 @@ function handleCommand(
 			} catch (e) {
 				if (e instanceof ParseError) {
 					output.write(formatParseError(args, e) + '\n')
+				} else {
+					output.write(
+						theme.error('  error') +
+							theme.hint(' · ') +
+							(e instanceof Error ? e.message : String(e)) +
+							'\n'
+					)
+				}
+			}
+			return env
+		}
+		case 'check': {
+			const exprSource = args !== '' ? args : lastSource
+			if (exprSource === null) {
+				output.write(theme.hint('  (no expression to check)') + '\n')
+				return env
+			}
+			try {
+				const ast = parse(exprSource)
+				const ds = check(ast, env)
+				if (ds.length === 0) {
+					output.write(
+						'  ' + theme.hint('✓ no static type errors') + '\n'
+					)
+				} else {
+					for (const d of ds) {
+						output.write(formatDiagnostic(d) + '\n')
+					}
+				}
+			} catch (e) {
+				if (e instanceof ParseError) {
+					output.write(formatParseError(exprSource, e) + '\n')
 				} else {
 					output.write(
 						theme.error('  error') +
