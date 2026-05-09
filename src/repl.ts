@@ -34,7 +34,7 @@ import {
 	isTypeValue,
 	toAst,
 } from './eval.js'
-import { expand } from './expand.js'
+import { expandLadder } from './expand.js'
 import { infer } from './infer.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
@@ -666,8 +666,20 @@ function handleCommand(
 			}
 			try {
 				const ast = parse(exprSource)
-				const expanded = expand(ast, env)
-				output.write('  ' + theme.hint(print(expanded)) + '\n')
+				const ladder = expandLadder(ast, env)
+				if (ladder.length === 1) {
+					output.write(
+						'  ' +
+							theme.hint('(no expansion — already a fixed point)') +
+							'\n'
+					)
+				} else {
+					for (let i = 0; i < ladder.length; i++) {
+						const arrow =
+							i === 0 ? theme.hint('  · ') : theme.hint('  → ')
+						output.write(arrow + print(ladder[i]!) + '\n')
+					}
+				}
 			} catch (e) {
 				if (e instanceof ParseError) {
 					output.write(formatParseError(exprSource, e) + '\n')

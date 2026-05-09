@@ -39,6 +39,45 @@ import {
 import { evaluate, isGlispClosure, toAst } from './eval.js'
 import type { Env } from './types.js'
 
+/**
+ * Iterate `expand` from `ast` until a fixed point is reached. Returns the
+ * sequence of intermediate ASTs (the "abstraction ladder" per
+ * docs/spec/eval.md), starting with the input. The last entry is always
+ * the fixed point — calling `expand` again yields the same node.
+ *
+ * `maxSteps` guards against pathologically slow but non-cyclic expansion.
+ * Defaults to 64.
+ */
+export function expandLadder(
+	ast: AST,
+	env: Env,
+	options?: { readonly maxSteps?: number }
+): ReadonlyArray<AST> {
+	const max = options?.maxSteps ?? 64
+	const ladder: AST[] = [ast]
+	let current = ast
+	for (let i = 0; i < max; i++) {
+		const next = expand(current, env)
+		if (next === current) break
+		ladder.push(next)
+		current = next
+	}
+	return ladder
+}
+
+/**
+ * Convenience: same as `expandLadder(ast, env).at(-1)` — only the
+ * fully-expanded fixed point.
+ */
+export function expandAll(
+	ast: AST,
+	env: Env,
+	options?: { readonly maxSteps?: number }
+): AST {
+	const ladder = expandLadder(ast, env, options)
+	return ladder[ladder.length - 1]!
+}
+
 export function expand(ast: AST, env: Env): AST {
 	if (ast.kind !== 'call') return ast
 

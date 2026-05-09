@@ -17,7 +17,7 @@ import {
 	isTypeValue,
 	toAst,
 } from '@core/eval.js'
-import { expand as coreExpand } from '@core/expand.js'
+import { expandLadder as coreExpandLadder } from '@core/expand.js'
 import { infer as coreInfer } from '@core/infer.js'
 import { lex } from '@core/lex.js'
 import { parse, ParseError } from '@core/parse.js'
@@ -228,9 +228,24 @@ function expandLine(src: string, env: Env): ReplResult {
 	} catch (e) {
 		return { tokens: [], diagnostics: [parseErrorToDiagnostic(src, e)] }
 	}
-	const expanded = coreExpand(ast, env)
+	const ladder = coreExpandLadder(ast, env)
+	if (ladder.length === 1) {
+		return {
+			tokens: [
+				{
+					kind: 'plain',
+					text: '(no expansion — already a fixed point)',
+				},
+			],
+			diagnostics: [],
+		}
+	}
 	const out: Token[] = []
-	tokensForAst(expanded, out)
+	for (let i = 0; i < ladder.length; i++) {
+		if (i > 0) out.push({ kind: 'plain', text: '\n  → ' })
+		else out.push({ kind: 'plain', text: '· ' })
+		tokensForAst(ladder[i]!, out)
+	}
 	return { tokens: out, diagnostics: [] }
 }
 
