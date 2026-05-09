@@ -33,6 +33,7 @@ The `g` namespace contains all the builders for ASTs and values. Two flavors liv
 | ------------------------------------ | ----------------------------- | ----------- | ------------------------------------------------------------- |
 | `g.parse(source)`                    | AST                           | AST         | `g.parse('(+ 1 2)')`                                          |
 | `g.lit(jsValue)`                     | literal AST                   | AST         | `g.lit(42)` → `42`                                            |
+| `g.host(jsValue)`                    | host-value AST                | AST         | `g.host(myHostFn)` — see [g.lit vs g.host](#glit-vs-ghost)    |
 | `g.sym(name)`                        | symbol AST                    | AST         | `g.sym('+')` → `+`                                            |
 | `g.call(head, ...args)`              | application AST               | AST         | `g.call(g.sym('+'), g.lit(1), g.lit(2))` → `(+ 1 2)`          |
 | `g.vec(...elements)`                 | vector AST                    | AST         | `g.vec(g.lit(1), g.lit(2))` → `[1 2]`                         |
@@ -110,6 +111,33 @@ Inside the callback, type variables are first-class values usable wherever a val
 ### `g.lit` vs `g.sym`
 
 `g.lit` distinguishes JS primitive types automatically: `g.lit(42)` produces a number literal, `g.lit("hi")` a string literal, `g.lit(true)` a boolean literal. It always wraps a value, never an identifier — for identifiers, use `g.sym`.
+
+### `g.lit` vs `g.host`
+
+`g.lit` accepts only **source-expressible** primitives — `number`, `string`, `boolean`, the unit literal — values that have a textual form in Glisp source. A `lit` AST round-trips through `g.print` / `g.parse` losslessly.
+
+`g.host(value)` accepts an **arbitrary host-side value**: typed host functions (`g.def`-bound), type values (`g.number`, `g.bottom`, `g.enum(...)`), `g.extern`-tagged values, IO actions returned by `def` / `undef`, opaque JS objects, and so on. The resulting `host` AST evaluates to the value as-is, but `g.print` cannot round-trip it to source — it falls back to a label (the type's name for type values, `<host-fn>` for typed host fns, `<host-value>` otherwise). Re-pasting the printed form into a parser will not reproduce the value; identity is only preserved within a single process.
+
+The two are not interchangeable. `g.host(42)` evaluates fine but loses the literal form. `g.lit(myHostFn)` is a type error.
+
+When the host value **carries its own type metadata**, `g.host` alone is sufficient — the evaluator and `g.expectedTypeAt` / `g.toAst` pick up the signature from the value's brand. This applies to:
+
+- typed host functions returned by `g.def(fnType, jsFn)` — carry `paramTypes`, `returnType`, optional `paramNames` and `variadicTail`
+- type values — `g.number`, `g.string`, `g.enum(...)`, `g.refine(...)`, `g.extern(...)`, etc.
+- Glisp closures surfaced from earlier evaluation
+- `g.overload(fn1, fn2, ...)` values
+
+When the host value is **untyped** — a plain JS function or an arbitrary object — wrap it with `g.def(fnType, jsFn)` (or another typed-fn factory) before passing to `g.host`, otherwise `:type` will report `?` and the static checker has no signature to verify against.
+
+```ts
+// preferred — typed host fn carries its signature
+g.host(g.def(g.fn({ n: g.number }).returns(g.number), n => n + 1))
+
+// works at runtime, but `:type` is `?` and check sees no constraint
+g.host((n: number) => n + 1)
+```
+
+The takeaway: `g.lit` is for source-expressible primitives, `g.host` is for everything else, and "everything else" should ideally be self-describing (typed) so the inferer has something to chew on.
 
 ### Metadata
 
@@ -281,13 +309,14 @@ Conversion strategy by value kind:
 
 | Value kind          | Reified AST                                                       |
 | ------------------- | ----------------------------------------------------------------- |
-| `number`/`string`/`boolean`/`unit` | corresponding literal                              |
+| `number`/`string`/`boolean`/`unit` | corresponding `lit`                                |
 | vector              | `[...]` AST, elements reified recursively                          |
 | record              | `{...}` AST, field values reified recursively                      |
-| Closure             | the function literal AST stored in the closure                     |
-| Type                | a bare symbol if env binds it; otherwise built structurally (`[...T]`, `{x: T}`, `(=> (a: T): R)`, etc.) |
+| Closure             | a bare symbol if env binds it; otherwise the function literal AST stored in the closure |
+| Type / typed host fn | a bare symbol if env binds it; otherwise a `host` node            |
 | AST handle (`ast`-typed value) | a quasiquoted form `` `expr ``                          |
 | Extern value (`g.extern`-typed) | the value of the extern type's `toAst` option (see below) |
+| anything else       | a `host` node wrapping the value verbatim — preserves identity within a process |
 
 When multiple bindings in `env` resolve to the same value, the implementation picks the first found by lookup order; the choice is otherwise unspecified.
 

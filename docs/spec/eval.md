@@ -53,6 +53,7 @@ The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via build
 | `kind`     | Node                 | Notes                                                         |
 | ---------- | -------------------- | ------------------------------------------------------------- |
 | `'lit'`    | literal              | a `number`, `string`, `boolean`, or the `unit` value          |
+| `'host'`   | host-value embed     | wraps an arbitrary host-side value (typed host fn, type value, IOAction, opaque JS object). Eval yields the value as-is; `print` cannot round-trip it to source. Used by `g.host`. |
 | `'sym'`    | symbol               | a bare identifier referring to a binding                       |
 | `'call'`   | application          | `(head arg0 arg1 ...)`                                        |
 | `'access'` | accessor sugar       | `target.key`. Same eval semantics as `Call(target, [Lit(key)])`; distinct kind for source round-trip |
