@@ -17,13 +17,16 @@ import {
 	evaluate,
 	type GlispClosure,
 	isGlispClosure,
+	isOverload,
 	isTypedHostFn,
 	isTypeValue,
 	lookupBareName,
 	makeFunctionType,
 	makeType,
+	type OverloadValue,
 	type TypedHostFn,
 	type TypeValue,
+	typeFits,
 } from './eval.js'
 import { type AST, type Env, UNIT } from './types.js'
 
@@ -39,6 +42,7 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 			// Useful at REPL `:type` prompts that resolve a name to a value.
 			if (isTypedHostFn(v)) return functionTypeOf(v)
 			if (isGlispClosure(v)) return closureTypeOf(v)
+			if (isOverload(v)) return overloadTypeOf(v)
 			if (isTypeValue(v)) return v
 			return null
 		}
@@ -54,6 +58,7 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 			if (isTypeValue(v)) return v
 			if (isTypedHostFn(v)) return functionTypeOf(v)
 			if (isGlispClosure(v)) return closureTypeOf(v)
+			if (isOverload(v)) return overloadTypeOf(v)
 			// Otherwise fall back to static inference on the bound AST
 			// (covers primitive literals like `x = 42`).
 			return infer(target.ast, target.env)
@@ -67,6 +72,11 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 					headValue.capturedEnv
 				).value
 				if (isTypeValue(rt)) return rt
+			}
+			if (isOverload(headValue)) {
+				// Use the first variant whose param types statically fit
+				// the call's args; fall back to the union of return types.
+				return overloadCallReturnType(headValue, ast, env)
 			}
 			return null
 		}
@@ -156,6 +166,67 @@ function closureFnLikeType(
 
 const fnTypeCache: WeakMap<TypedHostFn, TypeValue> = new WeakMap()
 const closureTypeCache: WeakMap<GlispClosure, TypeValue> = new WeakMap()
+const overloadTypeCache: WeakMap<OverloadValue, TypeValue> = new WeakMap()
+
+/**
+ * Build a TypeValue describing an overload — its name lists each
+ * variant's signature separated by `|`. Useful for `:type someOverload`.
+ */
+function overloadTypeOf(o: OverloadValue): TypeValue {
+	const cached = overloadTypeCache.get(o)
+	if (cached !== undefined) return cached
+	const variantNames = o.variants.map(v => {
+		if (isTypedHostFn(v)) return functionTypeOf(v).typeName
+		return closureTypeOf(v).typeName
+	})
+	const t = makeType(
+		`(overload ${variantNames.join(' ')})`,
+		v => typeof v === 'function',
+		UNIT
+	)
+	overloadTypeCache.set(o, t)
+	return t
+}
+
+/**
+ * Static return-type of an overload call: pick the first variant whose
+ * param types fit the call's inferred arg types. Falls back to the
+ * first variant's return type (so `:type` still surfaces something).
+ */
+function overloadCallReturnType(
+	o: OverloadValue,
+	ast: import('./types.js').CallAST,
+	env: Env
+): TypeValue | null {
+	for (const variant of o.variants) {
+		if (isTypedHostFn(variant)) {
+			if (
+				ast.args.length !== variant.paramTypes.length &&
+				variant.variadicTail === undefined
+			)
+				continue
+			let ok = true
+			for (let i = 0; i < ast.args.length; i++) {
+				const expected =
+					i < variant.paramTypes.length
+						? variant.paramTypes[i]!
+						: variant.variadicTail!
+				const inferred = infer(ast.args[i]!, env)
+				if (inferred === null) continue
+				if (!typeFits(inferred, expected)) {
+					ok = false
+					break
+				}
+			}
+			if (ok) return variant.returnType
+		}
+	}
+	const first = o.variants[0]
+	if (first === undefined) return null
+	if (isTypedHostFn(first)) return first.returnType
+	const rt = evaluate(first.ast.returnType, first.capturedEnv).value
+	return isTypeValue(rt) ? rt : null
+}
 
 function resolveTypeFromEnv(env: Env, name: string): TypeValue | null {
 	const target = lookupBareName(name, env)

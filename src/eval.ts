@@ -309,6 +309,29 @@ export function isTypedHostFn(v: unknown): v is TypedHostFn {
 }
 
 // -----------------------------------------------------------------------------
+// Overload — multi-variant dispatch
+// -----------------------------------------------------------------------------
+
+/**
+ * A multi-variant function value: a sequence of variants (typed host fns
+ * or Glisp closures) where the first one whose declared parameter types
+ * match the call's arg types is chosen.
+ *
+ * Created by the `overload` special form. `eval` dispatches by walking
+ * the call's args through `infer` + `typeFits` against each variant's
+ * declared param types in order; the first match wins.
+ */
+export class OverloadValue {
+	constructor(
+		public readonly variants: ReadonlyArray<TypedHostFn | GlispClosure>
+	) {}
+}
+
+export function isOverload(v: unknown): v is OverloadValue {
+	return v instanceof OverloadValue
+}
+
+// -----------------------------------------------------------------------------
 // IO action — deferred effect
 // -----------------------------------------------------------------------------
 
@@ -738,6 +761,8 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 				return evalDef(ast, env)
 			case 'undef':
 				return evalUndef(ast, env)
+			case 'overload':
+				return evalOverload(ast, env)
 		}
 	}
 
@@ -754,6 +779,19 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	// Glisp closure → push body frame, bind params lazily.
 	if (isGlispClosure(headValue)) {
 		return applyClosure(headValue, positional, kwargs, env, ast, diagnostics)
+	}
+
+	// Overload → pick the first variant whose declared param types fit
+	// the inferred arg types, then dispatch to it.
+	if (isOverload(headValue)) {
+		return dispatchOverload(
+			headValue,
+			positional,
+			kwargs,
+			env,
+			ast,
+			diagnostics
+		)
 	}
 
 	// Vector → element access by integer index.
@@ -1258,6 +1296,164 @@ function matchValue(value: unknown, pattern: unknown): boolean {
 	}
 	// Otherwise: structural equality.
 	return value === pattern
+}
+
+/**
+ * `(overload e1 e2 ...)` — bundles multiple function variants into a
+ * single dispatcher value. Each `eK` must evaluate to a typed host fn
+ * or a Glisp closure. The `OverloadValue` returned here gets handled
+ * specially in `evalCall`, which selects the first variant whose
+ * declared param types match the call's arg types.
+ *
+ * Variants are tried in order, so order them most-specific first.
+ */
+function evalOverload(ast: CallAST, env: Env): EvalResult {
+	if (ast.args.length === 0) {
+		return fail(ast, env, 'overload requires at least one variant')
+	}
+	const variants: Array<TypedHostFn | GlispClosure> = []
+	const diagnostics: Diagnostic[] = []
+	for (const argAst of ast.args) {
+		const r = evaluate(argAst, env)
+		push(diagnostics, r.diagnostics)
+		const v = r.value
+		if (isTypedHostFn(v) || isGlispClosure(v)) {
+			variants.push(v)
+		} else {
+			diagnostics.push(
+				diag(
+					argAst,
+					env,
+					'overload variant must be a function (typed host fn or closure)'
+				)
+			)
+		}
+	}
+	return { value: new OverloadValue(variants), diagnostics }
+}
+
+/**
+ * Pick the first variant whose declared parameter types fit the
+ * (statically inferred) types of the call's arguments. Falls back to
+ * a diagnostic + `()` when no variant matches.
+ */
+function dispatchOverload(
+	o: OverloadValue,
+	positional: ReadonlyArray<AST>,
+	kwargs: ReadonlyMap<string, AST> | undefined,
+	env: Env,
+	site: AST,
+	priorDiagnostics: ReadonlyArray<Diagnostic>
+): EvalResult {
+	const diagnostics = [...priorDiagnostics]
+	const argTypes = positional.map(a => infer(a, env))
+
+	for (const variant of o.variants) {
+		if (variantMatches(variant, positional, argTypes, env)) {
+			if (isTypedHostFn(variant)) {
+				return callTypedHostFn(
+					variant,
+					positional,
+					kwargs,
+					env,
+					site,
+					diagnostics
+				)
+			}
+			return applyClosure(
+				variant,
+				positional,
+				kwargs,
+				env,
+				site,
+				diagnostics
+			)
+		}
+	}
+
+	const sigs = o.variants
+		.map(v => describeVariantSignature(v))
+		.join(' / ')
+	const argSigs = argTypes
+		.map(t => (t === null ? '?' : t.typeName))
+		.join(' ')
+	diagnostics.push(
+		diag(
+			site,
+			env,
+			`no overload matches arguments (${argSigs}); variants: ${sigs}`
+		)
+	)
+	return { value: UNIT, diagnostics }
+}
+
+function variantMatches(
+	variant: TypedHostFn | GlispClosure,
+	positional: ReadonlyArray<AST>,
+	argTypes: ReadonlyArray<TypeValue | null>,
+	env: Env
+): boolean {
+	if (isTypedHostFn(variant)) {
+		const variadic = variant.variadicTail !== undefined
+		if (!variadic && positional.length !== variant.paramTypes.length) {
+			return false
+		}
+		if (variadic && positional.length < variant.paramTypes.length) {
+			return false
+		}
+		for (let i = 0; i < positional.length; i++) {
+			const expected =
+				i < variant.paramTypes.length
+					? variant.paramTypes[i]!
+					: variant.variadicTail!
+			const inferred = argTypes[i]
+			if (inferred === null || inferred === undefined) continue
+			if (!typeFits(inferred, expected)) return false
+		}
+		return true
+	}
+	// Closure
+	const fnAst = variant.ast
+	const variadic = fnAst.params.some(p => p.variadic)
+	if (
+		!variadic &&
+		positional.length !== fnAst.params.filter(p => !p.optional).length &&
+		positional.length !== fnAst.params.length
+	) {
+		// Allow either "exact param count" or "all required". Optional
+		// parameters can be skipped.
+		const required = fnAst.params.filter(p => !p.optional).length
+		if (positional.length < required || positional.length > fnAst.params.length) {
+			return false
+		}
+	}
+	for (let i = 0; i < positional.length; i++) {
+		const param = fnAst.params[i] ?? fnAst.params[fnAst.params.length - 1]
+		if (param === undefined) continue
+		const t = evaluate(param.type, variant.capturedEnv).value
+		if (!isTypeValue(t)) continue
+		const inferred = argTypes[i]
+		if (inferred === null || inferred === undefined) continue
+		if (!typeFits(inferred, t)) return false
+	}
+	void env
+	return true
+}
+
+function describeVariantSignature(
+	variant: TypedHostFn | GlispClosure
+): string {
+	if (isTypedHostFn(variant)) {
+		const params = variant.paramTypes.map((t, i) => {
+			const name = variant.paramNames?.[i] ?? `_${i}`
+			return `${name}: ${t.typeName}`
+		})
+		if (variant.variadicTail !== undefined) {
+			params.push(`...rest: ${variant.variadicTail.typeName}`)
+		}
+		return `(=> (${params.join(' ')}): ${variant.returnType.typeName})`
+	}
+	return variant.ast.print()
 }
 
 /**

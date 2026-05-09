@@ -906,6 +906,78 @@ describe('evaluate — special form def (IO action)', () => {
 	})
 })
 
+describe('evaluate — overload', () => {
+	const numberType = makeType('number', v => typeof v === 'number', 0)
+	const stringType = makeType('string', v => typeof v === 'string', '')
+	const booleanType = makeType(
+		'boolean',
+		v => typeof v === 'boolean',
+		false
+	)
+	const topType = makeType('_', () => true, UNIT)
+
+	const baseEnv = () =>
+		makeTopLevel({
+			number: lit(numberType as never),
+			string: lit(stringType as never),
+			boolean: lit(booleanType as never),
+			_: lit(topType as never),
+			'sq-num': lit(
+				makeTypedFn(
+					[numberType],
+					numberType,
+					n => (n as number) * (n as number)
+				) as never
+			),
+			'dup-str': lit(
+				makeTypedFn([stringType], stringType, s =>
+					(s as string) + (s as string)
+				) as never
+			),
+		})
+
+	it('dispatches to the matching variant by arg type', () => {
+		const env = baseEnv()
+		;(evaluate(parse('(def "f" (overload sq-num dup-str))'), env)
+			.value as IOAction).run()
+		expect(evaluate(parse('(f 4)'), env).value).toBe(16)
+		expect(evaluate(parse('(f "ab")'), env).value).toBe('abab')
+	})
+
+	it('emits a no-match diagnostic when no variant fits', () => {
+		const env = baseEnv()
+		;(evaluate(parse('(def "f" (overload sq-num dup-str))'), env)
+			.value as IOAction).run()
+		const r = evaluate(parse('(f true)'), env)
+		expect(
+			r.diagnostics.some(d => d.message.includes('no overload matches'))
+		).toBe(true)
+	})
+
+	it('ignores non-fn variants with a diagnostic at construction time', () => {
+		const env = baseEnv()
+		const r = evaluate(parse('(overload sq-num 42)'), env)
+		expect(
+			r.diagnostics.some(d =>
+				d.message.includes('overload variant must be')
+			)
+		).toBe(true)
+	})
+
+	it('dispatch order: first matching variant wins', () => {
+		// Two variants both accept (top): the first one is the one
+		// chosen.
+		const env = baseEnv()
+		;(evaluate(
+			parse(
+				'(def "g" (overload (=> (x: _): _ "first") (=> (x: _): _ "second")))'
+			),
+			env
+		).value as IOAction).run()
+		expect(evaluate(parse('(g 1)'), env).value).toBe('first')
+	})
+})
+
 // -----------------------------------------------------------------------------
 // Vector / record callable
 // -----------------------------------------------------------------------------
