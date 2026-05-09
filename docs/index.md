@@ -7,12 +7,12 @@ actions:
     link: /guide
 
 features:
-  - title: Made to be embedded
-    details: Built as a scripting layer for creative software (design tools, motion editors, generative pipelines). Hosts expose typed bindings; Glisp glues them.
-  - title: Bidirectional by construction
-    details: The CST round-trips with whitespace and comments. A GUI block-editor, a direct-manipulation canvas, and a text editor can all touch the same file without fighting each other.
-  - title: Failure as data
-    details: Evaluation never throws. Type slots silently fall back to defaults; mismatches surface as side-channel diagnostics. The host always has something to draw.
+  - title: Hosted, not standalone
+    details: Glisp lives inside its host language (TypeScript today). No new VM to ship. The host provides the runtime, the I/O, and the typed bindings; Glisp glues them into a small programmable surface.
+  - title: For creative software
+    details: Built to script design tools, motion editors, and generative pipelines. The same project file can be edited as code, as visual blocks, or by direct manipulation on a canvas, without the editing modes fighting each other.
+  - title: Failure flows into ()
+    details: Evaluation never throws. Anything that fails (a missing name, a type mismatch, an arity error) yields the unit value (), which typed slots silently coerce to their declared default. The host always has something to draw.
 ---
 
 <div class="badges" style="margin: 1.2em 0">
@@ -65,12 +65,27 @@ Creative tools want code, blocks, and direct manipulation to be **views of the s
 
 S-expressions also keep parsing trivial, which matters when the host needs to embed an evaluator and ship it across browsers, plugins, and servers.
 
+## Hosted on TypeScript
+
+Glisp is a **guest language**. It does not have a runtime, a build system, or an I/O story of its own. The host application *is* the runtime: it loads Glisp source, evaluates it, calls into Glisp values from JavaScript, and exposes its own values back to Glisp through `def` / `extern` / typed bindings. A Glisp value is a JavaScript value plus a thin layer of brands and metadata.
+
+The practical consequence is that adopting Glisp does not mean adopting a second VM. A TypeScript app integrates Glisp as a library, types flow naturally between the two sides, and the host stays in charge of effects and lifetimes.
+
+## `()` is where failure goes
+
+Glisp does not throw on user errors. Every failure path (a name that does not resolve, a path that runs off the end, a missing positional argument, a type mismatch) returns `()`, the unit value. `()` is a real Glisp value with a real type (`unit`), but it is treated specially at typed boundaries:
+
+1. A typed slot that receives `()` substitutes the slot's declared default and continues evaluation.
+2. Diagnostics about *why* `()` appeared accumulate on the side, attached to the offending source range.
+
+This means a half-written program is still a working program. The canvas keeps rendering, sliders keep responding, the type panel keeps showing what the next slot expects. The user fixes the diagnostics at their own pace.
+
 ## Why these specific design choices?
 
 Every core decision maps to a problem creative software hits:
 
 - **CST that preserves trivia.** GUI edits and text edits round-trip; comments and formatting survive both.
-- **Evaluation never throws.** Mid-edit programs always have a value the canvas can render. Type mismatches accumulate as diagnostics, not exceptions.
+- **`()` as the failure sink.** Mid-edit programs always have a value the canvas can render. Type mismatches accumulate as diagnostics, not exceptions.
 - **Parametric `(IO T)` and structural function types.** Host effects can be typed precisely without forcing a Haskell-shaped type system on the user.
 - **Path-based references (`./key`, `../arg`).** The GUI can wire nodes together by structural address, no name invention required.
 - **`expand` / abstraction ladder.** A host can show *any* rung between source and result, so a designer can drill from a high-level macro down to its expansion in real time.

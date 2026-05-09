@@ -89,13 +89,13 @@ export default defineUserConfig({
 			lang: 'en-US',
 			title: 'Glisp',
 			description:
-				'A small embeddable language for creative software — designed to host design tools, motion editors, and generative pipelines.',
+				'A small guest language for creative software. Hosted on TypeScript, embedded in design tools, motion editors, and generative pipelines.',
 		},
 		'/ja/': {
 			lang: 'ja-JP',
 			title: 'Glisp',
 			description:
-				'クリエイティブソフトウェアに埋め込むための小さな言語 — デザインツール・モーションエディタ・ジェネラティブパイプラインを動かすためのコア',
+				'クリエイティブソフトに組み込むための小さなゲスト言語。TypeScript の上に乗り、デザインツール・モーションエディタ・ジェネラティブパイプラインを動かすコア',
 		},
 	},
 	bundler: viteBundler({
