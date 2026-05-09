@@ -1458,7 +1458,8 @@ import {
  * - AST handle → `` `expr `` (quasiquote wrap)
  * - type value → bare symbol if env binds the name, else falls back to a
  *   sym with the type's stored name
- * - host JS function (non-type) → wrapped as a literal carrying the function
+ * - typed host fn → bare symbol if env binds the name, else opaque literal
+ * - other JS function → bare symbol if env binds the name, else opaque literal
  *
  * Spec: docs/spec/host-api.md — `g.toAst`
  */
@@ -1475,6 +1476,10 @@ export function toAst(value: unknown, env: Env): AST {
 		return new LitASTClass(UNIT)
 	}
 	if (isGlispClosure(value)) {
+		// Prefer a bound name when available — re-evaluating a bare symbol
+		// resolves through the binding rather than rebuilding the AST.
+		const name = nameForBoundValue(env, value)
+		if (name !== null) return new SymASTClass(name)
 		return value.ast
 	}
 	if (value instanceof ASTNodeClass) {
@@ -1488,9 +1493,12 @@ export function toAst(value: unknown, env: Env): AST {
 		return new SymASTClass(name ?? value.typeName)
 	}
 	if (typeof value === 'function') {
-		// Host JS function with no Glisp metadata. Wrap as a literal so the
-		// runtime can still hand the function back; not idempotent through
-		// print/parse but preserves identity within a process.
+		// Typed or untyped host fn: prefer a bound name in env.
+		const name = nameForBoundValue(env, value)
+		if (name !== null) return new SymASTClass(name)
+		// Otherwise wrap as a literal carrying the function — not
+		// idempotent through print/parse but preserves identity within
+		// a process so the value survives a g.toAst → g.eval round trip.
 		return new LitASTClass(value as never)
 	}
 	if (typeof value === 'object') {

@@ -25,13 +25,31 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 
 import pc from 'picocolors'
 
-import { evaluate, IOAction, isGlispClosure, isTypeValue } from './eval.js'
+import {
+	evaluate,
+	IOAction,
+	isGlispClosure,
+	isTypedHostFn,
+	isTypeValue,
+	toAst,
+} from './eval.js'
 import { infer } from './infer.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
-import { type Diagnostic, type Env, type Frame, UNIT } from './types.js'
+import {
+	type AST,
+	type Diagnostic,
+	type Env,
+	type Frame,
+	LitAST,
+	RecordAST,
+	SpreadAST,
+	SymAST,
+	UNIT,
+	VecAST,
+} from './types.js'
 
 // -----------------------------------------------------------------------------
 // Theme
@@ -74,31 +92,85 @@ function welcome(): string {
 // Value formatting
 // -----------------------------------------------------------------------------
 
-function formatValue(v: unknown): string {
-	if (v === UNIT) return theme.unit('()')
-	if (v === null) return theme.unit('null')
-	if (v === undefined) return theme.unit('undefined')
-	if (typeof v === 'string') return theme.string(JSON.stringify(v))
-	if (typeof v === 'number') return theme.number(String(v))
-	if (typeof v === 'boolean') return theme.boolean(String(v))
-	if (isTypeValue(v)) return theme.type(v.typeName)
+/**
+ * Render a value as Glisp source whose evaluation reproduces the value —
+ * the same idempotence `g.toAst` provides. Re-pasting any output line
+ * back into the REPL yields an equal value.
+ *
+ * - `+`, `number`, `_` print as the bare symbol if the env binds them.
+ * - Closures print as their function-literal source.
+ * - `IOAction` is the only intentional exception — it represents an
+ *   already-performed effect with no expression that re-creates it, so
+ *   it shows as `<IO description>` in dim styling.
+ *
+ * Coloring works on the AST shape: literal kinds get type-specific
+ * colors, brackets are punct, symbols are keyword.
+ */
+function formatValue(v: unknown, env: Env): string {
 	if (v instanceof IOAction) return theme.type(`<IO ${v.description}>`)
-	if (isGlispClosure(v)) return theme.closure(`<closure ${print(v.ast)}>`)
-	if (typeof v === 'function') return theme.hostfn('<host-fn>')
-	if (Array.isArray(v)) {
-		return (
-			theme.punct('[') +
-			v.map(formatValue).join(' ') +
-			theme.punct(']')
-		)
+	// Untyped host fn that toAst can't roundtrip: try to find a name
+	// from env, otherwise fall back to a generic marker.
+	if (
+		typeof v === 'function' &&
+		!isTypedHostFn(v) &&
+		!isTypeValue(v) &&
+		!isGlispClosure(v)
+	) {
+		const ast = toAst(v, env)
+		if (ast.kind === 'sym') return theme.keyword(ast.name)
+		return theme.hostfn('<host-fn>')
 	}
-	if (typeof v === 'object') {
-		const entries = Object.entries(v as Record<string, unknown>).map(
-			([k, x]) => `${theme.keyword(k)}${theme.punct(':')} ${formatValue(x)}`
-		)
-		return theme.punct('{') + entries.join(' ') + theme.punct('}')
+	return formatAst(toAst(v, env))
+}
+
+/**
+ * Color-aware AST printer. Mirrors `ast.print()` but applies theme
+ * colors token by token. Nested ASTs recurse so coloring is consistent
+ * across composite forms.
+ */
+function formatAst(ast: AST): string {
+	switch (ast.kind) {
+		case 'lit': {
+			const v = (ast as LitAST).value
+			if (v === UNIT) return theme.unit('()')
+			if (typeof v === 'string') return theme.string(JSON.stringify(v))
+			if (typeof v === 'number') return theme.number(String(v))
+			if (typeof v === 'boolean') return theme.boolean(String(v))
+			return ast.print()
+		}
+		case 'sym':
+			return theme.keyword((ast as SymAST).name)
+		case 'vec': {
+			const elems = (ast as VecAST).elements.map(formatAst).join(' ')
+			return theme.punct('[') + elems + theme.punct(']')
+		}
+		case 'record': {
+			const r = ast as RecordAST
+			const parts = r.fields.map(entry => {
+				if (entry instanceof SpreadAST) {
+					return theme.punct('...') + formatAst(entry.expr)
+				}
+				const [k, val] = entry
+				return (
+					theme.keyword(k) + theme.punct(':') + ' ' + formatAst(val)
+				)
+			})
+			return theme.punct('{') + parts.join(' ') + theme.punct('}')
+		}
+		case 'fn':
+			// Function literal — render whole signature in closure color.
+			return theme.closure(ast.print())
+		case 'quote':
+			return theme.punct('`') + formatAst(ast.expr)
+		case 'unquote':
+			return theme.punct('~') + formatAst(ast.expr)
+		case 'spread':
+			return theme.punct('...') + formatAst(ast.expr)
+		case 'splice':
+			return theme.punct('...~') + formatAst(ast.expr)
+		default:
+			return ast.print()
 	}
-	return String(v)
 }
 
 // -----------------------------------------------------------------------------
@@ -414,7 +486,7 @@ async function main(): Promise<void> {
 					output.write(formatDiagnostic(d) + '\n')
 				}
 			} else {
-				output.write(formatValue(r.value) + '\n')
+				output.write(formatValue(r.value, env) + '\n')
 			}
 			for (const d of r.diagnostics) {
 				output.write(formatDiagnostic(d) + '\n')
@@ -564,7 +636,7 @@ function handleCommand(
 						' ' +
 						theme.type(t === null ? '?' : t.typeName)
 				)
-				lines.push('  ' + theme.hint('=') + ' ' + formatValue(r.value))
+				lines.push('  ' + theme.hint('=') + ' ' + formatValue(r.value, env))
 				output.write(lines.map(l => '  ' + l).join('\n') + '\n')
 			} catch (e) {
 				if (e instanceof ParseError) {
