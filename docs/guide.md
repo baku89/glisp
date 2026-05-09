@@ -22,8 +22,8 @@ The REPL prints prompts as `glisp>`. Top-level expressions evaluate immediately;
 "hello"             ;; string
 true  false         ;; boolean
 ()                  ;; unit
-_                   ;; top  — accepts anything
-!                   ;; bottom — accepts nothing
+_                   ;; top  (accepts anything)
+!                   ;; bottom (accepts nothing)
 ```
 
 ## Calls
@@ -80,11 +80,11 @@ Types are first-class values. The prelude binds `number`, `string`, `boolean`, `
 ;; Enumeration of literal members
 (def "Color" (enum "red" "green" "blue"))
 
-;; Refinement — a base type narrowed by a predicate, with a default
+;; Refinement: a base type narrowed by a predicate, with a default
 (def "Pos"
   (refine number 1 (=> (n: number): boolean (> n 0))))
 
-;; Parametric IO — IO that produces a number when forced
+;; Parametric IO: an IO that produces a number when forced
 (IO number)            ;; → (IO number)  (a type value)
 ```
 
@@ -114,7 +114,7 @@ The `@` form replaces the older "types are callable" cast. A bare `(T v)` is rej
   _       "?")
 ```
 
-Like everything else, `?` does not throw — if no clause matches and there's no default, the result is `()`.
+Like everything else, `?` does not throw. If no clause matches and there's no default, the result is `()`.
 
 ## Pipe: `|>`
 
@@ -143,7 +143,7 @@ Curly braces with `name = expr` pairs introduce local bindings; the trailing for
 ;; → 230
 ```
 
-Bindings are self-referential and can reference each other in any order — useful for recursive definitions.
+Bindings are self-referential and can reference each other in any order, which is useful for recursive definitions.
 
 ## Quasiquote and macros
 
@@ -153,10 +153,10 @@ Back-tick `` ` `` quotes; `~` unquotes; `...~` splices a vector into a list-buil
 (def "twice"
   (=> (x: number): _ `(* 2 ~x)))
 
-(twice 5)              ;; expand step: `(* 2 5) — evaluates to 10
+(twice 5)              ;; expand step: `(* 2 5), evaluates to 10
 ```
 
-The `expand` operation is one transparent step on the abstraction ladder — see the [evaluation spec](./spec/eval.md) for how `expand` and `eval` relate.
+The `expand` operation is one transparent step on the abstraction ladder. See the [evaluation spec](./spec/eval.md) for how `expand` and `eval` relate.
 
 ## Diagnostics
 
@@ -168,10 +168,10 @@ Glisp never throws on user errors. Type mismatches, unresolved names, and arity 
 ;; diagnostics: type mismatch: expected number, got string  (×2)
 ```
 
-This is what makes editing in a GUI viable — the editor always has a value to display, even mid-edit, and diagnostics layer on top rather than blocking computation.
+This is what makes editing in a GUI viable. The editor always has a value to display, even mid-edit, and diagnostics layer on top rather than blocking computation.
 
 ## Where next
 
-- [Playground](./playground.md) — try it live in the browser.
-- [Specification](./spec/README.md) — the full design rationale and grammar.
-- [Source](https://github.com/baku89/glisp) — the `lang-2026` branch is the active rewrite.
+- [Playground](./playground.md): try it live in the browser.
+- [Specification](./spec/README.md): the full design rationale and grammar.
+- [Source](https://github.com/baku89/glisp): the `lang-2026` branch is the active rewrite.

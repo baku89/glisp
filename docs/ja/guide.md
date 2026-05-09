@@ -22,8 +22,8 @@ REPL のプロンプトは `glisp>`。トップレベルの式はそのまま評
 "hello"             ;; 文字列
 true  false         ;; 真偽値
 ()                  ;; unit
-_                   ;; top  — どんな値も受け入れる
-!                   ;; bottom — 一つも受け入れない
+_                   ;; top  (どんな値も受け入れる)
+!                   ;; bottom (一つも受け入れない)
 ```
 
 ## 呼び出し（call）
@@ -84,7 +84,7 @@ _                   ;; top  — どんな値も受け入れる
 (def "Pos"
   (refine number 1 (=> (n: number): boolean (> n 0))))
 
-;; parametric IO — 実行すると number を返す IO
+;; parametric IO: 実行すると number を返す IO
 (IO number)            ;; → (IO number)  （型の値）
 ```
 
@@ -143,7 +143,7 @@ _                   ;; top  — どんな値も受け入れる
 ;; → 230
 ```
 
-束縛は自己参照可能で、互いを順序によらず参照できます — 再帰的な型・関数定義に便利です。
+束縛は自己参照可能で、互いを順序によらず参照できます。再帰的な型・関数定義に便利です。
 
 ## quasiquote とマクロ
 
@@ -153,10 +153,10 @@ _                   ;; top  — どんな値も受け入れる
 (def "twice"
   (=> (x: number): _ `(* 2 ~x)))
 
-(twice 5)              ;; expand 後: `(* 2 5) — 評価で 10
+(twice 5)              ;; expand 後: `(* 2 5)、評価で 10
 ```
 
-`expand` は抽象化のはしごの 1 段降りる操作 — `expand` と `eval` の関係は [評価仕様](../spec/eval.md) を参照。
+`expand` は抽象化のはしごの 1 段降りる操作。`expand` と `eval` の関係は [評価仕様](../spec/eval.md) を参照。
 
 ## 診断
 
@@ -168,10 +168,10 @@ Glisp はユーザエラーで例外を投げません。型不一致・名前�
 ;; 診断: type mismatch: expected number, got string  (×2)
 ```
 
-これが GUI で編集可能であるための鍵です — 編集途中でも常に表示できる値があり、診断は別レーンに重なる形で乗ります。
+これが GUI で編集可能であるための鍵です。編集途中でも常に表示できる値があり、診断は別レーンに重なる形で乗ります。
 
 ## 次に読むもの
 
-- [Playground](./playground.md) — ブラウザでそのまま試す
-- [仕様書](../spec/README.md) — 設計の全体像と文法定義
-- [ソース](https://github.com/baku89/glisp) — `lang-2026` ブランチが現行の再設計版
+- [Playground](./playground.md) ブラウザでそのまま試す
+- [仕様書](../spec/README.md) 設計の全体像と文法定義
+- [ソース](https://github.com/baku89/glisp) `lang-2026` ブランチが現行の再設計版
