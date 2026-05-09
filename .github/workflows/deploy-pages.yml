@@ -1,0 +1,61 @@
+name: Deploy playground to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - lang-2026
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping queued runs but not
+# cancelling the in-progress one (so a deploy completes cleanly).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playground/package-lock.json
+
+      - name: Install
+        working-directory: playground
+        run: npm ci
+
+      - name: Build
+        working-directory: playground
+        env:
+          # Project page served under /glisp/. Override here if the repo
+          # name changes or a custom domain is configured.
+          BASE_PATH: /glisp/
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: playground/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,70 @@
+/* Theme — same color story as the terminal REPL, expressed as CSS vars
+ * so we can flip light/dark later. */
+:root {
+	color-scheme: dark;
+
+	--bg: #0d1117;
+	--bg-input: #161b22;
+	--bg-line: #11161d;
+	--bg-line-alt: #0d1320;
+	--border: #21262d;
+	--border-strong: #30363d;
+
+	--fg: #c9d1d9;
+	--fg-dim: #6e7681;
+	--fg-hint: #484f58;
+
+	--accent: #58a6ff;
+	--accent-warm: #d2a8ff;
+
+	--token-number: #f2cc60;
+	--token-string: #7ee787;
+	--token-boolean: #ff7b72;
+	--token-symbol: #79c0ff;
+	--token-punct: #6e7681;
+	--token-closure: #79c0ff;
+	--token-type: #56d4dd;
+	--token-hostfn: #6e7681;
+	--token-unit: #6e7681;
+
+	--diag-error: #ff7b72;
+	--diag-warning: #f2cc60;
+	--diag-info: #58a6ff;
+
+	--mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+		"Liberation Mono", monospace;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	background: var(--bg);
+	color: var(--fg);
+	font-family: var(--mono);
+	font-size: 14px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+input,
+textarea,
+button {
+	font: inherit;
+	color: inherit;
+}
+
+button {
+	cursor: pointer;
+}
+
+a {
+	color: var(--accent);
+}

@@ -6,7 +6,14 @@ This branch (`lang-2026`) is a clean redesign focused on the language core only 
 
 ## Status
 
-Specification in design. Nothing implemented yet on this branch.
+Specification in design. Core in active implementation under `src/`.
+
+## Try it
+
+- **Terminal REPL**: `npm install && npm run repl`
+- **Browser REPL**: see [`playground/`](./playground/) — Vite + Vue 3.
+  Live demo deploys from `main` / `lang-2026` to GitHub Pages
+  (workflow in [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml)).
 
 ## License
 
