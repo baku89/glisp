@@ -7,12 +7,12 @@ actions:
     link: /guide
 
 features:
-  - title: S-expression core
-    details: A minimal parser and CST that round-trips verbatim. Code is data, data is code, GUI editing is structural.
-  - title: Strong, structural types
-    details: Type values are first-class. Function types, enums, refinements, and parametric types like (IO T) all compose through the same surface.
-  - title: Lazy with diagnostics
-    details: Failures never throw. Every node accumulates (message, source) diagnostics; type slots silently coerce to a default so the host always has a value.
+  - title: Made to be embedded
+    details: Built as a scripting layer for creative software — design tools, motion editors, generative pipelines. Hosts expose typed bindings; Glisp glues them.
+  - title: Bidirectional by construction
+    details: The CST round-trips with whitespace and comments. A GUI block-editor, a direct-manipulation canvas, and a text editor can all touch the same file without fighting each other.
+  - title: Failure as data
+    details: Evaluation never throws. Type slots silently fall back to defaults; mismatches surface as side-channel diagnostics. The host always has something to draw.
 ---
 
 <div class="badges" style="margin: 1.2em 0">
@@ -25,49 +25,66 @@ features:
 	</a>
 </div>
 
-Glisp is a pure-functional language built around S-expressions, with strong static typing, type inference, and lazy evaluation. The current branch (`lang-2026`) is a clean redesign focused on the language core only — no UI, no graphics features.
+Glisp is a small language designed to live inside creative software. Its predecessor explored "a Lisp-based design tool bridging graphic design and computational arts" — this branch is the language carved out as a clean, embeddable core, ready to be reused by other tools that want to mix direct manipulation with code.
+
+The design target is a tool where **the same project file** can be:
+
+- structurally edited as visual blocks (Scratch-like),
+- direct-manipulated on a canvas (Photoshop-like, with the AST mutated underneath),
+- typed as plain code in a text editor,
+- and serialized as a static configuration file that just happens to be programmable.
+
+Most language design decisions follow from that target.
 
 ```glisp
-;; Variadic arithmetic with structural type-driven defaults
-(+ 1 2 3 4 5)        ;; → 15
-(* 2 3 4)            ;; → 24
+;; A Glisp host might bind canvas primitives like this:
+(def "circle"
+  (=> (cx: number cy: number r: number): Shape ...))
 
-;; Function literal with explicit signature, inferred body
-(def "double"
-  (=> (n: number): number (* n 2)))
+;; The user's project file then mixes static data and computed values
+{
+  size = 200
+  half = (/ size 2 %)
+  ^{label: "background"}
+  bg   = (rect 0 0 size size)
 
-(double 7)           ;; → 14
+  ^{color: "#ff7b72" label: "dot"}
+  dot  = (circle half half (* 0.2 size %))
 
-;; Pattern match — silent fall-through, never throws
-(? value
-  number  "is a number"
-  string  "is a string"
-  _       "something else")
+  [bg dot]
+}
 
-;; Coerce explicitly with `@`. Failure falls back to the type's default.
-(@ number "not a number")   ;; → 0  (with diagnostic)
+;; A GUI editor can mutate `size` directly via a slider — the AST stays
+;; canonical, comments and metadata round-trip, and the file is still a
+;; valid Glisp program a programmer could open in vim.
 ```
 
-## Why another Lisp?
+## Why a Lisp?
 
-Glisp is designed to round-trip cleanly across very different editing modes — visual / structural editors, direct-manipulation canvases, plain text, and serialized configuration files. The core is intentionally small so every form has a single meaning regardless of where it shows up.
+Creative tools want code, blocks, and direct manipulation to be **views of the same artifact**, not separate modes that fight each other. Code-as-data is the cheapest way to get that — the AST is the data the host already needs to draw the GUI, so a block editor and a textual editor can edit the same tree without translation.
 
-Concretely:
+S-expressions also keep parsing trivial, which matters when the host needs to embed an evaluator and ship it across browsers, plugins, and servers.
 
-- The CST preserves whitespace and comments, so block-style GUI edits and textual edits round-trip without fighting each other.
-- Evaluation never throws — every typed slot has a `default`, and mismatches surface as side-channel diagnostics rather than exceptions.
-- Names and paths (`./key`, `../arg`) are statically resolvable, so a host can show types and references without running the program.
-- Macros are one transparent `expand` step; `eval` jumps straight to the result. A host can show any rung of the abstraction ladder.
+## Why these specific design choices?
+
+Every core decision maps to a problem creative software hits:
+
+- **CST that preserves trivia** → GUI edits and text edits round-trip; comments and formatting survive both.
+- **Evaluation never throws** → mid-edit programs always have a value the canvas can render. Type mismatches accumulate as diagnostics, not exceptions.
+- **Parametric `(IO T)` and structural function types** → host effects can be typed precisely without forcing a Haskell-shaped type system on the user.
+- **Path-based references (`./key`, `../arg`)** → the GUI can wire nodes together by structural address, no name invention required.
+- **`expand` / abstraction ladder** → a host can show *any* rung between source and result, so a designer can drill from a high-level macro down to its expansion in real time.
+- **Static name resolution** → the GUI can show types and references without running the program first.
 
 See the [Specification](./spec/README.md) for the full design rationale.
 
 ## Status
 
-Core language is in active implementation under `src/`. The terminal REPL is usable today and the [browser playground](./playground.md) ships from this same source.
+The language core is in active implementation under `src/`. The terminal REPL is usable today and the [browser playground](./playground.md) ships from the same source. Host integration API is documented in [`host-api`](./spec/host-api.md).
 
-## Modules
+## Where to look
 
 - [`syntax`](./spec/syntax.md) — concrete syntax: tokens, structure, functions, metadata, quoting.
 - [`types`](./spec/types.md) — type system: values-as-types, constructors, parametric IO, coercion via `@`.
-- [`eval`](./spec/eval.md) — evaluation: scopes, name resolution, lazy semantics, DAG, abstraction ladder.
+- [`eval`](./spec/eval.md) — evaluation: scopes, lazy semantics, DAG, diagnostics, abstraction ladder.
 - [`host-api`](./spec/host-api.md) — embedding API: marshaling, AST/type combinators, TS type inference.

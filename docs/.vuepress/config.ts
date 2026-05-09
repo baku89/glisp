@@ -89,13 +89,13 @@ export default defineUserConfig({
 			lang: 'en-US',
 			title: 'Glisp',
 			description:
-				'A pure functional, S-expression based language with strong static typing and lazy evaluation.',
+				'A small embeddable language for creative software — designed to host design tools, motion editors, and generative pipelines.',
 		},
 		'/ja/': {
 			lang: 'ja-JP',
 			title: 'Glisp',
 			description:
-				'純粋関数型・S 式・静的型付け・遅延評価の小さな言語',
+				'クリエイティブソフトウェアに埋め込むための小さな言語 — デザインツール・モーションエディタ・ジェネラティブパイプラインを動かすためのコア',
 		},
 	},
 	bundler: viteBundler({
