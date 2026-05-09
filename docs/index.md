@@ -1,15 +1,10 @@
 ---
 home: true
 heroImage: /logo.svg
-heroHeight: 140
-heroText: Glisp
-tagline: A small functional language with S-expression syntax, structural types, and lazy evaluation.
+heroHeight: 160
 actions:
-  - text: Get Started →
+  - text: Guide →
     link: /guide
-    type: primary
-  - text: Try in browser
-    link: /playground
 
 features:
   - title: S-expression core
@@ -64,15 +59,15 @@ Concretely:
 - Names and paths (`./key`, `../arg`) are statically resolvable, so a host can show types and references without running the program.
 - Macros are one transparent `expand` step; `eval` jumps straight to the result. A host can show any rung of the abstraction ladder.
 
-See the [Specification](/spec/) for the full design rationale.
+See the [Specification](./spec/README.md) for the full design rationale.
 
 ## Status
 
-Core language is in active implementation under `src/`. The terminal REPL is usable today and the [browser playground](/playground) ships from this same source.
+Core language is in active implementation under `src/`. The terminal REPL is usable today and the [browser playground](./playground.md) ships from this same source.
 
 ## Modules
 
-- [`syntax`](/spec/syntax) — concrete syntax: tokens, structure, functions, metadata, quoting.
-- [`types`](/spec/types) — type system: values-as-types, constructors, parametric IO, coercion via `@`.
-- [`eval`](/spec/eval) — evaluation: scopes, name resolution, lazy semantics, DAG, abstraction ladder.
-- [`host-api`](/spec/host-api) — embedding API: marshaling, AST/type combinators, TS type inference.
+- [`syntax`](./spec/syntax.md) — concrete syntax: tokens, structure, functions, metadata, quoting.
+- [`types`](./spec/types.md) — type system: values-as-types, constructors, parametric IO, coercion via `@`.
+- [`eval`](./spec/eval.md) — evaluation: scopes, name resolution, lazy semantics, DAG, abstraction ladder.
+- [`host-api`](./spec/host-api.md) — embedding API: marshaling, AST/type combinators, TS type inference.

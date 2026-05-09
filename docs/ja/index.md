@@ -1,15 +1,10 @@
 ---
 home: true
 heroImage: /logo.svg
-heroHeight: 140
-heroText: Glisp
-tagline: S 式・構造的型付け・遅延評価の小さな関数型言語
+heroHeight: 160
 actions:
-  - text: はじめる →
+  - text: ガイド →
     link: /ja/guide
-    type: primary
-  - text: ブラウザで試す
-    link: /ja/playground
 
 features:
   - title: S 式コア
@@ -64,15 +59,15 @@ Glisp は、**ビジュアル／構造エディタ・直接操作キャンバス
 - 名前とパス（`./key`, `../arg`）は静的に解決可能。ホストはプログラムを走らせずに型や参照を表示できます。
 - マクロは `expand` 1 ステップで展開、`eval` は最終形に飛びます。ホストは抽象化のはしごのどの段でも表示できます。
 
-詳しい設計は [仕様書](/spec/) を参照。
+詳しい設計は [仕様書](../spec/README.md) を参照。
 
 ## ステータス
 
-`src/` 以下でコア言語を実装中。ターミナル REPL は今すぐ使えますし、[ブラウザの Playground](/ja/playground) も同じソースから動いています。
+`src/` 以下でコア言語を実装中。ターミナル REPL は今すぐ使えますし、[ブラウザの Playground](./playground.md) も同じソースから動いています。
 
 ## モジュール
 
-- [`syntax`](/spec/syntax) — 具体構文：トークン、構造、関数、メタデータ、quote。
-- [`types`](/spec/types) — 型システム：値としての型、コンストラクタ、parametric IO、`@` による coerce。
-- [`eval`](/spec/eval) — 評価モデル：スコープ、名前解決、遅延評価、DAG、抽象化のはしご。
-- [`host-api`](/spec/host-api) — 埋め込み API：marshaling、AST/型コンビネータ、TS 型推論。
+- [`syntax`](../spec/syntax.md) — 具体構文：トークン、構造、関数、メタデータ、quote。
+- [`types`](../spec/types.md) — 型システム：値としての型、コンストラクタ、parametric IO、`@` による coerce。
+- [`eval`](../spec/eval.md) — 評価モデル：スコープ、名前解決、遅延評価、DAG、抽象化のはしご。
+- [`host-api`](../spec/host-api.md) — 埋め込み API：marshaling、AST/型コンビネータ、TS 型推論。

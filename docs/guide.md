@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks through Glisp's core forms with examples you can try in the [browser playground](/playground) or in a terminal REPL.
+This guide walks through Glisp's core forms with examples you can try in the [browser playground](./playground.md) or in a terminal REPL.
 
 ## Setup
 
@@ -156,7 +156,7 @@ Back-tick `` ` `` quotes; `~` unquotes; `...~` splices a vector into a list-buil
 (twice 5)              ;; expand step: `(* 2 5) — evaluates to 10
 ```
 
-The `expand` operation is one transparent step on the abstraction ladder — see the [evaluation spec](/spec/eval) for how `expand` and `eval` relate.
+The `expand` operation is one transparent step on the abstraction ladder — see the [evaluation spec](./spec/eval.md) for how `expand` and `eval` relate.
 
 ## Diagnostics
 
@@ -172,6 +172,6 @@ This is what makes editing in a GUI viable — the editor always has a value to 
 
 ## Where next
 
-- [Playground](/playground) — try it live in the browser.
-- [Specification](/spec/) — the full design rationale and grammar.
+- [Playground](./playground.md) — try it live in the browser.
+- [Specification](./spec/README.md) — the full design rationale and grammar.
 - [Source](https://github.com/baku89/glisp) — the `lang-2026` branch is the active rewrite.

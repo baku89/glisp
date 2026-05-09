@@ -1,6 +1,6 @@
 # はじめに
 
-Glisp のコアフォームを、[ブラウザの Playground](/ja/playground) かターミナル REPL で試しながら一通り見ていきます。
+Glisp のコアフォームを、[ブラウザの Playground](./playground.md) かターミナル REPL で試しながら一通り見ていきます。
 
 ## セットアップ
 
@@ -156,7 +156,7 @@ _                   ;; top  — どんな値も受け入れる
 (twice 5)              ;; expand 後: `(* 2 5) — 評価で 10
 ```
 
-`expand` は抽象化のはしごの 1 段降りる操作 — `expand` と `eval` の関係は [評価仕様](/spec/eval) を参照。
+`expand` は抽象化のはしごの 1 段降りる操作 — `expand` と `eval` の関係は [評価仕様](../spec/eval.md) を参照。
 
 ## 診断
 
@@ -172,6 +172,6 @@ Glisp はユーザエラーで例外を投げません。型不一致・名前�
 
 ## 次に読むもの
 
-- [Playground](/ja/playground) — ブラウザでそのまま試す
-- [仕様書](/spec/) — 設計の全体像と文法定義
+- [Playground](./playground.md) — ブラウザでそのまま試す
+- [仕様書](../spec/README.md) — 設計の全体像と文法定義
 - [ソース](https://github.com/baku89/glisp) — `lang-2026` ブランチが現行の再設計版
