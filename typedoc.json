@@ -1,6 +1,12 @@
 {
 	"$schema": "https://typedoc.org/schema.json",
-	"entryPoints": ["./src/index.ts"],
+	"entryPointStrategy": "expand",
+	"entryPoints": ["./src"],
+	"exclude": [
+		"**/*.test.ts",
+		"**/repl.ts",
+		"**/index.ts"
+	],
 	"out": "./docs/api",
 	"readme": "none",
 	"cleanOutputDir": true,

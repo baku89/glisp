@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
 import { viteBundler } from '@vuepress/bundler-vite'
@@ -6,6 +7,24 @@ import markdownItCjkFriendly from 'markdown-it-cjk-friendly'
 import { defineUserConfig } from 'vuepress'
 
 const repo = 'baku89/glisp'
+
+// Auto-discover the typedoc-generated API pages so the sidebar tracks
+// whatever modules src/ contains, without hand-listing them.
+function apiSidebarChildren(): string[] {
+	const dir = fileURLToPath(new URL('../api', import.meta.url))
+	let files: string[]
+	try {
+		files = readdirSync(dir).filter(f => f.endsWith('.md'))
+	} catch {
+		return ['/api/index.md']
+	}
+	const index = files.includes('index.md') ? ['/api/index.md'] : []
+	const rest = files
+		.filter(f => f !== 'index.md')
+		.sort()
+		.map(f => `/api/${f}`)
+	return [...index, ...rest]
+}
 
 export default defineUserConfig({
 	title: 'Glisp',
@@ -59,6 +78,12 @@ export default defineUserConfig({
 								'/spec/eval.md',
 								'/spec/host-api.md',
 							],
+						},
+					],
+					'/api/': [
+						{
+							text: 'API',
+							children: apiSidebarChildren(),
 						},
 					],
 				},
