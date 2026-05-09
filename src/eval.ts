@@ -344,15 +344,15 @@ export function isOverload(v: unknown): v is OverloadValue {
  * `run` returns the diagnostics produced by the effect itself (e.g. a
  * name collision when binding) so the host can surface them.
  */
-export class IOAction {
+export class IO {
 	constructor(
 		public readonly description: string,
 		public readonly run: () => ReadonlyArray<Diagnostic>
 	) {}
 }
 
-export function isIOAction(v: unknown): v is IOAction {
-	return v instanceof IOAction
+export function isIO(v: unknown): v is IO {
+	return v instanceof IO
 }
 
 // Static type inference lives in infer.ts. Internally exposed via the
@@ -1508,7 +1508,7 @@ function describeVariantSignature(
 /**
  * `(def name expr)` — REPL/host primitive that lazily binds `name` to
  * `expr` in the topmost mutable scope of the calling env. Returns an
- * `IOAction`; the host runs it (in the REPL, top-level IO actions run
+ * `IO`; the host runs it (in the REPL, top-level IO actions run
  * automatically) which mutates the target frame's bindings.
  *
  * Crucially, `expr` is captured as an AST without being evaluated. The
@@ -1537,7 +1537,7 @@ function evalDef(ast: CallAST, env: Env): EvalResult {
 		return { value: UNIT, diagnostics }
 	}
 
-	const action = new IOAction(`def ${JSON.stringify(name)}`, () => {
+	const action = new IO(`def ${JSON.stringify(name)}`, () => {
 		const map = target.bindings as Map<string, BindingTarget>
 		map.set(name, { ast: valueAst, env: target })
 		return []
@@ -1546,7 +1546,7 @@ function evalDef(ast: CallAST, env: Env): EvalResult {
 }
 
 /**
- * `(undef name)` — companion to `def`. Returns an `IOAction` that, when
+ * `(undef name)` — companion to `def`. Returns an `IO` that, when
  * run, deletes the binding `name` from the topmost mutable scope. If the
  * name isn't bound there, the action emits a diagnostic at run time.
  */
@@ -1568,7 +1568,7 @@ function evalUndef(ast: CallAST, env: Env): EvalResult {
 		diagnostics.push(diag(ast, env, 'undef: no mutable scope to unbind from'))
 		return { value: UNIT, diagnostics }
 	}
-	const action = new IOAction(`undef ${JSON.stringify(name)}`, () => {
+	const action = new IO(`undef ${JSON.stringify(name)}`, () => {
 		const map = target.bindings as Map<string, BindingTarget>
 		if (!map.has(name)) {
 			return [diag(ast, env, `undef: '${name}' is not bound`)]
@@ -1746,7 +1746,7 @@ function describeType(v: unknown): string {
 	if (v === null) return 'null'
 	if (Array.isArray(v)) return 'vector'
 	if (isGlispClosure(v)) return 'closure'
-	if (v instanceof IOAction) return 'IO'
+	if (v instanceof IO) return 'IO'
 	if (isTypeValue(v)) return `type<${v.typeName}>`
 	return typeof v
 }
@@ -1800,7 +1800,7 @@ export function toAst(value: unknown, env: Env): AST {
 		if (name !== null) return new SymASTClass(name)
 		return value.ast
 	}
-	if (value instanceof IOAction) {
+	if (value instanceof IO) {
 		// IO actions have no source representation; wrap as host so they
 		// round-trip identity-wise.
 		return new HostASTClass(value)

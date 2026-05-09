@@ -11,7 +11,7 @@
 import { check as coreCheck } from '@core/check.js'
 import {
 	evaluate as coreEval,
-	IOAction,
+	IO,
 	isGlispClosure,
 	isTypedHostFn,
 	isTypeValue,
@@ -113,7 +113,7 @@ export function createSession(): Session {
 	}
 }
 
-function runIO(action: IOAction): ReadonlyArray<Diagnostic> {
+function runIO(action: IO): ReadonlyArray<Diagnostic> {
 	return action.run()
 }
 
@@ -171,7 +171,7 @@ function expandTopLevelSugar(src: string): string {
 function runLine(
 	src: string,
 	env: Env,
-	run: (a: IOAction) => ReadonlyArray<Diagnostic>
+	run: (a: IO) => ReadonlyArray<Diagnostic>
 ): ReplResult {
 	const expanded = expandTopLevelSugar(src)
 	let ast: AST
@@ -184,7 +184,7 @@ function runLine(
 	const r = coreEval(ast, env)
 	const diagnostics = r.diagnostics.map(d => coreDiagnosticToView(d))
 
-	if (r.value instanceof IOAction) {
+	if (r.value instanceof IO) {
 		const effectDiagnostics = run(r.value)
 		const tokens: Token[] = [{ kind: 'unit', text: '()' }]
 		const note = r.value.description
@@ -277,7 +277,7 @@ function typeOfLine(src: string, env: Env): ReplResult {
 // -----------------------------------------------------------------------------
 
 function tokensForValue(v: unknown, env: Env): Token[] {
-	if (v instanceof IOAction) {
+	if (v instanceof IO) {
 		return [{ kind: 'type', text: `<IO ${v.description}>` }]
 	}
 	if (

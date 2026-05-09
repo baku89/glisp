@@ -15,7 +15,7 @@ import {
 import {
 	emptyEnv,
 	evaluate,
-	IOAction,
+	IO,
 	isGlispClosure,
 	makeClosure,
 	makeTopLevel,
@@ -843,10 +843,10 @@ describe('evaluate — special form def (IO action)', () => {
 			),
 		})
 
-	it('returns an IOAction without evaluating the value expression', () => {
+	it('returns an IO without evaluating the value expression', () => {
 		const env = baseEnv()
 		const r = evaluate(parse('(def "y" (+ 20 30))'), env)
-		expect(r.value).toBeInstanceOf(IOAction)
+		expect(r.value).toBeInstanceOf(IO)
 		expect(r.diagnostics).toEqual([])
 		// y is NOT yet bound — the action hasn't run.
 		const before = (env as { bindings?: Map<string, unknown> }).bindings
@@ -856,14 +856,14 @@ describe('evaluate — special form def (IO action)', () => {
 	it('running the action binds the name; the body evaluates lazily', () => {
 		const env = baseEnv()
 		const r = evaluate(parse('(def "y" (+ 20 30))'), env)
-		;(r.value as IOAction).run()
+		;(r.value as IO).run()
 		const ref = evaluate(parse('y'), env)
 		expect(ref.value).toBe(50)
 	})
 
 	it('lazy: a binding to a failing expr does not error until referenced', () => {
 		const env = baseEnv()
-		;(evaluate(parse('(def "z" undefined-name)'), env).value as IOAction).run()
+		;(evaluate(parse('(def "z" undefined-name)'), env).value as IO).run()
 		// Reference `z` to force evaluation — diagnostics show up here.
 		const ref = evaluate(parse('z'), env)
 		expect(
@@ -881,9 +881,9 @@ describe('evaluate — special form def (IO action)', () => {
 
 	it('undef removes a binding', () => {
 		const env = baseEnv()
-		;(evaluate(parse('(def "y" 1)'), env).value as IOAction).run()
+		;(evaluate(parse('(def "y" 1)'), env).value as IO).run()
 		expect(evaluate(parse('y'), env).value).toBe(1)
-		;(evaluate(parse('(undef "y")'), env).value as IOAction).run()
+		;(evaluate(parse('(undef "y")'), env).value as IO).run()
 		const after = evaluate(parse('y'), env)
 		expect(
 			after.diagnostics.some(d => d.message.includes('unresolvable'))
@@ -893,15 +893,15 @@ describe('evaluate — special form def (IO action)', () => {
 	it('undef on a missing name reports a diagnostic at run-time', () => {
 		const env = baseEnv()
 		const action = evaluate(parse('(undef "never-bound")'), env)
-			.value as IOAction
+			.value as IO
 		const ds = action.run()
 		expect(ds.some(d => d.message.includes('not bound'))).toBe(true)
 	})
 
 	it('rebinding a name updates the prelude binding', () => {
 		const env = baseEnv()
-		;(evaluate(parse('(def "y" 1)'), env).value as IOAction).run()
-		;(evaluate(parse('(def "y" 2)'), env).value as IOAction).run()
+		;(evaluate(parse('(def "y" 1)'), env).value as IO).run()
+		;(evaluate(parse('(def "y" 2)'), env).value as IO).run()
 		expect(evaluate(parse('y'), env).value).toBe(2)
 	})
 })
@@ -939,7 +939,7 @@ describe('evaluate — overload', () => {
 	it('dispatches to the matching variant by arg type', () => {
 		const env = baseEnv()
 		;(evaluate(parse('(def "f" (overload sq-num dup-str))'), env)
-			.value as IOAction).run()
+			.value as IO).run()
 		expect(evaluate(parse('(f 4)'), env).value).toBe(16)
 		expect(evaluate(parse('(f "ab")'), env).value).toBe('abab')
 	})
@@ -947,7 +947,7 @@ describe('evaluate — overload', () => {
 	it('emits a no-match diagnostic when no variant fits', () => {
 		const env = baseEnv()
 		;(evaluate(parse('(def "f" (overload sq-num dup-str))'), env)
-			.value as IOAction).run()
+			.value as IO).run()
 		const r = evaluate(parse('(f true)'), env)
 		expect(
 			r.diagnostics.some(d => d.message.includes('no overload matches'))
@@ -973,7 +973,7 @@ describe('evaluate — overload', () => {
 				'(def "g" (overload (=> (x: _): _ "first") (=> (x: _): _ "second")))'
 			),
 			env
-		).value as IOAction).run()
+		).value as IO).run()
 		expect(evaluate(parse('(g 1)'), env).value).toBe('first')
 	})
 })

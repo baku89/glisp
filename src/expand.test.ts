@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { evaluate, IOAction } from './eval.js'
+import { evaluate, IO } from './eval.js'
 import { expand } from './expand.js'
 import { parse } from './parse.js'
 import { print } from './print.js'
@@ -10,7 +10,7 @@ describe('expand — naive substitution (no quasiquote)', () => {
 	const env = buildPrelude()
 	const def = (src: string): void => {
 		const r = evaluate(parse(src), env)
-		;(r.value as IOAction).run()
+		;(r.value as IO).run()
 	}
 
 	it('returns ast unchanged when not a call', () => {
@@ -45,7 +45,7 @@ describe('expand — quasiquote / unquote', () => {
 	const env = buildPrelude()
 	const def = (src: string): void => {
 		const r = evaluate(parse(src), env)
-		;(r.value as IOAction).run()
+		;(r.value as IO).run()
 	}
 
 	it('keeps a quoted body as a template, substituting at level 0', () => {

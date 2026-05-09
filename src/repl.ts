@@ -28,7 +28,7 @@ import pc from 'picocolors'
 import { check } from './check.js'
 import {
 	evaluate,
-	IOAction,
+	IO,
 	isGlispClosure,
 	isTypedHostFn,
 	isTypeValue,
@@ -101,7 +101,7 @@ function welcome(): string {
  *
  * - `+`, `number`, `_` print as the bare symbol if the env binds them.
  * - Closures print as their function-literal source.
- * - `IOAction` is the only intentional exception — it represents an
+ * - `IO` is the only intentional exception — it represents an
  *   already-performed effect with no expression that re-creates it, so
  *   it shows as `<IO description>` in dim styling.
  *
@@ -109,7 +109,7 @@ function welcome(): string {
  * colors, brackets are punct, symbols are keyword.
  */
 function formatValue(v: unknown, env: Env): string {
-	if (v instanceof IOAction) return theme.type(`<IO ${v.description}>`)
+	if (v instanceof IO) return theme.type(`<IO ${v.description}>`)
 	// Untyped host fn that toAst can't roundtrip: try to find a name
 	// from env, otherwise fall back to a generic marker.
 	if (
@@ -478,7 +478,7 @@ async function main(): Promise<void> {
 			const r = evaluate(ast, env)
 			// Top-level IO actions are run automatically — that's what
 			// `(def ...)` returns, and the user expects the REPL to apply it.
-			if (r.value instanceof IOAction) {
+			if (r.value instanceof IO) {
 				const effectDiagnostics = r.value.run()
 				output.write(
 					theme.unit('()') +

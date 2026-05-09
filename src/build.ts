@@ -47,7 +47,7 @@ export function lit(value: number | string | boolean | Unit): LitAST {
 
 /**
  * Host-value AST. Wraps a host-side value (TypeValue, TypedHostFn,
- * GlispClosure, IOAction, opaque object) so the env can hand it back
+ * GlispClosure, IO, opaque object) so the env can hand it back
  * unchanged when evaluated. Distinct from `lit` because the source
  * language has no way to express these values literally.
  */

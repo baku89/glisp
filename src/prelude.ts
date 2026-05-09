@@ -21,7 +21,7 @@ import {
 } from './types.js'
 import {
 	evaluate,
-	IOAction,
+	IO,
 	isGlispClosure,
 	isTypeValue,
 	makeFunctionType,
@@ -58,7 +58,7 @@ export const topType: TypeValue = makeType('_', () => true, UNIT)
 export const bottomType: TypeValue = makeType('!', () => false, UNIT)
 export const ioType: TypeValue = makeType(
 	'IO',
-	v => v instanceof IOAction,
+	v => v instanceof IO,
 	UNIT
 )
 
@@ -339,7 +339,7 @@ export function buildPrelude(): Env {
 	]
 	for (const src of bootstrap) {
 		const r = evaluate(parse(src), env)
-		if (r.value instanceof IOAction) r.value.run()
+		if (r.value instanceof IO) r.value.run()
 	}
 
 	return env
@@ -562,7 +562,7 @@ function showValue(v: unknown): string {
 	if (typeof v === 'string') return JSON.stringify(v)
 	if (typeof v === 'number' || typeof v === 'boolean') return String(v)
 	if (Array.isArray(v)) return `[${v.map(showValue).join(' ')}]`
-	if (v instanceof IOAction) return `<IO ${v.description}>`
+	if (v instanceof IO) return `<IO ${v.description}>`
 	if (isTypeValue(v)) return v.typeName
 	if (isGlispClosure(v)) return '<closure>'
 	if (typeof v === 'function') return '<host-fn>'

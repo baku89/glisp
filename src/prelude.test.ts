@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { evaluate, IOAction, isTypeValue } from './eval.js'
+import { evaluate, IO, isTypeValue } from './eval.js'
 import { infer } from './infer.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
@@ -109,13 +109,13 @@ describe('prelude — type constructors', () => {
 
 	it('enum casts a member through to its value', () => {
 		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
-			.value as IOAction).run()
+			.value as IO).run()
 		expect(evaluate(parse('(C "g")'), env).value).toBe('g')
 	})
 
 	it('enum falls back to first listed value on cast miss', () => {
 		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
-			.value as IOAction).run()
+			.value as IO).run()
 		const r = evaluate(parse('(C "purple")'), env)
 		expect(r.value).toBe('r')
 		expect(
@@ -129,7 +129,7 @@ describe('prelude — type constructors', () => {
 				'(def "Pos" (refine number 1 (=> (x: number): boolean (> x 0))))'
 			),
 			env
-		).value as IOAction).run()
+		).value as IO).run()
 		expect(evaluate(parse('(Pos 5)'), env).value).toBe(5)
 		const fail = evaluate(parse('(Pos -3)'), env)
 		expect(fail.value).toBe(1) // declared default
