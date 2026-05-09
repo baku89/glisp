@@ -593,6 +593,63 @@ describe('evaluate — typed host function arg cast / default', () => {
 		).toBe(true)
 	})
 
+	it('typed host fn accepts kwargs when paramNames is set', () => {
+		const numberType = makeType('number', v => typeof v === 'number', 0)
+		const env = makeTopLevel({
+			number: lit(numberType as never),
+			sub: lit(
+				makeTypedFn(
+					[numberType, numberType],
+					numberType,
+					(a, b) => (a as number) - (b as number),
+					['a', 'b']
+				) as never
+			),
+		})
+		const r = evaluate(parse('(sub b=10 a=3)'), env)
+		expect(r.value).toBe(-7)
+		expect(r.diagnostics).toEqual([])
+	})
+
+	it('typed host fn rejects kwargs with no paramNames', () => {
+		const numberType = makeType('number', v => typeof v === 'number', 0)
+		const env = makeTopLevel({
+			number: lit(numberType as never),
+			'+': lit(
+				makeTypedFn(
+					[numberType, numberType],
+					numberType,
+					(a, b) => (a as number) + (b as number)
+				) as never
+			),
+		})
+		const r = evaluate(parse('(+ a=1 b=2)'), env)
+		expect(
+			r.diagnostics.some(d =>
+				d.message.includes('cannot pass keyword arguments')
+			)
+		).toBe(true)
+	})
+
+	it('typed host fn detects double-binding via kwargs', () => {
+		const numberType = makeType('number', v => typeof v === 'number', 0)
+		const env = makeTopLevel({
+			number: lit(numberType as never),
+			sub: lit(
+				makeTypedFn(
+					[numberType, numberType],
+					numberType,
+					(a, b) => (a as number) - (b as number),
+					['a', 'b']
+				) as never
+			),
+		})
+		const r = evaluate(parse('(sub 1 a=5)'), env)
+		expect(
+			r.diagnostics.some(d => d.message.includes('double binding'))
+		).toBe(true)
+	})
+
 	it('skips evaluation of arguments that are statically the wrong type', () => {
 		// We bind `show: top → string`. (+ (show 0)) statically rejects
 		// `(show 0)` because string ≠ number; `show` is never called.

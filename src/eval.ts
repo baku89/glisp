@@ -99,6 +99,12 @@ export interface TypedHostFn {
 	readonly __glispTypedFn: true
 	readonly paramTypes: ReadonlyArray<TypeValue>
 	readonly returnType: TypeValue
+	/**
+	 * Optional parameter names. When set, callers may pass keyword
+	 * arguments at the call site. When unset (the default), kwargs at
+	 * the call site emit a diagnostic — there's no way to route them.
+	 */
+	readonly paramNames?: ReadonlyArray<string>
 }
 
 /**
@@ -109,12 +115,16 @@ export interface TypedHostFn {
  * so the cast falls back to the default `0`, and the missing second argument
  * is filled the same way.
  *
+ * Pass `paramNames` to enable kwargs at call sites — names are matched
+ * positionally against `paramTypes`.
+ *
  * Spec: docs/spec/types.md — default fallback timing
  */
 export function makeTypedFn(
 	paramTypes: ReadonlyArray<TypeValue>,
 	returnType: TypeValue,
-	fn: (...args: unknown[]) => unknown
+	fn: (...args: unknown[]) => unknown,
+	paramNames?: ReadonlyArray<string>
 ): TypedHostFn {
 	const wrapped = (...args: unknown[]): unknown => {
 		const cast: unknown[] = []
@@ -130,6 +140,9 @@ export function makeTypedFn(
 	Object.defineProperty(wrapped, '__glispTypedFn', { value: true })
 	Object.defineProperty(wrapped, 'paramTypes', { value: paramTypes })
 	Object.defineProperty(wrapped, 'returnType', { value: returnType })
+	if (paramNames !== undefined) {
+		Object.defineProperty(wrapped, 'paramNames', { value: paramNames })
+	}
 	return wrapped as TypedHostFn
 }
 
@@ -159,15 +172,41 @@ function callTypedHostFn(
 	const diagnostics = [...priorDiagnostics]
 	const argValues: unknown[] = []
 
+	// Resolve effective positional list by routing kwargs into named slots.
+	// A typed host fn with no `paramNames` cannot accept kwargs.
+	const effectivePositional: Array<AST | undefined> = positional.slice()
 	if (kwargs && kwargs.size > 0) {
-		diagnostics.push(
-			diag(site, env, 'cannot pass keyword arguments to a host function')
-		)
+		if (fn.paramNames === undefined) {
+			diagnostics.push(
+				diag(
+					site,
+					env,
+					'cannot pass keyword arguments to this host function (no parameter names)'
+				)
+			)
+		} else {
+			const names = fn.paramNames
+			for (const [name, ast] of kwargs) {
+				const idx = names.indexOf(name)
+				if (idx === -1) {
+					diagnostics.push(
+						diag(site, env, `unknown keyword argument: ${name}`)
+					)
+					continue
+				}
+				if (effectivePositional[idx] !== undefined) {
+					diagnostics.push(
+						diag(site, env, `double binding of parameter ${name}`)
+					)
+				}
+				effectivePositional[idx] = ast
+			}
+		}
 	}
 
 	for (let i = 0; i < fn.paramTypes.length; i++) {
 		const paramType = fn.paramTypes[i]!
-		const argAst = positional[i]
+		const argAst = effectivePositional[i]
 
 		// Missing required argument → diagnostic + paramType.default
 		if (argAst === undefined) {
