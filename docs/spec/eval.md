@@ -291,6 +291,8 @@ Both forms only affect a frame whose `bindings` map is mutable. In an environmen
 
 The `IO` type itself is a brand on the deferred-effect value. `eval` treats `IO`-typed values like any other value (no implicit forcing); explicit `run` is the host's responsibility.
 
+`IO` is parametric: `(IO T)` describes an IO whose `run` produces a `T`, and the bare `IO` is sugar for `(IO _)`. The runtime cannot inspect the payload without running the action, so any `IO` value satisfies any `(IO T)` slot at runtime; structural compatibility between two annotated `(IO T)` slots flows through the type checker (covariant in the payload). The annotation is informational today — there is no host-level bind or richer effect tracking yet — but the parametric form is in place so future combinators can be typed precisely.
+
 ## Multi-step evaluation / Abstraction ladder
 
 A core design principle of Glisp: **every expression has an abstraction ladder** — a chain of progressively-more-evaluated forms with the same final value. Hosts (in particular visual / GUI editors) can show, edit, and reason at any rung.

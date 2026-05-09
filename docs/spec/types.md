@@ -53,7 +53,7 @@ There is no subtyping. Types are nominal/equality-based.
 | `boolean` | `true`, `false` |
 | `unit` | `()` |
 | `ast` | Any AST node (the value form of a quoted expression / a macro's input or output) |
-| `IO` | Deferred host effects — opaque values produced by `def`, `undef`, etc. (see [eval.md](./eval.md)) |
+| `IO` | Deferred host effects — opaque values produced by `def`, `undef`, etc. Parametric: `(IO T)` is an IO that produces a `T` when forced; bare `IO` is sugar for `(IO _)` (see [eval.md](./eval.md)) |
 | `_` (top) | Any value |
 | `!` (bottom) | No value |
 
@@ -76,6 +76,7 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | `(=> (a: T1 b: T2 ...): R)` | Function type (parameter names are required syntactically; not part of identity) |
 | `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
 | `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)`, with an explicit default for failed casts |
+| `(IO T)` | parametric IO: a deferred effect that, when forced, produces a `T`. Compatibility is covariant in the payload (`(IO !)` fits `(IO _)`) |
 
 Tuple, vector, and record types share their syntax with the corresponding value literals. The interpretation depends on the slot in which the AST appears — see [Type interpretation at type slots](#type-interpretation-at-type-slots).
 

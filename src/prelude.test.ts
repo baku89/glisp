@@ -204,6 +204,46 @@ describe('prelude — standard library', () => {
 	})
 })
 
+describe('prelude — parametric IO', () => {
+	it('(IO T) evaluates to a parametric type with payload T', () => {
+		const env = buildPrelude()
+		const r = evaluate(parse('(IO number)'), env)
+		expect(isTypeValue(r.value) && r.value.typeName).toBe('(IO number)')
+	})
+
+	it('bare IO is sugar for (IO _) and is reused, parametric forms are fresh', () => {
+		const env = buildPrelude()
+		const bare = evaluate(parse('IO'), env).value
+		const ioNum = evaluate(parse('(IO number)'), env).value
+		expect(isTypeValue(bare) && bare.typeName).toBe('IO')
+		expect(isTypeValue(ioNum) && ioNum.typeName).toBe('(IO number)')
+		expect(bare).not.toBe(ioNum)
+	})
+
+	it('(IO number) prints as a call, so REPL output round-trips', () => {
+		const env = buildPrelude()
+		const r = evaluate(parse('(IO number)'), env)
+		// toAst path: parametric IO → CallAST(IO, [number]) → "(IO number)"
+		expect(r.diagnostics).toHaveLength(0)
+	})
+
+	it('rejects wrong arity', () => {
+		const env = buildPrelude()
+		const r = evaluate(parse('(IO number string)'), env)
+		expect(
+			r.diagnostics.some(d => d.message.includes('1 type argument'))
+		).toBe(true)
+	})
+
+	it('rejects non-type arguments', () => {
+		const env = buildPrelude()
+		const r = evaluate(parse('(IO 42)'), env)
+		expect(
+			r.diagnostics.some(d => d.message.includes('expects type arguments'))
+		).toBe(true)
+	})
+})
+
 describe('prelude — :type signature display via infer', () => {
 	const env = buildPrelude()
 

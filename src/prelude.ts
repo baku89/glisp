@@ -56,11 +56,36 @@ export const booleanType: TypeValue = makeType(
 export const unitType: TypeValue = makeType('unit', v => v === UNIT, UNIT)
 export const topType: TypeValue = makeType('_', () => true, UNIT)
 export const bottomType: TypeValue = makeType('!', () => false, UNIT)
-export const ioType: TypeValue = makeType(
-	'IO',
-	v => v instanceof IO,
-	UNIT
-)
+
+/**
+ * Build an `IO` type with a payload type — the type the IO produces when
+ * its `run()` is forced. Bare `IO` is sugar for `(IO _)`. The runtime
+ * `fits` predicate cannot inspect the payload (it would require running
+ * the action), so any `IO` instance fits any `(IO T)`; structural
+ * compatibility between two parametric IOs flows through `typeFits`.
+ */
+function makeIOType(payload: TypeValue): TypeValue {
+	const isTop = payload.typeName === '_'
+	const name = isTop ? 'IO' : `(IO ${payload.typeName})`
+	const t: TypeValue = {
+		__glispType: true,
+		typeName: name,
+		fits: v => v instanceof IO,
+		default: new IO(`default ${name}`, () => []),
+		shape: { kind: 'io', payload },
+		apply: typeArgs => {
+			if (typeArgs.length !== 1) {
+				return {
+					error: `IO expects 1 type argument, got ${typeArgs.length}`,
+				}
+			}
+			return makeIOType(typeArgs[0]!)
+		},
+	}
+	return t
+}
+
+export const ioType: TypeValue = makeIOType(topType)
 
 // -----------------------------------------------------------------------------
 // Operator helpers — variadic by default

@@ -109,6 +109,7 @@ export type TypeShape =
 	  }
 	| { readonly kind: 'enum'; readonly values: ReadonlySet<unknown> }
 	| { readonly kind: 'refine'; readonly base: TypeValue }
+	| { readonly kind: 'io'; readonly payload: TypeValue }
 
 export interface TypeValue {
 	readonly __glispType: true
@@ -116,6 +117,15 @@ export interface TypeValue {
 	readonly fits: (v: unknown) => boolean
 	readonly default: unknown
 	readonly shape: TypeShape
+	/**
+	 * Optional type-constructor hook. When set, `(T arg ...)` is dispatched
+	 * here with the args evaluated as types, and the result is the
+	 * parameterized TypeValue. Most types do not have this; for them, a
+	 * `(T v)` call is rejected with a hint to use `(@ T v)`.
+	 */
+	readonly apply?: (
+		typeArgs: ReadonlyArray<TypeValue>
+	) => TypeValue | { error: string }
 }
 
 /**
@@ -233,6 +243,13 @@ export function typeFits(actual: TypeValue, expected: TypeValue): boolean {
 			if (!typeFits(ap, ep)) return false
 		}
 		return typeFits(a.returnType, e.returnType)
+	}
+
+	// Parametric IO: covariant in the payload. `(IO !)` fits `(IO _)`,
+	// `(IO number)` fits `(IO _)`, but `(IO number)` does not fit
+	// `(IO string)`.
+	if (actual.shape.kind === 'io' && expected.shape.kind === 'io') {
+		return typeFits(actual.shape.payload, expected.shape.payload)
 	}
 
 	return actual.typeName === expected.typeName
@@ -843,12 +860,46 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 		)
 	}
 
-	// Type values are not callable. Direct cast `(T v)` was removed —
-	// use `(@ T v)` for explicit coercion or pattern-match via `?`.
+	// Type values are not callable as casts. A type may opt into parametric
+	// construction by defining `apply` — `(IO T)` is the canonical example.
+	// For non-parametric types, the call is rejected with a hint to use `@`.
 	// Checked here, BEFORE the plain-record fall-through, since type
 	// values are branded plain objects that would otherwise look like
 	// records to the dispatch.
 	if (isTypeValue(headValue)) {
+		if (headValue.apply !== undefined) {
+			const typeArgs: TypeValue[] = []
+			for (const argAst of positional) {
+				const r = evaluate(argAst, inside)
+				push(diagnostics, r.diagnostics)
+				if (!isTypeValue(r.value)) {
+					diagnostics.push(
+						diag(
+							argAst,
+							inside,
+							`type constructor ${headValue.typeName} expects type arguments`
+						)
+					)
+					return { value: headValue, diagnostics }
+				}
+				typeArgs.push(r.value)
+			}
+			if (kwargs && kwargs.size > 0) {
+				diagnostics.push(
+					diag(
+						ast,
+						inside,
+						`type constructor ${headValue.typeName} does not accept keyword arguments`
+					)
+				)
+			}
+			const result = headValue.apply(typeArgs)
+			if ('error' in result) {
+				diagnostics.push(diag(ast, inside, result.error))
+				return { value: headValue, diagnostics }
+			}
+			return { value: result, diagnostics }
+		}
 		diagnostics.push(
 			diag(
 				ast,
@@ -1805,6 +1856,7 @@ function describeType(v: unknown): string {
 // -----------------------------------------------------------------------------
 
 import {
+	CallAST as CallASTClass,
 	HostAST as HostASTClass,
 	LitAST as LitASTClass,
 	QuoteAST as QuoteASTClass,
@@ -1862,7 +1914,19 @@ export function toAst(value: unknown, env: Env): AST {
 	}
 	if (isTypeValue(value)) {
 		const name = nameForBoundValue(env, value)
-		return new SymASTClass(name ?? value.typeName)
+		if (name !== null) return new SymASTClass(name)
+		// Parametric IO with a non-top payload: rebuild as a call to its
+		// constructor so the resulting source actually parses (the bare
+		// typeName `(IO number)` is not a valid identifier).
+		if (
+			value.shape.kind === 'io' &&
+			value.shape.payload.typeName !== '_'
+		) {
+			return new CallASTClass(new SymASTClass('IO'), [
+				toAst(value.shape.payload, env),
+			])
+		}
+		return new SymASTClass(value.typeName)
 	}
 	if (typeof value === 'function') {
 		// Typed or untyped host fn: prefer a bound name in env.
