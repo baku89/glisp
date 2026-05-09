@@ -20,6 +20,7 @@ import {
 	UNIT,
 } from './types.js'
 import {
+	evaluate,
 	IOAction,
 	isGlispClosure,
 	isTypeValue,
@@ -29,6 +30,7 @@ import {
 	type TypedHostFn,
 	type TypeValue,
 } from './eval.js'
+import { parse } from './parse.js'
 
 // -----------------------------------------------------------------------------
 // Primitive types
@@ -147,7 +149,7 @@ function chainEq(want: boolean): TypedHostFn {
 // -----------------------------------------------------------------------------
 
 export function buildPrelude(): Env {
-	return makeTopLevel({
+	const env = makeTopLevel({
 		// types
 		number: lit(numberType as never),
 		string: lit(stringType as never),
@@ -199,6 +201,26 @@ export function buildPrelude(): Env {
 		enum: lit(makeEnum() as never),
 		refine: lit(makeRefine() as never),
 	})
+
+	// Glisp-defined helpers — run a small bootstrap script of `def` actions.
+	// They use the host primitives above (`+`, `*`, `map`, `reduce`, etc.)
+	// to produce convenience bindings written in the language itself.
+	const bootstrap = [
+		'(def "inc" (=> (n: number): number (+ n 1)))',
+		'(def "dec" (=> (n: number): number (- n 1)))',
+		'(def "neg" (=> (n: number): number (- n)))',
+		'(def "abs" (=> (n: number): number (? (< n 0) true (- n) _ n)))',
+		'(def "min" (=> (a: number b: number): number (? (< a b) true a _ b)))',
+		'(def "max" (=> (a: number b: number): number (? (> a b) true a _ b)))',
+		'(def "sum" (=> (xs: _): number (reduce xs 0 +)))',
+		'(def "product" (=> (xs: _): number (reduce xs 1 *)))',
+	]
+	for (const src of bootstrap) {
+		const r = evaluate(parse(src), env)
+		if (r.value instanceof IOAction) r.value.run()
+	}
+
+	return env
 }
 
 // -----------------------------------------------------------------------------
