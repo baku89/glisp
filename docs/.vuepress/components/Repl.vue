@@ -40,6 +40,6 @@ import PlaygroundRepl from '../../../playground/src/components/Repl.vue'
 	--diag-error: #ff7b72;
 	--diag-warning: #f2cc60;
 	--diag-info: #58a6ff;
-	--mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	--mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 </style>

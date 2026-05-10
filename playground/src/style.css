@@ -31,7 +31,7 @@
 	--diag-warning: #f2cc60;
 	--diag-info: #58a6ff;
 
-	--mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+	--mono: 'Geist Mono', ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
 		"Liberation Mono", monospace;
 }
 

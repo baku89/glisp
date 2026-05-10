@@ -104,3 +104,58 @@ describe('Session — let-block as session state', () => {
 		expect(print(reparsed)).toBe(printed)
 	})
 })
+
+describe('Session — assignment sugar (name = expr, path = expr)', () => {
+	it('top-level `x = expr` is a binding mutation', () => {
+		const s = new Session(buildPrelude())
+		s.evalSrc('x = (+ 20 40)')
+		expect(print(s.ast())).toBe('{x = (+ 20 40)}')
+	})
+
+	it('path `x/y = expr` updates a nested let-block binding', () => {
+		const s = new Session(buildPrelude())
+		s.evalSrc('x = {y = 30}')
+		s.evalSrc('x/y = 400')
+		expect(print(s.ast())).toBe('{x = {y = 400}}')
+	})
+
+	it('deeper paths walk through nested let-blocks', () => {
+		const s = new Session(buildPrelude())
+		s.evalSrc('x = {y = {z = 1}}')
+		s.evalSrc('x/y/z = 99')
+		expect(print(s.ast())).toBe('{x = {y = {z = 99}}}')
+	})
+
+	it('numeric segment addresses a vector element', () => {
+		const s = new Session(buildPrelude())
+		s.evalSrc('xs = [10 20 30]')
+		s.evalSrc('xs/1 = 99')
+		expect(print(s.ast())).toBe('{xs = [10 99 30]}')
+	})
+
+	it('record field assignment via path', () => {
+		const s = new Session(buildPrelude())
+		s.evalSrc('p = {x: 1 y: 2}')
+		s.evalSrc('p/y = 7')
+		expect(print(s.ast())).toBe('{p = {x: 1 y: 7}}')
+	})
+
+	it('missing path emits a diagnostic and does not mutate', () => {
+		const s = new Session(buildPrelude())
+		s.evalSrc('x = {y = 30}')
+		const r = s.evalSrc('x/z = 99')
+		expect(
+			r.diagnostics.some(d => d.message.includes('no binding named z'))
+		).toBe(true)
+		expect(print(s.ast())).toBe('{x = {y = 30}}')
+	})
+
+	it('missing top-level binding emits a diagnostic', () => {
+		const s = new Session(buildPrelude())
+		const r = s.evalSrc('ghost/y = 1')
+		expect(
+			r.diagnostics.some(d => d.message.includes('no such binding: ghost'))
+		).toBe(true)
+		expect(print(s.ast())).toBe('{}')
+	})
+})

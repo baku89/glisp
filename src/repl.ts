@@ -36,7 +36,6 @@ import {
 } from './eval.js'
 import { expandLadder } from './expand.js'
 import { infer } from './infer.js'
-import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
@@ -284,39 +283,6 @@ function isIncomplete(src: string): boolean {
 // REPL-only syntactic sugar
 // -----------------------------------------------------------------------------
 
-/**
- * Top-level `name = expr` is the REPL's sugar for `(def "name" expr)`.
- *
- * Detection uses the lexer so `==`, `=>`, `<=`, `>=`, `!=` (which all
- * tokenize as identifiers / `=>`) don't trigger it — only a bare
- * `<identifier> =` at the start of input does.
- *
- * The transform splices the original RHS source verbatim, so error
- * positions inside the RHS line up with what the user typed.
- */
-function expandTopLevelSugar(src: string): string {
-	let tokens
-	try {
-		tokens = lex(src)
-	} catch {
-		return src
-	}
-	const first = tokens[0]
-	const second = tokens[1]
-	if (
-		first === undefined ||
-		second === undefined ||
-		first.kind !== 'identifier' ||
-		second.kind !== '='
-	) {
-		return src
-	}
-	const name = first.value as string
-	const rest = src.slice(second.end).trim()
-	if (rest === '') return src
-	return `(def ${JSON.stringify(name)} ${rest})`
-}
-
 // -----------------------------------------------------------------------------
 // Tab completion
 // -----------------------------------------------------------------------------
@@ -472,10 +438,8 @@ async function main(): Promise<void> {
 		}
 
 		try {
-			const expandedSource = expandTopLevelSugar(fullSource)
-			const ast = parse(expandedSource)
 			lastSource = fullSource
-			const r = session.evalAst(ast)
+			const r = session.evalSrc(fullSource)
 			// Top-level IO actions are run automatically — that's what
 			// `(def ...)` returns when nested, and the user expects the REPL
 			// to apply it. Top-level def / undef are intercepted by the

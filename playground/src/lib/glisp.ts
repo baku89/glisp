@@ -21,7 +21,6 @@ import {
 } from '@core/eval.js'
 import { expandLadder as coreExpandLadder } from '@core/expand.js'
 import { infer as coreInfer } from '@core/infer.js'
-import { lex } from '@core/lex.js'
 import { parse, ParseError } from '@core/parse.js'
 import { print } from '@core/print.js'
 import { buildPrelude } from '@core/prelude.js'
@@ -140,46 +139,17 @@ function isInputComplete(src: string): boolean {
 }
 
 // -----------------------------------------------------------------------------
-// REPL-only sugar: top-level `name = expr` → (def "name" expr)
-// -----------------------------------------------------------------------------
-
-function expandTopLevelSugar(src: string): string {
-	let tokens
-	try {
-		tokens = lex(src)
-	} catch {
-		return src
-	}
-	const first = tokens[0]
-	const second = tokens[1]
-	if (
-		first === undefined ||
-		second === undefined ||
-		first.kind !== 'identifier' ||
-		second.kind !== '='
-	) {
-		return src
-	}
-	const name = first.value as string
-	const rest = src.slice(second.end).trim()
-	if (rest === '') return src
-	return `(def ${JSON.stringify(name)} ${rest})`
-}
-
-// -----------------------------------------------------------------------------
 // Run / type-of / check / expand — produce a ReplResult
 // -----------------------------------------------------------------------------
 
 function runLine(src: string, session: CoreSession): ReplResult {
-	const expanded = expandTopLevelSugar(src)
-	let ast: AST
+	let r
 	try {
-		ast = parse(expanded)
+		r = session.evalSrc(src)
 	} catch (e) {
 		return { tokens: [], diagnostics: [parseErrorToDiagnostic(src, e)] }
 	}
 
-	const r = session.evalAst(ast)
 	const diagnostics = r.diagnostics.map(d => coreDiagnosticToView(d))
 
 	if (r.value instanceof IO) {
