@@ -1,4 +1,4 @@
-name: Deploy playground to GitHub Pages
+name: Deploy docs site to GitHub Pages
 
 on:
   push:
@@ -29,25 +29,19 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: playground/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install
-        working-directory: playground
         run: npm ci
 
-      - name: Build
-        working-directory: playground
-        env:
-          # Project page served under /glisp/. Override here if the repo
-          # name changes or a custom domain is configured.
-          BASE_PATH: /glisp/
-        run: npm run build
+      - name: Build docs (typedoc + vuepress)
+        run: npm run build:doc
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: playground/dist
+          path: docs/.vuepress/dist
 
   deploy:
     name: Deploy
