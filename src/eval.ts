@@ -92,9 +92,35 @@ export function isGlispClosure(v: unknown): v is GlispClosure {
  * (literal-wrapped) before being bound to parameters, so the closure
  * sees them through the same lazy-binding path as a normal Glisp call.
  */
+/**
+ * Module-level sink for diagnostics produced by closures called from
+ * JS-side host functions. JS-callable closures return only `value` to
+ * stay compatible with normal JS calling conventions, so any
+ * diagnostics emitted by their bodies (e.g. a runtime type mismatch
+ * on a parameter) need a side channel to reach the typed-host-fn
+ * caller. `withJSCallSink` sets the active sink for the duration of a
+ * host-fn invocation; `invokeClosureFromJS` pushes into it.
+ */
+let activeJSCallSink: Diagnostic[] | null = null
+
+function withJSCallSink<T>(fn: () => T): { value: T; diagnostics: Diagnostic[] } {
+	const prev = activeJSCallSink
+	const sink: Diagnostic[] = []
+	activeJSCallSink = sink
+	try {
+		const value = fn()
+		return { value, diagnostics: sink }
+	} finally {
+		activeJSCallSink = prev
+	}
+}
+
 function invokeClosureFromJS(c: GlispClosure, args: unknown[]): unknown {
 	const argAsts = args.map(a => toAst(a, c.capturedEnv))
 	const r = applyClosure(c, argAsts, undefined, c.capturedEnv, c.ast, [])
+	if (activeJSCallSink !== null && r.diagnostics.length > 0) {
+		for (const d of r.diagnostics) activeJSCallSink.push(d)
+	}
 	return r.value
 }
 
@@ -581,8 +607,11 @@ function callTypedHostFn(
 	}
 
 	try {
-		const result = fn(...argValues)
-		return { value: result, diagnostics }
+		const { value, diagnostics: bubbled } = withJSCallSink(() =>
+			fn(...argValues)
+		)
+		for (const d of bubbled) diagnostics.push(d)
+		return { value, diagnostics }
 	} catch (e) {
 		const message = e instanceof Error ? e.message : String(e)
 		diagnostics.push(diag(site, env, `host function threw: ${message}`))
@@ -1038,10 +1067,11 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 			)
 		}
 		try {
-			const result = (headValue as (...args: unknown[]) => unknown)(
-				...argValues
+			const { value, diagnostics: bubbled } = withJSCallSink(() =>
+				(headValue as (...args: unknown[]) => unknown)(...argValues)
 			)
-			return { value: result, diagnostics }
+			for (const d of bubbled) diagnostics.push(d)
+			return { value, diagnostics }
 		} catch (e) {
 			const message = e instanceof Error ? e.message : String(e)
 			diagnostics.push(diag(ast, inside, `host function threw: ${message}`))

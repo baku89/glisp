@@ -27,6 +27,7 @@ import {
 	typeFits,
 } from './eval.js'
 import { parse } from './parse.js'
+import { buildPrelude } from './prelude.js'
 import { UNIT } from './types.js'
 
 // -----------------------------------------------------------------------------
@@ -1107,6 +1108,25 @@ describe('evaluate — cycle detection', () => {
 		const env = makeTopLevel({ x: lit(7) })
 		const ast = vec(sym('x'), sym('x'), sym('x'))
 		expect(evaluate(ast, env).value).toEqual([7, 7, 7])
+	})
+})
+
+describe('evaluate — closure diagnostics bubble through host fns', () => {
+	it('mismatched element type inside (map xs f) surfaces a diagnostic', () => {
+		// `map` calls the closure from JS for each element. The closure
+		// declares `x: number` but the vector contains strings — that
+		// mismatch must reach the outer evaluate's diagnostics rather
+		// than getting silently coerced to default(number) = 0.
+		const env = buildPrelude()
+		const r = evaluate(
+			parse('(map ["str"] (=> (x: number): number (+ x 1)))'),
+			env
+		)
+		expect(
+			r.diagnostics.some(d =>
+				d.message.includes('expected number, got string')
+			)
+		).toBe(true)
 	})
 })
 
