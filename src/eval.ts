@@ -149,6 +149,13 @@ export type TypeShape =
 	| { readonly kind: 'enum'; readonly values: ReadonlySet<unknown> }
 	| { readonly kind: 'refine'; readonly base: TypeValue }
 	| { readonly kind: 'io'; readonly payload: TypeValue }
+	| { readonly kind: 'vector'; readonly element: TypeValue }
+	| { readonly kind: 'tuple'; readonly elements: ReadonlyArray<TypeValue> }
+	| {
+			readonly kind: 'record'
+			readonly fields: ReadonlyMap<string, TypeValue>
+			readonly optional: ReadonlySet<string>
+	  }
 
 /**
  * Host-side representation of a Glisp type. `fits` is the runtime
@@ -296,6 +303,39 @@ export function typeFits(actual: TypeValue, expected: TypeValue): boolean {
 	// `(IO string)`.
 	if (actual.shape.kind === 'io' && expected.shape.kind === 'io') {
 		return typeFits(actual.shape.payload, expected.shape.payload)
+	}
+
+	// Vector: covariant in the element type.
+	if (actual.shape.kind === 'vector' && expected.shape.kind === 'vector') {
+		return typeFits(actual.shape.element, expected.shape.element)
+	}
+
+	// Tuple → vector: every tuple position must fit the vector's element.
+	if (actual.shape.kind === 'tuple' && expected.shape.kind === 'vector') {
+		return actual.shape.elements.every(e => typeFits(e, expected.shape.element))
+	}
+
+	// Tuple → tuple: same length, positional element fits.
+	if (actual.shape.kind === 'tuple' && expected.shape.kind === 'tuple') {
+		if (actual.shape.elements.length !== expected.shape.elements.length) return false
+		return actual.shape.elements.every((e, i) =>
+			typeFits(e, expected.shape.elements[i]!)
+		)
+	}
+
+	// Record → record: every required field of `expected` must be present
+	// (or `optional`) in `actual` with a fitting type. Extra fields on
+	// `actual` are allowed (width subtyping) since records are open.
+	if (actual.shape.kind === 'record' && expected.shape.kind === 'record') {
+		for (const [k, et] of expected.shape.fields) {
+			const at = actual.shape.fields.get(k)
+			if (at === undefined) {
+				if (!expected.shape.optional.has(k)) return false
+				continue
+			}
+			if (!typeFits(at, et)) return false
+		}
+		return true
 	}
 
 	return actual.typeName === expected.typeName

@@ -88,6 +88,28 @@ function makeIOType(payload: TypeValue): TypeValue {
 
 export const ioType: TypeValue = makeIOType(topType)
 
+/**
+ * `vector` (the host-side type used for prelude-provided vector
+ * operations). Shape `vector` with element `_` so it accepts any
+ * vector — both inferred tuples (`[number number number]`) and
+ * homogeneous vectors fit it through `typeFits`.
+ */
+const vectorType: TypeValue = makeType('vector', Array.isArray, [], {
+	kind: 'vector',
+	element: topType,
+})
+
+const recordType: TypeValue = makeType(
+	'record',
+	v =>
+		v !== null &&
+		typeof v === 'object' &&
+		!Array.isArray(v) &&
+		typeof v !== 'function',
+	{},
+	{ kind: 'record', fields: new Map(), optional: new Set() }
+)
+
 // -----------------------------------------------------------------------------
 // Operator helpers — variadic by default
 // -----------------------------------------------------------------------------
@@ -300,14 +322,14 @@ export function buildPrelude(): Env {
 		split: host(
 			makeTypedFn(
 				[stringType, stringType],
-				makeType('vector', Array.isArray, []),
+				vectorType,
 				(s, sep) => (s as string).split(sep as string),
 				['str', 'sep']
 			)
 		),
 		join: host(
 			makeTypedFn(
-				[makeType('vector', Array.isArray, []), stringType],
+				[vectorType, stringType],
 				stringType,
 				(xs, sep) =>
 					(xs as unknown[])
@@ -381,7 +403,7 @@ export function buildPrelude(): Env {
  * plain host JS function.
  */
 function makeMap(): TypedHostFn {
-	const vecType = makeType('vector', Array.isArray, [])
+	const vecType = vectorType
 	const fnType = makeFunctionType([topType], topType, { paramNames: ['x'] })
 	return makeTypedFn(
 		[vecType, fnType],
@@ -393,7 +415,7 @@ function makeMap(): TypedHostFn {
 }
 
 function makeFilter(): TypedHostFn {
-	const vecType = makeType('vector', Array.isArray, [])
+	const vecType = vectorType
 	const predType = makeFunctionType([topType], booleanType, {
 		paramNames: ['x'],
 	})
@@ -409,7 +431,7 @@ function makeFilter(): TypedHostFn {
 }
 
 function makeReduce(): TypedHostFn {
-	const vecType = makeType('vector', Array.isArray, [])
+	const vecType = vectorType
 	const fnType = makeFunctionType([topType, topType], topType, {
 		paramNames: ['acc', 'x'],
 	})
@@ -484,17 +506,6 @@ function makeRefine(): TypedHostFn {
 // -----------------------------------------------------------------------------
 // Standard library: vectors, strings, records
 // -----------------------------------------------------------------------------
-
-const vectorType = makeType('vector', Array.isArray, [])
-const recordType = makeType(
-	'record',
-	v =>
-		v !== null &&
-		typeof v === 'object' &&
-		!Array.isArray(v) &&
-		typeof v !== 'function',
-	{}
-)
 
 function makeRange(): TypedHostFn {
 	return makeTypedFn(

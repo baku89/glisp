@@ -98,6 +98,10 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 			// Resolve the literal's declared param / return types against
 			// the surrounding env to produce a function-shaped TypeValue.
 			return makeFnLiteralType(ast, env)
+		case 'vec':
+			return inferVec(ast, env)
+		case 'record':
+			return inferRecord(ast, env)
 		case 'meta':
 		case 'quote':
 		case 'unquote':
@@ -108,6 +112,87 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 		default:
 			return null
 	}
+}
+
+/**
+ * Infer a vector literal's type as a tuple `[T1 T2 ... Tn]` carrying
+ * the inferred type of each position. The tuple shape preserves
+ * length, so `[0 1 2]` types as `[number number number]` and a host
+ * fixed-size type like `vec3` can fit. Tuples remain compatible with
+ * the looser `[...T]` / `vector` slots through `typeFits`. Returns
+ * `null` when any element's type is undeterminable or when a spread
+ * element is present (its length is runtime-only).
+ */
+function inferVec(
+	ast: import('./types.js').VecAST,
+	env: Env
+): TypeValue | null {
+	const elements: TypeValue[] = []
+	for (const el of ast.elements) {
+		if (el.kind === 'spread') return null
+		const t = infer(el, env)
+		if (t === null) return null
+		elements.push(t)
+	}
+	const name = `[${elements.map(t => t.typeName).join(' ')}]`
+	return makeType(
+		name,
+		v =>
+			Array.isArray(v) &&
+			v.length === elements.length &&
+			elements.every((t, i) => t.fits(v[i])),
+		elements.map(t => t.default),
+		{ kind: 'tuple', elements }
+	)
+}
+
+/**
+ * Infer a record literal's type. Returns `null` when a spread field
+ * is present (its expansion is runtime-only) or any field's type is
+ * undeterminable. Optional fields are reflected with a trailing `?`
+ * on the field name.
+ */
+function inferRecord(
+	ast: import('./types.js').RecordAST,
+	env: Env
+): TypeValue | null {
+	const fields = new Map<string, TypeValue>()
+	const optional = new Set<string>()
+	const defaults: Record<string, unknown> = {}
+	const printOrder: string[] = []
+	for (const entry of ast.fields) {
+		if (Array.isArray(entry) === false) return null
+		const [k, v] = entry as readonly [string, AST]
+		const t = infer(v, env)
+		if (t === null) return null
+		fields.set(k, t)
+		if (ast.optional?.has(k)) optional.add(k)
+		defaults[k] = t.default
+		if (!printOrder.includes(k)) printOrder.push(k)
+	}
+	const name =
+		'{' +
+		printOrder
+			.map(k => `${k}${optional.has(k) ? '?' : ''}: ${fields.get(k)!.typeName}`)
+			.join(' ') +
+		'}'
+	return makeType(
+		name,
+		v => {
+			if (v === null || typeof v !== 'object' || Array.isArray(v)) return false
+			const rec = v as Record<string, unknown>
+			for (const [k, t] of fields) {
+				if (!(k in rec)) {
+					if (!optional.has(k)) return false
+					continue
+				}
+				if (!t.fits(rec[k])) return false
+			}
+			return true
+		},
+		defaults,
+		{ kind: 'record', fields, optional }
+	)
 }
 
 /** Build a TypeValue whose shape mirrors a typed host fn's signature. */
