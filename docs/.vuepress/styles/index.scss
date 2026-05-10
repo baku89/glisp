@@ -271,6 +271,16 @@ td code {
 		padding: 0;
 	}
 
+	// Cancel the prose `❊` bullet and the body-text bottom-margin on
+	// every <li> inside the REPL. The REPL is UI, not prose.
+	li {
+		margin-bottom: 0;
+	}
+
+	li::before {
+		content: none;
+	}
+
 	.repl-frame {
 		height: calc(100dvh - var(--navbar-height) - 8px);
 		min-height: 480px;

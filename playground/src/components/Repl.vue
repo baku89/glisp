@@ -308,7 +308,6 @@ function caretMarker(span: number): string {
 		<aside class="tree-pane">
 			<header>
 				<span class="title">Session</span>
-				<span class="tree-hint">live let-block</span>
 			</header>
 			<pre class="tree">{{ tree }}</pre>
 		</aside>
@@ -349,13 +348,6 @@ header {
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	color: var(--fg);
-}
-
-.tree-hint {
-	color: var(--fg-hint);
-	font-size: 11px;
-	letter-spacing: 0.05em;
-	text-transform: uppercase;
 }
 
 nav {
