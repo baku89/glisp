@@ -20,13 +20,11 @@ const STORAGE_KEY = 'glisp-playground-history-v1'
 const session = createSession()
 const input = ref('')
 const history = ref<HistoryItem[]>([])
+const tree = ref<string>(session.tree())
 const scrollEl = ref<HTMLElement | null>(null)
 const inputEl = ref<HTMLTextAreaElement | null>(null)
 let nextId = 0
 
-// Persist input history (text only — not eval results, those are
-// re-derivable from re-running). On boot we re-evaluate every input
-// so the env reflects the user's previous session.
 onMounted(() => {
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY)
@@ -35,8 +33,9 @@ onMounted(() => {
 			for (const line of lines) replay(line)
 		}
 	} catch {
-		// ignore — corrupted history shouldn't block the REPL
+		// ignore corrupted history
 	}
+	refreshTree()
 	autoScroll()
 	inputEl.value?.focus()
 })
@@ -49,12 +48,16 @@ function persistHistory(): void {
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(inputs))
 	} catch {
-		// quota / privacy mode — ignore
+		// quota / privacy mode
 	}
 }
 
+function refreshTree(): void {
+	tree.value = session.tree()
+}
+
 function replay(src: string): void {
-	const r = session.run(src)
+	const r = dispatch(src)
 	pushHistory({ id: nextId++, kind: 'input', source: src })
 	pushHistory({ id: nextId++, kind: 'output', result: r })
 }
@@ -65,19 +68,96 @@ function pushHistory(item: HistoryItem): void {
 
 const canRun = computed(() => input.value.trim() !== '')
 
+/**
+ * One dispatch entry that handles slash-commands and falls through to
+ * `session.run` for ordinary input. Returns a ReplResult so the UI
+ * renders both kinds the same way.
+ */
+function dispatch(src: string): ReplResult {
+	const trimmed = src.trim()
+	if (trimmed.startsWith(':')) return runCommand(trimmed)
+	const r = session.run(trimmed)
+	refreshTree()
+	return r
+}
+
+function runCommand(src: string): ReplResult {
+	const rest = src.slice(1).trim()
+	const sp = rest.search(/\s/)
+	const head = sp === -1 ? rest : rest.slice(0, sp)
+	const args = sp === -1 ? '' : rest.slice(sp + 1).trim()
+	switch (head) {
+		case 'type': {
+			if (args === '') return helpResult('usage: :type <expr>')
+			return session.typeOf(args)
+		}
+		case 'check': {
+			if (args === '') return helpResult('usage: :check <expr>')
+			return session.check(args)
+		}
+		case 'expand': {
+			if (args === '') return helpResult('usage: :expand <expr>')
+			return session.expand(args)
+		}
+		case 'env': {
+			const names = session.bindings()
+			if (names.length === 0) {
+				return { tokens: [{ kind: 'plain', text: '(empty session)' }], diagnostics: [] }
+			}
+			const tokens: Token[] = []
+			names.forEach((n, i) => {
+				if (i > 0) tokens.push({ kind: 'plain', text: '  ' })
+				tokens.push({ kind: 'symbol', text: n })
+			})
+			return { tokens, diagnostics: [] }
+		}
+		case 'tree': {
+			return { tokens: [{ kind: 'plain', text: session.tree() }], diagnostics: [] }
+		}
+		case 'reset': {
+			session.reset()
+			refreshTree()
+			return { tokens: [{ kind: 'plain', text: '(session reset)' }], diagnostics: [] }
+		}
+		case 'clear': {
+			history.value = []
+			persistHistory()
+			return { tokens: [], diagnostics: [] }
+		}
+		case 'help':
+			return helpResult(
+				':type <e>   :check <e>   :expand <e>   :env   :tree   :reset   :clear   :help'
+			)
+		default:
+			return {
+				tokens: [],
+				diagnostics: [
+					{ level: 'error', message: `unknown command: :${head}` },
+				],
+			}
+	}
+}
+
+function helpResult(msg: string): ReplResult {
+	return { tokens: [{ kind: 'plain', text: msg }], diagnostics: [] }
+}
+
 function run(): void {
 	const src = input.value
 	if (src.trim() === '') return
-	// Multi-line auto-continuation: bail if the input still has open
-	// brackets so the user can keep typing.
-	if (!session.isComplete(src)) return
+	if (!isInputComplete(src)) return
 
-	const result = session.run(src)
+	const result = dispatch(src)
 	pushHistory({ id: nextId++, kind: 'input', source: src })
 	pushHistory({ id: nextId++, kind: 'output', result })
 	input.value = ''
 	persistHistory()
 	autoScroll()
+}
+
+function isInputComplete(src: string): boolean {
+	if (src.trim().startsWith(':')) return true
+	return session.isComplete(src)
 }
 
 function clearHistory(): void {
@@ -88,6 +168,7 @@ function clearHistory(): void {
 function reset(): void {
 	session.reset()
 	clearHistory()
+	refreshTree()
 }
 
 watch(history, () => autoScroll(), { deep: true })
@@ -99,10 +180,8 @@ async function autoScroll(): Promise<void> {
 }
 
 function onKeydown(e: KeyboardEvent): void {
-	// Enter alone runs; Shift+Enter / Cmd+Enter inserts a newline.
-	// Auto-continuation also forces a newline when the input is incomplete.
 	if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-		if (!session.isComplete(input.value)) return // let newline pass through
+		if (!isInputComplete(input.value)) return
 		e.preventDefault()
 		run()
 	}
@@ -128,109 +207,130 @@ function caretMarker(span: number): string {
 </script>
 
 <template>
-	<div class="repl">
-		<header>
-			<span class="title">Glisp REPL</span>
-			<nav>
-				<button class="ghost" @click="clearHistory" title="Clear history">
-					Clear
-				</button>
-				<button class="ghost" @click="reset" title="Reset env to prelude">
-					Reset
-				</button>
-			</nav>
-		</header>
+	<div class="repl-shell">
+		<section class="repl">
+			<header>
+				<span class="title">Glisp REPL</span>
+				<nav>
+					<button class="ghost" @click="clearHistory" title="Clear history">
+						Clear
+					</button>
+					<button class="ghost" @click="reset" title="Empty the session let-block">
+						Reset
+					</button>
+				</nav>
+			</header>
 
-		<div class="scroll" ref="scrollEl">
-			<ol class="history">
-				<li
-					v-for="item in history"
-					:key="item.id"
-					:class="['line', 'line-' + item.kind]"
-				>
-					<template v-if="item.kind === 'input' && item.source !== undefined">
-						<button
-							class="rerun"
-							@click="rerun(item.source)"
-							title="Copy back to input"
-						>
-							›
-						</button>
-						<pre class="input-src">{{ item.source }}</pre>
-					</template>
-
-					<template v-else-if="item.kind === 'output' && item.result">
-						<div class="output">
-							<span
-								v-for="(t, i) in item.result.tokens"
-								:key="i"
-								:class="tokenClass(t)"
-								>{{ t.text }}</span
-							>
-							<span v-if="item.result.note" class="note"
-								>; {{ item.result.note }}</span
-							>
-						</div>
-						<div
-							v-for="(d, i) in item.result.diagnostics"
-							:key="i"
-							class="diag"
-							:class="levelClass(d)"
-						>
-							<div class="diag-msg">
-								<span class="diag-tag">{{ d.level }}</span>
-								<span>{{ d.message }}</span>
-							</div>
-							<template v-if="d.excerpt">
-								<pre class="diag-line">{{ d.excerpt.line + 1 }} | {{
-									d.excerpt.source
-								}}</pre>
-								<pre class="diag-caret">{{
-									' '.repeat(
-										String(d.excerpt.line + 1).length + 3 + d.excerpt.column
-									) + caretMarker(d.excerpt.span)
-								}}</pre>
-							</template>
-						</div>
-					</template>
-				</li>
-				<li v-if="history.length === 0" class="empty">
-					Try
-					<code @click="rerun('(+ 1 2 3 4 5)')">(+ 1 2 3 4 5)</code>,
-					<code @click="rerun('y = (+ 20 30)')">y = (+ 20 30)</code>, or
-					<code @click="rerun('(map [1 2 3] (=> (n: number): number (* n n)))')"
-						>(map [1 2 3] (=> (n: number): number (* n n)))</code
+			<div class="scroll" ref="scrollEl">
+				<ol class="history">
+					<li
+						v-for="item in history"
+						:key="item.id"
+						:class="['line', 'line-' + item.kind]"
 					>
-				</li>
-			</ol>
-		</div>
+						<template v-if="item.kind === 'input' && item.source !== undefined">
+							<button
+								class="rerun"
+								@click="rerun(item.source)"
+								title="Copy back to input"
+							>
+								›
+							</button>
+							<pre class="input-src">{{ item.source }}</pre>
+						</template>
 
-		<form class="prompt" @submit.prevent="run">
-			<span class="prompt-glyph">›</span>
-			<textarea
-				ref="inputEl"
-				v-model="input"
-				rows="1"
-				placeholder="(+ 1 2)"
-				autocapitalize="off"
-				autocomplete="off"
-				autocorrect="off"
-				spellcheck="false"
-				@keydown="onKeydown"
-			></textarea>
-			<button class="run" type="submit" :disabled="!canRun" title="Evaluate">
-				Run
-			</button>
-		</form>
+						<template v-else-if="item.kind === 'output' && item.result">
+							<div class="output">
+								<span
+									v-for="(t, i) in item.result.tokens"
+									:key="i"
+									:class="tokenClass(t)"
+									>{{ t.text }}</span
+								>
+								<span v-if="item.result.note" class="note"
+									>; {{ item.result.note }}</span
+								>
+							</div>
+							<div
+								v-for="(d, i) in item.result.diagnostics"
+								:key="i"
+								class="diag"
+								:class="levelClass(d)"
+							>
+								<div class="diag-msg">
+									<span class="diag-tag">{{ d.level }}</span>
+									<span>{{ d.message }}</span>
+								</div>
+								<template v-if="d.excerpt">
+									<pre class="diag-line">{{ d.excerpt.line + 1 }} | {{
+										d.excerpt.source
+									}}</pre>
+									<pre class="diag-caret">{{
+										' '.repeat(
+											String(d.excerpt.line + 1).length + 3 + d.excerpt.column
+										) + caretMarker(d.excerpt.span)
+									}}</pre>
+								</template>
+							</div>
+						</template>
+					</li>
+					<li v-if="history.length === 0" class="empty">
+						Try
+						<code @click="rerun('(+ 1 2 3 4 5)')">(+ 1 2 3 4 5)</code>,
+						<code @click="rerun('y = (+ 20 30)')">y = (+ 20 30)</code>,
+						<code @click="rerun(':type +')">:type +</code>, or
+						<code @click="rerun('(map [1 2 3] (=> (n: number): number (* n n)))')"
+							>(map [1 2 3] (=> (n: number): number (* n n)))</code
+						>
+					</li>
+				</ol>
+			</div>
+
+			<form class="prompt" @submit.prevent="run">
+				<span class="prompt-glyph">›</span>
+				<textarea
+					ref="inputEl"
+					v-model="input"
+					rows="1"
+					placeholder="(+ 1 2)  or  :help"
+					autocapitalize="off"
+					autocomplete="off"
+					autocorrect="off"
+					spellcheck="false"
+					@keydown="onKeydown"
+				></textarea>
+				<button class="run" type="submit" :disabled="!canRun" title="Evaluate">
+					Run
+				</button>
+			</form>
+		</section>
+
+		<aside class="tree-pane">
+			<header>
+				<span class="title">Session</span>
+				<span class="tree-hint">live let-block</span>
+			</header>
+			<pre class="tree">{{ tree }}</pre>
+		</aside>
 	</div>
 </template>
 
 <style scoped>
-.repl {
-	display: flex;
-	flex-direction: column;
+.repl-shell {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
 	height: 100%;
 	max-height: 100dvh;
+	gap: 1px;
+	background: var(--border);
+}
+
+.repl,
+.tree-pane {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	background: var(--bg);
 }
 
 header {
@@ -249,6 +349,13 @@ header {
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	color: var(--fg);
+}
+
+.tree-hint {
+	color: var(--fg-hint);
+	font-size: 11px;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
 }
 
 nav {
@@ -276,6 +383,20 @@ button.ghost:hover {
 	overflow-x: hidden;
 	-webkit-overflow-scrolling: touch;
 	padding: 8px 0 16px;
+}
+
+.tree {
+	flex: 1;
+	overflow: auto;
+	margin: 0;
+	padding: 12px 16px;
+	color: var(--fg);
+	background: var(--bg-line);
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-size: 13px;
+	line-height: 1.6;
+	tab-size: 2;
 }
 
 .history {
@@ -480,6 +601,13 @@ button.run:disabled {
 }
 .t-plain {
 	color: var(--fg);
+}
+
+@media (max-width: 800px) {
+	.repl-shell {
+		grid-template-columns: 1fr;
+		grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr);
+	}
 }
 
 @media (max-width: 600px) {

@@ -40,11 +40,11 @@ import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
+import { Session } from './session.js'
 import {
 	type AST,
 	type Diagnostic,
 	type Env,
-	type Frame,
 	LitAST,
 	RecordAST,
 	SpreadAST,
@@ -324,6 +324,7 @@ function expandTopLevelSugar(src: string): string {
 const COMMAND_NAMES = [
 	':env',
 	':ast',
+	':tree',
 	':type',
 	':check',
 	':expand',
@@ -406,8 +407,7 @@ function saveHistory(lines: ReadonlyArray<string>): void {
 // -----------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-	const starter = buildPrelude()
-	let env: Env = starter
+	let session = new Session(buildPrelude())
 	let lastSource: string | null = null
 
 	const rl = createInterface({
@@ -419,8 +419,8 @@ async function main(): Promise<void> {
 		history: loadHistory(),
 		historySize: HISTORY_LIMIT,
 		// Tab completion of bindings + slash commands. The closure reads
-		// the live `env` binding so newly-defined names complete too.
-		completer: (line: string) => completeLine(line, env),
+		// the live session env so newly-defined names complete too.
+		completer: (line: string) => completeLine(line, session.env),
 	})
 
 	output.write(welcome())
@@ -466,7 +466,7 @@ async function main(): Promise<void> {
 		}
 
 		if (fullSource.startsWith(':')) {
-			env = handleCommand(fullSource, env, starter, lastSource)
+			session = handleCommand(fullSource, session, lastSource)
 			rl.prompt()
 			return
 		}
@@ -475,9 +475,11 @@ async function main(): Promise<void> {
 			const expandedSource = expandTopLevelSugar(fullSource)
 			const ast = parse(expandedSource)
 			lastSource = fullSource
-			const r = evaluate(ast, env)
+			const r = session.evalAst(ast)
 			// Top-level IO actions are run automatically — that's what
-			// `(def ...)` returns, and the user expects the REPL to apply it.
+			// `(def ...)` returns when nested, and the user expects the REPL
+			// to apply it. Top-level def / undef are intercepted by the
+			// session and never produce an IO.
 			if (r.value instanceof IO) {
 				const effectDiagnostics = r.value.run()
 				output.write(
@@ -490,7 +492,7 @@ async function main(): Promise<void> {
 					output.write(formatDiagnostic(d) + '\n')
 				}
 			} else {
-				output.write(formatValue(r.value, env) + '\n')
+				output.write(formatValue(r.value, session.env) + '\n')
 			}
 			for (const d of r.diagnostics) {
 				output.write(formatDiagnostic(d) + '\n')
@@ -520,14 +522,14 @@ async function main(): Promise<void> {
 
 function handleCommand(
 	src: string,
-	env: Env,
-	starter: Env,
+	session: Session,
 	lastSource: string | null
-): Env {
+): Session {
 	const rest = src.slice(1).trim()
 	const spaceIdx = rest.search(/\s/)
 	const head = spaceIdx === -1 ? rest : rest.slice(0, spaceIdx)
 	const args = spaceIdx === -1 ? '' : rest.slice(spaceIdx + 1).trim()
+	const env = session.env
 
 	switch (head) {
 		case 'quit':
@@ -538,41 +540,46 @@ function handleCommand(
 			output.write(
 				[
 					theme.header('  Commands'),
-					`    ${theme.keyword(':env')}              ${theme.hint('— list current top-level bindings')}`,
+					`    ${theme.keyword(':env')}              ${theme.hint('— list current session bindings')}`,
+					`    ${theme.keyword(':tree')}             ${theme.hint('— print the session as a let-block')}`,
 					`    ${theme.keyword(':ast')}              ${theme.hint('— print the AST of the previous input')}`,
 					`    ${theme.keyword(':type')} ${theme.hint('[expr]')}     ${theme.hint('— infer the type of expr (or the previous input)')}`,
 					`    ${theme.keyword(':check')} ${theme.hint('[expr]')}    ${theme.hint('— static type-check expr (or the previous input)')}`,
 					`    ${theme.keyword(':expand')} ${theme.hint('[expr]')}   ${theme.hint('— one-step macro expansion')}`,
 					`    ${theme.keyword(':doc')} ${theme.hint('<name>')}      ${theme.hint('— show a name\'s type and current value')}`,
-					`    ${theme.keyword(':reset')}            ${theme.hint('— restore the starter env')}`,
+					`    ${theme.keyword(':reset')}            ${theme.hint('— empty the session let-block')}`,
 					`    ${theme.keyword(':help')}             ${theme.hint('— show this help')}`,
 					`    ${theme.keyword(':quit')}             ${theme.hint('— exit (or Ctrl-D)')}`,
 					'',
 					theme.hint('  Tips:'),
 					theme.hint('    - multi-line input wraps automatically when brackets are unbalanced.'),
 					theme.hint('    - top-level `name = expr` is sugar for `(def "name" expr)`.'),
+					theme.hint('    - the session itself is a let-block; :tree shows it.'),
 					'',
 				].join('\n')
 			)
-			return env
+			return session
 		case 'env': {
-			const top = env as Frame | null
-			if (top === null || !top.bindings) {
-				output.write(theme.hint('  (empty env)') + '\n')
-				return env
+			const names = session.bindings()
+			if (names.length === 0) {
+				output.write(theme.hint('  (empty session)') + '\n')
+				return session
 			}
-			const names = [...top.bindings.keys()].sort()
 			output.write(
 				'  ' +
 					names.map(n => theme.keyword(n)).join(theme.hint('  ')) +
 					'\n'
 			)
-			return env
+			return session
+		}
+		case 'tree': {
+			output.write('  ' + print(session.ast()) + '\n')
+			return session
 		}
 		case 'ast':
 			if (lastSource === null) {
 				output.write(theme.hint('  (no previous input)') + '\n')
-				return env
+				return session
 			}
 			try {
 				const ast = parse(lastSource)
@@ -585,12 +592,12 @@ function handleCommand(
 						'\n'
 				)
 			}
-			return env
+			return session
 		case 'type': {
 			const exprSource = args !== '' ? args : lastSource
 			if (exprSource === null) {
 				output.write(theme.hint('  (no expression to type)') + '\n')
-				return env
+				return session
 			}
 			try {
 				const ast = parse(exprSource)
@@ -620,15 +627,16 @@ function handleCommand(
 					)
 				}
 			}
-			return env
+			return session
 		}
 		case 'reset':
-			output.write(theme.hint('  (env reset)') + '\n')
-			return starter
+			session.reset()
+			output.write(theme.hint('  (session reset)') + '\n')
+			return session
 		case 'doc': {
 			if (args === '') {
 				output.write(theme.hint('  usage: :doc <name>') + '\n')
-				return env
+				return session
 			}
 			try {
 				const ast = parse(args)
@@ -656,13 +664,13 @@ function handleCommand(
 					)
 				}
 			}
-			return env
+			return session
 		}
 		case 'expand': {
 			const exprSource = args !== '' ? args : lastSource
 			if (exprSource === null) {
 				output.write(theme.hint('  (no expression to expand)') + '\n')
-				return env
+				return session
 			}
 			try {
 				const ast = parse(exprSource)
@@ -692,13 +700,13 @@ function handleCommand(
 					)
 				}
 			}
-			return env
+			return session
 		}
 		case 'check': {
 			const exprSource = args !== '' ? args : lastSource
 			if (exprSource === null) {
 				output.write(theme.hint('  (no expression to check)') + '\n')
-				return env
+				return session
 			}
 			try {
 				const ast = parse(exprSource)
@@ -724,11 +732,11 @@ function handleCommand(
 					)
 				}
 			}
-			return env
+			return session
 		}
 		default:
 			output.write(theme.error(`  unknown command: :${head}`) + '\n')
-			return env
+			return session
 	}
 }
 

@@ -1,11 +1,13 @@
 /**
  * Glisp session adapter for the browser playground.
  *
- * Wraps `parse` / `evaluate` / `infer` / `toAst` from `@core/*` and
- * surfaces a structured result the Vue UI can render with theme colors.
+ * Wraps the shared `Session` (let-block as session state) plus
+ * `parse` / `infer` / `check` / `expand` so the Vue UI can render
+ * each REPL line as a structured ReplResult — tokens with theme
+ * colors, plus diagnostics.
  *
- * Result rendering goes through `toAst` so each output line is
- * idempotent: re-pasting it into the REPL yields the same value.
+ * Output rendering goes through `toAst` so each line is idempotent:
+ * re-pasting it yields the same value.
  */
 
 import { check as coreCheck } from '@core/check.js'
@@ -21,12 +23,13 @@ import { expandLadder as coreExpandLadder } from '@core/expand.js'
 import { infer as coreInfer } from '@core/infer.js'
 import { lex } from '@core/lex.js'
 import { parse, ParseError } from '@core/parse.js'
+import { print } from '@core/print.js'
 import { buildPrelude } from '@core/prelude.js'
+import { Session as CoreSession } from '@core/session.js'
 import {
 	type AST,
 	type Diagnostic,
 	type Env,
-	type Frame,
 	LitAST,
 	RecordAST,
 	SpreadAST,
@@ -80,41 +83,40 @@ export interface ReplResult {
 
 export interface Session {
 	readonly env: () => Env
-	/** Names visible at top-level (sorted) — used for completion/UI lists. */
+	/** Names visible at top-level (insertion order). */
 	readonly bindings: () => ReadonlyArray<string>
+	/** The session as a let-block AST — the source of truth. */
+	readonly tree: () => string
 	/** Evaluate a source line; auto-runs top-level IO actions. */
 	readonly run: (src: string) => ReplResult
 	/** Look up the inferred type of an expression. */
 	readonly typeOf: (src: string) => ReplResult
 	/** Static-check an expression — returns diagnostics only. */
 	readonly check: (src: string) => ReplResult
-	/** One-step macro expansion. */
+	/** One-step macro expansion (the abstraction ladder). */
 	readonly expand: (src: string) => ReplResult
-	/** Reset the session env to a fresh prelude. */
+	/** Reset the session to an empty let-block. */
 	readonly reset: () => void
-	/** Decide whether `src` looks structurally complete (for multi-line input). */
+	/** Decide whether `src` looks structurally complete (multi-line input). */
 	readonly isComplete: (src: string) => boolean
 }
 
 export function createSession(): Session {
-	let env: Env = buildPrelude()
+	let session = new CoreSession(buildPrelude())
 
 	return {
-		env: () => env,
-		bindings: () => collectNames(env),
-		run: src => runLine(src, env, runIO),
-		typeOf: src => typeOfLine(src, env),
-		check: src => checkLine(src, env),
-		expand: src => expandLine(src, env),
+		env: () => session.env,
+		bindings: () => session.bindings(),
+		tree: () => print(session.ast()),
+		run: src => runLine(src, session),
+		typeOf: src => typeOfLine(src, session.env),
+		check: src => checkLine(src, session.env),
+		expand: src => expandLine(src, session.env),
 		reset: () => {
-			env = buildPrelude()
+			session = new CoreSession(buildPrelude())
 		},
 		isComplete: src => isInputComplete(src),
 	}
-}
-
-function runIO(action: IO): ReadonlyArray<Diagnostic> {
-	return action.run()
 }
 
 // -----------------------------------------------------------------------------
@@ -165,14 +167,10 @@ function expandTopLevelSugar(src: string): string {
 }
 
 // -----------------------------------------------------------------------------
-// Run / type-of — produce a ReplResult
+// Run / type-of / check / expand — produce a ReplResult
 // -----------------------------------------------------------------------------
 
-function runLine(
-	src: string,
-	env: Env,
-	run: (a: IO) => ReadonlyArray<Diagnostic>
-): ReplResult {
+function runLine(src: string, session: CoreSession): ReplResult {
 	const expanded = expandTopLevelSugar(src)
 	let ast: AST
 	try {
@@ -181,11 +179,11 @@ function runLine(
 		return { tokens: [], diagnostics: [parseErrorToDiagnostic(src, e)] }
 	}
 
-	const r = coreEval(ast, env)
+	const r = session.evalAst(ast)
 	const diagnostics = r.diagnostics.map(d => coreDiagnosticToView(d))
 
 	if (r.value instanceof IO) {
-		const effectDiagnostics = run(r.value)
+		const effectDiagnostics = r.value.run()
 		const tokens: Token[] = [{ kind: 'unit', text: '()' }]
 		const note = r.value.description
 		return {
@@ -199,7 +197,7 @@ function runLine(
 	}
 
 	return {
-		tokens: tokensForValue(r.value, env),
+		tokens: tokensForValue(r.value, session.env),
 		diagnostics,
 	}
 }
@@ -437,20 +435,4 @@ function lineColAt(
 		col: pos - lineStart,
 		content: text.slice(lineStart, lineEnd),
 	}
-}
-
-// -----------------------------------------------------------------------------
-// Misc helpers
-// -----------------------------------------------------------------------------
-
-function collectNames(env: Env): string[] {
-	const names = new Set<string>()
-	let frame: Frame | null = env as Frame | null
-	while (frame !== null) {
-		if (frame.bindings) {
-			for (const k of frame.bindings.keys()) names.add(k)
-		}
-		frame = frame.parent as Frame | null
-	}
-	return [...names].sort()
 }
