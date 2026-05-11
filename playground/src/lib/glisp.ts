@@ -94,6 +94,8 @@ export interface Session {
 	readonly check: (src: string) => ReplResult
 	/** One-step macro expansion (the abstraction ladder). */
 	readonly expand: (src: string) => ReplResult
+	/** Doc + type + value of a bound name. */
+	readonly doc: (name: string) => ReplResult
 	/** Reset the session to an empty let-block. */
 	readonly reset: () => void
 	/** Decide whether `src` looks structurally complete (multi-line input). */
@@ -111,11 +113,59 @@ export function createSession(): Session {
 		typeOf: src => typeOfLine(src, session.env),
 		check: src => checkLine(src, session.env),
 		expand: src => expandLine(src, session.env),
+		doc: name => docLine(name, session.env),
 		reset: () => {
 			session = new CoreSession(buildPrelude())
 		},
 		isComplete: src => isInputComplete(src),
 	}
+}
+
+function docLine(name: string, env: Env): ReplResult {
+	let ast: AST
+	try {
+		ast = parse(name)
+	} catch (e) {
+		return { tokens: [], diagnostics: [parseErrorToDiagnostic(name, e)] }
+	}
+	const t = coreInfer(ast, env)
+	const r = coreEval(ast, env)
+	const docText = lookupDocByName(name, env)
+	const tokens: Token[] = [
+		{ kind: 'symbol', text: name },
+		{ kind: 'punct', text: ' : ' },
+		{ kind: 'type', text: t === null ? '?' : t.typeName },
+	]
+	if (docText !== null) {
+		tokens.push({ kind: 'plain', text: '\n  ' })
+		tokens.push({ kind: 'plain', text: docText })
+	}
+	tokens.push({ kind: 'plain', text: '\n  = ' })
+	for (const t of tokensForValue(r.value, env)) tokens.push(t)
+	return { tokens, diagnostics: [] }
+}
+
+function lookupDocByName(name: string, env: Env): string | null {
+	let frame = env as Frame | null
+	while (frame !== null) {
+		const target = frame.bindings?.get(name)
+		if (target !== undefined) {
+			const ast = target.ast
+			if (ast.kind === 'meta') {
+				const entry = ast.metadata.get('doc')
+				if (
+					entry !== undefined &&
+					entry.kind === 'lit' &&
+					typeof entry.value === 'string'
+				) {
+					return entry.value
+				}
+			}
+			return null
+		}
+		frame = frame.parent as Frame | null
+	}
+	return null
 }
 
 // -----------------------------------------------------------------------------

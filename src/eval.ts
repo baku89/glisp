@@ -310,27 +310,28 @@ export function typeFits(actual: TypeValue, expected: TypeValue): boolean {
 		return typeFits(actual.shape.element, expected.shape.element)
 	}
 
+	const aShape = actual.shape
+	const eShape = expected.shape
+
 	// Tuple → vector: every tuple position must fit the vector's element.
-	if (actual.shape.kind === 'tuple' && expected.shape.kind === 'vector') {
-		return actual.shape.elements.every(e => typeFits(e, expected.shape.element))
+	if (aShape.kind === 'tuple' && eShape.kind === 'vector') {
+		return aShape.elements.every(e => typeFits(e, eShape.element))
 	}
 
 	// Tuple → tuple: same length, positional element fits.
-	if (actual.shape.kind === 'tuple' && expected.shape.kind === 'tuple') {
-		if (actual.shape.elements.length !== expected.shape.elements.length) return false
-		return actual.shape.elements.every((e, i) =>
-			typeFits(e, expected.shape.elements[i]!)
-		)
+	if (aShape.kind === 'tuple' && eShape.kind === 'tuple') {
+		if (aShape.elements.length !== eShape.elements.length) return false
+		return aShape.elements.every((e, i) => typeFits(e, eShape.elements[i]!))
 	}
 
 	// Record → record: every required field of `expected` must be present
 	// (or `optional`) in `actual` with a fitting type. Extra fields on
 	// `actual` are allowed (width subtyping) since records are open.
-	if (actual.shape.kind === 'record' && expected.shape.kind === 'record') {
-		for (const [k, et] of expected.shape.fields) {
-			const at = actual.shape.fields.get(k)
+	if (aShape.kind === 'record' && eShape.kind === 'record') {
+		for (const [k, et] of eShape.fields) {
+			const at = aShape.fields.get(k)
 			if (at === undefined) {
-				if (!expected.shape.optional.has(k)) return false
+				if (!eShape.optional.has(k)) return false
 				continue
 			}
 			if (!typeFits(at, et)) return false

@@ -14,7 +14,7 @@
  * Spec: docs/spec/host-api.md
  */
 
-import { host, lit } from './build.js'
+import { host, lit, meta } from './build.js'
 import {
 	type Env,
 	UNIT,
@@ -217,158 +217,350 @@ function chainEq(want: boolean): TypedHostFn {
 // -----------------------------------------------------------------------------
 
 export function buildPrelude(): Env {
+	// `bind(name, doc, ast)` wraps the binding in `^{doc: "..."} expr`.
+	// Eval is transparent through meta, so behavior is unchanged; a host
+	// querying the binding's AST can read the doc plus any other fields.
+	const bind = (doc: string, ast: import('./types.js').AST, extra?: Record<string, string | number | boolean>): import('./types.js').AST => {
+		const m: Record<string, string | number | boolean> = { doc }
+		if (extra) Object.assign(m, extra)
+		return meta(m, ast)
+	}
+
+	const fn1 = (
+		t: TypeValue,
+		ret: TypeValue,
+		f: (a: unknown) => unknown,
+		name = 'x'
+	): TypedHostFn => makeTypedFn([t], ret, a => f(a), [name])
+
+	const fn2 = (
+		ta: TypeValue,
+		tb: TypeValue,
+		ret: TypeValue,
+		f: (a: unknown, b: unknown) => unknown,
+		names: [string, string] = ['a', 'b']
+	): TypedHostFn => makeTypedFn([ta, tb], ret, (a, b) => f(a, b), names)
+
+	const numUnary = (f: (n: number) => number, name = 'x'): TypedHostFn =>
+		fn1(numberType, numberType, n => f(n as number), name)
+
 	const env = makeTopLevel({
-		// types
-		number: host(numberType),
-		string: host(stringType),
-		boolean: host(booleanType),
-		unit: host(unitType),
-		_: host(topType),
-		'!': host(bottomType),
-		IO: host(ioType),
-
-		// arithmetic — `+ -` use 0 as both fold seed and per-arg default;
-		// `* /` use 1.
-		'+': host(variadicNumFold((a, b) => a + b, 0, numberType)),
-		'*': host(variadicNumFold((a, b) => a * b, 1, numberOneType)),
-		'-': host(variadicNumLeftFold((a, b) => a - b, 0, numberType)),
-		'/': host(variadicNumLeftFold((a, b) => a / b, 1, numberOneType)),
-
-		// comparison
-		'<': host(chainCmp((a, b) => a < b)),
-		'>': host(chainCmp((a, b) => a > b)),
-		'<=': host(chainCmp((a, b) => a <= b)),
-		'>=': host(chainCmp((a, b) => a >= b)),
-		'==': host(chainEq(true)),
-		'!=': host(chainEq(false)),
-
-		// utilities
-		not: host(makeTypedFn([booleanType], booleanType, a => !a)),
-		identity: host(makeTypedFn([topType], topType, a => a)),
-		show: host(makeTypedFn([topType], stringType, v => showValue(v))),
-		first: host(
-			makeTypedFn([vectorType], topType, xs =>
-				Array.isArray(xs) ? xs[0] : UNIT
-			)
-		),
-		last: host(
-			makeTypedFn([vectorType], topType, xs =>
-				Array.isArray(xs) ? xs[xs.length - 1] : UNIT
-			)
-		),
-		count: host(
-			makeTypedFn([vectorType], numberType, xs =>
-				Array.isArray(xs) ? xs.length : 0
-			)
+		// -----------------------------------------------------------------
+		// Types
+		// -----------------------------------------------------------------
+		number: bind('The base numeric type. Default `0`.', host(numberType)),
+		string: bind('The base string type. Default `""`.', host(stringType)),
+		boolean: bind('The base boolean type. Default `false`.', host(booleanType)),
+		unit: bind('The unit type; sole inhabitant is `()`.', host(unitType)),
+		_: bind('Top type. Accepts every value. Default `()`.', host(topType)),
+		'!': bind('Bottom type. Accepts no value. Default `()`.', host(bottomType)),
+		IO: bind(
+			'Deferred host effect. Parametric: `(IO T)` produces a `T` when forced.',
+			host(ioType)
 		),
 
-		// higher-order
-		map: host(makeMap()),
-		filter: host(makeFilter()),
-		reduce: host(makeReduce()),
+		// -----------------------------------------------------------------
+		// Arithmetic — `+ -` seed with 0; `* /` seed with 1.
+		// -----------------------------------------------------------------
+		'+': bind(
+			'Variadic sum. `(+) → 0`. Non-numeric args coerce to 0 with a diagnostic.',
+			host(variadicNumFold((a, b) => a + b, 0, numberType))
+		),
+		'*': bind(
+			'Variadic product. `(*) → 1`. Non-numeric args coerce to 1.',
+			host(variadicNumFold((a, b) => a * b, 1, numberOneType))
+		),
+		'-': bind(
+			'Left-fold subtraction. `(- x)` negates; `(- a b c)` = a−b−c.',
+			host(variadicNumLeftFold((a, b) => a - b, 0, numberType))
+		),
+		'/': bind(
+			'Left-fold division. `(/ x)` reciprocates; `(/ a b c)` = a/b/c.',
+			host(variadicNumLeftFold((a, b) => a / b, 1, numberOneType))
+		),
+		mod: bind(
+			'Remainder of `a / b` with the JS `%` semantics.',
+			host(fn2(numberType, numberType, numberType, (a, b) =>
+				(a as number) % (b as number)
+			))
+		),
+		pow: bind(
+			'`base` raised to the `exp` power.',
+			host(fn2(numberType, numberType, numberType, (a, b) =>
+				Math.pow(a as number, b as number), ['base', 'exp']
+			))
+		),
+		sqrt: bind('Square root. Negative input yields NaN.', host(numUnary(Math.sqrt))),
+		abs: bind('Absolute value of `x`.', host(numUnary(Math.abs))),
+		sign: bind('Sign of `x` (−1, 0, or 1).', host(numUnary(Math.sign))),
+		floor: bind('Round `x` down to the nearest integer.', host(numUnary(Math.floor))),
+		ceil: bind('Round `x` up to the nearest integer.', host(numUnary(Math.ceil))),
+		round: bind('Round `x` to the nearest integer.', host(numUnary(Math.round))),
+		exp: bind('e raised to `x`.', host(numUnary(Math.exp))),
+		log: bind('Natural log of `x`.', host(numUnary(Math.log))),
+		log2: bind('Base-2 log of `x`.', host(numUnary(Math.log2))),
+		log10: bind('Base-10 log of `x`.', host(numUnary(Math.log10))),
 
-		// type constructors
-		enum: host(makeEnum()),
-		refine: host(makeRefine()),
-
-		// math primitives — lit is the right wrapper for source-expressible
-		// values (numbers / strings / booleans / unit); host is for opaque
-		// host-side values without a literal form.
-		pi: lit(Math.PI),
-		e: lit(Math.E),
-		mod: host(
-			makeTypedFn(
-				[numberType, numberType],
-				numberType,
-				(a, b) => (a as number) % (b as number),
-				['a', 'b']
-			)
-		),
-		pow: host(
-			makeTypedFn(
-				[numberType, numberType],
-				numberType,
-				(a, b) => Math.pow(a as number, b as number),
-				['base', 'exp']
-			)
-		),
-		sqrt: host(
-			makeTypedFn([numberType], numberType, n => Math.sqrt(n as number))
-		),
-		floor: host(
-			makeTypedFn([numberType], numberType, n => Math.floor(n as number))
-		),
-		ceil: host(
-			makeTypedFn([numberType], numberType, n => Math.ceil(n as number))
-		),
-		round: host(
-			makeTypedFn([numberType], numberType, n => Math.round(n as number))
+		// -----------------------------------------------------------------
+		// Trigonometry — radians.
+		// -----------------------------------------------------------------
+		sin: bind('Sine of `x` (radians).', host(numUnary(Math.sin))),
+		cos: bind('Cosine of `x` (radians).', host(numUnary(Math.cos))),
+		tan: bind('Tangent of `x` (radians).', host(numUnary(Math.tan))),
+		asin: bind('Arcsine of `x`; result in radians.', host(numUnary(Math.asin))),
+		acos: bind('Arccosine of `x`; result in radians.', host(numUnary(Math.acos))),
+		atan: bind('Arctangent of `x`; result in radians.', host(numUnary(Math.atan))),
+		atan2: bind(
+			'Angle (radians) of the vector `(x, y)`, in `(-π, π]`.',
+			host(fn2(numberType, numberType, numberType, (y, x) =>
+				Math.atan2(y as number, x as number), ['y', 'x']
+			))
 		),
 
-		// vector / string ops
-		range: host(makeRange()),
-		reverse: host(makeReverse()),
-		slice: host(makeSliceOverload()),
-		size: host(makeSizeOverload()),
-		concat: host(makeConcatOverload()),
-		'starts-with': host(
-			makeTypedFn(
-				[stringType, stringType],
-				booleanType,
-				(s, p) => (s as string).startsWith(p as string),
-				['str', 'prefix']
+		// -----------------------------------------------------------------
+		// Constants
+		// -----------------------------------------------------------------
+		pi: bind('π ≈ 3.14159', lit(Math.PI)),
+		tau: bind('τ = 2π ≈ 6.28318. One full turn in radians.', lit(Math.PI * 2)),
+		'half-pi': bind('π / 2 ≈ 1.5708', lit(Math.PI / 2)),
+		'quarter-pi': bind('π / 4 ≈ 0.7854', lit(Math.PI / 4)),
+		e: bind('e ≈ 2.71828, the base of the natural log.', lit(Math.E)),
+		inf: bind('Positive infinity.', lit(Infinity)),
+
+		// -----------------------------------------------------------------
+		// Comparison & boolean
+		// -----------------------------------------------------------------
+		'<': bind('Pairwise less-than chain. `(<) → true`.', host(chainCmp((a, b) => a < b))),
+		'>': bind('Pairwise greater-than chain.', host(chainCmp((a, b) => a > b))),
+		'<=': bind('Pairwise less-or-equal chain.', host(chainCmp((a, b) => a <= b))),
+		'>=': bind('Pairwise greater-or-equal chain.', host(chainCmp((a, b) => a >= b))),
+		'==': bind('All adjacent arguments are equal.', host(chainEq(true))),
+		'!=': bind('All adjacent arguments are distinct.', host(chainEq(false))),
+		not: bind('Boolean negation.', host(fn1(booleanType, booleanType, a => !a))),
+		and: bind(
+			'Variadic logical AND. `(and) → true`. Non-booleans coerce to true.',
+			host(
+				makeTypedFn(
+					[],
+					booleanType,
+					(...args) => (args as boolean[]).every(Boolean),
+					undefined,
+					makeType('boolean', v => typeof v === 'boolean', true)
+				)
 			)
 		),
-		split: host(
-			makeTypedFn(
-				[stringType, stringType],
-				vectorType,
-				(s, sep) => (s as string).split(sep as string),
-				['str', 'sep']
-			)
-		),
-		join: host(
-			makeTypedFn(
-				[vectorType, stringType],
-				stringType,
-				(xs, sep) =>
-					(xs as unknown[])
-						.map(v => (typeof v === 'string' ? v : showValue(v)))
-						.join(sep as string),
-				['xs', 'sep']
+		or: bind(
+			'Variadic logical OR. `(or) → false`. Non-booleans coerce to false.',
+			host(
+				makeTypedFn(
+					[],
+					booleanType,
+					(...args) => (args as boolean[]).some(Boolean),
+					undefined,
+					booleanType
+				)
 			)
 		),
 
-		// record ops
-		keys: host(
-			makeTypedFn([recordType], vectorType, rec =>
-				rec !== null && typeof rec === 'object' && !Array.isArray(rec)
-					? Object.keys(rec)
-					: []
+		// -----------------------------------------------------------------
+		// Vectors — element access / shape / order
+		// -----------------------------------------------------------------
+		first: bind(
+			'First element of a vector; `()` if empty.',
+			host(fn1(vectorType, topType, xs => (Array.isArray(xs) ? xs[0] ?? UNIT : UNIT), 'xs'))
+		),
+		last: bind(
+			'Last element of a vector; `()` if empty.',
+			host(
+				fn1(vectorType, topType, xs =>
+					Array.isArray(xs) ? xs[xs.length - 1] ?? UNIT : UNIT, 'xs'
+				)
 			)
 		),
-		values: host(
-			makeTypedFn([recordType], vectorType, rec =>
-				rec !== null && typeof rec === 'object' && !Array.isArray(rec)
-					? Object.values(rec)
-					: []
+		count: bind(
+			'Number of elements in a vector.',
+			host(fn1(vectorType, numberType, xs => (Array.isArray(xs) ? xs.length : 0), 'xs'))
+		),
+		take: bind(
+			'First `n` elements of `xs` (or all if `n` exceeds length).',
+			host(
+				fn2(vectorType, numberType, vectorType, (xs, n) =>
+					Array.isArray(xs) ? xs.slice(0, Math.max(0, n as number)) : [],
+					['xs', 'n']
+				)
 			)
 		),
-		merge: host(
-			makeTypedFn(
-				[recordType, recordType],
-				recordType,
-				(a, b) =>
-					a !== null &&
-					typeof a === 'object' &&
-					!Array.isArray(a) &&
-					b !== null &&
-					typeof b === 'object' &&
-					!Array.isArray(b)
-						? { ...a, ...b }
-						: a,
-				['a', 'b']
+		drop: bind(
+			'`xs` without its first `n` elements.',
+			host(
+				fn2(vectorType, numberType, vectorType, (xs, n) =>
+					Array.isArray(xs) ? xs.slice(Math.max(0, n as number)) : [],
+					['xs', 'n']
+				)
 			)
+		),
+
+		// -----------------------------------------------------------------
+		// Higher-order over vectors
+		// -----------------------------------------------------------------
+		map: bind(
+			'Apply `f` to each element of `xs`; returns a new vector.',
+			host(makeMap())
+		),
+		filter: bind(
+			'Keep elements of `xs` where `p` returns true.',
+			host(makeFilter())
+		),
+		reduce: bind(
+			'Left-fold `xs` through `f` starting from `init`.',
+			host(makeReduce())
+		),
+
+		// -----------------------------------------------------------------
+		// Strings
+		// -----------------------------------------------------------------
+		'starts-with': bind(
+			'Whether `str` begins with `prefix`.',
+			host(
+				makeTypedFn(
+					[stringType, stringType], booleanType,
+					(s, p) => (s as string).startsWith(p as string),
+					['str', 'prefix']
+				)
+			)
+		),
+		'ends-with': bind(
+			'Whether `str` ends with `suffix`.',
+			host(
+				makeTypedFn(
+					[stringType, stringType], booleanType,
+					(s, p) => (s as string).endsWith(p as string),
+					['str', 'suffix']
+				)
+			)
+		),
+		lowercase: bind(
+			'Convert `str` to lowercase.',
+			host(fn1(stringType, stringType, s => (s as string).toLowerCase(), 'str'))
+		),
+		uppercase: bind(
+			'Convert `str` to uppercase.',
+			host(fn1(stringType, stringType, s => (s as string).toUpperCase(), 'str'))
+		),
+		trim: bind(
+			'Strip leading and trailing whitespace from `str`.',
+			host(fn1(stringType, stringType, s => (s as string).trim(), 'str'))
+		),
+		split: bind(
+			'Split `str` on each `sep` occurrence.',
+			host(
+				makeTypedFn(
+					[stringType, stringType],
+					vectorType,
+					(s, sep) => (s as string).split(sep as string),
+					['str', 'sep']
+				)
+			)
+		),
+		join: bind(
+			'Concatenate `xs` (any values, stringified) with `sep` between.',
+			host(
+				makeTypedFn(
+					[vectorType, stringType],
+					stringType,
+					(xs, sep) =>
+						(xs as unknown[])
+							.map(v => (typeof v === 'string' ? v : showValue(v)))
+							.join(sep as string),
+					['xs', 'sep']
+				)
+			)
+		),
+
+		// -----------------------------------------------------------------
+		// Records
+		// -----------------------------------------------------------------
+		keys: bind(
+			'Vector of `rec`\'s field names in declaration order.',
+			host(
+				fn1(recordType, vectorType, rec =>
+					rec !== null && typeof rec === 'object' && !Array.isArray(rec)
+						? Object.keys(rec)
+						: [],
+					'rec'
+				)
+			)
+		),
+		values: bind(
+			'Vector of `rec`\'s field values in declaration order.',
+			host(
+				fn1(recordType, vectorType, rec =>
+					rec !== null && typeof rec === 'object' && !Array.isArray(rec)
+						? Object.values(rec)
+						: [],
+					'rec'
+				)
+			)
+		),
+		merge: bind(
+			'Right-biased record merge: `(merge a b)` = a ∪ b, b wins on collision.',
+			host(
+				makeTypedFn(
+					[recordType, recordType],
+					recordType,
+					(a, b) =>
+						a !== null &&
+						typeof a === 'object' &&
+						!Array.isArray(a) &&
+						b !== null &&
+						typeof b === 'object' &&
+						!Array.isArray(b)
+							? { ...a, ...b }
+							: a,
+					['a', 'b']
+				)
+			)
+		),
+
+		// -----------------------------------------------------------------
+		// Type constructors
+		// -----------------------------------------------------------------
+		enum: bind(
+			'`(enum v1 v2 ...)`: a type whose inhabitants are exactly those values. Default = first member.',
+			host(makeEnum())
+		),
+		refine: bind(
+			'`(refine T default pred)`: a subset of `T` satisfying `pred`, with an explicit fallback.',
+			host(makeRefine())
+		),
+
+		// -----------------------------------------------------------------
+		// Misc
+		// -----------------------------------------------------------------
+		identity: bind(
+			'Returns its argument unchanged. Useful as a pass-through callback.',
+			host(fn1(topType, topType, a => a))
+		),
+		show: bind(
+			'Idempotent printing of any value as its Glisp source.',
+			host(fn1(topType, stringType, v => showValue(v)))
+		),
+		range: bind(
+			'`(range start end)` → `[start start+1 ... end-1]` (or descending if `start > end`).',
+			host(makeRange())
+		),
+		reverse: bind('Reverse the elements of a vector.', host(makeReverse())),
+		slice: bind(
+			'Sub-sequence of a vector or string between `start` and `end`.',
+			host(makeSliceOverload())
+		),
+		size: bind(
+			'Number of elements (vector) or characters (string).',
+			host(makeSizeOverload())
+		),
+		concat: bind(
+			'Variadic concatenation: all vectors / all strings.',
+			host(makeConcatOverload())
 		),
 	})
 
@@ -376,14 +568,37 @@ export function buildPrelude(): Env {
 	// They use the host primitives above (`+`, `*`, `map`, `reduce`, etc.)
 	// to produce convenience bindings written in the language itself.
 	const bootstrap = [
-		'(def "inc" (=> (n: number): number (+ n 1)))',
-		'(def "dec" (=> (n: number): number (- n 1)))',
-		'(def "neg" (=> (n: number): number (- n)))',
-		'(def "abs" (=> (n: number): number (? (< n 0) true (- n) _ n)))',
-		'(def "min" (=> (a: number b: number): number (? (< a b) true a _ b)))',
-		'(def "max" (=> (a: number b: number): number (? (> a b) true a _ b)))',
-		'(def "sum" (=> (xs: _): number (reduce xs 0 +)))',
-		'(def "product" (=> (xs: _): number (reduce xs 1 *)))',
+		// integer step / sign helpers
+		'(def "inc" ^{doc: "`(inc n)` = n + 1."} (=> (n: number): number (+ n 1)))',
+		'(def "dec" ^{doc: "`(dec n)` = n − 1."} (=> (n: number): number (- n 1)))',
+		'(def "neg" ^{doc: "Negation. `(neg n)` = −n."} (=> (n: number): number (- n)))',
+
+		// 2-arg min / max
+		'(def "min" ^{doc: "Smaller of `a` and `b`."} (=> (a: number b: number): number (? (< a b) true a _ b)))',
+		'(def "max" ^{doc: "Larger of `a` and `b`."} (=> (a: number b: number): number (? (> a b) true a _ b)))',
+
+		// reductions over a vector
+		'(def "sum" ^{doc: "Sum every element of a numeric vector."} (=> (xs: _): number (reduce xs 0 +)))',
+		'(def "product" ^{doc: "Product of every element of a numeric vector."} (=> (xs: _): number (reduce xs 1 *)))',
+
+		// angle conversion — Glisp's trig is radians; these are the bridges
+		'(def "to-deg" ^{doc: "Convert radians to degrees."} (=> (rad: number): number (/ (* rad 180) pi)))',
+		'(def "to-rad" ^{doc: "Convert degrees to radians."} (=> (deg: number): number (/ (* deg pi) 180)))',
+		'(def "to-turn" ^{doc: "Convert radians to turns (1 turn = 2π rad)."} (=> (rad: number): number (/ rad tau)))',
+		'(def "turn" ^{doc: "Convert turns to radians."} (=> (t: number): number (* t tau)))',
+
+		// range remapping — staples for design / motion code
+		'(def "lerp" ^{doc: "Linear interpolation: `(lerp a b t)` = a + (b−a)·t."} (=> (a: number b: number t: number): number (+ a (* (- b a) t))))',
+		'(def "mix" ^{doc: "Alias for `lerp`."} (=> (a: number b: number t: number): number (lerp a b t)))',
+		'(def "clamp" ^{doc: "Clamp `x` to `[lo, hi]`."} (=> (lo: number hi: number x: number): number (min hi (max lo x))))',
+		'(def "clamp01" ^{doc: "Clamp `x` to `[0, 1]`."} (=> (x: number): number (clamp 0 1 x)))',
+		'(def "fit" ^{doc: "Map `x` from `[omin, omax]` to `[nmin, nmax]` linearly."} (=> (omin: number omax: number nmin: number nmax: number x: number): number (+ nmin (* (- nmax nmin) (/ (- x omin) (- omax omin))))))',
+		'(def "fit01" ^{doc: "Map `x` (in [0, 1]) to `[lo, hi]` linearly."} (=> (lo: number hi: number x: number): number (lerp lo hi x)))',
+		'(def "fit11" ^{doc: "Map `x` (in [-1, 1]) to `[lo, hi]` linearly."} (=> (lo: number hi: number x: number): number (lerp lo hi (* 0.5 (+ x 1)))))',
+		'(def "step" ^{doc: "0 if x < edge, otherwise 1. (GLSL-style step.)"} (=> (edge: number x: number): number (? (< x edge) true 0 _ 1)))',
+
+		// Note: `?` is not an identifier character per spec, so the
+		// Scheme-style predicate naming `even?` / `empty?` is unavailable.
 	]
 	for (const src of bootstrap) {
 		const r = evaluate(parse(src), env)

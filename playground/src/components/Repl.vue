@@ -99,6 +99,10 @@ function runCommand(src: string): ReplResult {
 			if (args === '') return helpResult('usage: :expand <expr>')
 			return session.expand(args)
 		}
+		case 'doc': {
+			if (args === '') return helpResult('usage: :doc <name>')
+			return session.doc(args)
+		}
 		case 'env': {
 			const names = session.bindings()
 			if (names.length === 0) {
@@ -126,7 +130,7 @@ function runCommand(src: string): ReplResult {
 		}
 		case 'help':
 			return helpResult(
-				':type <e>   :check <e>   :expand <e>   :env   :tree   :reset   :clear   :help'
+				':type <e>   :check <e>   :expand <e>   :doc <name>   :env   :tree   :reset   :clear   :help'
 			)
 		default:
 			return {

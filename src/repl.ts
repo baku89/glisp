@@ -369,6 +369,38 @@ function saveHistory(lines: ReadonlyArray<string>): void {
 }
 
 // -----------------------------------------------------------------------------
+// Metadata lookup — find a bound name's `^{doc: "..."}` annotation
+// -----------------------------------------------------------------------------
+
+/**
+ * Walk the env chain looking for the binding `name`, then peel one
+ * layer of MetaAST to extract its `doc` field if present. Returns
+ * null when the name is unbound or has no doc metadata.
+ */
+function lookupDoc(name: string, env: Env): string | null {
+	let frame = env
+	while (frame !== null) {
+		const target = frame.bindings?.get(name)
+		if (target !== undefined) {
+			const ast = target.ast
+			if (ast.kind === 'meta') {
+				const entry = ast.metadata.get('doc')
+				if (
+					entry !== undefined &&
+					entry.kind === 'lit' &&
+					typeof entry.value === 'string'
+				) {
+					return entry.value
+				}
+			}
+			return null
+		}
+		frame = frame.parent
+	}
+	return null
+}
+
+// -----------------------------------------------------------------------------
 // REPL loop
 // -----------------------------------------------------------------------------
 
@@ -606,6 +638,7 @@ function handleCommand(
 				const ast = parse(args)
 				const t = infer(ast, env)
 				const r = evaluate(ast, env)
+				const docText = lookupDoc(args, env)
 				const lines: string[] = []
 				lines.push(
 					theme.keyword(args) +
@@ -614,6 +647,7 @@ function handleCommand(
 						' ' +
 						theme.type(t === null ? '?' : t.typeName)
 				)
+				if (docText !== null) lines.push('  ' + theme.hint(docText))
 				lines.push('  ' + theme.hint('=') + ' ' + formatValue(r.value, env))
 				output.write(lines.map(l => '  ' + l).join('\n') + '\n')
 			} catch (e) {
