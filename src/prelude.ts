@@ -127,87 +127,90 @@ const numberOneType: TypeValue = makeType(
 )
 
 /**
- * `+` and `*` style: fold every arg through `op` starting from `identity`.
- * `(+) → 0`, `(+ x) → x`, `(+ a b c) → a+b+c`.
+ * `+` and `*` style: fold every arg through `op`. Requires at least
+ * one argument — pure functional has no zero-arity invocation, so the
+ * "identity seed" version `(+) → 0` is rejected with a diagnostic.
+ * `(+ x) → x`, `(+ a b c) → a+b+c`.
  *
- * `tailType` is the `numberType` variant whose default value matches the
- * operator's identity (0 for `+`, 1 for `*`) — keeps the per-arg fallback
- * coherent with the fold seed.
+ * `tailType` is the `numberType` variant whose default value matches
+ * the operator's algebraic identity (0 for `+`, 1 for `*`); it kicks
+ * in when an *intermediate* arg fails to evaluate to a number, not as
+ * a seed for an empty call.
  */
 function variadicNumFold(
 	op: (a: number, b: number) => number,
-	identity: number,
 	tailType: TypeValue
 ): TypedHostFn {
 	return makeTypedFn(
-		[],
+		[numberType],
 		numberType,
-		(...args) => (args as number[]).reduce(op, identity),
-		undefined,
+		(first, ...rest) => [first as number, ...(rest as number[])].reduce(op),
+		['first'],
 		tailType
 	)
 }
 
 /**
- * `-` and `/` style: the first arg is the seed; remaining args fold through
- * `op`. With a single arg, the operator's identity element seeds the fold
- * (so `(- x)` = `0 - x` = `-x` and `(/ x)` = `1 / x`). With zero args,
- * returns the identity element itself.
+ * `-` and `/` style: first arg seeds; remaining args left-fold through
+ * `op`. Single arg unary: `(- x)` = `0 - x` = `-x`, `(/ x)` = `1 / x`.
+ * Zero args is rejected — no zero-arity invocation in pure FP.
  */
 function variadicNumLeftFold(
 	op: (a: number, b: number) => number,
-	identity: number,
+	unaryIdentity: number,
 	tailType: TypeValue
 ): TypedHostFn {
 	return makeTypedFn(
-		[],
+		[numberType],
 		numberType,
-		(...args) => {
-			const ns = args as number[]
-			if (ns.length === 0) return identity
-			if (ns.length === 1) return op(identity, ns[0]!)
+		(first, ...rest) => {
+			const ns = [first as number, ...(rest as number[])]
+			if (ns.length === 1) return op(unaryIdentity, ns[0]!)
 			return ns.slice(1).reduce(op, ns[0]!)
 		},
-		undefined,
+		['first'],
 		tailType
 	)
 }
 
 /**
- * `<` / `<=` / `>` / `>=` style: pairwise chain — true iff every adjacent
- * pair satisfies `op`. With fewer than two args, vacuously true.
+ * `<` / `<=` / `>` / `>=` style: pairwise chain — true iff every
+ * adjacent pair satisfies `op`. Requires at least one argument;
+ * single-arg is vacuously true (no adjacent pair exists).
  */
 function chainCmp(op: (a: number, b: number) => boolean): TypedHostFn {
 	return makeTypedFn(
-		[],
+		[numberType],
 		booleanType,
-		(...args) => {
-			const ns = args as number[]
+		(first, ...rest) => {
+			const ns = [first as number, ...(rest as number[])]
 			for (let i = 0; i + 1 < ns.length; i++) {
 				if (!op(ns[i]!, ns[i + 1]!)) return false
 			}
 			return true
 		},
-		undefined,
+		['first'],
 		numberType
 	)
 }
 
 /**
- * `==` / `!=` chain over arbitrary values. `==` = all adjacent pairs equal,
- * `!=` = all adjacent pairs distinct (not "all distinct from each other").
+ * `==` / `!=` chain over arbitrary values. `==` = all adjacent pairs
+ * equal, `!=` = all adjacent pairs distinct. Requires at least one
+ * argument; single-arg is vacuously true.
  */
 function chainEq(want: boolean): TypedHostFn {
 	return makeTypedFn(
-		[],
+		[topType],
 		booleanType,
-		(...args) => {
+		(first, ...rest) => {
+			const args = [first, ...rest]
 			for (let i = 0; i + 1 < args.length; i++) {
 				if ((args[i] === args[i + 1]) !== want) return false
 			}
 			return true
 		},
-		undefined,
+		['first'],
 		topType
 	)
 }
@@ -263,19 +266,19 @@ export function buildPrelude(): Env {
 		// Arithmetic — `+ -` seed with 0; `* /` seed with 1.
 		// -----------------------------------------------------------------
 		'+': bind(
-			'Variadic sum. `(+) → 0`. Non-numeric args coerce to 0 with a diagnostic.',
-			host(variadicNumFold((a, b) => a + b, 0, numberType))
+			'Sum of one or more numbers. `(+ x)` = x; non-numeric args coerce to 0 with a diagnostic.',
+			host(variadicNumFold((a, b) => a + b, numberType))
 		),
 		'*': bind(
-			'Variadic product. `(*) → 1`. Non-numeric args coerce to 1.',
-			host(variadicNumFold((a, b) => a * b, 1, numberOneType))
+			'Product of one or more numbers. Non-numeric args coerce to 1 with a diagnostic.',
+			host(variadicNumFold((a, b) => a * b, numberOneType))
 		),
 		'-': bind(
-			'Left-fold subtraction. `(- x)` negates; `(- a b c)` = a−b−c.',
+			'Subtraction. `(- x)` negates; `(- a b c)` = a−b−c.',
 			host(variadicNumLeftFold((a, b) => a - b, 0, numberType))
 		),
 		'/': bind(
-			'Left-fold division. `(/ x)` reciprocates; `(/ a b c)` = a/b/c.',
+			'Division. `(/ x)` reciprocates; `(/ a b c)` = a/b/c.',
 			host(variadicNumLeftFold((a, b) => a / b, 1, numberOneType))
 		),
 		mod: bind(
@@ -338,25 +341,25 @@ export function buildPrelude(): Env {
 		'!=': bind('All adjacent arguments are distinct.', host(chainEq(false))),
 		not: bind('Boolean negation.', host(fn1(booleanType, booleanType, a => !a))),
 		and: bind(
-			'Variadic logical AND. `(and) → true`. Non-booleans coerce to true.',
+			'Logical AND of one or more booleans. Non-booleans coerce to true.',
 			host(
 				makeTypedFn(
-					[],
+					[booleanType],
 					booleanType,
-					(...args) => (args as boolean[]).every(Boolean),
-					undefined,
+					(first, ...rest) => Boolean(first) && (rest as boolean[]).every(Boolean),
+					['first'],
 					makeType('boolean', v => typeof v === 'boolean', true)
 				)
 			)
 		),
 		or: bind(
-			'Variadic logical OR. `(or) → false`. Non-booleans coerce to false.',
+			'Logical OR of one or more booleans. Non-booleans coerce to false.',
 			host(
 				makeTypedFn(
-					[],
+					[booleanType],
 					booleanType,
-					(...args) => (args as boolean[]).some(Boolean),
-					undefined,
+					(first, ...rest) => Boolean(first) || (rest as boolean[]).some(Boolean),
+					['first'],
 					booleanType
 				)
 			)
@@ -672,18 +675,18 @@ function makeReduce(): TypedHostFn {
  */
 function makeEnum(): TypedHostFn {
 	return makeTypedFn(
-		[],
+		[topType],
 		topType,
-		(...vs) => {
+		(first, ...rest) => {
+			const vs = [first, ...rest]
 			const set = new Set(vs)
 			const name = `(enum ${vs.map(showValue).join(' ')})`
-			const fallback = vs.length > 0 ? vs[0] : UNIT
-			return makeType(name, v => set.has(v), fallback, {
+			return makeType(name, v => set.has(v), vs[0], {
 				kind: 'enum',
 				values: set,
 			})
 		},
-		undefined,
+		['first'],
 		topType
 	)
 }
@@ -780,24 +783,24 @@ function makeSizeOverload(): OverloadValue {
 	return new OverloadValue([sizeVec, sizeStr])
 }
 
-/** `concat` overload: strings or vectors, variadic. */
+/** `concat` overload: strings or vectors, variadic (1+ args). */
 function makeConcatOverload(): OverloadValue {
 	const concatVec = makeTypedFn(
-		[],
+		[vectorType],
 		vectorType,
-		(...args) =>
-			(args as unknown[][]).reduce<unknown[]>(
+		(first, ...rest) =>
+			[first as unknown[], ...(rest as unknown[][])].reduce<unknown[]>(
 				(acc, xs) => acc.concat(xs),
 				[]
 			),
-		undefined,
+		['first'],
 		vectorType
 	)
 	const concatStr = makeTypedFn(
-		[],
+		[stringType],
 		stringType,
-		(...args) => (args as string[]).join(''),
-		undefined,
+		(first, ...rest) => [first as string, ...(rest as string[])].join(''),
+		['first'],
 		stringType
 	)
 	return new OverloadValue([concatVec, concatStr])

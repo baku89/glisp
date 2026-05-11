@@ -26,14 +26,20 @@ describe('prelude — primitive types', () => {
 describe('prelude — arithmetic (variadic)', () => {
 	const env = buildPrelude()
 
-	it('+ folds with identity 0', () => {
-		expect(evaluate(parse('(+)'), env).value).toBe(0)
+	it('+ requires at least one arg', () => {
+		const r = evaluate(parse('(+)'), env)
+		expect(
+			r.diagnostics.some(d => d.message.includes('missing argument'))
+		).toBe(true)
 		expect(evaluate(parse('(+ 7)'), env).value).toBe(7)
 		expect(evaluate(parse('(+ 1 2 3 4 5)'), env).value).toBe(15)
 	})
 
-	it('* folds with identity 1', () => {
-		expect(evaluate(parse('(*)'), env).value).toBe(1)
+	it('* requires at least one arg', () => {
+		const r = evaluate(parse('(*)'), env)
+		expect(
+			r.diagnostics.some(d => d.message.includes('missing argument'))
+		).toBe(true)
 		expect(evaluate(parse('(* 5)'), env).value).toBe(5)
 		expect(evaluate(parse('(* 2 3 4)'), env).value).toBe(24)
 	})
@@ -60,10 +66,14 @@ describe('prelude — arithmetic (variadic)', () => {
 describe('prelude — comparison (chain)', () => {
 	const env = buildPrelude()
 
-	it('< chains pairwise', () => {
+	it('< chains pairwise; zero args is rejected', () => {
 		expect(evaluate(parse('(< 1 2 3 4)'), env).value).toBe(true)
 		expect(evaluate(parse('(< 1 3 2)'), env).value).toBe(false)
-		expect(evaluate(parse('(<)'), env).value).toBe(true)
+		expect(evaluate(parse('(< 5)'), env).value).toBe(true) // vacuously true (no pairs)
+		const r = evaluate(parse('(<)'), env)
+		expect(
+			r.diagnostics.some(d => d.message.includes('missing argument'))
+		).toBe(true)
 	})
 
 	it('== / != chain over arbitrary values', () => {
@@ -247,14 +257,14 @@ describe('prelude — parametric IO', () => {
 describe('prelude — :type signature display via infer', () => {
 	const env = buildPrelude()
 
-	it('infer(+) yields a function-type with variadic tail', () => {
+	it('infer(+) yields a function-type with required first arg + variadic tail', () => {
 		const t = infer(parse('+'), env)
-		expect(t?.typeName).toBe('(=> (...rest: number): number)')
+		expect(t?.typeName).toBe('(=> (first: number ...rest: number): number)')
 	})
 
 	it('infer(==) returns boolean-typed predicate', () => {
 		const t = infer(parse('=='), env)
-		expect(t?.typeName).toBe('(=> (...rest: _): boolean)')
+		expect(t?.typeName).toBe('(=> (first: _ ...rest: _): boolean)')
 	})
 
 	it('infer of a fn literal renders its signature', () => {
