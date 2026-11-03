@@ -217,6 +217,7 @@ These run no value expression, apart from type expressions.
 ```ts
 check(ast, env)             // every diagnostic, including in what never runs
 infer(ast, env)             // the TypeValue, or null if it cannot be determined
+printType(type)             // a type as source, with what `type.meta` says
 resolveTypeSlot(ast, env)   // `ast` read as a type, or null
 typeFits(actual, expected)  // whether one type fits another
 resolve(ast, env)           // what each name and path refers to

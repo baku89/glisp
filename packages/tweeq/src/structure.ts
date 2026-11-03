@@ -85,6 +85,8 @@ export interface NumberOptions {
 	readonly min?: number
 	readonly max?: number
 	readonly step?: number
+	readonly prefix?: string
+	readonly suffix?: string
 }
 
 /**
@@ -180,11 +182,26 @@ function numberOptionsOf(metadata: MetaAST['metadata'] | null | undefined): Numb
 			: undefined
 	}
 	const [min, max, step] = [read('min'), read('max'), read('step')]
+	const prefix = textOf(metadata?.get('prefix'))
+	const suffix = textOf(metadata?.get('suffix'))
 	const ordered = min === undefined || max === undefined || min < max
 	return {
 		...(ordered && min !== undefined ? { min } : {}),
 		...(ordered && max !== undefined ? { max } : {}),
 		...(step !== undefined && step > 0 ? { step } : {}),
+		...(prefix === null ? {} : { prefix }),
+		...(suffix === null ? {} : { suffix }),
+	}
+}
+
+/**
+ * What a slot's number field goes by: what its position wants, and over that what
+ * its node says or its type has brought along.
+ */
+export function numberOptionsAt(slot: Slot): NumberOptions {
+	return {
+		...slot.numberOptions,
+		...numberOptionsOf(infer(slot.ast, slot.env)?.meta),
 	}
 }
 
@@ -437,16 +454,21 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		return new CallAST(ast.head, args, ast.kwargs)
 	}
 
+	const positional = parameters?.names ?? []
 	const info = parameterInfo(ast.head, inside)
 	const labelOf = info.label
 	const docOf = (name: string): { doc?: string } => {
 		const doc = info.doc(name)
 		return doc === null ? {} : { doc }
 	}
+	// A parameter's type may have got what it says from elsewhere, by its name.
+	const numberOptionsOfParameter = (name: string): NumberOptions => ({
+		...info.numberOptions(name),
+		...numberOptionsOf(signature?.(positional.indexOf(name))?.meta),
+	})
 	const doc = textOf(definition?.get('doc'))
 	const slots: Slot[] = []
 	const missing: MissingArgument[] = []
-	const positional = parameters?.names ?? []
 
 	ast.args.forEach((arg, i) => {
 		const isVariadic = i >= positional.length
@@ -454,7 +476,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		const label = isVariadic
 			? `${labelOf(parameters?.variadicName ?? '')}${parameters === null ? `${i}` : ` ${i - positional.length}`}`.trim()
 			: labelOf(name!)
-		const numberOptions = info.numberOptions(
+		const numberOptions = numberOptionsOfParameter(
 			isVariadic ? (parameters?.variadicName ?? '') : name!
 		)
 		slots.push({
@@ -500,7 +522,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		slots.push({
 			key: `kw:${name}`,
 			label: labelOf(name),
-			numberOptions: info.numberOptions(name),
+			numberOptions: numberOptionsOfParameter(name),
 			...docOf(name),
 			ast: arg,
 			env: inside,
@@ -1057,7 +1079,7 @@ export type SlotAction = {
 	readonly label: string
 	readonly icon: string
 	/** Which one it is, for what runs it by a key. */
-	readonly id?: 'step' | 'all'
+	readonly id?: 'step' | 'all' | 'pin'
 	/** The keys that run it, as a menu shows them. */
 	readonly keys?: readonly string[]
 	/** Actions of a group go together, in a menu. */
@@ -1145,8 +1167,10 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	if (hasValue(slot.ast) && slot.role !== 'function' && slot.role !== 'step') {
 		const pinned = isPinned(slot.ast)
 		actions.push({
+			id: 'pin',
 			label: pinned ? 'Unpin' : 'Pin',
 			icon: pinned ? 'mdi:pin-off' : 'mdi:pin',
+			keys: ['P'],
 			group: 'edit',
 			apply: () => slot.replace(pinned ? unpin(slot.ast) : pin(slot.ast)),
 		})

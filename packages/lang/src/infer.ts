@@ -46,6 +46,7 @@ import {
 	type TypeValue,
 	unitType,
 	unwrapLazy,
+	withTypeMeta,
 } from './eval.js'
 import {
 	type AST,
@@ -120,8 +121,10 @@ export function resolveTypeSlot(ast: AST, env: Env): TypeValue | null {
 
 function computeTypeSlot(ast: AST, env: Env): TypeValue | null {
 	switch (ast.kind) {
-		case 'meta':
-			return resolveTypeSlot(ast.expr, env)
+		case 'meta': {
+			const type = resolveTypeSlot(ast.expr, env)
+			return type === null ? null : withTypeMeta(type, ast.metadata)
+		}
 		case 'vec':
 			return tupleSlot(ast, env)
 		case 'record':
@@ -170,12 +173,13 @@ function recordSlot(ast: RecordAST, env: Env): TypeValue | null {
 
 /**
  * A name bound to a literal type form, by its source rather than its value,
- * since a recursive type has no value.
+ * since a recursive type has no value, and evaluating leaves metadata behind. An
+ * alias leads to what it stands for.
  */
 function symbolSlot(name: string, env: Env): TypeValue | null {
 	const target = lookupBareName(name, env)
 	if (target === null) return null
-	if (target.ast.kind !== 'vec' && target.ast.kind !== 'record') return null
+	if (!['vec', 'record', 'meta', 'sym'].includes(target.ast.kind)) return null
 	const reentered = typeSlotsInProgress.get(target.ast)?.get(target.env)
 	if (reentered !== undefined) {
 		reentered.lazy ??= makeLazyType(name, () => reentered.resolved)
@@ -592,7 +596,10 @@ function inferNode(ast: AST, env: Env): TypeValue | null {
 			return ast.body === null
 				? unitType
 				: infer(ast.body, pushLetFrame(ast, env))
-		case 'meta':
+		case 'meta': {
+			const type = infer(ast.expr, env)
+			return type === null ? null : withTypeMeta(type, ast.metadata)
+		}
 		case 'unquote':
 			return infer(ast.expr, env)
 		case 'access':

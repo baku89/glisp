@@ -120,11 +120,15 @@ const iconBoundTo = (name: string, env: Env): string | null =>
 	textOf(metadataOf(name, env)?.get('icon'))
 
 /**
- * The icon of a type: the one on the name it is bound to, or else that of the
+ * The icon of a type: the one it has brought along, or on the name it is bound to,
+ * or else that of the
  * type it refines, or of its shape.
  */
 export function iconOfType(type: TypeValue, env: Env): string | null {
 	const resolved = unwrapLazy(type)
+	// A function's is what a call to it shows, and not what it is as a value.
+	const said = resolved.shape.kind === 'function' ? null : type.meta?.get('icon')
+	if (said?.kind === 'lit' && typeof said.value === 'string') return said.value
 	const named = toAst(resolved, env)
 	const own = named.kind === 'sym' ? iconBoundTo(named.name, env) : null
 	if (own !== null) return own

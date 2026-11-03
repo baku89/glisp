@@ -218,11 +218,26 @@ Any value (including types) can be wrapped with metadata via `^{...}` prefix.
 
 ### Semantics
 
-Metadata sits as a layer on top of the underlying value. The underlying value's type is unchanged. Metadata is consulted at three points:
+Metadata sits as a layer on top of the underlying value, and evaluation does not see it. A type says what its values are, and metadata is part of that, such as that a number is a percentage. It does not change what fits what, so `^{suffix: "%"} number` holds the same values as `number`, and a `Percent` can be passed where an `Angle` is wanted. Metadata is consulted at three points:
 
 1. **`default` fallback**. The `default` key, if present on the expected type, is the fallback value when type mismatch or runtime error occurs.
 2. **Host introspection**. Hosts read metadata for label, doc, color, etc. The language core treats these as opaque pass-through.
-3. **Inheritance**. When a value/type is derived, metadata merges with last-write-wins. Unset keys are inherited.
+3. **Inheritance**. Static analysis carries metadata along with a type, and what is written later goes over what came before, key by key. See below.
+
+
+```glisp
+Percent = ^{min: 0 max: 100 suffix: "%"} number
+Half = ^{max: 50} Percent      ;; min, suffix, and a max of 50
+a = (: 20 Percent)             ;; : ^{min: 0 max: 100 suffix: "%"} number
+b = ^{min: 0} 5                ;; : ^{min: 0} number
+c = b                          ;; : ^{min: 0} number
+d = (+ b 1)                    ;; : number, since `+` says it returns a number
+f = (=> (p: Percent): number p)  ;; `p` is a Percent, and so is what is passed to it, for an editor
+```
+
+A value takes its metadata from where it is written, and through names, parameters' and return types, and generics. Metadata stays out of type names in diagnostics, and it is not evaluated: only what is written as a literal can be read back, as `^{max: a}` cannot be without running `a`.
+
+`doc`, `label`, `params` and `@` stay where they are written, since they are about a name or a place: `(opacity: Percent)` is still called `opacity`. Everything else goes along with the type, including `icon`.
 
 ### Reserved metadata keys
 

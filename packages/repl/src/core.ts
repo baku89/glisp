@@ -15,6 +15,7 @@ import {
 	type Env,
 	expandLadder,
 	infer,
+	printType,
 	IO,
 	isGlispClosure,
 	isTypedHostFn,
@@ -253,7 +254,7 @@ export class ReplCore {
 					return [
 						type === null
 							? theme.hint('? (type unknown)')
-							: `${theme.hint(':')} ${theme.type(type.typeName)}`,
+							: `${theme.hint(':')} ${theme.type(printType(type))}`,
 					]
 				})
 			case 'check':

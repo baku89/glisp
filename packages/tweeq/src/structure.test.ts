@@ -2,7 +2,7 @@ import { buildPrelude, evaluate, host, isPinned, meta, parse, print, Session, so
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, iconOfSequence, withIcons } from './icons'
-import { actionsOf, canSolve, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canSolve, numberOptionsAt, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -1009,5 +1009,39 @@ describe('helpers', () => {
 	it('parses source, or says it cannot', () => {
 		expect(print(parseSource('(+ 1 2)')!)).toBe('(+ 1 2)')
 		expect(parseSource('(+ 1')).toBeNull()
+	})
+})
+
+describe('what a type brings to a number field', () => {
+	it('brings an icon along', () => {
+		const session = new Session(env)
+		session.setAst(parse('{P = ^{icon: "mdi:percent"} number a = (: 1 P)}') as never)
+		const row = viewOf(session.ast(), session.env).slots.find(s => s.key === 'binding:a')!
+		expect(iconOf(row.ast, row.env)).toBe('mdi:percent')
+	})
+
+	const rowOf = (src: string, key: string) => {
+		const session = new Session(env)
+		session.setAst(parse(src) as never)
+		return viewOf(session.ast(), session.env).slots.find(s => s.key === key)!
+	}
+	const PERCENT = 'Percent = ^{label: "Pct" min: 0 max: 100 suffix: "%"} number'
+	const OPTIONS = { min: 0, max: 100, suffix: '%' }
+
+	it('reads prefix and suffix', () => {
+		expect(view('^{prefix: "$" suffix: "%"} 5').numberOptions).toEqual({ prefix: '$', suffix: '%' })
+	})
+
+	it('reaches a value through its name and its type', () => {
+		expect(numberOptionsAt(rowOf(`{a = ^{suffix: "%"} 5 b = a}`, 'binding:b'))).toEqual({ suffix: '%' })
+		expect(numberOptionsAt(rowOf(`{${PERCENT} a = (: 5 Percent)}`, 'binding:a'))).toEqual(OPTIONS)
+	})
+
+	it('reaches an argument through a parameter, which keeps its own name', () => {
+		const call = rowOf(`{${PERCENT} f = (=> (p: Percent): number p) a = (f 1)}`, 'binding:a')
+		const arg = viewOf(call.ast, call.env).slots[0]!
+		expect(arg.numberOptions).toEqual(OPTIONS)
+		expect(arg.label).toBe('p')
+		expect(numberOptionsAt(arg)).toEqual(OPTIONS)
 	})
 })

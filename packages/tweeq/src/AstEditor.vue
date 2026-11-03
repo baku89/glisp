@@ -134,6 +134,10 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		if (selection.value?.evaluate === undefined) return
 		event.preventDefault()
 		selection.value.evaluate(event.shiftKey ? 'all' : 'step')
+	} else if (event.key.toLowerCase() === 'p' && !isMod && !event.altKey) {
+		if (selection.value?.evaluate === undefined) return
+		event.preventDefault()
+		selection.value.evaluate('pin')
 	} else if (event.key.toLowerCase() === 'v' && !isMod && !event.altKey) {
 		if (selection.value?.editValue === undefined) return
 		event.preventDefault()

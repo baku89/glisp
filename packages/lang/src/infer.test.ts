@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { check } from './check.js'
-import { evaluate, makeTypedFn, type TypeValue, typeFits } from './eval.js'
+import { evaluate, makeTypedFn, printType, type TypeValue, typeFits, unwrapLazy } from './eval.js'
 import { infer, resolveTypeSlot } from './infer.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
@@ -368,5 +368,87 @@ describe('check', () => {
 		]) {
 			expect(problems(src), src).toEqual([])
 		}
+	})
+})
+
+describe('metadata on a type', () => {
+	const typeIn = (src: string, name: string) => {
+		const session = new Session(buildPrelude())
+		session.setAst(parse(src) as LetAST)
+		return printType(infer(parse(name), session.env)!)
+	}
+	const PERCENT = 'Percent = ^{min: 0 max: 100 suffix: "%"} number'
+	const SAID = '^{min: 0 max: 100 suffix: "%"} number'
+
+	it('comes with a value, from where it is written and through names', () => {
+		expect(typeIn('{a = ^{min: 0} 5}', 'a')).toBe('^{min: 0} number')
+		expect(typeIn('{a = ^{min: 0} 5 b = a}', 'b')).toBe('^{min: 0} number')
+		expect(typeIn('{a = 5}', 'a')).toBe('number')
+	})
+
+	it('comes with a type, through a name and an alias', () => {
+		expect(typeIn(`{${PERCENT} a = (: 20 Percent)}`, 'a')).toBe(SAID)
+		expect(typeIn(`{${PERCENT} P = Percent a = (: 20 P)}`, 'a')).toBe(SAID)
+	})
+
+	it('goes over what came before, key by key', () => {
+		expect(typeIn(`{${PERCENT} H = ^{max: 50} Percent a = (: 20 H)}`, 'a')).toBe(
+			'^{min: 0 suffix: "%" max: 50} number'
+		)
+	})
+
+	it('goes through a function, its generics, and no further than it says', () => {
+		const src = `{${PERCENT} f = (=> (p: Percent): Percent p) id = (=> (T) (v: T): T v) a = (f 1) b = ^{min: 0} 5 c = (id b) d = (+ b 1)}`
+		expect(typeIn(src, 'a')).toBe(SAID)
+		expect(typeIn(src, 'c')).toBe('^{min: 0} number')
+		expect(typeIn(src, 'd')).toBe('number')
+	})
+
+	it('reaches a parameter inside its function', () => {
+		const fn = infer(
+			parse(`{${PERCENT} (=> (p: Percent): number p)}`),
+			buildPrelude()
+		)!
+		const shape = unwrapLazy(fn).shape
+		expect(shape.kind === 'function' && printType(shape.paramTypes[0]!)).toBe(SAID)
+	})
+
+	it('changes nothing about what fits', () => {
+		const env = buildPrelude()
+		const said = resolveTypeSlot(parse('^{min: 0} number'), env)!
+		const plain = resolveTypeSlot(parse('number'), env)!
+		expect(typeFits(said, plain)).toBe(true)
+		expect(typeFits(plain, said)).toBe(true)
+		expect(said.fits(1)).toBe(true)
+		expect(said.fits('a')).toBe(false)
+		expect(check(parse(`{${PERCENT} f = (=> (p: Percent): number p) (f "a")}`), env)).not.toEqual([])
+		expect(check(parse(`{${PERCENT} f = (=> (p: Percent): number p) (f 1)}`), env)).toEqual([])
+	})
+
+	it('leaves behind what is said about a name or a place', () => {
+		expect(typeIn('{a = @5}', 'a')).toBe('number')
+		expect(typeIn('{a = ^{doc: "D" label: "L" min: 0} @5}', 'a')).toBe('^{min: 0} number')
+		expect(typeIn('{f = ^{doc: "D"} (=> (x: number): number x)}', 'f')).toBe(
+			'(=> (x: number): number)'
+		)
+		expect(typeIn('{a = 1}', 'pi')).toBe('number')
+		expect(typeIn('{a = (: 1 number)}', 'a')).toBe('number')
+		expect(typeIn('{P = ^{doc: "D" suffix: "%"} number a = (: 1 P)}', 'a')).toBe(
+			'^{suffix: "%"} number'
+		)
+	})
+
+	it('takes an icon along', () => {
+		expect(typeIn('{P = ^{icon: "i"} number Q = ^{min: 0} P a = (: 1 Q)}', 'a')).toBe(
+			'^{icon: "i" min: 0} number'
+		)
+	})
+
+	it('holds for a recursive type, and aliases in a circle', () => {
+		const src = '{Tree = ^{icon: "t"} {value: number children: [...Tree]} a = (: {value: 1 children: []} Tree)}'
+		expect(typeIn(src, 'a')).toContain('^{icon: "t"}')
+		const env = buildPrelude()
+		expect(() => resolveTypeSlot(parse('{p = q q = p (: 1 p)}'), env)).not.toThrow()
+		expect(() => check(parse('{p = q q = p (: 1 p)}'), env)).not.toThrow()
 	})
 })

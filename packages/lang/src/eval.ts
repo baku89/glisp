@@ -24,6 +24,7 @@ import {
 	type Env,
 	type FnAST,
 	type Frame,
+	type RecordAST,
 	type RecordEntry,
 	SpreadAST,
 	UNIT,
@@ -200,6 +201,13 @@ export interface TypeValue {
 	readonly default: unknown
 	readonly shape: TypeShape
 	/**
+	 * What is said about the values of this type, as written. It takes no part in
+	 * what fits what. Only static analysis reads it, so nothing in it is evaluated.
+	 */
+	readonly meta?: RecordAST
+	/** This type without `meta`, if it has any. */
+	readonly plain?: TypeValue
+	/**
 	 * Optional type-constructor hook. When set, `(T arg ...)` is dispatched
 	 * here with the args evaluated as types, and the result is the
 	 * parameterized TypeValue. Most types do not have this; for them, a
@@ -281,15 +289,46 @@ export function makeLazyType(
 	}
 }
 
-/** What a recursive reference stands for, or the type itself otherwise. */
+/** What a recursive reference stands for, or the type itself otherwise, bare. */
 export function unwrapLazy(type: TypeValue): TypeValue {
-	let current = type
+	let current = type.plain ?? type
 	while (current.shape.kind === 'lazy') {
 		const next = current.shape.resolve()
 		if (next === null) return current
-		current = next
+		current = next.plain ?? next
 	}
 	return current
+}
+
+/** What is said about the name or the place it is written at, and not about values. */
+const STAYS_BEHIND: ReadonlySet<string> = new Set(['doc', 'label', 'params', PIN])
+
+/**
+ * `type`, with `metadata` said about it as well, which goes over what it already
+ * says, except for what stays where it is written.
+ */
+export function withTypeMeta(type: TypeValue, metadata: RecordAST): TypeValue {
+	const added = metadata.fields.filter(
+		(field): field is readonly [string, AST] =>
+			!('kind' in field) && !STAYS_BEHIND.has(field[0])
+	)
+	if (added.length === 0) return type
+	const kept = (type.meta?.fields ?? []).filter(
+		field =>
+			!('kind' in field) && !added.some(([key]) => key === field[0])
+	)
+	// Inheriting, since a recursive type works out what it has only when asked.
+	return Object.create(type.plain ?? type, {
+		meta: { value: new RecordASTClass([...kept, ...added]) },
+		plain: { value: type.plain ?? type },
+	}) as TypeValue
+}
+
+/** A type as source, with what is said about it. */
+export function printType(type: TypeValue): string {
+	return type.meta === undefined
+		? type.typeName
+		: new MetaASTClass(type.meta, new SymASTClass(type.typeName)).print()
 }
 
 const vectorTypes: WeakMap<TypeValue, TypeValue> = new WeakMap()
@@ -2240,6 +2279,8 @@ import {
 	CallAST as CallASTClass,
 	HostAST as HostASTClass,
 	LitAST as LitASTClass,
+	MetaAST as MetaASTClass,
+	PIN,
 	RecordAST as RecordASTClass,
 	SymAST as SymASTClass,
 	VecAST as VecASTClass,

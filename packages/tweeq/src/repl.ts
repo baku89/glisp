@@ -19,6 +19,7 @@ import {
 	expandLadder as coreExpandLadder,
 	type Frame,
 	infer as coreInfer,
+	printType,
 	IO,
 	isGlispClosure,
 	isTypedHostFn,
@@ -280,7 +281,7 @@ function typeOfLine(src: string, env: Env): ReplResult {
 	return {
 		tokens: [
 			{ kind: 'punct', text: ': ' },
-			{ kind: 'type', text: t.typeName },
+			{ kind: 'type', text: printType(t) },
 		],
 		diagnostics: [],
 	}

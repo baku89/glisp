@@ -19,6 +19,7 @@ import {
 	hasValue,
 	isExpression,
 	kindIconOf,
+	numberOptionsAt,
 	parseSource,
 	problemOf,
 	type Slot,
@@ -103,10 +104,7 @@ const isString = computed(
 )
 
 // The node's own say goes first, over what its parameter's type says.
-const numberOptions = computed(() => ({
-	...props.entry.numberOptions,
-	...view.value.numberOptions,
-}))
+const numberOptions = computed(() => numberOptionsAt(props.entry))
 
 const revealer = inject(REVEALER, null)
 
