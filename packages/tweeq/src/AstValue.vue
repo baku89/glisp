@@ -8,20 +8,19 @@ import { InputString } from 'tweeq/InputString'
 import { InputSwitch } from 'tweeq/InputSwitch'
 import { InputTextBase } from 'tweeq/InputTextBase'
 import { type MenuItem } from 'tweeq/Menu'
-import { useDrag } from 'tweeq/use/useDrag'
-import { computed, inject, ref, useTemplateRef, watch } from 'vue'
+import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
+import { editMenuItems } from './menu'
 import { REVEALER, SOLVER } from './selection'
 import {
-	canScrub,
+	canSolve,
 	expressionFromField,
 	hasValue,
 	isExpression,
 	kindIconOf,
 	parseSource,
 	problemOf,
-	scrubbed,
 	type Slot,
 	sourceOf,
 	viewOf,
@@ -170,11 +169,18 @@ function onFieldKey(event: KeyboardEvent): void {
 		event.metaKey ||
 		event.ctrlKey ||
 		event.altKey ||
-		(kind !== 'number' && kind !== 'boolean' && kind !== 'enum')
+		(kind !== 'number' && kind !== 'boolean' && kind !== 'enum' && !solvable.value)
 	) {
 		return
 	}
 	const target = event.target as HTMLElement
+	if (solvable.value) {
+		event.preventDefault()
+		event.stopPropagation()
+		target.blur()
+		editExpression()
+		return
+	}
 	const isText =
 		target instanceof HTMLInputElement && target.type === 'text'
 	const start = expressionFromField(isText ? target : null)
@@ -194,51 +200,38 @@ function finishEditing(): void {
 	commitDraft()
 }
 
-// Dragging what comes out of an expression changes what goes in. A click is still
-// what edits it as code, so it is only a drag that does this.
+// What comes out of an expression is a number like any other. Editing it changes
+// what it comes from, and what it is written as is gone into on purpose.
 const solver = inject(SOLVER, null)
-const $field = useTemplateRef('$field')
-
-const scrubbable = computed(
-	() => solver !== null && canScrub(props.entry, result.value?.value)
+const solvable = computed(
+	() => solver !== null && canSolve(props.entry, result.value?.value)
+)
+const hasNumber = computed(
+	() => view.value.editor?.kind === 'number' || solvable.value
 )
 
-let scrubStart = 0
-let travelled = 0
-let scrubMoved = false
+const $root = useTemplateRef<HTMLElement>('$root')
 
-useDrag($field, {
-	lockPointer: true,
-	disabled: computed(() => !scrubbable.value),
-	shouldDrag(event) {
-		scrubMoved = false
-		// The icon is pressed, not dragged, and capturing would take its click.
-		return !(event.target as Element | null)?.closest('.icon')
-	},
-	onDragStart() {
-		scrubStart = result.value?.value as number
-		travelled = 0
-	},
-	onDrag(state, event) {
-		scrubMoved = true
-		travelled += state.delta[0] * (event.altKey ? 0.1 : 1) * (event.shiftKey ? 10 : 1)
-		solver?.solve(
-			ast.value,
-			scrubbed(scrubStart, travelled, numberOptions.value, event.altKey)
-		)
-	},
+function editValue(): void {
+	// After a menu has closed, which gives the focus back to where it was.
+	void nextTick(() => $root.value?.querySelector('input')?.select())
+}
+
+function editExpression(): void {
+	draft.value = sourceOf(ast.value)
+	startedByTyping = false
+	editing.value = true
+}
+
+const editItems = computed(() =>
+	editMenuItems(hasNumber.value ? editValue : null, editExpression)
+)
+const fieldMenu = computed<MenuItem[]>(() => [...editItems.value, ...props.menuItems])
+
+defineExpose({
+	editValue: computed(() => (hasNumber.value ? editValue : null)),
+	editExpression,
 })
-
-/** A press would focus the field, which opens the code, before it could be a drag. */
-function onFieldPress(event: MouseEvent): void {
-	if (scrubbable.value) event.preventDefault()
-}
-
-function onFieldClick(): void {
-	// Letting go of a drag is a click, too.
-	if (scrubMoved) scrubMoved = false
-	else editing.value = true
-}
 
 const label = (value: unknown): string =>
 	typeof value === 'string' ? value : String(value)
@@ -246,11 +239,11 @@ const label = (value: unknown): string =>
 
 <template>
 	<div
+		ref="$root"
 		class="value"
 		:class="{
 			expression: !editing && !isCallee && isExpression(ast),
 			callee: !editing && isCallee,
-			scrubbable: !editing && scrubbable,
 			error:
 				(draft.trim() !== '' && parseSource(draft) === null) ||
 				(!editing && problem !== null),
@@ -269,14 +262,25 @@ const label = (value: unknown): string =>
 			v-else-if="view.editor?.kind === 'number'"
 			v-bind="numberOptions"
 			:modelValue="view.editor.value"
-			:menuItems="menuItems"
+			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
 			@update:modelValue="update(withLiteral(ast, $event))"
+		/>
+		<InputNumber
+			v-else-if="solvable"
+			v-bind="numberOptions"
+			:modelValue="result?.value as number"
+			:menuItems="fieldMenu"
+			:inlinePosition="inlinePosition"
+			:rightIcon="kindIcon"
+			:rightIconPressable="iconTarget !== null || view.slots.length > 0"
+			@rightIconClick="onKindIcon"
+			@update:modelValue="solver?.solve(ast, $event)"
 		/>
 		<InputString
 			v-else-if="view.editor?.kind === 'string'"
 			:modelValue="view.editor.value"
-			:menuItems="menuItems"
+			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
@@ -294,7 +298,6 @@ const label = (value: unknown): string =>
 		/>
 		<InputTextBase
 			v-else
-			ref="$field"
 			:modelValue="draft"
 			:font="isNumber ? 'numeric' : isString ? undefined : 'monospace'"
 			:align="isNumber ? 'center' : undefined"
@@ -302,10 +305,9 @@ const label = (value: unknown): string =>
 			ignoreInput
 			:rightIcon="kindIcon"
 			:rightIconPressable="iconTarget !== null || view.slots.length > 0"
-			:menuItems="menuItems"
+			:menuItems="fieldMenu"
 			@rightIconClick="onKindIcon"
-			@mousedown="onFieldPress"
-			@click="onFieldClick"
+			@click="editing = true"
 			@focus="editing = true"
 		>
 			<template #inactiveContent>
@@ -341,9 +343,6 @@ const label = (value: unknown): string =>
 }
 .value :deep(.TqInputTextBase) {
 	cursor: text;
-}
-.scrubbable :deep(.TqInputTextBase) {
-	cursor: ew-resize;
 }
 .up-to-now {
 	position: absolute;

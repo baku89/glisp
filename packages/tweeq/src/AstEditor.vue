@@ -116,6 +116,7 @@ watch(props.document.root, () => {
 
 // A press anywhere but on a row's label, or the menu it opened, ends a selection.
 useEventListener(window, 'pointerdown', (event: PointerEvent) => {
+	unsolved.value = null
 	const target = event.target as Element | null
 	if (target?.closest('.TqParameterTreeItem .row, [popover]')) return
 	selection.value = null
@@ -133,6 +134,14 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		if (selection.value?.evaluate === undefined) return
 		event.preventDefault()
 		selection.value.evaluate(event.shiftKey ? 'all' : 'step')
+	} else if (event.key.toLowerCase() === 'v' && !isMod && !event.altKey) {
+		if (selection.value?.editValue === undefined) return
+		event.preventDefault()
+		selection.value.editValue()
+	} else if (event.key === '=' && !isMod && !event.altKey) {
+		if (selection.value?.editExpression === undefined) return
+		event.preventDefault()
+		selection.value.editExpression()
 	} else if (event.key === 'Enter' || event.key === 'F2') {
 		if (selection.value?.rename === undefined) return
 		event.preventDefault()

@@ -2,7 +2,7 @@ import { buildPrelude, evaluate, host, isPinned, meta, parse, print, Session, so
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, iconOfSequence, withIcons } from './icons'
-import { actionsOf, canScrub, scrubbed, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canSolve, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -967,29 +967,15 @@ describe('pinning from a menu', () => {
 	})
 })
 
-describe('dragging a value', () => {
+describe('editing a value that is worked out', () => {
 	const row = (src: string) => view(src).slots[0]!
 
 	it('is for what is worked out, and not pinned', () => {
-		expect(canScrub(row('{a = (+ 1 2)}'), 3)).toBe(true)
-		expect(canScrub(row('{a = 1}'), 1)).toBe(false)
-		expect(canScrub(row('{a = @(+ 1 2)}'), 3)).toBe(false)
-		expect(canScrub(row('{a = (+ 1 2)}'), 'x')).toBe(false)
-		expect(canScrub(row('{a = (+ 1 2)}'), Infinity)).toBe(false)
-	})
-
-	it('moves by the pixel, and keeps the decimals there are', () => {
-		expect(scrubbed(3, 2, {})).toBe(5)
-		expect(scrubbed(3.25, 1, {})).toBe(4.25)
-		expect(scrubbed(1 / 3, 1, {})).toBe(1.3333)
-		expect(scrubbed(3, 0.3, {}, true)).toBe(3.3)
-	})
-
-	it('keeps to the step and the range', () => {
-		expect(scrubbed(0, 20, { step: 0.5 })).toBe(0.5)
-		expect(scrubbed(0, 33, { step: 0.5 })).toBe(1)
-		expect(scrubbed(5, 100, { max: 10 })).toBe(10)
-		expect(scrubbed(5, -100, { min: 0 })).toBe(0)
+		expect(canSolve(row('{a = (+ 1 2)}'), 3)).toBe(true)
+		expect(canSolve(row('{a = 1}'), 1)).toBe(false)
+		expect(canSolve(row('{a = @(+ 1 2)}'), 3)).toBe(false)
+		expect(canSolve(row('{a = (+ 1 2)}'), 'x')).toBe(false)
+		expect(canSolve(row('{a = (+ 1 2)}'), Infinity)).toBe(false)
 	})
 
 	it('reaches back through a row, from where the editor stands', () => {

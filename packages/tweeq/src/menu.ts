@@ -3,6 +3,32 @@ import type { MenuItem } from 'tweeq/Menu'
 
 import { actionsOf, type Slot, type SlotAction } from './structure'
 
+/** How a value's field goes into editing: `editValue` if it has a number to edit. */
+export function editMenuItems(
+	editValue: (() => void) | null,
+	editExpression: () => void
+): MenuItem[] {
+	return [
+		...(editValue === null
+			? []
+			: [
+					{
+						label: 'Edit Value',
+						icon: 'mdi:pound',
+						bindIcon: ['V'],
+						perform: editValue,
+					},
+				]),
+		{
+			label: 'Edit Expression',
+			icon: 'mdi:code-parentheses',
+			bindIcon: ['='],
+			perform: editExpression,
+		},
+		{ separator: true },
+	]
+}
+
 /** A slot's actions as a menu, in groups. `apply` gets the new parent. */
 export function slotMenuItems(
 	slot: Slot,

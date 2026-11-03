@@ -8,6 +8,9 @@ export interface Selection {
 	readonly rename?: () => void
 	/** Run one of the actions that have a key. */
 	readonly evaluate?: (id: 'step' | 'all') => void
+	/** Go into what it comes to, if that is a number, or into what it is written as. */
+	readonly editValue?: () => void
+	readonly editExpression?: () => void
 }
 
 /** How a row renames the binding it shows, which takes the whole program. */

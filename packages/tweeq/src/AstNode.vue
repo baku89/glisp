@@ -11,7 +11,7 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
-import { slotMenuItems } from './menu'
+import { editMenuItems, slotMenuItems } from './menu'
 import { RENAMER, REVEALER, SELECTION } from './selection'
 import { actionsOf, fitsInline, parseSource, type Slot, sourceOf, viewOf } from './structure'
 
@@ -83,6 +83,10 @@ function finishFunction(): void {
 
 const revealer = inject(REVEALER, null)
 const $item = useTemplateRef<{ scrollIntoView(): void }>('$item')
+const $value = useTemplateRef<{
+	editValue: (() => void) | null
+	editExpression(): void
+}>('$value')
 
 const bareKind = computed(() =>
 	ast.value.kind === 'meta' ? ast.value.expr.kind : ast.value.kind
@@ -138,6 +142,8 @@ function select(): void {
 		path: props.path,
 		...(remove === undefined ? {} : { remove: () => emit('change', remove()) }),
 		...(renamable.value ? { rename: () => (renaming.value = true) } : {}),
+		editValue: () => $value.value?.editValue?.(),
+		editExpression: () => $value.value?.editExpression(),
 		evaluate(id) {
 			const action = actionsOf(props.entry).find(a => a.id === id)
 			if (action !== undefined && 'apply' in action) emit('change', action.apply())
@@ -145,7 +151,15 @@ function select(): void {
 	}
 }
 
+const slotMenu = computed(() =>
+	slotMenuItems(props.entry, parent => emit('change', parent))
+)
+
+// What the value's own field offers by itself, and the row offers on its behalf.
 const menuItems = computed<MenuItem[]>(() => [
+	...($value.value === null
+		? []
+		: editMenuItems($value.value.editValue, () => $value.value?.editExpression())),
 	...(renamable.value
 		? [
 				{
@@ -156,7 +170,7 @@ const menuItems = computed<MenuItem[]>(() => [
 				{ separator: true as const },
 			]
 		: []),
-	...slotMenuItems(props.entry, parent => emit('change', parent)),
+	...slotMenu.value,
 ])
 
 // A reference leads to what it refers to: rows on the way open, and it is selected.
@@ -208,9 +222,10 @@ watch(
 		/>
 		<AstValue
 			v-else-if="!isFunction"
+			ref="$value"
 			:entry="entry"
 			:path="path"
-			:menuItems="menuItems"
+			:menuItems="slotMenu"
 			:read="read"
 			:show="show"
 			@change="emit('change', $event)"

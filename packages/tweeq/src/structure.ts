@@ -989,8 +989,11 @@ export function expressionFromField(
 	return field.value.slice(field.selectionEnd ?? 0)
 }
 
-/** Whether dragging what a slot shows as `value` should change what it comes from. */
-export function canScrub(slot: Slot, value: unknown): boolean {
+/**
+ * Whether what a slot shows as `value` is a number to edit, which then changes what
+ * it comes from. Only what is worked out comes from anything.
+ */
+export function canSolve(slot: Slot, value: unknown): boolean {
 	return (
 		typeof value === 'number' &&
 		Number.isFinite(value) &&
@@ -999,36 +1002,6 @@ export function canScrub(slot: Slot, value: unknown): boolean {
 		slot.display === undefined &&
 		slot.role !== 'function'
 	)
-}
-
-/** Pixels of a drag to one `step`, and the most digits a drag keeps, as InputNumber has. */
-const PIXELS_PER_STEP = 20
-const SCRUB_DECIMALS = 4
-
-/**
- * What a drag makes of the number `start`, having `travelled` pixels, `fine` being
- * a drag by tenths. It keeps to the `step` if there is one, or else to as many
- * decimals as `start` shows, and stays within `min` and `max`.
- */
-export function scrubbed(
-	start: number,
-	travelled: number,
-	{ min, max, step }: NumberOptions,
-	fine = false
-): number {
-	const decimalsOf = (n: number): number =>
-		String(Number(n.toFixed(SCRUB_DECIMALS))).split('.')[1]?.length ?? 0
-	const next =
-		step === undefined
-			? Number(
-					(start + travelled).toFixed(Math.max(decimalsOf(start), fine ? 1 : 0))
-				)
-			: Number(
-					(
-						Math.round((start + (travelled * step) / PIXELS_PER_STEP) / step) * step
-					).toFixed(decimalsOf(step))
-				)
-	return Math.min(max ?? Infinity, Math.max(min ?? -Infinity, next))
 }
 
 /** The narrowest an input can be, side by side with others. */
