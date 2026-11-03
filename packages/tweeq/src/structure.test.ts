@@ -404,6 +404,10 @@ describe('adding a binding', () => {
 		expect(view('^{label: "L"} {x = 1}').append?.key).toBe('binding:x2')
 	})
 
+	it('adds to an empty let, with nothing left over', () => {
+		expect(print(view('{()}').append!.add())).toBe('{x = 0}')
+	})
+
 	it('keeps a body last', () => {
 		expect(print(view('{a = 1 a}').append!.add())).toBe('{a = 1 x = 0 a}')
 	})
@@ -521,8 +525,8 @@ describe('moveBinding', () => {
 	})
 
 	it('moves out of a let', () => {
-		expect(move(A, X, 'before')).toBe('{a = 20 x = 10 y = (+ 1 2) z = {}}')
-		expect(move(A, Z, 'after')).toBe('{x = 10 y = (+ 1 2) z = {} a = 20}')
+		expect(move(A, X, 'before')).toBe('{a = 20 x = 10 y = (+ 1 2) z = {()}}')
+		expect(move(A, Z, 'after')).toBe('{x = 10 y = (+ 1 2) z = {()} a = 20}')
 	})
 
 	it('does not move into what is not a let', () => {
@@ -550,6 +554,13 @@ describe('moveBinding', () => {
 		expect(move('binding:z', 'binding:zz', 'inside', '{z = 1 zz = {a = 1}}')).toBe(
 			'{zz = {a = 1 z = 1}}'
 		)
+	})
+
+	it('moves into a let that it has emptied, and back', () => {
+		const emptied = move(A, Z, 'after')!
+		expect(emptied).toContain('z = {()}')
+		const next = moveBinding(parse(emptied), env, 'binding:a', Z, 'inside')
+		expect(print(next!)).toBe(SOURCE)
 	})
 
 	it('reaches a let under metadata', () => {

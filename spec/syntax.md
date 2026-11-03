@@ -203,6 +203,7 @@ The block contents determine the kind:
 {a = 10 b = 20 (+ a b)}        ;; let-block → 30
 {a = 10 b = 20}                ;; let-block, no trailing expression → unit
 {}                             ;; empty record
+{()}                           ;; empty let-block → unit
 {x: 10  a = 20}                ;; ❌ syntax error
 {a = 10 (foo) (+ a 1)}         ;; ❌ syntax error: only one trailing bare expression allowed
 ```

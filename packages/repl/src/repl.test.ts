@@ -184,7 +184,7 @@ describe('ReplCore', () => {
 
 	it('shows the environment as a let-block that parses', () => {
 				const core = new ReplCore()
-		expect(plain(core.envLines())).toEqual(['{}'])
+		expect(plain(core.envLines())).toEqual(['{()}'])
 		core.submit('x = 1')
 		core.submit('y = (+ x 1)')
 		core.submit('f = (=> (n: number): number (* n 2))')
@@ -244,10 +244,10 @@ describe('ReplCore', () => {
 		expect(run(core, ':nope')[0]).toContain('unknown command')
 		expect(run(core, ':unset y')[0]).toContain('no such binding')
 		expect(run(core, ':unset x')).toEqual([])
-		expect(plain(core.envLines())).toEqual(['{}'])
+		expect(plain(core.envLines())).toEqual(['{()}'])
 		core.submit('x = 1')
 		core.submit(':reset')
-		expect(plain(core.envLines())).toEqual(['{}'])
+		expect(plain(core.envLines())).toEqual(['{()}'])
 		expect(core.submit(':quit').quit).toBe(true)
 		expect(core.submit(':help').output.length).toBe(1)
 	})

@@ -1,3 +1,4 @@
+import type { LetAST } from './types.js'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -131,6 +132,9 @@ describe('parse — records', () => {
 
 	it('empty record', () => {
 		expect(parse('{}')).toEqual(new RecordAST([]))
+		expect(parse('{()}').kind).toBe('let')
+		expect((parse('{()}') as LetAST).body).toBeNull()
+		expect((parse('{a = 1 ()}') as LetAST).body?.kind).toBe('lit')
 	})
 
 	it('record with optional field', () => {

@@ -1,3 +1,4 @@
+import { LetAST } from './types.js'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -70,6 +71,11 @@ describe('print', () => {
 	it('prints records (insertion order)', () => {
 		expect(print(record({ x: lit(10), y: lit(20) }))).toBe('{x: 10 y: 20}')
 		expect(print(record({}))).toBe('{}')
+		// An empty let-block is not an empty record, and reads back as what it is.
+		const empty = new LetAST([], null)
+		expect(print(empty)).toBe('{()}')
+		expect(parse(print(empty)).kind).toBe('let')
+		expect(print(new LetAST([], null))).toBe(print(parse('{()}')))
 	})
 
 	it('prints let-blocks', () => {

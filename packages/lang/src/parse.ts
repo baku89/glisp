@@ -504,7 +504,10 @@ class Parser {
 			body = this.expression()
 		}
 		this.advance() // '}'
-		return letBlock(bindings, body)
+		// `{()}` is how an empty let-block is written: it has no body, as `{a = 1}` has none.
+		const isEmpty =
+			bindings.length === 0 && body?.kind === 'lit' && body.value === UNIT
+		return isEmpty ? letBlock(bindings) : letBlock(bindings, body)
 	}
 
 	// --- ^{...} expr — metadata ----------------------------------------------

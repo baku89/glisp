@@ -77,7 +77,7 @@ export class ReplCore {
 	/** Bindings whose value changed in the last submission. */
 	private changed = new Set<string>()
 	private lastEvaluatedMs = 0
-	private env: string[] = [theme.punct('{}')]
+	private env: string[] = [theme.punct('{()}')]
 
 	submit(source: string): Submission {
 		const src = source.trim()
@@ -138,7 +138,7 @@ export class ReplCore {
 
 	private formatEnv(): string[] {
 		const names = this.session.bindings()
-		if (names.length === 0) return [theme.punct('{}')]
+		if (names.length === 0) return [theme.punct('{()}')]
 		const body = names.flatMap((name, i) => {
 			const prefix = i === 0 ? theme.punct('{') : ' '
 			return this.bindingLines(name).map((line, j) =>

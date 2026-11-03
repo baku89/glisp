@@ -7,9 +7,9 @@ import { buildPrelude } from './prelude.js'
 import { Session } from './session.js'
 
 describe('Session — let-block as session state', () => {
-	it('starts empty: ast() prints as `{}`', () => {
+	it('starts empty: ast() prints as `{()}`', () => {
 		const s = new Session(buildPrelude())
-		expect(print(s.ast())).toBe('{}')
+		expect(print(s.ast())).toBe('{()}')
 		expect(s.bindings()).toEqual([])
 	})
 
@@ -92,7 +92,7 @@ describe('Session — let-block as session state', () => {
 		s.exec('y = 2')
 		s.reset()
 		expect(s.bindings()).toEqual([])
-		expect(print(s.ast())).toBe('{}')
+		expect(print(s.ast())).toBe('{()}')
 	})
 
 	it('non-mutation expressions evaluate normally and do not touch the let-block', () => {

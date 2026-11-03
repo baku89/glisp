@@ -340,7 +340,8 @@ export class LetAST extends ASTNode {
 		if (this.body !== null) {
 			parts.push(this.body.print())
 		}
-		return `{${parts.join(' ')}}`
+		// `{}` is the empty record. An empty let-block comes to `()`, and says so.
+		return parts.length === 0 ? '{()}' : `{${parts.join(' ')}}`
 	}
 }
 
