@@ -7,6 +7,7 @@ import { computed, inject, ref, watch } from 'vue'
 import AstCase from './AstCase.vue'
 import AstInline from './AstInline.vue'
 import AstNode from './AstNode.vue'
+import { iconOfSequence } from './icons'
 import { fitsInline, moveBetween, type Slot } from './structure'
 
 const props = defineProps<{
@@ -137,6 +138,7 @@ const pathOf = (slot: Slot): string =>
 		:open="sequenceOpen"
 		@update:open="onSequenceOpen"
 		:label="sequence.label"
+		:icon="iconOfSequence(sortable) ?? undefined"
 		expandable
 		:addLabel="`Add ${sequence.label}`"
 		@add="emit('change', sequence!.add())"

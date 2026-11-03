@@ -1,7 +1,7 @@
 import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { iconOf, withIcons } from './icons'
+import { iconOf, iconOfSequence, withIcons } from './icons'
 import { actionsOf, defaultFor, hasValue, isExpression, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
@@ -662,6 +662,24 @@ describe('problemOf', () => {
 		for (const src of ['1', '(+ 1 2)', '[1 2]', '{a: 1}', '(* % 2)', '(map [1] (* % 2))', '%']) {
 			expect(problem(src)).toBeNull()
 		}
+	})
+})
+
+describe('iconOfSequence', () => {
+	it('goes by what the parameter holds', () => {
+		expect(iconOfSequence(view('(+ 1 2)').slots)).toBe('mdi:numeric')
+		expect(iconOfSequence(view('(+ "a" 2)').slots)).toBe('mdi:numeric')
+	})
+
+	it('goes by what is in it, where the parameter says nothing', () => {
+		const session = new Session(env)
+		session.exec('f = (=> (T) (...xs: T): number 1)')
+		const { slots } = viewOf(parse('(f "a" "b")'), session.env)
+		expect(iconOfSequence(slots)).toBe('mdi:format-quote-close')
+	})
+
+	it('has nothing for nothing', () => {
+		expect(iconOfSequence([])).toBeNull()
 	})
 })
 

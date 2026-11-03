@@ -103,6 +103,37 @@ export function registerGlisp(): void {
 	} as monaco.languages.IMonarchLanguage)
 }
 
+/**
+ * Make an editor edit one expression, all selected: Enter confirms, unless what is
+ * written is unfinished, in which case it goes on to the next line, Esc cancels, and
+ * leaving confirms.
+ */
+export function editOneExpression(
+	editor: monaco.editor.IStandaloneCodeEditor,
+	handlers: {
+		isFinished(): boolean
+		cancel(): void
+		confirm(): void
+	}
+): void {
+	const range = editor.getModel()?.getFullModelRange()
+	if (range !== undefined) editor.setSelection(range)
+	editor.focus()
+	editor.onDidBlurEditorWidget(handlers.confirm)
+	editor.onKeyDown(event => {
+		const cancelling = event.keyCode === monaco.KeyCode.Escape
+		const confirming =
+			event.keyCode === monaco.KeyCode.Enter &&
+			!event.shiftKey &&
+			handlers.isFinished()
+		if (!cancelling && !confirming) return
+		event.preventDefault()
+		event.stopPropagation()
+		if (cancelling) handlers.cancel()
+		else handlers.confirm()
+	})
+}
+
 /** A line of code, in stretches of one kind of token. */
 export interface CodeRun {
 	readonly type: string

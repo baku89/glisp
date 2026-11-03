@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, UNIT } from '@glisp/lang'
-import * as monaco from 'monaco-editor'
+import type * as monaco from 'monaco-editor'
 import { InputCode } from 'tweeq/InputCode'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputNumber } from 'tweeq/InputNumber'
@@ -10,7 +10,7 @@ import { InputTextBase } from 'tweeq/InputTextBase'
 import { type MenuItem } from 'tweeq/Menu'
 import { computed, inject, ref, watch } from 'vue'
 
-import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
+import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
 import { REVEALER } from './selection'
 import {
 	hasValue,
@@ -135,24 +135,13 @@ function commitDraft(): void {
 const editing = ref(false)
 
 function onEditorMount(editor: monaco.editor.IStandaloneCodeEditor): void {
-	const range = editor.getModel()?.getFullModelRange()
-	if (range !== undefined) editor.setSelection(range)
-	editor.focus()
-	editor.onDidBlurEditorWidget(finishEditing)
-	editor.onKeyDown(event => {
-		if (event.keyCode === monaco.KeyCode.Escape) {
+	editOneExpression(editor, {
+		isFinished: () => parseSource(draft.value) !== null,
+		cancel() {
 			draft.value = sourceOf(ast.value)
-		} else if (
-			event.keyCode !== monaco.KeyCode.Enter ||
-			event.shiftKey ||
-			// An unfinished form goes on to the next line.
-			parseSource(draft.value) === null
-		) {
-			return
-		}
-		event.preventDefault()
-		event.stopPropagation()
-		finishEditing()
+			editing.value = false
+		},
+		confirm: finishEditing,
 	})
 }
 

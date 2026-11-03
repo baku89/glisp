@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { AST, Diagnostic, Env } from '@glisp/lang'
+import type * as monaco from 'monaco-editor'
+import { InputCode } from 'tweeq/InputCode'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
@@ -8,6 +10,7 @@ import AstInline from './AstInline.vue'
 import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
+import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
 import { slotMenuItems } from './menu'
 import { RENAMER, REVEALER, SELECTION } from './selection'
 import { fitsInline, parseSource, type Slot, sourceOf, viewOf } from './structure'
@@ -52,17 +55,32 @@ const hint = computed(() =>
 		: { title: props.entry.label, description: props.entry.doc }
 )
 
-// A binding's name is renamed, and what a call calls is replaced, by its label.
+// A binding's name is edited on its label. What a call calls is an expression, so it
+// is edited as code, in the value column that it otherwise leaves empty.
 const renamable = computed(() => isBinding.value || isFunction.value)
 function canRename(name: string): boolean {
-	return isFunction.value
-		? parseSource(name) !== null
-		: (renamer?.can(props.path, name) ?? false)
+	return renamer?.can(props.path, name) ?? false
 }
 function rename(name: string): void {
-	if (isBinding.value) renamer?.apply(props.path, name)
-	const next = isFunction.value ? parseSource(name) : null
-	if (next !== null) update(next)
+	renamer?.apply(props.path, name)
+}
+
+registerGlisp()
+const functionDraft = ref('')
+function onFunctionEditor(editor: monaco.editor.IStandaloneCodeEditor): void {
+	editOneExpression(editor, {
+		isFinished: () => parseSource(functionDraft.value) !== null,
+		cancel() {
+			renaming.value = false
+		},
+		confirm: finishFunction,
+	})
+}
+function finishFunction(): void {
+	if (!renaming.value) return
+	const next = parseSource(functionDraft.value)
+	renaming.value = false
+	if (next !== null && sourceOf(next) !== sourceOf(ast.value)) update(next)
 }
 
 const revealer = inject(REVEALER, null)
@@ -74,6 +92,9 @@ const bareKind = computed(() =>
 
 const renamer = inject(RENAMER, null)
 const renaming = ref(false)
+watch(renaming, on => {
+	if (on && isFunction.value) functionDraft.value = sourceOf(ast.value)
+})
 
 const open = ref(false)
 
@@ -167,7 +188,8 @@ watch(
 		:sortHandle="entry.sort !== undefined"
 		:dragId="isBinding ? path : undefined"
 		v-model:renaming="renaming"
-		:labelSource="isFunction ? sourceOf(ast) : entry.label"
+		:renameElsewhere="isFunction"
+		:labelSource="entry.label"
 		:canRename="canRename"
 		@rename="rename"
 		:selected="selected"
@@ -183,6 +205,13 @@ watch(
 			:read="read"
 			:show="show"
 			@change="update"
+		/>
+		<InputCode
+			v-else-if="isFunction && renaming"
+			v-model="functionDraft"
+			:lang="GLISP"
+			:options="EDITOR_OPTIONS"
+			@mount="onFunctionEditor"
 		/>
 		<AstValue
 			v-else-if="!isFunction"
