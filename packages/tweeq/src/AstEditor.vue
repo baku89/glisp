@@ -77,7 +77,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				@click="document.redo()"
 			/>
 		</div>
-		<ParameterTree>
+		<ParameterTree name="glisp.env">
 			<AstNode
 				v-for="binding in bindings"
 				:key="binding.key"

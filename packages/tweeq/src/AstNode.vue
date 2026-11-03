@@ -19,6 +19,7 @@ import {
 	actionsOf,
 	hasValue,
 	isExpression,
+	kindIconOf,
 	parseSource,
 	problemOf,
 	type Slot,
@@ -76,6 +77,9 @@ const shown = computed(() => {
 	if (typeof value === 'number') return String(Number(value.toFixed(4)))
 	return props.show(value, props.entry.env)
 })
+
+// What this row's siblings have in common. Those at the root have nothing above.
+const parentPath = computed(() => props.path.slice(0, Math.max(0, props.path.lastIndexOf('/'))))
 
 const open = ref(false)
 
@@ -170,7 +174,7 @@ const menuItems = computed<MenuItem[]>(() => {
 		:icon="icon"
 		:hint="entry.expected?.typeName"
 		:expandable="children.length > 0 || additions.length > 0"
-		:sortGroup="entry.sort === undefined ? undefined : path.slice(0, path.lastIndexOf('/'))"
+		:sortGroup="entry.sort === undefined ? undefined : parentPath"
 		:sortIndex="entry.sort?.index"
 		:selected="selected"
 		:menuItems="menuItems"
@@ -221,6 +225,7 @@ const menuItems = computed<MenuItem[]>(() => {
 				:modelValue="draft"
 				font="monospace"
 				ignoreInput
+				:leftIcon="entry.display === undefined ? (kindIconOf(ast) ?? undefined) : undefined"
 				:menuItems="menuItems"
 				@click="editing = true"
 				@focus="editing = true"

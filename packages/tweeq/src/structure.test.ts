@@ -2,7 +2,7 @@ import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glis
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withTypeIcons } from './icons'
-import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, literalOf, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, kindIconOf, literalOf, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withTypeIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -172,6 +172,12 @@ describe('sort', () => {
 		expect(print(sort!.move(1, 2))).toBe('(+ 1 3 2)')
 	})
 
+	it('moves the bindings of a let, and not its body', () => {
+		const v = view('{a = 1 b = 2 (+ a b)}')
+		expect(print(v.slots[0]!.sort!.move(0, 1))).toBe('{b = 2 a = 1 (+ a b)}')
+		expect(v.slots[2]!.sort).toBeUndefined()
+	})
+
 	it('does not move arguments around a spread', () => {
 		expect(view('(+ 1 ...xs)').slots[0]!.sort).toBeUndefined()
 	})
@@ -187,6 +193,25 @@ describe('sort', () => {
 		expect(labels(0)).not.toContain('Move Up')
 		expect(labels(1)).toContain('Move Up')
 		expect(labels(1)).not.toContain('Move Down')
+	})
+})
+
+describe('kindIconOf', () => {
+	const kind = (src: string) => kindIconOf(parse(src))
+
+	it('tells kinds of expression apart', () => {
+		expect(kind('(+ 1 2)')).toBe('mdi:function-variant')
+		expect(kind('{a = 1 a}')).toBe('mdi:graph-outline')
+		expect(kind('(=> (x: number): number x)')).toBe('mdi:lambda')
+		expect(kind('x')).toBe('mdi:link-variant')
+		expect(kind('../x')).toBe('mdi:link-variant')
+		expect(kind('[1 x]')).toBe('mdi:code-brackets')
+		expect(kind('{a: x}')).toBe('mdi:code-braces')
+		expect(kind('^{label: "L"} (+ 1 2)')).toBe('mdi:function-variant')
+	})
+
+	it('has nothing for what is written down', () => {
+		for (const src of ['1', '"a"', '[1 2]', '{a: 1}']) expect(kind(src)).toBeNull()
 	})
 })
 

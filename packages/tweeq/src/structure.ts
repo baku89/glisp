@@ -429,6 +429,11 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 		},
 		remove: () =>
 			new LetAST(ast.bindings.filter((_, j) => j !== i), ast.body),
+		sort: {
+			index: i,
+			count: ast.bindings.length,
+			move: (from, to) => new LetAST(moved(ast.bindings, from, to), ast.body),
+		},
 	}))
 	if (ast.body !== null) {
 		slots.push({
@@ -559,6 +564,31 @@ export function problemOf(
 	return type !== null && !typeFits(type, expected)
 		? `type mismatch: expected ${expected.typeName}, got ${type.typeName}`
 		: null
+}
+
+/** An icon for what kind of expression a node is, or null if it is not one. */
+export function kindIconOf(ast: AST): string | null {
+	if (!isExpression(ast)) return null
+	switch (ast.kind) {
+		case 'meta':
+			return kindIconOf(ast.expr)
+		case 'call':
+			return 'mdi:function-variant'
+		case 'let':
+			return 'mdi:graph-outline'
+		case 'fn':
+			return 'mdi:lambda'
+		case 'sym':
+		case 'path':
+		case 'access':
+			return 'mdi:link-variant'
+		case 'vec':
+			return 'mdi:code-brackets'
+		case 'record':
+			return 'mdi:code-braces'
+		default:
+			return null
+	}
 }
 
 /** Something that can be done to a slot, for a menu. */
