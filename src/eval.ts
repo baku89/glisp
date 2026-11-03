@@ -654,6 +654,7 @@ function callTypedHostFn(
 		for (const d of bubbled) diagnostics.push(d)
 		return { value, diagnostics }
 	} catch (e) {
+		if (isStackOverflow(e)) throw e
 		const message = e instanceof Error ? e.message : String(e)
 		diagnostics.push(diag(site, env, `host function threw: ${message}`))
 		return { value: UNIT, diagnostics }
@@ -720,12 +721,66 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 		if (cached.kind === 'in-progress') {
 			return fail(desugared, env, 'cycle detected')
 		}
+		activeStore?.touch(desugared, env)
 		return cached.result
 	}
 	storeMemo(desugared, env, { kind: 'in-progress' })
-	const result = evaluateInner(desugared, env)
-	storeMemo(desugared, env, { kind: 'computed', result })
-	return result
+	evaluationDepth++
+	try {
+		const result =
+			activeStore === null
+				? evaluateInner(desugared, env)
+				: activeStore.memoize(desugared, env, () =>
+						evaluateInner(desugared, env)
+					)
+		storeMemo(desugared, env, { kind: 'computed', result })
+		return result
+	} catch (e) {
+		// Unwinding: this evaluation did not finish, so it must not look like a
+		// cycle later. Only the outermost call has the stack left to report it.
+		memo.get(desugared)?.delete(env ?? ROOT_ENV_KEY)
+		if (evaluationDepth === 1 && isStackOverflow(e)) {
+			return fail(desugared, env, 'recursion too deep')
+		}
+		throw e
+	} finally {
+		evaluationDepth--
+	}
+}
+
+let evaluationDepth = 0
+
+/**
+ * A stack overflow says nothing about the code that happened to hit it, and
+ * where it hits depends on how deep the caller already was. So it must unwind
+ * all the way out rather than become that code's result.
+ */
+function isStackOverflow(e: unknown): boolean {
+	return e instanceof Error && /call stack|too much recursion/i.test(e.message)
+}
+
+/**
+ * A cache that outlives env frames, supplied by `Runtime`. `evaluate` memoizes
+ * on `(AST, Env)` identity on its own; this is what lets a result survive an
+ * edit, which replaces the frames.
+ */
+export interface EvalStore {
+	memoize(ast: AST, env: Env, compute: () => EvalResult): EvalResult
+	/** A cached `(AST, Env)` result was used without going through `memoize`. */
+	touch(ast: AST, env: Env): void
+}
+
+let activeStore: EvalStore | null = null
+
+/** Run `fn` with `store` backing every `evaluate` call it makes. */
+export function withEvalStore<T>(store: EvalStore, fn: () => T): T {
+	const previous = activeStore
+	activeStore = store
+	try {
+		return fn()
+	} finally {
+		activeStore = previous
+	}
 }
 
 function evaluateInner(ast: AST, env: Env): EvalResult {
@@ -913,7 +968,7 @@ function lookupBareName(name: string, env: Env): BindingTarget | null {
 	return null
 }
 
-function pushLetFrame(ast: AST & { bindings: ReadonlyArray<readonly [string, AST]> }, parent: Env): Env {
+export function pushLetFrame(ast: AST & { bindings: ReadonlyArray<readonly [string, AST]> }, parent: Env): Env {
 	const map = new Map<string, BindingTarget>()
 	const frame: Frame = {
 		ast,
@@ -1109,6 +1164,7 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 			for (const d of bubbled) diagnostics.push(d)
 			return { value, diagnostics }
 		} catch (e) {
+			if (isStackOverflow(e)) throw e
 			const message = e instanceof Error ? e.message : String(e)
 			diagnostics.push(diag(ast, inside, `host function threw: ${message}`))
 			return { value: UNIT, diagnostics }
@@ -1757,6 +1813,7 @@ function evalPipe(ast: CallAST, env: Env): EvalResult {
 			try {
 				value = (fnValue as (v: unknown) => unknown)(value)
 			} catch (e) {
+				if (isStackOverflow(e)) throw e
 				const message = e instanceof Error ? e.message : String(e)
 				diagnostics.push(diag(stepAst, env, `pipe step threw: ${message}`))
 				value = UNIT
@@ -1784,9 +1841,24 @@ function evalPath(
 	env: Env,
 	source: AST
 ): EvalResult {
-	// Path navigation per eval.md — Path lookup. A descended node has no
-	// frame of its own until the walk goes past it, so the target ends up
-	// in the env it would have if reached by ordinary recursive descent.
+	const target = pathTarget(segments, env)
+	return 'message' in target
+		? fail(source, env, target.message)
+		: evaluate(target.ast, target.env)
+}
+
+/**
+ * Walk a path from `env` per eval.md — Path lookup, to the evaluation node it
+ * lands on. A descended node has no frame of its own until the walk goes past
+ * it, so the target ends up in the env it would have if reached by ordinary
+ * recursive descent. A path that ends on a container itself lands where the
+ * container stands, so `[1 ./]` reaches the evaluation in progress and is seen
+ * as a cycle.
+ */
+export function pathTarget(
+	segments: ReadonlyArray<'..' | string | number>,
+	env: Env
+): { readonly ast: AST; readonly env: Env } | { readonly message: string } {
 	let frame: Env = env
 	let astHere: AST | null = frame?.ast ?? null
 	let entered = true
@@ -1794,37 +1866,27 @@ function evalPath(
 	for (const seg of segments) {
 		if (seg === '..') {
 			if (entered) {
-				if (frame === null) {
-					return fail(source, env, 'path goes above top-level')
-				}
+				if (frame === null) return { message: 'path goes above top-level' }
 				frame = frame.parent
 			}
 			astHere = frame?.ast ?? null
 			entered = true
 			continue
 		}
-		if (astHere === null) {
-			return fail(source, env, 'path descended below the root')
-		}
+		if (astHere === null) return { message: 'path descended below the root' }
 		const child = childAt(astHere, seg)
-		if (child === null) {
-			return fail(source, env, `path segment not found: ${seg}`)
-		}
+		if (child === null) return { message: `path segment not found: ${seg}` }
 		if (!entered) frame = enterNode(astHere, frame)
 		astHere = child
 		entered = false
 	}
 
-	if (astHere === null) {
-		return ok(UNIT)
-	}
-	// A path that ends on a container itself evaluates it where it stands,
-	// so `[1 ./]` reaches the evaluation in progress and is seen as a cycle.
-	return evaluate(astHere, entered ? (frame?.parent ?? null) : frame)
+	if (astHere === null) return { message: 'path goes above top-level' }
+	return { ast: astHere, env: entered ? (frame?.parent ?? null) : frame }
 }
 
 /** The frame the evaluator pushes on entering a path-addressable node. */
-function enterNode(node: AST, env: Env): Env {
+export function enterNode(node: AST, env: Env): Env {
 	return node.kind === 'let' ? pushLetFrame(node, env) : pushAncestor(node, env)
 }
 

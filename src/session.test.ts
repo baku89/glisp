@@ -169,3 +169,44 @@ describe('Session — assignment sugar (name = expr, path = expr)', () => {
 		expect(print(s.ast())).toBe('{}')
 	})
 })
+
+describe('Session — edits', () => {
+	it('ast() is the let-block itself, and setAst restores an earlier one', () => {
+		const s = new Session(buildPrelude())
+		s.exec('x = 1')
+		const before = s.ast()
+		expect(s.ast()).toBe(before)
+		s.exec('x = 2')
+		expect(s.exec('x').value).toBe(2)
+		s.setAst(before)
+		expect(s.exec('x').value).toBe(1)
+	})
+
+	it('keeps the formatting of what an edit did not touch', () => {
+		const s = new Session(buildPrelude())
+		s.exec('a = (+  1   2)')
+		s.exec('b = 1')
+		s.exec('b = 2')
+		expect(print(s.ast())).toBe('{a = (+  1   2) b = 2}')
+	})
+
+	it('edits inside a call', () => {
+		const s = new Session(buildPrelude())
+		s.exec('p = {r: (+ 1 2)}')
+		s.exec('p/r/1 = 5')
+		expect(print(s.ast())).toBe('{p = {r: (+ 5 2)}}')
+		expect(s.exec('p').value).toEqual({ r: 7 })
+		expect(s.exec('p/r/9 = 5').diagnostics[0]!.message).toContain(
+			'argument index out of range'
+		)
+	})
+
+	it('reuses unchanged bindings across edits', () => {
+		const s = new Session(buildPrelude())
+		s.exec('a = [1 2 3]')
+		s.exec('b = 1')
+		const before = s.exec('a').value
+		s.exec('b = 2')
+		expect(s.exec('a').value).toBe(before)
+	})
+})

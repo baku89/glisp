@@ -404,9 +404,32 @@ Scopes mirror the evaluator's frames: vectors, records, calls, and let-blocks ea
 
 `freeRefs(ast)` is the context-independent half: the bare names a node does not bind itself, and the paths that climb out of it. It depends on the node alone, so it is cached per AST instance. Since a node's value is determined by its own structure and what these refer to, it is the basis for incremental evaluation (see [Open questions](#open-questions)).
 
+## Incremental evaluation
+
+`Runtime` evaluates a root AST as the host replaces it. The host keeps an immutable AST and passes each version to `setRoot`.
+
+A plain `evaluate` memoizes on `(AST instance, env instance)`. Replacing a node creates new ancestors and new env frames beneath them, so that alone would miss the cache for the whole tree. `Runtime` keys results on a **signature** instead:
+
+```
+signature(node, env) = (content of node, signature of each thing it refers to)
+```
+
+- **Content** is the structure, ignoring identity, trivia, and metadata. Evaluation ignores metadata, so changing a `label` recomputes nothing, and neither does reformatting or reparsing unchanged text.
+- **What a node refers to** comes from `freeRefs`, with each name and path resolved in `env`. A dependency that fails to resolve contributes that fact.
+- **Bindings can form cycles.** A strongly connected component gets one signature for the group as a whole. A cycle of function literals is ordinary recursion. A cycle through anything else is a value depending on itself, whose result depends on where the cycle was entered, so neither it nor anything depending on it is cached.
+
+This has the following consequences for a host:
+
+- An edit recomputes what depends on it. Everything else returns the same JS value, so an unchanged value is `===` across edits.
+- Restoring an earlier root is an undo served from the cache, as long as its entries have not been evicted.
+- Host functions must be pure, since a cached result outlives the root it was computed for. Values must not be mutated, since they may be shared between positions.
+- A cached diagnostic's `source` is the node that produced it first, which may belong to an earlier root.
+- A cached closure keeps the frame it captured, and through it that root, for as long as the entry lives.
+
+**Lifetime.** `Runtime` owns its cache. Each `setRoot` starts a generation, using an entry marks it and everything it was computed from, and entries beyond `maxEntries` are evicted oldest first and cheapest first. Frames inside a function call are short-lived, so a result computed there is kept only if it took at least `heavyMs`.
+
 ## Open questions
 
 - **Default fallback propagation**: when a sub-expression's evaluation falls back to a default value, how does the diagnostic propagate up the surrounding expression?
 - **Partial evaluation**: any evaluation node is in principle evaluable. What host API surfaces this for tooling?
-- **Incremental / differential evaluation**: not achieved yet. Replacing an AST node creates new instances of its ancestors, and evaluating a new ancestor creates new env frames for everything beneath it. Because the memo key includes env identity, unchanged siblings miss the cache too, so re-evaluation cost is currently O(tree size) even with structural sharing. Reaching O(change) requires keying each node on what it actually references, per `freeRefs`, rather than on its whole env. The host-API surface for "replace this AST node, give me a refreshed root" is unspecified.
 - **Bidirectional evaluation**: editing a result value, how is the corresponding input inferred?

@@ -23,14 +23,15 @@
  * from the same source.
  */
 
-import { evaluate, type EvalResult, IO, isIO } from './eval.js'
+import { type EvalResult, IO, isIO, pushLetFrame } from './eval.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
+import { Runtime } from './runtime.js'
 import {
 	type AST,
-	type BindingTarget,
 	type Env,
 	type Frame,
+	CallAST,
 	LetAST,
 	RecordAST,
 	type RecordEntry,
@@ -40,38 +41,14 @@ import {
 } from './types.js'
 
 export class Session {
-	private bindingMap = new Map<string, BindingTarget>()
+	private letBlock = new LetAST([], null)
 	private frame: Frame
+	private readonly runtime: Runtime
 
 	constructor(private readonly parent: Env) {
-		this.frame = {
-			ast: new LetAST([], null),
-			parent,
-			bindings: this.bindingMap,
-		}
-	}
-
-	/**
-	 * Replace the session's bindings with a fresh frame. The evaluator
-	 * memoizes on env identity, so mutating a frame in place would keep
-	 * serving values computed from the old bindings.
-	 */
-	private install(asts: ReadonlyMap<string, AST>): void {
-		const bindings = new Map<string, BindingTarget>()
-		const frame: Frame = {
-			ast: new LetAST([], null),
-			parent: this.parent,
-			bindings,
-		}
-		for (const [name, ast] of asts) bindings.set(name, { ast, env: frame })
-		this.bindingMap = bindings
-		this.frame = frame
-	}
-
-	private bindingAsts(): Map<string, AST> {
-		const asts = new Map<string, AST>()
-		for (const [name, target] of this.bindingMap) asts.set(name, target.ast)
-		return asts
+		this.frame = pushLetFrame(this.letBlock, parent) as Frame
+		this.runtime = new Runtime(parent)
+		this.runtime.setRoot(this.letBlock)
 	}
 
 	/** Env to evaluate against: the session's let-frame on top of the prelude. */
@@ -79,30 +56,43 @@ export class Session {
 		return this.frame
 	}
 
-	/** Snapshot of the session as a let-block AST. Re-parses cleanly. */
+	/** The session as a let-block AST: its single source of truth. */
 	ast(): LetAST {
-		const entries: [string, AST][] = []
-		for (const [name, target] of this.bindingMap) {
-			entries.push([name, target.ast])
-		}
-		return new LetAST(entries, null)
+		return this.letBlock
+	}
+
+	/**
+	 * Replace the let-block. This is the one way the session changes, so a
+	 * host can restore an earlier `ast()` to undo, at no cost.
+	 */
+	setAst(ast: LetAST): void {
+		this.letBlock = ast
+		this.frame = pushLetFrame(ast, this.parent) as Frame
+		this.runtime.setRoot(ast)
 	}
 
 	/** Names currently bound in the session, in insertion order. */
 	bindings(): ReadonlyArray<string> {
-		return [...this.bindingMap.keys()]
+		return this.letBlock.bindings.map(([name]) => name)
 	}
 
 	/** Set or replace a binding. Last-wins by name. */
 	setBinding(name: string, ast: AST): void {
-		this.install(this.bindingAsts().set(name, ast))
+		const bindings = this.letBlock.bindings
+		const index = bindings.findIndex(([n]) => n === name)
+		const next =
+			index === -1
+				? [...bindings, [name, ast] as const]
+				: bindings.map((b, i) => (i === index ? ([name, ast] as const) : b))
+		this.setAst(new LetAST(next, null))
 	}
 
 	/** Remove a binding. Returns whether it was present. */
 	unsetBinding(name: string): boolean {
-		const asts = this.bindingAsts()
-		if (!asts.delete(name)) return false
-		this.install(asts)
+		const bindings = this.letBlock.bindings
+		const next = bindings.filter(([n]) => n !== name)
+		if (next.length === bindings.length) return false
+		this.setAst(new LetAST(next, null))
 		return true
 	}
 
@@ -125,9 +115,9 @@ export class Session {
 			this.setBinding(head, expr)
 			return null
 		}
-		const target = this.bindingMap.get(head)
+		const target = this.letBlock.bindings.find(([name]) => name === head)
 		if (target === undefined) return `no such binding: ${head}`
-		const updated = setAtPathInAst(target.ast, rest, expr)
+		const updated = setAtPathInAst(target[1], rest, expr)
 		if (typeof updated === 'string') return updated
 		this.setBinding(head, updated)
 		return null
@@ -135,12 +125,12 @@ export class Session {
 
 	/** Clear every binding. Equivalent to a fresh session. */
 	reset(): void {
-		this.install(new Map())
+		this.setAst(new LetAST([], null))
 	}
 
 	/** Evaluate an AST against the session env. */
 	evalAst(ast: AST): EvalResult {
-		return evaluate(ast, this.env)
+		return this.runtime.evaluate(ast, this.env)
 	}
 
 	/**
@@ -185,7 +175,7 @@ export { isIO }
 /**
  * Replace the sub-AST at `path` inside `ast` with `replacement`. The
  * traversal handles let-blocks (by binding name), records (by field
- * name), and vectors (by integer index). Returns the rewritten AST,
+ * name), vectors (by integer index), and calls (0 is the head, as in paths). Returns the rewritten AST,
  * or a string error message if the path goes off the end.
  */
 function setAtPathInAst(
@@ -234,6 +224,19 @@ function setAtPathInAst(
 			const newElements = ast.elements.slice()
 			newElements[seg] = next
 			return new VecAST(newElements)
+		}
+		case 'call': {
+			if (typeof seg !== 'number') return `expected index, got ${seg}`
+			if (seg === 0) {
+				const head = setAtPathInAst(ast.head, rest, replacement)
+				return typeof head === 'string' ? head : new CallAST(head, ast.args, ast.kwargs)
+			}
+			if (seg < 0 || seg > ast.args.length) return `argument index out of range: ${seg}`
+			const next = setAtPathInAst(ast.args[seg - 1]!, rest, replacement)
+			if (typeof next === 'string') return next
+			const args = ast.args.slice()
+			args[seg - 1] = next
+			return new CallAST(ast.head, args, ast.kwargs)
 		}
 		default:
 			return `cannot descend into ${ast.kind}`

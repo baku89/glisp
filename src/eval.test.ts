@@ -1294,3 +1294,28 @@ describe('evaluate — path targets', () => {
 		expect(run('((=> (T) (x: T): T (: x T)) 1)').value).toBe(1)
 	})
 })
+
+describe('evaluate — runaway recursion', () => {
+	const env = buildPrelude()
+
+	it('does not throw, and yields a diagnostic', () => {
+		for (const src of [
+			'{f = (=> (x: number): number (f x)) (f 1)}',
+			'{f = (=> (x: number): number (+ 1 (f x))) (f 1)}',
+			'{f = (=> (x: number): number (reduce (map [x] f) 0 +)) (f 1)}',
+		]) {
+			const r = evaluate(parse(src), env)
+			expect(r.diagnostics.map(d => d.message), src).toEqual([
+				'recursion too deep',
+			])
+		}
+	})
+
+	it('leaves nothing behind that looks like a cycle', () => {
+		const ast = parse('{f = (=> (x: number): number (f x)) (f 1)}')
+		const messages = () =>
+			evaluate(ast, env).diagnostics.map(d => d.message)
+		expect(messages()).toEqual(['recursion too deep'])
+		expect(messages()).toEqual(['recursion too deep'])
+	})
+})

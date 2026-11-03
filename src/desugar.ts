@@ -223,13 +223,14 @@ function directlyContainsPercent(ast: AST): boolean {
 	}
 }
 
-let percentParamCounter = 0
 
 function wrapWithFn(node: AST): FnAST {
 	// The parameter name uses a leading `%` so it can't collide with any
 	// user-written identifier (`%` is reserved as a token, not as part of
-	// an identifier's body when used by itself).
-	const paramName = `%${++percentParamCounter}`
+	// an identifier's body when used by itself). It is the same every time,
+	// so the same source desugars to the same content. A nested literal
+	// shadowing it is harmless: `%` only ever refers to its own literal.
+	const paramName = '%1'
 	const replaced = replacePercent(node, paramName)
 	return new FnAST(
 		[],
