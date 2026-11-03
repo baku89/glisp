@@ -545,6 +545,8 @@ export interface TypedHostFn {
 	readonly __glispTypedFn: true
 	readonly paramTypes: ReadonlyArray<TypeValue>
 	readonly returnType: TypeValue
+	/** How it works backward. See `withInverse`. */
+	readonly inverse?: HostInverse
 	/**
 	 * Optional parameter names. When set, callers may pass keyword
 	 * arguments at the call site. When unset (the default), kwargs at
@@ -647,6 +649,25 @@ export function withSignature<F extends TypedHostFn>(
 	signature: TypeValue
 ): F {
 	Object.defineProperty(fn, 'signature', { value: signature })
+	return fn
+}
+
+/**
+ * Say how a host function works backward: what the argument at `index` would have
+ * to be for the call to give `result`, the others staying as they are. `undefined`
+ * if nothing would do.
+ */
+export type HostInverse = (
+	index: number,
+	result: unknown,
+	args: readonly unknown[]
+) => unknown
+
+export function withInverse<F extends TypedHostFn>(
+	fn: F,
+	inverse: HostInverse
+): F {
+	Object.defineProperty(fn, 'inverse', { value: inverse })
 	return fn
 }
 

@@ -472,7 +472,7 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 
 ### Pinning — `@`
 
-`@expr` pins an expression: an edit worked out backward from a value leaves it where it is. It is metadata, written in a short form, so it changes no value and adds no level for paths. Nothing acts on it yet.
+`@expr` pins an expression: [working backward](./eval.md#working-backward) from a value leaves it where it is. It is metadata, written in a short form, so it changes no value and adds no level for paths.
 
 <!-- test -->
 ```glisp

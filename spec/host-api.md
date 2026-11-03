@@ -138,6 +138,14 @@ withExpansion(power, ([base, exp], context) => {
 - `context.value(ast)` works out an argument.
 - `context.call(name, fn, args)` is a call to `fn`, written as `name` if that is what the name means at the call site, and with `fn` itself embedded if the caller has shadowed it.
 
+### How it works backward
+
+`withInverse` says what an argument would have to be for a call to give a result, the others staying as they are. It returns `undefined` if nothing would do. See [`solve`](#working-backward).
+
+```ts
+withInverse(add, (index, result, args) => result - args[1 - index])
+```
+
 ### Overloads
 
 `new OverloadValue([fn1, fn2])`, bound with `host`, dispatches to the first variant whose parameters fit the arguments. In Glisp, `(overload f g)`. Order the variants from most to least specific.
@@ -193,6 +201,14 @@ isBindingName('a')              // whether a name can be a binding's
 `renameBinding` renames a binding of a `LetAST`, and what refers to it follows along: names inside the block, leaving alone what a nearer binding shadows, and paths such as `./a`, which shadowing does not touch. It returns null if the block has no such binding, or if the new name is not a name, is taken in the block, would be caught by something inside, or would catch a name inside that means something else.
 
 `renameBindingIn` also follows paths from elsewhere in `root`, and what is unchanged stays `===`. A path that reaches the block through a call's argument by position is left as written, since following it needs the call's signature, and then reports an error.
+
+## Working backward
+
+```ts
+solve(root, env, node, value)  // { ast, diagnostics }: `root`, edited so that `node` gives `value`
+```
+
+`node` is somewhere in `root`, which stands in `env`. `ast` is null, with a diagnostic saying where it stopped, if there is no way to the value. See [Working backward](./eval.md#working-backward).
 
 ## Checking and reflection
 

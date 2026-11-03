@@ -25,6 +25,7 @@ import {
 } from './types.js'
 import {
 	booleanType,
+	type HostInverse,
 	IO,
 	isGlispClosure,
 	isTypeValue,
@@ -41,6 +42,7 @@ import {
 	type TypeValue,
 	unitType,
 	withExpansion,
+	withInverse,
 	withSignature,
 } from './eval.js'
 import { parse } from './parse.js'
@@ -50,6 +52,49 @@ import { parse } from './parse.js'
 // -----------------------------------------------------------------------------
 
 export { booleanType, numberType, stringType, unitType }
+
+// -----------------------------------------------------------------------------
+// How arithmetic works backward. See `withInverse`.
+// -----------------------------------------------------------------------------
+
+const sumOf = (xs: readonly unknown[]): number =>
+	xs.reduce<number>((sum, x) => sum + (x as number), 0)
+const productOf = (xs: readonly unknown[]): number =>
+	xs.reduce<number>((product, x) => product * (x as number), 1)
+const without = (xs: readonly unknown[], index: number): unknown[] =>
+	xs.filter((_, i) => i !== index)
+const unlessZero = (divisor: number, value: () => number): number | undefined =>
+	divisor === 0 ? undefined : value()
+
+const invertAdd: HostInverse = (index, result, args) =>
+	(result as number) - sumOf(without(args, index))
+
+const invertMultiply: HostInverse = (index, result, args) => {
+	const others = productOf(without(args, index))
+	return unlessZero(others, () => (result as number) / others)
+}
+
+const invertSubtract: HostInverse = (index, result, args) => {
+	const wanted = result as number
+	if (args.length === 1) return -wanted
+	if (index === 0) return wanted + sumOf(args.slice(1))
+	return (args[0] as number) - sumOf(without(args.slice(1), index - 1)) - wanted
+}
+
+const invertDivide: HostInverse = (index, result, args) => {
+	const wanted = result as number
+	if (args.length === 1) return unlessZero(wanted, () => 1 / wanted)
+	if (index === 0) return wanted * productOf(args.slice(1))
+	const others = productOf(without(args.slice(1), index - 1))
+	return unlessZero(wanted * others, () => (args[0] as number) / (wanted * others))
+}
+
+const invertPower: HostInverse = (index, result, args) => {
+	const wanted = result as number
+	const [base, exponent] = args as [number, number]
+	if (index === 0) return unlessZero(exponent, () => wanted ** (1 / exponent))
+	return unlessZero(Math.log(base), () => Math.log(wanted) / Math.log(base))
+}
 export const topType: TypeValue = makeType('_', () => true, UNIT)
 export const bottomType: TypeValue = makeType('!', () => false, UNIT)
 
@@ -463,19 +508,19 @@ export function buildPrelude(): Env {
 		// -----------------------------------------------------------------
 		'+': bind(
 			'Adds up `xs`. With nothing to add, it is 0.',
-			host(variadicNumFold((a, b) => a + b, numberType))
+			host(withInverse(variadicNumFold((a, b) => a + b, numberType), invertAdd))
 		),
 		'*': bind(
 			'Multiplies `xs` together. With nothing to multiply, it is 1.',
-			host(multiply)
+			host(withInverse(multiply, invertMultiply))
 		),
 		'-': bind(
 			'Takes the rest of `xs` away from the first. With just one, it flips the sign.',
-			host(variadicNumLeftFold((a, b) => a - b, 0, numberType))
+			host(withInverse(variadicNumLeftFold((a, b) => a - b, 0, numberType), invertSubtract))
 		),
 		'/': bind(
 			'Divides the first of `xs` by the rest. With just one, it gives 1 over it.',
-			host(variadicNumLeftFold((a, b) => a / b, 1, numberOneType))
+			host(withInverse(variadicNumLeftFold((a, b) => a / b, 1, numberOneType), invertDivide))
 		),
 		mod: bind(
 			'What is left after dividing `a` by `b`.',
@@ -485,9 +530,9 @@ export function buildPrelude(): Env {
 		),
 		'**': bind(
 			'`base` raised to the power of `exp`.',
-			host(makePower(multiply))
+			host(withInverse(makePower(multiply), invertPower))
 		),
-		sqrt: bind('The square root of `x`. A negative number has none, and gives NaN.', host(numUnary(Math.sqrt))),
+		sqrt: bind('The square root of `x`. A negative number has none, and gives NaN.', host(withInverse(numUnary(Math.sqrt), (_, result) => (result as number) ** 2))),
 		abs: bind('How far `x` is from 0.', host(numUnary(Math.abs))),
 		sign: bind('−1, 0 or 1, by whether `x` is below, at or above 0.', host(numUnary(Math.sign))),
 		floor: bind('Rounds `x` down to a whole number.', host(numUnary(Math.floor))),

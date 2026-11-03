@@ -411,6 +411,28 @@ Scopes mirror the evaluator's frames: vectors, records, calls, and let-blocks ea
 
 `freeRefs(ast)` is the context-independent half: the bare names a node does not bind itself, and the paths that climb out of it. It depends on the node alone, so it is cached per AST instance. Since a node's value is determined by its own structure and what these refer to, it is the basis for incremental evaluation (see [Open questions](#open-questions)).
 
+## Working backward
+
+`solve` is evaluation in reverse: given a node and the value it should have, it makes the edit that gets there. Like any edit, it makes a new AST, and what is unchanged stays `===`.
+
+It goes down from the node to a literal, the only thing it changes:
+
+- A name goes to what it is bound to, and a path to what it lands on. Neither goes outside the root, so the prelude stays as it is.
+- A vector or a record goes into each element or field whose value differs, and `a.x` into `a`. The shape has to stay the same.
+- A let-block goes to what it gives. `(: v T)` and `~` go to what they hold.
+- A call to a closure goes through its body, and a parameter leads to the argument as written. The literals of a function stay, since other calls share them.
+- A call to a host function asks its inverse what an argument would have to be. See [Which argument changes](#which-argument-changes).
+
+It stops at `@`, at a host function with no inverse, and for now at `?`, `|>` and `overload`.
+
+### Which argument changes
+
+Of a call's arguments, it tries a literal first, as that changes nothing else, and then a later one before an earlier one. `(+ a 1)` changes the `1`, `(+ a @1)` changes `a`, and `(+ a b)` changes `b`, or `a` if `b` cannot change. The first that works is the one, so a program steers it with `@`.
+
+### What cannot add up
+
+The result is checked by evaluating it. It fails, with a diagnostic, rather than give a wrong value when a name would need two values, as in `[x x]` wanted to be `[5 7]`, or when what it changes is used more than once, as in `(+ a a)`. Solving such constraints is not done yet.
+
 ## Incremental evaluation
 
 `Runtime` evaluates a root AST as the host replaces it. The host keeps an immutable AST and passes each version to `setRoot`.
