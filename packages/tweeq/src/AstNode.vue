@@ -9,6 +9,7 @@ import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, ref, watch } from 'vue'
 
+import { iconOf } from './icons'
 import { SELECTION } from './selection'
 import {
 	actionsOf,
@@ -41,6 +42,10 @@ const selection = inject(SELECTION)!
 
 const view = computed(() =>
 	viewOf(ast.value, props.entry.env, props.entry.expected)
+)
+
+const icon = computed(
+	() => iconOf(ast.value, props.entry.env, props.entry.expected) ?? undefined
 )
 
 const result = computed(() =>
@@ -106,7 +111,7 @@ const menuItems = computed<MenuItem[]>(() =>
 		v-model:open="open"
 		:label="view.label ?? entry.label"
 		:note="view.label === null ? (view.title ?? undefined) : undefined"
-		:icon="view.icon ?? undefined"
+		:icon="icon"
 		:hint="entry.expected?.typeName"
 		:expandable="view.slots.length > 0"
 		:selected="selected"

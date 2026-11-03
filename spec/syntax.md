@@ -474,7 +474,7 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 - Equality: metadata does not affect type equality. `^{default: 1} number` and `^{default: 0} number` are the same type.
 - Inheritance: when a derived value/type is created, unset keys are inherited from the parent. Set keys override (last-write-wins merge).
 - The `default` key is the only metadata key with semantic meaning to the language core: when type mismatch or runtime error occurs, the `default` of the expected type is returned.
-- `label` and `icon` are for editors. An editor shows a node by its own `label`, and a call by the `label` on the function's definition. `icon` is named the way the host names icons.
+- `label` and `icon` are for editors. An editor shows a node by its own `label`, and a call by the `label` on the function's definition. `icon` is named the way the host names icons. A value with no `icon` of its own can take the one on what its type is bound to, so `^{icon: "..."} number` is the icon of numbers.
 - Metadata wraps cannot stack. `^{a: 1} ^{b: 2} expr` is a syntax error — combine the fields into a single `^{a: 1 b: 2}` instead. (Merge semantics for stacked metadata are intentionally not defined.)
 - Other keys (`label`, `color`, `icon`, `doc`, ...) have no effect on evaluation. The host attaches typed hints for these keys.
 

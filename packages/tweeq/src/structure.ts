@@ -99,12 +99,12 @@ export function capitalCase(name: string): string {
 		.replace(/^$/, name)
 }
 
-function textOf(ast: AST | undefined): string | null {
+export function textOf(ast: AST | undefined): string | null {
 	return ast?.kind === 'lit' && typeof ast.value === 'string' ? ast.value : null
 }
 
 /** The metadata on what `name` is bound to, as seen from `env`. */
-function metadataOf(name: string, env: Env): MetaAST['metadata'] | null {
+export function metadataOf(name: string, env: Env): MetaAST['metadata'] | null {
 	for (let frame = env; frame !== null; frame = frame.parent) {
 		const value =
 			frame.bindings?.get(name)?.ast ??

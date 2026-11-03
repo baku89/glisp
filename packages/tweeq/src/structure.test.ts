@@ -1,9 +1,10 @@
-import { buildPrelude, evaluate, parse, print, Session } from '@glisp/lang'
+import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
+import { iconOf, withTypeIcons } from './icons'
 import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, literalOf, parseSource, viewOf, withLiteral } from './structure'
 
-const env = buildPrelude()
+const env = withTypeIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
 const labels = (src: string) => view(src).slots.map(s => s.label)
 
@@ -152,6 +153,52 @@ describe('names', () => {
 		expect(v.label).toBe('Width')
 		expect(v.icon).toBe('mdi:ruler')
 		expect(view('100').label).toBeNull()
+	})
+})
+
+describe('icons', () => {
+	const icon = (src: string, scope = env) => iconOf(parse(src), scope)
+
+	it('comes from the metadata on the type', () => {
+		expect(icon('1')).toBe('mdi:numeric')
+		expect(icon('(* 2 3)')).toBe('mdi:numeric')
+		expect(icon('"a"')).toBe('mdi:format-quote-close')
+		expect(icon('[1 "a"]')).toBe('mdi:code-brackets')
+		expect(icon('(map [1 2] (* % 2))')).toBe('mdi:code-brackets')
+		expect(icon('(: 3 (refine number 1 (=> (x: number): boolean (> x 0))))')).toBe(
+			'mdi:numeric'
+		)
+		expect(icon('(=> (x: number): number x)')).toBe('mdi:function-variant')
+		expect(icon('{a: 1}')).toBe('mdi:code-braces')
+	})
+
+	it('leaves a node without a known type alone', () => {
+		expect(icon('nothing-bound-here')).toBeNull()
+	})
+
+	it('has none without the frame', () => {
+		expect(icon('1', buildPrelude())).toBeNull()
+	})
+
+	it('prefers the node, and then its function', () => {
+		const session = new Session(env)
+		session.exec('f = ^{icon: "mdi:brush"} (=> (x: number): number x)')
+		expect(icon('(f 1)', session.env)).toBe('mdi:brush')
+		expect(icon('^{icon: "fill:M0 0h24v24H0z"} 1')).toBe('fill:M0 0h24v24H0z')
+	})
+
+	it('lets a program shadow a type', () => {
+		const session = new Session(env)
+		const number = evaluate(parse('number'), env).value
+		session.setBinding('number', meta({ icon: 'mdi:ruler' }, host(number)))
+		expect(icon('1', session.env)).toBe('mdi:ruler')
+	})
+
+	it('changes nothing about what a type is', () => {
+		expect(evaluate(parse('number'), env).value).toBe(
+			evaluate(parse('number'), buildPrelude()).value
+		)
+		expect(evaluate(parse('(: "a" number)'), env).value).toBe(0)
 	})
 })
 
