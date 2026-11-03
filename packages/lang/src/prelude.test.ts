@@ -328,3 +328,24 @@ describe('parameter labels', () => {
 		expect(r.diagnostics).toEqual([])
 	})
 })
+
+describe('and and or', () => {
+	const run = (src: string) => evaluate(parse(src), buildPrelude()).value
+
+	it('have their identities with nothing to go on', () => {
+		expect(run('(and)')).toBe(true)
+		expect(run('(or)')).toBe(false)
+	})
+
+	it('go through any number of them', () => {
+		expect(run('(and true)')).toBe(true)
+		expect(run('(and true false true)')).toBe(false)
+		expect(run('(or false)')).toBe(false)
+		expect(run('(or false true false)')).toBe(true)
+	})
+
+	it('take what is not a boolean as their identity', () => {
+		expect(run('(and "a" true)')).toBe(true)
+		expect(run('(or "a" false)')).toBe(false)
+	})
+})

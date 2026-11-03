@@ -66,6 +66,20 @@ const without = (xs: readonly unknown[], index: number): unknown[] =>
 const unlessZero = (divisor: number, value: () => number): number | undefined =>
 	divisor === 0 ? undefined : value()
 
+const invertAnd: HostInverse = (index, result, args) =>
+	result === false
+		? false
+		: without(args, index).every(Boolean)
+			? true
+			: undefined
+
+const invertOr: HostInverse = (index, result, args) =>
+	result === true
+		? true
+		: without(args, index).some(Boolean)
+			? undefined
+			: false
+
 const invertAdd: HostInverse = (index, result, args) =>
 	(result as number) - sumOf(without(args, index))
 
@@ -208,7 +222,27 @@ function variadicNumFold(
 			identity
 		),
 		makeFunctionType([], numberType, {
-			variadicTail: numberType,
+			variadicTail: identity,
+			variadicName: 'xs',
+		})
+	)
+}
+
+/** `and` and `or` style: with nothing to go on, each gives its identity. */
+function variadicBoolFold(
+	fold: (xs: boolean[]) => boolean,
+	identity: TypeValue
+): TypedHostFn {
+	return withSignature(
+		makeTypedFn(
+			[],
+			booleanType,
+			(...xs) => fold((xs as unknown[]).map(Boolean)),
+			[],
+			identity
+		),
+		makeFunctionType([], booleanType, {
+			variadicTail: identity,
 			variadicName: 'xs',
 		})
 	)
@@ -238,7 +272,7 @@ function variadicNumLeftFold(
 			tailType
 		),
 		makeFunctionType([], numberType, {
-			variadicTail: numberType,
+			variadicTail: tailType,
 			variadicName: 'xs',
 		})
 	)
@@ -320,6 +354,8 @@ const PARAMS: Readonly<
 > = {
 	'+': { xs: ['Values', 'The numbers to add up.'] },
 	'*': { xs: ['Values', 'The numbers to multiply.'] },
+	and: { xs: ['Values', 'The booleans that all have to be true.'] },
+	or: { xs: ['Values', 'The booleans of which one has to be true.'] },
 	'-': { xs: ['Values', 'The number to start from, and those to take away from it.'] },
 	'/': { xs: ['Values', 'The number to start from, and those to divide it by.'] },
 	'<': { xs: ['Values', 'What to compare, each with the next.'] },
@@ -578,30 +614,14 @@ export function buildPrelude(): Env {
 		'>=': bind('Whether each of `xs` is at least the next.', host(chainCmp((a, b) => a >= b))),
 		'==': bind('Whether `xs` are all equal.', host(chainEq(true))),
 		'!=': bind('Whether each of `xs` differs from the next.', host(chainEq(false))),
-		not: bind('The opposite of a boolean.', host(fn1(booleanType, booleanType, a => !a))),
+		not: bind('The opposite of a boolean.', host(withInverse(fn1(booleanType, booleanType, a => !a), (_, result) => !result))),
 		and: bind(
-			'Whether all of them are true.',
-			host(
-				makeTypedFn(
-					[booleanType],
-					booleanType,
-					(first, ...rest) => Boolean(first) && (rest as boolean[]).every(Boolean),
-					['first'],
-					makeType('boolean', v => typeof v === 'boolean', true)
-				)
-			)
+			'Whether all of `xs` are true. With nothing to go on, they are.',
+			host(withInverse(variadicBoolFold(xs => xs.every(Boolean), makeType('boolean', v => typeof v === 'boolean', true)), invertAnd))
 		),
 		or: bind(
-			'Whether any of them is true.',
-			host(
-				makeTypedFn(
-					[booleanType],
-					booleanType,
-					(first, ...rest) => Boolean(first) || (rest as boolean[]).some(Boolean),
-					['first'],
-					booleanType
-				)
-			)
+			'Whether any of `xs` is true. With nothing to go on, none is.',
+			host(withInverse(variadicBoolFold(xs => xs.some(Boolean), booleanType), invertOr))
 		),
 
 		// -----------------------------------------------------------------

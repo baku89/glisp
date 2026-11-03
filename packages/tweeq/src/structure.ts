@@ -1015,13 +1015,13 @@ export function expressionFromField(
 }
 
 /**
- * Whether what a slot shows as `value` is a number to edit, which then changes what
- * it comes from. Only what is worked out comes from anything.
+ * Whether what a slot shows as `value` is a number or a boolean to edit, which then
+ * changes what it comes from. Only what is worked out comes from anything.
  */
 export function canSolve(slot: Slot, value: unknown): boolean {
 	return (
-		typeof value === 'number' &&
-		Number.isFinite(value) &&
+		(typeof value === 'boolean' ||
+			(typeof value === 'number' && Number.isFinite(value))) &&
 		isExpression(slot.ast) &&
 		!isPinned(slot.ast) &&
 		slot.display === undefined &&

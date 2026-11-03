@@ -213,3 +213,25 @@ describe('solve writes numbers', () => {
 		expect(printed).toBe(`{a = ${1000000 + 0.123456789012345} r = (- a @1000000)}`)
 	})
 })
+
+describe('solve with booleans', () => {
+	it('goes through not', () => {
+		expect(edited('{a = false r = (not a)}', false)).toBe('{a = true r = (not a)}')
+	})
+
+	it('needs only one for or to be true, and all for it to be false', () => {
+		expect(edited('{a = false r = (or a @false)}', true)).toBe('{a = true r = (or a @false)}')
+		expect(edited('{a = true r = (or a @false)}', false)).toBe('{a = false r = (or a @false)}')
+		expect(edited('{a = false r = (or a @true)}', false)).toBeNull()
+	})
+
+	it('needs only one for and to be false, and all for it to be true', () => {
+		expect(edited('{a = true r = (and a @true)}', false)).toBe('{a = false r = (and a @true)}')
+		expect(edited('{a = false r = (and a @true)}', true)).toBe('{a = true r = (and a @true)}')
+		expect(edited('{a = false r = (and a @false)}', true)).toBeNull()
+	})
+
+	it('has no way back through a comparison yet', () => {
+		expect(reason('{a = 1 r = (< a 2)}', false)).toBeDefined()
+	})
+})

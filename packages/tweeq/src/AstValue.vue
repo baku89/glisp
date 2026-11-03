@@ -169,8 +169,11 @@ const solver = inject(SOLVER, null)
 const solvable = computed(
 	() => solver !== null && canSolve(props.entry, result.value?.value)
 )
+const solvableNumber = computed(
+	() => solvable.value && typeof result.value?.value === 'number'
+)
 const hasNumber = computed(
-	() => view.value.editor?.kind === 'number' || solvable.value
+	() => view.value.editor?.kind === 'number' || solvableNumber.value
 )
 
 const $root = useTemplateRef<HTMLElement>('$root')
@@ -224,7 +227,7 @@ const label = (value: unknown): string =>
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
 		<InputNumber
-			v-else-if="solvable"
+			v-else-if="solvableNumber"
 			v-bind="numberOptions"
 			:modelValue="result?.value as number"
 			:menuItems="fieldMenu"
@@ -232,6 +235,11 @@ const label = (value: unknown): string =>
 			:rightIcon="kindIcon"
 			:rightIconPressable="iconTarget !== null || view.slots.length > 0"
 			@rightIconClick="onKindIcon"
+			@update:modelValue="solver?.solve(ast, $event)"
+		/>
+		<InputSwitch
+			v-else-if="solvable"
+			:modelValue="result?.value as boolean"
 			@update:modelValue="solver?.solve(ast, $event)"
 		/>
 		<InputString
@@ -297,6 +305,8 @@ const label = (value: unknown): string =>
 	--tq-color-text: var(--tq-color-info);
 	--tq-color-input: var(--tq-color-info-soft);
 	--tq-color-input-hover: var(--tq-color-info-soft);
+	--tq-color-accent: var(--tq-color-info);
+	--tq-color-accent-hover: var(--tq-color-info);
 }
 .callee :deep(.TqInputTextBase) {
 	background: transparent;

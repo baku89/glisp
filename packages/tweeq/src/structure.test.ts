@@ -1,4 +1,4 @@
-import { buildPrelude, evaluate, host, isPinned, meta, parse, print, Session, solve, unpin } from '@glisp/lang'
+import { buildPrelude, check, evaluate, host, isPinned, meta, parse, print, Session, solve, unpin } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
@@ -957,6 +957,8 @@ describe('editing a value that is worked out', () => {
 		expect(canSolve(row('{a = 1}'), 1)).toBe(false)
 		expect(canSolve(row('{a = @(+ 1 2)}'), 3)).toBe(false)
 		expect(canSolve(row('{a = (+ 1 2)}'), 'x')).toBe(false)
+		expect(canSolve(row('{a = (or true false)}'), true)).toBe(true)
+		expect(canSolve(row('{a = true}'), true)).toBe(false)
 		expect(canSolve(row('{a = (+ 1 2)}'), Infinity)).toBe(false)
 	})
 
@@ -991,6 +993,26 @@ describe('helpers', () => {
 	it('parses source, or says it cannot', () => {
 		expect(print(parseSource('(+ 1 2)')!)).toBe('(+ 1 2)')
 		expect(parseSource('(+ 1')).toBeNull()
+	})
+})
+
+describe('adding an argument', () => {
+	const added = (src: string) => print(view(src).append!.add())
+
+	it('starts from what changes nothing', () => {
+		expect(added('(+ 2)')).toBe('(+ 2 0)')
+		expect(added('(* 2)')).toBe('(* 2 1)')
+		expect(added('(- 2)')).toBe('(- 2 0)')
+		expect(added('(/ 2)')).toBe('(/ 2 1)')
+		expect(added('(and false)')).toBe('(and false true)')
+		expect(added('(or true)')).toBe('(or true false)')
+	})
+
+	it('still takes what fits', () => {
+		const session = new Session(env)
+		expect(check(parse('(* 2 3)'), session.env)).toEqual([])
+		expect(check(parse('(and true false)'), session.env)).toEqual([])
+		expect(check(parse('(* "a")'), session.env)).not.toEqual([])
 	})
 })
 
