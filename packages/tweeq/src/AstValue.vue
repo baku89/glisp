@@ -12,14 +12,13 @@ import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
 import { editMenuItems } from './menu'
-import { REVEALER, SOLVER } from './selection'
+import { SOLVER } from './selection'
 import {
 	canSolve,
 	expressionFromField,
 	fitsInline,
 	hasValue,
 	isExpression,
-	kindIconOf,
 	numberOptionsAt,
 	problemOf,
 	type Slot,
@@ -46,8 +45,6 @@ const props = defineProps<{
 const emit = defineEmits<{
 	/** A new parent: what this slot's edit makes of the node holding it. */
 	change: [parent: AST]
-	/** The kind icon was pressed, on what opens rather than leads somewhere. */
-	toggle: []
 }>()
 
 const ast = computed(() => props.entry.ast)
@@ -106,26 +103,6 @@ const isString = computed(
 
 // The node's own say goes first, over what its parameter's type says.
 const numberOptions = computed(() => numberOptionsAt(props.entry))
-
-const revealer = inject(REVEALER, null)
-
-const iconTarget = computed(() => {
-	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
-	return bare.kind === 'sym' ? (revealer?.targetOf(props.path) ?? null) : null
-})
-const kindIcon = computed(() =>
-	props.entry.display === undefined && props.inlinePosition === undefined
-		? (view.value.head?.icon ??
-				kindIconOf(ast.value, iconTarget.value !== null) ??
-				undefined)
-		: undefined
-)
-
-function onKindIcon(): void {
-	const target = iconTarget.value
-	if (target !== null && revealer) revealer.target.value = { path: target }
-	else emit('toggle')
-}
 
 // An expression shows its value, and its code opens from it, in room to read it. Only
 // the one being edited has an editor, so that a long program stays light.
@@ -254,9 +231,6 @@ const label = (value: unknown): string =>
 			:modelValue="result?.value as number"
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
-			:rightIcon="kindIcon"
-			:rightIconPressable="iconTarget !== null || view.slots.length > 0"
-			@rightIconClick="onKindIcon"
 			@update:modelValue="solver?.solve(ast, $event)"
 		/>
 		<InputGroup v-else-if="solvableNumbers !== null">
@@ -299,10 +273,7 @@ const label = (value: unknown): string =>
 			:align="isNumber ? 'center' : undefined"
 			:inlinePosition="inlinePosition"
 			ignoreInput
-			:rightIcon="kindIcon"
-			:rightIconPressable="iconTarget !== null || view.slots.length > 0"
 			:menuItems="fieldMenu"
-			@rightIconClick="onKindIcon"
 			@click="editExpression"
 			@focus="editExpression"
 		>
@@ -341,9 +312,6 @@ const label = (value: unknown): string =>
 	--tq-color-input-hover: var(--tq-color-info-soft);
 	--tq-color-accent: var(--tq-color-info);
 	--tq-color-accent-hover: var(--tq-color-info);
-}
-.expression :deep(.icon.right) {
-	color: var(--tq-color-info);
 }
 .callee :deep(.TqInputTextBase) {
 	background: transparent;

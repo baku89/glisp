@@ -13,7 +13,7 @@ import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
 import { RENAMER, REVEALER, SELECTION } from './selection'
-import { actionsOf, fitsInline, type Slot, viewOf } from './structure'
+import { actionsOf, fitsInline, kindIconOf, type Slot, sourceOf, viewOf } from './structure'
 
 const props = defineProps<{
 	entry: Slot
@@ -91,6 +91,32 @@ const fits = (count: number): boolean =>
 const inline = computed(
 	() => bareKind.value === 'vec' && !open.value && fits(view.value.slots.length)
 )
+
+// What kind of expression it is goes at the end of the label, so that the values
+// line up, whatever comes to them.
+const referenceTarget = computed(() => {
+	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
+	return bare.kind === 'sym' ? (revealer?.targetOf(props.path) ?? null) : null
+})
+const kindIcon = computed(() =>
+	isFunction.value || props.entry.display !== undefined
+		? null
+		: (view.value.head?.icon ?? kindIconOf(ast.value, referenceTarget.value !== null))
+)
+const kindHint = computed(() => {
+	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
+	return bare.kind === 'sym' || bare.kind === 'path'
+		? sourceOf(bare)
+		: (view.value.title ?? undefined)
+})
+const kindPressable = computed(
+	() => referenceTarget.value !== null || view.value.slots.length > 0
+)
+function onKind(): void {
+	const target = referenceTarget.value
+	if (target !== null && revealer) revealer.target.value = { path: target }
+	else open.value = !open.value
+}
 
 const pinned = computed(() => isPinned(ast.value))
 function togglePin(): void {
@@ -212,7 +238,6 @@ watch(
 			:read="read"
 			:show="show"
 			@change="emit('change', $event)"
-			@toggle="open = !open"
 		/>
 		<div v-else ref="$anchor" />
 		<AstCodePopup
@@ -227,13 +252,26 @@ watch(
 			<button
 				v-if="pinned"
 				v-tooltip="'Unpin'"
-				class="pin"
+				class="end pin"
 				type="button"
 				aria-label="Unpin"
 				@click.stop="togglePin"
 				@dblclick.stop
 			>
 				<Icon icon="mdi:pin" />
+			</button>
+			<button
+				v-if="kindIcon !== null"
+				v-tooltip="kindHint"
+				class="end kind"
+				:class="{ pressable: kindPressable }"
+				type="button"
+				:disabled="!kindPressable"
+				:aria-label="kindHint"
+				@click.stop="onKind"
+				@dblclick.stop
+			>
+				<Icon :icon="kindIcon" />
 			</button>
 		</template>
 
@@ -256,24 +294,36 @@ watch(
 	display: grid;
 	min-width: 0;
 }
-.pin {
+.end {
 	display: block;
 	flex-shrink: 0;
 	width: var(--tq-icon-size);
 	height: var(--tq-icon-size);
 	margin-top: calc((var(--tq-input-height) - var(--tq-icon-size)) / 2);
+	/* Together, at the end of the label column, whatever the label's length. */
 	margin-left: auto;
 	border-radius: var(--tq-radius-input);
-	color: var(--tq-color-text-mute);
-	cursor: pointer;
 }
-.pin > * {
+.end + .end {
+	margin-left: 0;
+}
+.end > * {
 	display: block;
 	width: 100%;
 	height: 100%;
 }
-.pin:hover {
-	color: var(--tq-color-text);
+.pin {
+	color: var(--tq-color-text-mute);
+	cursor: pointer;
+}
+.kind {
+	color: var(--tq-color-info);
+}
+.kind.pressable {
+	cursor: pointer;
+}
+.pin:hover,
+.kind.pressable:hover {
 	background: var(--tq-color-input-hover);
 }
 </style>
