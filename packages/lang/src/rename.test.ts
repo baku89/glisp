@@ -45,6 +45,45 @@ describe('renameBinding', () => {
 		)
 	})
 
+	it('follows a path that lands on the binding', () => {
+		expect(rename('{a = 1 b = ./a}', 'a', 'z')).toBe('{z = 1 b = ./z}')
+		expect(rename('{a = 1 b = (+ ../a 1)}', 'a', 'z')).toBe('{z = 1 b = (+ ../z 1)}')
+		expect(rename('{a = {x: 1} b = ./a/x}', 'a', 'z')).toBe('{z = {x: 1} b = ./z/x}')
+		expect(rename('{p = 1 a = 2 b = ./p/../a}', 'a', 'z')).toBe('{p = 1 z = 2 b = ./p/../z}')
+	})
+
+	it('follows a path past what shadows the name, which a path does not see', () => {
+		expect(rename('{a = 1 f = (=> (a: number): number ../a)}', 'a', 'z')).toBe(
+			'{z = 1 f = (=> (a: number): number ../z)}'
+		)
+	})
+
+	it('leaves a path to something else of that name', () => {
+		expect(rename('{a = 1 b = {a = 2 c = ./a d = ../a}}', 'a', 'z')).toBe(
+			'{z = 1 b = {a = 2 c = ./a d = ../z}}'
+		)
+		expect(rename('{a = 1 b = {a: 2} c = ./b/a}', 'a', 'z')).toBe('{z = 1 b = {a: 2} c = ./b/a}')
+	})
+
+	it('counts the function that % makes as a level', () => {
+		const before = parse('{a = 5 f = (+ % ../../a) (f 1)}') as LetAST
+		const after = renameBinding(before, 'a', 'z')!
+		expect(print(after)).toBe('{z = 5 f = (+ % ../../z) (f 1)}')
+		const env = buildPrelude()
+		expect(evaluate(after, env).value).toBe(6)
+		expect(evaluate(before, env).value).toBe(6)
+	})
+
+	it('reaches what metadata refers to', () => {
+		expect(rename('{a = 1 b = ^{max: a} 0}', 'a', 'z')).toBe('{z = 1 b = ^{max: z} 0}')
+	})
+
+	it("does not take a parameter for what its type refers to", () => {
+		expect(rename('{a = number f = (=> (a: a): a a)}', 'a', 'z')).toBe(
+			'{z = number f = (=> (a: z): z a)}'
+		)
+	})
+
 	it('does not take a name that is taken', () => {
 		expect(rename('{a = 1 b = 2}', 'a', 'b')).toBeNull()
 	})

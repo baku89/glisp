@@ -19,6 +19,7 @@
 
 import { desugar } from './desugar.js'
 import {
+	booleanType,
 	type CallParameters,
 	enterNode,
 	evaluate,
@@ -35,12 +36,15 @@ import {
 	makeTupleType,
 	makeType,
 	makeTypeVar,
+	numberType,
 	type OverloadValue,
 	pathTarget,
 	pushLetFrame,
+	stringType,
 	type TypedHostFn,
 	typeFits,
 	type TypeValue,
+	unitType,
 	unwrapLazy,
 } from './eval.js'
 import {
@@ -560,10 +564,10 @@ function inferNode(ast: AST, env: Env): TypeValue | null {
 	switch (ast.kind) {
 		case 'lit': {
 			const value = ast.value
-			if (typeof value === 'number') return primitive(env, 'number')
-			if (typeof value === 'string') return primitive(env, 'string')
-			if (typeof value === 'boolean') return primitive(env, 'boolean')
-			if (value === UNIT) return primitive(env, 'unit')
+			if (typeof value === 'number') return numberType
+			if (typeof value === 'string') return stringType
+			if (typeof value === 'boolean') return booleanType
+			if (value === UNIT) return unitType
 			return typeOfHostValue(value)
 		}
 		case 'host':
@@ -586,7 +590,7 @@ function inferNode(ast: AST, env: Env): TypeValue | null {
 			return inferRecord(ast, enterNode(ast, env))
 		case 'let':
 			return ast.body === null
-				? primitive(env, 'unit')
+				? unitType
 				: infer(ast.body, pushLetFrame(ast, env))
 		case 'meta':
 		case 'unquote':
@@ -598,11 +602,6 @@ function inferNode(ast: AST, env: Env): TypeValue | null {
 		case 'spread':
 			return null
 	}
-}
-
-function primitive(env: Env, name: string): TypeValue | null {
-	const target = lookupBareName(name, env)
-	return target === null ? null : resolveTypeSlot(target.ast, target.env)
 }
 
 /** A vector literal is a tuple, which keeps its length. */

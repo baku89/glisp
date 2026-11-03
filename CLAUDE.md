@@ -5,7 +5,7 @@ A language made to be embedded in creative software: the same program is edited 
 ## Where things are
 
 - `spec/`: the specification, and what to read before changing behavior. `syntax.md`, `types.md`, `eval.md`, `host-api.md`.
-- `packages/lang`: the language, `@glisp/lang`. No dependencies, and nothing about any UI.
+- `packages/lang`: the language, `@glisp/lang`. No dependencies. Its prelude has labels and docs for people to read, but how anything looks, such as icons, belongs to a host.
 - `packages/repl`: the terminal REPL. Logic in `core.ts`, `editor.ts`, `screen.ts`; `tui.ts` is the thin part that touches the terminal.
 - `packages/tweeq`: edit an AST directly through Tweeq widgets, with a REPL beside it. The mapping from AST to GUI is pure (`structure.ts`, `repl.ts`), and the Vue components are thin.
 - `site`: the website, in English, with the guide and the playground.

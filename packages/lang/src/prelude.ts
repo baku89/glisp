@@ -24,6 +24,7 @@ import {
 	UNIT,
 } from './types.js'
 import {
+	booleanType,
 	IO,
 	isGlispClosure,
 	isTypeValue,
@@ -33,9 +34,12 @@ import {
 	makeType,
 	makeTypedFn,
 	makeTypeVar,
+	numberType,
 	OverloadValue,
+	stringType,
 	type TypedHostFn,
 	type TypeValue,
+	unitType,
 	withExpansion,
 	withSignature,
 } from './eval.js'
@@ -45,22 +49,7 @@ import { parse } from './parse.js'
 // Primitive types
 // -----------------------------------------------------------------------------
 
-export const numberType: TypeValue = makeType(
-	'number',
-	v => typeof v === 'number',
-	0
-)
-export const stringType: TypeValue = makeType(
-	'string',
-	v => typeof v === 'string',
-	''
-)
-export const booleanType: TypeValue = makeType(
-	'boolean',
-	v => typeof v === 'boolean',
-	false
-)
-export const unitType: TypeValue = makeType('unit', v => v === UNIT, UNIT)
+export { booleanType, numberType, stringType, unitType }
 export const topType: TypeValue = makeType('_', () => true, UNIT)
 export const bottomType: TypeValue = makeType('!', () => false, UNIT)
 

@@ -233,6 +233,23 @@ export function makeType(
 	}
 }
 
+export const numberType: TypeValue = makeType(
+	'number',
+	v => typeof v === 'number',
+	0
+)
+export const stringType: TypeValue = makeType(
+	'string',
+	v => typeof v === 'string',
+	''
+)
+export const booleanType: TypeValue = makeType(
+	'boolean',
+	v => typeof v === 'boolean',
+	false
+)
+export const unitType: TypeValue = makeType('unit', v => v === UNIT, UNIT)
+
 /** A generic's type variable. Accepts any value, since it is not solved yet. */
 export function makeTypeVar(name: string): TypeValue {
 	return makeType(name, () => true, UNIT, { kind: 'var', name })

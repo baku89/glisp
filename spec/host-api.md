@@ -124,7 +124,7 @@ The options are `paramNames`, `generics`, `variadicTail`, and `variadicName`, wh
 
 ### How it expands
 
-A host function has no body, so by default its only remaining rung on the [abstraction ladder](./eval.md#multi-step-evaluation--abstraction-ladder) is its value. `withExpansion` gives it a next rung:
+A host function has no body, so by default a call to it has no next rung on the [abstraction ladder](./eval.md#multi-step-evaluation--abstraction-ladder): `expand` returns the same node, and the value comes from `evaluate`. `withExpansion` gives it a next rung:
 
 ```ts
 withExpansion(power, ([base, exp], context) => {
@@ -188,7 +188,7 @@ renameBinding(block, 'a', 'b')  // a new let-block, or null if it cannot be
 isBindingName('a')              // whether a name can be a binding's
 ```
 
-`renameBinding` renames a binding of a `LetAST`, and what refers to it by name follows along, inside the block and leaving alone what a nearer binding shadows. It returns null if the block has no such binding, or if the new name is not a name, is taken in the block, or would be caught by something inside. Paths such as `./a` are left as written, so one that climbs to the binding then reports an error.
+`renameBinding` renames a binding of a `LetAST`, and what refers to it inside the block follows along: names, leaving alone what a nearer binding shadows, and paths such as `./a`, which shadowing does not touch. It returns null if the block has no such binding, or if the new name is not a name, is taken in the block, or would be caught by something inside. It sees only the block, so a path from outside that leads into it is left as written, and then reports an error.
 
 ## Checking and reflection
 

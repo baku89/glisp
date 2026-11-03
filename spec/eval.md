@@ -300,7 +300,7 @@ Both operations agree on the final value: `eval(AST, env)` equals `eval(expand(A
 - A call to a closure steps to the closure's body, with each parameter replaced by the argument expression as written. A `?` at the tail of the body resolves within the same step, so the rung is the selected clause.
 - A bare `?` steps to its selected clause, or to `()` when none matches.
 - A call to a host function steps to what its expansion says, if it has one (see [Host functions](#host-functions)).
-- Everything else is a fixed point: literals, let-blocks, vectors, records, function literals, and other calls to host functions. Their only remaining rung is their value, from `eval`.
+- Everything else is a fixed point: literals, let-blocks, vectors, records, function literals, and other calls to host functions. `expand` returns the same node, and the value comes from `eval`.
 
 Which sub-expression to step is up to the host. Stepping the argument first takes `(sq (+ 1 1))` to `(sq 2)`, without the function saying anything about it.
 
@@ -333,7 +333,7 @@ sq     = (=> (x: number): number (* ~x ~x))
 
 ### Host functions
 
-A host function has no body, so by default its only remaining rung is its value. It can say otherwise with `withExpansion`, which receives the argument expressions as written and a context for working out only those it needs. It returns the next rung, or null for none. `**` uses this, so `(** (+ 1 1) 3)` expands to `(* (+ 1 1) (+ 1 1) (+ 1 1))`, while `(** 2 0.5)` has no next rung.
+A host function has no body, so by default a call to it has no next rung: `expand` returns the same node, and the value comes from `eval`. It can say otherwise with `withExpansion`, which receives the argument expressions as written and a context for working out only those it needs. It returns the next rung, or null for none. `**` uses this, so `(** (+ 1 1) 3)` expands to `(* (+ 1 1) (+ 1 1) (+ 1 1))`, while `(** 2 0.5)` has no next rung.
 
 ### Termination of `expand`
 

@@ -4,6 +4,8 @@
 
 export * from './types.js'
 export * from './build.js'
+// `eval.js` has the TypeValues of these names; a host reads those from the prelude.
+export { booleanType, numberType, stringType, unitType } from './build.js'
 export * from './print.js'
 export * from './lex.js'
 export * from './parse.js'

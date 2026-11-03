@@ -9,6 +9,14 @@ import { Session } from './session.js'
 import { HostAST, LetAST } from './types.js'
 
 const env = buildPrelude()
+describe('literals', () => {
+	it('have the base types, whatever those names mean in scope', () => {
+		const shadowed = infer(parse('{number = string 1}'), env)
+		expect(shadowed?.typeName).toBe('number')
+		expect(check(parse('{number = string (+ 1 1)}'), env)).toEqual([])
+	})
+})
+
 const typeOf = (src: string): string | null =>
 	infer(parse(src), env)?.typeName ?? null
 const problems = (src: string): string[] =>

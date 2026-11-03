@@ -49,7 +49,7 @@ A type is a set of values, and a type fits another when all its values belong to
 - `(IO T)` and `[...T]` are covariant.
 - Function parameters match in either direction, so `_` in a slot's signature means "don't care".
 
-`_` as the type of a value means **not known** rather than "anything", so it fits every slot. Only what is known to be wrong is reported, and a value of unknown type is still checked when it arrives at a typed slot at run time. `!` fits everything and nothing else fits it.
+`_` is one type with both readings. There is no separate top. `_` as the type of a value means **not known** rather than "anything", so it fits every slot. Only what is known to be wrong is reported, and a value of unknown type is still checked when it arrives at a typed slot at run time. `!` fits everything and nothing else fits it.
 
 A conversion that changes a value is never implicit.
 
@@ -277,6 +277,7 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 
 Signatures are mandatory, so types flow locally rather than through a global solver. `infer(ast, env)` runs no value expression. The only thing it evaluates is a type expression, since types are values.
 
+- **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else.
 - **Generics are solved at a call**, one argument at a time, by matching types structurally: `(xs: [...T])` given `[1 2]` solves `T` as `number`. A generic seen twice takes whichever of the two types the other fits; if neither does, that is a diagnostic. An unsolved generic is `_`.
 - **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] (+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
 - **Type constructors can be generic.** In `(=> (F T) (x: (F T)): T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.
