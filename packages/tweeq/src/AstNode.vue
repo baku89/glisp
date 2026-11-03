@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Env, UNIT } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, UNIT } from '@glisp/lang'
 import { InputCheckbox } from 'tweeq/InputCheckbox'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputNumber } from 'tweeq/InputNumber'
@@ -16,6 +16,7 @@ import {
 	hasValue,
 	isExpression,
 	parseSource,
+	problemOf,
 	type Slot,
 	sourceOf,
 	viewOf,
@@ -28,7 +29,7 @@ const props = defineProps<{
 	read: (
 		ast: AST,
 		env: Env
-	) => { value: unknown; diagnostics: ReadonlyArray<{ message: string }> }
+	) => { value: unknown; diagnostics: readonly Diagnostic[] }
 	show: (value: unknown, env: Env) => string
 }>()
 
@@ -53,7 +54,9 @@ const result = computed(() =>
 		? null
 		: props.read(ast.value, props.entry.env)
 )
-const problem = computed(() => result.value?.diagnostics[0]?.message ?? null)
+const problem = computed(() =>
+	problemOf(ast.value, props.entry.env, props.entry.expected, props.read)
+)
 
 /** What the field shows while it is not being edited. */
 const shown = computed(() => {
@@ -122,40 +125,42 @@ const menuItems = computed<MenuItem[]>(() =>
 		:menuItems="menuItems"
 		@select="select"
 	>
-		<InputNumber
-			v-if="view.editor?.kind === 'number'"
-			:modelValue="view.editor.value"
-			:menuItems="menuItems"
-			@update:modelValue="update(withLiteral(ast, $event))"
-		/>
-		<InputString
-			v-else-if="view.editor?.kind === 'string'"
-			:modelValue="view.editor.value"
-			:menuItems="menuItems"
-			@update:modelValue="update(withLiteral(ast, $event))"
-		/>
-		<InputCheckbox
-			v-else-if="view.editor?.kind === 'boolean'"
-			:modelValue="view.editor.value"
-			@update:modelValue="update(withLiteral(ast, $event))"
-		/>
-		<InputDropdown
-			v-else-if="view.editor?.kind === 'enum'"
-			:modelValue="view.editor.value"
-			:options="[...view.editor.options]"
-			:labelizer="label"
-			@update:modelValue="update(withLiteral(ast, $event as never))"
-		/>
 		<div
-			v-else
-			class="field"
-			:class="{ expression: isExpression(ast) }"
+			class="value"
+			:class="{
+				expression: isExpression(ast),
+				error: problem !== null || parseSource(draft) === null,
+			}"
 			:title="problem ?? sourceOf(ast)"
 		>
+			<InputNumber
+				v-if="view.editor?.kind === 'number'"
+				:modelValue="view.editor.value"
+				:menuItems="menuItems"
+				@update:modelValue="update(withLiteral(ast, $event))"
+			/>
+			<InputString
+				v-else-if="view.editor?.kind === 'string'"
+				:modelValue="view.editor.value"
+				:menuItems="menuItems"
+				@update:modelValue="update(withLiteral(ast, $event))"
+			/>
+			<InputCheckbox
+				v-else-if="view.editor?.kind === 'boolean'"
+				:modelValue="view.editor.value"
+				@update:modelValue="update(withLiteral(ast, $event))"
+			/>
+			<InputDropdown
+				v-else-if="view.editor?.kind === 'enum'"
+				:modelValue="view.editor.value"
+				:options="[...view.editor.options]"
+				:labelizer="label"
+				@update:modelValue="update(withLiteral(ast, $event as never))"
+			/>
 			<InputTextBase
+				v-else
 				v-model="draft"
 				font="monospace"
-				:invalid="problem !== null || parseSource(draft) === null"
 				:menuItems="menuItems"
 				@blur="commitDraft"
 				@keydown="onFieldKey"
@@ -181,12 +186,8 @@ const menuItems = computed<MenuItem[]>(() =>
 </template>
 
 <style scoped>
-.field {
-	display: flex;
-	min-width: 0;
-}
-.field > * {
-	flex: 1 1 0;
+.value {
+	display: grid;
 	min-width: 0;
 }
 /* As a parameter driven by an expression is in After Effects or Houdini. */
@@ -195,7 +196,12 @@ const menuItems = computed<MenuItem[]>(() =>
 	--tq-color-input: var(--tq-color-success-soft);
 	--tq-color-input-hover: var(--tq-color-success-soft);
 }
-.field .shown {
+.value.error {
+	--tq-color-text: var(--tq-color-error);
+	--tq-color-input: var(--tq-color-error-soft);
+	--tq-color-input-hover: var(--tq-color-error-soft);
+}
+.value .shown {
 	display: block;
 	line-height: var(--tq-input-height);
 	overflow: hidden;

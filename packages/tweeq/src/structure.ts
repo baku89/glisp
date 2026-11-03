@@ -11,6 +11,8 @@ import {
 	type AST,
 	CallAST,
 	callParameters,
+	check,
+	type Diagnostic,
 	enterNode,
 	type Env,
 	infer,
@@ -22,6 +24,7 @@ import {
 	pushLetFrame,
 	RecordAST,
 	toAst,
+	typeFits,
 	type TypeValue,
 	UNIT,
 	unwrapLazy,
@@ -465,6 +468,28 @@ export function isExpression(ast: AST): boolean {
 		default:
 			return true
 	}
+}
+
+/**
+ * What is wrong with a node, if anything: what evaluating it reports, what
+ * checking it reports, which includes what never runs, or that it does not fit
+ * where it is.
+ */
+export function problemOf(
+	ast: AST,
+	env: Env,
+	expected: TypeValue | null,
+	read: (ast: AST, env: Env) => { readonly diagnostics: readonly Diagnostic[] }
+): string | null {
+	if (!hasValue(ast)) return null
+	const problem = [...read(ast, env).diagnostics, ...check(ast, env)].find(
+		diagnostic => diagnostic.level === 'error'
+	)
+	if (problem !== undefined) return problem.message
+	const type = expected === null ? null : infer(ast, env)
+	return type !== null && expected !== null && !typeFits(type, expected)
+		? `type mismatch: expected ${expected.typeName}, got ${type.typeName}`
+		: null
 }
 
 /** Something that can be done to a slot, for a menu. */

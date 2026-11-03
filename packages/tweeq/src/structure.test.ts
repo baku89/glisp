@@ -2,7 +2,7 @@ import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glis
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withTypeIcons } from './icons'
-import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, literalOf, parseSource, viewOf, withLiteral } from './structure'
+import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, literalOf, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withTypeIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -242,6 +242,40 @@ describe('icons', () => {
 			evaluate(parse('number'), buildPrelude()).value
 		)
 		expect(evaluate(parse('(: "a" number)'), env).value).toBe(0)
+	})
+})
+
+describe('problemOf', () => {
+	const read = (ast: Parameters<typeof evaluate>[0], scope: Parameters<typeof evaluate>[1]) =>
+		evaluate(ast, scope)
+	const problem = (src: string) => problemOf(parse(src), env, null, read)
+
+	it('reports what evaluating finds', () => {
+		expect(problem('nope')).toContain('nope')
+		expect(problem('(take [1])')).not.toBeNull()
+		expect(problem('radius-is-not-bound')).not.toBeNull()
+	})
+
+	it('reports what never runs', () => {
+		expect(problem('(=> (x: number): number nope)')).toContain('nope')
+	})
+
+	it('reports a problem inside, so that a closed row shows it', () => {
+		expect(problem('(+ 1 nope)')).toContain('nope')
+		expect(problem('[1 nope]')).toContain('nope')
+	})
+
+	it('reports a node that does not fit its slot', () => {
+		const slot = view('(+ "a" 1)').slots[0]!
+		expect(problemOf(slot.ast, slot.env, slot.expected, read)).toContain('type mismatch')
+		const fine = view('(+ 2 1)').slots[0]!
+		expect(problemOf(fine.ast, fine.env, fine.expected, read)).toBeNull()
+	})
+
+	it('finds nothing wrong with what is fine', () => {
+		for (const src of ['1', '(+ 1 2)', '[1 2]', '{a: 1}', '(* % 2)', '(map [1] (* % 2))', '%']) {
+			expect(problem(src)).toBeNull()
+		}
 	})
 })
 
