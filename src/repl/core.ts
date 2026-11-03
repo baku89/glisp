@@ -109,7 +109,7 @@ export class ReplCore {
 				partial: line,
 			}
 		}
-		const match = /[A-Za-z_!+\-*<>&|%$][A-Za-z_0-9!+\-*<>&|%$]*$/.exec(line)
+		const match = /[^\s()[\]{}"'`~^,;:=./?@0-9][^\s()[\]{}"'`~^,;:=./?@]*$/u.exec(line)
 		if (match === null) return { matches: [], partial: '' }
 		const partial = match[0]
 		return {

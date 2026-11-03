@@ -170,14 +170,15 @@ export function lex(src: string): Token[] {
 		}
 
 		// identifier (or reserved bare token)
-		if (isIdentifierStart(ch)) {
+		const char = charAt(src, pos)
+		if (isIdentifierStart(char)) {
 			const tok = readIdentifierOrReserved(src, pos)
 			tokens.push(tok)
 			pos = tok.end
 			continue
 		}
 
-		throw lexError(src, pos, `Unexpected character: ${JSON.stringify(ch)}`)
+		throw lexError(src, pos, `Unexpected character: ${JSON.stringify(char)}`)
 	}
 
 	tokens.push({ kind: 'eof', text: '', start: pos, end: pos })
@@ -189,11 +190,32 @@ export function lex(src: string): Token[] {
 // -----------------------------------------------------------------------------
 
 function isWhitespace(ch: string): boolean {
-	return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r'
+	return (
+		ch === ' ' ||
+		ch === '\t' ||
+		ch === '\n' ||
+		ch === '\r' ||
+		(ch > '\x7f' && /\p{Zs}/u.test(ch))
+	)
 }
 
 const IDENT_CHARS = '+-*<>&|%_!$'
+
+/**
+ * Beyond ASCII, an identifier may hold letters, marks, numbers, and symbols:
+ * `π`, `ℝ`, `∞`, `°`, `半径`. Punctuation is left out, so `「` and `（` stay
+ * errors rather than quietly becoming names. The joiner keeps emoji whole.
+ */
+const NON_ASCII_IDENT_CHAR = /^[\p{L}\p{M}\p{N}\p{S}\p{Pc}\u200d]$/u
+const NON_ASCII_IDENT_START = /^[\p{L}\p{No}\p{Nl}\p{S}\p{Pc}]$/u
+
+/** The whole character at `pos`, which may be two UTF-16 units. */
+function charAt(src: string, pos: number): string {
+	return String.fromCodePoint(src.codePointAt(pos)!)
+}
+
 function isIdentifierChar(ch: string): boolean {
+	if (ch > '\x7f') return NON_ASCII_IDENT_CHAR.test(ch)
 	if (ch >= 'a' && ch <= 'z') return true
 	if (ch >= 'A' && ch <= 'Z') return true
 	if (ch >= '0' && ch <= '9') return true
@@ -201,8 +223,20 @@ function isIdentifierChar(ch: string): boolean {
 }
 
 function isIdentifierStart(ch: string): boolean {
+	if (ch > '\x7f') return NON_ASCII_IDENT_START.test(ch)
 	if (ch >= '0' && ch <= '9') return false
 	return isIdentifierChar(ch)
+}
+
+/** The offset just past the identifier characters starting at `pos`. */
+function identifierEnd(src: string, start: number): number {
+	let pos = start
+	while (pos < src.length) {
+		const char = charAt(src, pos)
+		if (!isIdentifierChar(char)) break
+		pos += char.length
+	}
+	return pos
 }
 
 function isDigit(ch: string | undefined): boolean {
@@ -305,7 +339,7 @@ function readPathFromDots(
 	while (src[pos] === '/') {
 		pos++  // skip '/'
 
-		if (pos >= src.length || !isPathSegmentStart(src[pos]!)) break
+		if (pos >= src.length || !isPathSegmentStart(charAt(src, pos))) break
 
 		if (src[pos] === '.' && src[pos + 1] === '.') {
 			segments.push('..')
@@ -321,8 +355,8 @@ function readPathFromDots(
 		}
 
 		const idStart = pos
-		while (pos < src.length && isIdentifierChar(src[pos]!)) pos++
-		segments.push(src.slice(idStart, pos))
+		pos = identifierEnd(src, pos)
+		segments.push(src.slice(idStart, pos).normalize('NFC'))
 	}
 
 	return {
@@ -436,8 +470,7 @@ function readNumber(src: string, start: number): Token {
 // -----------------------------------------------------------------------------
 
 function readIdentifierOrReserved(src: string, start: number): Token {
-	let pos = start
-	while (pos < src.length && isIdentifierChar(src[pos]!)) pos++
+	let pos = identifierEnd(src, start)
 
 	// `>=`, `<=`, `!=` extension (the `=` after a comparator is part of one
 	// identifier even though `=` is not in the identifier character set).
@@ -459,7 +492,8 @@ function readIdentifierOrReserved(src: string, start: number): Token {
 			return { kind: 'boolean', text, start, end: pos, value: false }
 	}
 
-	return { kind: 'identifier', text, start, end: pos, value: text }
+	// Normalized, so the same name typed two ways is the same name.
+	return { kind: 'identifier', text, start, end: pos, value: text.normalize('NFC') }
 }
 
 // -----------------------------------------------------------------------------

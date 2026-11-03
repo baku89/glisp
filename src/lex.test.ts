@@ -76,6 +76,37 @@ describe('lex — literals', () => {
 })
 
 describe('lex — identifiers', () => {
+	it('accepts non-ASCII letters and symbols', () => {
+		for (const name of ['π', 'ℝ', '∞', '°', 'ƒ', 'うんこ', '半径2', 'é', 'x²', '😀', '👨‍👩‍👧']) {
+			expect(lex(name), name).toMatchObject([
+				{ kind: 'identifier', value: name },
+				{ kind: 'eof' },
+			])
+		}
+	})
+
+	it('normalizes, keeping the source text', () => {
+		const decomposed = 'か\u3099'
+		expect(lex(decomposed)[0]).toMatchObject({ value: 'が', text: decomposed })
+	})
+
+	it('rejects non-ASCII punctuation, and a leading digit or mark', () => {
+		for (const src of ['「a」', '（a）', '、', '\u3099a', '٣']) {
+			expect(() => lex(src), src).toThrow(LexError)
+		}
+	})
+
+	it('treats an ideographic space as whitespace', () => {
+		expect(kinds('a\u3000b')).toEqual(['identifier', 'identifier'])
+	})
+
+	it('accepts non-ASCII names in paths', () => {
+		expect(lex('../半径/😀')[0]).toMatchObject({
+			kind: 'pathSegments',
+			value: ['..', '半径', '😀'],
+		})
+	})
+
 	it('alphanumerics and allowed symbols', () => {
 		expect(lex('foo')[0]).toMatchObject({ kind: 'identifier', value: 'foo' })
 		expect(lex('+')[0]).toMatchObject({ kind: 'identifier', value: '+' })

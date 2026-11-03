@@ -161,9 +161,12 @@ describe('ReplCore', () => {
 		expect(run(core, '(+ x 1)')).toEqual(['2'])
 		expect(run(core, '(')[0]).toContain('syntax error')
 		expect(run(core, 'nope')[1]).toContain('unresolvable name: nope')
-		expect(run(core, 'うんこ = 1')).toEqual([
-			'syntax error · Unexpected character: "う" (at offset 0)',
-		].map(line => `${line}\n1 | うんこ = 1\n    ^`))
+		expect(run(core, '「')[0]).toBe(
+			'syntax error · Unexpected character: "「" (at offset 0)\n1 | 「\n    ^'
+		)
+		expect(run(core, 'うんこ = (+ 1 2)')).toEqual([])
+		expect(run(core, '(+ うんこ 1)')).toEqual(['4'])
+		expect(core.complete('(+ うん').matches).toEqual(['うんこ'])
 		expect(run(core, 'nope/y = 1')[0]).toContain('no such binding: nope')
 	})
 

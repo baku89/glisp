@@ -50,7 +50,6 @@ export default defineUserConfig({
 		repo,
 		locales: {
 			'/': {
-				selectLanguageName: 'English',
 				navbar: [
 					{ text: 'Home', link: '/' },
 					{ text: 'Guide', link: '/guide' },
@@ -88,25 +87,6 @@ export default defineUserConfig({
 					],
 				},
 			},
-			'/ja/': {
-				selectLanguageName: '日本語',
-				navbar: [
-					{ text: 'ホーム', link: '/ja/' },
-					{ text: 'ガイド', link: '/ja/guide' },
-					{ text: 'プレイグラウンド', link: '/ja/playground' },
-					{
-						text: '仕様',
-						children: [
-							{ text: '概要', link: '/spec/' },
-							{ text: '構文', link: '/spec/syntax' },
-							{ text: '型', link: '/spec/types' },
-							{ text: '評価', link: '/spec/eval' },
-							{ text: 'Host API', link: '/spec/host-api' },
-						],
-					},
-					{ text: 'API', link: '/api/' },
-				],
-			},
 		},
 	}),
 	locales: {
@@ -115,12 +95,6 @@ export default defineUserConfig({
 			title: 'Glisp',
 			description:
 				'A small guest language for creative software. Hosted on TypeScript, embedded in design tools, motion editors, and generative pipelines.',
-		},
-		'/ja/': {
-			lang: 'ja-JP',
-			title: 'Glisp',
-			description:
-				'クリエイティブソフトに組み込むための小さな S 式言語。TypeScript アプリのライブラリとして動きます。',
 		},
 	},
 	bundler: viteBundler({

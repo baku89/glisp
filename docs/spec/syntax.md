@@ -45,10 +45,12 @@ Any other backslash sequence is a syntax error.
 Bare identifiers are symbols, resolved in the lexical environment.
 
 ```glisp
-foo bar baz!  +  *  multiply-by-2  >=  is-empty
+foo bar baz!  +  *  multiply-by-2  >=  is-empty  π  ℝ  ∞  °  半径
 ```
 
-Allowed characters: alphanumerics and `+ - * < > & | % _ ! $`. The first character must not be a digit.
+Allowed characters: alphanumerics and `+ - * < > & | % _ ! $`, and beyond ASCII, any letter, mark, number, or symbol (Unicode categories `L`, `M`, `N`, `S`, `Pc`, plus the zero-width joiner for emoji). The first character must not be a digit or a combining mark. Other non-ASCII punctuation, such as `「` and `（`, is a syntax error.
+
+Identifiers are normalized to NFC, so the same name typed two ways is the same name. Non-ASCII spaces, such as the ideographic space, are whitespace.
 
 Several bare tokens are reserved and cannot stand alone as identifiers; embedded use within an identifier is still fine:
 
