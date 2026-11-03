@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, isPinned } from '@glisp/lang'
+import { Icon } from 'tweeq/Icon'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
+import { vTooltip } from 'tweeq/Tooltip'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
@@ -38,11 +40,9 @@ const view = computed(() =>
 const icon = computed(() =>
 	props.entry.role === 'step'
 		? 'mdi:arrow-down-thin'
-		: isPinned(ast.value)
-			? 'mdi:pin'
-			: (props.entry.icon ??
-				iconOf(ast.value, props.entry.env, props.entry.expected) ??
-				undefined)
+		: (props.entry.icon ??
+			iconOf(ast.value, props.entry.env, props.entry.expected) ??
+			undefined)
 )
 
 const isBinding = computed(() => props.entry.key.startsWith('binding:'))
@@ -92,26 +92,10 @@ const inline = computed(
 	() => bareKind.value === 'vec' && !open.value && fits(view.value.slots.length)
 )
 
-/** What the + adds: the next thing missing, or else one more. */
-const addition = computed(() => {
-	const [missing] = view.value.missing
-	return missing === undefined
-		? view.value.append
-		: { label: missing.name, add: missing.add }
-})
-
-function add(): void {
-	const next = addition.value
-	if (next === null) return
-	// A vector that is still short shows the new one where it is.
-	const grows = bareKind.value === 'vec' && fits(view.value.slots.length + 1)
-	if (!grows) open.value = true
-	update(next.add())
-	// A new binding has only a placeholder for a name.
-	const key = 'key' in next ? next.key : undefined
-	if (key !== undefined && revealer) {
-		revealer.target.value = { path: `${props.path}/${key}`, rename: true }
-	}
+const pinned = computed(() => isPinned(ast.value))
+function togglePin(): void {
+	const action = actionsOf(props.entry).find(a => a.id === 'pin')
+	if (action !== undefined && 'apply' in action) emit('change', action.apply())
 }
 
 const children = computed(() =>
@@ -142,7 +126,10 @@ function select(): void {
 }
 
 const slotMenu = computed(() =>
-	slotMenuItems(props.entry, parent => emit('change', parent))
+	slotMenuItems(props.entry, (parent, action) => {
+		if (action.opens) open.value = true
+		emit('change', parent)
+	})
 )
 
 // What the value's own field offers by itself, and the row offers on its behalf.
@@ -190,11 +177,11 @@ watch(
 		:label="view.label ?? entry.label"
 		:icon="icon"
 		:hint="hint"
-		:expandable="children.length > 0"
-		:addLabel="addition === null ? undefined : `Add ${addition.label}`"
+		:expandable="
+			children.length > 0 || view.append !== null || view.missing.length > 0
+		"
 		:renamable="renamable"
 		:emphasized="isFunction"
-		@add="add"
 		:sortHandle="entry.sort !== undefined"
 		:dragId="isBinding ? path : undefined"
 		v-model:renaming="renaming"
@@ -236,10 +223,26 @@ watch(
 			@close="editingCode = false"
 		/>
 
+		<template #labelEnd>
+			<button
+				v-if="pinned"
+				v-tooltip="'Unpin'"
+				class="pin"
+				type="button"
+				aria-label="Unpin"
+				@click.stop="togglePin"
+				@dblclick.stop
+			>
+				<Icon icon="mdi:pin" />
+			</button>
+		</template>
+
 		<template #children>
 			<AstSlots
 				:slots="children"
 				:parentPath="path"
+				:missing="view.missing"
+				:append="view.append"
 				:read="read"
 				:show="show"
 				@change="update"
@@ -252,5 +255,25 @@ watch(
 .inline {
 	display: grid;
 	min-width: 0;
+}
+.pin {
+	display: block;
+	flex-shrink: 0;
+	width: var(--tq-icon-size);
+	height: var(--tq-icon-size);
+	margin-top: calc((var(--tq-input-height) - var(--tq-icon-size)) / 2);
+	margin-left: auto;
+	border-radius: var(--tq-radius-input);
+	color: var(--tq-color-text-mute);
+	cursor: pointer;
+}
+.pin > * {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.pin:hover {
+	color: var(--tq-color-text);
+	background: var(--tq-color-input-hover);
 }
 </style>

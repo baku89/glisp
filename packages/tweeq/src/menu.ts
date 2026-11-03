@@ -32,7 +32,7 @@ export function editMenuItems(
 /** A slot's actions as a menu, in groups. `apply` gets the new parent. */
 export function slotMenuItems(
 	slot: Slot,
-	apply: (parent: AST) => void
+	apply: (parent: AST, action: SlotAction) => void
 ): MenuItem[] {
 	const items: MenuItem[] = []
 	let group: SlotAction['group'] | null = null
@@ -44,7 +44,7 @@ export function slotMenuItems(
 			icon: action.icon,
 			...(action.keys === undefined ? {} : { bindIcon: [...action.keys] }),
 			perform: () => {
-				if ('apply' in action) apply(action.apply())
+				if ('apply' in action) apply(action.apply(), action)
 				else void navigator.clipboard.writeText(action.copy())
 			},
 		})

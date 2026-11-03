@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import type { AST, Diagnostic, Env } from '@glisp/lang'
 import { InputArray } from 'tweeq/InputArray'
-import { ParameterTreeContextKey } from 'tweeq/ParameterGrid'
+import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject } from 'vue'
 
 import AstCase from './AstCase.vue'
 import AstNode from './AstNode.vue'
-import { fitsInline, moveBetween, type Slot } from './structure'
+import { REVEALER } from './selection'
+import { fitsInline, type MissingArgument, moveBetween, type NodeView, type Slot } from './structure'
 
 const props = defineProps<{
 	slots: readonly Slot[]
 	parentPath: string
+	/** What can be added after these, in what holds them. */
+	missing?: readonly MissingArgument[]
+	append?: NodeView['append']
 	read: (
 		ast: AST,
 		env: Env
@@ -75,6 +79,18 @@ const pairOf = (slots: readonly Slot[]) => {
 	return rows
 }
 
+const revealer = inject(REVEALER, null)
+
+function addOneMore(): void {
+	const { append } = props
+	if (!append) return
+	emit('change', append.add())
+	// A new binding has only a placeholder for a name.
+	if (append.key !== undefined && revealer) {
+		revealer.target.value = { path: `${props.parentPath}/${append.key}`, rename: true }
+	}
+}
+
 const pathOf = (slot: Slot): string =>
 	props.parentPath === '' ? slot.key : `${props.parentPath}/${slot.key}`
 </script>
@@ -125,5 +141,18 @@ const pathOf = (slot: Slot): string =>
 		:read="read"
 		:show="show"
 		@change="emit('change', $event)"
+	/>
+	<ParameterTreeItem
+		v-for="argument in missing"
+		:key="`missing:${argument.name}`"
+		:label="argument.name"
+		icon="mdi:plus"
+		@select="emit('change', argument.add())"
+	/>
+	<ParameterTreeItem
+		v-if="append"
+		:label="`Add ${append.label}`"
+		icon="mdi:plus"
+		@select="addOneMore"
 	/>
 </template>

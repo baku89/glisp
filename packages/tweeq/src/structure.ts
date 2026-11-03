@@ -1085,6 +1085,8 @@ export type SlotAction = {
 	readonly id?: 'step' | 'all' | 'pin' | 'copy'
 	/** The keys that run it, as a menu shows them. */
 	readonly keys?: readonly string[]
+	/** It adds to what is inside, which then ought to be showing. */
+	readonly opens?: boolean
 	/** Actions of a group go together, in a menu. */
 	readonly group: 'edit' | 'copy' | 'remove'
 } & (
@@ -1154,6 +1156,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		actions.push({
 			label: `Add ${missing.name}`,
 			icon: 'mdi:plus',
+			opens: true,
 			group: 'edit',
 			apply: () => slot.replace(missing.add()),
 		})
@@ -1163,6 +1166,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		actions.push({
 			label: `Add ${append.label}`,
 			icon: 'mdi:plus',
+			opens: true,
 			group: 'edit',
 			apply: () => slot.replace(append.add()),
 		})
