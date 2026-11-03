@@ -40,29 +40,51 @@ interface Scope {
 
 /** What a name means where a walk has got to. */
 interface Names {
-	/** A nearer `from` has it, so a `from` here is something else. */
+	/** A `from` here is something else: a nearer one's, or outside the block. */
 	readonly hidden: boolean
-	/** A nearer `to` has it, so a `from` renamed here would be caught. */
+	/** A `to` here is nearer than the block's new one, or outside the block. */
 	readonly near: boolean
 }
 
+const OUTSIDE: Names = { hidden: true, near: true }
+const IN_BLOCK: Names = { hidden: false, near: false }
+
 /**
  * `block`, with its binding `from` called `to`, and what refers to it following
- * along: by name, leaving alone what a nearer `from` shadows, and by path, which
- * shadowing does not touch. Null if it cannot be: it has no such binding, `to` is
- * not a name, is taken in the block, or something inside would catch a reference.
+ * along. See `renameBindingIn`.
  */
 export function renameBinding(
 	block: LetAST,
 	from: string,
 	to: string
 ): LetAST | null {
+	return renameBindingIn(block, block, from, to) as LetAST | null
+}
+
+/**
+ * `root`, with the binding `from` of `block`, a let-block somewhere in it, called
+ * `to`, and what refers to it following along: names inside the block, leaving
+ * alone what a nearer `from` shadows, and paths from anywhere in `root`, which
+ * shadowing does not touch. What is unchanged stays `===`.
+ *
+ * Null if it cannot be: `block` has no such binding or is not in `root`, `to` is
+ * not a name or is taken in the block, a nearer `to` would catch a reference, or
+ * the new name would catch a `to` inside that means something else.
+ */
+export function renameBindingIn(
+	root: AST,
+	block: LetAST,
+	from: string,
+	to: string
+): AST | null {
 	if (!isBindingName(to)) return null
 	if (!block.bindings.some(([name]) => name === from)) return null
-	if (from === to) return block
+	if (from === to) return root
 	if (block.bindings.some(([name]) => name === to)) return null
 
 	let caught = false
+	let edits = 0
+	let found = false
 
 	const within = (names: Names, binders: readonly string[]): Names => ({
 		hidden: names.hidden || binders.includes(from),
@@ -71,10 +93,11 @@ export function renameBinding(
 
 	/**
 	 * The path, with the segment that lands on the binding renamed. It is followed
-	 * as far as it can be without a signature, which a call's arguments need, and
-	 * above the block it cannot come back to anything it can see.
+	 * as far as it can be without a signature, which a call's positional arguments
+	 * need, and above the root there is nothing it can see.
 	 */
-	const renamePath = (path: PathAST, start: Scope): PathAST => {
+	const renamePath = (path: PathAST, start: Scope | null): PathAST => {
+		if (start === null) return path
 		const segments = [...path.segments]
 		let scope: Scope | null = start
 		let here: AST = start.ast
@@ -97,15 +120,15 @@ export function renameBinding(
 			here = child
 			entered = false
 		}
-		return segments.some((segment, i) => segment !== path.segments[i])
-			? new PathAST(segments)
-			: path
+		if (segments.every((segment, i) => segment === path.segments[i])) return path
+		edits++
+		return new PathAST(segments)
 	}
 
-	const go = (node: AST, names: Names, outer: Scope): AST => {
+	const rebuild = (node: AST, names: Names, outer: Scope | null): AST => {
 		// `%` makes the node the body of a function, which a path counts as a level.
 		const sugar = node.kind === 'fn' ? node : desugar(node)
-		const scope: Scope =
+		const scope: Scope | null =
 			sugar.kind === 'fn' && node.kind !== 'fn'
 				? { ast: sugar, parent: outer }
 				: outer
@@ -113,8 +136,10 @@ export function renameBinding(
 
 		switch (node.kind) {
 			case 'sym':
+				if (node.name === to && !names.near) caught = true
 				if (node.name !== from || names.hidden) return node
 				if (names.near) caught = true
+				edits++
 				return new SymAST(to)
 			case 'path':
 				return renamePath(node, scope)
@@ -140,13 +165,24 @@ export function renameBinding(
 					node.optional
 				)
 			case 'let': {
-				const bound = within(
-					names,
-					node.bindings.map(([name]) => name)
-				)
+				if (node === block) {
+					found = true
+					edits++
+				}
+				const bound =
+					node === block
+						? IN_BLOCK
+						: within(
+								names,
+								node.bindings.map(([name]) => name)
+							)
 				return new LetAST(
 					node.bindings.map(
-						([name, value]) => [name, go(value, bound, inside)] as const
+						([name, value]) =>
+							[
+								node === block && name === from ? to : name,
+								go(value, bound, inside),
+							] as const
 					),
 					node.body === null ? null : go(node.body, bound, inside)
 				)
@@ -185,11 +221,12 @@ export function renameBinding(
 		}
 	}
 
-	const inside: Scope = { ast: block, parent: null }
-	const names: Names = { hidden: false, near: false }
-	const bindings = block.bindings.map(
-		([name, value]) => [name === from ? to : name, go(value, names, inside)] as const
-	)
-	const body = block.body === null ? null : go(block.body, names, inside)
-	return caught ? null : new LetAST(bindings, body)
+	const go = (node: AST, names: Names, outer: Scope | null): AST => {
+		const before = edits
+		const next = rebuild(node, names, outer)
+		return edits === before ? node : next
+	}
+
+	const next = go(root, OUTSIDE, null)
+	return caught || !found ? null : next
 }

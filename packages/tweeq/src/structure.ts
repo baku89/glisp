@@ -26,7 +26,7 @@ import {
 	print,
 	pushLetFrame,
 	RecordAST,
-	renameBinding,
+	renameBindingIn,
 	resolveTypeSlot,
 	toAst,
 	typeFits,
@@ -927,14 +927,13 @@ export function renameBindingAt(
 	const key = parts.at(-1)
 	if (key === undefined || !key.startsWith(BINDING)) return null
 	const from = key.slice(BINDING.length)
-	const editIn = (node: AST): AST | null => {
-		if (node.kind === 'meta') {
-			const inner = editIn(node.expr)
-			return inner === null ? null : new MetaAST(node.metadata, inner)
-		}
-		return node.kind === 'let' ? renameBinding(node, from, name) : null
-	}
-	return editAt(root, env, parts.slice(0, -1), editIn)
+	let block: LetAST | null = null
+	editAt(root, env, parts.slice(0, -1), node => {
+		const bare = node.kind === 'meta' ? node.expr : node
+		if (bare.kind === 'let') block = bare
+		return node
+	})
+	return block === null ? null : renameBindingIn(root, block, from, name)
 }
 
 /**

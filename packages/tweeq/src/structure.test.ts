@@ -640,6 +640,12 @@ describe('renameBindingAt', () => {
 		)
 	})
 
+	it('takes along a path from outside the let', () => {
+		expect(rename('{z = {a = 1} q = ./z/a}', 'binding:z/binding:a', 'b')).toBe(
+			'{z = {b = 1} q = ./z/b}'
+		)
+	})
+
 	it('wants a binding', () => {
 		expect(rename('{a = (+ 1 2)}', 'binding:a/arg0', 'b')).toBeNull()
 		expect(rename('{a = 1}', 'binding:b', 'c')).toBeNull()

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildPrelude } from './prelude.js'
 import { evaluate, parse, print, Session } from './index.js'
-import { isBindingName, renameBinding } from './rename.js'
+import { isBindingName, renameBinding, renameBindingIn } from './rename.js'
 import type { LetAST } from './types.js'
 
 const rename = (src: string, from: string, to: string) => {
@@ -97,6 +97,11 @@ describe('renameBinding', () => {
 		expect(rename('{a = 1 b = {c = 2 c}}', 'a', 'c')).toBe('{c = 1 b = {c = 2 c}}')
 	})
 
+	it('does not catch what the new name already means inside', () => {
+		expect(rename('{a = 1 (sin a)}', 'a', 'sin')).toBeNull()
+		expect(rename('{a = 1 b = {c = 2 (+ a c)}}', 'b', 'c')).toBe('{a = 1 c = {c = 2 (+ a c)}}')
+	})
+
 	it('wants a binding and a name', () => {
 		expect(rename('{a = 1}', 'b', 'c')).toBeNull()
 		for (const name of ['', '1', '(a)', 'a b', '%', '"a"', 'true']) {
@@ -118,6 +123,55 @@ describe('renameBinding', () => {
 		const block = parse('{a = 1 a}') as LetAST
 		renameBinding(block, 'a', 'b')
 		expect(print(block)).toBe('{a = 1 a}')
+	})
+})
+
+describe('renameBindingIn', () => {
+	const inner = (src: string, key: string, from: string, to: string) => {
+		const root = parse(src) as LetAST
+		const block = root.bindings.find(([name]) => name === key)![1] as LetAST
+		const next = renameBindingIn(root, block, from, to)
+		return next === null ? null : print(next)
+	}
+
+	it('takes along a path from outside the block', () => {
+		expect(inner('{z = {a = 1} q = ./z/a}', 'z', 'a', 'b')).toBe('{z = {b = 1} q = ./z/b}')
+		expect(inner('{z = {a = 1} q = (+ ../z/a 1)}', 'z', 'a', 'b')).toBe(
+			'{z = {b = 1} q = (+ ../z/b 1)}'
+		)
+		expect(inner('{z = {a = {x: 1}} y = {q = ../z/a/x}}', 'z', 'a', 'b')).toBe(
+			'{z = {b = {x: 1}} y = {q = ../z/b/x}}'
+		)
+	})
+
+	it('keeps what the program means', () => {
+		const before = parse('{z = {a = 7} q = (+ ../z/a 1) q}') as LetAST
+		const block = before.bindings[0]![1] as LetAST
+		const env = buildPrelude()
+		expect(evaluate(renameBindingIn(before, block, 'a', 'b')!, env).value).toBe(8)
+		expect(evaluate(before, env).value).toBe(8)
+	})
+
+	it('leaves names outside the block, and another block of that name', () => {
+		expect(inner('{a = 1 z = {a = 2 a} q = a}', 'z', 'a', 'b')).toBe('{a = 1 z = {b = 2 b} q = a}')
+		expect(inner('{z = {a = 1} y = {a = 2} q = ./y/a}', 'z', 'a', 'b')).toBe(
+			'{z = {b = 1} y = {a = 2} q = ./y/a}'
+		)
+	})
+
+	it('does not let the new name catch what is bound outside the block', () => {
+		expect(inner('{c = 1 z = {a = 2 (+ a c)}}', 'z', 'a', 'c')).toBeNull()
+	})
+
+	it('keeps what is unchanged', () => {
+		const root = parse('{z = {a = 1} y = (+ 1  2)}') as LetAST
+		const next = renameBindingIn(root, root.bindings[0]![1] as LetAST, 'a', 'b') as LetAST
+		expect(next.bindings[1]![1]).toBe(root.bindings[1]![1])
+	})
+
+	it('wants the block to be in the root', () => {
+		const stray = parse('{a = 1}') as LetAST
+		expect(renameBindingIn(parse('{z = 1}'), stray, 'a', 'b')).toBeNull()
 	})
 })
 

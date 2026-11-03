@@ -185,10 +185,13 @@ An edit makes a new AST.
 
 ```ts
 renameBinding(block, 'a', 'b')  // a new let-block, or null if it cannot be
+renameBindingIn(root, block, 'a', 'b')  // the same for a let-block inside `root`
 isBindingName('a')              // whether a name can be a binding's
 ```
 
-`renameBinding` renames a binding of a `LetAST`, and what refers to it inside the block follows along: names, leaving alone what a nearer binding shadows, and paths such as `./a`, which shadowing does not touch. It returns null if the block has no such binding, or if the new name is not a name, is taken in the block, or would be caught by something inside. It sees only the block, so a path from outside that leads into it is left as written, and then reports an error.
+`renameBinding` renames a binding of a `LetAST`, and what refers to it follows along: names inside the block, leaving alone what a nearer binding shadows, and paths such as `./a`, which shadowing does not touch. It returns null if the block has no such binding, or if the new name is not a name, is taken in the block, would be caught by something inside, or would catch a name inside that means something else.
+
+`renameBindingIn` also follows paths from elsewhere in `root`, and what is unchanged stays `===`. A path that reaches the block through a call's argument by position is left as written, since following it needs the call's signature, and then reports an error.
 
 ## Checking and reflection
 
