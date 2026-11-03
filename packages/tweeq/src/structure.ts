@@ -27,6 +27,7 @@ import {
 	pushLetFrame,
 	RecordAST,
 	renameBinding,
+	resolveTypeSlot,
 	toAst,
 	typeFits,
 	type TypeValue,
@@ -279,8 +280,61 @@ function parameterInfo(
 	}
 }
 
+/**
+ * Forms written like a call, with no function to call: `:`, `?` and `|>` are
+ * syntax. Each says what to call what is in it.
+ */
+const FORMS: Readonly<Record<string, (index: number) => string>> = {
+	':': index => (index === 0 ? 'Value' : 'Type'),
+	'?': index =>
+		index === 0
+			? 'Value'
+			: `${index % 2 === 1 ? 'Case' : 'Result'} ${Math.ceil(index / 2)}`,
+	'|>': index => (index === 0 ? 'Input' : `Step ${index}`),
+}
+
+/** A form's parts, under what it calls them. Only the steps of a pipe can move. */
+function viewOfForm(
+	ast: CallAST,
+	env: Env,
+	labelOf: (index: number) => string
+): NodeView {
+	const inside = enterNode(ast, env)
+	const name = ast.head.kind === 'sym' ? ast.head.name : ''
+	const castTo = name === ':' && ast.args[1] !== undefined
+		? resolveTypeSlot(ast.args[1], inside)
+		: null
+	const withArgs = (args: readonly AST[]): CallAST =>
+		new CallAST(ast.head, [...args], ast.kwargs)
+	return {
+		...LEAF,
+		slots: ast.args.map((arg, i) => ({
+			key: `arg${i}`,
+			label: labelOf(i),
+			ast: arg,
+			env: inside,
+			expected: i === 0 ? castTo : null,
+			replace: child => withArgs(ast.args.map((a, j) => (j === i ? child : a))),
+			...(name === '|>' && i > 0
+				? {
+						remove: () => withArgs(ast.args.filter((_, j) => j !== i)),
+						sort: {
+							index: i - 1,
+							count: ast.args.length - 1,
+							move: (from: number, to: number) =>
+								withArgs([ast.args[0]!, ...moved(ast.args.slice(1), from, to)]),
+						},
+					}
+				: {}),
+		})),
+	}
+}
+
 /** A call's arguments, each under the name its parameter has. */
 function viewOfCall(ast: CallAST, env: Env): NodeView {
+	const form = ast.head.kind === 'sym' ? FORMS[ast.head.name] : undefined
+	if (form !== undefined) return viewOfForm(ast, env, form)
+
 	const definition =
 		ast.head.kind === 'sym' ? metadataOf(ast.head.name, env) : null
 	const title =
@@ -427,6 +481,22 @@ function parameterTypes(
 		concrete(index < 0 ? undefined : (shape.paramTypes[index] ?? shape.variadicTail))
 }
 
+/**
+ * The default of what a vector holds: of what its slot says if it says, or else of
+ * what its last element is, and never a copy, which an expression would make odd.
+ */
+function newElement(ast: VecAST, env: Env, expected: TypeValue | null): AST {
+	if (expected !== null) return defaultFor(expected, env)
+	const last = ast.elements.at(-1)
+	const type = last === undefined ? null : infer(last, env)
+	if (type === null) return new LitAST(0)
+	const { kind } = unwrapLazy(type).shape
+	// Nothing to go by, in a function or an unknown.
+	return kind === 'function' || kind === 'var' || type.typeName === '_'
+		? new LitAST(0)
+		: defaultFor(type, env)
+}
+
 function viewOfVec(
 	ast: VecAST,
 	env: Env,
@@ -462,12 +532,7 @@ function viewOfVec(
 		append: {
 			label: 'Element',
 			add: () =>
-				new VecAST([
-					...ast.elements,
-					ast.elements.length > 0 && elementType(ast.elements.length) === null
-						? ast.elements[ast.elements.length - 1]!
-						: defaultFor(elementType(ast.elements.length), inside),
-				]),
+				new VecAST([...ast.elements, newElement(ast, inside, elementType(ast.elements.length))]),
 		},
 	}
 }
@@ -811,12 +876,17 @@ export function referenceTargetOf(
 	return null
 }
 
-/** How many elements fit side by side on one row, with room to spare. */
-const MOST_INLINE = 4
+/** The narrowest an input can be, side by side with others. */
+const MIN_INPUT_WIDTH = 64
 
-/** Whether a sequence of `count` can sit on one row. */
-export function fitsInline(count: number): boolean {
-	return count > 0 && count <= MOST_INLINE
+/**
+ * Whether a sequence of `count` can sit side by side in `width`, `gap` apart. A
+ * width of 0 is one not measured yet, which is taken to fit, so that nothing opens
+ * only to close again.
+ */
+export function fitsInline(count: number, width: number, gap = 2): boolean {
+	if (count === 0) return false
+	return width === 0 || count * MIN_INPUT_WIDTH + (count - 1) * gap <= width
 }
 
 /** An icon for what kind of expression a node is, or null if it is not one. */
@@ -826,6 +896,11 @@ export function kindIconOf(ast: AST): string | null {
 		case 'meta':
 			return kindIconOf(ast.expr)
 		case 'call':
+			if (ast.head.kind === 'sym') {
+				if (ast.head.name === ':') return 'mdi:tag-outline'
+				if (ast.head.name === '?') return 'mdi:call-split'
+				if (ast.head.name === '|>') return 'mdi:pipe'
+			}
 			return 'mdi:function-variant'
 		case 'let':
 			return 'mdi:graph-outline'

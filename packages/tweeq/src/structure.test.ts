@@ -112,7 +112,7 @@ describe('editing', () => {
 
 	it('grows a variadic call and a vector', () => {
 		expect(print(view('(+ 1)').append!.add())).toBe('(+ 1 0)')
-		expect(print(view('[1 2]').append!.add())).toBe('[1 2 2]')
+		expect(print(view('[1 2]').append!.add())).toBe('[1 2 0]')
 		expect(print(view('[]').append!.add())).toBe('[0]')
 		expect(view('(take [1] 1)').append).toBeNull()
 	})
@@ -189,6 +189,73 @@ describe('sort', () => {
 	})
 })
 
+describe('forms that are not calls', () => {
+	it('has no function in a cast', () => {
+		const v = view('(: 20 number)')
+		expect(v.head).toBeNull()
+		expect(v.title).toBeNull()
+		expect(v.slots.map(s => s.label)).toEqual(['Value', 'Type'])
+		expect(v.append).toBeNull()
+		expect(v.missing).toEqual([])
+		expect(kindIconOf(parse('(: 20 number)'))).toBe('mdi:tag-outline')
+	})
+
+	it('expects of a cast the type it casts to', () => {
+		const session = new Session(env)
+		session.exec('J = (enum "a" "b")')
+		const [value] = viewOf(parse('(: "a" J)'), session.env).slots
+		expect(viewOf(value!.ast, value!.env, value!.expected).editor?.kind).toBe('enum')
+		expect(print(value!.replace(parse('"b"')))).toBe('(: "b" J)')
+	})
+
+	it('names the parts of a match', () => {
+		expect(view('(? v 1 "a" _ "b")').slots.map(s => s.label)).toEqual([
+			'Value',
+			'Case 1',
+			'Result 1',
+			'Case 2',
+			'Result 2',
+		])
+		expect(view('(? v 1 "a")').head).toBeNull()
+	})
+
+	it('names the parts of a pipe, and lets the steps move', () => {
+		const v = view('(|> 1 f g)')
+		expect(v.head).toBeNull()
+		expect(v.slots.map(s => s.label)).toEqual(['Input', 'Step 1', 'Step 2'])
+		expect(v.slots[0]?.sort).toBeUndefined()
+		expect(print(v.slots[1]!.sort!.move(0, 1))).toBe('(|> 1 g f)')
+		expect(print(v.slots[2]!.remove!())).toBe('(|> 1 f)')
+	})
+
+	it('still treats a function as a function', () => {
+		expect(view('(+ 1 2)').head?.display).toBe('+')
+	})
+})
+
+describe('adding an element', () => {
+	const add = (src: string) => print(view(src).append!.add())
+
+	it('adds the default of what the vector holds', () => {
+		expect(add('[1 2]')).toBe('[1 2 0]')
+		expect(add('["a"]')).toBe('["a" ""]')
+		expect(add('[true]')).toBe('[true false]')
+	})
+
+	it('goes by what an expression comes to, and does not copy it', () => {
+		expect(add('[(+ 1 1)]')).toBe('[(+ 1 1) 0]')
+	})
+
+	it('adds a number with nothing to go by', () => {
+		expect(add('[(=> (x: number): number x)]')).toBe('[(=> (x: number): number x) 0]')
+	})
+
+	it('goes by the slot if it says', () => {
+		const slot = view('(take [] 1)').slots[0]!
+		expect(viewOf(slot.ast, slot.env, slot.expected).append).not.toBeNull()
+	})
+})
+
 describe('adding a binding', () => {
 	it('adds one under a name that is free', () => {
 		const add = (src: string) => print(view(src).append!.add())
@@ -213,11 +280,20 @@ describe('adding a binding', () => {
 })
 
 describe('fitsInline', () => {
-	it('takes a few', () => {
-		expect(fitsInline(0)).toBe(false)
-		expect(fitsInline(1)).toBe(true)
-		expect(fitsInline(4)).toBe(true)
-		expect(fitsInline(5)).toBe(false)
+	it('goes by whether inputs of the least width fit', () => {
+		expect(fitsInline(1, 64)).toBe(true)
+		expect(fitsInline(1, 63)).toBe(false)
+		expect(fitsInline(3, 196)).toBe(true)
+		expect(fitsInline(3, 195)).toBe(false)
+		expect(fitsInline(10, 1000)).toBe(true)
+	})
+
+	it('has nothing to fit for nothing', () => {
+		expect(fitsInline(0, 1000)).toBe(false)
+	})
+
+	it('takes a width not yet measured to fit', () => {
+		expect(fitsInline(100, 0)).toBe(true)
 	})
 })
 

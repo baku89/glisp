@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AST, Diagnostic, Env } from '@glisp/lang'
 import { type MenuItem } from 'tweeq/Menu'
-import { ParameterTreeItem } from 'tweeq/ParameterGrid'
+import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import AstInline from './AstInline.vue'
@@ -53,8 +53,11 @@ const renaming = ref(false)
 const open = ref(false)
 
 /** A short vector shows its elements on its own row, until it is opened. */
+const tree = inject(ParameterTreeContextKey, null)
+const fits = (count: number): boolean =>
+	fitsInline(count, tree?.valueWidth.value ?? 0)
 const inline = computed(
-	() => bareKind.value === 'vec' && !open.value && fitsInline(view.value.slots.length)
+	() => bareKind.value === 'vec' && !open.value && fits(view.value.slots.length)
 )
 
 /** What the + adds: the next thing missing, or else one more. */
@@ -69,7 +72,7 @@ function add(): void {
 	const next = addition.value
 	if (next === null) return
 	// A vector that is still short shows the new one where it is.
-	const grows = bareKind.value === 'vec' && fitsInline(view.value.slots.length + 1)
+	const grows = bareKind.value === 'vec' && fits(view.value.slots.length + 1)
 	if (!grows) open.value = true
 	update(next.add())
 	// A new binding has only a placeholder for a name.

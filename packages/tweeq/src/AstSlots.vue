@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { AST, Diagnostic, Env } from '@glisp/lang'
 import { InputArray } from 'tweeq/InputArray'
-import { ParameterTreeItem } from 'tweeq/ParameterGrid'
-import { computed, ref, watch } from 'vue'
+import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
+import { computed, inject, ref, watch } from 'vue'
 
 import AstInline from './AstInline.vue'
 import AstNode from './AstNode.vue'
@@ -61,15 +61,27 @@ function onReorder(next: readonly Slot[]): void {
 	emit('change', sort.move(from, to))
 }
 
-// A few variadic arguments sit side by side, on one row, and more go down the
-// tree. It opens by itself as they outgrow the row.
-const sequenceOpen = ref(!fitsInline(sortable.value.length))
-watch(
-	() => fitsInline(sortable.value.length),
-	fits => {
-		if (!fits) sequenceOpen.value = true
-	}
+// Variadic arguments sit side by side while they fit on one row, and go down the
+// tree when they do not. It follows the width, unless it has been opened by hand.
+const tree = inject(ParameterTreeContextKey, null)
+const sequenceFits = computed(() =>
+	fitsInline(sortable.value.length, tree?.valueWidth.value ?? 0)
 )
+const sequenceOpen = ref(!sequenceFits.value)
+let openedByWidth = sequenceOpen.value
+watch(sequenceFits, fits => {
+	if (!fits && !sequenceOpen.value) {
+		sequenceOpen.value = true
+		openedByWidth = true
+	} else if (fits && openedByWidth) {
+		sequenceOpen.value = false
+		openedByWidth = false
+	}
+})
+function onSequenceOpen(open: boolean): void {
+	sequenceOpen.value = open
+	openedByWidth = false
+}
 const summary = computed(() => `${sortable.value.length} items`)
 
 /** In its row of the sequence, a slot goes by its place. */
@@ -94,14 +106,15 @@ const pathOf = (slot: Slot): string =>
 	/>
 	<ParameterTreeItem
 		v-if="sequence !== undefined && sortable.length > 0"
-		v-model:open="sequenceOpen"
+		:open="sequenceOpen"
+		@update:open="onSequenceOpen"
 		:label="sequence.label"
 		expandable
 		:addLabel="`Add ${sequence.label}`"
 		@add="emit('change', sequence!.add())"
 	>
 		<AstInline
-			v-if="!sequenceOpen && fitsInline(sortable.length)"
+			v-if="!sequenceOpen && sequenceFits"
 			:slots="sortable"
 			:parentPath="parentPath"
 			:read="read"
