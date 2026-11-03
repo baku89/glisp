@@ -30,7 +30,7 @@ describe('viewOf', () => {
 	})
 
 	it('shows call arguments by parameter name', () => {
-		expect(view('(take [1 2] 1)').title).toBe('Take')
+		expect(view('(take [1 2] 1)').title).toBe('take')
 		expect(labels('(take [1 2] 1)')).toEqual(['xs', 'n'])
 		expect(labels('(take [1 2] n=1)')).toEqual(['xs', 'n'])
 		expect(labels('(+ 1 2 3)')).toEqual(['xs 0', 'xs 1', 'xs 2'])
@@ -134,7 +134,7 @@ describe('head', () => {
 	it('is a row of a call, apart from its arguments', () => {
 		const v = view('(take [1 2] 1)')
 		expect(v.head?.label).toBe('Function')
-		expect(v.head?.display).toBe('Take')
+		expect(v.head?.display).toBe('take')
 		expect(print(v.head!.ast)).toBe('take')
 		expect(v.slots.map(s => s.label)).toEqual(['xs', 'n'])
 		expect(view('[1]').head).toBeNull()
@@ -216,10 +216,12 @@ describe('kindIconOf', () => {
 })
 
 describe('names', () => {
-	it('capitalizes what a function is called', () => {
+	it('capitalizes a name for a label', () => {
 		expect(capitalCase('map')).toBe('Map')
 		expect(capitalCase('to-string')).toBe('To String')
 		expect(capitalCase('fooBar')).toBe('Foo Bar')
+		expect(capitalCase('xs 0')).toBe('Xs 0')
+		expect(capitalCase('0')).toBe('0')
 		expect(capitalCase('*')).toBe('*')
 		expect(capitalCase('-')).toBe('-')
 		expect(capitalCase('円')).toBe('円')
@@ -366,19 +368,19 @@ describe('actionsOf', () => {
 	it('offers what a slot allows', () => {
 		expect(menu('[(+ 1 2)]')).toEqual([
 			'Evaluate One Step',
-			'Add xs',
+			'Add Xs',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
 		])
 		expect(menu('[(take [1])]')).toEqual([
 			'Evaluate One Step',
-			'Add n',
+			'Add N',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
 		])
-		expect(menu('[[1]]')).toEqual(['Add element', 'Copy Value', 'Delete'])
+		expect(menu('[[1]]')).toEqual(['Add Element', 'Copy Value', 'Delete'])
 		expect(menu('[1]')).toEqual(['Copy Value', 'Delete'])
 		expect(menu('[1 2 3]', 1)).toEqual(['Move Up', 'Move Down', 'Copy Value', 'Delete'])
 		expect(menu('(take [1] 1)', 1)).toEqual(['Copy Value'])
@@ -395,7 +397,7 @@ describe('actionsOf', () => {
 			const found = action('[(+ 1) 2]', label)
 			return 'apply' in found ? print(found.apply()) : null
 		}
-		expect(apply('Add xs')).toBe('[(+ 1 0) 2]')
+		expect(apply('Add Xs')).toBe('[(+ 1 0) 2]')
 		expect(apply('Delete')).toBe('[2]')
 	})
 

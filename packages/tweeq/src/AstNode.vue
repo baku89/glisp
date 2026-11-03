@@ -17,6 +17,7 @@ import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
 import { SELECTION } from './selection'
 import {
 	actionsOf,
+	capitalCase,
 	hasValue,
 	isExpression,
 	kindIconOf,
@@ -170,7 +171,7 @@ const menuItems = computed<MenuItem[]>(() => {
 <template>
 	<ParameterTreeItem
 		v-model:open="open"
-		:label="view.label ?? entry.label"
+		:label="view.label ?? capitalCase(entry.label)"
 		:icon="icon"
 		:hint="entry.expected?.typeName"
 		:expandable="children.length > 0 || additions.length > 0"
@@ -184,8 +185,8 @@ const menuItems = computed<MenuItem[]>(() => {
 		<div
 			class="value"
 			:class="{
-				expression: isExpression(ast),
-				error: problem !== null || parseSource(draft) === null,
+				expression: !editing && isExpression(ast),
+				error: parseSource(draft) === null || (!editing && problem !== null),
 			}"
 			:title="problem ?? sourceOf(ast)"
 		>
@@ -255,7 +256,7 @@ const menuItems = computed<MenuItem[]>(() => {
 					class="add"
 					subtle
 					icon="mdi:plus"
-					:label="addition.label"
+					:label="capitalCase(addition.label)"
 					@click="update(addition.add())"
 				/>
 			</ParameterTreeItem>
@@ -270,9 +271,9 @@ const menuItems = computed<MenuItem[]>(() => {
 }
 /* As a parameter driven by an expression is in After Effects or Houdini. */
 .expression {
-	--tq-color-text: var(--tq-color-success);
-	--tq-color-input: var(--tq-color-success-soft);
-	--tq-color-input-hover: var(--tq-color-success-soft);
+	--tq-color-text: var(--tq-color-info);
+	--tq-color-input: var(--tq-color-info-soft);
+	--tq-color-input-hover: var(--tq-color-info-soft);
 }
 .value.error {
 	--tq-color-text: var(--tq-color-error);

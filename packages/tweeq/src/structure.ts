@@ -116,15 +116,18 @@ const LEAF: NodeView = {
 	append: null,
 }
 
-/** A function's name as a GUI shows it: `to-string` is `To String`. */
+/**
+ * A name as a label shows it: `to-string` is `To String`. Only for labels: a name
+ * in an expression is shown as it is written.
+ */
 export function capitalCase(name: string): string {
-	return name
+	const words = name
 		.replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
 		.split(/[-_]+/)
 		.filter(word => word !== '')
-		.map(word => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(' ')
-		.replace(/^$/, name)
+	return words.length === 0
+		? name
+		: words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 export function textOf(ast: AST | undefined): string | null {
@@ -208,7 +211,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		ast.head.kind === 'sym' ? metadataOf(ast.head.name, env) : null
 	const title =
 		textOf(definition?.get('label')) ??
-		(ast.head.kind === 'sym' ? capitalCase(ast.head.name) : print(ast.head))
+		(ast.head.kind === 'sym' ? ast.head.name : print(ast.head))
 	const inside = enterNode(ast, env)
 	const hasSpread = ast.args.some(arg => arg.kind === 'spread')
 	const parameters = hasSpread ? null : callParameters(ast, inside)
@@ -637,7 +640,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	}
 	for (const missing of inner.missing) {
 		actions.push({
-			label: `Add ${missing.name}`,
+			label: `Add ${capitalCase(missing.name)}`,
 			icon: 'mdi:plus',
 			group: 'edit',
 			apply: () => slot.replace(missing.add()),
@@ -646,7 +649,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	if (inner.append !== null) {
 		const append = inner.append
 		actions.push({
-			label: `Add ${append.label}`,
+			label: `Add ${capitalCase(append.label)}`,
 			icon: 'mdi:plus',
 			group: 'edit',
 			apply: () => slot.replace(append.add()),
