@@ -2,7 +2,7 @@ import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glis
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withTypeIcons } from './icons'
-import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, kindIconOf, literalOf, moveBetween, moveBinding, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, kindIconOf, literalOf, moveBetween, moveBinding, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withTypeIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -31,9 +31,9 @@ describe('viewOf', () => {
 
 	it('shows call arguments by parameter name', () => {
 		expect(view('(take [1 2] 1)').title).toBe('take')
-		expect(labels('(take [1 2] 1)')).toEqual(['xs', 'n'])
-		expect(labels('(take [1 2] n=1)')).toEqual(['xs', 'n'])
-		expect(labels('(+ 1 2 3)')).toEqual(['xs 0', 'xs 1', 'xs 2'])
+		expect(labels('(take [1 2] 1)')).toEqual(['Items', 'Count'])
+		expect(labels('(take [1 2] n=1)')).toEqual(['Items', 'Count'])
+		expect(labels('(+ 1 2 3)')).toEqual(['Values 0', 'Values 1', 'Values 2'])
 	})
 
 	it('knows what each parameter wants, unless it is generic', () => {
@@ -46,7 +46,7 @@ describe('viewOf', () => {
 
 	it('offers a parameter that was not passed', () => {
 		const { missing } = view('(take [1 2])')
-		expect(missing.map(m => m.name)).toEqual(['n'])
+		expect(missing.map(m => m.name)).toEqual(['Count'])
 		expect(print(missing[0]!.add())).toBe('(take [1 2] n=0)')
 		expect(view('(take [1 2] n=1)').missing).toEqual([])
 	})
@@ -136,7 +136,7 @@ describe('head', () => {
 		expect(v.head?.label).toBe('Function')
 		expect(v.head?.display).toBe('take')
 		expect(print(v.head!.ast)).toBe('take')
-		expect(v.slots.map(s => s.label)).toEqual(['xs', 'n'])
+		expect(v.slots.map(s => s.label)).toEqual(['Items', 'Count'])
 		expect(view('[1]').head).toBeNull()
 	})
 
@@ -262,6 +262,117 @@ describe('moveBinding', () => {
 		expect(move(X, 'binding:y/arg0', 'inside', '{x = 1 y = (id {a = 2 a})}')).toBe(
 			'{y = (id {a = 2 x = 1 a})}'
 		)
+	})
+})
+
+describe('parameter labels', () => {
+	it('come from the definition in the prelude', () => {
+		expect(labels('(map [1] (* % 2))')).toEqual(['Items', 'Transform'])
+		expect(labels('(+ 1 2)')).toEqual(['Values 0', 'Values 1'])
+		expect(view('(+ 1 2)').append?.label).toBe('Values')
+		expect(view('(take [1])').missing[0]?.name).toBe('Count')
+	})
+
+	it('come from the metadata on a parameter type', () => {
+		const session = new Session(env)
+		session.exec('f = (=> (w: ^{label: "Width"} number h: number): number w)')
+		expect(viewOf(parse('(f 1 2)'), session.env).slots.map(s => s.label)).toEqual([
+			'Width',
+			'h',
+		])
+	})
+
+	it('come from params on a definition', () => {
+		const session = new Session(env)
+		session.exec('f = ^{params: {w: "Width"}} (=> (w: number): number w)')
+		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.label).toBe('Width')
+	})
+
+	it('work for a function written in place', () => {
+		const v = view('((=> (w: ^{label: "Width"} number): number w) 1)')
+		expect(v.slots[0]?.label).toBe('Width')
+	})
+
+	it('fall back to the name', () => {
+		expect(labels('(** 2 3)')).toEqual(['base', 'Exponent'])
+	})
+
+	it('leave what the call means alone', () => {
+		expect(evaluate(parse('(map [1 2] (* % 2))'), env).value).toEqual([2, 4])
+	})
+})
+
+describe('renameBindingAt', () => {
+	const rename = (src: string, path: string, name: string) => {
+		const next = renameBindingAt(parse(src), env, path, name)
+		return next === null ? null : print(next)
+	}
+
+	it('finds the let by the path', () => {
+		expect(rename('{a = 1 b = (+ a 1)}', 'binding:a', 'c')).toBe('{c = 1 b = (+ c 1)}')
+		expect(rename('{z = {a = 1 (+ a 1)}}', 'binding:z/binding:a', 'b')).toBe(
+			'{z = {b = 1 (+ b 1)}}'
+		)
+	})
+
+	it('reaches a let under metadata', () => {
+		expect(rename('{z = ^{label: "L"} {a = 1}}', 'binding:z/binding:a', 'b')).toBe(
+			'{z = ^{label: "L"} {b = 1}}'
+		)
+	})
+
+	it('wants a binding', () => {
+		expect(rename('{a = (+ 1 2)}', 'binding:a/arg0', 'b')).toBeNull()
+		expect(rename('{a = 1}', 'binding:b', 'c')).toBeNull()
+	})
+})
+
+describe('referenceTargetOf', () => {
+	const target = (src: string, path: string) => referenceTargetOf(parse(src), env, path)
+
+	it('finds the binding a name refers to', () => {
+		expect(target('{a = 1 b = a}', 'binding:b')).toBe('binding:a')
+		expect(target('{a = 1 b = (+ a 1)}', 'binding:b/arg0')).toBe('binding:a')
+		expect(target('{a = 1 b = [a]}', 'binding:b/0')).toBe('binding:a')
+	})
+
+	it('goes by the nearest', () => {
+		expect(target('{a = 1 z = {a = 2 b = a}}', 'binding:z/binding:b')).toBe(
+			'binding:z/binding:a'
+		)
+		expect(target('{a = 1 z = {b = a}}', 'binding:z/binding:b')).toBe('binding:a')
+	})
+
+	it('has nothing for what is bound outside, or is not a name', () => {
+		expect(target('{b = pi}', 'binding:b')).toBeNull()
+		expect(target('{b = 1}', 'binding:b')).toBeNull()
+		expect(target('{b = (+ 1 2)}', 'binding:b')).toBeNull()
+		expect(target('{b = 1}', 'binding:c')).toBeNull()
+	})
+})
+
+describe('range', () => {
+	it('comes from the metadata on a value', () => {
+		expect(view('^{range: [0 10]} 5').range).toEqual([0, 10])
+		expect(view('5').range).toBeNull()
+	})
+
+	it('comes from the metadata on a parameter type', () => {
+		const session = new Session(env)
+		session.exec('f = (=> (w: ^{range: [0 100]} number h: number): number w)')
+		const [w, h] = viewOf(parse('(f 1 2)'), session.env).slots
+		expect(w?.range).toEqual([0, 100])
+		expect(h?.range).toBeUndefined()
+	})
+
+	it('wants two numbers, in order', () => {
+		for (const src of ['^{range: [0]} 5', '^{range: [1 0]} 5', '^{range: ["a" 1]} 5', '^{range: 3} 5']) {
+			expect(view(src).range).toBeNull()
+		}
+	})
+
+	it('changes nothing about the value', () => {
+		expect(evaluate(parse('^{range: [0 10]} 50'), env).value).toBe(50)
 	})
 })
 
@@ -418,14 +529,14 @@ describe('actionsOf', () => {
 	it('offers what a slot allows', () => {
 		expect(menu('[(+ 1 2)]')).toEqual([
 			'Evaluate One Step',
-			'Add Xs',
+			'Add Values',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
 		])
 		expect(menu('[(take [1])]')).toEqual([
 			'Evaluate One Step',
-			'Add N',
+			'Add Count',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
@@ -446,7 +557,7 @@ describe('actionsOf', () => {
 			const found = action('[(+ 1) 2]', label)
 			return 'apply' in found ? print(found.apply()) : null
 		}
-		expect(apply('Add Xs')).toBe('[(+ 1 0) 2]')
+		expect(apply('Add Values')).toBe('[(+ 1 0) 2]')
 		expect(apply('Delete')).toBe('[2]')
 	})
 

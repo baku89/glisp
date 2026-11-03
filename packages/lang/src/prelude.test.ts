@@ -291,3 +291,22 @@ describe('prelude — operator names', () => {
 		}
 	})
 })
+
+describe('parameter labels', () => {
+	const bindingOf = (name: string) => buildPrelude()?.bindings?.get(name)?.ast
+
+	it('are on the definition, as metadata', () => {
+		const map = bindingOf('map')
+		expect(map?.kind).toBe('meta')
+		if (map?.kind !== 'meta') return
+		const params = map.metadata.get('params')
+		expect(params?.print()).toBe('{xs: "Items" f: "Transform"}')
+		expect(map.metadata.get('doc')).toBeDefined()
+	})
+
+	it('change nothing about the function', () => {
+		const r = evaluate(parse('(map [1 2] (* % 2))'), buildPrelude())
+		expect(r.value).toEqual([2, 4])
+		expect(r.diagnostics).toEqual([])
+	})
+})

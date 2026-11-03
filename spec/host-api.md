@@ -82,6 +82,7 @@ session.setAst(earlier)           // restores an earlier let-block, for undo
 session.setBinding('y', lit(2))
 session.setAtPath(['p', 'q'], lit(2))  // null, or why the path cannot be reached
 session.unsetBinding('y')
+session.renameBinding('x', 'w')    // null, or why it cannot be
 session.env                       // the env to pass to `check`, `infer`, etc.
 ```
 
@@ -177,6 +178,17 @@ The builders are functions, also collected as `g`:
 | `meta({ label: 'x' }, a)`        | `^{label: "x"} a`            |
 
 `g.number`, `g.string`, `g.boolean`, `g.unit`, `g.top`, `g.bottom`, `g.vector(T)` and `g.enum('a', 'b')` build **ASTs** of type expressions: they are what you would write in source, not `TypeValue`s.
+
+## Editing
+
+An edit makes a new AST.
+
+```ts
+renameBinding(block, 'a', 'b')  // a new let-block, or null if it cannot be
+isBindingName('a')              // whether a name can be a binding's
+```
+
+`renameBinding` renames a binding of a `LetAST`, and what refers to it by name follows along, inside the block and leaving alone what a nearer binding shadows. It returns null if the block has no such binding, or if the new name is not a name, is taken in the block, or would be caught by something inside. Paths such as `./a` are left as written, so one that climbs to the binding then reports an error.
 
 ## Checking and reflection
 

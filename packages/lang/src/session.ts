@@ -1,3 +1,4 @@
+import { renameBinding } from './rename.js'
 /**
  * Session: an interactive Glisp environment whose state is a single
  * let-block AST.
@@ -100,6 +101,21 @@ export class Session {
 				? [...bindings, [name, ast] as const]
 				: bindings.map((b, i) => (i === index ? ([name, ast] as const) : b))
 		this.setAst(new LetAST(next, null))
+	}
+
+	/**
+	 * Call a binding something else, and what refers to it follows along. Null, or
+	 * why it cannot be.
+	 */
+	renameBinding(from: string, to: string): string | null {
+		const block = this.ast()
+		if (!block.bindings.some(([name]) => name === from)) {
+			return `no binding named ${from}`
+		}
+		const next = renameBinding(block, from, to)
+		if (next === null) return `cannot rename ${from} to ${to}`
+		this.setAst(next)
+		return null
 	}
 
 	/** Remove a binding. Returns whether it was present. */

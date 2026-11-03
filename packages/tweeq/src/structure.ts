@@ -26,6 +26,7 @@ import {
 	print,
 	pushLetFrame,
 	RecordAST,
+	renameBinding,
 	toAst,
 	typeFits,
 	type TypeValue,
@@ -59,11 +60,16 @@ export interface Slot {
 	replace(child: AST): AST
 	/** The new parent without this slot, if it can go. */
 	remove?(): AST
+	/** What its parameter's type says a number can be, if it says. */
+	readonly range?: Range
 	/** Its place among the slots it can swap places with, if it has one. */
 	readonly sort?: SlotSort
 	/** What to show while it is not being edited, in place of its value. */
 	readonly display?: string
 }
+
+/** The least and the most a number can be, for a slider. */
+export type Range = readonly [min: number, max: number]
 
 export interface SlotSort {
 	readonly index: number
@@ -110,6 +116,8 @@ export interface NodeView {
 	readonly head: Slot | null
 	/** What `^{label}` calls this node, in place of its slot's name. */
 	readonly label: string | null
+	/** What `^{range: [min max]}` on the node says a number can be. */
+	readonly range: Range | null
 	/** A name for Tweeq's `Icon`, from `^{icon}` on the node itself. */
 	readonly icon: string | null
 	/** Set if a widget can edit this node directly. */
@@ -124,6 +132,7 @@ const LEAF: NodeView = {
 	title: null,
 	head: null,
 	label: null,
+	range: null,
 	icon: null,
 	editor: null,
 	slots: [],
@@ -143,6 +152,19 @@ export function capitalCase(name: string): string {
 	return words.length === 0
 		? name
 		: words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+}
+
+/** `[min max]`, from metadata. */
+function rangeOf(ast: AST | undefined): Range | null {
+	if (ast?.kind !== 'vec' || ast.elements.length !== 2) return null
+	const [min, max] = ast.elements
+	return min?.kind === 'lit' &&
+		max?.kind === 'lit' &&
+		typeof min.value === 'number' &&
+		typeof max.value === 'number' &&
+		min.value < max.value
+		? [min.value, max.value]
+		: null
 }
 
 export function textOf(ast: AST | undefined): string | null {
@@ -220,6 +242,42 @@ function editorOf(ast: LitAST, expected: TypeValue | null): Editor | null {
 	return value === UNIT ? { kind: 'unit' } : null
 }
 
+/**
+ * What is said about the parameters of what a call calls. A parameter is called
+ * what its type's metadata or the definition's `params` say, or else by its name.
+ */
+function parameterInfo(
+	head: AST,
+	env: Env
+): { label(name: string): string; range(name: string): Range | null } {
+	let definition: AST | null = head
+	if (head.kind === 'sym') {
+		definition = null
+		for (let frame = env; frame !== null && definition === null; frame = frame.parent) {
+			definition =
+				frame.bindings?.get(head.name)?.ast ??
+				(frame.ast.kind === 'let'
+					? (frame.ast.bindings.find(([bound]) => bound === head.name)?.[1] ?? null)
+					: null)
+		}
+	}
+	const metadata = definition?.kind === 'meta' ? definition.metadata : null
+	const params = metadata?.get('params')
+	const fn = definition?.kind === 'meta' ? definition.expr : definition
+	const metadataOfType = (name: string) => {
+		const type = fn?.kind === 'fn' ? fn.params.find(p => p.name === name)?.type : null
+		return type?.kind === 'meta' ? type.metadata : null
+	}
+	return {
+		label(name) {
+			const fromDefinition =
+				params?.kind === 'record' ? textOf(params.get(name)) : null
+			return textOf(metadataOfType(name)?.get('label')) ?? fromDefinition ?? name
+		},
+		range: name => rangeOf(metadataOfType(name)?.get('range')),
+	}
+}
+
 /** A call's arguments, each under the name its parameter has. */
 function viewOfCall(ast: CallAST, env: Env): NodeView {
 	const definition =
@@ -237,6 +295,8 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		return new CallAST(ast.head, args, ast.kwargs)
 	}
 
+	const info = parameterInfo(ast.head, inside)
+	const labelOf = info.label
 	const slots: Slot[] = []
 	const missing: MissingArgument[] = []
 	const positional = parameters?.names ?? []
@@ -245,14 +305,18 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		const isVariadic = i >= positional.length
 		const name = positional[i]
 		const label = isVariadic
-			? `${parameters?.variadicName ?? ''}${parameters === null ? `${i}` : ` ${i - positional.length}`}`.trim()
-			: name!
+			? `${labelOf(parameters?.variadicName ?? '')}${parameters === null ? `${i}` : ` ${i - positional.length}`}`.trim()
+			: labelOf(name!)
+		const range = info.range(
+			isVariadic ? (parameters?.variadicName ?? '') : name!
+		)
 		slots.push({
 			key: `arg${i}`,
 			label,
 			ast: arg,
 			env: inside,
 			expected: signature?.(i) ?? null,
+			...(range === null ? {} : { range }),
 			replace: child => withArg(i, child),
 			...(isVariadic
 				? {
@@ -287,7 +351,8 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 	ast.kwargs?.forEach((arg, name) => {
 		slots.push({
 			key: `kw:${name}`,
-			label: name,
+			label: labelOf(name),
+			...(info.range(name) === null ? {} : { range: info.range(name)! }),
 			ast: arg,
 			env: inside,
 			expected: signature?.(positional.indexOf(name)) ?? null,
@@ -305,7 +370,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		if (i < ast.args.length || ast.kwargs?.has(name)) return
 		const expected = signature?.(i) ?? null
 		missing.push({
-			name,
+			name: labelOf(name),
 			expected,
 			add: () =>
 				new CallAST(
@@ -335,7 +400,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 			variadicName === undefined
 				? null
 				: {
-						label: variadicName,
+						label: labelOf(variadicName),
 						add: () =>
 							new CallAST(
 								ast.head,
@@ -473,6 +538,7 @@ function viewOfMeta(
 	return {
 		...inner,
 		label,
+		range: rangeOf(ast.metadata.get('range')),
 		title: label ?? inner.title,
 		icon: textOf(ast.metadata.get('icon')) ?? inner.icon,
 		head:
@@ -666,6 +732,63 @@ export function moveBinding(
 			return next
 		})
 	)
+}
+
+/**
+ * `root`, with the binding at `path` called `name`. See `renameBinding` in
+ * `@glisp/lang`, which does the work, for what can and cannot be.
+ */
+export function renameBindingAt(
+	root: AST,
+	env: Env,
+	path: string,
+	name: string
+): AST | null {
+	const parts = path.split('/').filter(part => part !== '')
+	const key = parts.at(-1)
+	if (key === undefined || !key.startsWith(BINDING)) return null
+	const from = key.slice(BINDING.length)
+	const editIn = (node: AST): AST | null => {
+		if (node.kind === 'meta') {
+			const inner = editIn(node.expr)
+			return inner === null ? null : new MetaAST(node.metadata, inner)
+		}
+		return node.kind === 'let' ? renameBinding(node, from, name) : null
+	}
+	return editAt(root, env, parts.slice(0, -1), editIn)
+}
+
+/**
+ * Where the name at `path` is bound in `root`, as a path, or null if it is a sym
+ * bound outside of it, such as in the prelude, or not a sym at all.
+ */
+export function referenceTargetOf(
+	root: AST,
+	env: Env,
+	path: string
+): string | null {
+	const parts = path.split('/').filter(part => part !== '')
+	const trail: { node: AST; prefix: string[] }[] = []
+	let node = root
+	let nodeEnv = env
+	const prefix: string[] = []
+	for (const key of parts) {
+		trail.push({ node, prefix: [...prefix] })
+		const slot = viewOf(node, nodeEnv).slots.find(s => s.key === key)
+		if (slot === undefined) return null
+		node = slot.ast
+		nodeEnv = slot.env
+		prefix.push(key)
+	}
+	const bare = node.kind === 'meta' ? node.expr : node
+	if (bare.kind !== 'sym') return null
+	for (const { node: ancestor, prefix: at } of trail.reverse()) {
+		const block = ancestor.kind === 'meta' ? ancestor.expr : ancestor
+		if (block.kind === 'let' && block.bindings.some(([name]) => name === bare.name)) {
+			return [...at, `${BINDING}${bare.name}`].join('/')
+		}
+	}
+	return null
 }
 
 /** An icon for what kind of expression a node is, or null if it is not one. */

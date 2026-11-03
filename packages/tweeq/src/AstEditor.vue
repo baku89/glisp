@@ -7,8 +7,8 @@ import { computed, provide, shallowRef, watch } from 'vue'
 
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
-import { SELECTION, type Selection } from './selection'
-import { moveBinding, viewOf } from './structure'
+import { RENAMER, REVEALER, SELECTION, type Selection } from './selection'
+import { moveBinding, referenceTargetOf, renameBindingAt, viewOf } from './structure'
 
 const props = defineProps<{ document: GlispDocument }>()
 
@@ -23,6 +23,31 @@ const show = (value: unknown, env: Env): string => {
 const bindings = computed(
 	() => viewOf(props.document.root.value, props.document.env.value).slots
 )
+
+provide(REVEALER, {
+	target: shallowRef<string | null>(null),
+	targetOf: path =>
+		referenceTargetOf(props.document.root.value, props.document.env.value, path),
+})
+
+provide(RENAMER, {
+	can: (path, name) =>
+		renameBindingAt(
+			props.document.root.value,
+			props.document.env.value,
+			path,
+			name
+		) !== null,
+	apply(path, name) {
+		const next = renameBindingAt(
+			props.document.root.value,
+			props.document.env.value,
+			path,
+			name
+		)
+		if (next !== null) replaceRoot(next)
+	},
+})
 
 type DropPosition = 'before' | 'after' | 'inside'
 
@@ -71,6 +96,10 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		event.preventDefault()
 		if (event.shiftKey) props.document.redo()
 		else props.document.undo()
+	} else if (event.key === 'Enter' || event.key === 'F2') {
+		if (selection.value?.rename === undefined) return
+		event.preventDefault()
+		selection.value.rename()
 	} else if (event.key === 'Delete' || event.key === 'Backspace') {
 		if (selection.value?.remove === undefined) return
 		event.preventDefault()

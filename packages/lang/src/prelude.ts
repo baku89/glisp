@@ -16,6 +16,9 @@
 
 import { host, lit, meta } from './build.js'
 import {
+	LitAST,
+	MetaAST,
+	RecordAST,
 	type AST,
 	type Env,
 	UNIT,
@@ -271,6 +274,61 @@ function makePower(multiply: TypedHostFn): TypedHostFn {
 // -----------------------------------------------------------------------------
 // buildPrelude — build a fresh top-level env populated with the prelude
 // -----------------------------------------------------------------------------
+
+/**
+ * What to call the parameters of a function, where the names in its signature are
+ * for writing code in: `xs` and `f` are short to type, and say little on a label.
+ * An editor reads them from `^{params: {...}}` on the definition. As with `doc`,
+ * nothing here changes what the function does.
+ */
+const PARAM_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+	'+': { xs: 'Values' },
+	'*': { xs: 'Values' },
+	'-': { xs: 'Values' },
+	'/': { xs: 'Values' },
+	'<': { xs: 'Values' },
+	'>': { xs: 'Values' },
+	'<=': { xs: 'Values' },
+	'>=': { xs: 'Values' },
+	'==': { xs: 'Values' },
+	'!=': { xs: 'Values' },
+	'++': { xs: 'Values' },
+	'**': { exp: 'Exponent' },
+	first: { xs: 'Items' },
+	last: { xs: 'Items' },
+	count: { xs: 'Items' },
+	take: { xs: 'Items', n: 'Count' },
+	drop: { xs: 'Items', n: 'Count' },
+	map: { xs: 'Items', f: 'Transform' },
+	filter: { xs: 'Items', p: 'Condition' },
+	reduce: { xs: 'Items', init: 'Initial', f: 'Combine' },
+	join: { xs: 'Items', sep: 'Separator' },
+	slice: { xs: 'Items' },
+	reverse: { xs: 'Items' },
+}
+
+function withParamLabels(bindings: Record<string, AST>): Record<string, AST> {
+	const labelled = { ...bindings }
+	for (const [name, labels] of Object.entries(PARAM_LABELS)) {
+		const ast = labelled[name]
+		if (ast?.kind !== 'meta') continue
+		labelled[name] = new MetaAST(
+			new RecordAST([
+				...ast.metadata.fields,
+				[
+					'params',
+					new RecordAST(
+						Object.entries(labels).map(
+							([param, label]) => [param, new LitAST(label)] as const
+						)
+					),
+				],
+			]),
+			ast.expr
+		)
+	}
+	return labelled
+}
 
 export function buildPrelude(): Env {
 	const multiply = variadicNumFold((a, b) => a * b, numberOneType)
@@ -675,7 +733,7 @@ export function buildPrelude(): Env {
 	]
 
 	return makeTopLevel({
-		...hostBindings,
+		...withParamLabels(hostBindings),
 		...Object.fromEntries(helpers.map(([name, src]) => [name, parse(src)])),
 	})
 }

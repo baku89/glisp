@@ -10,12 +10,12 @@ import { InputSwitch } from 'tweeq/InputSwitch'
 import { InputTextBase } from 'tweeq/InputTextBase'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeItem } from 'tweeq/ParameterGrid'
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import AstSlots from './AstSlots.vue'
 import { iconOf } from './icons'
 import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
-import { SELECTION } from './selection'
+import { RENAMER, REVEALER, SELECTION } from './selection'
 import {
 	actionsOf,
 	capitalCase,
@@ -79,6 +79,37 @@ const shown = computed(() => {
 	if (typeof value === 'number') return String(Number(value.toFixed(4)))
 	return props.show(value, props.entry.env)
 })
+
+const isBinding = computed(() => props.entry.key.startsWith('binding:'))
+
+const revealer = inject(REVEALER, null)
+const $item = useTemplateRef<{ scrollIntoView(): void }>('$item')
+
+const bareKind = computed(() =>
+	ast.value.kind === 'meta' ? ast.value.expr.kind : ast.value.kind
+)
+// What comes to a number looks like one, as a literal does.
+const isNumber = computed(
+	() => typeof result.value?.value === 'number' && props.entry.display === undefined
+)
+
+const range = computed(() => view.value.range ?? props.entry.range ?? null)
+
+const iconTarget = computed(() => {
+	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
+	return bare.kind === 'sym' ? (revealer?.targetOf(props.path) ?? null) : null
+})
+const iconPressable = computed(() =>
+	iconTarget.value !== null || view.value.slots.length > 0
+)
+
+function onKindIcon(): void {
+	const target = iconTarget.value
+	if (target !== null && revealer) revealer.target.value = target
+	else open.value = !open.value
+}
+const renamer = inject(RENAMER, null)
+const renaming = ref(false)
 
 const open = ref(false)
 
@@ -144,11 +175,21 @@ function select(): void {
 	selection.value = {
 		path: props.path,
 		...(remove === undefined ? {} : { remove: () => emit('change', remove()) }),
+		...(isBinding.value ? { rename: () => (renaming.value = true) } : {}),
 	}
 }
 
 const menuItems = computed<MenuItem[]>(() => {
-	const items: MenuItem[] = []
+	const items: MenuItem[] = isBinding.value
+		? [
+				{
+					label: 'Rename',
+					icon: 'mdi:rename-outline',
+					perform: () => (renaming.value = true),
+				},
+				{ separator: true },
+			]
+		: []
 	let group: SlotAction['group'] | null = null
 	for (const action of actionsOf(props.entry)) {
 		if (group !== null && group !== action.group) items.push({ separator: true })
@@ -164,18 +205,39 @@ const menuItems = computed<MenuItem[]>(() => {
 	}
 	return items
 })
+
+// A reference leads to what it refers to: rows on the way open, and it is selected.
+watch(
+	() => revealer?.target.value ?? null,
+	target => {
+		if (target === null) return
+		if (target.startsWith(`${props.path}/`)) open.value = true
+		if (target !== props.path) return
+		select()
+		revealer!.target.value = null
+		void nextTick(() => $item.value?.scrollIntoView())
+	},
+	{ immediate: true }
+)
 </script>
 
 <template>
 	<ParameterTreeItem
+		ref="$item"
 		v-model:open="open"
 		:label="view.label ?? capitalCase(entry.label)"
 		:icon="icon"
 		:hint="entry.expected?.typeName"
 		:expandable="children.length > 0 || additions.length > 0"
 		:sortHandle="entry.sort !== undefined"
-		:dragId="entry.key.startsWith('binding:') ? path : undefined"
+		:dragId="isBinding ? path : undefined"
+		v-model:renaming="renaming"
+		:labelSource="entry.label"
+		:canRename="name => renamer?.can(path, name) ?? false"
+		@rename="name => renamer?.apply(path, name)"
 		:selected="selected"
+		:closedGuide="bareKind === 'call'"
+		:gapAfter="entry.display !== undefined"
 		:menuItems="menuItems"
 		@select="select"
 	>
@@ -189,7 +251,9 @@ const menuItems = computed<MenuItem[]>(() => {
 		>
 			<InputNumber
 				v-if="view.editor?.kind === 'number'"
-				:modelValue="view.editor.value"
+							:min="range?.[0]"
+				:max="range?.[1]"
+	:modelValue="view.editor.value"
 				:menuItems="menuItems"
 				@update:modelValue="update(withLiteral(ast, $event))"
 			/>
@@ -221,9 +285,12 @@ const menuItems = computed<MenuItem[]>(() => {
 			<InputTextBase
 				v-else
 				:modelValue="draft"
-				font="monospace"
+				:font="isNumber ? 'numeric' : 'monospace'"
+				:align="isNumber ? 'center' : undefined"
 				ignoreInput
-				:leftIcon="entry.display === undefined ? (kindIconOf(ast) ?? undefined) : undefined"
+				:rightIcon="entry.display === undefined ? (kindIconOf(ast) ?? undefined) : undefined"
+				:rightIconPressable="iconPressable"
+				@rightIconClick="onKindIcon"
 				:menuItems="menuItems"
 				@click="editing = true"
 				@focus="editing = true"
