@@ -14,17 +14,22 @@
  *   pow = (=> (x: number a: number): number (* ...~(repeat x a)))
  *   (pow (+ 1 1) (+ 1 2))  →  (* (+ 1 1) (+ 1 1) (+ 1 1))
  *
- * `~` never changes the final value, only where the rungs fall. See
+ * A host function can say what its calls expand to with `withExpansion`.
+
+`~` never changes the final value, only where the rungs fall. See
  * docs/spec/eval.md (Multi-step evaluation / Abstraction ladder).
  */
 
 import {
 	evaluate,
 	type GlispClosure,
+	type HostExpansion,
 	isGlispClosure,
+	isTypedHostFn,
 	lookupBareName,
 	matchValue,
 	toAst,
+	type TypedHostFn,
 } from './eval.js'
 import { freeRefs } from './resolve.js'
 import {
@@ -131,8 +136,39 @@ class Step {
 	private reduceHead(ast: CallAST): AST | null {
 		if (isMatch(ast)) return this.resolveTail(this.selectClause(ast))
 		const head = evaluate(ast.head, this.env).value
+		if (isTypedHostFn(head) && head.expansion !== undefined) {
+			return this.expandHost(head, head.expansion, ast)
+		}
 		if (!isGlispClosure(head) || head.ast.body === null) return null
 		return this.resolveTail(this.instantiate(head, ast))
+	}
+
+	/** The next rung that a host function says a call to it has. */
+	private expandHost(
+		fn: TypedHostFn,
+		expansion: HostExpansion,
+		call: CallAST
+	): AST | null {
+		if (call.args.some(arg => arg.kind === 'spread')) return null
+		const args: Array<AST | undefined> = [...call.args]
+		fn.paramNames?.forEach((name, i) => {
+			args[i] ??= call.kwargs?.get(name)
+		})
+		for (const arg of args) {
+			if (arg !== undefined) this.passedAlong.add(arg)
+		}
+		return expansion(args, {
+			value: ast => evaluate(ast, this.env).value,
+			call: (name, value, callArgs) => {
+				const target = lookupBareName(name, this.env)
+				const means =
+					target !== null && evaluate(target.ast, target.env).value === value
+				return new CallAST(
+					means ? new SymAST(name) : new HostAST(value),
+					[...callArgs]
+				)
+			},
+		})
 	}
 
 	private resolveTail(ast: AST): AST {

@@ -135,6 +135,52 @@ describe('expand', () => {
 		})
 	})
 
+	describe('a host function that says how it expands', () => {
+		it('expands ** to * for a small whole exponent', () => {
+			expect(ladder('(** (+ 1 1) (+ 1 2))')).toEqual([
+				'(** (+ 1 1) (+ 1 2))',
+				'(* (+ 1 1) (+ 1 1) (+ 1 1))',
+			])
+			expect(step('(** 2 0)')).toBe('(*)')
+			expect(step('(** 2 1)')).toBe('(* 2)')
+			expect(step('(** base=2 exp=2)')).toBe('(* 2 2)')
+		})
+
+		it('has no next rung otherwise', () => {
+			for (const src of ['(** 2 0.5)', '(** 2 -1)', '(** 2 1000)', '(** 2)', '(** 2 "a")', '(** ...[2 3])']) {
+				const ast = parse(src)
+				expect(expand(ast, env()), src).toBe(ast)
+			}
+		})
+
+		it('agrees with evaluate on every rung', () => {
+			for (const src of ['(** (+ 1 1) (+ 1 2))', '(** 2 0)', '(** 3 1)']) {
+				const value = evaluate(parse(src), env()).value
+				for (const rung of expandLadder(parse(src), env())) {
+					expect(evaluate(rung, env()).value, rung.print()).toBe(value)
+				}
+			}
+		})
+
+		it('keeps its meaning when the caller shadows *', () => {
+			define('* = (=> (a: number b: number): number 0)')
+			const next = expand(parse('(** 2 3)'), env())
+			expect(next.print()).toBe('(<host-fn> 2 2 2)')
+			expect(evaluate(next, env()).value).toBe(8)
+		})
+
+		it('works inside ~, and through a function', () => {
+			define('cube = (=> (x: number): number (** x 3))')
+			expect(ladder('(cube (+ 1 1))')).toEqual([
+				'(cube (+ 1 1))',
+				'(** (+ 1 1) 3)',
+				'(* (+ 1 1) (+ 1 1) (+ 1 1))',
+			])
+			define('f = (=> (x: number): number [~(** x 2)].0)')
+			expect(evaluate(parse('(f 3)'), env()).value).toBe(9)
+		})
+	})
+
 	describe('moving a body to the call site', () => {
 		it('keeps a shadowed free name meaning its definition', () => {
 			define('sq = (=> (x: number): number (* x x))')

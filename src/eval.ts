@@ -544,6 +544,31 @@ export interface TypedHostFn {
 	 * are what values are checked against at run time: `map` is generic here.
 	 */
 	readonly signature?: TypeValue
+	/**
+	 * What this call is one level down the abstraction ladder, if anything.
+	 * Without one, its only remaining rung is its value.
+	 */
+	readonly expansion?: HostExpansion
+}
+
+/**
+ * The next rung of a call to a host function. `args` are the argument
+ * expressions as written, in parameter order, with any variadic arguments at
+ * the end, and undefined for one not passed. Return null to have no next rung.
+ */
+export type HostExpansion = (
+	args: ReadonlyArray<AST | undefined>,
+	context: HostExpansionContext
+) => AST | null
+
+export interface HostExpansionContext {
+	/** Work out an argument. Whatever is not asked for stays as written. */
+	value(ast: AST): unknown
+	/**
+	 * A call to `fn`, written as `name` if that is what the name means at the
+	 * call site, and with `fn` itself embedded if the name has been shadowed.
+	 */
+	call(name: string, fn: unknown, args: ReadonlyArray<AST>): AST
 }
 
 /**
@@ -604,6 +629,15 @@ export function withSignature<F extends TypedHostFn>(
 	signature: TypeValue
 ): F {
 	Object.defineProperty(fn, 'signature', { value: signature })
+	return fn
+}
+
+/** Say what a call to a host function is, one level down the ladder. */
+export function withExpansion<F extends TypedHostFn>(
+	fn: F,
+	expansion: HostExpansion
+): F {
+	Object.defineProperty(fn, 'expansion', { value: expansion })
 	return fn
 }
 

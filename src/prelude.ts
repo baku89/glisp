@@ -33,6 +33,7 @@ import {
 	OverloadValue,
 	type TypedHostFn,
 	type TypeValue,
+	withExpansion,
 	withSignature,
 } from './eval.js'
 import { parse } from './parse.js'
@@ -237,11 +238,43 @@ function chainEq(want: boolean): TypedHostFn {
 	return chain(topType, (a, b) => (a === b) === want)
 }
 
+/** Past this, an expanded `**` would be too long to be worth looking at. */
+const MAX_EXPANDED_POWER = 64
+
+/**
+ * `**`, which expands to `*` when the exponent is a small whole number:
+ * `(** (+ 1 1) 3)` is `(* (+ 1 1) (+ 1 1) (+ 1 1))`.
+ */
+function makePower(multiply: TypedHostFn): TypedHostFn {
+	return withExpansion(
+		makeTypedFn(
+			[numberType, numberType],
+			numberType,
+			(a, b) => Math.pow(a as number, b as number),
+			['base', 'exp']
+		),
+		([base, exp], context) => {
+			if (base === undefined || exp === undefined) return null
+			const n = context.value(exp)
+			const expands =
+				typeof n === 'number' &&
+				Number.isInteger(n) &&
+				n >= 0 &&
+				n <= MAX_EXPANDED_POWER
+			return expands
+				? context.call('*', multiply, new Array<AST>(n).fill(base))
+				: null
+		}
+	)
+}
+
 // -----------------------------------------------------------------------------
 // buildPrelude — build a fresh top-level env populated with the prelude
 // -----------------------------------------------------------------------------
 
 export function buildPrelude(): Env {
+	const multiply = variadicNumFold((a, b) => a * b, numberOneType)
+
 	// `bind(name, doc, ast)` wraps the binding in `^{doc: "..."} expr`.
 	// Eval is transparent through meta, so behavior is unchanged; a host
 	// querying the binding's AST can read the doc plus any other fields.
@@ -297,7 +330,7 @@ export function buildPrelude(): Env {
 		),
 		'*': bind(
 			'Product of the numbers. `(*)` = 1; non-numeric args coerce to 1 with a diagnostic.',
-			host(variadicNumFold((a, b) => a * b, numberOneType))
+			host(multiply)
 		),
 		'-': bind(
 			'Subtraction. `(-)` = 0; `(- x)` negates; `(- a b c)` = a−b−c.',
@@ -314,10 +347,8 @@ export function buildPrelude(): Env {
 			))
 		),
 		'**': bind(
-			'`base` raised to the `exp` power.',
-			host(fn2(numberType, numberType, numberType, (a, b) =>
-				Math.pow(a as number, b as number), ['base', 'exp']
-			))
+			'`base` raised to the `exp` power. A small whole `exp` expands to repeated `*`.',
+			host(makePower(multiply))
 		),
 		sqrt: bind('Square root. Negative input yields NaN.', host(numUnary(Math.sqrt))),
 		abs: bind('Absolute value of `x`.', host(numUnary(Math.abs))),
