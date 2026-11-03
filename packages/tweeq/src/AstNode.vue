@@ -153,6 +153,7 @@ const menuItems = computed<MenuItem[]>(() => [
 				{
 					label: isFunction.value ? 'Change Function' : 'Rename',
 					icon: 'mdi:rename-outline',
+					bindIcon: ['↵'],
 					perform: () =>
 						isFunction.value
 							? (editingCode.value = true)

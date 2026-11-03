@@ -66,6 +66,9 @@ const problem = computed(() =>
 /** What the field shows while it is not being edited. */
 const shown = computed(() => {
 	if (props.entry.display !== undefined) return props.entry.display
+	// A block of only bindings comes to nothing. They are there to open.
+	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
+	if (bare.kind === 'let' && bare.body === null) return '()'
 	const value = result.value?.value
 	if (result.value === null || typeof value === 'function') {
 		return sourceOf(ast.value)
