@@ -5,6 +5,20 @@ import { infer } from './infer.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 
+describe('prelude — identities', () => {
+	it('(+) is 0 and (*) is 1', () => {
+		const env = buildPrelude()
+		const run = (src: string) => evaluate(parse(src), env)
+		expect(run('(+)').value).toBe(0)
+		expect(run('(*)').value).toBe(1)
+		expect(run('(+)').diagnostics).toEqual([])
+		expect(run('(+ ...[])').value).toBe(0)
+		expect(run('(+ 2)').value).toBe(2)
+		expect(run('(* 2 3 4)').value).toBe(24)
+		expect(run('(* "a" 3)').value).toBe(3)
+	})
+})
+
 describe('coerce form with %', () => {
 	it('(: % T) is a function that coerces its argument', () => {
 		const r = evaluate(parse('(map ["a" 1] (: % number))'), buildPrelude())
@@ -32,24 +46,6 @@ describe('prelude — primitive types', () => {
 
 describe('prelude — arithmetic (variadic)', () => {
 	const env = buildPrelude()
-
-	it('+ requires at least one arg', () => {
-		const r = evaluate(parse('(+)'), env)
-		expect(
-			r.diagnostics.some(d => d.message.includes('missing argument'))
-		).toBe(true)
-		expect(evaluate(parse('(+ 7)'), env).value).toBe(7)
-		expect(evaluate(parse('(+ 1 2 3 4 5)'), env).value).toBe(15)
-	})
-
-	it('* requires at least one arg', () => {
-		const r = evaluate(parse('(*)'), env)
-		expect(
-			r.diagnostics.some(d => d.message.includes('missing argument'))
-		).toBe(true)
-		expect(evaluate(parse('(* 5)'), env).value).toBe(5)
-		expect(evaluate(parse('(* 2 3 4)'), env).value).toBe(24)
-	})
 
 	it('- left-folds; unary negates', () => {
 		expect(evaluate(parse('(- 5)'), env).value).toBe(-5)
@@ -257,9 +253,9 @@ describe('prelude — parametric IO', () => {
 describe('prelude — :type signature display via infer', () => {
 	const env = buildPrelude()
 
-	it('infer(+) yields a function-type with required first arg + variadic tail', () => {
+	it('infer(+) yields a function-type with a variadic parameter', () => {
 		const t = infer(parse('+'), env)
-		expect(t?.typeName).toBe('(=> (first: number ...rest: number): number)')
+		expect(t?.typeName).toBe('(=> (...xs: number): number)')
 	})
 
 	it('infer(==) returns boolean-typed predicate', () => {

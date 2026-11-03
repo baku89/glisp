@@ -145,7 +145,7 @@ A path is a sequence of segments separated by `/`. Each segment is one of:
 
 - `.` — stay at the current node (no-op; required as the first segment when the path otherwise starts with a name).
 - `..` — go up to the immediate parent AST node.
-- a name — descend into a named child: a record field, a let-binding, or a call's argument by its parameter's name (`./x/xs` in `x = (first [1 2])`). The name is looked up in the head's signature, without running anything. A variadic parameter's name refers to the remaining arguments, as a vector (`./c/rest/0` in `c = (+ 1 2 3)` is `2`).
+- a name — descend into a named child: a record field, a let-binding, or a call's argument by its parameter's name (`./x/xs` in `x = (first [1 2])`). The name is looked up in the head's signature, without running anything. A variadic parameter's name refers to the remaining arguments, as a vector (`./c/xs/1` in `c = (+ 1 2 3)` is `2`).
 - an integer — descend into a vector element. A call's arguments are reached by name, not by position.
 
 `..` may be repeated arbitrarily by chaining with `/` to walk further up: `../..` is two levels up, `../../..` is three, and so on. There is no special "deeper" syntax — chained `..` segments are how depth is expressed.
@@ -161,7 +161,7 @@ Distinguishing path from spread/splice: a path always begins with `./` or `../` 
 
 [./1 "str with index 1"]        ;; ./1 = vector's element 1 → ["str with index 1" "str with index 1"]
 
-(+ x ./first)                   ;; in a call, ./first = the argument for parameter `first` = x
+(+ x ./xs/0)                    ;; in a call, ./xs/0 = the first of the variadic arguments = x
                                 ;; → equivalent to (+ x x)
 ```
 

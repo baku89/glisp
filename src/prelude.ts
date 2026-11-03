@@ -151,23 +151,28 @@ const numberOneType: TypeValue = makeType(
 )
 
 /**
- * `+` and `*` style: fold every arg through `op`. `(+ x) → x`,
- * `(+ a b c) → a+b+c`.
+ * `+` and `*` style: fold every arg through `op`, starting from the operator's
+ * identity, so `(+)` is 0 and `(*)` is 1.
  *
- * `tailType` is the `numberType` variant whose default value is the
- * operator's algebraic identity (0 for `+`, 1 for `*`); it kicks in
- * when an *intermediate* arg fails to evaluate to a number.
+ * `identity` is the `numberType` variant whose default value is that identity.
+ * It also applies when an argument fails to evaluate to a number.
  */
 function variadicNumFold(
 	op: (a: number, b: number) => number,
-	tailType: TypeValue
+	identity: TypeValue
 ): TypedHostFn {
-	return makeTypedFn(
-		[numberType],
-		numberType,
-		(first, ...rest) => (rest as number[]).reduce(op, first as number),
-		['first'],
-		tailType
+	return withSignature(
+		makeTypedFn(
+			[],
+			numberType,
+			(...xs) => (xs as number[]).reduce(op, identity.default as number),
+			[],
+			identity
+		),
+		makeFunctionType([], numberType, {
+			variadicTail: numberType,
+			variadicName: 'xs',
+		})
 	)
 }
 
@@ -291,11 +296,11 @@ export function buildPrelude(): Env {
 		// Arithmetic
 		// -----------------------------------------------------------------
 		'+': bind(
-			'Sum of one or more numbers. `(+ x)` = x; non-numeric args coerce to 0 with a diagnostic.',
+			'Sum of the numbers. `(+)` = 0; non-numeric args coerce to 0 with a diagnostic.',
 			host(variadicNumFold((a, b) => a + b, numberType))
 		),
 		'*': bind(
-			'Product of one or more numbers. Non-numeric args coerce to 1 with a diagnostic.',
+			'Product of the numbers. `(*)` = 1; non-numeric args coerce to 1 with a diagnostic.',
 			host(variadicNumFold((a, b) => a * b, numberOneType))
 		),
 		'-': bind(
