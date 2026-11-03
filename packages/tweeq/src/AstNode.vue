@@ -193,7 +193,6 @@ watch(
 		@rename="rename"
 		:selected="selected"
 		:closedGuide="bareKind === 'call'"
-		:gapAfter="entry.role === 'subject'"
 		:menuItems="menuItems"
 		@select="select"
 	>
