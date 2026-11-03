@@ -148,8 +148,7 @@ export class Session {
 	}
 
 	/**
-	 * Shell entry point. `name = expr` and `path/seg = expr` (path segments
-	 * are identifiers or integer indices) evaluate to an `IO` that performs
+	 * Shell entry point. `name = expr` and `./path/seg = expr` evaluate to an `IO` that performs
 	 * the assignment when run; everything else goes through `parse` and
 	 * `evalAst`. Throws `ParseError` if the source can't be parsed.
 	 */
@@ -187,7 +186,9 @@ export class Session {
 export { isIO }
 
 /**
- * Replace the sub-AST at `path` inside `ast` with `replacement`. The
+ * Set the sub-AST at `path` inside `ast` to `replacement`. A name that does not
+ * exist yet is added, if it is the last segment and its parent is a let-block or
+ * a record. The
  * traversal handles let-blocks (by binding name), records (by field
  * name), vectors (by integer index), and calls (0 is the head, as in paths). Returns the rewritten AST,
  * or a string error message if the path goes off the end.
@@ -211,7 +212,8 @@ function setAtPathInAst(
 				newBindings[i] = [name, next] as const
 				return new LetAST(newBindings, ast.body)
 			}
-			return `no binding named ${seg}`
+			if (rest.length > 0) return `no binding named ${seg}`
+			return new LetAST([...ast.bindings, [seg, replacement]], ast.body)
 		}
 		case 'record': {
 			if (typeof seg !== 'string') return `expected field name, got ${seg}`
@@ -226,7 +228,8 @@ function setAtPathInAst(
 				newFields[i] = [name, next] as const
 				return new RecordAST(newFields, ast.optional)
 			}
-			return `no field named ${seg}`
+			if (rest.length > 0) return `no field named ${seg}`
+			return new RecordAST([...ast.fields, [seg, replacement]], ast.optional)
 		}
 		case 'vec': {
 			if (typeof seg !== 'number') return `expected index, got ${seg}`
@@ -258,7 +261,7 @@ function setAtPathInAst(
 }
 
 /**
- * The expression being assigned in `name = expr` or `path/seg = expr`, or null
+ * The expression being assigned in `name = expr` or `./path/seg = expr`, or null
  * if `src` is not an assignment.
  */
 export function assignmentExpression(src: string): string | null {
@@ -271,14 +274,9 @@ interface AssignmentSugar {
 }
 
 /**
- * Recognize `name = expr` and `name/seg/seg... = expr` at the top of
- * the input. Returns the resolved path and the source slice that
- * follows the `=`. Returns null when the input doesn't begin with an
- * identifier-then-`=` (or path-`=`) shape.
- *
- * Path segments after the first must be identifiers or integer
- * literals. The first segment (the binding name) is required to be an
- * identifier.
+ * Recognize `name = expr` and `./path/seg = expr` at the top of the input.
+ * Returns the resolved path and the source slice that follows the `=`. A path
+ * that climbs with `..` is not an assignment: the session is the top.
  */
 function parseAssignmentSugar(src: string): AssignmentSugar | null {
 	let tokens
@@ -287,33 +285,14 @@ function parseAssignmentSugar(src: string): AssignmentSugar | null {
 	} catch {
 		return null
 	}
-	let i = 0
-	const head = tokens[i]
-	if (head?.kind !== 'identifier') return null
-	const path: Array<string | number> = [head.value as string]
-	i++
-	while (true) {
-		const t = tokens[i]
-		if (t === undefined) return null
-		if (t.kind === '=') {
-			const exprSrc = src.slice(t.end).trim()
-			if (exprSrc === '') return null
-			return { path, exprSrc }
-		}
-		// Expect: '/' followed by an identifier or number.
-		if (t.kind !== 'identifier' || t.value !== '/') return null
-		const next = tokens[i + 1]
-		if (next === undefined) return null
-		if (next.kind === 'identifier' && next.value !== '/') {
-			path.push(next.value as string)
-			i += 2
-			continue
-		}
-		if (next.kind === 'number' && Number.isInteger(next.value as number)) {
-			path.push(next.value as number)
-			i += 2
-			continue
-		}
-		return null
+	const [target, equals] = tokens
+	if (equals?.kind !== '=') return null
+	const exprSrc = src.slice(equals.end).trim()
+	if (exprSrc === '') return null
+	if (target?.kind === 'identifier') {
+		return { path: [target.value as string], exprSrc }
 	}
+	if (target?.kind !== 'pathSegments') return null
+	const path = target.value as ReadonlyArray<string | number>
+	return path.length === 0 || path.includes('..') ? null : { path, exprSrc }
 }

@@ -25,7 +25,7 @@ describe('Session — let-block as session state', () => {
 
 	it('reports a bad assignment when run, without changing anything', () => {
 		const s = new Session(buildPrelude())
-		const r = s.evalSrc('nope/y = 1')
+		const r = s.evalSrc('./nope/y = 1')
 		expect(r.diagnostics).toEqual([])
 		expect((r.value as IO).run().map(d => d.message)).toEqual([
 			'assignment failed: no such binding: nope',
@@ -115,58 +115,62 @@ describe('Session — let-block as session state', () => {
 	})
 })
 
-describe('Session — assignment sugar (name = expr, path = expr)', () => {
-	it('top-level `x = expr` is a binding mutation', () => {
+describe('Session — assignment', () => {
+	const after = (...lines: string[]): string => {
 		const s = new Session(buildPrelude())
-		s.exec('x = (+ 20 40)')
-		expect(print(s.ast())).toBe('{x = (+ 20 40)}')
+		for (const line of lines) s.exec(line)
+		return print(s.ast())
+	}
+
+	it('sets a binding by name or by path', () => {
+		expect(after('x = (+ 20 40)')).toBe('{x = (+ 20 40)}')
+		expect(after('./x = 1')).toBe('{x = 1}')
 	})
 
-	it('path `x/y = expr` updates a nested let-block binding', () => {
-		const s = new Session(buildPrelude())
-		s.exec('x = {y = 30}')
-		s.exec('x/y = 400')
-		expect(print(s.ast())).toBe('{x = {y = 400}}')
+	it('replaces inside a let-block, record, vector and call', () => {
+		expect(after('x = {y = 30}', './x/y = 400')).toBe('{x = {y = 400}}')
+		expect(after('x = {y = {z = 1}}', './x/y/z = 99')).toBe('{x = {y = {z = 99}}}')
+		expect(after('p = {x: 1 y: 2}', './p/y = 7')).toBe('{p = {x: 1 y: 7}}')
+		expect(after('xs = [10 20 30]', './xs/1 = 99')).toBe('{xs = [10 99 30]}')
+		expect(after('c = (+ 1 2)', './c/2 = 5')).toBe('{c = (+ 1 5)}')
 	})
 
-	it('deeper paths walk through nested let-blocks', () => {
-		const s = new Session(buildPrelude())
-		s.exec('x = {y = {z = 1}}')
-		s.exec('x/y/z = 99')
-		expect(print(s.ast())).toBe('{x = {y = {z = 99}}}')
+	it('adds a name that does not exist yet', () => {
+		expect(after('x = {a = 20}', './x/b = 30')).toBe('{x = {a = 20 b = 30}}')
+		expect(after('x = {a = 1 (+ a 1)}', './x/b = 2')).toBe('{x = {a = 1 b = 2 (+ a 1)}}')
+		expect(after('p = {x: 1}', './p/y = 2')).toBe('{p = {x: 1 y: 2}}')
+		expect(after('x = {y = {}}', './x/y/z = 1')).toBe('{x = {y = {z: 1}}}')
 	})
 
-	it('numeric segment addresses a vector element', () => {
+	it('reads back what it wrote', () => {
 		const s = new Session(buildPrelude())
-		s.exec('xs = [10 20 30]')
-		s.exec('xs/1 = 99')
-		expect(print(s.ast())).toBe('{xs = [10 99 30]}')
+		s.exec('x = {a = 20}')
+		s.exec('./x/b = (+ a 10)')
+		expect(s.exec('./x/b').value).toBe(30)
 	})
 
-	it('record field assignment via path', () => {
-		const s = new Session(buildPrelude())
-		s.exec('p = {x: 1 y: 2}')
-		s.exec('p/y = 7')
-		expect(print(s.ast())).toBe('{p = {x: 1 y: 7}}')
+	it('reports a path it cannot reach, without changing anything', () => {
+		const failure = (line: string): string => {
+			const s = new Session(buildPrelude())
+			s.exec('x = {y = 30}')
+			s.exec('n = 1')
+			s.exec('xs = [1]')
+			const before = print(s.ast())
+			const message = s.exec(line).diagnostics[0]!.message
+			expect(print(s.ast())).toBe(before)
+			return message
+		}
+		expect(failure('./nope/y = 1')).toContain('no such binding: nope')
+		expect(failure('./x/z/w = 1')).toContain('no binding named z')
+		expect(failure('./xs/5 = 1')).toContain('out of range')
+		expect(failure('./n/a = 1')).toContain('cannot descend into lit')
 	})
 
-	it('missing path emits a diagnostic and does not mutate', () => {
+	it('does not take other forms for an assignment', () => {
 		const s = new Session(buildPrelude())
-		s.exec('x = {y = 30}')
-		const r = s.exec('x/z = 99')
-		expect(
-			r.diagnostics.some(d => d.message.includes('no binding named z'))
-		).toBe(true)
-		expect(print(s.ast())).toBe('{x = {y = 30}}')
-	})
-
-	it('missing top-level binding emits a diagnostic', () => {
-		const s = new Session(buildPrelude())
-		const r = s.exec('ghost/y = 1')
-		expect(
-			r.diagnostics.some(d => d.message.includes('no such binding: ghost'))
-		).toBe(true)
-		expect(print(s.ast())).toBe('{}')
+		s.exec('x = {a = 1}')
+		expect(() => s.exec('x/a = 5')).toThrow()
+		expect(() => s.exec('../x = 5')).toThrow()
 	})
 })
 
@@ -193,10 +197,10 @@ describe('Session — edits', () => {
 	it('edits inside a call', () => {
 		const s = new Session(buildPrelude())
 		s.exec('p = {r: (+ 1 2)}')
-		s.exec('p/r/1 = 5')
+		s.exec('./p/r/1 = 5')
 		expect(print(s.ast())).toBe('{p = {r: (+ 5 2)}}')
 		expect(s.exec('p').value).toEqual({ r: 7 })
-		expect(s.exec('p/r/9 = 5').diagnostics[0]!.message).toContain(
+		expect(s.exec('./p/r/9 = 5').diagnostics[0]!.message).toContain(
 			'argument index out of range'
 		)
 	})
@@ -219,7 +223,7 @@ describe('Session — reading by path', () => {
 		expect(s.exec('./x/a').value).toBe(20)
 		expect(s.exec('./x/b/c').value).toBe(21)
 		expect(s.exec('./xs/1').value).toBe(20)
-		s.exec('x/a = 5')
+		s.exec('./x/a = 5')
 		expect(s.exec('./x/a').value).toBe(5)
 	})
 

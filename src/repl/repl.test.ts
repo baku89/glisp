@@ -167,12 +167,12 @@ describe('ReplCore', () => {
 		expect(run(core, 'うんこ = (+ 1 2)')).toEqual([])
 		expect(run(core, '(+ うんこ 1)')).toEqual(['4'])
 		expect(core.complete('(+ うん').matches).toEqual(['うんこ'])
-		expect(run(core, 'nope/y = 1')[0]).toContain('no such binding: nope')
+		expect(run(core, './nope/y = 1')[0]).toContain('no such binding: nope')
 	})
 
 	it('knows when input needs more lines', () => {
 		const core = new ReplCore()
-		for (const src of ['(+ 1', '[1 2', '{a = 1', '"abc', 'x = (+ 1', 'p/q = [1']) {
+		for (const src of ['(+ 1', '[1 2', '{a = 1', '"abc', 'x = (+ 1', './p/q = [1']) {
 			expect(core.isIncomplete(src), src).toBe(true)
 		}
 		for (const src of ['', '(+ 1 2)', 'x = 1', '(+ 1))', ':help', ']']) {

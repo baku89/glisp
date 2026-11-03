@@ -497,7 +497,7 @@ function helpText(): string {
 		row(':quit', '', 'exit (or Ctrl-C)'),
 		'',
 		theme.hint('`name = expr` sets a binding in the environment.'),
-		theme.hint('`name/seg = expr` edits inside one, by path.'),
+		theme.hint('`./name/seg = expr` sets inside one by path, adding it if it is new.'),
 		theme.hint('Unbalanced brackets continue on the next line; Alt+Enter adds one.'),
 	].join('\n')
 }

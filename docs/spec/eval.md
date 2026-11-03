@@ -259,7 +259,7 @@ If any `stepK` does not evaluate to a function, the call FK(V) is a type error, 
 
 #### `IO`
 
-Evaluation changes nothing: not the AST, not any env. An effect is a value of type `IO`, which the host runs when it chooses. Editing the environment is such an effect, and it produces a new let-block rather than changing a frame in place, so evaluation results stay valid and undo is a matter of restoring the old one. `name = expr` in a REPL or application shell evaluates to this kind of `IO`.
+Evaluation changes nothing: not the AST, not any env. An effect is a value of type `IO`, which the host runs when it chooses. Editing the environment is such an effect, and it produces a new let-block rather than changing a frame in place, so evaluation results stay valid and undo is a matter of restoring the old one. `name = expr` and `./path/seg = expr` in a REPL or application shell evaluate to this kind of `IO`. A name that does not exist yet is added to the let-block or record holding it.
 
 The `IO` type itself is a brand on the deferred-effect value. `eval` treats `IO`-typed values like any other value (no implicit forcing); explicit `run` is the host's responsibility.
 
