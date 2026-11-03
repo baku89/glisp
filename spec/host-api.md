@@ -1,511 +1,220 @@
 # Glisp Host API
 
-The host is the JS/TS application embedding Glisp. This document specifies how the host exchanges values with Glisp, constructs Glisp ASTs and types from the host side, and assembles environments in which Glisp programs are evaluated.
+The host is the application embedding Glisp. Everything here is exported by `@glisp/lang`.
 
-## Core principle: runtime values are plain JS
+## Evaluating a program
 
-After evaluation, a Glisp value is the corresponding plain JS value, with no wrapper layer. Marshaling is automatic in both directions.
-
-| Glisp value         | JS representation                                  |
-| ------------------- | -------------------------------------------------- |
-| `number`            | `number`                                           |
-| `string`            | `string`                                           |
-| `boolean`           | `boolean`                                          |
-| `unit` (`()`)       | `Symbol.for('glisp.unit')`                         |
-| `vector`            | `Array`                                            |
-| `record`            | plain `object` (string keys)                       |
-| Closure             | callable `function`                                |
-| Type                | callable `function` (cast) with marker property    |
-| `ast` (quoted form) | AST handle                                         |
-
-`unit` is a registered Symbol rather than `null`/`undefined`, so it cannot be confused with JS values of those forms (e.g. JSON parse results, missing object keys). The Symbol is stable across modules via `Symbol.for`.
-
-`ast`-typed values appear in JS as **AST handles**. The same handle plays a dual role in the host API: it can be used as an AST under construction (a child of `g.call`, `g.vec`, etc.) **and** as a runtime value of Glisp type `ast`. There is no separate "AST value" wrapper.
-
-## Builders — `g.*`
-
-The `g` namespace contains all the builders for ASTs and values. Two flavors live in the same namespace:
-
-- **AST builders** produce raw AST handles (no env resolution). Used to construct Glisp source programmatically, or as runtime `ast`-typed values.
-- **Value builders** produce values whose meaning is fully resolved on the TS side. Used as the `type` of a binding and as inputs to `g.infer<T>`.
-
-| Builder                              | Returns                       | Flavor      | Example                                                       |
-| ------------------------------------ | ----------------------------- | ----------- | ------------------------------------------------------------- |
-| `g.parse(source)`                    | AST                           | AST         | `g.parse('(+ 1 2)')`                                          |
-| `g.lit(jsValue)`                     | literal AST                   | AST         | `g.lit(42)` → `42`                                            |
-| `g.host(jsValue)`                    | host-value AST                | AST         | `g.host(myHostFn)` — see [g.lit vs g.host](#glit-vs-ghost)    |
-| `g.sym(name)`                        | symbol AST                    | AST         | `g.sym('+')` → `+`                                            |
-| `g.call(head, ...args)`              | application AST               | AST         | `g.call(g.sym('+'), g.lit(1), g.lit(2))` → `(+ 1 2)`          |
-| `g.vec(...elements)`                 | vector AST                    | AST         | `g.vec(g.lit(1), g.lit(2))` → `[1 2]`                         |
-| `g.path(dots, ...segments)`          | path AST                      | AST         | `g.path(2, 'width')` → `../width`                             |
-| `g.unquote(expr)`                    | `~` AST                       | AST         | `g.unquote(g.sym('x'))` → `~x`                                |
-| `g.number`                           | the `number` type             | value       | `g.number`                                                    |
-| `g.string`                           | the `string` type             | value       | `g.string`                                                    |
-| `g.boolean`                          | the `boolean` type            | value       | `g.boolean`                                                   |
-| `g.unit`                             | the `unit` type               | value       | `g.unit`                                                      |
-| `g.top`                              | the `_` (top) type            | value       | `g.top`                                                       |
-| `g.bottom`                           | the `!` (bottom) type         | value       | `g.bottom`                                                    |
-| `g.ast`                              | the `ast` type                | value       | `g.ast`                                                       |
-| `g.vector(T)`                        | `[...T]` type                 | value       | `g.vector(g.number)`                                          |
-| `g.enum(...vs)`                      | `(enum v1 v2 ...)` type       | value       | `g.enum('round', 'butt')`                                     |
-| `g.record({ k: ... })`               | record type **or** record AST | overload    | see below                                                     |
-| `g.fn({ name: T, ... }).returns(R)`  | function type                 | value       | see below                                                     |
-| `... .body(expr)`                    | function literal AST          | AST         | continues from `.returns(R)`                                  |
-| `g.generic(['T', ...], cb)`          | generic value                 | value       | see below                                                     |
-
-### Overloaded builders
-
-Two builders accept arguments that decide their flavor:
-
-**`g.record({ key: ... })`** — overload by argument flavor:
+A host keeps an immutable AST and hands each new version to a `Runtime`.
 
 ```ts
-g.record({ x: g.number })          // all values → record TYPE: {x: number}
-g.record({ x: g.lit(10) })          // all ASTs   → record AST:  {x: 10}
-g.record({ x: g.number,
-           y: g.lit(10) })          // mixed      → TS error
+import { buildPrelude, parse, Runtime } from '@glisp/lang'
+
+const runtime = new Runtime(buildPrelude())
+runtime.setRoot(parse('{a = 10 b = (+ a 1) [a b]}'))
+
+runtime.evaluate()        // { value: [10, 11], diagnostics: [] }
+runtime.read('b')         // { value: 11, diagnostics: [] }
+runtime.setRoot(nextAst)  // what did not change is reused, and stays `===`
 ```
 
-The TS type system enforces "all-values" or "all-ASTs"; mixing is rejected at compile time.
+- `evaluate(ast?, env?)` evaluates the root, or `ast` in `env`.
+- `read(...path)` evaluates a sub-expression of the root, in its scope, by the names and indices leading to it.
+- `stats()` and `resetStats()` report what was computed and what came from the cache.
+- Options: `maxEntries`, the cached results to keep, and `heavyMs`, how long a result inside a function call has to take to be kept.
 
-**`g.fn(...)`** — staged builder:
+See [Incremental evaluation](./eval.md#incremental-evaluation) for what `Runtime` guarantees and asks of host functions.
 
-```ts
-g.fn({ a: g.number, b: g.number })
-//   ↓ FnParamsBuilder — params only; not yet usable
+`evaluate(ast, env)` is the same evaluation without a cache that outlives an edit. It returns `{ value, diagnostics }` and does not throw on errors in the program.
 
-  .returns(g.number)
-//   ↓ FnTypeOrBody — function TYPE value (usable as `type` field, in g.infer, etc.)
-//                    .body(expr) optionally continues to make it an AST instead
+The AST does not need to be a descendant of anything in `env`. The env is only the scope for names and paths, so a host can evaluate a sub-expression, or a synthesized AST, against any env.
 
-  .body(g.call(g.sym('+'), g.sym('a'), g.sym('b')))
-//   ↓ FnAST — function literal AST (=> (a: number b: number): number (+ a b))
-```
+## Values
 
-The chain has three stages. Stopping at `.returns(R)` yields the function-type value. Continuing with `.body(expr)` yields the function-literal AST. `g.fn(params)` alone is a non-final intermediate and cannot be passed as a `type` (TS type-checks this).
+A value is the corresponding plain JS value, with no wrapper.
 
-Function-type parameters are taken as an **object literal**: keys are parameter names, values are parameter types. Insertion order is the parameter order. Parameter names are required at the syntax level but do not affect type identity (see [Function-type equality](./types.md#function-type-equality)).
+| Glisp value   | JS value                                                 |
+| ------------- | -------------------------------------------------------- |
+| `number`      | `number`                                                 |
+| `string`      | `string`                                                 |
+| `boolean`     | `boolean`                                                |
+| `unit` (`()`) | `UNIT`, which is `Symbol.for('glisp.unit')`              |
+| vector        | `Array`                                                  |
+| record        | plain `object`                                           |
+| closure       | a callable `function`, which is also `isGlispClosure`    |
+| host function | a callable `function`, which is also `isTypedHostFn`     |
+| type          | a `TypeValue` object, which is `isTypeValue`. Not callable |
+| action        | an `IO`, with a `run()`                                  |
 
-### Generics — `g.generic`
+Values may be shared between positions, so they must not be mutated. A closure called from JS evaluates in its captured env and returns a JS value.
 
-`g.generic(['T', 'U', ...], callback)` introduces type variables. The callback receives the type variables as a record and returns the type that uses them:
-
-```ts
-const indexer = g.generic(['T'], ({ T }) =>
-  g.fn({ xs: g.vector(T), i: g.number }).returns(T)
-)
-
-type Indexer = g.infer<typeof indexer>
-//   = <T>(xs: T[], i: number) => T
-
-// multiple type variables
-const swap = g.generic(['T', 'U'], ({ T, U }) =>
-  g.fn({ a: T, b: U }).returns(g.record({ x: U, y: T }))
-)
-```
-
-Inside the callback, type variables are first-class values usable wherever a value-builder is expected. They are inferred at call sites in Glisp, exactly like Glisp's own generic functions ([Generics](./types.md#generics)).
-
-### `g.lit` vs `g.sym`
-
-`g.lit` distinguishes JS primitive types automatically: `g.lit(42)` produces a number literal, `g.lit("hi")` a string literal, `g.lit(true)` a boolean literal. It always wraps a value, never an identifier — for identifiers, use `g.sym`.
-
-### `g.lit` vs `g.host`
-
-`g.lit` accepts only **source-expressible** primitives — `number`, `string`, `boolean`, the unit literal — values that have a textual form in Glisp source. A `lit` AST round-trips through `g.print` / `g.parse` losslessly.
-
-`g.host(value)` accepts an **arbitrary host-side value**: typed host functions (`g.def`-bound), type values (`g.number`, `g.bottom`, `g.enum(...)`), `g.extern`-tagged values, IO actions returned by `def` / `undef`, opaque JS objects, and so on. The resulting `host` AST evaluates to the value as-is, but `g.print` cannot round-trip it to source — it falls back to a label (the type's name for type values, `<host-fn>` for typed host fns, `<host-value>` otherwise). Re-pasting the printed form into a parser will not reproduce the value; identity is only preserved within a single process.
-
-The two are not interchangeable. `g.host(42)` evaluates fine but loses the literal form. `g.lit(myHostFn)` is a type error.
-
-When the host value **carries its own type metadata**, `g.host` alone is sufficient — the evaluator and `g.expectedTypeAt` / `g.toAst` pick up the signature from the value's brand. This applies to:
-
-- typed host functions returned by `g.def(fnType, jsFn)` — carry `paramTypes`, `returnType`, optional `paramNames` and `variadicTail`
-- type values — `g.number`, `g.string`, `g.enum(...)`, `g.refine(...)`, `g.extern(...)`, etc.
-- Glisp closures surfaced from earlier evaluation
-- `g.overload(fn1, fn2, ...)` values
-
-When the host value is **untyped** — a plain JS function or an arbitrary object — wrap it with `g.def(fnType, jsFn)` (or another typed-fn factory) before passing to `g.host`, otherwise `:type` will report `?` and the static checker has no signature to verify against.
-
-```ts
-// preferred — typed host fn carries its signature
-g.host(g.def(g.fn({ n: g.number }).returns(g.number), n => n + 1))
-
-// works at runtime, but `:type` is `?` and check sees no constraint
-g.host((n: number) => n + 1)
-```
-
-The takeaway: `g.lit` is for source-expressible primitives, `g.host` is for everything else, and "everything else" should ideally be self-describing (typed) so the inferer has something to chew on.
-
-### Metadata
-
-Attach metadata to any value via `.meta(...)`:
-
-```ts
-const Width = g.number.meta({ default: 100, label: 'Width' })
-// runtime-equivalent: ^{default: 100 label: "Width"} number
-```
-
-Metadata layers as specified in [types.md](./types.md#metadata).
-
-## TS static-type inference: `g.infer<T>`
-
-`g.infer<T>` is a TypeScript conditional type that maps a **value** (built via value builders) to its corresponding TS static type. It is undefined for raw AST handles.
-
-```ts
-const userType = g.record({ name: g.string, age: g.number })
-type User = g.infer<typeof userType>
-//   = { name: string; age: number }
-
-const fnType = g.fn({ x: g.number }).returns(g.string)
-type Fn = g.infer<typeof fnType>
-//   = (x: number) => string
-
-const colors = g.enum('red', 'green', 'blue')
-type Color = g.infer<typeof colors>
-//   = 'red' | 'green' | 'blue'
-
-const points = g.vector(g.record({ x: g.number, y: g.number }))
-type Points = g.infer<typeof points>
-//   = { x: number; y: number }[]
-
-type AnyAST = g.infer<typeof g.ast>
-//   = ASTHandle (an opaque branded type)
-```
-
-For function types, `g.infer` produces a positional JS function whose parameter names match the value-builder's keys. `unit` infers to `typeof g.unit` (the registered Symbol).
+`unit` is a registered Symbol so that it cannot be confused with `null`, `undefined`, or a missing key.
 
 ## Environments
 
-The host assembles a Glisp environment by deriving from the prelude (or any other env) via **immutable extension**. There is no global mutable state, no install-time side effect.
+An `Env` is a chain of frames ([Environment](./eval.md#environment)).
 
 ```ts
-const empty = g.emptyEnv()                     // env with no bindings (testing / sandbox)
-const prelude = g.prelude                      // the standard env Glisp ships with
+buildPrelude()                     // the standard env, a new one each call
+emptyEnv                           // no bindings
+makeTopLevel({ width: lit(100) })  // a root frame binding names to ASTs
 ```
 
-`g.prelude` is the parentless root env that ships with Glisp's built-in operations (`+`, `-`, `*`, `?`, `|>`, `vector`, ...). Any user-built env derives from it (or from `g.emptyEnv()` if the host wants to start from nothing).
-
-### Bindings
-
-`.with({...})` extends an env with one or more bindings, returning a new env. Each entry's value is either a plain JS value (whose type is inferred) or a `g.def(type, value)` marker (where the type is declared explicitly).
+Bindings are ASTs, evaluated lazily. A frame is not modified after it is made. To extend an env, make a frame whose `parent` is it, or put bindings in a let-block.
 
 ```ts
-const env = g.prelude.with({
-  // type-inferred from JS value
-  pi: 3.14159,                                       //  → number
-  greeting: "hello",                                  //  → string
-  flags: true,                                        //  → boolean
-  palette: ['red', 'green', 'blue'],                  //  → [...string]
-  config: { port: 8080, host: 'localhost' },          //  → {port: number, host: string}
-
-  // explicit type via g.def — required for functions, optional otherwise
-  add: g.def(
-    g.fn({ a: g.number, b: g.number }).returns(g.number),
-    (a, b) => a + b
-  ),
-  mode: g.def(g.enum('debug', 'release'), 'release'),  // override the default 'string' inference
-})
+const env: Env = {
+	ast: new LetAST([], null),
+	parent: buildPrelude(),
+	bindings: new Map([['width', { ast: lit(100), env: null }]]),
+}
 ```
 
-#### When inference suffices
-
-For most JS values, the Glisp type is uniquely determined by the value:
-
-| JS value                       | Inferred Glisp type                 |
-| ------------------------------ | ----------------------------------- |
-| `42`, `3.14`                   | `number`                            |
-| `"hello"`                      | `string`                            |
-| `true`, `false`                | `boolean`                           |
-| `Symbol.for('glisp.unit')`     | `unit`                              |
-| `[1, 2, 3]`                    | `[...number]`                       |
-| `{x: 10, y: 20}`               | record `{x: number, y: number}`     |
-
-These can be passed as plain JS — no wrapper needed.
-
-#### When `g.def` is required
-
-A JS function carries no Glisp-type information at runtime: parameter and return types are not visible. Functions therefore must be wrapped with `g.def(type, value)` to declare their Glisp type:
+`Session` keeps an env as a let-block and edits it. It is what a REPL or an application shell is built on.
 
 ```ts
-add: g.def(
-  g.fn({ a: g.number, b: g.number }).returns(g.number),
-  (a, b) => a + b
+const session = new Session(buildPrelude())
+session.exec('x = 1')             // evaluates and runs the action
+session.exec('./p/q = 2')         // sets inside a binding, adding a new name
+session.exec('(+ x 1)')           // { value: 2, diagnostics: [] }
+session.evalSrc('x = 1')          // { value: <IO>, ... }, not yet run
+session.ast()                     // the let-block, which is the whole state
+session.setAst(earlier)           // restores an earlier let-block, for undo
+session.setBinding('y', lit(2))
+session.setAtPath(['p', 'q'], lit(2))  // null, or why the path cannot be reached
+session.unsetBinding('y')
+session.env                       // the env to pass to `check`, `infer`, etc.
+```
+
+## Host functions
+
+```ts
+const add = makeTypedFn(
+	[numberType, numberType],   // parameter types
+	numberType,                 // return type
+	(a, b) => (a as number) + (b as number),
+	['a', 'b'],                 // parameter names, for keywords and paths
+)
+
+makeTopLevel({ add: host(add) })
+```
+
+The fifth argument is the type of variadic arguments. `numberType` and the others are bound in the prelude, so read them from there: `evaluate(parse('number'), env).value`.
+
+The types are checked at run time: an argument that does not fit is replaced by the type's default, with a diagnostic. A host function must be pure, because `Runtime` caches its results across edits.
+
+A host function that throws yields `()` with a diagnostic.
+
+### A more precise type
+
+The parameter types are what values are checked against at run time. `withSignature` adds what only static checking can use, such as generics:
+
+```ts
+const T = makeTypeVar('T')
+withSignature(
+	makeTypedFn([vectorType], topType, xs => xs[0], ['xs']),
+	makeFunctionType([makeTupleType([], T)], T, {
+		paramNames: ['xs'],
+		generics: ['T'],
+	})
 )
 ```
 
-#### When `g.def` is optional but useful
+The options are `paramNames`, `generics`, `variadicTail`, and `variadicName`, which is what a path calls the variadic arguments (`rest` if unsaid).
 
-Use `g.def` whenever the inferred type is wrong or under-specified for the binding's intended role:
+### How it expands
 
-- An `enum`-typed constant: `g.def(g.enum('debug', 'release'), 'release')` instead of plain `'release'` (which infers to `string`).
-- A value that should carry metadata: `g.def(g.number.meta({label: 'Width', default: 100}), 100)`.
-- An `ast`-typed value held as a TS-side `AST` handle: when the inference would not pick `ast`.
-
-#### Semantics
-
-- `type` is the binding's Glisp type, built via value builders (preferred — enables TS inference) or via `g.parse(string)`.
-- `value` (whether wrapped or plain) must satisfy `g.infer<typeof type>` — TS catches mismatches at compile time.
-- `.with({...})` returns a new env; the original is unchanged. Multiple `.with` calls can be chained to layer additional scopes.
-- All metadata attaches to the type itself via `^{...}` or `.meta(...)` — no separate metadata field on the binding.
-
-#### Shadowing
-
-When a `.with({...})` defines a name that is already bound in the parent env, the new binding **shadows** the parent — the derived env sees the closer binding, the parent env is unchanged. This is silent, no diagnostic.
+A host function has no body, so by default its only remaining rung on the [abstraction ladder](./eval.md#multi-step-evaluation--abstraction-ladder) is its value. `withExpansion` gives it a next rung:
 
 ```ts
-const env1 = g.prelude.with({ pi: 3.14 })
-const env2 = env1.with({ pi: 3.14159 })     // env2 sees pi = 3.14159
-const env3 = env1.with({ tau: 6.28 })       // env3 sees pi = 3.14, tau = 6.28
-// env1 itself remains unchanged: pi = 3.14
-```
-
-This is the standard lexical-scope behavior — name-lookup walks frames innermost-first per [eval.md](./eval.md#bare-name-lookup).
-
-Within a single `.with({...})` record, a duplicate JS object key is a JS-level concern (object literals last-key-wins, often flagged by linters); the host API receives only the final entry.
-
-This API mirrors [eval.md](./eval.md#environment)'s frame chain: `g.prelude` is the root frame, each `.with({...})` extends with another set of top-level bindings.
-
-## Evaluation
-
-```ts
-glisp.eval(ast, env)        // → JS-native value
-glisp.expand(ast, env)      // → AST (one expansion step, per eval.md)
-glisp.resolve(ast, env)     // → resolved binding for a symbol/path AST
-glisp.diagnose(ast, env)    // → diagnostic set produced by this evaluation node
-```
-
-Each takes the AST and the env explicitly. There is no implicit "global env"; the host always supplies one.
-
-The `ast` argument does not need to be a structural descendant of any AST referenced by `env`. The env is purely the *scope context* used for name and path resolution; physical containment in some larger AST tree is irrelevant. This means the host can:
-
-- Evaluate any sub-expression of a parsed program by handing in just that node along with an env that captures its enclosing scope.
-- Evaluate the same AST under multiple different envs (e.g. with shadowed bindings) without rebuilding the AST.
-- Synthesize an AST on the fly via builders and evaluate it against an existing env.
-
-See [eval.md](./eval.md#environment) for the underlying frame-chain model.
-
-## Reflection
-
-Two utilities help GUI-style hosts work with values and positions in an AST.
-
-### `g.toAst(value, env)` — value → AST
-
-Reverse-direction conversion: given a Glisp value and an env, produce an AST whose evaluation against `env` yields the same value.
-
-```ts
-g.toAst(42, env)              // → AST: 42 (number literal)
-g.toAst([1, 2, 3], env)       // → AST: [1 2 3]
-g.toAst({x: 10, y: 20}, env)  // → AST: {x: 10 y: 20}
-g.toAst(piValue, env)         // → AST: pi  (if env binds pi to that value)
-g.toAst(g.number, env)        // → AST: number (the bare symbol from the prelude)
-```
-
-The result satisfies `eval(g.toAst(v, env), env) ≡ v` (modulo marshaling and equality).
-
-Conversion strategy by value kind:
-
-| Value kind          | Reified AST                                                       |
-| ------------------- | ----------------------------------------------------------------- |
-| `number`/`string`/`boolean`/`unit` | corresponding `lit`                                |
-| vector              | `[...]` AST, elements reified recursively                          |
-| record              | `{...}` AST, field values reified recursively                      |
-| Closure             | a bare symbol if env binds it; otherwise the function literal AST stored in the closure |
-| Type / typed host fn | a bare symbol if env binds it; otherwise a `host` node            |
-| AST handle (`ast`-typed value) | a `'host'` AST embedding the handle                     |
-| Extern value (`g.extern`-typed) | the value of the extern type's `toAst` option (see below) |
-| anything else       | a `host` node wrapping the value verbatim — preserves identity within a process |
-
-When multiple bindings in `env` resolve to the same value, the implementation picks the first found by lookup order; the choice is otherwise unspecified.
-
-For an extern-typed value, the host **must** provide the conversion via the extern type declaration. Without it, `g.toAst` cannot construct an AST — the call emits a diagnostic and yields the unit AST as a fallback.
-
-### `g.expectedTypeAt(parentAst, position, env)` — slot's expected type
-
-What type should fit in this AST slot? Answers that question without requiring the slot's current contents to actually have that type.
-
-```ts
-type Position = string | number | (string | number)[]
-
-g.expectedTypeAt(parentAst, position: Position, env): TypeHandle
-```
-
-- `parentAst`: the AST whose interior slot we are asking about.
-- `position`: the slot identifier inside `parentAst`:
-  - a `string` is a field name (`'body'`, `'x'`, `'returnType'`, etc.)
-  - a `number` is a positional index (`0` for the first argument of a call, `1` for the second element of a vector, etc.)
-  - a `(string | number)[]` is a structured path that descends through nested slots (e.g. `['params', 0, 'type']`)
-- `env`: the env in which `parentAst` is evaluated. Needed because slot types may reference type values pulled from env-bound names.
-
-`Position` is a host-API navigation aid, not a Glisp `path` AST. It addresses "which slot inside this parent" from the TS side; Glisp's `g.path` (`./foo`, `../bar`) addresses positions inside a running program, with a different starting point and dot-counting rule.
-
-```ts
-// parentAst = (=> (x: number y: number): number body)
-g.expectedTypeAt(parentAst, 'body', env)
-//   → number  (the body must produce the declared return type)
-
-// parentAst = (f a b), f : (=> (x: number y: number): number)
-g.expectedTypeAt(parentAst, 1, env)
-//   → number  (arg 0 is 'a' for x)
-
-// parentAst = {x: 10 y: 20}  in a slot expecting {x: number y: number}
-g.expectedTypeAt(parentAst, 'x', env)
-//   → number
-```
-
-This is required because `eval(ast, env)` decouples ast from env's structural lineage — there is no inherent "where in the tree am I" for a free-floating ast. To ask about a position, the host names the parent and the slot.
-
-The expected type is computed statically from the parent's type (the head's signature, the receiving record/tuple type, the function's return-type slot, etc.). When the parent itself has no constraint (e.g. a let-block binding's right-hand side, or any expression position not flowing into a typed slot), the result is `top` — anything is accepted.
-
-This is the API GUI tooling calls when displaying completion, type hints, or wiring suggestions for a cursor position.
-
-### `g.print(ast)` — AST → source string
-
-Renders an AST back to Glisp source text. Combined with `g.toAst`, it produces a `value → source` round-trip.
-
-```ts
-g.print(g.parse('(+ 1 2)'))             // → "(+ 1 2)"
-g.print(g.toAst({x: 10, y: 20}, env))   // → "{x: 10 y: 20}"
-```
-
-Trivia handling:
-
-- An AST originating from `g.parse` retains its inter-position trivia (whitespace, comments), so `g.print(g.parse(s))` reproduces `s` verbatim.
-- An AST originating from builders has no trivia, so `g.print` formats it with default whitespace consistent with the rules in [syntax.md](./syntax.md).
-
-The Glisp language can also expose a `print` function callable as `(print value)`. It is a host binding, conventionally:
-
-```ts
-print: g.def(
-  g.fn({v: g.top}).returns(g.string),
-  (v) => g.print(g.toAst(v, env))
-)
-```
-
-The TS `g.print` and the Glisp-level `print` share a name but live on different layers — one is a host utility on ASTs, the other is a function value bound in the Glisp environment that operates on values. Whether `print` ships in the standard prelude is part of the Prelude-boundary question (see Open questions).
-
-## External types
-
-Any JS value that does not correspond to a Glisp built-in type can flow through Glisp via an externally-declared type. From Glisp's perspective such values inhabit a named external type whose internals are not introspectable; they pass through unchanged.
-
-`g.extern` declares such a type. The same API covers both **monomorphic** types (`Date`) and **generic** type constructors of arity 1 (`Observable<T>`):
-
-```ts
-// monomorphic
-const DateType = g.extern<Date>('Date', {
-  guard: (v): v is Date => v instanceof Date,
-  default: new Date(0),
-  toAst: (d) => g.call(g.sym('Date.parse'), g.lit(d.toISOString())),
-})
-
-// generic (1-argument type constructor)
-const Observable = g.extern<Observable<any>>('Observable', {
-  arity: 1,
-  guard: (v): v is Observable<any> => v instanceof Observable,
-  default: <T>() => EMPTY as Observable<T>,
-  // toAst omitted — Observable values are stream-like and cannot be losslessly serialized to an AST
-})
-
-const env = g.prelude.with({
-  today: g.def(g.fn({tick: g.unit}).returns(DateType), () => new Date()),
-  numbers: g.def(Observable(g.number), of(1, 2, 3)),
-  names:   g.def(Observable(g.string), of('a', 'b')),
+withExpansion(power, ([base, exp], context) => {
+	const n = context.value(exp)           // only what is asked for is computed
+	if (!Number.isInteger(n)) return null  // null: no next rung
+	return context.call('*', multiply, new Array(n).fill(base))
 })
 ```
 
-### TS inference for `g.extern`
+- `args` are the argument expressions as written, in parameter order, with variadic arguments at the end. One not passed is `undefined`.
+- `context.value(ast)` works out an argument.
+- `context.call(name, fn, args)` is a call to `fn`, written as `name` if that is what the name means at the call site, and with `fn` itself embedded if the caller has shadowed it.
 
-The TS type argument is propagated by `g.infer`:
+### Overloads
 
-- **Monomorphic**: `g.infer<typeof DateType>` is `Date`.
-- **Generic**: `g.infer<typeof Observable(g.number)>` is `Observable<number>`. The element type is captured at the call to `Observable(...)` and woven into the JS type via TS's higher-rank generics.
+`new OverloadValue([fn1, fn2])`, bound with `host`, dispatches to the first variant whose parameters fit the arguments. In Glisp, `(overload f g)`. Order the variants from most to least specific.
 
-Concretely, the generic form of `g.extern<JSCtor>(name, options)` returns a function `(t: TypeHandle<T>) => ExternTypeHandle<JSCtor with T substituted>`, so calling `Observable(g.number)` yields a handle whose inferred TS type is `Observable<number>`. This enables the `bind` site's `value` to be type-checked against the parameterized form (`fn: () => Observable<number>` rather than `() => Observable<any>`).
+### Actions
 
-### Semantics
-
-- `guard` is the runtime predicate used at cast sites (`(Date v)` validates and returns `v` if `guard(v)` is true).
-- `default` is the metadata default returned on cast failure. For generic types, `default` is a parametrized factory.
-- `toAst` (optional) maps a JS value of this type to an AST whose evaluation reproduces the value. Used by `g.toAst` (see [Reflection](#reflection)). Without it, `g.toAst` cannot serialize values of this extern type and emits a diagnostic.
-- `arity: 1` makes the result a unary type constructor. Without `arity` (or `arity: 0`), the type is monomorphic.
-- Generic types compare by **name + identity of the type argument**. The runtime `guard` checks only the JS class — element-type validity is the host's responsibility (a `Observable<number>` cast can't verify the stream actually emits numbers).
-- Higher arities (`arity >= 2`) are not currently supported. If a multi-parameter generic is needed, the host can compose with records or wrap with another generic.
-
-Whether to provide `toAst` is up to the host. Self-describing values (`Date`, `URL`, plain data wrappers) are typically convertible. Effectful or stream-like values (`Observable`, file handles, sockets) generally are not.
-
-Convention: external types are named with an uppercase initial (`Date`, `URL`, `Map`, `Observable`), per the [naming convention](./types.md#naming-convention).
-
-## Function overloading
-
-A single name can dispatch to one of several implementations based on argument types. `g.overload` collects multiple `[type, value]` pairs into a single overloaded function:
+A host function can return an `IO`. Evaluating it changes nothing, and the host decides when to `run()` it.
 
 ```ts
-const vec2 = g.record({ x: g.number, y: g.number })
-
-const env = g.prelude.with({
-  '+': g.overload(
-    [g.fn({a: g.number, b: g.number}).returns(g.number),
-     (a, b) => a + b],
-    [g.fn({a: vec2, b: vec2}).returns(vec2),
-     (a, b) => ({ x: a.x + b.x, y: a.y + b.y })],
-  )
+new IO('description', () => {
+	// the effect, returning any diagnostics
+	return []
 })
 ```
 
-Dispatch rule: at a call site `(+ a b)`, the evaluator scans the overload candidates **in declared order** and picks the first whose parameter types accept the actual arguments (i.e. each argument casts successfully against the candidate's parameter type). If none match, the call falls back per the standard type-mismatch handling.
+## Building ASTs
 
-Authors are responsible for ordering candidates from most-specific to least-specific. Putting a broad signature (e.g. parameters typed `_`) first would shadow narrower ones below it.
+`parse(source)` throws `ParseError` or `LexError` on bad syntax. `print(ast)` gives the source back, with its whitespace and comments if it came from `parse`, and with default formatting otherwise.
 
-This is the same dispatch shape as `?` (match): linear scan, first match wins, no "most-specific" ranking. The evaluator runs one algorithm for both forms.
+The builders are functions, also collected as `g`:
 
-### TS inference for `g.overload`
+| Builder                          | Result                       |
+| -------------------------------- | ---------------------------- |
+| `lit(42)`                        | `42`                         |
+| `host(value)`                    | any JS value, evaluated as itself. Prints as a label such as `<host-fn>`, so it does not round-trip |
+| `sym('x')`                       | `x`                          |
+| `call(head, a, b)`               | `(head a b)`                 |
+| `callKw(head, [a], { k: b })`    | `(head a k=b)`               |
+| `access(target, 'x')`            | `target.x`                   |
+| `vec(a, b)`                      | `[a b]`                      |
+| `record({ x: a })`               | `{x: a}`                     |
+| `letBlock([['a', x]], body)`     | `{a = x body}`, also `g.let` |
+| `fn({ a: T }, R)`                | `(=> (a: T): R)`             |
+| `.withBody(expr)`                | `(=> (a: T): R expr)`        |
+| `.withGenerics('T')`             | `(=> (T) (a: T): R)`         |
+| `path('..', 'x')`                | `../x`                       |
+| `unquote(a)`, `spread(a)`        | `~a`, `...a`                 |
+| `meta({ label: 'x' }, a)`        | `^{label: "x"} a`            |
 
-`g.infer<typeof overloadValue>` produces an **intersection of the candidate function types** — exactly TS's representation of an overloaded function:
+`g.number`, `g.string`, `g.boolean`, `g.unit`, `g.top`, `g.bottom`, `g.vector(T)` and `g.enum('a', 'b')` build **ASTs** of type expressions: they are what you would write in source, not `TypeValue`s.
+
+## Checking and reflection
+
+These run no value expression, apart from type expressions.
 
 ```ts
-const plus = g.overload(
-  [g.fn({a: g.number, b: g.number}).returns(g.number), (a, b) => a + b],
-  [g.fn({a: vec2, b: vec2}).returns(vec2), addVec2],
-)
-
-type Plus = g.infer<typeof plus>
-//   = ((a: number, b: number) => number) & ((a: vec2, b: vec2) => vec2)
+check(ast, env)             // every diagnostic, including in what never runs
+infer(ast, env)             // the TypeValue, or null if it cannot be determined
+resolveTypeSlot(ast, env)   // `ast` read as a type, or null
+typeFits(actual, expected)  // whether one type fits another
+resolve(ast, env)           // what each name and path refers to
+freeRefs(ast)               // what a node needs from outside itself
+callParameters(call, env)   // what the head calls its parameters
+expectedTypeAt(parent, slot, env)  // the type a position wants
 ```
 
-TS's call-site type-checking picks the matching signature from the intersection. The `value` parts of the candidates must satisfy this intersection (each implementation matches its own signature; TS verifies this at `g.overload` call site).
+`expectedTypeAt` is for editors asking what fits in a position. `slot` is an argument's index or name in a call, or `'return'` or `'param:N'` in a function literal. It returns null when nothing constrains the position. For a call, it currently evaluates the head.
 
-In Glisp source, the same overload form is available as the `overload` special form:
+## The abstraction ladder
 
-```glisp
-+ = (overload
-      (=> (a: number b: number): number ...)
-      (=> (a: vec2 b: vec2): vec2 ...))
+```ts
+expand(ast, env)        // one step: the same node if there is no next rung
+expandLadder(ast, env)  // every rung, starting with `ast`
+expandAll(ast, env)     // the last rung
 ```
 
-## Functions across the boundary
+Which sub-expression to step is up to the host. See [Multi-step evaluation](./eval.md#multi-step-evaluation--abstraction-ladder).
 
-Both directions are automatic:
+`toAst(value, env)` turns a value back into an AST whose evaluation yields it: a bound name if `env` has one for that value, and a `host` node for what has no source form.
 
-- **Host → Glisp**: bind a JS function. Inside Glisp it is callable like any other function value.
-- **Glisp → host**: a Glisp Closure surfaced to JS is a callable JS function. Calling it forces evaluation in the closure's captured env and returns a JS value.
-- **JS callbacks passed into Glisp**: a JS function passed as an argument is callable from Glisp directly. Glisp does not introspect the JS function's parameter list; the receiving slot's declared type is what's checked.
+## Diagnostics
 
-### Captured environment of host-bound functions
+```ts
+interface Diagnostic {
+	level: 'error' | 'warning' | 'info'
+	message: string
+	source: { ast: AST; env: Env }
+}
+```
 
-A Glisp closure is conceptually `(function literal AST, captured env)`. For functions imported from the host via `g.def(fnType, jsFn)`, there is no Glisp body — the function body is the host's JS implementation. The captured env slot of such a closure is the **empty env** (the root sentinel above top-level).
-
-The empty captured env is observably consistent:
-
-- Argument evaluation happens in the **caller's** env, per [eval.md — Environment](./eval.md#environment), regardless of host or Glisp origin.
-- Return values come back from JS directly; no env lookup is involved.
-- `expand` cannot descend into a host-bound function's body (it is JS, not AST). An empty captured env reflects "nothing to traverse."
-
-If a host-bound function needs lexical state (counters, caches, accumulators), the host writes a plain JS closure inside the bound JS function. Glisp does not provide a way to give a host-bound function an extended captured env.
-
-## Open questions
-
-- **Diagnostics API surface**: how `glisp.diagnose` returns the diagnostic set, query by sub-AST, severity filtering, etc.
-- **Prelude boundary**: which functions are defined in Glisp source (Prelude) vs. host-bound primitives. Numeric ops (`+`, `*`, `<`) are likely host-bound; higher-order helpers (`map`, `filter`, `reduce`) are written in Glisp.
-- **Module / multi-file structure**: a single evaluable program vs. a module system with imports/exports. Affects whether `.bind` extends top-level or pushes a new frame.
-- **Incremental / differential evaluation**: how the host signals AST changes and what the host receives in return.
-- **Bidirectional evaluation**: editing a result, inferring the corresponding input.
+`source.ast.source`, when present, is `{ text, start, end }`: the range in the source it was parsed from. A result cached by `Runtime` keeps the diagnostic from when it was computed, so this may belong to an earlier root.

@@ -14,11 +14,9 @@ Value ::=
     | Record {key → Value}
     | Function ...
     | Type ...
-    | Top
-    | Bottom
 ```
 
-Types can be `let`-bound, passed as arguments, returned from functions, quoted.
+Types can be `let`-bound, passed as arguments, and returned from functions. `_` and `!` are types like any other.
 
 ## Equality
 
@@ -102,14 +100,13 @@ Notes on tuple types:
 
 `refine` is the mechanism for value-restricted subtypes — a base type narrowed by a predicate. Coercing through `(refine T default pred)` first checks that `v` fits `T`; if so, `pred(v)` is called; if `pred` returns true, the value is accepted, otherwise the result falls back to the explicit `default`. The default is supplied separately because `T`'s default need not satisfy `pred`.
 
+<!-- test -->
 ```glisp
 ColorCode = (refine string "#000000"
-                    (=> (s: string): boolean
-                       (and (= (size s) 7)
-                            (= (s 0) "#"))))
+                    (=> (s: string): boolean (starts-with s "#")))
 
 (: "#FF0000" ColorCode)  ;; → "#FF0000"
-(: "hello" ColorCode)    ;; → "#000000" (default — size mismatch)
+(: "hello" ColorCode)    ;; → "#000000"  (default)
 
 NonNegative = (refine number 0 (=> (n: number): boolean (>= n 0)))
 ```
@@ -165,12 +162,15 @@ This rule keeps the meaning of every annotation unambiguous: the right side of `
 
 Explicit type coercion uses the `:` special form, the prefix form of the annotation `v: T`. `T` must evaluate to a type value, `v` is the value to coerce:
 
+<!-- test -->
 ```glisp
+JoinType = (enum "round" "butt" "square")
+
 (: 42 number)                 ;; → 42
-(: "hello" number)            ;; → 0      (default — diagnostic)
+(: "hello" number)            ;; → 0  (default, with a diagnostic)
 (: [1 2 3] [...number])       ;; → [1 2 3]
-(: "round" JoinType)          ;; → "round"   (JoinType = (enum "round" "butt" "square"))
-(: "diamond" JoinType)        ;; → "round"   (default — diagnostic)
+(: "round" JoinType)          ;; → "round"
+(: "diamond" JoinType)        ;; → "round"  (default, with a diagnostic)
 ```
 
 `(: v T)` is the only way to invoke the cast/validate semantics on a type value. The bare-call form `(T v)` is **not** a cast — type values are not callable. Calling a type value emits a diagnostic suggesting `(: v T)`.
@@ -181,7 +181,7 @@ The rule:
 2. `v` is `()` → return `t.default` silently (matches the typed-slot fallback in [Type interpretation at type slots](#type-interpretation-at-type-slots)).
 3. otherwise → return `t.default` and emit a diagnostic.
 
-The host's `coerceTo(t, v)` is a thin wrapper that performs steps (1) and (3) without surfacing diagnostics — used by the evaluator at typed slots and by the static checker.
+The host's `coerceTo(t, v)` performs steps (1) and (3) without surfacing diagnostics.
 
 For non-fallback type tests (membership without consuming the default), pattern-match via `?`:
 
@@ -199,8 +199,8 @@ When the target type of `(: v T)` is a function type `(=> (...): R)` and the inp
 - If `v` coerces to `R`, the result is a constant function `(=> (...): R v)` — calling it ignores its arguments and returns `v`.
 - Otherwise, the standard default fallback applies.
 
+<!-- test -->
 ```glisp
-(: 20 (=> (x: number): number))        ;; → (=> (x: number): number 20)
 (map [1 2 3] (: 20 (=> (x: number): number)))   ;; → [20 20 20]
 ```
 
@@ -290,7 +290,5 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 
 - Anonymous recursive types `(rec X ...)`. Currently named bindings cover the use cases; revisit if a clear motivation appears.
 - Whether function types carry their own metadata (e.g. purity/effect annotations).
-- Diagnostics propagation mechanism: Boxed value, `WeakMap<Value, Diagnostics>`, or hybrid (the primitive-key problem).
-- TypeScript-side type derivation for `refine`-based subtypes: how to surface the predicate constraint in the inferred TS type.
-- Sum types / ADTs: not introduced. Tagged-record-by-convention covers the common cases; revisit if needed.
+- Sum types and unions: not introduced. A vector with no common element type is a vector of `_`.
 - **Type classes / constraint-based generics** (`(=> (T: Addable) (a: T b: T): T ...)`). v1 uses `overload` as a closed set of candidates. Type classes would add open extension (new instances declarable later) at the cost of a constraint syntax, instance declaration, and dictionary-passing implementation. Defer to v2; if introduced, `overload` may become syntactic sugar for a closed type-class definition.

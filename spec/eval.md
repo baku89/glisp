@@ -47,7 +47,7 @@ No parent pointer. The "where am I in the tree" information is supplied by the e
 
 ### AST node kinds
 
-The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via builders (`g.lit`, `g.sym`, etc. — see [host-api.md](./host-api.md)) and rarely need to inspect them, but for macro tooling or formatters that do, the `kind` set is fixed:
+The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via builders (`lit`, `sym`, etc. — see [host-api.md](./host-api.md)) and rarely need to inspect them, but for macro tooling or formatters that do, the `kind` set is fixed:
 
 | `kind`     | Node                 | Notes                                                         |
 | ---------- | -------------------- | ------------------------------------------------------------- |
@@ -81,7 +81,7 @@ Equality **ignores**:
 - **Attached metadata `^{...}`**, in line with the rule that metadata does not affect type or value identity ([types.md — Equality](./types.md#equality)).
 - **Memory identity**. Two distinct AST instances with the same structure are equal.
 
-This is the structural meaning used by `expand`'s fixed-point check, host comparisons, and macro logic.
+This is the structural meaning used by host comparisons.
 
 The memoization cache (see [Cycle detection](#cycle-detection)) is keyed by `(AST instance, env instance)` — **identity-based**, not structure-based — for performance. Two structurally equal but distinct AST instances are different memo keys; that is intentional and harmless because each instance still evaluates to the same value.
 
@@ -436,5 +436,4 @@ This has the following consequences for a host:
 ## Open questions
 
 - **Default fallback propagation**: when a sub-expression's evaluation falls back to a default value, how does the diagnostic propagate up the surrounding expression?
-- **Partial evaluation**: any evaluation node is in principle evaluable. What host API surfaces this for tooling?
 - **Bidirectional evaluation**: editing a result value, how is the corresponding input inferred?

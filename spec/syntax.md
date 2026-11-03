@@ -17,8 +17,8 @@
 | `"hello"`, `"with\nescape"` | `string`  |
 | `true`, `false`             | `boolean` |
 | `()`                        | `unit`    |
-| `_`                         | `Top`     |
-| `!`                         | `Bottom`  |
+| `_`                         | the top type: any value |
+| `!`                         | the bottom type: no value |
 
 
 `number` is a single unified numeric type, IEEE 754 double internally.
@@ -56,8 +56,8 @@ Several bare tokens are reserved and cannot stand alone as identifiers; embedded
 
 | Bare token | Reserved meaning                            | Embedded example (still valid) |
 | ---------- | ------------------------------------------- | ------------------------------ |
-| `_`        | `Top` type literal                          | `_x`, `foo_bar`                |
-| `!`        | `Bottom` type literal                       | `is-empty!`                    |
+| `_`        | top type literal                            | `_x`, `foo_bar`                |
+| `!`        | bottom type literal                       | `is-empty!`                    |
 | `%`        | partial-application placeholder             | `URL%encoded`                  |
 | `\|>`      | pipe special form                           | (none, distinct from `\|`)     |
 | `?`        | match special form (head); optional suffix  | (none, `?` already reserved)   |
@@ -93,6 +93,7 @@ Opening brackets in succession (`((`, `[[`, `[(`, `({`, ...) are not element bou
 
 ### `(...)` — function application / value invocation
 
+<!-- test -->
 ```glisp
 (+ 1 2 3)            ;; → 6
 ((if c f g) x)       ;; head can be any expression
@@ -116,6 +117,7 @@ Empty `()` is the unit value.
 
 ### `[...]` — vector
 
+<!-- test -->
 ```glisp
 [1 2 3]
 [(+ 1 2) (+ 3 4)]    ;; → [3 7]
@@ -152,6 +154,7 @@ A path is a sequence of segments separated by `/`. Each segment is one of:
 
 Distinguishing path from spread/splice: a path always begins with `./` or `../` and contains at least one `/`. A token of the shape `...name` (no slash) is a spread/splice, not a path.
 
+<!-- test -->
 ```glisp
 {width: 100
  height: ./width                ;; parent = record, sibling 'width' = 100
@@ -208,9 +211,10 @@ The block contents determine the kind:
 
 A record may not list the same field name twice. A let-block may not bind the same name twice. The duplicate is a diagnostic, but evaluation does not throw — it is **recoverable**: the **last entry wins** and overrides earlier ones.
 
+<!-- test -->
 ```glisp
-{x: 10 x: 20}                  ;; → {x: 20}, diagnostic: duplicate field x
-{a = 10 a = 20 a}              ;; → 20,      diagnostic: duplicate binding a
+{x: 10 x: 20}                  ;; → {x: 20}  (with a warning)
+{a = 10 a = 20 a}              ;; → 20  (with a warning)
 ```
 
 The last-wins rule keeps the language consistent with hosts whose serialization layers (JS object literals, JSON parsers, many config formats) drop earlier duplicates silently.
@@ -393,6 +397,7 @@ Expansion is bottom-up: the innermost `%` is consumed first, so each `%` belongs
 
 `%` can appear inside the body of a function literal too — it just yields a higher-order result:
 
+<!-- test -->
 ```glisp
 (=> (x: number): (=> (y: number): number) (* x %))
 ;; ≡ (=> (x: number): (=> (y: number): number) (=> (y) (* x y)))
@@ -416,11 +421,11 @@ The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 
 
 `(: v T)` coerces a value through a type, as the prefix form of the annotation `v: T`. A `:` directly after `(` is this form; anywhere else it keeps its annotation or key role. `T` is evaluated first as a type value, then `v`. On match `v` flows through; on mismatch the call returns `T`'s default and emits a diagnostic. `()` always coerces silently to the default.
 
+<!-- test -->
 ```glisp
 (: 42 number)            ;; → 42
-(: "hi" number)          ;; → 0   (default — diagnostic)
-(: () number)            ;; → 0   (silent — () convention)
-(: "diamond" JoinType)   ;; → "round"   (default — diagnostic)
+(: "hi" number)          ;; → 0  (default, with a diagnostic)
+(: () number)            ;; → 0  (default, silently)
 ```
 
 `(: v T)` is the **only** way to invoke the coerce/validate semantics on a type value. Calling a type value directly — `(number 42)` — is rejected with a diagnostic suggesting `(: 42 number)`. See [types.md — Coercion](./types.md#coercion-v-t) for the full semantics.
@@ -480,7 +485,7 @@ See [types.md](./types.md) for the canonical specification. In summary, default 
 
 ### Built-in primitive types
 
-The built-in primitive types are `number`, `string`, `boolean`, `unit`, `Top`, and `Bottom`. Their literal forms: `()` for `unit`, `_` for `Top`, `!` for `Bottom`.
+The built-in primitive types are `number`, `string`, `boolean`, `unit`, `_`, and `!`. Their literal forms: `()` for `unit`, `_` for `Top`, `!` for `Bottom`.
 
 ### Type constructors
 
@@ -497,12 +502,15 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `Top`, a
 
 `(: v T)` casts/validates `v` as `T`:
 
+<!-- test -->
 ```glisp
+JoinType = (enum "round" "butt" "square")
+
 (: 42 number)                     ;; → 42
-(: "hello" number)                ;; → default fallback
+(: "hello" number)                ;; → 0  (default)
 (: [1 2 3] [...number])           ;; → [1 2 3]
-(: "round" JoinType)              ;; → "round"  (JoinType = (enum "round" "butt" "square"))
-(: "diamond" JoinType)            ;; → default fallback
+(: "round" JoinType)              ;; → "round"
+(: "diamond" JoinType)            ;; → "round"  (default)
 ```
 
 ### Subtyping
@@ -533,7 +541,7 @@ pow = (=> (x: number a: number): number (* ...~(repeat x a)))
 
 See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 
-## Top / Bottom
+## `_` and `!`
 
 - `_` is the top type — every value inhabits it.
 - `!` is the bottom type — no value inhabits it.
@@ -552,8 +560,8 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `^{...}`      | metadata attachment                                    |
 | `~`           | work out within one expansion step                     |
 | `...`         | spread / variadic                                      |
-| `_`           | Top type                                               |
-| `!`           | Bottom type                                            |
+| `_`           | top type                                               |
+| `!`           | bottom type                                            |
 | `;`           | one-line comment                                       |
 | `?`           | match special form (head); optional field/arg suffix   |
 | `\|>`         | pipe special form                                      |

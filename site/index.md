@@ -94,11 +94,11 @@ See the [Specification](./spec/README.md) for the full design rationale.
 
 ## Status
 
-The language core is in active implementation under `src/`. The terminal REPL is usable today, and the [browser playground](./playground.md) ships from the same source. Host integration API is documented in [`host-api`](./spec/host-api.md).
+The language core is in active implementation under `packages/lang`. The terminal REPL is usable today, and the [browser playground](./playground.md) ships from the same source. Host integration API is documented in [`host-api`](./spec/host-api.md).
 
 ## Where to look
 
-- [`syntax`](./spec/syntax.md): concrete syntax. Tokens, structure, functions, metadata, quoting.
+- [`syntax`](./spec/syntax.md): concrete syntax. Tokens, structure, functions, metadata.
 - [`types`](./spec/types.md): type system. Values-as-types, constructors, parametric IO, coercion via `(: v T)`.
-- [`eval`](./spec/eval.md): evaluation. Scopes, lazy semantics, DAG, diagnostics, abstraction ladder.
-- [`host-api`](./spec/host-api.md): embedding API. Marshaling, AST/type combinators, TS type inference.
+- [`eval`](./spec/eval.md): evaluation. Scopes, lazy semantics, the abstraction ladder, incremental evaluation.
+- [`host-api`](./spec/host-api.md): embedding API. `Runtime`, `Session`, host functions.

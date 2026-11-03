@@ -30,11 +30,13 @@ _                   ;; top  (accepts anything)
 
 A call is `(head arg ... kwarg=...)`. Whitespace separates tokens; commas are not used.
 
+<!-- test -->
 ```glisp
 (+ 1 2 3)              ;; → 6
 (* 2 (+ 3 4))          ;; → 14
-(f 1 step=2)           ;; positional + keyword
 ```
+
+Arguments can also be passed by name, as in `(f 1 step=2)`.
 
 ## Vectors and records
 
@@ -50,6 +52,7 @@ A call is `(head arg ... kwarg=...)`. Whitespace separates tokens; commas are no
 
 Function literals take an explicit signature and an inferred body. The arrow is `=>`.
 
+<!-- test -->
 ```glisp
 (=> (x: number y: number): number
   (+ x y))
@@ -64,6 +67,7 @@ square = (=> (n: number): number (* n n))
 
 A function is itself a value. Higher-order use is the same as anywhere:
 
+<!-- test -->
 ```glisp
 (map [1 2 3 4] (=> (n: number): number (* n n)))
 ;; → [1 4 9 16]
@@ -76,6 +80,7 @@ A function is itself a value. Higher-order use is the same as anywhere:
 
 Types are first-class values. The prelude binds `number`, `string`, `boolean`, `unit`, `_`, `!`, `IO`. You can build new ones:
 
+<!-- test -->
 ```glisp
 ;; Enumeration of literal members
 Color = (enum "red" "green" "blue")
@@ -91,9 +96,13 @@ Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
 
 `(: v T)` coerces `v` through type `T`. If `v` fits, it's passed through; otherwise the type's `default` takes its place and a diagnostic is recorded.
 
+<!-- test -->
 ```glisp
 (: 42 number)          ;; → 42
 (: "oops" number)      ;; → 0   (default; diagnostic emitted)
+Color = (enum "red" "green" "blue")
+Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
+
 (: "red" Color)        ;; → "red"
 (: "purple" Color)     ;; → "red"  (default = first member)
 (: 5 Pos)              ;; → 5
@@ -132,6 +141,7 @@ Like everything else, `?` does not throw. If no clause matches and there's no de
 
 Curly braces with `name = expr` pairs introduce local bindings; the trailing form is the value of the block.
 
+<!-- test -->
 ```glisp
 {
   a = 10
@@ -162,6 +172,7 @@ The `expand` operation is one step on the abstraction ladder. `~` never changes 
 
 Glisp never throws on user errors. Type mismatches, unresolved names, and arity failures produce `(message, source)` diagnostics that the host surfaces alongside the result.
 
+<!-- test -->
 ```glisp
 (+ "a" 2 "b")
 ;; → 2  (the one numeric arg)
