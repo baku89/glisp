@@ -46,6 +46,7 @@ import {
 	type TypeValue,
 	unitType,
 	unwrapLazy,
+	withDefaultFrom,
 	withTypeMeta,
 } from './eval.js'
 import {
@@ -123,7 +124,12 @@ function computeTypeSlot(ast: AST, env: Env): TypeValue | null {
 	switch (ast.kind) {
 		case 'meta': {
 			const type = resolveTypeSlot(ast.expr, env)
-			return type === null ? null : withTypeMeta(type, ast.metadata)
+			return type === null
+				? null
+				: withTypeMeta(
+						withDefaultFrom(type, ast.metadata, env).type,
+						ast.metadata
+					)
 		}
 		case 'vec':
 			return tupleSlot(ast, env)

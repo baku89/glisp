@@ -222,6 +222,7 @@ resolveTypeSlot(ast, env)   // `ast` read as a type, or null
 typeFits(actual, expected)  // whether one type fits another
 resolve(ast, env)           // what each name and path refers to
 freeRefs(ast)               // what a node needs from outside itself
+evaluatedRefs(ast)          // the same, apart from what only metadata refers to
 callParameters(call, env)   // what the head calls its parameters
 expectedTypeAt(parent, slot, env)  // the type a position wants
 ```

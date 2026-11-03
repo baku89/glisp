@@ -34,6 +34,7 @@ import {
 	SpreadAST,
 	type SymAST,
 	withoutMeta,
+	type MetaAST,
 } from './types.js'
 
 /** Call heads dispatched by name, which never refer to a binding. */
@@ -70,12 +71,33 @@ const freeRefsCache: WeakMap<AST, FreeRefs> = new WeakMap()
 export function freeRefs(ast: AST): FreeRefs {
 	const cached = freeRefsCache.get(ast)
 	if (cached !== undefined) return cached
-	const refs = computeFreeRefs(ast)
+	const refs = computeFreeRefs(ast, freeRefs, meta => freeRefs(meta.metadata))
 	freeRefsCache.set(ast, refs)
 	return refs
 }
 
-function computeFreeRefs(ast: AST): FreeRefs {
+const evaluatedRefsCache: WeakMap<AST, FreeRefs> = new WeakMap()
+
+/**
+ * What `ast` needs for its value: `freeRefs`, apart from what only metadata refers
+ * to. Of metadata, evaluation reads a `default`, from inside the metadata's record.
+ */
+export function evaluatedRefs(ast: AST): FreeRefs {
+	const cached = evaluatedRefsCache.get(ast)
+	if (cached !== undefined) return cached
+	const refs = computeFreeRefs(ast, evaluatedRefs, meta => {
+		const field = meta.metadata.get('default')
+		return field === undefined ? NO_REFS : enterFrame(evaluatedRefs(field))
+	})
+	evaluatedRefsCache.set(ast, refs)
+	return refs
+}
+
+function computeFreeRefs(
+	ast: AST,
+	refs: (ast: AST) => FreeRefs,
+	metadataRefs: (ast: MetaAST) => FreeRefs
+): FreeRefs {
 	switch (ast.kind) {
 		case 'lit':
 		case 'host':
@@ -86,37 +108,37 @@ function computeFreeRefs(ast: AST): FreeRefs {
 			return { names: new Set(), paths: [{ path: ast, up: climbCount(ast) }] }
 		case 'unquote':
 		case 'spread':
-			return freeRefs(ast.expr)
+			return refs(ast.expr)
 		case 'access':
-			return freeRefs(ast.target)
+			return refs(ast.target)
 		case 'meta':
-			return merge([freeRefs(ast.metadata), freeRefs(ast.expr)])
+			return merge([metadataRefs(ast), refs(ast.expr)])
 		case 'vec':
-			return enterFrame(merge(ast.elements.map(freeRefs)))
+			return enterFrame(merge(ast.elements.map(refs)))
 		case 'record':
 			return enterFrame(
 				merge(
 					ast.fields.map(entry =>
-						freeRefs(entry instanceof SpreadAST ? entry.expr : entry[1])
+						refs(entry instanceof SpreadAST ? entry.expr : entry[1])
 					)
 				)
 			)
 		case 'call':
-			return enterFrame(merge(callOperands(ast).map(freeRefs)))
+			return enterFrame(merge(callOperands(ast).map(refs)))
 		case 'let': {
-			const parts = ast.bindings.map(([, value]) => freeRefs(value))
-			if (ast.body !== null) parts.push(freeRefs(ast.body))
+			const parts = ast.bindings.map(([, value]) => refs(value))
+			if (ast.body !== null) parts.push(refs(ast.body))
 			return enterFrame(bind(merge(parts), ast.bindings.map(([n]) => n)))
 		}
 		case 'fn': {
 			const types = merge([
-				...ast.params.map(p => freeRefs(p.type)),
-				freeRefs(ast.returnType),
+				...ast.params.map(p => refs(p.type)),
+				refs(ast.returnType),
 			])
 			const body =
 				ast.body === null
 					? NO_REFS
-					: enterFrame(bind(freeRefs(ast.body), ast.params.map(p => p.name)))
+					: enterFrame(bind(refs(ast.body), ast.params.map(p => p.name)))
 			return bind(merge([types, body]), ast.generics)
 		}
 	}

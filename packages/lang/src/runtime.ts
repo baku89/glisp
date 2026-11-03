@@ -36,7 +36,7 @@ import {
 	withEvalStore,
 } from './eval.js'
 import { desugar } from './desugar.js'
-import { type FreePath, freeRefs } from './resolve.js'
+import { evaluatedRefs, type FreePath } from './resolve.js'
 import { type AST, type Env, SpreadAST, UNIT, withoutMeta } from './types.js'
 
 export interface RuntimeOptions {
@@ -331,8 +331,12 @@ class SignatureStore implements EvalStore {
 			case 'spread':
 				return `... ${id(ast.expr)}`
 			case 'meta':
-				// Evaluation ignores metadata, and `evaluate` sees the same value.
-				return `meta ${id(ast.expr)}`
+				// Of metadata, evaluation reads only a `default`.
+				return `meta ${id(ast.expr)} ${
+					ast.metadata.get('default') === undefined
+						? ''
+						: id(ast.metadata.get('default')!)
+				}`
 			case 'access':
 				return `. ${id(ast.target)} ${JSON.stringify(ast.key)}`
 			case 'vec':
@@ -482,7 +486,7 @@ class SignatureStore implements EvalStore {
 	}
 
 	private dependencies(ast: AST, env: Env): Dep[] {
-		const refs = freeRefs(ast)
+		const refs = evaluatedRefs(ast)
 		const deps: Dep[] = []
 		for (const name of refs.names) {
 			const target = lookupBareName(name, env)

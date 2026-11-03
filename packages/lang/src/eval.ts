@@ -324,6 +324,40 @@ export function withTypeMeta(type: TypeValue, metadata: RecordAST): TypeValue {
 	}) as TypeValue
 }
 
+/**
+ * The type a `default` in `metadata` makes of `type`, which is the one thing in
+ * metadata that evaluation reads. One that does not fit says so and has no effect.
+ */
+export function withDefaultFrom(
+	type: TypeValue,
+	metadata: RecordAST,
+	env: Env
+): { type: TypeValue; diagnostics: readonly Diagnostic[] } {
+	const field = metadata.get('default')
+	if (field === undefined) return { type, diagnostics: [] }
+	const { value, diagnostics } = evaluate(field, enterNode(metadata, env))
+	if (!type.fits(value)) {
+		return {
+			type,
+			diagnostics: [
+				...diagnostics,
+				{
+					level: 'error',
+					message: `default does not fit ${type.typeName}`,
+					source: { ast: field, env },
+				},
+			],
+		}
+	}
+	const base = Object.create(type.plain ?? type, {
+		default: { value },
+	}) as TypeValue
+	return {
+		type: type.meta === undefined ? base : withTypeMeta(base, type.meta),
+		diagnostics,
+	}
+}
+
 /** A type as source, with what is said about it. */
 export function printType(type: TypeValue): string {
 	return type.meta === undefined
@@ -1219,9 +1253,17 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 			// A bare spread used outside a list-building context has no value.
 			return fail(ast, env, 'spread used outside a list-building context')
 
-		case 'meta':
-			// Metadata is a parallel layer; eval just evaluates the underlying expr.
-			return evaluate(ast.expr, env)
+		case 'meta': {
+			// A parallel layer, of which evaluation reads only a type's `default`.
+			const result = evaluate(ast.expr, env)
+			if (!isTypeValue(result.value)) return result
+			const { type, diagnostics } = withDefaultFrom(
+				result.value,
+				ast.metadata,
+				env
+			)
+			return { value: type, diagnostics: [...result.diagnostics, ...diagnostics] }
+		}
 	}
 }
 

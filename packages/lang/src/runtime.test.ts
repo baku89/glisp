@@ -476,3 +476,33 @@ describe('Runtime — agrees with plain evaluation under random edits', () => {
 		expect(compared).toBeGreaterThan(1500)
 	})
 })
+
+describe('Runtime — metadata', () => {
+	const after = (before: string, edited: string, name: string) => {
+		const runtime = new Runtime(buildPrelude())
+		runtime.setRoot(parse(before))
+		const first = runtime.read(name).value
+		runtime.resetStats()
+		runtime.setRoot(parse(edited))
+		const { value } = runtime.read(name)
+		return { first, value, computed: runtime.stats().computed }
+	}
+
+	it('recomputes nothing for what evaluation does not read', () => {
+		const label = after('{a = ^{label: "A"} (+ 1 2)}', '{a = ^{label: "B"} (+ 1 2)}', 'a')
+		expect(label.computed).toBe(0)
+		const range = after('{a = ^{min: 0} (+ 1 2)}', '{a = ^{min: 1 suffix: "%"} (+ 1 2)}', 'a')
+		expect(range.computed).toBe(0)
+		const reference = after('{k = 1 a = ^{max: k} (+ 1 2)}', '{k = 2 a = ^{max: k} (+ 1 2)}', 'a')
+		expect(reference.computed).toBe(0)
+	})
+
+	it('recomputes for a default, and for what one refers to', () => {
+		const src = (d: number) => `{P = ^{default: ${d}} number a = (: "x" P)}`
+		const direct = after(src(1), src(2), 'a')
+		expect([direct.first, direct.value]).toEqual([1, 2])
+		const via = (k: number) => `{k = ${k} P = ^{default: k} number a = (: "x" P)}`
+		const reference = after(via(1), via(2), 'a')
+		expect([reference.first, reference.value]).toEqual([1, 2])
+	})
+})

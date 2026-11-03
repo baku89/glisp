@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { check } from './check.js'
-import { infer } from './infer.js'
+import { infer, resolveTypeSlot } from './infer.js'
 import { Runtime } from './runtime.js'
 import { Session } from './session.js'
 import { print } from './print.js'
@@ -20,6 +20,7 @@ import {
 import {
 	emptyEnv,
 	evaluate,
+	printType,
 	IO,
 	isGlispClosure,
 	isTypeValue,
@@ -1357,5 +1358,53 @@ describe('evaluate — runaway recursion', () => {
 			evaluate(ast, env).diagnostics.map(d => d.message)
 		expect(messages()).toEqual(['recursion too deep'])
 		expect(messages()).toEqual(['recursion too deep'])
+	})
+})
+
+describe('default in metadata', () => {
+	const env = buildPrelude()
+	const run = (src: string) => evaluate(parse(src), env)
+
+	it('is what a type falls back to', () => {
+		expect(run('(: "a" ^{default: 7} number)').value).toBe(7)
+		expect(run('{P = ^{default: 7} number (: "a" P)}').value).toBe(7)
+		expect(run('{f = (=> (x: ^{default: 7} number): number x) (f "a")}').value).toBe(7)
+		expect(run('{P = ^{default: 7} number f = (=> (x: P): number x) (f "a")}').value).toBe(7)
+		expect(run('{f = (=> (x: ^{default: 7} number): number x) (f ())}').value).toBe(7)
+	})
+
+	it('goes along with what is derived, until something goes over it', () => {
+		expect(run('{P = ^{default: 7} number Q = ^{max: 9} P (: "a" Q)}').value).toBe(7)
+		expect(run('{P = ^{default: 7} number Q = ^{default: 8} P (: "a" Q)}').value).toBe(8)
+		expect(run('{P = ^{default: 7} number Q = P (: "a" Q)}').value).toBe(7)
+	})
+
+	it('can be worked out', () => {
+		expect(run('{k = 3 (: "a" ^{default: (+ k 1)} number)}').value).toBe(4)
+	})
+
+	it('still fits as what it is', () => {
+		expect(run('{P = ^{default: 7} number f = (=> (x: number): number x) (f (: 1 P))}').value).toBe(1)
+		expect(run('(: 1 ^{default: 7} number)').value).toBe(1)
+		expect(check(parse('{P = ^{default: 7} number f = (=> (x: P): number x) (f 1)}'), env)).toEqual([])
+		const typed = resolveTypeSlot(parse('^{default: 7} number'), env)!
+		const plain = resolveTypeSlot(parse('number'), env)!
+		expect(typeFits(typed, plain)).toBe(true)
+		expect(typeFits(plain, typed)).toBe(true)
+		expect(printType(typed)).toBe('^{default: 7} number')
+	})
+
+	it('says so when it does not fit, and has no effect', () => {
+		expect(run('(: "a" ^{default: "b"} number)').value).toBe(0)
+		expect(check(parse('{P = ^{default: "b"} number}'), env).map(d => d.message)).toContain(
+			'default does not fit number'
+		)
+		expect(check(parse('^{default: "b"} 1'), env)).toEqual([])
+		const result = run('{P = ^{default: "b"} number P}')
+		expect(result.diagnostics.map(d => d.message).join()).toContain('default does not fit')
+	})
+
+	it('means nothing on what is not a type', () => {
+		expect(run('^{default: 7} 5').value).toBe(5)
 	})
 })

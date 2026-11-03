@@ -6,7 +6,7 @@
  * Spec: docs/spec/types.md — Type inference
  */
 
-import { enterNode, pushLetFrame, typeFits } from './eval.js'
+import { enterNode, pushLetFrame, typeFits, withDefaultFrom } from './eval.js'
 import { bodyFrame, checkCall, infer, resolveTypeSlot } from './infer.js'
 import { resolve } from './resolve.js'
 import {
@@ -55,7 +55,17 @@ function walk(ast: AST, env: Env, diagnostics: Diagnostic[]): void {
 			return walkFn(ast, env, diagnostics)
 		case 'access':
 			return walk(ast.target, env, diagnostics)
-		case 'meta':
+		case 'meta': {
+			if (ast.metadata.get('default') !== undefined) {
+				const type = resolveTypeSlot(ast.expr, env)
+				if (type !== null) {
+					diagnostics.push(
+						...withDefaultFrom(type, ast.metadata, env).diagnostics
+					)
+				}
+			}
+			return walk(ast.expr, env, diagnostics)
+		}
 		case 'unquote':
 		case 'spread':
 			return walk(ast.expr, env, diagnostics)
