@@ -382,7 +382,7 @@ describe('parse — special forms (parser is permissive)', () => {
 
 	it('requires a separator between adjacent elements', () => {
 		for (const src of [
-			'(concat [][])',
+			'(++ [][])',
 			'[[1][2]]',
 			'(f)(g)',
 			'(+ 1 2)3',
@@ -401,7 +401,7 @@ describe('parse — special forms (parser is permissive)', () => {
 
 	it('accepts adjacency that is not between elements', () => {
 		for (const src of [
-			'(concat [] [])',
+			'(++ [] [])',
 			'[[1] [2]]',
 			'((f) (g))',
 			'[(f)]',

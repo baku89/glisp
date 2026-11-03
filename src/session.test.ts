@@ -293,7 +293,7 @@ describe('Session — paths through calls', () => {
 		s.exec('c = (+ 1 2 3)')
 		s.exec('f = (=> (a: number ...xs: number): number a)')
 		s.exec('y = (f 1 2 3)')
-		s.exec('z = (concat [1] [2] [3])')
+		s.exec('z = (++ [1] [2] [3])')
 		expect(s.exec('./c/xs').value).toEqual([1, 2, 3])
 		expect(s.exec('./c/xs/1').value).toBe(2)
 		expect(s.exec('./y/a').value).toBe(1)

@@ -207,46 +207,34 @@ function variadicNumLeftFold(
 }
 
 /**
- * `<` / `<=` / `>` / `>=` style: pairwise chain — true iff every
- * adjacent pair satisfies `op`. Single-arg is vacuously true.
+ * A variadic predicate over adjacent pairs of `xs`. With fewer than two
+ * arguments there is no pair to fail, so `(<)` and `(< x)` are true.
  */
-function chainCmp(op: (a: number, b: number) => boolean): TypedHostFn {
-	return makeTypedFn(
-		[numberType],
-		booleanType,
-		(first, ...rest) => {
-			let prev = first as number
-			for (const x of rest as number[]) {
-				if (!op(prev, x)) return false
-				prev = x
-			}
-			return true
-		},
-		['first'],
-		numberType
+function chain(
+	elementType: TypeValue,
+	holds: (a: unknown, b: unknown) => boolean
+): TypedHostFn {
+	return withSignature(
+		makeTypedFn(
+			[],
+			booleanType,
+			(...xs) => xs.every((x, i) => i === 0 || holds(xs[i - 1], x)),
+			[],
+			elementType
+		),
+		makeFunctionType([], booleanType, {
+			variadicTail: elementType,
+			variadicName: 'xs',
+		})
 	)
 }
 
-/**
- * `==` / `!=` chain over arbitrary values. `==` = all adjacent pairs
- * equal, `!=` = all adjacent pairs distinct. Single-arg is vacuously
- * true.
- */
+function chainCmp(op: (a: number, b: number) => boolean): TypedHostFn {
+	return chain(numberType, (a, b) => op(a as number, b as number))
+}
+
 function chainEq(want: boolean): TypedHostFn {
-	return makeTypedFn(
-		[topType],
-		booleanType,
-		(first, ...rest) => {
-			let prev = first
-			for (const x of rest) {
-				if ((prev === x) !== want) return false
-				prev = x
-			}
-			return true
-		},
-		['first'],
-		topType
-	)
+	return chain(topType, (a, b) => (a === b) === want)
 }
 
 // -----------------------------------------------------------------------------
@@ -325,7 +313,7 @@ export function buildPrelude(): Env {
 				(a as number) % (b as number)
 			))
 		),
-		pow: bind(
+		'**': bind(
 			'`base` raised to the `exp` power.',
 			host(fn2(numberType, numberType, numberType, (a, b) =>
 				Math.pow(a as number, b as number), ['base', 'exp']
@@ -371,12 +359,12 @@ export function buildPrelude(): Env {
 		// -----------------------------------------------------------------
 		// Comparison & boolean
 		// -----------------------------------------------------------------
-		'<': bind('Pairwise less-than chain.', host(chainCmp((a, b) => a < b))),
-		'>': bind('Pairwise greater-than chain.', host(chainCmp((a, b) => a > b))),
-		'<=': bind('Pairwise less-or-equal chain.', host(chainCmp((a, b) => a <= b))),
-		'>=': bind('Pairwise greater-or-equal chain.', host(chainCmp((a, b) => a >= b))),
-		'==': bind('All adjacent arguments are equal.', host(chainEq(true))),
-		'!=': bind('All adjacent arguments are distinct.', host(chainEq(false))),
+		'<': bind('Whether `xs` strictly increases. `(<)` is true.', host(chainCmp((a, b) => a < b))),
+		'>': bind('Whether `xs` strictly decreases. `(>)` is true.', host(chainCmp((a, b) => a > b))),
+		'<=': bind('Whether `xs` never decreases. `(<=)` is true.', host(chainCmp((a, b) => a <= b))),
+		'>=': bind('Whether `xs` never increases. `(>=)` is true.', host(chainCmp((a, b) => a >= b))),
+		'==': bind('Whether adjacent `xs` are equal. `(==)` is true.', host(chainEq(true))),
+		'!=': bind('Whether adjacent `xs` are distinct. `(!=)` is true.', host(chainEq(false))),
 		not: bind('Boolean negation.', host(fn1(booleanType, booleanType, a => !a))),
 		and: bind(
 			'Logical AND of one or more booleans. Non-booleans coerce to true.',
@@ -613,7 +601,7 @@ export function buildPrelude(): Env {
 			'Number of elements (vector) or characters (string).',
 			host(makeSizeOverload())
 		),
-		concat: bind(
+		'++': bind(
 			'Variadic concatenation: all vectors / all strings.',
 			host(makeConcatOverload())
 		),
@@ -866,7 +854,7 @@ function makeSizeOverload(): OverloadValue {
 	return new OverloadValue([sizeVec, sizeStr])
 }
 
-/** `concat` overload: strings or vectors, variadic (1+ args). */
+/** `++` overload: strings or vectors, variadic (1+ args). */
 function makeConcatOverload(): OverloadValue {
 	const concatVec = makeTypedFn(
 		[vectorType],

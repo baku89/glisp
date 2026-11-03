@@ -295,8 +295,8 @@ describe('infer — forms', () => {
 	})
 
 	it('types an overload call by the variant that fits', () => {
-		expect(typeOf('(concat [1] [2])')).toBe('vector')
-		expect(typeOf('(concat "a" "b")')).toBe('string')
+		expect(typeOf('(++ [1] [2])')).toBe('vector')
+		expect(typeOf('(++ "a" "b")')).toBe('string')
 	})
 
 	it('runs no value expression', () => {

@@ -76,14 +76,16 @@ describe('prelude — arithmetic (variadic)', () => {
 describe('prelude — comparison (chain)', () => {
 	const env = buildPrelude()
 
-	it('< chains pairwise; zero args is rejected', () => {
+	it('< chains pairwise; zero args is true', () => {
 		expect(evaluate(parse('(< 1 2 3 4)'), env).value).toBe(true)
 		expect(evaluate(parse('(< 1 3 2)'), env).value).toBe(false)
 		expect(evaluate(parse('(< 5)'), env).value).toBe(true) // vacuously true (no pairs)
 		const r = evaluate(parse('(<)'), env)
-		expect(
-			r.diagnostics.some(d => d.message.includes('missing argument'))
-		).toBe(true)
+		expect(r.value).toBe(true) // vacuously true, likewise
+		expect(r.diagnostics).toEqual([])
+		expect(evaluate(parse('(==)'), env).value).toBe(true)
+		expect(evaluate(parse('(!= 1 2 1)'), env).value).toBe(true)
+		expect(evaluate(parse('(== 1 1 2)'), env).value).toBe(false)
 	})
 
 	it('== / != chain over arbitrary values', () => {
@@ -165,11 +167,11 @@ describe('prelude — standard library', () => {
 		expect(evaluate(parse('(size "hello")'), env).value).toBe(5)
 	})
 
-	it('concat is variadic over both vectors and strings', () => {
-		expect(evaluate(parse('(concat [1 2] [3 4] [5])'), env).value).toEqual([
+	it('++ is variadic over both vectors and strings', () => {
+		expect(evaluate(parse('(++ [1 2] [3 4] [5])'), env).value).toEqual([
 			1, 2, 3, 4, 5,
 		])
-		expect(evaluate(parse('(concat "foo" "bar")'), env).value).toBe('foobar')
+		expect(evaluate(parse('(++ "foo" "bar")'), env).value).toBe('foobar')
 	})
 
 	it('slice over vectors and strings', () => {
@@ -181,7 +183,7 @@ describe('prelude — standard library', () => {
 
 	it('math primitives', () => {
 		expect(evaluate(parse('(mod 10 3)'), env).value).toBe(1)
-		expect(evaluate(parse('(pow 2 10)'), env).value).toBe(1024)
+		expect(evaluate(parse('(** 2 10)'), env).value).toBe(1024)
 		expect(evaluate(parse('(sqrt 16)'), env).value).toBe(4)
 		expect(evaluate(parse('(floor 3.7)'), env).value).toBe(3)
 		expect(evaluate(parse('(ceil 3.2)'), env).value).toBe(4)
@@ -267,11 +269,25 @@ describe('prelude — :type signature display via infer', () => {
 
 	it('infer(==) returns boolean-typed predicate', () => {
 		const t = infer(parse('=='), env)
-		expect(t?.typeName).toBe('(=> (first: _ ...rest: _): boolean)')
+		expect(t?.typeName).toBe('(=> (...xs: _): boolean)')
 	})
 
 	it('infer of a fn literal renders its signature', () => {
 		const t = infer(parse('(=> (n: number): number (* n 2))'), env)
 		expect(t?.typeName).toBe('(=> (n: number): number)')
+	})
+})
+
+describe('prelude — operator names', () => {
+	const env = buildPrelude()
+
+	it('has ** and ++ in place of pow and concat', () => {
+		expect(evaluate(parse('(** 2 10)'), env).value).toBe(1024)
+		expect(evaluate(parse('(++ "a" "b")'), env).value).toBe('ab')
+		for (const name of ['pow', 'concat']) {
+			expect(evaluate(parse(name), env).diagnostics[0]!.message).toBe(
+				`unresolvable name: ${name}`
+			)
+		}
 	})
 })
