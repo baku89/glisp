@@ -367,20 +367,12 @@ function tokensForAst(ast: AST, out: Token[]): void {
 		case 'fn':
 			out.push({ kind: 'closure', text: ast.print() })
 			break
-		case 'quote':
-			out.push({ kind: 'punct', text: '`' })
-			tokensForAst(ast.expr, out)
-			break
 		case 'unquote':
 			out.push({ kind: 'punct', text: '~' })
 			tokensForAst(ast.expr, out)
 			break
 		case 'spread':
 			out.push({ kind: 'punct', text: '...' })
-			tokensForAst(ast.expr, out)
-			break
-		case 'splice':
-			out.push({ kind: 'punct', text: '...~' })
 			tokensForAst(ast.expr, out)
 			break
 		default:

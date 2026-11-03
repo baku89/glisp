@@ -19,8 +19,6 @@ import {
 	lit,
 	meta,
 	path,
-	quote,
-	splice,
 	spread,
 	sym,
 	unquote,
@@ -63,7 +61,7 @@ const ELEMENT_END: ReadonlySet<TokenKind> = new Set<TokenKind>([
 const ELEMENT_START: ReadonlySet<TokenKind> = new Set<TokenKind>([
 	'(', '[', '{', '()', '_', '!',
 	'number', 'string', 'boolean', 'identifier', 'pathSegments',
-	'`', '~', '...', '...~', '^', '=>',
+	'~', '...', '...~', '^', '=>',
 ])
 
 /**
@@ -230,9 +228,6 @@ class Parser {
 				return this.stamp(start, this.vectorForm())
 			case '{':
 				return this.stamp(start, this.braceForm())
-			case '`':
-				this.advance()
-				return this.stamp(start, quote(this.atom()))
 			case '~':
 				this.advance()
 				return this.stamp(start, unquote(this.atom()))
@@ -241,7 +236,7 @@ class Parser {
 				return this.stamp(start, spread(this.atom()))
 			case '...~':
 				this.advance()
-				return this.stamp(start, splice(this.atom()))
+				return this.stamp(start, spread(unquote(this.atom())))
 			case '^':
 				return this.stamp(start, this.metaForm())
 			default:
@@ -423,7 +418,7 @@ class Parser {
 
 	private lookaheadIsRecord(): boolean {
 		// Spread entry → definitely a record
-		if (this.peek().kind === '...') return true
+		if (this.peek().kind === '...' || this.peek().kind === '...~') return true
 
 		// `name :` (with optional `?`) → record
 		// `name =` → let-block
@@ -446,6 +441,12 @@ class Parser {
 			if (this.peek().kind === '...') {
 				this.advance()
 				entries.push(spread(this.atom()))
+				continue
+			}
+
+			if (this.peek().kind === '...~') {
+				this.advance()
+				entries.push(spread(unquote(this.atom())))
 				continue
 			}
 

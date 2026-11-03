@@ -37,12 +37,11 @@ For each node type, the number of trivia slots reflects the syntactic positions 
 | Let-binding `name = value` | 2 | 2 | flexible: trivia allowed on both sides of `=` |
 | Kwarg `key=value` | 2 | 2 | flexible: trivia allowed on both sides of `=` |
 | Metadata-attached `^{meta} expr` | 2 | 1 | `^` is **sticky** to `{`; trivia only between `^{...}` and `expr` |
-| Quasiquote `` `expr `` | 1 | 0 | **sticky**: backtick glued to next form |
-| Unquote `~expr` | 1 | 0 | **sticky** |
-| Unquote-splice `...~expr` | 1 | 0 | **sticky** |
+| `~expr` | 1 | 0 | **sticky** |
+| Spread `...expr`, `...~expr` | 1 | 0 | **sticky** |
 | Path `../...`, `./...` | atom-internal | 0 | path tokens are single atoms; no trivia inside |
 
-The flexible/sticky split is chosen so layout-affecting delimiters (`:`, `=`) accommodate multi-line forms, while prefix-style modifiers (`^`, `` ` ``, `~`, `...~`) remain visually attached to what they modify.
+The flexible/sticky split is chosen so layout-affecting delimiters (`:`, `=`) accommodate multi-line forms, while prefix-style modifiers (`^`, `~`, `...`) remain visually attached to what they modify.
 
 No parent pointer. The "where am I in the tree" information is supplied by the env at evaluation time. Subtrees are immutable and freely shareable / graftable across other trees. Source positions are not stored explicitly; they are derivable by walking trivia.
 
@@ -62,9 +61,8 @@ The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via build
 | `'let'`    | let-block            | `{name = expr ...}`                                           |
 | `'fn'`     | function literal     | `(=> ...)` with parameters, return type, optional body        |
 | `'path'`   | path                 | `./...`, `../...`                                             |
-| `'quote'`  | quasiquote           | `` `expr ``                                                   |
-| `'unquote'`| unquote              | `~expr`                                                        |
-| `'splice'` | unquote-splice       | `...~expr`                                                    |
+| `'unquote'`| compute within a step | `~expr`                                                       |
+| `'spread'` | spread               | `...expr`; `...~expr` is a spread of an `'unquote'`           |
 | `'meta'`   | metadata-attached    | `^{...} expr`                                                 |
 
 The detailed field shape per kind is left to the implementation (e.g. how kwargs are represented inside `'call'`, how generics are stored on `'fn'`). Hosts that pattern-match should rely only on `kind` and on field accessors documented by the implementation.
@@ -101,7 +99,7 @@ Frame = {
 }
 ```
 
-When `eval` recurses into a syntactic child of the current AST, the env naturally tracks the ancestor chain — every let-block, function literal, record, vector, application, and quasiquoted form is pushed as a frame on the way down. Records, vectors, applications, and quasiquotes contribute no `bindings` (transparent to bare-name lookup) but participate in path navigation.
+When `eval` recurses into a syntactic child of the current AST, the env naturally tracks the ancestor chain — every let-block, function literal, record, vector, and application is pushed as a frame on the way down. Records, vectors, and applications contribute no `bindings` (transparent to bare-name lookup) but participate in path navigation.
 
 However, **the env and the AST being evaluated are independent**: for a host-driven `eval(ast, env)`, the AST need not be a structural descendant of `env`'s top frame. The env is only consulted for name and path resolution; it does not constrain what AST may be evaluated against it. Hosts can synthesize an AST on the fly, or pull a sub-expression out of a larger tree, and evaluate it against any env that supplies the names and ancestor levels the AST refers to.
 
@@ -144,7 +142,7 @@ resolve(x, e): (AST, Env)
 
 Walk `e`'s frame chain. At each frame, check whether its `bindings` (if any) contain `x`. Return the innermost found `(AST, env)` pair. If no frame contains `x`, emit a diagnostic and yield `()` as the resolved value (see [Failure as `()`](#failure-as-)).
 
-Frames without `bindings` (records, vectors, applications, quasiquotes) are skipped — they are transparent to bare-name lookup.
+Frames without `bindings` (records, vectors, applications) are skipped — they are transparent to bare-name lookup.
 
 ## Path lookup
 
@@ -166,13 +164,13 @@ For a function application `(head arg0 arg1 ...)`, the indices are `0` = head, `
 - **Function literal** entered (i.e. path traverses into a function literal's body without a call): push a parameter frame whose bindings are **empty**, and whose `parent` is the lexical env that would have captured the literal at that position.
 - **Top-level**: the host's initial env.
 
-For path traversals that stay within scope-flat structures (records, vectors, applications, quasiquotes), `env_at_target` equals the current env — no pop/push is needed.
+For path traversals that stay within scope-flat structures (records, vectors, applications), `env_at_target` equals the current env — no pop/push is needed.
 
 When a path lands inside an uncalled function body, parameter references resolve to nothing and yield `()`, which is then handled by the missing-value machinery at the next typed slot.
 
 If the parent walk takes the path above top-level, or a segment fails to address any child, emit a diagnostic and yield `()` (see [Failure as `()`](#failure-as-)).
 
-Path navigation traverses the full AST tree; records, vectors, applications, and quasiquotes participate (unlike bare-name lookup). Wrapping an expression in a vector therefore changes the dot-count required to reach an outer position.
+Path navigation traverses the full AST tree; records, vectors, and applications participate (unlike bare-name lookup). Wrapping an expression in a vector therefore changes the dot-count required to reach an outer position.
 
 ## Evaluation
 
@@ -207,19 +205,9 @@ When forcing `(AST, env)`:
 
 Examples like `{a: ./b  b: ./a}` resolve via this rule: each field becomes `()`, which is then coerced to its declared type's default at the next typed slot.
 
-### Quasiquoted forms during evaluation
+### `~` during evaluation
 
-The macro-related annotations (`` ` ``, `~`, `...~`) are **transparent during evaluation**. `eval` produces the same value as if the annotations were not present. The annotations only matter for `expand` (see [Multi-step evaluation](#multi-step-evaluation--abstraction-ladder)).
-
-In particular, `eval((pow 2 3), env)` yields the final value `8` directly; there is no intermediate AST construction during normal evaluation.
-
-### Paths across quasiquote boundaries
-
-For `expand`, where quasiquote/unquote do affect tree construction, paths inside an unquote skip the matched quasiquote/unquote pair: `.` counts from the position of the canceled quasiquote rather than the path's lexical position. This matches the intuition that `~` "lifts the expression out" to the surrounding scope.
-
-In a purely quoted region (not inside `~`), path atoms remain as data in the resulting AST, to be resolved later when the form is spliced into evaluable position elsewhere.
-
-Nested quasiquote/unquote pairs cancel level by level.
+`~` is **transparent during evaluation**: `eval` produces the same value as if it were not present, and it does not count as a level for paths. It only matters for `expand` (see [Multi-step evaluation](#multi-step-evaluation--abstraction-ladder)).
 
 ### Special forms
 
@@ -297,14 +285,16 @@ The `IO` type itself is a brand on the deferred-effect value. `eval` treats `IO`
 
 A core design principle of Glisp: **every expression has an abstraction ladder** — a chain of progressively-more-evaluated forms with the same final value. Hosts (in particular visual / GUI editors) can show, edit, and reason at any rung.
 
-Concrete example:
+A function's body is its next rung, so a definition states what the function is one level of abstraction down:
 
 ```glisp
-pow = (=> (x: number a: number): number `(* ...~(repeat x a)))
+circle  = (=> (c: vec2 r: number): Path (ellipse c [r r]))
+ellipse = (=> (c: vec2 r: vec2): Path (path ...~(ellipse-segments c r)))
 
-(pow (+ 1 1) 3)                              ;; rung 0: source
-(* (+ 1 1) (+ 1 1) (+ 1 1))                  ;; rung 1: one expansion step
-8                                            ;; rung ∞: final value
+(circle [0 0] 10)                ;; rung 0: source
+(ellipse [0 0] [10 10])          ;; rung 1
+(path [10 0] [0 10] ...)         ;; rung 2: the segments are computed, how is not shown
+<the Path value>                 ;; rung ∞: final value
 ```
 
 This is the language analogue of "Expand Appearance" in vector graphics editors: any sub-form can be replaced by a more concrete form below it on the ladder, or its final value, without changing meaning.
@@ -313,30 +303,61 @@ This is the language analogue of "Expand Appearance" in vector graphics editors:
 
 ```
 eval:    (AST, Env) → Value
-expand:  (AST, Env) → AST           ;; one expansion step, returns intermediate AST
+expand:  (AST, Env) → AST           ;; one step, returns the next rung
 ```
 
-- `eval` produces the final value. It treats macro-related annotations as transparent.
-- `expand` performs one expansion step. It substitutes a call's body with its arguments, respecting `` ` ``, `~`, `...~` as a template for shaping the result AST. Repeated `expand` calls climb down the ladder.
+- `eval` produces the final value. `~` is transparent to it.
+- `expand` performs one step. Repeated `expand` calls climb down the ladder.
 
 Both operations agree on the final value: `eval(AST, env)` equals `eval(expand(AST, env), env)`.
 
+### One step
+
+- A call to a closure steps to the closure's body, with each parameter replaced by the argument expression as written. A `?` at the tail of the body resolves within the same step, so the rung is the selected clause.
+- A bare `?` steps to its selected clause, or to `()` when none matches.
+- Everything else is a fixed point: literals, let-blocks, vectors, records, function literals, and calls to host functions. Their only remaining rung is their value, from `eval`.
+
+Which sub-expression to step is up to the host. Stepping the argument first takes `(sq (+ 1 1))` to `(sq 2)`, without the function saying anything about it.
+
+### `~` — work this out within the step
+
+`~expr` marks an implementation detail. It is worked out during the step, so its intermediate forms never appear on the ladder. It is how a definition keeps recursion and helpers out of view.
+
+Only what is needed gets computed, the same way lazy evaluation works:
+
+- A condition of `?` and an argument to a host function are forced.
+- An argument that is merely passed along stays as written.
+- `~x` on a parameter asks for that argument itself, so it is forced.
+
+```glisp
+repeat = (=> (T) (v: T n: number): [...T]
+             (? (== n 0) true [] _ [v ...(repeat v (- n 1))]))
+pow    = (=> (x: number a: number): number (* ...~(repeat x a)))
+sq     = (=> (x: number): number (* ~x ~x))
+
+(pow (+ 1 1) (+ 1 2))            ;; a is needed, x is passed along
+(* (+ 1 1) (+ 1 1) (+ 1 1))
+8
+
+(sq (+ 1 1))
+(* 2 2)
+4
+```
+
+`...~expr` is `...` applied to `~expr`: the result is inlined when it is a vector literal. A `~` inside a clause of a nested `?` waits until that clause is selected.
+
 ### Termination of `expand`
 
-A single call to `expand` always terminates. Two cases:
+A single call to `expand` always terminates. A `~` that recurses without end leaves the call unexpanded. A host iterating `expand` should stop when the result is the input (fixed point reached); `expandLadder` and `expandAll` do this, with a step limit as a guard against pathologically long ladders.
 
-1. **Fixed point**: if the AST has nothing left to expand (it is not a macro call, or it is a primitive form), `expand` returns the AST unchanged. Calling `expand` again on this result yields the same AST — `expand(expand(x)) == expand(x)`.
-2. **Cycle**: if `expand`'s template substitution recurses into an `(AST, env)` already being expanded (the same `InProgress` state used by `eval`'s [Cycle detection](#cycle-detection)), it stops, leaves that node unchanged, and emits a diagnostic. This guards against directly or mutually self-referential macros.
+### Moving a body to the call site
 
-A host iterating `expand` to reach a fully-expanded form should stop when the result equals the input (fixed-point reached). A higher-level `expandAll(ast, env, options)` may be provided that does the iteration with a configurable depth limit; the limit guards against pathologically slow but non-cyclic expansion.
+A body means the same thing after it moves:
 
-### Hygiene (future work)
+- A free name in the body that the call site has shadowed embeds the value it had at the definition. That rung prints it as `<closure>` or `<host-fn>`, so it does not round-trip to source.
+- A binder in the body that would capture a free name of an argument is renamed: `{y = 1 (+ x y)}` with the argument `y` becomes `{y_1 = 1 (+ y y_1)}`.
 
-`expand`'s substitution is not the textual replacement that would suffice in a hygienic-free system. Symbols in the body (e.g. `*`) refer to bindings in the body's defining scope; if the call site has shadowed those names, naive substitution would capture the wrong binding.
-
-A correct `expand` rewrites such free references in the body into paths that re-anchor to the original binding (e.g. `*` may be rewritten to `../../../*` referring to the Prelude). This is the standard hygienic-macro problem.
-
-The first implementation may use naive substitution; hygienic rewriting is a planned extension.
+A path inside an argument is not adjusted for its new depth, so such a rung may not agree with `eval`. This is an open problem.
 
 ## Failure as `()`
 

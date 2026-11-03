@@ -853,13 +853,10 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 		case 'path':
 			return evalPath(ast.segments, env, ast)
 
-		// macro-related annotations are transparent during eval, but the
-		// quote AST still pushes an ancestor frame so path navigation
-		// inside it walks `..` correctly across the boundary.
-		case 'quote':
+		// `~` only decides where the rungs of the ladder fall, so it is
+		// transparent to both the value and path navigation.
 		case 'unquote':
-		case 'splice':
-			return evaluate(ast.expr, pushAncestor(ast, env))
+			return evaluate(ast.expr, env)
 
 		case 'spread':
 			// A bare spread used outside a list-building context has no value.
@@ -1517,7 +1514,7 @@ function evalMatch(ast: CallAST, env: Env): EvalResult {
 	return { value: UNIT, diagnostics }
 }
 
-function matchValue(value: unknown, pattern: unknown): boolean {
+export function matchValue(value: unknown, pattern: unknown): boolean {
 	// If the pattern is a type value, use its `fits` predicate (non-fallback
 	// type test) — this is the spec's "pattern is a type → cast succeeds"
 	// branch without actually consuming the cast's default fallback.
@@ -1990,7 +1987,6 @@ import {
 	CallAST as CallASTClass,
 	HostAST as HostASTClass,
 	LitAST as LitASTClass,
-	QuoteAST as QuoteASTClass,
 	RecordAST as RecordASTClass,
 	SymAST as SymASTClass,
 	VecAST as VecASTClass,
@@ -2038,7 +2034,7 @@ export function toAst(value: unknown, env: Env): AST {
 		return new HostASTClass(value)
 	}
 	if (value instanceof ASTNodeClass) {
-		return new QuoteASTClass(value as AST)
+		return new HostASTClass(value)
 	}
 	if (Array.isArray(value)) {
 		return new VecASTClass(value.map(v => toAst(v, env)))

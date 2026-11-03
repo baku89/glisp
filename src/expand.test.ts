@@ -1,131 +1,186 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
-import { evaluate, IO } from './eval.js'
+import { evaluate } from './eval.js'
 import { expand, expandLadder } from './expand.js'
 import { parse } from './parse.js'
-import { print } from './print.js'
 import { buildPrelude } from './prelude.js'
+import { print } from './print.js'
+import { Session } from './session.js'
+import type { Env } from './types.js'
 
-describe('expand — naive substitution (no quasiquote)', () => {
-	const env = buildPrelude()
-	const def = (src: string): void => {
-		const r = evaluate(parse(src), env)
-		;(r.value as IO).run()
+describe('expand', () => {
+	let session: Session
+	let env: () => Env
+
+	const define = (...sources: string[]): void => {
+		for (const src of sources) session.evalSrc(src)
 	}
+	const step = (src: string): string =>
+		print(expand(parse(src), env()))
+	const ladder = (src: string): string[] =>
+		expandLadder(parse(src), env()).map(print)
 
-	it('returns ast unchanged when not a call', () => {
-		const ast = parse('42')
-		expect(expand(ast, env)).toBe(ast)
+	const REPEAT =
+		'repeat = (=> (T) (v: T n: number): [...T] (? (== n 0) true [] _ [v ...(repeat v (- n 1))]))'
+
+	beforeEach(() => {
+		session = new Session(buildPrelude())
+		env = () => session.env
 	})
 
-	it('returns ast unchanged when head is not a closure', () => {
-		const ast = parse('(+ 1 2)') // + is a typed host fn, not a closure
-		expect(expand(ast, env)).toBe(ast)
+	describe('function body as the next rung', () => {
+		it('leaves non-calls and host calls as fixed points', () => {
+			for (const src of ['42', '(+ 1 2)', '(: 1 number)']) {
+				const ast = parse(src)
+				expect(expand(ast, env())).toBe(ast)
+			}
+		})
+
+		it('replaces parameters with the argument expressions', () => {
+			define('sq = (=> (x: number): number (* x x))')
+			expect(step('(sq (+ 1 1))')).toBe('(* (+ 1 1) (+ 1 1))')
+		})
+
+		it('follows a chain of abstractions down to the host call', () => {
+			define(
+				'ellipse = (=> (c: _ r: _): _ (path c r))',
+				'circle = (=> (c: _ r: number): _ (ellipse c [r r]))'
+			)
+			expect(ladder('(circle [0 0] 10)')).toEqual([
+				'(circle [0 0] 10)',
+				'(ellipse [0 0] [10 10])',
+				'(path [0 0] [10 10])',
+			])
+		})
+
+		it('binds keyword, variadic, and missing arguments', () => {
+			define(
+				'sub = (=> (a: number b: number): number (- a b))',
+				'sum = (=> (...xs: number): number (+ ...xs))'
+			)
+			expect(step('(sub b=1 a=5)')).toBe('(- 5 1)')
+			expect(step('(sum 1 2 3)')).toBe('(+ ...[1 2 3])')
+			expect(step('(sub 7)')).toBe('(- 7 ())')
+		})
 	})
 
-	it('substitutes positional params in the body at level 0', () => {
-		def('(def "double" (=> (n: number): number (+ n n)))')
-		const expanded = expand(parse('(double 7)'), env)
-		expect(print(expanded)).toBe('(+ 7 7)')
+	describe('? at the tail of a body', () => {
+		it('resolves within the step', () => {
+			define('pick = (=> (b: boolean): number (? b true 1 _ 2))')
+			expect(step('(pick true)')).toBe('1')
+			expect(step('(pick false)')).toBe('2')
+		})
+
+		it('steps a bare ? to its selected clause, or to unit', () => {
+			expect(step('(? 1 string "s" number (+ 1 1))')).toBe('(+ 1 1)')
+			expect(step('(? 1 string "s")')).toBe('()')
+		})
 	})
 
-	it('preserves nesting and recurses into sub-asts', () => {
-		def('(def "addmul" (=> (a: number b: number): number (+ a (* b 2))))')
-		const expanded = expand(parse('(addmul 3 4)'), env)
-		expect(print(expanded)).toBe('(+ 3 (* 4 2))')
+	describe('~', () => {
+		it('~x forces the argument', () => {
+			define('sq = (=> (x: number): number (* ~x ~x))')
+			expect(step('(sq (+ 1 1))')).toBe('(* 2 2)')
+		})
+
+		it('computes the count and keeps the base as written', () => {
+			define(
+				REPEAT,
+				'pow = (=> (x: number a: number): number (* ...~(repeat x a)))'
+			)
+			expect(ladder('(pow (+ 1 1) (+ 1 2))')).toEqual([
+				'(pow (+ 1 1) (+ 1 2))',
+				'(* (+ 1 1) (+ 1 1) (+ 1 1))',
+			])
+			expect(evaluate(parse('(pow (+ 1 1) (+ 1 2))'), env()).value).toBe(8)
+		})
+
+		it('hides recursion that the body would otherwise show', () => {
+			define(
+				REPEAT,
+				'plainpow = (=> (x: number a: number): number (* ...(repeat x a)))'
+			)
+			expect(step('(plainpow 2 3)')).toBe('(* ...(repeat 2 3))')
+		})
+
+		it('computes values that a host function needs', () => {
+			define(
+				'segments = (=> (r: number): _ [[r 0] [0 (* r 2)]])',
+				'shape = (=> (r: number): _ (path ...~(segments r)))'
+			)
+			expect(step('(shape (+ 1 1))')).toBe('(path [(+ 1 1) 0] [0 4])')
+		})
+
+		it('waits for a clause of a nested ? to be selected', () => {
+			define('f = (=> (b: boolean): _ [(? b true ~(+ 1 1) _ 0)])')
+			expect(step('(f true)')).toBe('[(? true true ~(+ 1 1) _ 0)]')
+		})
+
+		it('is transparent to evaluate, including ...~', () => {
+			const value = (src: string): unknown => evaluate(parse(src), env()).value
+			expect(value('~(+ 1 1)')).toBe(2)
+			expect(value('[0 ...~[1 2] 3]')).toEqual([0, 1, 2, 3])
+			expect(value('(+ ...~[1 2])')).toBe(3)
+			expect(value('{a: 1 ...~{b: 2}}')).toEqual({ a: 1, b: 2 })
+		})
+
+		it('is transparent to paths', () => {
+			expect(evaluate(parse('[10 ~./0]'), env()).value).toEqual([10, 10])
+		})
+
+		it('leaves a call unexpanded when ~ recurses without end', () => {
+			define('loop = (=> (x: number): number [~(loop x)])')
+			const ast = parse('(loop 1)')
+			expect(expand(ast, env())).toBe(ast)
+		})
 	})
 
-	it('does not expand reserved special forms', () => {
-		const ast = parse('(? 1 _ 2)')
-		expect(expand(ast, env)).toBe(ast)
-	})
-})
+	describe('moving a body to the call site', () => {
+		it('keeps a shadowed free name meaning its definition', () => {
+			define('sq = (=> (x: number): number (* x x))')
+			const program = parse('{* = (=> (a: number b: number): number 0) (sq 3)}')
+			const inner = new Session(env())
+			inner.setBinding('*', parse('(=> (a: number b: number): number 0)'))
+			const next = expand(parse('(sq 3)'), inner.env)
+			expect(evaluate(next, inner.env).value).toBe(9)
+			expect(evaluate(program, env()).value).toBe(9)
+		})
 
-describe('expand — quasiquote / unquote', () => {
-	const env = buildPrelude()
-	const def = (src: string): void => {
-		const r = evaluate(parse(src), env)
-		;(r.value as IO).run()
-	}
+		it('renames a binder that would capture an argument', () => {
+			define('g = (=> (x: number): number {y = 1 (+ x y)})')
+			define('y = 100')
+			const next = expand(parse('(g y)'), env())
+			expect(print(next)).toBe('{y_1 = 1 (+ y y_1)}')
+			expect(evaluate(next, env()).value).toBe(101)
+		})
 
-	it('keeps a quoted body as a template, substituting at level 0', () => {
-		// double's body: `\`(* 2 ~x)` — the `*` and `2` are data, `~x` evaluates
-		def('(def "twice" (=> (x: number): _ `(* 2 ~x)))')
-		// (twice 5) expands to: `(* 2 5)
-		const expanded = expand(parse('(twice 5)'), env)
-		expect(print(expanded)).toBe('`(* 2 5)')
-	})
+		it('does not replace a name rebound in the body', () => {
+			define('h = (=> (x: number): number {x = 2 x})')
+			expect(step('(h 1)')).toBe('{x = 2 x}')
+		})
 
-	it('eval(expand(ast, env), env) === eval(ast, env)', () => {
-		// Quote/unquote are transparent during eval per spec, so both
-		// sides reduce to the same numeric value via standard evaluation.
-		def('(def "twice" (=> (x: number): number `(* 2 ~x)))')
-		const lhs = evaluate(expand(parse('(twice 5)'), env), env).value
-		const rhs = evaluate(parse('(twice 5)'), env).value
-		expect(lhs).toBe(rhs)
-		expect(lhs).toBe(10)
-	})
-
-	it('splice (...~) flattens a vector arg into the surrounding vec', () => {
-		def('(def "wrap" (=> (xs: _): _ `[0 ...~xs 99]))')
-		const expanded = expand(parse('(wrap [1 2 3])'), env)
-		// Splice path lowers to a SpreadAST around a vec literal; eval flattens.
-		const v = evaluate(expanded, env).value
-		expect(v).toEqual([0, 1, 2, 3, 99])
+		it('keeps inner function parameters apart', () => {
+			define('o = (=> (x: number): _ (+ x ((=> (x: number): number x) 99)))')
+			expect(step('(o 7)')).toBe('(+ 7 ((=> (x: number): number x) 99))')
+		})
 	})
 
-	it('nested quasiquote (level 2): one expand step decrements unquote depth by one', () => {
-		// Body: ``[~~x] — two layers of quote, two layers of unquote.
-		// One expand step peels one level: the outer ` stays as a literal
-		// QuoteAST, the inner unquote at level 1 evaluates the substituted
-		// x and reifies. The outer (level-2) unquote remains as a wrapper.
-		def('(def "two" (=> (x: number): _ ``[~~x]))')
-		const expanded = expand(parse('(two 5)'), env)
-		expect(print(expanded)).toBe('``[~5]')
-	})
+	describe('ladder', () => {
+		it('agrees with evaluate on every rung', () => {
+			define(
+				REPEAT,
+				'pow = (=> (x: number a: number): number (* ...~(repeat x a)))'
+			)
+			const rungs = expandLadder(parse('(pow 2 3)'), env())
+			for (const rung of rungs) {
+				expect(evaluate(rung, env()).value).toBe(8)
+			}
+		})
 
-	it('missing positional arg substitutes as unit literal', () => {
-		def('(def "tail" (=> (a: number b: number): _ `(+ ~a ~b)))')
-		const expanded = expand(parse('(tail 7)'), env)
-		// `b` was missing — substitution binds it to the unit literal so
-		// the body shape is preserved.
-		expect(print(expanded)).toBe('`(+ 7 ())')
-	})
-
-	it('inner fn-literal shadows outer params during substitution', () => {
-		// outer x and inner x are independent — the inner closure must
-		// not pick up the outer caller's substitution.
-		def(
-			'(def "outerp" (=> (x: number): _ `(+ ~x ((=> (x: number): number x) 99))))'
-		)
-		const expanded = expand(parse('(outerp 7)'), env)
-		// `~x` should become 7; the inner `x` reference inside the lambda
-		// body must remain bare (shadowed by inner param).
-		expect(print(expanded)).toBe(
-			'`(+ 7 ((=> (x: number): number x) 99))'
-		)
-	})
-})
-
-describe('expand — ladder', () => {
-	const env = buildPrelude()
-	const def = (src: string): void => {
-		const r = evaluate(parse(src), env)
-		;(r.value as IO).run()
-	}
-
-	it('expandLadder reaches a fixed point and stops', () => {
-		def('(def "double" (=> (n: number): number (+ n n)))')
-		const ladder = expandLadder(parse('(double 7)'), env)
-		expect(ladder.length).toBeGreaterThan(1)
-		// Last entry is fixed: expand(last) === last.
-		const last = ladder[ladder.length - 1]!
-		expect(expand(last, env)).toBe(last)
-	})
-
-	it('expandLadder respects maxSteps', () => {
-		def('(def "double" (=> (n: number): number (+ n n)))')
-		const ladder = expandLadder(parse('(double 7)'), env, { maxSteps: 1 })
-		expect(ladder.length).toBeLessThanOrEqual(2)
+		it('respects maxSteps', () => {
+			define('double = (=> (n: number): number (+ n n))')
+			const rungs = expandLadder(parse('(double 7)'), env(), { maxSteps: 0 })
+			expect(rungs).toHaveLength(1)
+		})
 	})
 })

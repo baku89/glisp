@@ -103,9 +103,7 @@ export function infer(ast: AST, env: Env): TypeValue | null {
 		case 'record':
 			return inferRecord(ast, env)
 		case 'meta':
-		case 'quote':
 		case 'unquote':
-		case 'splice':
 		case 'spread':
 			return infer(ast.expr, env)
 		case 'access':

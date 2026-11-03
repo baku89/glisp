@@ -10,9 +10,7 @@ import {
 	lit,
 	meta,
 	path,
-	quote,
 	record,
-	splice,
 	spread,
 	sym,
 	unquote,
@@ -107,12 +105,10 @@ describe('AST builders', () => {
 		expect(path('..', 'vec', 0).segments).toEqual(['..', 'vec', 0])
 	})
 
-	it('quote, unquote, spread, splice wrap an expression', () => {
+	it('unquote and spread wrap an expression', () => {
 		const x = sym('x')
-		expect(quote(x)).toEqual({ kind: 'quote', expr: x })
 		expect(unquote(x)).toEqual({ kind: 'unquote', expr: x })
 		expect(spread(x)).toEqual({ kind: 'spread', expr: x })
-		expect(splice(x)).toEqual({ kind: 'splice', expr: x })
 	})
 
 	it('meta wraps an expression with a metadata record', () => {

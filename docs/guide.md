@@ -145,18 +145,19 @@ Curly braces with `name = expr` pairs introduce local bindings; the trailing for
 
 Bindings are self-referential and can reference each other in any order, which is useful for recursive definitions.
 
-## Quasiquote and macros
+## Abstraction steps
 
-Back-tick `` ` `` quotes; `~` unquotes; `...~` splices a vector into a list-building parent. Macros are functions whose body is a quoted template:
+A function's body is its next step on the abstraction ladder, so you can define what a function *is* one level down. `~` marks an implementation detail: it is worked out within the step, so recursion and helpers stay out of view. Only what is needed gets computed, and an argument that is merely passed along stays as written. `...~` inlines the resulting vector.
 
 ```glisp
-(def "twice"
-  (=> (x: number): _ `(* 2 ~x)))
+repeat = (=> (T) (v: T n: number): [...T]
+             (? (== n 0) true [] _ [v ...(repeat v (- n 1))]))
+pow = (=> (x: number a: number): number (* ...~(repeat x a)))
 
-(twice 5)              ;; expand step: `(* 2 5), evaluates to 10
+(pow (+ 1 1) (+ 1 2))  ;; expands to (* (+ 1 1) (+ 1 1) (+ 1 1)), evaluates to 8
 ```
 
-The `expand` operation is one transparent step on the abstraction ladder. See the [evaluation spec](./spec/eval.md) for how `expand` and `eval` relate.
+The `expand` operation is one step on the abstraction ladder. `~` never changes the final value. See the [evaluation spec](./spec/eval.md) for how `expand` and `eval` relate.
 
 ## Diagnostics
 

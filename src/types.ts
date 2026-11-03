@@ -121,10 +121,8 @@ export type AST =
 	| LetAST
 	| FnAST
 	| PathAST
-	| QuoteAST
 	| UnquoteAST
 	| SpreadAST
-	| SpliceAST
 	| MetaAST
 
 /**
@@ -444,25 +442,9 @@ export class PathAST extends ASTNode {
 }
 
 /**
- * Quasiquote: `` `expr ``. `expr` is treated as data, not evaluated,
- * except where an `UnquoteAST` (`~expr`) or `SpliceAST` (`...~expr`)
- * pops the quote level back. See eval.md — Quasiquoted forms.
- */
-export class QuoteAST extends ASTNode {
-	readonly kind = 'quote' as const
-	constructor(public readonly expr: AST) {
-		super()
-	}
-
-	override printStructural(): string {
-		return '`' + this.expr.print()
-	}
-}
-
-/**
- * Unquote: `~expr` inside a quasiquote. Pops one quote level so the
- * inner expression evaluates in the surrounding env. Outside a
- * quasiquote, an unquote is a parse-time error.
+ * `~expr` in a function body: work out `expr` within one expansion step,
+ * so its intermediate forms stay off the abstraction ladder. Transparent
+ * to `evaluate`. See eval.md (Abstraction ladder).
  */
 export class UnquoteAST extends ASTNode {
 	readonly kind = 'unquote' as const
@@ -477,9 +459,7 @@ export class UnquoteAST extends ASTNode {
 
 /**
  * Spread: `...expr`. Inlines the operand's elements into the surrounding
- * call / vector / record / quasiquote. Stays as `...expr` regardless of
- * whether it appears inside a quasiquote — for the quasiquote-specific
- * "evaluate and splice" form, use `SpliceAST` (`...~expr`).
+ * call / vector / record. `...~expr` is a spread of an `UnquoteAST`.
  */
 export class SpreadAST extends ASTNode {
 	readonly kind = 'spread' as const
@@ -489,22 +469,6 @@ export class SpreadAST extends ASTNode {
 
 	override printStructural(): string {
 		return '...' + this.expr.print()
-	}
-}
-
-/**
- * Unquote-splice: `...~expr`. Only meaningful inside a quasiquote — evaluates
- * `expr` (popping the quote level) and splices the resulting elements into
- * the surrounding form.
- */
-export class SpliceAST extends ASTNode {
-	readonly kind = 'splice' as const
-	constructor(public readonly expr: AST) {
-		super()
-	}
-
-	override printStructural(): string {
-		return '...~' + this.expr.print()
 	}
 }
 
@@ -582,10 +546,8 @@ export const isRecord = (a: AST): a is RecordAST => a.kind === 'record'
 export const isLet = (a: AST): a is LetAST => a.kind === 'let'
 export const isFn = (a: AST): a is FnAST => a.kind === 'fn'
 export const isPath = (a: AST): a is PathAST => a.kind === 'path'
-export const isQuote = (a: AST): a is QuoteAST => a.kind === 'quote'
 export const isUnquote = (a: AST): a is UnquoteAST => a.kind === 'unquote'
 export const isSpread = (a: AST): a is SpreadAST => a.kind === 'spread'
-export const isSplice = (a: AST): a is SpliceAST => a.kind === 'splice'
 export const isMeta = (a: AST): a is MetaAST => a.kind === 'meta'
 
 // -----------------------------------------------------------------------------

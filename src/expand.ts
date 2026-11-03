@@ -1,49 +1,56 @@
 /**
- * `expand(ast, env)` — one-step macro expansion.
+ * `expand(ast, env)`: one step down the abstraction ladder.
  *
- * If `ast` is a call to a Glisp closure with a body, substitute the
- * closure's parameters with the call's argument ASTs throughout the
- * body, respecting quasiquote / unquote / splice levels per
+ * A call to a Glisp closure steps to the closure's body with the
+ * parameters replaced by the argument expressions. The body is the next
+ * rung, so `circle` defined in terms of `ellipse` expands to `ellipse`.
+ *
+ * `~expr` in the body marks an implementation detail: it is worked out
+ * within this step, so its intermediate forms never appear on the ladder.
+ * Only what is needed gets computed. A condition of `?` or an argument to
+ * a host function is forced, while an argument that is merely passed along
+ * stays as written:
+ *
+ *   pow = (=> (x: number a: number): number (* ...~(repeat x a)))
+ *   (pow (+ 1 1) (+ 1 2))  →  (* (+ 1 1) (+ 1 1) (+ 1 1))
+ *
+ * `~` never changes the final value, only where the rungs fall. See
  * docs/spec/eval.md (Multi-step evaluation / Abstraction ladder).
- *
- * - Substitution is at quote level 0 only — symbols inside `` `... ``
- *   stay as data, just like a quote.
- * - `~expr` at level 1 evaluates the substituted body fragment in the
- *   caller's env and reifies the result back into the AST stream.
- * - `...~expr` at level 1 splices the result into the surrounding
- *   list-building context (call args / vec / record).
- *
- * Hygiene is future work: free references in the body are not yet
- * rewritten as paths back to the closure's defining scope. For naive
- * macros that don't shadow names this is fine.
  */
 
+import {
+	evaluate,
+	type GlispClosure,
+	isGlispClosure,
+	lookupBareName,
+	matchValue,
+	toAst,
+} from './eval.js'
 import {
 	AccessAST,
 	type AST,
 	CallAST,
+	type Env,
 	FnAST,
 	type FnParam,
+	HostAST,
 	LetAST,
 	LitAST,
 	MetaAST,
-	QuoteAST,
 	RecordAST,
 	type RecordEntry,
-	SpliceAST,
 	SpreadAST,
+	SymAST,
 	UNIT,
 	UnquoteAST,
 	VecAST,
 } from './types.js'
-import { evaluate, isGlispClosure, toAst } from './eval.js'
-import type { Env } from './types.js'
 
 /**
  * Iterate `expand` from `ast` until a fixed point is reached. Returns the
  * sequence of intermediate ASTs (the "abstraction ladder" per
  * docs/spec/eval.md), starting with the input. The last entry is always
- * the fixed point — calling `expand` again yields the same node.
+ * the fixed point: calling `expand` again yields the same node.
  *
  * `maxSteps` guards against pathologically slow but non-cyclic expansion.
  * Defaults to 64.
@@ -66,7 +73,7 @@ export function expandLadder(
 }
 
 /**
- * Convenience: same as `expandLadder(ast, env).at(-1)` — only the
+ * Convenience: same as `expandLadder(ast, env).at(-1)`, only the
  * fully-expanded fixed point.
  */
 export function expandAll(
@@ -78,207 +85,412 @@ export function expandAll(
 	return ladder[ladder.length - 1]!
 }
 
+/** Forms with custom dispatch, which have no body to step into. */
+const NON_EXPANDING = new Set(['|>', ':', 'def', 'undef', 'overload'])
+
 /**
- * One step of macro expansion. If `ast` is a call to a Glisp closure
- * with a body, substitute the closure's parameters with the call's
- * argument ASTs throughout the body and return the resulting AST.
- * Otherwise return `ast` unchanged.
+ * One step of expansion. A closure call steps to its body and `?` steps
+ * to its selected clause. Anything else, including a host function call,
+ * is a fixed point: its only remaining rung is its value, from `evaluate`.
  *
- * Reserved special forms (`?`, `|>`, `def`, `undef`, `overload`) are
- * not expanded: expanding them would lose their custom dispatch
- * semantics. For repeated expansion until a fixed point, see
- * `expandLadder` and `expandAll`.
+ * A `~` that recurses without end leaves the call unexpanded, in keeping
+ * with the rule that evaluation never throws on user errors.
  */
 export function expand(ast: AST, env: Env): AST {
 	if (ast.kind !== 'call') return ast
-
-	// Special forms with non-standard arg conventions are not expanded —
-	// expanding them would lose their custom semantics.
-	if (ast.head.kind === 'sym') {
-		const reserved = new Set([
-			'?',
-			'|>',
-			'def',
-			'undef',
-			'overload',
-		])
-		if (reserved.has(ast.head.name)) return ast
+	if (ast.head.kind === 'sym' && NON_EXPANDING.has(ast.head.name)) return ast
+	try {
+		return new Step(env).callStep(ast) ?? ast
+	} catch (e) {
+		if (e instanceof RangeError) return ast
+		throw e
 	}
-
-	const head = evaluate(ast.head, env).value
-	if (!isGlispClosure(head)) return ast
-	const fnAst = head.ast
-	if (fnAst.body === null) return ast
-
-	const subst = buildSubstitution(fnAst, ast.args)
-	return substitute(fnAst.body, subst, env, 0)
 }
 
-function buildSubstitution(
-	fnAst: FnAST,
-	args: ReadonlyArray<AST>
-): ReadonlyMap<string, AST> {
-	const subst = new Map<string, AST>()
-	for (let i = 0; i < fnAst.params.length; i++) {
-		const param = fnAst.params[i]!
-		const arg = args[i]
-		if (arg === undefined) {
-			// Missing arg — bind to the unit literal so substitution still
-			// proceeds. Users get a runtime fallback as if eval had run.
-			subst.set(param.name, new LitAST(UNIT))
-			continue
+/** `name → replacement`, where `null` marks a name bound inside the body. */
+type Subst = ReadonlyMap<string, AST | null>
+
+/**
+ * State for one `expand` call. `passedAlong` holds the argument expressions
+ * bound so far: they belong to the caller, so `~` leaves them unevaluated
+ * unless a value is actually required.
+ */
+class Step {
+	private readonly passedAlong = new Set<AST>()
+
+	constructor(private readonly env: Env) {}
+
+	/** The next rung of a call, or null when it has none. */
+	callStep(ast: CallAST): AST | null {
+		const body = this.reduceHead(ast)
+		return body === null ? null : this.lower(body)
+	}
+
+	/** Step a call to its body, resolving any `?` at the body's tail. */
+	private reduceHead(ast: CallAST): AST | null {
+		if (isMatch(ast)) return this.resolveTail(this.selectClause(ast))
+		const head = evaluate(ast.head, this.env).value
+		if (!isGlispClosure(head) || head.ast.body === null) return null
+		return this.resolveTail(this.instantiate(head, ast))
+	}
+
+	private resolveTail(ast: AST): AST {
+		let current = ast
+		while (current.kind === 'call' && isMatch(current)) {
+			current = this.selectClause(current)
 		}
-		subst.set(param.name, arg)
+		return current
 	}
-	return subst
+
+	private selectClause(ast: CallAST): AST {
+		const [valueAst, ...clauses] = ast.args
+		if (valueAst === undefined) return new LitAST(UNIT)
+		const value = evaluate(valueAst, this.env).value
+		for (let i = 0; i + 1 < clauses.length; i += 2) {
+			const pattern = clauses[i]!
+			if (
+				(pattern.kind === 'sym' && pattern.name === '_') ||
+				matchValue(value, evaluate(pattern, this.env).value)
+			) {
+				return clauses[i + 1]!
+			}
+		}
+		return new LitAST(UNIT)
+	}
+
+	/** The closure's body with its parameters replaced by the call's args. */
+	private instantiate(closure: GlispClosure, call: CallAST): AST {
+		const subst = this.bindArgs(closure, call)
+		const argFrees = new Set<string>()
+		for (const arg of subst.values()) {
+			if (arg !== null) collectFreeNames(arg, new Set(), argFrees)
+		}
+		return substitute(closure.ast.body!, subst, {
+			captured: closure.capturedEnv,
+			caller: this.env,
+			argFrees,
+		})
+	}
+
+	private bindArgs(closure: GlispClosure, call: CallAST): Map<string, AST> {
+		const subst = new Map<string, AST>()
+		let next = 0
+		for (const param of closure.ast.params) {
+			let arg: AST
+			if (param.variadic) {
+				arg =
+					call.kwargs?.get(param.name) ?? new VecAST(call.args.slice(next))
+				next = call.args.length
+			} else {
+				arg =
+					call.args[next++] ??
+					call.kwargs?.get(param.name) ??
+					new LitAST(UNIT)
+			}
+			this.passedAlong.add(arg)
+			subst.set(param.name, arg)
+		}
+		return subst
+	}
+
+	/** Work out each `~` in a rung, leaving everything around it as written. */
+	private lower(ast: AST): AST {
+		if (this.passedAlong.has(ast)) return ast
+		switch (ast.kind) {
+			case 'unquote':
+				return this.compute(ast.expr)
+			case 'call': {
+				// A `~` inside a clause of `?` waits until its clause is selected.
+				if (isMatch(ast)) return ast
+				return new CallAST(
+					this.lower(ast.head),
+					this.lowerList(ast.args),
+					mapValues(ast.kwargs, v => this.lower(v))
+				)
+			}
+			case 'vec':
+				return new VecAST(this.lowerList(ast.elements))
+			case 'record':
+				return new RecordAST(
+					ast.fields.map(entry => this.lowerField(entry)),
+					ast.optional
+				)
+			case 'let':
+				return new LetAST(
+					ast.bindings.map(([n, v]) => [n, this.lower(v)] as const),
+					ast.body === null ? null : this.lower(ast.body)
+				)
+			case 'access':
+				return new AccessAST(this.lower(ast.target), ast.key)
+			case 'meta':
+				return new MetaAST(ast.metadata, this.lower(ast.expr))
+			default:
+				return ast
+		}
+	}
+
+	private lowerField(entry: RecordEntry): RecordEntry {
+		if (entry instanceof SpreadAST) {
+			return entry.expr instanceof UnquoteAST
+				? new SpreadAST(this.compute(entry.expr.expr))
+				: entry
+		}
+		return [entry[0], this.lower(entry[1])] as const
+	}
+
+	private lowerList(items: ReadonlyArray<AST>): AST[] {
+		return items.flatMap(item => {
+			if (item.kind === 'spread' && item.expr.kind === 'unquote') {
+				return inlineSpread(this.compute(item.expr.expr))
+			}
+			return [this.lower(item)]
+		})
+	}
+
+	/** `~expr`: the operand itself is asked for, so an argument is forced. */
+	private compute(ast: AST): AST {
+		return this.passedAlong.has(ast) ? this.force(ast) : this.reduce(ast)
+	}
+
+	/** Reduce without leaving any rungs, forcing only what requires a value. */
+	private reduce(ast: AST): AST {
+		if (this.passedAlong.has(ast)) return ast
+		switch (ast.kind) {
+			case 'lit':
+			case 'host':
+				return ast
+			case 'unquote':
+				return this.compute(ast.expr)
+			case 'vec':
+				return new VecAST(
+					ast.elements.flatMap(el =>
+						el.kind === 'spread'
+							? inlineSpread(this.reduce(el.expr))
+							: [this.reduce(el)]
+					)
+				)
+			case 'record':
+				return new RecordAST(
+					ast.fields.map(entry =>
+						entry instanceof SpreadAST
+							? new SpreadAST(this.force(entry.expr))
+							: ([entry[0], this.reduce(entry[1])] as const)
+					),
+					ast.optional
+				)
+			case 'call': {
+				const body = this.reduceHead(ast)
+				return body === null ? this.force(ast) : this.reduce(body)
+			}
+			default:
+				return this.force(ast)
+		}
+	}
+
+	private force(ast: AST): AST {
+		return toAst(evaluate(ast, this.env).value, this.env)
+	}
 }
 
-function substitute(
-	ast: AST,
-	subst: ReadonlyMap<string, AST>,
-	callerEnv: Env,
-	level: number
-): AST {
-	switch (ast.kind) {
-		case 'sym':
-			if (level === 0 && subst.has(ast.name)) {
-				return subst.get(ast.name)!
-			}
-			return ast
+function isMatch(ast: CallAST): boolean {
+	return ast.head.kind === 'sym' && ast.head.name === '?'
+}
 
+function inlineSpread(ast: AST): AST[] {
+	return ast.kind === 'vec' ? [...ast.elements] : [new SpreadAST(ast)]
+}
+
+function mapValues(
+	map: ReadonlyMap<string, AST> | undefined,
+	fn: (v: AST) => AST
+): ReadonlyMap<string, AST> | undefined {
+	if (map === undefined) return undefined
+	return new Map([...map].map(([k, v]) => [k, fn(v)] as const))
+}
+
+interface Scope {
+	readonly captured: Env
+	readonly caller: Env
+	/** Free names of the arguments, which binders in the body must not capture. */
+	readonly argFrees: ReadonlySet<string>
+}
+
+/**
+ * Replace parameters throughout a closure body, keeping names meaningful
+ * once the body is moved to the call site:
+ *
+ * - A free name in the body that the caller has shadowed embeds the value
+ *   it meant at the definition, since printing it by name would change it.
+ * - A binder in the body that would capture an argument's free name is
+ *   renamed.
+ */
+function substitute(ast: AST, subst: Subst, scope: Scope): AST {
+	const sub = (a: AST): AST => substitute(a, subst, scope)
+	switch (ast.kind) {
+		case 'sym': {
+			const replacement = subst.get(ast.name)
+			if (replacement === null) return ast
+			if (replacement !== undefined) return replacement
+			return resolveFreeName(ast, scope)
+		}
 		case 'lit':
 		case 'host':
 		case 'path':
 			return ast
-
-		case 'quote':
-			return new QuoteAST(
-				substitute(ast.expr, subst, callerEnv, level + 1)
-			)
-
-		case 'unquote': {
-			if (level === 1) {
-				// Pop the quote level: substitute through the inner expr at
-				// level 0, then evaluate and reify the result back to AST.
-				const inner = substitute(ast.expr, subst, callerEnv, 0)
-				const v = evaluate(inner, callerEnv).value
-				return toAst(v, callerEnv)
-			}
-			return new UnquoteAST(
-				substitute(ast.expr, subst, callerEnv, level - 1)
-			)
-		}
-
-		case 'splice': {
-			if (level === 1) {
-				// Splice is only meaningful inside a list-building parent;
-				// the parent (vec / call / record) is responsible for
-				// flattening. We substitute and evaluate now, but wrap as
-				// a SpreadAST around a vec literal so the parent handles
-				// element expansion via its existing spread path. If the
-				// evaluated value isn't a vector, fall back to spread of
-				// a single-element vec.
-				const inner = substitute(ast.expr, subst, callerEnv, 0)
-				const v = evaluate(inner, callerEnv).value
-				const spliceAst = toAst(v, callerEnv)
-				return new SpreadAST(spliceAst)
-			}
-			return new SpliceAST(
-				substitute(ast.expr, subst, callerEnv, level - 1)
-			)
-		}
-
+		case 'unquote':
+			return new UnquoteAST(sub(ast.expr))
 		case 'spread':
-			return new SpreadAST(
-				substitute(ast.expr, subst, callerEnv, level)
+			return new SpreadAST(sub(ast.expr))
+		case 'call':
+			return new CallAST(
+				sub(ast.head),
+				ast.args.map(sub),
+				mapValues(ast.kwargs, sub)
 			)
-
-		case 'call': {
-			const head = substitute(ast.head, subst, callerEnv, level)
-			const args = ast.args.map(a =>
-				substitute(a, subst, callerEnv, level)
-			)
-			let kwargs: ReadonlyMap<string, AST> | undefined
-			if (ast.kwargs !== undefined) {
-				const next = new Map<string, AST>()
-				for (const [k, v] of ast.kwargs) {
-					next.set(k, substitute(v, subst, callerEnv, level))
-				}
-				kwargs = next
-			}
-			return new CallAST(head, args, kwargs)
-		}
-
 		case 'vec':
-			return new VecAST(
-				ast.elements.map(e => substitute(e, subst, callerEnv, level))
+			return new VecAST(ast.elements.map(sub))
+		case 'record':
+			return new RecordAST(
+				ast.fields.map(entry =>
+					entry instanceof SpreadAST
+						? new SpreadAST(sub(entry.expr))
+						: ([entry[0], sub(entry[1])] as const)
+				),
+				ast.optional
 			)
-
-		case 'record': {
-			const fields: RecordEntry[] = ast.fields.map(entry => {
-				if (entry instanceof SpreadAST) {
-					return new SpreadAST(
-						substitute(entry.expr, subst, callerEnv, level)
-					)
-				}
-				return [
-					entry[0],
-					substitute(entry[1], subst, callerEnv, level),
-				] as const
-			})
-			return new RecordAST(fields, ast.optional)
-		}
-
-		case 'let': {
-			const bindings = ast.bindings.map(
-				([name, valueAst]) =>
-					[
-						name,
-						substitute(valueAst, subst, callerEnv, level),
-					] as const
-			)
-			const body =
-				ast.body === null
-					? null
-					: substitute(ast.body, subst, callerEnv, level)
-			return new LetAST(bindings, body)
-		}
-
 		case 'access':
-			return new AccessAST(
-				substitute(ast.target, subst, callerEnv, level),
-				ast.key
-			)
-
+			return new AccessAST(sub(ast.target), ast.key)
 		case 'meta':
-			return new MetaAST(
-				substitute(ast.metadata, subst, callerEnv, level) as RecordAST,
-				substitute(ast.expr, subst, callerEnv, level)
+			return new MetaAST(sub(ast.metadata) as RecordAST, sub(ast.expr))
+		case 'let': {
+			const { inner, rename } = enterScope(
+				ast.bindings.map(([n]) => n),
+				subst,
+				scope
 			)
-
+			return new LetAST(
+				ast.bindings.map(
+					([n, v]) => [rename(n), substitute(v, inner, scope)] as const
+				),
+				ast.body === null ? null : substitute(ast.body, inner, scope)
+			)
+		}
 		case 'fn': {
-			// A nested function literal introduces new parameter scope.
-			// Names matching the inner params shadow outer substitutions.
-			const shadowed = new Set(ast.params.map(p => p.name))
-			const innerSubst = new Map<string, AST>()
-			for (const [name, replacement] of subst) {
-				if (!shadowed.has(name)) innerSubst.set(name, replacement)
-			}
+			const { inner, rename } = enterScope(
+				[...ast.generics, ...ast.params.map(p => p.name)],
+				subst,
+				scope
+			)
 			const params: FnParam[] = ast.params.map(p => ({
 				...p,
-				type: substitute(p.type, innerSubst, callerEnv, level),
+				name: rename(p.name),
+				type: substitute(p.type, inner, scope),
 			}))
-			const returnType = substitute(
-				ast.returnType,
-				innerSubst,
-				callerEnv,
-				level
+			return new FnAST(
+				ast.generics.map(rename),
+				params,
+				substitute(ast.returnType, inner, scope),
+				ast.body === null ? null : substitute(ast.body, inner, scope)
 			)
-			const body =
-				ast.body === null
-					? null
-					: substitute(ast.body, innerSubst, callerEnv, level)
-			return new FnAST(ast.generics, params, returnType, body)
+		}
+	}
+}
+
+function resolveFreeName(ast: SymAST, scope: Scope): AST {
+	const definition = lookupBareName(ast.name, scope.captured)
+	if (definition === null) return ast
+	if (definition === lookupBareName(ast.name, scope.caller)) return ast
+	return new HostAST(evaluate(definition.ast, definition.env).value)
+}
+
+function enterScope(
+	names: ReadonlyArray<string>,
+	subst: Subst,
+	scope: Scope
+): { inner: Subst; rename: (name: string) => string } {
+	const inner = new Map(subst)
+	const renamed = new Map<string, string>()
+	for (const name of names) {
+		if (scope.argFrees.has(name)) {
+			const fresh = freshName(name, scope.argFrees, names)
+			renamed.set(name, fresh)
+			inner.set(name, new SymAST(fresh))
+		} else {
+			inner.set(name, null)
+		}
+	}
+	return { inner, rename: name => renamed.get(name) ?? name }
+}
+
+function freshName(
+	name: string,
+	taken: ReadonlySet<string>,
+	siblings: ReadonlyArray<string>
+): string {
+	for (let i = 1; ; i++) {
+		const candidate = `${name}_${i}`
+		if (!taken.has(candidate) && !siblings.includes(candidate)) return candidate
+	}
+}
+
+function collectFreeNames(
+	ast: AST,
+	bound: ReadonlySet<string>,
+	out: Set<string>
+): void {
+	const walk = (a: AST): void => collectFreeNames(a, bound, out)
+	switch (ast.kind) {
+		case 'sym':
+			if (!bound.has(ast.name)) out.add(ast.name)
+			return
+		case 'lit':
+		case 'host':
+		case 'path':
+			return
+		case 'unquote':
+		case 'spread':
+			walk(ast.expr)
+			return
+		case 'call':
+			walk(ast.head)
+			ast.args.forEach(walk)
+			ast.kwargs?.forEach(walk)
+			return
+		case 'vec':
+			ast.elements.forEach(walk)
+			return
+		case 'record':
+			for (const entry of ast.fields) {
+				walk(entry instanceof SpreadAST ? entry.expr : entry[1])
+			}
+			return
+		case 'access':
+			walk(ast.target)
+			return
+		case 'meta':
+			walk(ast.metadata)
+			walk(ast.expr)
+			return
+		case 'let': {
+			const inner = new Set([...bound, ...ast.bindings.map(([n]) => n)])
+			for (const [, value] of ast.bindings) {
+				collectFreeNames(value, inner, out)
+			}
+			if (ast.body !== null) collectFreeNames(ast.body, inner, out)
+			return
+		}
+		case 'fn': {
+			const inner = new Set([
+				...bound,
+				...ast.generics,
+				...ast.params.map(p => p.name),
+			])
+			for (const param of ast.params) {
+				collectFreeNames(param.type, inner, out)
+			}
+			collectFreeNames(ast.returnType, inner, out)
+			if (ast.body !== null) collectFreeNames(ast.body, inner, out)
+			return
 		}
 	}
 }

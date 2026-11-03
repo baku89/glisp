@@ -88,7 +88,7 @@ Every core decision maps to a problem creative software hits:
 - **`()` as the failure sink.** Mid-edit programs always have a value the canvas can render. Type mismatches accumulate as diagnostics, not exceptions.
 - **Parametric `(IO T)` and structural function types.** Host effects can be typed precisely without forcing a Haskell-shaped type system on the user.
 - **Path-based references (`./key`, `../arg`).** The GUI can wire nodes together by structural address, no name invention required.
-- **`expand` / abstraction ladder.** A host can show *any* rung between source and result, so a designer can drill from a high-level macro down to its expansion in real time.
+- **`expand` / abstraction ladder.** A host can show *any* rung between source and result, so a designer can drill from a high-level function down to its expansion in real time.
 - **Static name resolution.** The GUI can show types and references without running the program first.
 
 See the [Specification](./spec/README.md) for the full design rationale.

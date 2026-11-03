@@ -5,7 +5,6 @@
 - S-expression based.
 - No English keywords. Reserved tokens are symbolic (`=>`, `_`, `!`, `^`, etc.).
 - Whitespace is the only separator. No commas. Newlines are whitespace.
-- Code-as-data: quoted expressions are first-class values.
 
 ## Tokens
 
@@ -164,7 +163,7 @@ Distinguishing path from spread/splice: a path always begins with `./` or `../` 
                                 ;; ./1 = child 1 = x → equivalent to (+ x x)
 ```
 
-Paths walk every AST level, including records, vectors, function applications, and quasi-quotes, but not every expression has a path. A let-block's trailing expression has none; bind it to a name to reference it (`{a = 10 r = (* a 2) r}`, then `./r`). Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
+Paths walk every AST level, including records, vectors, and function applications, but not every expression has a path. A let-block's trailing expression has none; bind it to a name to reference it (`{a = 10 r = (* a 2) r}`, then `./r`). Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
 
 There is no absolute path form (no leading `/...`).
 
@@ -252,7 +251,7 @@ The element type is *just a type* — there is no special restriction on what it
 
 That is valid, just usually not the intent. The shorthand `...rest: T` is canonical for the common case "many T's"; nesting falls out from the rule.
 
-See [Spread](#spread--) for how to call variadic functions and for spread in vectors, records, and quasiquote.
+See [Spread](#spread--) for how to call variadic functions and for spread in vectors and records.
 
 ### Application — keyword arguments
 
@@ -290,14 +289,13 @@ A variadic parameter is always the last one in the parameter list (see [Variadic
 
 ## Spread — `...`
 
-A unary `...` prefix expands its operand into the surrounding form. The same prefix is used in four places, with one consistent meaning ("inline these elements here"):
+A unary `...` prefix expands its operand into the surrounding form. The same prefix is used in three places, with one consistent meaning ("inline these elements here"):
 
 | Context              | Form                  | Effect                                                            |
 | -------------------- | --------------------- | ----------------------------------------------------------------- |
 | Function call        | `(f a ...xs b)`       | spreads vector `xs` as positional arguments                       |
 | vector literal       | `[1 ...xs 4]`         | inlines elements of `xs` into the vector                          |
 | Record literal       | `{a: 1 ...rec b: 2}`  | merges fields of `rec` into the record (later keys win)           |
-| Quasiquote (splice)  | `` `(foo ...~xs) ``   | unquote-splice: evaluates `xs` and inlines its elements           |
 
 ```glisp
 {xs = [2 3]
@@ -306,10 +304,10 @@ A unary `...` prefix expands its operand into the surrounding form. The same pre
 {a: 1 ...{b: 2 c: 3} d: 4}          ;; → {a: 1 b: 2 c: 3 d: 4}
 {base = {a: 1 b: 2}
  {...base b: 99}}                   ;; → {a: 1 b: 99} (later key wins)
-`(foo ...~xs bar)                   ;; xs evaluates to [1 2 3] → `(foo 1 2 3 bar)
+(+ 1 ...~xs 4)                      ;; the same value; see `~` below
 ```
 
-The operand of `...` must evaluate to a vector (in call/vector/quasiquote-splice contexts) or to a record (in record context). Type mismatch falls back per the usual rules.
+The operand of `...` must evaluate to a vector (in call/vector contexts) or to a record (in record context). Type mismatch falls back per the usual rules.
 
 The `...` of a spread is always followed directly by an identifier or `~`. This distinguishes it from path forms, which always begin with `./` or `../` and contain a `/` (see [Path](#path----and-)).
 
@@ -402,7 +400,7 @@ Restrictions on where `%` may appear:
 - **Parameter lists** of `(=> ...)` — `(=> (% : T) ...)` is invalid; parameters must be named identifiers.
 - **Record keys** — `{%: 10}` is invalid; keys must be identifiers.
 
-Anywhere else (expression positions inside calls, vectors, records, function bodies, quasiquotes), `%` is fine.
+Anywhere else (expression positions inside calls, vectors, records, function bodies), `%` is fine.
 
 Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> (a: T b: U): R ...)` explicitly.
 
@@ -531,23 +529,17 @@ A generic parameter list is written as a leading parens of bare names before the
 
 Parameter scope is the surrounding function literal.
 
-## Quoting
+## Abstraction ladder — `~`
 
-Code-as-data via Clojure-style quasiquoting:
-
-
-| Form        | Meaning                                                                        |
-| ----------- | ------------------------------------------------------------------------------ |
-| `` `expr `` | quasiquote: produce the expression itself as a value                           |
-| `~expr`     | unquote: evaluate `expr` and splice its result into the surrounding quasiquote |
-| `...~expr`  | unquote-splice: evaluate `expr` and splice its elements                        |
-
+`~expr` in a function body marks an implementation detail: `expand` works it out within one step, so its intermediate forms stay off the abstraction ladder. `evaluate` ignores it. `...~expr` is `...` applied to `~expr`.
 
 ```glisp
-`(+ 1 ~x ...~xs)
+pow = (=> (x: number a: number): number (* ...~(repeat x a)))
+
+(pow (+ 1 1) (+ 1 2))  ;; expands to (* (+ 1 1) (+ 1 1) (+ 1 1))
 ```
 
-The result of ``...` is itself a Glisp value (a syntax tree).
+There is no quote form. See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 
 ## Top / Bottom
 
@@ -566,9 +558,8 @@ The result of ``...` is itself a Glisp value (a syntax tree).
 | `=`           | local binding, keyword argument                        |
 | `=>`          | function literal                                       |
 | `^{...}`      | metadata attachment                                    |
-| `` ` ``       | quasiquote                                             |
-| `~`           | unquote                                                |
-| `...`         | spread / variadic / unquote-splice (with `~`)          |
+| `~`           | work out within one expansion step                     |
+| `...`         | spread / variadic                                      |
 | `_`           | Top type                                               |
 | `!`           | Bottom type                                            |
 | `;`           | one-line comment                                       |

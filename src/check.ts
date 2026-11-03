@@ -70,10 +70,8 @@ function walk(ast: AST, env: Env, diagnostics: Diagnostic[]): void {
 			walk(ast.target, env, diagnostics)
 			break
 		case 'meta':
-		case 'quote':
 		case 'unquote':
 		case 'spread':
-		case 'splice':
 			walk(ast.expr, env, diagnostics)
 			break
 		case 'fn':

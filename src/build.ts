@@ -25,10 +25,8 @@ import {
 	type MetaContent,
 	MetaAST,
 	PathAST,
-	QuoteAST,
 	RecordAST,
 	type RecordEntry,
-	SpliceAST,
 	SpreadAST,
 	SymAST,
 	UnquoteAST,
@@ -170,31 +168,17 @@ export function path(
 	return new PathAST(segments)
 }
 
-/** Quasiquote: `` `expr ``. */
-export function quote(expr: AST): QuoteAST {
-	return new QuoteAST(expr)
-}
-
-/** Unquote: `~expr`. */
+/** `~expr`: work out `expr` within one expansion step. */
 export function unquote(expr: AST): UnquoteAST {
 	return new UnquoteAST(expr)
 }
 
 /**
  * Spread: `...expr`. Inlines the operand into the surrounding call / vec /
- * record / quasiquote. Use this for variadic/spread positions; it remains
- * `...expr` even inside a quasiquote.
+ * record. `spread(unquote(x))` prints as `...~x`.
  */
 export function spread(expr: AST): SpreadAST {
 	return new SpreadAST(expr)
-}
-
-/**
- * Unquote-splice: `...~expr`. Only meaningful inside a quasiquote. For
- * non-evaluating spread, use `spread()` instead.
- */
-export function splice(expr: AST): SpliceAST {
-	return new SpliceAST(expr)
 }
 
 /**
@@ -274,10 +258,8 @@ export const g = {
 	let: letBlock,
 	fn,
 	path,
-	quote,
 	unquote,
 	spread,
-	splice,
 	meta,
 	print,
 	// Value builders (type values)

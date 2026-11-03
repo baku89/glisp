@@ -20,13 +20,13 @@ After evaluation, a Glisp value is the corresponding plain JS value, with no wra
 
 `unit` is a registered Symbol rather than `null`/`undefined`, so it cannot be confused with JS values of those forms (e.g. JSON parse results, missing object keys). The Symbol is stable across modules via `Symbol.for`.
 
-`ast`-typed values (results of quasiquoted forms, macro inputs/outputs) appear in JS as **AST handles**. The same handle plays a dual role in the host API: it can be used as an AST under construction (a child of `g.call`, `g.vec`, etc.) **and** as a runtime value of Glisp type `ast`. There is no separate "AST value" wrapper.
+`ast`-typed values appear in JS as **AST handles**. The same handle plays a dual role in the host API: it can be used as an AST under construction (a child of `g.call`, `g.vec`, etc.) **and** as a runtime value of Glisp type `ast`. There is no separate "AST value" wrapper.
 
 ## Builders — `g.*`
 
 The `g` namespace contains all the builders for ASTs and values. Two flavors live in the same namespace:
 
-- **AST builders** produce raw AST handles (no env resolution). Used to construct Glisp source programmatically, splice into quasiquotes, or as runtime `ast`-typed values.
+- **AST builders** produce raw AST handles (no env resolution). Used to construct Glisp source programmatically, or as runtime `ast`-typed values.
 - **Value builders** produce values whose meaning is fully resolved on the TS side. Used as the `type` of a binding and as inputs to `g.infer<T>`.
 
 | Builder                              | Returns                       | Flavor      | Example                                                       |
@@ -38,16 +38,14 @@ The `g` namespace contains all the builders for ASTs and values. Two flavors liv
 | `g.call(head, ...args)`              | application AST               | AST         | `g.call(g.sym('+'), g.lit(1), g.lit(2))` → `(+ 1 2)`          |
 | `g.vec(...elements)`                 | vector AST                    | AST         | `g.vec(g.lit(1), g.lit(2))` → `[1 2]`                         |
 | `g.path(dots, ...segments)`          | path AST                      | AST         | `g.path(2, 'width')` → `../width`                             |
-| `g.quote(expr)`                      | quasiquote AST                | AST         | `g.quote(g.lit(1))` → `` `1 ``                                |
-| `g.unquote(expr)`                    | unquote AST                   | AST         | `g.unquote(g.sym('x'))` → `~x`                                |
-| `g.splice(expr)`                     | splice AST                    | AST         | `g.splice(g.sym('xs'))` → `...~xs`                            |
+| `g.unquote(expr)`                    | `~` AST                       | AST         | `g.unquote(g.sym('x'))` → `~x`                                |
 | `g.number`                           | the `number` type             | value       | `g.number`                                                    |
 | `g.string`                           | the `string` type             | value       | `g.string`                                                    |
 | `g.boolean`                          | the `boolean` type            | value       | `g.boolean`                                                   |
 | `g.unit`                             | the `unit` type               | value       | `g.unit`                                                      |
 | `g.top`                              | the `_` (top) type            | value       | `g.top`                                                       |
 | `g.bottom`                           | the `!` (bottom) type         | value       | `g.bottom`                                                    |
-| `g.ast`                              | the `ast` type                | value       | `g.ast` — used to type macro arguments                        |
+| `g.ast`                              | the `ast` type                | value       | `g.ast`                                                       |
 | `g.vector(T)`                        | `[...T]` type                 | value       | `g.vector(g.number)`                                          |
 | `g.enum(...vs)`                      | `(enum v1 v2 ...)` type       | value       | `g.enum('round', 'butt')`                                     |
 | `g.record({ k: ... })`               | record type **or** record AST | overload    | see below                                                     |
@@ -314,7 +312,7 @@ Conversion strategy by value kind:
 | record              | `{...}` AST, field values reified recursively                      |
 | Closure             | a bare symbol if env binds it; otherwise the function literal AST stored in the closure |
 | Type / typed host fn | a bare symbol if env binds it; otherwise a `host` node            |
-| AST handle (`ast`-typed value) | a quasiquoted form `` `expr ``                          |
+| AST handle (`ast`-typed value) | a `'host'` AST embedding the handle                     |
 | Extern value (`g.extern`-typed) | the value of the extern type's `toAst` option (see below) |
 | anything else       | a `host` node wrapping the value verbatim — preserves identity within a process |
 

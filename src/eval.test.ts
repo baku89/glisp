@@ -1063,14 +1063,10 @@ describe('toAst — value → AST round trip', () => {
 	})
 })
 
-describe('evaluate — quasiquote transparency', () => {
-	it('` x evaluates as if the backtick were absent', () => {
-		expect(evaluate(parse('`42'), emptyEnv).value).toBe(42)
-	})
-
-	it('` ~x  evaluates the unquoted expr', () => {
+describe('evaluate — ~ transparency', () => {
+	it('~x evaluates as if the ~ were absent', () => {
 		const env = makeTopLevel({ x: lit(99) })
-		expect(evaluate(parse('`~x'), env).value).toBe(99)
+		expect(evaluate(parse('~x'), env).value).toBe(99)
 	})
 })
 

@@ -29,7 +29,7 @@ describe('lex — punctuation', () => {
 	})
 
 	it('colon, hat, question, backtick, tilde', () => {
-		expect(kinds(':^?`~')).toEqual([':', '^', '?', '`', '~'])
+		expect(kinds(':^?~')).toEqual([':', '^', '?', '~'])
 	})
 
 	it('= and =>', () => {

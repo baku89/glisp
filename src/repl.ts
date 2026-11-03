@@ -161,14 +161,10 @@ function formatAst(ast: AST): string {
 		case 'fn':
 			// Function literal — render whole signature in closure color.
 			return theme.closure(ast.print())
-		case 'quote':
-			return theme.punct('`') + formatAst(ast.expr)
 		case 'unquote':
 			return theme.punct('~') + formatAst(ast.expr)
 		case 'spread':
 			return theme.punct('...') + formatAst(ast.expr)
-		case 'splice':
-			return theme.punct('...~') + formatAst(ast.expr)
 		default:
 			return ast.print()
 	}
@@ -541,7 +537,7 @@ function handleCommand(
 					`    ${theme.keyword(':ast')}              ${theme.hint('— print the AST of the previous input')}`,
 					`    ${theme.keyword(':type')} ${theme.hint('[expr]')}     ${theme.hint('— infer the type of expr (or the previous input)')}`,
 					`    ${theme.keyword(':check')} ${theme.hint('[expr]')}    ${theme.hint('— static type-check expr (or the previous input)')}`,
-					`    ${theme.keyword(':expand')} ${theme.hint('[expr]')}   ${theme.hint('— one-step macro expansion')}`,
+					`    ${theme.keyword(':expand')} ${theme.hint('[expr]')}   ${theme.hint('— one step down the abstraction ladder')}`,
 					`    ${theme.keyword(':doc')} ${theme.hint('<name>')}      ${theme.hint('— show a name\'s type and current value')}`,
 					`    ${theme.keyword(':reset')}            ${theme.hint('— empty the session let-block')}`,
 					`    ${theme.keyword(':help')}             ${theme.hint('— show this help')}`,

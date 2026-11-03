@@ -9,9 +9,7 @@ import {
 	lit,
 	meta,
 	path,
-	quote,
 	record,
-	splice,
 	spread,
 	sym,
 	unquote,
@@ -137,24 +135,10 @@ describe('print', () => {
 		expect(print(path('..'))).toBe('../')
 	})
 
-	it('prints quasiquote / unquote / spread / splice', () => {
-		expect(print(quote(sym('x')))).toBe('`x')
+	it('prints ~ and spread', () => {
 		expect(print(unquote(sym('x')))).toBe('~x')
-		// spread: ...xs (regardless of quasiquote context)
 		expect(print(spread(sym('xs')))).toBe('...xs')
-		// unquote-splice: ...~xs (only meaningful inside quasiquote)
-		expect(print(splice(sym('xs')))).toBe('...~xs')
-	})
-
-	it('spread and unquote-splice can both appear inside a quasiquote', () => {
-		// `(~f ...xs)   — head is unquoted, args is a plain spread (no eval)
-		expect(
-			print(quote(call(unquote(sym('f')), spread(sym('xs')))))
-		).toBe('`(~f ...xs)')
-		// `(foo ...~xs)  — eval-and-splice
-		expect(
-			print(quote(call(sym('foo'), splice(sym('xs')))))
-		).toBe('`(foo ...~xs)')
+		expect(print(spread(unquote(sym('xs'))))).toBe('...~xs')
 	})
 
 	it('spread element inside a vector', () => {
@@ -203,7 +187,7 @@ describe('print', () => {
 			'(=> (n: number): number (+ n 1))',
 			'^{label: "x"} 100',
 			'(f a=1 b=2)',
-			"`(f ~x ...~ys)",
+			"(f ~x ...~ys)",
 		]
 		for (const s of cases) {
 			expect(parse(s).print()).toBe(s)

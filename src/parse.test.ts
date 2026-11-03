@@ -9,8 +9,6 @@ import {
 	lit,
 	meta,
 	path,
-	quote,
-	splice,
 	spread,
 	sym,
 	unquote,
@@ -258,11 +256,7 @@ describe('parse — paths', () => {
 	})
 })
 
-describe('parse — quasiquote', () => {
-	it('`x', () => {
-		expect(parse('`x')).toEqual(quote(sym('x')))
-	})
-
+describe('parse — ~', () => {
 	it('~x', () => {
 		expect(parse('~x')).toEqual(unquote(sym('x')))
 	})
@@ -271,22 +265,19 @@ describe('parse — quasiquote', () => {
 		expect(parse('...xs')).toEqual(spread(sym('xs')))
 	})
 
-	it('...~xs', () => {
-		expect(parse('...~xs')).toEqual(splice(sym('xs')))
+	it('...~xs is a spread of ~xs', () => {
+		expect(parse('...~xs')).toEqual(spread(unquote(sym('xs'))))
+		expect(parse('...~xs').printStructural()).toBe('...~xs')
 	})
 
-	it('`(+ 1 ~x ...~xs)', () => {
-		expect(parse('`(+ 1 ~x ...~xs)')).toEqual(
-			quote(
-				call(sym('+'), lit(1), unquote(sym('x')), splice(sym('xs')))
-			)
+	it('(+ 1 ~x ...~xs)', () => {
+		expect(parse('(+ 1 ~x ...~xs)')).toEqual(
+			call(sym('+'), lit(1), unquote(sym('x')), spread(unquote(sym('xs'))))
 		)
 	})
 
-	it('`(~f ...xs)  — head unquoted, args plain spread', () => {
-		expect(parse('`(~f ...xs)')).toEqual(
-			quote(call(unquote(sym('f')), spread(sym('xs'))))
-		)
+	it('backtick is not a token', () => {
+		expect(() => parse('`x')).toThrow()
 	})
 })
 
@@ -339,11 +330,10 @@ describe('parse — round-trip', () => {
 			'../foo',
 			'../../a',
 			'../vec/0/name',
-			'`x',
 			'~x',
 			'...xs',
 			'...~xs',
-			'`(+ 1 ~x ...~xs)',
+			'(+ 1 ~x ...~xs)',
 			'^{label: "Width"} 100',
 		]
 		for (const src of examples) {
@@ -420,7 +410,7 @@ describe('parse — special forms (parser is permissive)', () => {
 			'(=> (x: number): number x)',
 			'(f k=(g))',
 			'[...xs]',
-			'`(* ~x ...~xs)',
+			'(* ~x ...~xs)',
 			'^{a: 1} x',
 			'(/ 1 2)',
 			'{x?: number}',

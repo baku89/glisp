@@ -20,10 +20,8 @@ import {
 	FnAST,
 	LetAST,
 	MetaAST,
-	QuoteAST,
 	RecordAST,
 	type RecordEntry,
-	SpliceAST,
 	SpreadAST,
 	SymAST,
 	UnquoteAST,
@@ -169,10 +167,6 @@ function recurseChildren(ast: AST): AST {
 			return new FnAST(ast.generics, params, returnType, body)
 		}
 
-		case 'quote': {
-			const e = desugar(ast.expr)
-			return e === ast.expr ? ast : new QuoteAST(e)
-		}
 		case 'unquote': {
 			const e = desugar(ast.expr)
 			return e === ast.expr ? ast : new UnquoteAST(e)
@@ -180,10 +174,6 @@ function recurseChildren(ast: AST): AST {
 		case 'spread': {
 			const e = desugar(ast.expr)
 			return e === ast.expr ? ast : new SpreadAST(e)
-		}
-		case 'splice': {
-			const e = desugar(ast.expr)
-			return e === ast.expr ? ast : new SpliceAST(e)
 		}
 
 		case 'meta': {
