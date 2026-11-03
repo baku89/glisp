@@ -216,11 +216,13 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 						<Icon icon="mdi:chevron-right" />
 					</button>
 					<div class="source">
+						<span class="copied">&gt; </span>
 						<GlispCode :source="entry.source" />
 					</div>
 					<template v-if="entry.result.tokens.length > 0">
 						<Icon class="mark" icon="mdi:chevron-left" />
 						<div class="output">
+							<span class="copied">&lt; </span>
 							<template
 								v-for="(segment, i) in segmentsOf(entry.result.tokens)"
 								:key="i"
@@ -240,7 +242,7 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 							:icon="DIAGNOSTIC_ICONS[diagnostic.level]"
 						/>
 						<div class="diagnostic" :class="diagnostic.level">
-							<div>{{ diagnostic.message }}</div>
+							<div><span class="copied">! </span>{{ diagnostic.message }}</div>
 							<template v-if="diagnostic.excerpt">
 								<pre class="excerpt">{{ diagnostic.excerpt.line + 1 }} | {{
 									diagnostic.excerpt.source
@@ -311,6 +313,11 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 	height: 1lh;
 	color: var(--tq-color-text-mute);
 	user-select: none;
+}
+/* A mark is an icon to see, and text to copy. An icon has no text, and text in its
+own column would copy as a line of its own. */
+.copied {
+	font-size: 0;
 }
 .recall {
 	color: var(--tq-color-accent);
