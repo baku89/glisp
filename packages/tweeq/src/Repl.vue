@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Session } from '@glisp/lang'
 import { InputButton } from 'tweeq/InputButton'
+import { Icon } from 'tweeq/Icon'
 import { InputCode } from 'tweeq/InputCode'
 import { ScrollArea } from 'tweeq/ScrollArea'
 import * as monaco from 'monaco-editor'
@@ -188,6 +189,12 @@ function recall(source: string): void {
 	})
 }
 
+const DIAGNOSTIC_ICONS = {
+	error: 'mdi:alert-circle-outline',
+	warning: 'mdi:alert-outline',
+	info: 'mdi:information-outline',
+} as const
+
 const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 </script>
 
@@ -200,46 +207,60 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 		<ScrollArea ref="$scroll" class="scroll">
 			<ol v-if="entries.length > 0" class="entries">
 				<li v-for="entry in entries" :key="entry.id" class="entry">
-					<button class="source" type="button" @click="recall(entry.source)">
-						<GlispCode :source="entry.source" />
-					</button>
-					<div v-if="entry.result.tokens.length > 0" class="output">
-						<template
-							v-for="(segment, i) in segmentsOf(entry.result.tokens)"
-							:key="i"
-						>
-							<GlispCode v-if="segment.code" :source="segment.text" />
-							<template v-else>{{ segment.text }}</template>
-						</template>
-						<span v-if="entry.result.note" class="note">
-							; {{ entry.result.note }}</span
-						>
-					</div>
-					<div
-						v-for="(diagnostic, i) in entry.result.diagnostics"
-						:key="i"
-						class="diagnostic"
-						:class="diagnostic.level"
+					<button
+						class="mark recall"
+						type="button"
+						title="Write Again"
+						@click="recall(entry.source)"
 					>
-						<div>{{ diagnostic.message }}</div>
-						<template v-if="diagnostic.excerpt">
-							<pre class="excerpt">{{ diagnostic.excerpt.line + 1 }} | {{
-								diagnostic.excerpt.source
-							}}</pre>
-							<pre class="excerpt caret">{{
-								' '.repeat(
-									String(diagnostic.excerpt.line + 1).length +
-										3 +
-										diagnostic.excerpt.column
-								) + caret(diagnostic.excerpt.span)
-							}}</pre>
-						</template>
+						<Icon icon="mdi:chevron-right" />
+					</button>
+					<div class="source">
+						<GlispCode :source="entry.source" />
 					</div>
+					<template v-if="entry.result.tokens.length > 0">
+						<Icon class="mark" icon="mdi:chevron-left" />
+						<div class="output">
+							<template
+								v-for="(segment, i) in segmentsOf(entry.result.tokens)"
+								:key="i"
+							>
+								<GlispCode v-if="segment.code" :source="segment.text" />
+								<template v-else>{{ segment.text }}</template>
+							</template>
+							<span v-if="entry.result.note" class="note">
+								; {{ entry.result.note }}</span
+							>
+						</div>
+					</template>
+					<template v-for="(diagnostic, i) in entry.result.diagnostics" :key="i">
+						<Icon
+							class="mark"
+							:class="diagnostic.level"
+							:icon="DIAGNOSTIC_ICONS[diagnostic.level]"
+						/>
+						<div class="diagnostic" :class="diagnostic.level">
+							<div>{{ diagnostic.message }}</div>
+							<template v-if="diagnostic.excerpt">
+								<pre class="excerpt">{{ diagnostic.excerpt.line + 1 }} | {{
+									diagnostic.excerpt.source
+								}}</pre>
+								<pre class="excerpt caret">{{
+									' '.repeat(
+										String(diagnostic.excerpt.line + 1).length +
+											3 +
+											diagnostic.excerpt.column
+									) + caret(diagnostic.excerpt.span)
+								}}</pre>
+							</template>
+						</div>
+					</template>
 				</li>
 			</ol>
 		</ScrollArea>
 
 		<form class="prompt" @submit.prevent="run">
+			<Icon class="mark prompt-mark" icon="mdi:chevron-right" />
 			<InputCode
 				v-model="input"
 				:lang="GLISP"
@@ -273,19 +294,32 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 	display: flex;
 	flex-direction: column;
 	gap: var(--tq-gap-control);
+	padding: 0;
+	margin: 0;
 	list-style: none;
+	/* Tweeq's own controls cannot be selected, but what is written here is to copy. */
+	user-select: text;
 }
-.source {
-	display: block;
-	width: 100%;
-	text-align: left;
-	white-space: pre-wrap;
-	word-break: break-word;
+.entry {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: var(--tq-gap-related);
+}
+.mark {
+	flex-shrink: 0;
+	width: 20px;
+	height: 1lh;
+	color: var(--tq-color-text-mute);
+	user-select: none;
+}
+.recall {
+	color: var(--tq-color-accent);
 	cursor: pointer;
 }
-.source:hover {
+.recall:hover {
 	opacity: 0.7;
 }
+.source,
 .output,
 .diagnostic {
 	white-space: pre-wrap;
@@ -294,13 +328,13 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 .note {
 	color: var(--tq-color-text-mute);
 }
-.diagnostic.error {
+.error {
 	color: var(--tq-color-error);
 }
-.diagnostic.warning {
+.warning {
 	color: var(--tq-color-warning);
 }
-.diagnostic.info {
+.info {
 	color: var(--tq-color-info);
 }
 .excerpt {
@@ -316,8 +350,12 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 	align-items: flex-end;
 	gap: var(--tq-gap-related);
 }
-.prompt > :first-child {
+.prompt > :nth-child(2) {
 	flex: 1;
 	min-width: 0;
+}
+.prompt-mark {
+	align-self: center;
+	color: var(--tq-color-accent);
 }
 </style>
