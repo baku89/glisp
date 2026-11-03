@@ -108,6 +108,12 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	width: min(80ch, calc(100vw - 40px));
 	font-family: var(--tq-font-code);
 }
+/* The popup is the editor, so the field has no box of its own. */
+.AstCodePopup :deep(.TqInputCode),
+.AstCodePopup :deep(.TqInputCode:focus-within) {
+	background: none;
+	box-shadow: none;
+}
 .problem {
 	color: var(--tq-color-error);
 }
