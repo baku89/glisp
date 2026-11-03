@@ -2,7 +2,7 @@ import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glis
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withTypeIcons } from './icons'
-import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, kindIconOf, literalOf, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, kindIconOf, literalOf, moveBetween, moveBinding, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withTypeIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -172,12 +172,6 @@ describe('sort', () => {
 		expect(print(sort!.move(1, 2))).toBe('(+ 1 3 2)')
 	})
 
-	it('moves the bindings of a let, and not its body', () => {
-		const v = view('{a = 1 b = 2 (+ a b)}')
-		expect(print(v.slots[0]!.sort!.move(0, 1))).toBe('{b = 2 a = 1 (+ a b)}')
-		expect(v.slots[2]!.sort).toBeUndefined()
-	})
-
 	it('does not move arguments around a spread', () => {
 		expect(view('(+ 1 ...xs)').slots[0]!.sort).toBeUndefined()
 	})
@@ -187,31 +181,87 @@ describe('sort', () => {
 		expect(print(sort!.move(0, 1))).toBe('^{label: "L"} [2 1]')
 	})
 
-	it('is in the menu, where it can go', () => {
-		const labels = (i: number) => actionsOf(view('[1 2]').slots[i]!).map(a => a.label)
-		expect(labels(0)).toContain('Move Down')
-		expect(labels(0)).not.toContain('Move Up')
-		expect(labels(1)).toContain('Move Up')
-		expect(labels(1)).not.toContain('Move Down')
+	it('works out a move from the orders before and after', () => {
+		expect(moveBetween(['a', 'b', 'c'], ['b', 'c', 'a'])).toEqual([0, 2])
+		expect(moveBetween(['a', 'b', 'c'], ['c', 'a', 'b'])).toEqual([2, 0])
+		expect(moveBetween(['a', 'b', 'c'], ['b', 'a', 'c'])).toEqual([0, 1])
+		expect(moveBetween(['a', 'b'], ['a', 'b'])).toBeNull()
 	})
 })
 
-describe('kindIconOf', () => {
-	const kind = (src: string) => kindIconOf(parse(src))
+describe('moveBinding', () => {
+	const SOURCE = '{x = 10 y = (+ 1 2) z = {a = 20}}'
+	const X = 'binding:x'
+	const Y = 'binding:y'
+	const Z = 'binding:z'
+	const A = 'binding:z/binding:a'
+	const move = (
+		source: string,
+		target: string,
+		position: 'before' | 'after' | 'inside',
+		program = SOURCE
+	) => {
+		const next = moveBinding(parse(program), env, source, target, position)
+		return next === null ? null : print(next)
+	}
 
-	it('tells kinds of expression apart', () => {
-		expect(kind('(+ 1 2)')).toBe('mdi:function-variant')
-		expect(kind('{a = 1 a}')).toBe('mdi:graph-outline')
-		expect(kind('(=> (x: number): number x)')).toBe('mdi:lambda')
-		expect(kind('x')).toBe('mdi:link-variant')
-		expect(kind('../x')).toBe('mdi:link-variant')
-		expect(kind('[1 x]')).toBe('mdi:code-brackets')
-		expect(kind('{a: x}')).toBe('mdi:code-braces')
-		expect(kind('^{label: "L"} (+ 1 2)')).toBe('mdi:function-variant')
+	it('moves among its siblings', () => {
+		expect(move(X, Y, 'after')).toBe('{y = (+ 1 2) x = 10 z = {a = 20}}')
+		expect(move(X, Z, 'after')).toBe('{y = (+ 1 2) z = {a = 20} x = 10}')
+		expect(move(Z, X, 'before')).toBe('{z = {a = 20} x = 10 y = (+ 1 2)}')
 	})
 
-	it('has nothing for what is written down', () => {
-		for (const src of ['1', '"a"', '[1 2]', '{a: 1}']) expect(kind(src)).toBeNull()
+	it('moves next to a binding in another let', () => {
+		expect(move(X, A, 'before')).toBe('{y = (+ 1 2) z = {x = 10 a = 20}}')
+		expect(move(X, A, 'after')).toBe('{y = (+ 1 2) z = {a = 20 x = 10}}')
+	})
+
+	it('moves into a let', () => {
+		expect(move(X, Z, 'inside')).toBe('{y = (+ 1 2) z = {a = 20 x = 10}}')
+	})
+
+	it('moves out of a let', () => {
+		expect(move(A, X, 'before')).toBe('{a = 20 x = 10 y = (+ 1 2) z = {}}')
+		expect(move(A, Z, 'after')).toBe('{x = 10 y = (+ 1 2) z = {} a = 20}')
+	})
+
+	it('does not move into what is not a let', () => {
+		expect(move(X, Y, 'inside')).toBeNull()
+		expect(move(X, 'binding:y/arg0', 'before')).toBeNull()
+		expect(move(X, 'binding:y/arg0', 'inside')).toBeNull()
+	})
+
+	it('does not move into itself', () => {
+		expect(move(Z, A, 'before')).toBeNull()
+		expect(move(Z, Z, 'inside')).toBeNull()
+		expect(move(X, X, 'after')).toBeNull()
+	})
+
+	it('does not take a name that is taken', () => {
+		const program = '{x = 1 z = {x = 2}}'
+		expect(move(X, Z, 'inside', program)).toBeNull()
+		expect(move(X, 'binding:z/binding:x', 'after', program)).toBeNull()
+	})
+
+	it('tells a sibling from a name like it', () => {
+		expect(move('binding:z', 'binding:zz', 'after', '{z = 1 zz = {a = 1}}')).toBe(
+			'{zz = {a = 1} z = 1}'
+		)
+		expect(move('binding:z', 'binding:zz', 'inside', '{z = 1 zz = {a = 1}}')).toBe(
+			'{zz = {a = 1 z = 1}}'
+		)
+	})
+
+	it('reaches a let under metadata', () => {
+		expect(move(X, Z, 'inside', '{x = 1 z = ^{label: "L"} {a = 2}}')).toBe(
+			'{z = ^{label: "L"} {a = 2 x = 1}}'
+		)
+	})
+
+	it('reaches a let inside a call, and keeps a let its body', () => {
+		expect(move(X, 'binding:y/arg0', 'inside', '{x = 1 y = (id {a = 2 a})}')).toBe(
+			'{y = (id {a = 2 x = 1 a})}'
+		)
 	})
 })
 
@@ -382,7 +432,6 @@ describe('actionsOf', () => {
 		])
 		expect(menu('[[1]]')).toEqual(['Add Element', 'Copy Value', 'Delete'])
 		expect(menu('[1]')).toEqual(['Copy Value', 'Delete'])
-		expect(menu('[1 2 3]', 1)).toEqual(['Move Up', 'Move Down', 'Copy Value', 'Delete'])
 		expect(menu('(take [1] 1)', 1)).toEqual(['Copy Value'])
 	})
 

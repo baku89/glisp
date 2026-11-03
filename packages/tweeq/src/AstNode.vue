@@ -12,6 +12,7 @@ import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, ref, watch } from 'vue'
 
+import AstSlots from './AstSlots.vue'
 import { iconOf } from './icons'
 import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
 import { SELECTION } from './selection'
@@ -78,9 +79,6 @@ const shown = computed(() => {
 	if (typeof value === 'number') return String(Number(value.toFixed(4)))
 	return props.show(value, props.entry.env)
 })
-
-// What this row's siblings have in common. Those at the root have nothing above.
-const parentPath = computed(() => props.path.slice(0, Math.max(0, props.path.lastIndexOf('/'))))
 
 const open = ref(false)
 
@@ -175,12 +173,11 @@ const menuItems = computed<MenuItem[]>(() => {
 		:icon="icon"
 		:hint="entry.expected?.typeName"
 		:expandable="children.length > 0 || additions.length > 0"
-		:sortGroup="entry.sort === undefined ? undefined : parentPath"
-		:sortIndex="entry.sort?.index"
+		:sortHandle="entry.sort !== undefined"
+		:dragId="entry.key.startsWith('binding:') ? path : undefined"
 		:selected="selected"
 		:menuItems="menuItems"
 		@select="select"
-		@sort="(from, to) => entry.sort && emit('change', entry.sort.move(from, to))"
 	>
 		<div
 			class="value"
@@ -238,11 +235,9 @@ const menuItems = computed<MenuItem[]>(() => {
 		</div>
 
 		<template #children>
-			<AstNode
-				v-for="child in children"
-				:key="child.key"
-				:entry="child"
-				:path="`${path}/${child.key}`"
+			<AstSlots
+				:slots="children"
+				:parentPath="path"
 				:read="read"
 				:show="show"
 				@change="update"

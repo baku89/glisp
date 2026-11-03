@@ -5,10 +5,10 @@ import { InputButton } from 'tweeq/InputButton'
 import { ParameterTree } from 'tweeq/ParameterGrid'
 import { computed, provide, shallowRef, watch } from 'vue'
 
-import AstNode from './AstNode.vue'
+import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
 import { SELECTION, type Selection } from './selection'
-import { viewOf } from './structure'
+import { moveBinding, viewOf } from './structure'
 
 const props = defineProps<{ document: GlispDocument }>()
 
@@ -23,6 +23,24 @@ const show = (value: unknown, env: Env): string => {
 const bindings = computed(
 	() => viewOf(props.document.root.value, props.document.env.value).slots
 )
+
+type DropPosition = 'before' | 'after' | 'inside'
+
+const moved = (source: string, target: string, position: DropPosition): AST | null =>
+	moveBinding(
+		props.document.root.value,
+		props.document.env.value,
+		source,
+		target,
+		position
+	)
+const canMove = (source: string, target: string, position: DropPosition): boolean =>
+	moved(source, target, position) !== null
+
+function move(source: string, target: string, position: DropPosition): void {
+	const next = moved(source, target, position)
+	if (next !== null) replaceRoot(next)
+}
 
 function replaceRoot(next: AST): void {
 	if (next.kind === 'let') {
@@ -77,12 +95,10 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				@click="document.redo()"
 			/>
 		</div>
-		<ParameterTree name="glisp.env">
-			<AstNode
-				v-for="binding in bindings"
-				:key="binding.key"
-				:entry="binding"
-				:path="binding.key"
+		<ParameterTree name="glisp.env" :canDrop="canMove" @move="move">
+			<AstSlots
+				:slots="bindings"
+				parentPath=""
 				:read="document.read"
 				:show="show"
 				@change="replaceRoot"

@@ -80,6 +80,21 @@ function moved<T>(items: readonly T[], from: number, to: number): T[] {
 	return next
 }
 
+/**
+ * What one item moving took `before` to `after`, as `[from, to]`, or null if
+ * nothing moved.
+ */
+export function moveBetween<T>(
+	before: readonly T[],
+	after: readonly T[]
+): [from: number, to: number] | null {
+	const first = before.findIndex((item, i) => item !== after[i])
+	if (first < 0) return null
+	let last = before.length - 1
+	while (before[last] === after[last]) last--
+	return after[last] === before[first] ? [first, last] : [last, first]
+}
+
 /** A parameter that a call could have, but does not. */
 export interface MissingArgument {
 	readonly name: string
@@ -432,11 +447,6 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 		},
 		remove: () =>
 			new LetAST(ast.bindings.filter((_, j) => j !== i), ast.body),
-		sort: {
-			index: i,
-			count: ast.bindings.length,
-			move: (from, to) => new LetAST(moved(ast.bindings, from, to), ast.body),
-		},
 	}))
 	if (ast.body !== null) {
 		slots.push({
@@ -569,6 +579,95 @@ export function problemOf(
 		: null
 }
 
+/** Edit what is at `path` of the slots down from `ast`, or null if nothing is. */
+function editAt(
+	ast: AST,
+	env: Env,
+	path: readonly string[],
+	edit: (node: AST) => AST | null
+): AST | null {
+	const [key, ...rest] = path
+	if (key === undefined) return edit(ast)
+	const view = viewOf(ast, env)
+	const slot = view.slots.find(s => s.key === key)
+	if (slot === undefined) return null
+	const child = editAt(slot.ast, slot.env, rest, edit)
+	return child === null ? null : slot.replace(child)
+}
+
+/** Edit the bindings of a let, under any metadata; null if it is not a let. */
+function editLet(
+	node: AST,
+	edit: (bindings: readonly (readonly [string, AST])[]) => (readonly [string, AST])[] | null
+): AST | null {
+	if (node.kind === 'meta') {
+		const inner = editLet(node.expr, edit)
+		return inner === null ? null : new MetaAST(node.metadata, inner)
+	}
+	if (node.kind !== 'let') return null
+	const bindings = edit(node.bindings)
+	return bindings === null ? null : new LetAST(bindings, node.body)
+}
+
+const BINDING = 'binding:'
+
+/**
+ * `root`, with the binding at the path `source` moved to `position` of the one at
+ * `target`, as a file moves in a tree: only from a let to a let, never into itself,
+ * and not where the name is taken. Null if it cannot go there.
+ *
+ * Paths are slot keys from `root`, joined by `/`. What referred to the binding by
+ * name may stop finding it, which then shows as an error, as any edit would.
+ */
+export function moveBinding(
+	root: AST,
+	env: Env,
+	source: string,
+	target: string,
+	position: 'before' | 'after' | 'inside'
+): AST | null {
+	const split = (path: string) => path.split('/').filter(part => part !== '')
+	const from = split(source)
+	const to = split(target)
+	const key = from.at(-1)
+	if (key === undefined || !key.startsWith(BINDING)) return null
+	const name = key.slice(BINDING.length)
+	if (source === target || `${target}/`.startsWith(`${source}/`)) return null
+
+	const anchorKey = to.at(-1)
+	const intoPath = position === 'inside' ? to : to.slice(0, -1)
+	if (position !== 'inside' && !anchorKey?.startsWith(BINDING)) return null
+	const anchor = anchorKey?.slice(BINDING.length)
+	const sameLet = intoPath.join('/') === from.slice(0, -1).join('/')
+
+	let value: AST | undefined
+	const removed = editAt(root, env, from.slice(0, -1), node =>
+		editLet(node, bindings => {
+			value = bindings.find(([bound]) => bound === name)?.[1]
+			return value === undefined
+				? null
+				: bindings.filter(([bound]) => bound !== name)
+		})
+	)
+	if (removed === null || value === undefined) return null
+	const moving = value
+
+	return editAt(removed, env, intoPath, node =>
+		editLet(node, bindings => {
+			if (!sameLet && bindings.some(([bound]) => bound === name)) return null
+			const at =
+				position === 'inside'
+					? bindings.length
+					: bindings.findIndex(([bound]) => bound === anchor) +
+						(position === 'after' ? 1 : 0)
+			if (position !== 'inside' && at < (position === 'after' ? 1 : 0)) return null
+			const next = bindings.slice()
+			next.splice(at, 0, [name, moving] as const)
+			return next
+		})
+	)
+}
+
 /** An icon for what kind of expression a node is, or null if it is not one. */
 export function kindIconOf(ast: AST): string | null {
 	if (!isExpression(ast)) return null
@@ -584,7 +683,7 @@ export function kindIconOf(ast: AST): string | null {
 		case 'sym':
 		case 'path':
 		case 'access':
-			return 'mdi:link-variant'
+			return 'mdi:arrow-top-right'
 		case 'vec':
 			return 'mdi:code-brackets'
 		case 'record':
@@ -653,24 +752,6 @@ export function actionsOf(slot: Slot): SlotAction[] {
 			icon: 'mdi:plus',
 			group: 'edit',
 			apply: () => slot.replace(append.add()),
-		})
-	}
-
-	const { sort } = slot
-	if (sort !== undefined && sort.index > 0) {
-		actions.push({
-			label: 'Move Up',
-			icon: 'mdi:arrow-up',
-			group: 'edit',
-			apply: () => sort.move(sort.index, sort.index - 1),
-		})
-	}
-	if (sort !== undefined && sort.index < sort.count - 1) {
-		actions.push({
-			label: 'Move Down',
-			icon: 'mdi:arrow-down',
-			group: 'edit',
-			apply: () => sort.move(sort.index, sort.index + 1),
 		})
 	}
 
