@@ -18,6 +18,8 @@ import { actionsOf, fitsInline, kindIconOf, type Slot, sourceOf, viewOf } from '
 const props = defineProps<{
 	entry: Slot
 	path: string
+	/** Adds a new one in the gap above this row, among those that can grow. */
+	insertBefore?: () => void
 	read: (
 		ast: AST,
 		env: Env
@@ -250,6 +252,17 @@ watch(
 
 		<template #labelEnd>
 			<button
+				v-if="insertBefore"
+				class="gap-add"
+				type="button"
+				aria-label="Add Here"
+				@click.stop="insertBefore"
+				@dblclick.stop
+				@pointerdown.stop
+			>
+				<Icon icon="mdi:plus" />
+			</button>
+			<button
 				v-if="pinned"
 				v-tooltip="'Unpin'"
 				class="end pin"
@@ -293,6 +306,42 @@ watch(
 .inline {
 	display: grid;
 	min-width: 0;
+}
+/* In the gap above the row, and there when reached for, so it moves nothing. */
+.gap-add {
+	position: absolute;
+	top: calc(var(--tq-gap-related) * -1);
+	right: 0;
+	left: calc((var(--depth) + 1) * var(--indent));
+	z-index: 2;
+	height: var(--tq-gap-related);
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity var(--tq-hover-transition-duration);
+}
+.gap-add:hover,
+.gap-add:focus-visible {
+	opacity: 1;
+}
+.gap-add::before {
+	content: '';
+	position: absolute;
+	top: 50%;
+	right: 0;
+	left: 0;
+	height: 1px;
+	background: var(--tq-color-accent);
+}
+.gap-add > * {
+	position: absolute;
+	top: 50%;
+	right: 0;
+	width: var(--tq-icon-size);
+	height: var(--tq-icon-size);
+	border-radius: 50%;
+	color: var(--tq-color-on-accent);
+	background: var(--tq-color-accent);
+	transform: translateY(-50%);
 }
 .end {
 	display: block;

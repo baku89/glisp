@@ -26,6 +26,10 @@ const bindings = computed(
 	() => viewOf(props.document.root.value, props.document.env.value).slots
 )
 
+const rootAppend = computed(
+	() => viewOf(props.document.root.value, props.document.env.value).append
+)
+
 const revealTarget = shallowRef<{ path: string; rename?: boolean } | null>(null)
 
 function reset(): void {
@@ -227,6 +231,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				<AstSlots
 					:slots="bindings"
 					parentPath=""
+					:append="rootAppend"
+					noAddRow
 					:read="document.read"
 					:show="show"
 					@change="replaceRoot"

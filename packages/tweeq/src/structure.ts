@@ -158,6 +158,8 @@ export interface NodeView {
 		readonly doc?: string
 		readonly label: string
 		add(): AST
+		/** The new node with one more, before the one now at `at` of those that can grow. */
+		insert(at: number): AST
 	} | null
 }
 
@@ -584,6 +586,12 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 								[...ast.args, defaultFor(signature?.(ast.args.length) ?? null, inside)],
 								ast.kwargs
 							),
+						insert: at => {
+							const index = positional.length + at
+							const args = ast.args.slice()
+							args.splice(index, 0, defaultFor(signature?.(index) ?? null, inside))
+							return new CallAST(ast.head, args, ast.kwargs)
+						},
 					},
 	}
 }
@@ -655,6 +663,11 @@ function viewOfVec(
 			label: 'Element',
 			add: () =>
 				new VecAST([...ast.elements, newElement(ast, inside, elementType(ast.elements.length))]),
+			insert: at => {
+				const elements = ast.elements.slice()
+				elements.splice(at, 0, newElement(ast, inside, elementType(at)))
+				return new VecAST(elements)
+			},
 		},
 	}
 }
@@ -722,6 +735,11 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 					[...ast.bindings, [freshName(ast), new LitAST(0)] as const],
 					ast.body
 				),
+			insert: at => {
+				const bindings = ast.bindings.slice()
+				bindings.splice(at, 0, [freshName(ast), new LitAST(0)] as const)
+				return new LetAST(bindings, ast.body)
+			},
 		},
 	}
 }
@@ -776,7 +794,11 @@ function viewOfMeta(
 		append:
 			inner.append === null
 				? null
-				: { ...inner.append, add: () => wrap(inner.append!.add()) },
+				: {
+						...inner.append,
+						add: () => wrap(inner.append!.add()),
+						insert: at => wrap(inner.append!.insert(at)),
+					},
 	}
 }
 

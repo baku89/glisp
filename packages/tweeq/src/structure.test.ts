@@ -1000,6 +1000,32 @@ describe('helpers', () => {
 	})
 })
 
+describe('adding in the middle', () => {
+	const inserted = (src: string, at: number) => print(view(src).append!.insert(at))
+
+	it('goes before the one at that place of a call', () => {
+		expect(inserted('(* 2 3)', 0)).toBe('(* 1 2 3)')
+		expect(inserted('(* 2 3)', 1)).toBe('(* 2 1 3)')
+		expect(inserted('(* 2 3)', 2)).toBe('(* 2 3 1)')
+	})
+
+	it('counts only what can grow, past what has a name', () => {
+		const call = view('(concat "a" "b")')
+		const fixed = call.append === null ? null : print(call.append.insert(0))
+		expect(fixed === null || fixed.includes('"a"')).toBe(true)
+	})
+
+	it('goes before the one at that place of a vector and a block', () => {
+		expect(inserted('[1 2]', 1)).toBe('[1 0 2]')
+		expect(inserted('{a = 1 b = 2}', 1)).toBe('{a = 1 x = 0 b = 2}')
+		expect(inserted('{x = 1}', 0)).toBe('{x2 = 0 x = 1}')
+	})
+
+	it('keeps metadata around it', () => {
+		expect(inserted('^{label: "L"} [1 2]', 0)).toBe('^{label: "L"} [0 1 2]')
+	})
+})
+
 describe('adding an argument', () => {
 	const added = (src: string) => print(view(src).append!.add())
 

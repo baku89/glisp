@@ -15,6 +15,8 @@ const props = defineProps<{
 	/** What can be added after these, in what holds them. */
 	missing?: readonly MissingArgument[]
 	append?: NodeView['append']
+	/** No row at the end to add one more with, as what holds them has its own. */
+	noAddRow?: boolean
 	read: (
 		ast: AST,
 		env: Env
@@ -81,13 +83,36 @@ const pairOf = (slots: readonly Slot[]) => {
 
 const revealer = inject(REVEALER, null)
 
-function addOneMore(): void {
-	const { append } = props
-	if (!append) return
-	emit('change', append.add())
+function revealNew(): void {
+	const key = props.append?.key
 	// A new binding has only a placeholder for a name.
-	if (append.key !== undefined && revealer) {
-		revealer.target.value = { path: `${props.parentPath}/${append.key}`, rename: true }
+	if (key !== undefined && revealer) {
+		revealer.target.value = {
+			path: props.parentPath === '' ? key : `${props.parentPath}/${key}`,
+			rename: true,
+		}
+	}
+}
+
+function addOneMore(): void {
+	if (!props.append) return
+	emit('change', props.append.add())
+	revealNew()
+}
+
+/** What adds a new one before `slot`, if it is one of what can grow. */
+function inserterOf(slot: Slot): (() => void) | undefined {
+	const { append } = props
+	if (!append) return undefined
+	const at = slot.key.startsWith('binding:')
+		? props.slots.findIndex(other => other.key === slot.key)
+		: slot.sort?.index
+	if (at === undefined) return undefined
+	return () => {
+		// A new row has a place of its own, so that the others keep theirs.
+		if (slot.sort !== undefined) ids.splice(at, 0, nextId++)
+		emit('change', append.insert(at))
+		revealNew()
 	}
 }
 
@@ -110,6 +135,7 @@ const pathOf = (slot: Slot): string =>
 			v-else
 			:entry="slot"
 			:path="pathOf(slot)"
+			:insertBefore="inserterOf(slot)"
 			:read="read"
 			:show="show"
 			@change="emit('change', $event)"
@@ -127,6 +153,7 @@ const pathOf = (slot: Slot): string =>
 			<AstNode
 				:entry="item"
 				:path="pathOf(item)"
+				:insertBefore="inserterOf(item)"
 				:read="read"
 				:show="show"
 				@change="emit('change', $event)"
@@ -150,7 +177,7 @@ const pathOf = (slot: Slot): string =>
 		@select="emit('change', argument.add())"
 	/>
 	<ParameterTreeItem
-		v-if="append"
+		v-if="append && !noAddRow"
 		:label="`Add ${append.label}`"
 		icon="mdi:plus"
 		@select="addOneMore"
