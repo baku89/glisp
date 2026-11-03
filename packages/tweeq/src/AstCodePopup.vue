@@ -16,6 +16,8 @@ const props = defineProps<{
 	ast: AST
 	/** What to start with, if not what is being edited. */
 	start?: string
+	/** Why what is written cannot go here, if it cannot. */
+	refuse?: (next: AST) => string | null
 }>()
 
 const emit = defineEmits<{
@@ -26,14 +28,14 @@ const emit = defineEmits<{
 
 registerGlisp()
 
-const draft = ref(props.start ?? sourceOf(props.ast))
-const unfinished = ref(false)
+const initial = props.start ?? sourceOf(props.ast)
+const draft = ref(initial)
+const problem = ref<string | null>(null)
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 
 function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
 	editor = instance
 	editOneExpression(instance, {
-		caretAtEnd: props.start !== undefined,
 		// With nothing written, there is nothing to go on with.
 		isFinished: () => draft.value.trim() === '' || parseSource(draft.value) !== null,
 		cancel: () => emit('close'),
@@ -43,10 +45,13 @@ function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
 
 /** Take what is written, and if it cannot be read, stay, rather than lose it. */
 function finish(): void {
-	if (draft.value.trim() !== '') {
+	if (draft.value.trim() !== '' && draft.value !== initial) {
 		const next = parseSource(draft.value)
-		if (next === null) {
-			unfinished.value = true
+		problem.value =
+			next === null
+				? 'This cannot be read yet. Esc leaves it as it was.'
+				: (props.refuse?.(next) ?? null)
+		if (next === null || problem.value !== null) {
 			// After the press that is on its way, which takes the focus.
 			requestAnimationFrame(() => editor?.focus())
 			return
@@ -88,11 +93,9 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				:lang="GLISP"
 				:options="EDITOR_OPTIONS"
 				@mount="onMount"
-				@update:modelValue="unfinished = false"
+				@update:modelValue="problem = null"
 			/>
-			<p v-if="unfinished" class="unfinished">
-				This cannot be read yet. Esc leaves it as it was.
-			</p>
+			<p v-if="problem !== null" class="problem">{{ problem }}</p>
 		</div>
 	</Popover>
 </template>
@@ -105,7 +108,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	width: min(80ch, calc(100vw - 40px));
 	font-family: var(--tq-font-code);
 }
-.unfinished {
+.problem {
 	color: var(--tq-color-error);
 }
 </style>

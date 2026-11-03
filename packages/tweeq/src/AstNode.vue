@@ -54,8 +54,13 @@ const hint = computed(() => props.entry.doc ?? props.entry.expected?.typeName)
 // A binding's name is edited on its label. What a call calls is an expression, so its
 // code opens from the row.
 const renamable = isBinding
-const editingFunction = ref(false)
-const $functionAnchor = useTemplateRef<HTMLElement>('$functionAnchor')
+// A row with no field of its own for it, such as these, opens it from itself.
+const editingCode = ref(false)
+const $anchor = useTemplateRef<HTMLElement>('$anchor')
+function editExpression(): void {
+	if ($value.value === null) editingCode.value = true
+	else $value.value.editExpression()
+}
 function canRename(name: string): boolean {
 	return renamer?.can(props.path, name) ?? false
 }
@@ -117,17 +122,17 @@ const selected = computed(() => selection.value?.path === props.path)
 
 function select(): void {
 	const remove = props.entry.remove
-	if (isFunction.value) editingFunction.value = true
+	if (isFunction.value) editingCode.value = true
 	selection.value = {
 		path: props.path,
 		...(remove === undefined ? {} : { remove: () => emit('change', remove()) }),
 		...(renamable.value
 			? { rename: () => (renaming.value = true) }
 			: isFunction.value
-				? { rename: () => (editingFunction.value = true) }
+				? { rename: () => (editingCode.value = true) }
 				: {}),
 		editValue: () => $value.value?.editValue?.(),
-		editExpression: () => $value.value?.editExpression(),
+		editExpression,
 		evaluate(id) {
 			const action = actionsOf(props.entry).find(a => a.id === id)
 			if (action !== undefined && 'apply' in action) emit('change', action.apply())
@@ -141,9 +146,9 @@ const slotMenu = computed(() =>
 
 // What the value's own field offers by itself, and the row offers on its behalf.
 const menuItems = computed<MenuItem[]>(() => [
-	...($value.value === null
+	...(isFunction.value
 		? []
-		: editMenuItems($value.value.editValue, () => $value.value?.editExpression())),
+		: editMenuItems($value.value?.editValue ?? null, editExpression)),
 	...(renamable.value || isFunction.value
 		? [
 				{
@@ -151,7 +156,7 @@ const menuItems = computed<MenuItem[]>(() => [
 					icon: 'mdi:rename-outline',
 					perform: () =>
 						isFunction.value
-							? (editingFunction.value = true)
+							? (editingCode.value = true)
 							: (renaming.value = true),
 				},
 				{ separator: true as const },
@@ -199,14 +204,15 @@ watch(
 		:menuItems="menuItems"
 		@select="select"
 	>
-		<AstInline
-			v-if="inline"
-			:slots="view.slots"
-			:parentPath="path"
-			:read="read"
-			:show="show"
-			@change="update"
-		/>
+		<div v-if="inline" ref="$anchor" class="inline">
+			<AstInline
+				:slots="view.slots"
+				:parentPath="path"
+				:read="read"
+				:show="show"
+				@change="update"
+			/>
+		</div>
 		<AstValue
 			v-else-if="!isFunction"
 			ref="$value"
@@ -218,13 +224,13 @@ watch(
 			@change="emit('change', $event)"
 			@toggle="open = !open"
 		/>
-		<div v-else ref="$functionAnchor" />
+		<div v-else ref="$anchor" />
 		<AstCodePopup
-			v-if="editingFunction"
-			:reference="$functionAnchor"
+			v-if="editingCode"
+			:reference="$anchor"
 			:ast="ast"
 			@change="update"
-			@close="editingFunction = false"
+			@close="editingCode = false"
 		/>
 
 		<template #children>
@@ -239,3 +245,10 @@ watch(
 		</template>
 	</ParameterTreeItem>
 </template>
+
+<style scoped>
+.inline {
+	display: grid;
+	min-width: 0;
+}
+</style>

@@ -104,24 +104,19 @@ export function registerGlisp(): void {
 }
 
 /**
- * Make an editor edit one expression, all selected: Enter confirms, unless what is
+ * Make an editor edit one expression, going on from its end: Enter confirms, unless what is
  * written is unfinished, in which case it goes on to the next line, and Esc cancels.
  */
 export function editOneExpression(
 	editor: monaco.editor.IStandaloneCodeEditor,
 	handlers: {
-		/** Go on writing what is there, rather than having it all selected. */
-		caretAtEnd?: boolean
 		isFinished(): boolean
 		cancel(): void
 		confirm(): void
 	}
 ): void {
 	const range = editor.getModel()?.getFullModelRange()
-	if (range !== undefined) {
-		if (handlers.caretAtEnd) editor.setPosition(range.getEndPosition())
-		else editor.setSelection(range)
-	}
+	if (range !== undefined) editor.setPosition(range.getEndPosition())
 	editor.focus()
 	editor.onKeyDown(event => {
 		const cancelling = event.keyCode === monaco.KeyCode.Escape

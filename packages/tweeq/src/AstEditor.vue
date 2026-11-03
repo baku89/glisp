@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { type AST, type Env, LetAST, solve, toAst } from '@glisp/lang'
+import { type AST, type Env, LetAST, print, solve, toAst } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import { InputButton } from 'tweeq/InputButton'
 import { ParameterTree } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
-import { computed, provide, shallowRef, watch } from 'vue'
+import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
+import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
 import { RENAMER, REVEALER, SELECTION, type Selection, SOLVER } from './selection'
@@ -105,6 +106,18 @@ function replaceRoot(next: AST): void {
 	}
 }
 
+// The whole program as code, a binding to a line, which is how it is easiest to read.
+const editingEnv = ref(false)
+const $envButton = useTemplateRef<HTMLElement>('$envButton')
+const envSource = computed(() => {
+	const lines = props.document.root.value.bindings.map(
+		([name, value]) => `\t${name} = ${print(value)}\n`
+	)
+	return lines.length === 0 ? '{}' : `{\n${lines.join('')}}`
+})
+const refuseAsEnv = (next: AST): string | null =>
+	next.kind === 'let' ? null : 'This has to be a block of bindings.'
+
 const selection = shallowRef<Selection | null>(null)
 provide(SELECTION, selection)
 
@@ -143,9 +156,9 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		event.preventDefault()
 		selection.value.editValue()
 	} else if (event.key === '=' && !isMod && !event.altKey) {
-		if (selection.value?.editExpression === undefined) return
 		event.preventDefault()
-		selection.value.editExpression()
+		if (selection.value === null) editingEnv.value = true
+		else selection.value.editExpression?.()
 	} else if (event.key === 'Enter' || event.key === 'F2') {
 		if (selection.value?.rename === undefined) return
 		event.preventDefault()
@@ -178,6 +191,23 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				@click="document.redo()"
 			/>
 			<InputButton icon="mdi:plus" label="Add" subtle @click="addBinding" />
+			<span ref="$envButton" class="env-button">
+				<InputButton
+					icon="mdi:code-braces"
+					tooltip="Edit Expression"
+					subtle
+					@click="editingEnv = true"
+				/>
+			</span>
+			<AstCodePopup
+				v-if="editingEnv"
+				:reference="$envButton"
+				:ast="document.root.value"
+				:start="envSource"
+				:refuse="refuseAsEnv"
+				@change="replaceRoot"
+				@close="editingEnv = false"
+			/>
 			<InputButton
 				class="reset"
 				icon="mdi:restore"
@@ -226,6 +256,9 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 }
 .reset {
 	margin-left: auto;
+}
+.env-button {
+	display: inline-flex;
 }
 .toolbar {
 	flex-shrink: 0;
