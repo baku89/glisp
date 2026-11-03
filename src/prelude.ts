@@ -26,11 +26,14 @@ import {
 	isTypeValue,
 	makeFunctionType,
 	makeTopLevel,
+	makeTupleType,
 	makeType,
 	makeTypedFn,
+	makeTypeVar,
 	OverloadValue,
 	type TypedHostFn,
 	type TypeValue,
+	withSignature,
 } from './eval.js'
 import { parse } from './parse.js'
 
@@ -89,15 +92,15 @@ function makeIOType(payload: TypeValue): TypeValue {
 export const ioType: TypeValue = makeIOType(topType)
 
 /**
- * `vector` (the host-side type used for prelude-provided vector
- * operations). Shape `vector` with element `_` so it accepts any
- * vector — both inferred tuples (`[number number number]`) and
- * homogeneous vectors fit it through `typeFits`.
+ * `vector`: any vector. As a constructor, `(vector T)` is `[...T]`.
  */
-const vectorType: TypeValue = makeType('vector', Array.isArray, [], {
-	kind: 'vector',
-	element: topType,
-})
+const vectorType: TypeValue = makeTupleType([], topType)
+
+/**
+ * What `enum` and `refine` return. Calling one is a type expression, so a
+ * checker reads the type itself rather than stopping at this.
+ */
+const typeType: TypeValue = makeType('type', isTypeValue, topType)
 
 const recordType: TypeValue = makeType(
 	'record',
@@ -109,6 +112,27 @@ const recordType: TypeValue = makeType(
 	{},
 	{ kind: 'record', fields: new Map(), optional: new Set() }
 )
+
+// -----------------------------------------------------------------------------
+// Generic signatures
+// -----------------------------------------------------------------------------
+
+const T = makeTypeVar('T')
+const U = makeTypeVar('U')
+const A = makeTypeVar('A')
+const vectorOf = (element: TypeValue): TypeValue => makeTupleType([], element)
+
+/** `(=> (generics...) (name: type ...): returnType)`. */
+function generic(
+	generics: ReadonlyArray<string>,
+	params: Readonly<Record<string, TypeValue>>,
+	returnType: TypeValue
+): TypeValue {
+	return makeFunctionType(Object.values(params), returnType, {
+		paramNames: Object.keys(params),
+		generics,
+	})
+}
 
 // -----------------------------------------------------------------------------
 // Operator helpers — variadic by default
@@ -254,6 +278,10 @@ export function buildPrelude(): Env {
 		unit: bind('The unit type; sole inhabitant is `()`.', host(unitType)),
 		_: bind('Top type. Accepts every value. Default `()`.', host(topType)),
 		'!': bind('Bottom type. Accepts no value. Default `()`.', host(bottomType)),
+		vector: bind(
+			'Any vector. `(vector T)` is a vector of `T`, also written `[...T]`.',
+			host(vectorType)
+		),
 		IO: bind(
 			'Deferred host effect. Parametric: `(IO T)` produces a `T` when forced.',
 			host(ioType)
@@ -367,13 +395,21 @@ export function buildPrelude(): Env {
 		// -----------------------------------------------------------------
 		first: bind(
 			'First element of a vector; `()` if empty.',
-			host(fn1(vectorType, topType, xs => (Array.isArray(xs) ? xs[0] ?? UNIT : UNIT), 'xs'))
+			host(
+				withSignature(
+					fn1(vectorType, topType, xs => (Array.isArray(xs) ? xs[0] ?? UNIT : UNIT), 'xs'),
+					generic(['T'], { xs: vectorOf(T) }, T)
+				)
+			)
 		),
 		last: bind(
 			'Last element of a vector; `()` if empty.',
 			host(
-				fn1(vectorType, topType, xs =>
-					Array.isArray(xs) ? xs[xs.length - 1] ?? UNIT : UNIT, 'xs'
+				withSignature(
+					fn1(vectorType, topType, xs =>
+						Array.isArray(xs) ? xs[xs.length - 1] ?? UNIT : UNIT, 'xs'
+					),
+					generic(['T'], { xs: vectorOf(T) }, T)
 				)
 			)
 		),
@@ -384,18 +420,24 @@ export function buildPrelude(): Env {
 		take: bind(
 			'First `n` elements of `xs` (or all if `n` exceeds length).',
 			host(
-				fn2(vectorType, numberType, vectorType, (xs, n) =>
-					Array.isArray(xs) ? xs.slice(0, Math.max(0, n as number)) : [],
-					['xs', 'n']
+				withSignature(
+					fn2(vectorType, numberType, vectorType, (xs, n) =>
+						Array.isArray(xs) ? xs.slice(0, Math.max(0, n as number)) : [],
+						['xs', 'n']
+					),
+					generic(['T'], { xs: vectorOf(T), n: numberType }, vectorOf(T))
 				)
 			)
 		),
 		drop: bind(
 			'`xs` without its first `n` elements.',
 			host(
-				fn2(vectorType, numberType, vectorType, (xs, n) =>
-					Array.isArray(xs) ? xs.slice(Math.max(0, n as number)) : [],
-					['xs', 'n']
+				withSignature(
+					fn2(vectorType, numberType, vectorType, (xs, n) =>
+						Array.isArray(xs) ? xs.slice(Math.max(0, n as number)) : [],
+						['xs', 'n']
+					),
+					generic(['T'], { xs: vectorOf(T), n: numberType }, vectorOf(T))
 				)
 			)
 		),
@@ -456,7 +498,7 @@ export function buildPrelude(): Env {
 			host(
 				makeTypedFn(
 					[stringType, stringType],
-					vectorType,
+					vectorOf(stringType),
 					(s, sep) => (s as string).split(sep as string),
 					['str', 'sep']
 				)
@@ -483,7 +525,7 @@ export function buildPrelude(): Env {
 		keys: bind(
 			'Vector of `rec`\'s field names in declaration order.',
 			host(
-				fn1(recordType, vectorType, rec =>
+				fn1(recordType, vectorOf(stringType), rec =>
 					rec !== null && typeof rec === 'object' && !Array.isArray(rec)
 						? Object.keys(rec)
 						: [],
@@ -616,47 +658,74 @@ export function buildPrelude(): Env {
  * plain host JS function.
  */
 function makeMap(): TypedHostFn {
-	const vecType = vectorType
-	const fnType = makeFunctionType([topType], topType, { paramNames: ['x'] })
-	return makeTypedFn(
-		[vecType, fnType],
-		vecType,
-		(xs, fn) =>
-			(xs as unknown[]).map(x => (fn as (a: unknown) => unknown)(x)),
-		['xs', 'f']
+	return withSignature(
+		makeTypedFn(
+			[vectorType, makeFunctionType([topType], topType, { paramNames: ['x'] })],
+			vectorType,
+			(xs, fn) =>
+				(xs as unknown[]).map(x => (fn as (a: unknown) => unknown)(x)),
+			['xs', 'f']
+		),
+		generic(
+			['T', 'U'],
+			{ xs: vectorOf(T), f: makeFunctionType([T], U, { paramNames: ['x'] }) },
+			vectorOf(U)
+		)
 	)
 }
 
 function makeFilter(): TypedHostFn {
-	const vecType = vectorType
-	const predType = makeFunctionType([topType], booleanType, {
-		paramNames: ['x'],
-	})
-	return makeTypedFn(
-		[vecType, predType],
-		vecType,
-		(xs, p) =>
-			(xs as unknown[]).filter(x =>
-				Boolean((p as (a: unknown) => unknown)(x))
-			),
-		['xs', 'p']
+	return withSignature(
+		makeTypedFn(
+			[
+				vectorType,
+				makeFunctionType([topType], booleanType, { paramNames: ['x'] }),
+			],
+			vectorType,
+			(xs, p) =>
+				(xs as unknown[]).filter(x =>
+					Boolean((p as (a: unknown) => unknown)(x))
+				),
+			['xs', 'p']
+		),
+		generic(
+			['T'],
+			{
+				xs: vectorOf(T),
+				p: makeFunctionType([T], booleanType, { paramNames: ['x'] }),
+			},
+			vectorOf(T)
+		)
 	)
 }
 
 function makeReduce(): TypedHostFn {
-	const vecType = vectorType
-	const fnType = makeFunctionType([topType, topType], topType, {
-		paramNames: ['acc', 'x'],
-	})
-	return makeTypedFn(
-		[vecType, topType, fnType],
-		topType,
-		(xs, init, fn) =>
-			(xs as unknown[]).reduce(
-				(acc, x) => (fn as (a: unknown, b: unknown) => unknown)(acc, x),
-				init
-			),
-		['xs', 'init', 'f']
+	return withSignature(
+		makeTypedFn(
+			[
+				vectorType,
+				topType,
+				makeFunctionType([topType, topType], topType, {
+					paramNames: ['acc', 'x'],
+				}),
+			],
+			topType,
+			(xs, init, fn) =>
+				(xs as unknown[]).reduce(
+					(acc, x) => (fn as (a: unknown, b: unknown) => unknown)(acc, x),
+					init
+				),
+			['xs', 'init', 'f']
+		),
+		generic(
+			['T', 'A'],
+			{
+				xs: vectorOf(T),
+				init: A,
+				f: makeFunctionType([A, T], A, { paramNames: ['acc', 'x'] }),
+			},
+			A
+		)
 	)
 }
 
@@ -671,7 +740,7 @@ function makeReduce(): TypedHostFn {
 function makeEnum(): TypedHostFn {
 	return makeTypedFn(
 		[topType],
-		topType,
+		typeType,
 		(first, ...rest) => {
 			const set = new Set([first, ...rest])
 			const tail = rest.map(showValue).join(' ')
@@ -700,7 +769,7 @@ function makeEnum(): TypedHostFn {
 function makeRefine(): TypedHostFn {
 	return makeTypedFn(
 		[topType, topType, topType],
-		topType,
+		typeType,
 		(base, defaultV, pred) => {
 			if (!isTypeValue(base)) return base
 			const predicate =
@@ -726,7 +795,7 @@ function makeRefine(): TypedHostFn {
 function makeRange(): TypedHostFn {
 	return makeTypedFn(
 		[numberType, numberType],
-		vectorType,
+		vectorOf(numberType),
 		(start, end) => {
 			const a = start as number
 			const b = end as number
@@ -743,8 +812,11 @@ function makeRange(): TypedHostFn {
 }
 
 function makeReverse(): TypedHostFn {
-	return makeTypedFn([vectorType], vectorType, xs =>
-		(xs as unknown[]).slice().reverse()
+	return withSignature(
+		makeTypedFn([vectorType], vectorType, xs =>
+			(xs as unknown[]).slice().reverse()
+		),
+		generic(['T'], { xs: vectorOf(T) }, vectorOf(T))
 	)
 }
 

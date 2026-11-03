@@ -10,7 +10,7 @@
  */
 
 import { desugar } from './desugar.js'
-import { infer } from './infer.js'
+import { infer, resolveTypeSlot, solveClosureGenerics } from './infer.js'
 import {
 	type AST,
 	type BindingTarget,
@@ -145,12 +145,29 @@ export type TypeShape =
 			readonly paramTypes: ReadonlyArray<TypeValue>
 			readonly returnType: TypeValue
 			readonly variadicTail?: TypeValue
+			readonly paramNames?: ReadonlyArray<string>
+			/** Type variables this signature is generic over. */
+			readonly generics?: ReadonlyArray<string>
 	  }
 	| { readonly kind: 'enum'; readonly values: ReadonlySet<unknown> }
 	| { readonly kind: 'refine'; readonly base: TypeValue }
 	| { readonly kind: 'io'; readonly payload: TypeValue }
 	| { readonly kind: 'vector'; readonly element: TypeValue }
-	| { readonly kind: 'tuple'; readonly elements: ReadonlyArray<TypeValue> }
+	| {
+			readonly kind: 'tuple'
+			readonly elements: ReadonlyArray<TypeValue>
+			readonly rest?: TypeValue
+	  }
+	/** A generic's type variable, standing for a type to be solved at a call. */
+	| { readonly kind: 'var'; readonly name: string }
+	/** `(F T)` where `F` is itself a type variable. */
+	| {
+			readonly kind: 'apply'
+			readonly head: TypeValue
+			readonly args: ReadonlyArray<TypeValue>
+	  }
+	/** A reference to a recursive type, which is resolved once it is built. */
+	| { readonly kind: 'lazy'; readonly resolve: () => TypeValue | null }
 	| {
 			readonly kind: 'record'
 			readonly fields: ReadonlyMap<string, TypeValue>
@@ -209,6 +226,122 @@ export function makeType(
 	}
 }
 
+/** A generic's type variable. Accepts any value, since it is not solved yet. */
+export function makeTypeVar(name: string): TypeValue {
+	return makeType(name, () => true, UNIT, { kind: 'var', name })
+}
+
+/** `(F T)` for a type variable `F`. */
+export function makeApplyType(
+	head: TypeValue,
+	args: ReadonlyArray<TypeValue>
+): TypeValue {
+	const name = `(${head.typeName} ${args.map(t => t.typeName).join(' ')})`
+	return makeType(name, () => true, UNIT, { kind: 'apply', head, args })
+}
+
+/** A reference, by `name`, to a type that `resolve` yields once it is built. */
+export function makeLazyType(
+	name: string,
+	resolve: () => TypeValue | null
+): TypeValue {
+	return {
+		__glispType: true,
+		typeName: name,
+		fits: v => resolve()?.fits(v) ?? true,
+		get default() {
+			return resolve()?.default ?? UNIT
+		},
+		shape: { kind: 'lazy', resolve },
+	}
+}
+
+/** What a recursive reference stands for, or the type itself otherwise. */
+export function unwrapLazy(type: TypeValue): TypeValue {
+	let current = type
+	while (current.shape.kind === 'lazy') {
+		const next = current.shape.resolve()
+		if (next === null) return current
+		current = next
+	}
+	return current
+}
+
+const vectorTypes: WeakMap<TypeValue, TypeValue> = new WeakMap()
+
+/** `[...T]`, also written `(vector T)`. */
+function makeVectorType(element: TypeValue): TypeValue {
+	const known = vectorTypes.get(element)
+	if (known !== undefined) return known
+	const isAny = element.typeName === '_'
+	const type: TypeValue = {
+		__glispType: true,
+		typeName: isAny ? 'vector' : `[...${element.typeName}]`,
+		fits: v =>
+			Array.isArray(v) && (isAny || v.every(x => element.fits(x))),
+		default: [],
+		shape: { kind: 'vector', element },
+		apply: typeArgs =>
+			typeArgs.length === 1
+				? makeVectorType(typeArgs[0]!)
+				: { error: `vector expects 1 type argument, got ${typeArgs.length}` },
+	}
+	vectorTypes.set(element, type)
+	return type
+}
+
+/** `[T U]`, or with `rest` `[T U ...V]`. With no fixed elements, a vector. */
+export function makeTupleType(
+	elements: ReadonlyArray<TypeValue>,
+	rest?: TypeValue
+): TypeValue {
+	if (elements.length === 0 && rest !== undefined) return makeVectorType(rest)
+	const names = elements.map(t => t.typeName)
+	if (rest !== undefined) names.push(`...${rest.typeName}`)
+	return makeType(
+		`[${names.join(' ')}]`,
+		v => {
+			if (!Array.isArray(v)) return false
+			if (rest === undefined && v.length !== elements.length) return false
+			if (v.length < elements.length) return false
+			return v.every((x, i) => (elements[i] ?? rest!).fits(x))
+		},
+		elements.map(t => t.default),
+		rest === undefined
+			? { kind: 'tuple', elements }
+			: { kind: 'tuple', elements, rest }
+	)
+}
+
+/** `{x: T y?: U}`. */
+export function makeRecordType(
+	fields: ReadonlyMap<string, TypeValue>,
+	optional: ReadonlySet<string> = new Set()
+): TypeValue {
+	const defaults: Record<string, unknown> = {}
+	for (const [key, type] of fields) defaults[key] = type.default
+	const parts = [...fields].map(
+		([key, type]) => `${key}${optional.has(key) ? '?' : ''}: ${type.typeName}`
+	)
+	return makeType(
+		`{${parts.join(' ')}}`,
+		v => {
+			if (v === null || typeof v !== 'object' || Array.isArray(v)) return false
+			const record = v as Record<string, unknown>
+			for (const [key, type] of fields) {
+				if (!(key in record)) {
+					if (!optional.has(key)) return false
+				} else if (!type.fits(record[key])) {
+					return false
+				}
+			}
+			return true
+		},
+		defaults,
+		{ kind: 'record', fields, optional }
+	)
+}
+
 export function isTypeValue(v: unknown): v is TypeValue {
 	return v != null && (v as { __glispType?: true }).__glispType === true
 }
@@ -236,6 +369,7 @@ export function makeFunctionType(
 	options?: {
 		paramNames?: ReadonlyArray<string>
 		variadicTail?: TypeValue
+		generics?: ReadonlyArray<string>
 	}
 ): TypeValue {
 	const params = paramTypes.map((t, i) => {
@@ -245,42 +379,83 @@ export function makeFunctionType(
 	if (options?.variadicTail !== undefined) {
 		params.push(`...rest: ${options.variadicTail.typeName}`)
 	}
-	const name = `(=> (${params.join(' ')}): ${returnType.typeName})`
-	const shape: TypeShape = options?.variadicTail !== undefined
-		? {
-				kind: 'function',
-				paramTypes,
-				returnType,
-				variadicTail: options.variadicTail,
-			}
-		: { kind: 'function', paramTypes, returnType }
+	const generics = options?.generics ?? []
+	const genericList = generics.length > 0 ? `(${generics.join(' ')}) ` : ''
+	const name = `(=> ${genericList}(${params.join(' ')}): ${returnType.typeName})`
+	const shape: TypeShape = {
+		kind: 'function',
+		paramTypes,
+		returnType,
+		...(options?.variadicTail !== undefined
+			? { variadicTail: options.variadicTail }
+			: {}),
+		...(options?.paramNames !== undefined
+			? { paramNames: options.paramNames }
+			: {}),
+		...(generics.length > 0 ? { generics } : {}),
+	}
 	return makeType(name, v => typeof v === 'function', UNIT, shape)
 }
 
 /**
- * Structural compatibility check: does a value of type `actual` fit a
- * slot declared as `expected`?
+ * Does every value of `actual` belong to `expected`? Types are sets of values,
+ * so this is subtyping, and it is structural: tuples fit vectors, records may
+ * have extra fields, `(enum "a")` fits `string`, and a refinement fits its base.
  *
- * - `expected` being `_` (top) accepts anything.
- * - Same TypeValue identity is compatible.
- * - Two function types are compatible iff their param/return shapes
- *   recursively are. Param matching is invariant for now — proper
- *   contravariance can come with type inference of higher-order calls.
- * - Otherwise, fall back to typeName equality (covers names that
- *   resolve to identical primitives across env rebuilds).
+ * - `_` as `actual` means "not known" rather than "anything", so it fits. Only
+ *   what is known to be wrong gets rejected.
+ * - A type variable fits only itself: inside a generic body, `T` is opaque.
+ * - Function parameters match in either direction, so that a `_` in a slot's
+ *   signature means "don't care".
  */
 export function typeFits(actual: TypeValue, expected: TypeValue): boolean {
-	if (actual === expected) return true
-	if (expected.typeName === '_') return true
-	if (actual.typeName === '!') return true // bottom fits anything
+	return fitsGuarded(actual, expected, new Map())
+}
 
-	if (
-		actual.shape.kind === 'function' &&
-		expected.shape.kind === 'function'
-	) {
-		const a = actual.shape
-		const e = expected.shape
-		// Either side variadic relaxes the arity check.
+function fitsGuarded(
+	actualType: TypeValue,
+	expectedType: TypeValue,
+	assumed: Map<TypeValue, Set<TypeValue>>
+): boolean {
+	if (actualType === expectedType) return true
+	const actual = unwrapLazy(actualType)
+	const expected = unwrapLazy(expectedType)
+	if (actual === expected) return true
+	if (expected.typeName === '_' || actual.typeName === '_') return true
+	if (actual.typeName === '!') return true
+
+	// A recursive type reaching itself again holds as long as the rest does.
+	if (actualType.shape.kind === 'lazy' || expectedType.shape.kind === 'lazy') {
+		let against = assumed.get(actual)
+		if (against === undefined) assumed.set(actual, (against = new Set()))
+		if (against.has(expected)) return true
+		against.add(expected)
+	}
+	const fits = (a: TypeValue, e: TypeValue): boolean =>
+		fitsGuarded(a, e, assumed)
+
+	const a = actual.shape
+	const e = expected.shape
+	if (a.kind === 'var' || e.kind === 'var') {
+		return a.kind === 'var' && e.kind === 'var' && a.name === e.name
+	}
+	if (a.kind === 'apply' || e.kind === 'apply') {
+		return (
+			a.kind === 'apply' &&
+			e.kind === 'apply' &&
+			fits(a.head, e.head) &&
+			a.args.length === e.args.length &&
+			a.args.every((arg, i) => fits(arg, e.args[i]!))
+		)
+	}
+	if (a.kind === 'refine' && e.kind !== 'refine') return fits(a.base, expected)
+	if (a.kind === 'enum' && e.kind !== 'enum') {
+		return [...a.values].every(value => expected.fits(value))
+	}
+	if (a.kind === 'enum' && e.kind === 'enum') {
+		return [...a.values].every(value => e.values.has(value))
+	}
+	if (a.kind === 'function' && e.kind === 'function') {
 		if (
 			a.variadicTail === undefined &&
 			e.variadicTail === undefined &&
@@ -288,57 +463,47 @@ export function typeFits(actual: TypeValue, expected: TypeValue): boolean {
 		) {
 			return false
 		}
-		const len = Math.max(a.paramTypes.length, e.paramTypes.length)
-		for (let i = 0; i < len; i++) {
+		const length = Math.max(a.paramTypes.length, e.paramTypes.length)
+		for (let i = 0; i < length; i++) {
 			const ap = a.paramTypes[i] ?? a.variadicTail
 			const ep = e.paramTypes[i] ?? e.variadicTail
 			if (ap === undefined || ep === undefined) return false
-			if (!typeFits(ap, ep)) return false
+			if (!fits(ap, ep) && !fits(ep, ap)) return false
 		}
-		return typeFits(a.returnType, e.returnType)
+		return fits(a.returnType, e.returnType)
 	}
-
-	// Parametric IO: covariant in the payload. `(IO !)` fits `(IO _)`,
-	// `(IO number)` fits `(IO _)`, but `(IO number)` does not fit
-	// `(IO string)`.
-	if (actual.shape.kind === 'io' && expected.shape.kind === 'io') {
-		return typeFits(actual.shape.payload, expected.shape.payload)
+	if (a.kind === 'io' && e.kind === 'io') return fits(a.payload, e.payload)
+	if (a.kind === 'vector' && e.kind === 'vector') return fits(a.element, e.element)
+	if (a.kind === 'tuple' && e.kind === 'vector') {
+		return (
+			a.elements.every(t => fits(t, e.element)) &&
+			(a.rest === undefined || fits(a.rest, e.element))
+		)
 	}
-
-	// Vector: covariant in the element type.
-	if (actual.shape.kind === 'vector' && expected.shape.kind === 'vector') {
-		return typeFits(actual.shape.element, expected.shape.element)
-	}
-
-	const aShape = actual.shape
-	const eShape = expected.shape
-
-	// Tuple → vector: every tuple position must fit the vector's element.
-	if (aShape.kind === 'tuple' && eShape.kind === 'vector') {
-		return aShape.elements.every(e => typeFits(e, eShape.element))
-	}
-
-	// Tuple → tuple: same length, positional element fits.
-	if (aShape.kind === 'tuple' && eShape.kind === 'tuple') {
-		if (aShape.elements.length !== eShape.elements.length) return false
-		return aShape.elements.every((e, i) => typeFits(e, eShape.elements[i]!))
-	}
-
-	// Record → record: every required field of `expected` must be present
-	// (or `optional`) in `actual` with a fitting type. Extra fields on
-	// `actual` are allowed (width subtyping) since records are open.
-	if (aShape.kind === 'record' && eShape.kind === 'record') {
-		for (const [k, et] of eShape.fields) {
-			const at = aShape.fields.get(k)
-			if (at === undefined) {
-				if (!eShape.optional.has(k)) return false
-				continue
+	if (a.kind === 'tuple' && e.kind === 'tuple') {
+		if (e.rest === undefined) {
+			if (a.rest !== undefined || a.elements.length !== e.elements.length) {
+				return false
 			}
-			if (!typeFits(at, et)) return false
+		} else if (a.elements.length < e.elements.length) {
+			return false
+		}
+		return (
+			a.elements.every((t, i) => fits(t, e.elements[i] ?? e.rest!)) &&
+			(a.rest === undefined || e.rest === undefined || fits(a.rest, e.rest))
+		)
+	}
+	if (a.kind === 'record' && e.kind === 'record') {
+		for (const [key, type] of e.fields) {
+			const field = a.fields.get(key)
+			if (field === undefined) {
+				if (!e.optional.has(key)) return false
+			} else if (!fits(field, type)) {
+				return false
+			}
 		}
 		return true
 	}
-
 	return actual.typeName === expected.typeName
 }
 
@@ -363,6 +528,11 @@ export interface TypedHostFn {
 	 * type and forwarded as additional positional args.
 	 */
 	readonly variadicTail?: TypeValue
+	/**
+	 * The full type, when it says more than the parameter types above, which
+	 * are what values are checked against at run time: `map` is generic here.
+	 */
+	readonly signature?: TypeValue
 }
 
 /**
@@ -415,6 +585,15 @@ export function makeTypedFn(
 		Object.defineProperty(wrapped, 'variadicTail', { value: variadicTail })
 	}
 	return wrapped as TypedHostFn
+}
+
+/** Give a host function a more precise static type, such as a generic one. */
+export function withSignature<F extends TypedHostFn>(
+	fn: F,
+	signature: TypeValue
+): F {
+	Object.defineProperty(fn, 'signature', { value: signature })
+	return fn
 }
 
 export function isTypedHostFn(v: unknown): v is TypedHostFn {
@@ -1193,68 +1372,25 @@ function resolveGenerics(
 	kwargs: ReadonlyMap<string, AST> | undefined,
 	callerEnv: Env,
 	capturedEnv: Env,
-	site: AST,
 	diagnostics: Diagnostic[]
 ): Env {
 	if (fnAst.generics.length === 0) return capturedEnv
-
-	const genericNames = new Set(fnAst.generics)
-	const resolved = new Map<string, TypeValue>()
-	let posIdx = 0
-
-	const witness = (name: string, t: TypeValue, source: AST): void => {
-		const existing = resolved.get(name)
-		if (existing === undefined) {
-			resolved.set(name, t)
-			return
-		}
-		if (existing !== t) {
+	return solveClosureGenerics(
+		fnAst,
+		capturedEnv,
+		positional,
+		kwargs,
+		callerEnv,
+		(name, earlier, here, arg) => {
 			diagnostics.push(
 				diag(
-					source,
+					arg,
 					callerEnv,
-					`generic ${name} resolved to ${existing.typeName} earlier but argument here is ${t.typeName}`
+					`generic ${name} resolved to ${earlier.typeName} earlier but argument here is ${here.typeName}`
 				)
 			)
 		}
-	}
-
-	for (const param of fnAst.params) {
-		// Only direct `sym(T)` participates — see top comment.
-		const isGenericParam =
-			param.type.kind === 'sym' && genericNames.has(param.type.name)
-
-		// Pick the arg AST that this param will see, mirroring the bind
-		// order in the main loop. Variadic / unmatched-and-no-kwarg params
-		// don't witness anything.
-		let argAst: AST | undefined
-		let argEnv: Env = callerEnv
-		if (param.variadic) {
-			posIdx = positional.length // consumes rest
-			argAst = undefined
-		} else if (posIdx < positional.length) {
-			argAst = positional[posIdx]
-			posIdx++
-		} else {
-			argAst = kwargs?.get(param.name)
-		}
-
-		if (isGenericParam && argAst !== undefined) {
-			const inferred = infer(argAst, argEnv)
-			if (inferred !== null) {
-				witness((param.type as { name: string }).name, inferred, argAst)
-			}
-		}
-	}
-
-	if (resolved.size === 0) return capturedEnv
-
-	const map = new Map<string, BindingTarget>()
-	const frame: Frame = { ast: fnAst, parent: capturedEnv, bindings: map }
-	for (const [name, t] of resolved) {
-		map.set(name, { ast: new LitASTClass(t as never), env: frame })
-	}
-	return frame
+	)
 }
 
 /**
@@ -1345,7 +1481,6 @@ function applyClosure(
 		kwargs,
 		callerEnv,
 		closure.capturedEnv,
-		site,
 		diagnostics
 	)
 
@@ -1366,15 +1501,9 @@ function applyClosure(
 	// type itself is referenced.
 	const paramTypes: Array<TypeValue | null> = []
 	for (const param of fnAst.params) {
-		const tr = evaluate(param.type, typeEvalEnv)
-		// `_` (top) is a no-op cast — skip it to keep error messages and the
-		// memo-cache key shape clean.
-		if (isTypeValue(tr.value) && tr.value.typeName !== '_') {
-			push(diagnostics, tr.diagnostics)
-			paramTypes.push(tr.value)
-		} else {
-			paramTypes.push(null)
-		}
+		const type = resolveTypeSlot(param.type, typeEvalEnv)
+		// `_` (top) is a no-op cast, so skip it.
+		paramTypes.push(type !== null && type.typeName !== '_' ? type : null)
 	}
 
 	const bindParam = (
@@ -1513,10 +1642,8 @@ function applyClosure(
 	// with parameter binding. `_` is the top type, treated as a no-op.
 	// As with parameter types, an unresolvable return type expression
 	// degrades silently to "no return cast."
-	const rtResult = evaluate(fnAst.returnType, typeEvalEnv)
-	if (isTypeValue(rtResult.value) && rtResult.value.typeName !== '_') {
-		push(diagnostics, rtResult.diagnostics)
-		const rt = rtResult.value
+	const rt = resolveTypeSlot(fnAst.returnType, typeEvalEnv)
+	if (rt !== null && rt.typeName !== '_') {
 		if (r.value !== UNIT && !rt.fits(r.value)) {
 			diagnostics.push(
 				diag(
@@ -1599,36 +1726,54 @@ function evalCoerce(ast: CallAST, env: Env): EvalResult {
 			': expects exactly 2 arguments: value and type'
 		)
 	}
-	const tResult = evaluate(ast.args[1]!, env)
-	const diagnostics = [...tResult.diagnostics]
-	const t = tResult.value
-	if (!isTypeValue(t)) {
-		diagnostics.push(
-			diag(
-				ast.args[1]!,
-				env,
-				`(: v T): second argument must be a type, got ${describeType(t)}`
-			)
-		)
-		return { value: UNIT, diagnostics }
+	const t = resolveTypeSlot(ast.args[1]!, env)
+	if (t === null) {
+		const r = evaluate(ast.args[1]!, env)
+		return {
+			value: UNIT,
+			diagnostics: [
+				...r.diagnostics,
+				diag(
+					ast.args[1]!,
+					env,
+					`(: v T): second argument must be a type, got ${describeType(r.value)}`
+				),
+			],
+		}
 	}
 	const vResult = evaluate(ast.args[0]!, env)
-	push(diagnostics, vResult.diagnostics)
+	const diagnostics = [...vResult.diagnostics]
 	const v = vResult.value
 	if (v === UNIT) {
 		return { value: t.default, diagnostics }
 	}
-	if (!t.fits(v)) {
-		diagnostics.push(
-			diag(
-				ast.args[0]!,
-				env,
-				`${t.typeName} doesn't accept ${describeType(v)} value`
-			)
-		)
-		return { value: t.default, diagnostics }
+	if (t.fits(v) && !(t.shape.kind === 'function' && typeof v !== 'function')) {
+		return { value: v, diagnostics }
 	}
-	return { value: v, diagnostics }
+	// A non-function given a function type: a constant function, if the value
+	// fits what the function returns.
+	if (t.shape.kind === 'function' && typeof v !== 'function') {
+		if (t.shape.returnType.fits(v)) {
+			return {
+				value: makeTypedFn(
+					t.shape.paramTypes,
+					t.shape.returnType,
+					() => v,
+					t.shape.paramNames,
+					t.shape.variadicTail
+				),
+				diagnostics,
+			}
+		}
+	}
+	diagnostics.push(
+		diag(
+			ast.args[0]!,
+			env,
+			`${t.typeName} doesn't accept ${describeType(v)} value`
+		)
+	)
+	return { value: t.default, diagnostics }
 }
 
 /**
@@ -1763,8 +1908,8 @@ function variantMatches(
 	for (let i = 0; i < positional.length; i++) {
 		const param = fnAst.params[i] ?? fnAst.params[fnAst.params.length - 1]
 		if (param === undefined) continue
-		const t = evaluate(param.type, variant.capturedEnv).value
-		if (!isTypeValue(t)) continue
+		const t = resolveTypeSlot(param.type, variant.capturedEnv)
+		if (t === null) continue
 		const inferred = argTypes[i]
 		if (inferred === null || inferred === undefined) continue
 		if (!typeFits(inferred, t)) return false

@@ -1,225 +1,99 @@
 /**
- * Standalone static type checker.
+ * Static checker: walks a whole program, including what evaluation would never
+ * reach, and reports references that do not resolve and type errors. Runs no
+ * value expression.
  *
- * Walks an AST and surfaces type mismatches *before* the evaluator
- * forces anything. This is the type-side counterpart to `eval`: where
- * `eval` uses dynamic dispatch and emits diagnostics during execution,
- * `check` produces the same diagnostics by purely traversing the tree.
- *
- * The two share infrastructure (`infer`, `typeFits`) so a mismatch
- * surfaced statically here is the same one `callTypedHostFn` /
- * `applyClosure` would emit at runtime — just earlier, and even for
- * branches that never run.
- *
- * Spec: docs/spec/types.md — Type inference / static checking
+ * Spec: docs/spec/types.md — Type inference
  */
 
-import {
-	evaluate,
-	type GlispClosure,
-	isGlispClosure,
-	isTypedHostFn,
-	isTypeValue,
-	type TypedHostFn,
-	type TypeValue,
-	typeFits,
-} from './eval.js'
-import { infer } from './infer.js'
+import { enterNode, pushLetFrame, typeFits } from './eval.js'
+import { bodyFrame, checkCall, infer, resolveTypeSlot } from './infer.js'
 import { resolve } from './resolve.js'
 import {
 	type AST,
 	type CallAST,
 	type Diagnostic,
 	type Env,
+	type FnAST,
 	SpreadAST,
 } from './types.js'
+import { desugar } from './desugar.js'
 
 /**
- * Check `ast` against `env` for references that do not resolve and for
- * type errors. Returns all diagnostics produced by recursive traversal.
- * Never throws.
+ * Check `ast` against `env`. Returns all diagnostics found. Never throws.
  */
 export function check(ast: AST, env: Env): ReadonlyArray<Diagnostic> {
-	const diagnostics = [...resolve(ast, env).diagnostics]
-	walk(ast, env, diagnostics)
+	const resolution = resolve(ast, env)
+	const diagnostics = [...resolution.diagnostics]
+	walk(desugar(ast), env, diagnostics)
 	return diagnostics
 }
 
 function walk(ast: AST, env: Env, diagnostics: Diagnostic[]): void {
 	switch (ast.kind) {
 		case 'call':
-			walkCall(ast, env, diagnostics)
-			break
-		case 'vec':
-			for (const e of ast.elements) walk(e, env, diagnostics)
-			break
-		case 'record':
+			return walkCall(ast, env, diagnostics)
+		case 'vec': {
+			const inside = enterNode(ast, env)
+			for (const element of ast.elements) walk(element, inside, diagnostics)
+			return
+		}
+		case 'record': {
+			const inside = enterNode(ast, env)
 			for (const entry of ast.fields) {
-				if (entry instanceof SpreadAST) {
-					walk(entry.expr, env, diagnostics)
-				} else {
-					walk(entry[1], env, diagnostics)
-				}
+				walk(entry instanceof SpreadAST ? entry.expr : entry[1], inside, diagnostics)
 			}
-			break
-		case 'let':
-			for (const [, valueAst] of ast.bindings) {
-				walk(valueAst, env, diagnostics)
-			}
-			if (ast.body !== null) walk(ast.body, env, diagnostics)
-			break
+			return
+		}
+		case 'let': {
+			const inside = pushLetFrame(ast, env)
+			for (const [, value] of ast.bindings) walk(value, inside, diagnostics)
+			if (ast.body !== null) walk(ast.body, inside, diagnostics)
+			return
+		}
+		case 'fn':
+			return walkFn(ast, env, diagnostics)
 		case 'access':
-			walk(ast.target, env, diagnostics)
-			break
+			return walk(ast.target, env, diagnostics)
 		case 'meta':
 		case 'unquote':
 		case 'spread':
-			walk(ast.expr, env, diagnostics)
-			break
-		case 'fn':
-			if (ast.body !== null) walk(ast.body, env, diagnostics)
-			break
-		// lit / host / sym / path: terminals
+			return walk(ast.expr, env, diagnostics)
+		case 'lit':
+		case 'host':
+		case 'sym':
+		case 'path':
+			return
 	}
 }
 
 function walkCall(ast: CallAST, env: Env, diagnostics: Diagnostic[]): void {
-	// Special forms — short-circuit. `?` and `|>` evaluate selectively, so
-	// recurse into their arms but don't validate them as a normal call.
-	if (ast.head.kind === 'sym') {
-		switch (ast.head.name) {
-			case '?':
-				// `(? value pat1 res1 pat2 res2 ...)` — recurse into all,
-				// but don't try to validate this as a normal call.
-				for (const a of ast.args) walk(a, env, diagnostics)
-				return
-			case '|>':
-				for (const a of ast.args) walk(a, env, diagnostics)
-				return
-		}
+	const inside = enterNode(ast, env)
+	const isTypeSlotForm = ast.head.kind === 'sym' && ast.head.name === ':'
+	if (isTypeSlotForm) {
+		if (ast.args[0] !== undefined) walk(ast.args[0], inside, diagnostics)
+	} else {
+		if (ast.head.kind !== 'sym') walk(ast.head, inside, diagnostics)
+		for (const arg of ast.args) walk(arg, inside, diagnostics)
+		ast.kwargs?.forEach(value => walk(value, inside, diagnostics))
 	}
-
-	// Recurse first so deeper errors surface even if the call's own
-	// signature can't be resolved.
-	walk(ast.head, env, diagnostics)
-	for (const a of ast.args) walk(a, env, diagnostics)
-	if (ast.kwargs) {
-		for (const v of ast.kwargs.values()) walk(v, env, diagnostics)
-	}
-
-	// Resolve the head value to inspect its declared signature. We
-	// deliberately use `evaluate` here — the head expression is not the
-	// thing we're checking, just its bound value.
-	const head = evaluate(ast.head, env).value
-
-	if (isTypedHostFn(head)) {
-		checkAgainstHostFn(ast, head, env, diagnostics)
-	} else if (isGlispClosure(head)) {
-		checkAgainstClosure(ast, head, env, diagnostics)
-	} else if (isTypeValue(head)) {
-		checkAgainstCast(ast, head, env, diagnostics)
-	}
-	// else: untyped host fn / vector index / record access / unknown —
-	// no static signature to check.
+	checkCall(ast, env, (node, message) => {
+		diagnostics.push({ level: 'error', message, source: { ast: node, env } })
+	})
 }
 
-function checkAgainstHostFn(
-	ast: CallAST,
-	fn: TypedHostFn,
-	env: Env,
-	diagnostics: Diagnostic[]
-): void {
-	const positional: AST[] = ast.args.filter(
-		a => !(a instanceof SpreadAST)
-	) as AST[]
+function walkFn(ast: FnAST, env: Env, diagnostics: Diagnostic[]): void {
+	if (ast.body === null) return
+	const frame = bodyFrame(ast, env)
+	walk(ast.body, frame, diagnostics)
 
-	// Spread args defeat positional checking — skip when present.
-	if (positional.length !== ast.args.length) return
-
-	for (let i = 0; i < positional.length; i++) {
-		const expected =
-			i < fn.paramTypes.length
-				? fn.paramTypes[i]!
-				: fn.variadicTail !== undefined
-					? fn.variadicTail
-					: undefined
-		if (expected === undefined) {
-			diagnostics.push(
-				diag(
-					positional[i]!,
-					env,
-					`too many arguments: expected ${fn.paramTypes.length}, got ${positional.length}`
-				)
-			)
-			continue
-		}
-		checkArgType(positional[i]!, expected, env, diagnostics)
+	const declared = resolveTypeSlot(ast.returnType, frame)
+	const actual = infer(ast.body, frame)
+	if (declared !== null && actual !== null && !typeFits(actual, declared)) {
+		diagnostics.push({
+			level: 'error',
+			message: `return type mismatch: expected ${declared.typeName}, got ${actual.typeName}`,
+			source: { ast: ast.body, env },
+		})
 	}
-}
-
-function checkAgainstClosure(
-	ast: CallAST,
-	closure: GlispClosure,
-	env: Env,
-	diagnostics: Diagnostic[]
-): void {
-	const fnAst = closure.ast
-	const positional: AST[] = ast.args.filter(
-		a => !(a instanceof SpreadAST)
-	) as AST[]
-	if (positional.length !== ast.args.length) return
-
-	let p = 0
-	for (let i = 0; i < positional.length; i++) {
-		const param = fnAst.params[p]
-		if (param === undefined) {
-			diagnostics.push(
-				diag(
-					positional[i]!,
-					env,
-					`too many arguments: expected ${fnAst.params.length}, got ${positional.length}`
-				)
-			)
-			continue
-		}
-		// Resolve the param's declared type in the closure's captured env.
-		const tr = evaluate(param.type, closure.capturedEnv)
-		if (isTypeValue(tr.value) && tr.value.typeName !== '_') {
-			checkArgType(positional[i]!, tr.value, env, diagnostics)
-		}
-		if (!param.variadic) p++
-	}
-}
-
-function checkAgainstCast(
-	ast: CallAST,
-	t: TypeValue,
-	env: Env,
-	diagnostics: Diagnostic[]
-): void {
-	if (ast.args.length !== 1) return
-	checkArgType(ast.args[0]!, t, env, diagnostics)
-}
-
-function checkArgType(
-	argAst: AST,
-	expected: TypeValue,
-	env: Env,
-	diagnostics: Diagnostic[]
-): void {
-	const inferred = infer(argAst, env)
-	if (inferred === null) return
-	if (!typeFits(inferred, expected)) {
-		diagnostics.push(
-			diag(
-				argAst,
-				env,
-				`type mismatch: expected ${expected.typeName}, got ${inferred.typeName}`
-			)
-		)
-	}
-}
-
-function diag(ast: AST, env: Env, message: string): Diagnostic {
-	return { level: 'error', message, source: { ast, env } }
 }

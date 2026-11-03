@@ -42,7 +42,18 @@ Two functions of these types are interchangeable at any slot expecting that type
 
 ## Subtyping
 
-There is no subtyping. Types are nominal/equality-based.
+A type is a set of values, and a type fits another when all its values belong to it. Compatibility is structural:
+
+- `[number number]` fits `[...number]` and `[number ...number]`.
+- A record with extra fields fits, and a field declared `y?:` may be missing.
+- `(enum "a" "b")` fits `string` and `(enum "a" "b" "c")`.
+- A `refine` fits its base.
+- `(IO T)` and `[...T]` are covariant.
+- Function parameters match in either direction, so `_` in a slot's signature means "don't care".
+
+`_` as the type of a value means **not known** rather than "anything", so it fits every slot. Only what is known to be wrong is reported, and a value of unknown type is still checked when it arrives at a typed slot at run time. `!` fits everything and nothing else fits it.
+
+A conversion that changes a value is never implicit.
 
 ## Built-in types
 
@@ -77,6 +88,7 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
 | `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)`, with an explicit default for failed casts |
 | `(IO T)` | parametric IO: a deferred effect that, when forced, produces a `T`. Compatibility is covariant in the payload (`(IO !)` fits `(IO _)`) |
+| `(vector T)` | the same type as `[...T]`. Bare `vector` is any vector |
 
 Tuple, vector, and record types share their syntax with the corresponding value literals. The interpretation depends on the slot in which the AST appears — see [Type interpretation at type slots](#type-interpretation-at-type-slots).
 
@@ -102,7 +114,7 @@ ColorCode = (refine string "#000000"
 NonNegative = (refine number 0 (=> (n: number): boolean (>= n 0)))
 ```
 
-`refine` does not introduce subtyping. A `ColorCode` value is a distinct type from `string`; passing it where `string` is expected requires an explicit coercion `(: c string)` (which trivially succeeds since the underlying representation is the same). `enum` could in principle be expressed as a special-cased `refine`, but is kept as its own constructor for readability of the common literal-set case.
+A `ColorCode` fits where a `string` is expected, but not the other way around. `enum` could in principle be expressed as a special-cased `refine`, but is kept as its own constructor for readability of the common literal-set case.
 
 When `(: v T)` is used to coerce, a value that does not fit `T` produces a diagnostic in addition to falling back to the default. This is the same surfacing rule typed function slots use: explicit `(: v T)` and implicit slot share the diagnostic boundary so type mismatches are never silent.
 
@@ -263,7 +275,16 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 
 ### Algorithm
 
-Hindley-Milner-style unification. Generics are inferred at call sites.
+Signatures are mandatory, so types flow locally rather than through a global solver. `infer(ast, env)` runs no value expression. The only thing it evaluates is a type expression, since types are values.
+
+- **Generics are solved at a call**, one argument at a time, by matching types structurally: `(xs: [...T])` given `[1 2]` solves `T` as `number`. A generic seen twice takes whichever of the two types the other fits; if neither does, that is a diagnostic. An unsolved generic is `_`.
+- **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] (+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
+- **Type constructors can be generic.** In `(=> (F T) (x: (F T)): T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.
+- **Inside a generic function's body, `T` is opaque**: it fits only itself.
+- **A vector with no common element type** is a vector of `_` when it meets `[...T]`, since there are no union types.
+- **`?`** has the type its clauses have in common. Clauses with none are a diagnostic.
+
+`check(ast, env)` walks everything, including what evaluation would not reach: references, call arguments, return types, and clauses of `?`.
 
 ## Open questions
 

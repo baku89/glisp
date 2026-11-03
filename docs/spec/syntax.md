@@ -507,7 +507,7 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `Top`, a
 
 ### Subtyping
 
-There is no subtyping. Types are nominal/equality-based. `enum` membership is checked at cast time, not modeled as `"round" <: JoinType`.
+Types are sets of values, with structural subtyping. See [types.md](./types.md#subtyping).
 
 ### Generics
 
@@ -516,6 +516,7 @@ A generic parameter list is written as a leading parens of bare names before the
 ```glisp
 (=> (T) (xs: [...T] i: number): T (xs i))
 (=> (T U) (a: T b: U): T a)
+(=> (F T) (x: (F T)): T ...)        ;; F stands for a type constructor: IO, vector
 ```
 
 Parameter scope is the surrounding function literal.

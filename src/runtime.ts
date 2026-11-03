@@ -30,6 +30,7 @@ import {
 	evaluate,
 	type EvalResult,
 	type EvalStore,
+	type TypeValue,
 	lookupBareName,
 	pathTarget,
 	withEvalStore,
@@ -489,8 +490,9 @@ class SignatureStore implements EvalStore {
 				deps.push({ label, token: 'unbound' })
 				continue
 			}
+			// By name, since an equal type may be a different object on each call.
 			const cast =
-				target.type === undefined ? '' : `:${this.valueKey(target.type)}`
+				target.type === undefined ? '' : `:${(target.type as TypeValue).typeName}`
 			deps.push({ label: label + cast, ast: desugar(target.ast), env: target.env })
 		}
 		for (const free of refs.paths) deps.push(this.pathDependency(free, env))

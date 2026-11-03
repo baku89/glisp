@@ -1165,8 +1165,9 @@ describe('evaluate — parametric IO (coerce / fits)', () => {
 			default: new IO('d', () => []),
 			shape: { kind: 'io', payload: p },
 		})
+		const number = makeType('number', v => typeof v === 'number', 0)
 		expect(typeFits(make(bot), make(top))).toBe(true)
-		expect(typeFits(make(top), make(bot))).toBe(false)
+		expect(typeFits(make(number), make(bot))).toBe(false)
 	})
 
 	it('typeFits: function-type covariance through param/return', () => {
