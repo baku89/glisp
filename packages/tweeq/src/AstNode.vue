@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, isPinned } from '@glisp/lang'
-import type * as monaco from 'monaco-editor'
-import { InputCode } from 'tweeq/InputCode'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
+import AstCodePopup from './AstCodePopup.vue'
 import AstInline from './AstInline.vue'
 import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
-import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
 import { editMenuItems, slotMenuItems } from './menu'
 import { RENAMER, REVEALER, SELECTION } from './selection'
-import { actionsOf, fitsInline, parseSource, type Slot, sourceOf, viewOf } from './structure'
+import { actionsOf, fitsInline, type Slot, viewOf } from './structure'
 
 const props = defineProps<{
 	entry: Slot
@@ -53,32 +51,16 @@ const isFunction = computed(() => props.entry.role === 'function')
 // A function says what it does; anything else, what it is expected to be.
 const hint = computed(() => props.entry.doc ?? props.entry.expected?.typeName)
 
-// A binding's name is edited on its label. What a call calls is an expression, so it
-// is edited as code, across the row.
-const renamable = computed(() => isBinding.value || isFunction.value)
+// A binding's name is edited on its label. What a call calls is an expression, so its
+// code opens from the row.
+const renamable = isBinding
+const editingFunction = ref(false)
+const $functionAnchor = useTemplateRef<HTMLElement>('$functionAnchor')
 function canRename(name: string): boolean {
 	return renamer?.can(props.path, name) ?? false
 }
 function rename(name: string): void {
 	renamer?.apply(props.path, name)
-}
-
-registerGlisp()
-const functionDraft = ref('')
-function onFunctionEditor(editor: monaco.editor.IStandaloneCodeEditor): void {
-	editOneExpression(editor, {
-		isFinished: () => parseSource(functionDraft.value) !== null,
-		cancel() {
-			renaming.value = false
-		},
-		confirm: finishFunction,
-	})
-}
-function finishFunction(): void {
-	if (!renaming.value) return
-	const next = parseSource(functionDraft.value)
-	renaming.value = false
-	if (next !== null && sourceOf(next) !== sourceOf(ast.value)) update(next)
 }
 
 const revealer = inject(REVEALER, null)
@@ -94,9 +76,6 @@ const bareKind = computed(() =>
 
 const renamer = inject(RENAMER, null)
 const renaming = ref(false)
-watch(renaming, on => {
-	if (on && isFunction.value) functionDraft.value = sourceOf(ast.value)
-})
 
 const open = ref(false)
 
@@ -138,10 +117,15 @@ const selected = computed(() => selection.value?.path === props.path)
 
 function select(): void {
 	const remove = props.entry.remove
+	if (isFunction.value) editingFunction.value = true
 	selection.value = {
 		path: props.path,
 		...(remove === undefined ? {} : { remove: () => emit('change', remove()) }),
-		...(renamable.value ? { rename: () => (renaming.value = true) } : {}),
+		...(renamable.value
+			? { rename: () => (renaming.value = true) }
+			: isFunction.value
+				? { rename: () => (editingFunction.value = true) }
+				: {}),
 		editValue: () => $value.value?.editValue?.(),
 		editExpression: () => $value.value?.editExpression(),
 		evaluate(id) {
@@ -160,12 +144,15 @@ const menuItems = computed<MenuItem[]>(() => [
 	...($value.value === null
 		? []
 		: editMenuItems($value.value.editValue, () => $value.value?.editExpression())),
-	...(renamable.value
+	...(renamable.value || isFunction.value
 		? [
 				{
 					label: isFunction.value ? 'Change Function' : 'Rename',
 					icon: 'mdi:rename-outline',
-					perform: () => (renaming.value = true),
+					perform: () =>
+						isFunction.value
+							? (editingFunction.value = true)
+							: (renaming.value = true),
 				},
 				{ separator: true as const },
 			]
@@ -231,15 +218,14 @@ watch(
 			@change="emit('change', $event)"
 			@toggle="open = !open"
 		/>
-
-		<template v-if="isFunction && renaming" #wide>
-			<InputCode
-				v-model="functionDraft"
-				:lang="GLISP"
-				:options="EDITOR_OPTIONS"
-				@mount="onFunctionEditor"
-			/>
-		</template>
+		<div v-else ref="$functionAnchor" />
+		<AstCodePopup
+			v-if="editingFunction"
+			:reference="$functionAnchor"
+			:ast="ast"
+			@change="update"
+			@close="editingFunction = false"
+		/>
 
 		<template #children>
 			<AstSlots

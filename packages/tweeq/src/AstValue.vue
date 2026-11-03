@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, UNIT } from '@glisp/lang'
-import type * as monaco from 'monaco-editor'
-import { InputCode } from 'tweeq/InputCode'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputNumber } from 'tweeq/InputNumber'
 import { InputString } from 'tweeq/InputString'
@@ -10,7 +8,7 @@ import { InputTextBase } from 'tweeq/InputTextBase'
 import { type MenuItem } from 'tweeq/Menu'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
-import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
+import AstCodePopup from './AstCodePopup.vue'
 import { editMenuItems } from './menu'
 import { REVEALER, SOLVER } from './selection'
 import {
@@ -20,7 +18,6 @@ import {
 	isExpression,
 	kindIconOf,
 	numberOptionsAt,
-	parseSource,
 	problemOf,
 	type Slot,
 	sourceOf,
@@ -49,8 +46,6 @@ const emit = defineEmits<{
 	/** The kind icon was pressed, on what opens rather than leads somewhere. */
 	toggle: []
 }>()
-
-registerGlisp()
 
 const ast = computed(() => props.entry.ast)
 const update = (next: AST): void => emit('change', props.entry.replace(next))
@@ -126,39 +121,13 @@ function onKindIcon(): void {
 	else emit('toggle')
 }
 
-// The field holds the source while it has focus.
-const draft = ref(sourceOf(ast.value))
-watch(ast, next => {
-	draft.value = sourceOf(next)
-})
-function commitDraft(): void {
-	const next = parseSource(draft.value)
-	if (next === null) draft.value = sourceOf(ast.value)
-	else if (sourceOf(next) !== sourceOf(ast.value)) update(next)
-}
-
-// An expression shows its value, and becomes code to edit when clicked. Only the
-// one being edited has an editor, so that a long program stays light.
+// An expression shows its value, and its code opens from it, in room to read it. Only
+// the one being edited has an editor, so that a long program stays light.
 const editing = ref(false)
-
-function onEditorMount(editor: monaco.editor.IStandaloneCodeEditor): void {
-	editOneExpression(editor, {
-		caretAtEnd: startedByTyping,
-		// With nothing written, there is nothing to go on with.
-		isFinished: () => draft.value.trim() === '' || parseSource(draft.value) !== null,
-		cancel() {
-			draft.value = sourceOf(ast.value)
-			editing.value = false
-			startedByTyping = false
-		},
-		confirm: finishEditing,
-	})
-}
+const editingStart = ref<string | undefined>(undefined)
 
 // Typing `=` first in a number or the like turns it into an expression, as in a
 // spreadsheet. A string can begin with `=`, so it stays a string.
-let startedByTyping = false
-
 function onFieldKey(event: KeyboardEvent): void {
 	const { kind } = view.value.editor ?? {}
 	if (
@@ -186,16 +155,8 @@ function onFieldKey(event: KeyboardEvent): void {
 	event.preventDefault()
 	event.stopPropagation()
 	target.blur()
-	startedByTyping = true
-	draft.value = start
+	editingStart.value = start
 	editing.value = true
-}
-
-function finishEditing(): void {
-	if (!editing.value) return
-	editing.value = false
-	startedByTyping = false
-	commitDraft()
 }
 
 // What comes out of an expression is a number like any other. Editing it changes
@@ -216,8 +177,8 @@ function editValue(): void {
 }
 
 function editExpression(): void {
-	draft.value = sourceOf(ast.value)
-	startedByTyping = false
+	if (editing.value) return
+	editingStart.value = undefined
 	editing.value = true
 }
 
@@ -240,24 +201,15 @@ const label = (value: unknown): string =>
 		ref="$root"
 		class="value"
 		:class="{
-			expression: !editing && !isCallee && isExpression(ast),
-			callee: !editing && isCallee,
-			error:
-				(draft.trim() !== '' && parseSource(draft) === null) ||
-				(!editing && problem !== null),
+			expression: !isCallee && isExpression(ast),
+			callee: isCallee,
+			error: problem !== null,
 		}"
 		:title="problem ?? sourceOf(ast)"
 		@keydown.capture="onFieldKey"
 	>
-		<InputCode
-			v-if="editing"
-			v-model="draft"
-			:lang="GLISP"
-			:options="EDITOR_OPTIONS"
-			@mount="onEditorMount"
-		/>
 		<InputNumber
-			v-else-if="view.editor?.kind === 'number'"
+			v-if="view.editor?.kind === 'number'"
 			v-bind="numberOptions"
 			:modelValue="view.editor.value"
 			:menuItems="fieldMenu"
@@ -296,7 +248,7 @@ const label = (value: unknown): string =>
 		/>
 		<InputTextBase
 			v-else
-			:modelValue="draft"
+			:modelValue="sourceOf(ast)"
 			:font="isNumber ? 'numeric' : isString ? undefined : 'monospace'"
 			:align="isNumber ? 'center' : undefined"
 			:inlinePosition="inlinePosition"
@@ -305,14 +257,22 @@ const label = (value: unknown): string =>
 			:rightIconPressable="iconTarget !== null || view.slots.length > 0"
 			:menuItems="fieldMenu"
 			@rightIconClick="onKindIcon"
-			@click="editing = true"
-			@focus="editing = true"
+			@click="editExpression"
+			@focus="editExpression"
 		>
 			<template #inactiveContent>
 				<span class="shown">{{ shown }}</span>
 				<span v-if="upToNow !== null" class="up-to-now">{{ upToNow }}</span>
 			</template>
 		</InputTextBase>
+		<AstCodePopup
+			v-if="editing"
+			:reference="$root"
+			:ast="ast"
+			:start="editingStart"
+			@change="update"
+			@close="editing = false"
+		/>
 	</div>
 </template>
 

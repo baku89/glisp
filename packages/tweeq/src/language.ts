@@ -105,8 +105,7 @@ export function registerGlisp(): void {
 
 /**
  * Make an editor edit one expression, all selected: Enter confirms, unless what is
- * written is unfinished, in which case it goes on to the next line, Esc cancels, and
- * leaving confirms.
+ * written is unfinished, in which case it goes on to the next line, and Esc cancels.
  */
 export function editOneExpression(
 	editor: monaco.editor.IStandaloneCodeEditor,
@@ -124,7 +123,6 @@ export function editOneExpression(
 		else editor.setSelection(range)
 	}
 	editor.focus()
-	editor.onDidBlurEditorWidget(handlers.confirm)
 	editor.onKeyDown(event => {
 		const cancelling = event.keyCode === monaco.KeyCode.Escape
 		const confirming =
