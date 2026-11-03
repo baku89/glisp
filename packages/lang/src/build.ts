@@ -206,6 +206,16 @@ export function isPinned(ast: AST): boolean {
 	return ast.kind === 'meta' && ast.metadata.get(PIN) !== undefined
 }
 
+/** `ast` without its `@`, keeping any other metadata. */
+export function unpin(ast: AST): AST {
+	if (ast.kind !== 'meta' || !isPinned(ast)) return ast
+	const { fields, optional } = ast.metadata
+	const others = fields.filter(field => 'kind' in field || field[0] !== PIN)
+	return others.length === 0
+		? ast.expr
+		: new MetaAST(new RecordAST(others, optional), ast.expr)
+}
+
 // -----------------------------------------------------------------------------
 // Value builders — Glisp type values
 //

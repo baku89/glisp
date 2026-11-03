@@ -8,17 +8,20 @@ import { InputString } from 'tweeq/InputString'
 import { InputSwitch } from 'tweeq/InputSwitch'
 import { InputTextBase } from 'tweeq/InputTextBase'
 import { type MenuItem } from 'tweeq/Menu'
-import { computed, inject, ref, watch } from 'vue'
+import { useDrag } from 'tweeq/use/useDrag'
+import { computed, inject, ref, useTemplateRef, watch } from 'vue'
 
 import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
-import { REVEALER } from './selection'
+import { REVEALER, SOLVER } from './selection'
 import {
+	canScrub,
 	expressionFromField,
 	hasValue,
 	isExpression,
 	kindIconOf,
 	parseSource,
 	problemOf,
+	scrubbed,
 	type Slot,
 	sourceOf,
 	viewOf,
@@ -191,6 +194,52 @@ function finishEditing(): void {
 	commitDraft()
 }
 
+// Dragging what comes out of an expression changes what goes in. A click is still
+// what edits it as code, so it is only a drag that does this.
+const solver = inject(SOLVER, null)
+const $field = useTemplateRef('$field')
+
+const scrubbable = computed(
+	() => solver !== null && canScrub(props.entry, result.value?.value)
+)
+
+let scrubStart = 0
+let travelled = 0
+let scrubMoved = false
+
+useDrag($field, {
+	lockPointer: true,
+	disabled: computed(() => !scrubbable.value),
+	shouldDrag(event) {
+		scrubMoved = false
+		// The icon is pressed, not dragged, and capturing would take its click.
+		return !(event.target as Element | null)?.closest('.icon')
+	},
+	onDragStart() {
+		scrubStart = result.value?.value as number
+		travelled = 0
+	},
+	onDrag(state, event) {
+		scrubMoved = true
+		travelled += state.delta[0] * (event.altKey ? 0.1 : 1) * (event.shiftKey ? 10 : 1)
+		solver?.solve(
+			ast.value,
+			scrubbed(scrubStart, travelled, numberOptions.value, event.altKey)
+		)
+	},
+})
+
+/** A press would focus the field, which opens the code, before it could be a drag. */
+function onFieldPress(event: MouseEvent): void {
+	if (scrubbable.value) event.preventDefault()
+}
+
+function onFieldClick(): void {
+	// Letting go of a drag is a click, too.
+	if (scrubMoved) scrubMoved = false
+	else editing.value = true
+}
+
 const label = (value: unknown): string =>
 	typeof value === 'string' ? value : String(value)
 </script>
@@ -201,6 +250,7 @@ const label = (value: unknown): string =>
 		:class="{
 			expression: !editing && !isCallee && isExpression(ast),
 			callee: !editing && isCallee,
+			scrubbable: !editing && scrubbable,
 			error:
 				(draft.trim() !== '' && parseSource(draft) === null) ||
 				(!editing && problem !== null),
@@ -244,6 +294,7 @@ const label = (value: unknown): string =>
 		/>
 		<InputTextBase
 			v-else
+			ref="$field"
 			:modelValue="draft"
 			:font="isNumber ? 'numeric' : isString ? undefined : 'monospace'"
 			:align="isNumber ? 'center' : undefined"
@@ -253,7 +304,8 @@ const label = (value: unknown): string =>
 			:rightIconPressable="iconTarget !== null || view.slots.length > 0"
 			:menuItems="menuItems"
 			@rightIconClick="onKindIcon"
-			@click="editing = true"
+			@mousedown="onFieldPress"
+			@click="onFieldClick"
 			@focus="editing = true"
 		>
 			<template #inactiveContent>
@@ -289,6 +341,9 @@ const label = (value: unknown): string =>
 }
 .value :deep(.TqInputTextBase) {
 	cursor: text;
+}
+.scrubbable :deep(.TqInputTextBase) {
+	cursor: ew-resize;
 }
 .up-to-now {
 	position: absolute;

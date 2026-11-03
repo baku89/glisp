@@ -202,3 +202,14 @@ describe('solve — in a session', () => {
 		expect(session.exec('a').value).toBe(9)
 	})
 })
+
+describe('solve writes numbers', () => {
+	it('without what arithmetic leaves in the last digits', () => {
+		expect(edited('{a = 2 r = (** @3 a)}', 81)).toBe('{a = 4 r = (** @3 a)}')
+	})
+
+	it('and keeps them when rounding would miss the value', () => {
+		const printed = edited('{a = 0 r = (- a @1000000)}', 0.123456789012345)
+		expect(printed).toBe(`{a = ${1000000 + 0.123456789012345} r = (- a @1000000)}`)
+	})
+})

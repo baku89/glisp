@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Env, LetAST, toAst } from '@glisp/lang'
+import { type AST, type Env, LetAST, solve, toAst } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import { InputButton } from 'tweeq/InputButton'
 import { ParameterTree } from 'tweeq/ParameterGrid'
@@ -8,7 +8,7 @@ import { computed, provide, shallowRef, watch } from 'vue'
 
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
-import { RENAMER, REVEALER, SELECTION, type Selection } from './selection'
+import { RENAMER, REVEALER, SELECTION, type Selection, SOLVER } from './selection'
 import { moveBinding, referenceTargetOf, renameBindingAt, viewOf } from './structure'
 
 const props = defineProps<{ document: GlispDocument }>()
@@ -65,6 +65,22 @@ provide(RENAMER, {
 	},
 })
 
+/** Why the last value asked of a row could not be, until something changes. */
+const unsolved = shallowRef<string | null>(null)
+
+provide(SOLVER, {
+	solve(node, value) {
+		const { ast, diagnostics } = solve(
+			props.document.root.value,
+			props.document.env.value,
+			node,
+			value
+		)
+		unsolved.value = diagnostics[0]?.message ?? null
+		if (ast !== null && ast !== props.document.root.value) replaceRoot(ast)
+	},
+})
+
 type DropPosition = 'before' | 'after' | 'inside'
 
 const moved = (source: string, target: string, position: DropPosition): AST | null =>
@@ -95,6 +111,7 @@ provide(SELECTION, selection)
 // A selection deletes through the tree as it was, so an edit ends it.
 watch(props.document.root, () => {
 	selection.value = null
+	unsolved.value = null
 })
 
 // A press anywhere but on a row's label, or the menu it opened, ends a selection.
@@ -166,7 +183,11 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				/>
 			</ParameterTree>
 		</ScrollArea>
-		<ul v-if="document.diagnostics.value.length > 0" class="problems">
+		<ul
+			v-if="unsolved !== null || document.diagnostics.value.length > 0"
+			class="problems"
+		>
+			<li v-if="unsolved !== null">Cannot change that value: {{ unsolved }}</li>
 			<li v-for="(problem, i) in document.diagnostics.value" :key="i">
 				{{ problem.message }}
 			</li>

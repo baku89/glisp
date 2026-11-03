@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AST, Diagnostic, Env } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isPinned } from '@glisp/lang'
 import type * as monaco from 'monaco-editor'
 import { InputCode } from 'tweeq/InputCode'
 import { type MenuItem } from 'tweeq/Menu'
@@ -40,9 +40,11 @@ const view = computed(() =>
 const icon = computed(() =>
 	props.entry.role === 'step'
 		? 'mdi:arrow-down-thin'
-		: (props.entry.icon ??
-			iconOf(ast.value, props.entry.env, props.entry.expected) ??
-			undefined)
+		: isPinned(ast.value)
+			? 'mdi:pin'
+			: (props.entry.icon ??
+				iconOf(ast.value, props.entry.env, props.entry.expected) ??
+				undefined)
 )
 
 const isBinding = computed(() => props.entry.key.startsWith('binding:'))

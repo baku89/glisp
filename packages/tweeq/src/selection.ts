@@ -1,3 +1,4 @@
+import type { AST } from '@glisp/lang'
 import type { InjectionKey, ShallowRef } from 'vue'
 
 /** The slot selected in an editor, and how to delete it, if it can go. */
@@ -16,6 +17,14 @@ export interface BindingRenamer {
 }
 
 export const RENAMER: InjectionKey<BindingRenamer> = Symbol('glisp-renamer')
+
+/** How a row asks for what it shows to come to a value, which takes the whole program. */
+export interface BackwardSolver {
+	/** Edit the program so that `node` gives `value`, or else say why it cannot be. */
+	solve(node: AST, value: unknown): void
+}
+
+export const SOLVER: InjectionKey<BackwardSolver> = Symbol('glisp-solver')
 
 /** Opening the rows down to one, and selecting it. */
 export interface RowRevealer {

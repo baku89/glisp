@@ -50,6 +50,7 @@ const NOTHING: Edits = new Map()
 const MAX_DEPTH = 200
 const MAX_STEPS = 10_000
 const TOLERANCE = 1e-9
+const SIGNIFICANT_DIGITS = 12
 
 /**
  * `root` in `env`, edited so that `node`, somewhere in it, evaluates to `value`.
@@ -209,13 +210,30 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 	}
 	if (edits.size === 0) return { ast: root, diagnostics: [] }
 
-	const rebuilt = new Map<AST, AST>()
-	const next = withEdits(root, edits, rebuilt)
-	const after = placesIn(next, env).get(rebuilt.get(node) ?? node)
-	const got = evaluate(rebuilt.get(node) ?? node, after ?? nodeEnv).value
-	return same(got, value)
-		? { ast: next, diagnostics: [] }
-		: failure(node, nodeEnv, 'used in places that do not add up to that value')
+	/** The root with these edits, if it does come to the value. */
+	const attempt = (edits: Edits): AST | null => {
+		const rebuilt = new Map<AST, AST>()
+		const next = withEdits(root, edits, rebuilt)
+		const after = placesIn(next, env).get(rebuilt.get(node) ?? node)
+		const got = evaluate(rebuilt.get(node) ?? node, after ?? nodeEnv).value
+		return same(got, value) ? next : null
+	}
+	const ast = attempt(withoutNoise(edits)) ?? attempt(edits)
+	return ast === null
+		? failure(node, nodeEnv, 'used in places that do not add up to that value')
+		: { ast, diagnostics: [] }
+}
+
+/** The edits, without what arithmetic left in the last digits of a number. */
+function withoutNoise(edits: Edits): Edits {
+	return new Map(
+		[...edits].map(([literal, value]) => [
+			literal,
+			typeof value === 'number' && Number.isFinite(value)
+				? Number(value.toPrecision(SIGNIFICANT_DIGITS))
+				: value,
+		])
+	)
 }
 
 function failure(ast: AST, env: Env, message: string): Solved {

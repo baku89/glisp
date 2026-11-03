@@ -433,6 +433,8 @@ Of a call's arguments, it tries a literal first, as that changes nothing else, a
 
 The result is checked by evaluating it. It fails, with a diagnostic, rather than give a wrong value when a name would need two values, as in `[x x]` wanted to be `[5 7]`, or when what it changes is used more than once, as in `(+ a a)`. Solving such constraints is not done yet.
 
+A number it writes is rounded to 12 significant digits as long as the value still comes out, so that `(** @3 a)` wanted to be 81 gives `a` as `4`, and not `4.000000000000001`.
+
 ## Incremental evaluation
 
 `Runtime` evaluates a root AST as the host replaces it. The host keeps an immutable AST and passes each version to `setRoot`.
@@ -460,4 +462,3 @@ This has the following consequences for a host:
 ## Open questions
 
 - **Default fallback propagation**: when a sub-expression's evaluation falls back to a default value, how does the diagnostic propagate up the surrounding expression?
-- **Bidirectional evaluation**: editing a result value, how is the corresponding input inferred?

@@ -1,8 +1,8 @@
-import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glisp/lang'
+import { buildPrelude, evaluate, host, isPinned, meta, parse, print, Session, solve, unpin } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, iconOfSequence, withIcons } from './icons'
-import { actionsOf, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canScrub, scrubbed, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -867,6 +867,7 @@ describe('actionsOf', () => {
 			'Evaluate One Step',
 			'Evaluate All',
 			'Add Values',
+			'Pin',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
@@ -875,13 +876,14 @@ describe('actionsOf', () => {
 			'Evaluate One Step',
 			'Evaluate All',
 			'Add Count',
+			'Pin',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
 		])
-		expect(menu('[[1]]')).toEqual(['Add Element', 'Copy Value', 'Delete'])
-		expect(menu('[1]')).toEqual(['Copy Value', 'Delete'])
-		expect(menu('(take [1] 1)', 1)).toEqual(['Copy Value'])
+		expect(menu('[[1]]')).toEqual(['Add Element', 'Pin', 'Copy Value', 'Delete'])
+		expect(menu('[1]')).toEqual(['Pin', 'Copy Value', 'Delete'])
+		expect(menu('(take [1] 1)', 1)).toEqual(['Pin', 'Copy Value'])
 	})
 
 	it('gives every action an icon', () => {
@@ -935,6 +937,70 @@ describe('actionsOf', () => {
 		const labels = actionsOf({ ...slotOf('[1]'), ast: parse('%') }).map(a => a.label)
 		expect(labels).not.toContain('Copy Value')
 		expect(labels).toContain('Copy Expression')
+	})
+})
+
+describe('pinning from a menu', () => {
+	const toggled = (src: string) => {
+		const slot = view(src).slots[0]!
+		const action = actionsOf(slot).find(a => a.label === 'Pin' || a.label === 'Unpin')!
+		return 'apply' in action ? print(action.apply()) : null
+	}
+
+	it('pins and unpins, keeping other metadata', () => {
+		expect(toggled('{a = 1}')).toBe('{a = @1}')
+		expect(toggled('{a = @1}')).toBe('{a = 1}')
+		expect(toggled('{a = @(+ 1 2)}')).toBe('{a = (+ 1 2)}')
+		expect(toggled('{a = ^{label: "L"} 1}')).toBe('{a = ^{label: "L"} @1}')
+		expect(toggled('{a = ^{label: "L"} @1}')).toBe('{a = ^{label: "L"} 1}')
+	})
+
+	it('has nothing to pin in what a call calls', () => {
+		const head = view('(+ 1 2)').head!
+		expect(actionsOf(head).map(a => a.label)).not.toContain('Pin')
+	})
+
+	it('leaves alone what is not pinned', () => {
+		const ast = parse('^{label: "L"} 1')
+		expect(unpin(ast)).toBe(ast)
+		expect(isPinned(unpin(parse('@1')))).toBe(false)
+	})
+})
+
+describe('dragging a value', () => {
+	const row = (src: string) => view(src).slots[0]!
+
+	it('is for what is worked out, and not pinned', () => {
+		expect(canScrub(row('{a = (+ 1 2)}'), 3)).toBe(true)
+		expect(canScrub(row('{a = 1}'), 1)).toBe(false)
+		expect(canScrub(row('{a = @(+ 1 2)}'), 3)).toBe(false)
+		expect(canScrub(row('{a = (+ 1 2)}'), 'x')).toBe(false)
+		expect(canScrub(row('{a = (+ 1 2)}'), Infinity)).toBe(false)
+	})
+
+	it('moves by the pixel, and keeps the decimals there are', () => {
+		expect(scrubbed(3, 2, {})).toBe(5)
+		expect(scrubbed(3.25, 1, {})).toBe(4.25)
+		expect(scrubbed(1 / 3, 1, {})).toBe(1.3333)
+		expect(scrubbed(3, 0.3, {}, true)).toBe(3.3)
+	})
+
+	it('keeps to the step and the range', () => {
+		expect(scrubbed(0, 20, { step: 0.5 })).toBe(0.5)
+		expect(scrubbed(0, 33, { step: 0.5 })).toBe(1)
+		expect(scrubbed(5, 100, { max: 10 })).toBe(10)
+		expect(scrubbed(5, -100, { min: 0 })).toBe(0)
+	})
+
+	it('reaches back through a row, from where the editor stands', () => {
+		const session = new Session(env)
+		session.exec('a = 1')
+		session.exec('r = (+ a @1)')
+		const root = session.ast()
+		const slot = viewOf(root, session.env).slots[1]!
+		const nested = viewOf(slot.ast, slot.env).slots[0]!
+		expect(print(solve(root, session.env, slot.ast, 10).ast!)).toContain('a = 9')
+		expect(print(solve(root, session.env, nested.ast, 4).ast!)).toContain('a = 4')
 	})
 })
 

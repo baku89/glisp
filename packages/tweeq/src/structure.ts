@@ -18,11 +18,13 @@ import {
 	evaluate,
 	expand,
 	infer,
+	isPinned,
 	isTypeValue,
 	LetAST,
 	LitAST,
 	MetaAST,
 	parse,
+	pin,
 	print,
 	pushLetFrame,
 	RecordAST,
@@ -32,6 +34,7 @@ import {
 	typeFits,
 	type TypeValue,
 	UNIT,
+	unpin,
 	unwrapLazy,
 	VecAST,
 } from '@glisp/lang'
@@ -986,6 +989,48 @@ export function expressionFromField(
 	return field.value.slice(field.selectionEnd ?? 0)
 }
 
+/** Whether dragging what a slot shows as `value` should change what it comes from. */
+export function canScrub(slot: Slot, value: unknown): boolean {
+	return (
+		typeof value === 'number' &&
+		Number.isFinite(value) &&
+		isExpression(slot.ast) &&
+		!isPinned(slot.ast) &&
+		slot.display === undefined &&
+		slot.role !== 'function'
+	)
+}
+
+/** Pixels of a drag to one `step`, and the most digits a drag keeps, as InputNumber has. */
+const PIXELS_PER_STEP = 20
+const SCRUB_DECIMALS = 4
+
+/**
+ * What a drag makes of the number `start`, having `travelled` pixels, `fine` being
+ * a drag by tenths. It keeps to the `step` if there is one, or else to as many
+ * decimals as `start` shows, and stays within `min` and `max`.
+ */
+export function scrubbed(
+	start: number,
+	travelled: number,
+	{ min, max, step }: NumberOptions,
+	fine = false
+): number {
+	const decimalsOf = (n: number): number =>
+		String(Number(n.toFixed(SCRUB_DECIMALS))).split('.')[1]?.length ?? 0
+	const next =
+		step === undefined
+			? Number(
+					(start + travelled).toFixed(Math.max(decimalsOf(start), fine ? 1 : 0))
+				)
+			: Number(
+					(
+						Math.round((start + (travelled * step) / PIXELS_PER_STEP) / step) * step
+					).toFixed(decimalsOf(step))
+				)
+	return Math.min(max ?? Infinity, Math.max(min ?? -Infinity, next))
+}
+
 /** The narrowest an input can be, side by side with others. */
 const MIN_INPUT_WIDTH = 64
 
@@ -1122,6 +1167,15 @@ export function actionsOf(slot: Slot): SlotAction[] {
 			icon: 'mdi:plus',
 			group: 'edit',
 			apply: () => slot.replace(append.add()),
+		})
+	}
+	if (hasValue(slot.ast) && slot.role !== 'function' && slot.role !== 'step') {
+		const pinned = isPinned(slot.ast)
+		actions.push({
+			label: pinned ? 'Unpin' : 'Pin',
+			icon: pinned ? 'mdi:pin-off' : 'mdi:pin',
+			group: 'edit',
+			apply: () => slot.replace(pinned ? unpin(slot.ast) : pin(slot.ast)),
 		})
 	}
 
