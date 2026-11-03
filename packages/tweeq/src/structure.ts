@@ -15,6 +15,8 @@ import {
 	type Diagnostic,
 	enterNode,
 	type Env,
+	evaluate,
+	expand,
 	infer,
 	LetAST,
 	LitAST,
@@ -493,32 +495,90 @@ export function problemOf(
 }
 
 /** Something that can be done to a slot, for a menu. */
-export interface SlotAction {
+export type SlotAction = {
 	readonly label: string
-	/** The new parent, after doing it. */
-	apply(): AST
-}
+	readonly icon: string
+	/** Actions of a group go together, in a menu. */
+	readonly group: 'edit' | 'copy' | 'remove'
+} & (
+	| {
+			/** The new parent, after doing it. */
+			apply(): AST
+	  }
+	| {
+			/** What to put on the clipboard. */
+			copy(): string
+	  }
+)
 
 /**
- * What can be done to a slot: fill in the arguments it does not have yet, grow
- * it, or delete it.
+ * What can be done to a slot. Nothing is worked out until an action is chosen,
+ * so a menu costs nothing to offer.
  */
 export function actionsOf(slot: Slot): SlotAction[] {
 	const inner = viewOf(slot.ast, slot.env, slot.expected)
-	const actions: SlotAction[] = inner.missing.map(missing => ({
-		label: `Add ${missing.name}`,
-		apply: () => slot.replace(missing.add()),
-	}))
+	const bare = slot.ast.kind === 'meta' ? slot.ast.expr : slot.ast
+	const actions: SlotAction[] = []
+
+	if (bare.kind === 'call') {
+		actions.push({
+			label: 'Evaluate One Step',
+			icon: 'mdi:debug-step-into',
+			group: 'edit',
+			apply: () => {
+				const next = expand(slot.ast, slot.env)
+				if (next !== slot.ast) return slot.replace(next)
+				// With no next rung, all that remains is the value, unless it failed.
+				const { value, diagnostics } = evaluate(slot.ast, slot.env)
+				return slot.replace(
+					diagnostics.some(d => d.level === 'error')
+						? slot.ast
+						: toAst(value, slot.env)
+				)
+			},
+		})
+	}
+	for (const missing of inner.missing) {
+		actions.push({
+			label: `Add ${missing.name}`,
+			icon: 'mdi:plus',
+			group: 'edit',
+			apply: () => slot.replace(missing.add()),
+		})
+	}
 	if (inner.append !== null) {
 		const append = inner.append
 		actions.push({
 			label: `Add ${append.label}`,
+			icon: 'mdi:plus',
+			group: 'edit',
 			apply: () => slot.replace(append.add()),
 		})
 	}
+
+	if (isExpression(slot.ast) && hasValue(slot.ast) && slot.display === undefined) {
+		actions.push({
+			label: 'Copy Value',
+			icon: 'mdi:content-copy',
+			group: 'copy',
+			copy: () => print(toAst(evaluate(slot.ast, slot.env).value, slot.env)),
+		})
+	}
+	actions.push({
+		label: isExpression(slot.ast) ? 'Copy Expression' : 'Copy Value',
+		icon: isExpression(slot.ast) ? 'mdi:code-parentheses' : 'mdi:content-copy',
+		group: 'copy',
+		copy: () => sourceOf(slot.ast),
+	})
+
 	if (slot.remove !== undefined) {
 		const remove = slot.remove
-		actions.push({ label: 'Delete', apply: remove })
+		actions.push({
+			label: 'Delete',
+			icon: 'mdi:trash-can-outline',
+			group: 'remove',
+			apply: remove,
+		})
 	}
 	return actions
 }

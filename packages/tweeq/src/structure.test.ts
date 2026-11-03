@@ -292,19 +292,80 @@ describe('actionsOf', () => {
 	const slotOf = (src: string, index = 0) => view(src).slots[index]!
 	const menu = (src: string, index = 0) =>
 		actionsOf(slotOf(src, index)).map(a => a.label)
+	const action = (src: string, label: string, index = 0) =>
+		actionsOf(slotOf(src, index)).find(a => a.label === label)!
 
 	it('offers what a slot allows', () => {
-		expect(menu('[(+ 1 2)]')).toEqual(['Add xs', 'Delete'])
-		expect(menu('[(take [1])]')).toEqual(['Add n', 'Delete'])
-		expect(menu('[[1]]')).toEqual(['Add element', 'Delete'])
-		expect(menu('[1]')).toEqual(['Delete'])
-		expect(menu('(take [1] 1)', 1)).toEqual([])
+		expect(menu('[(+ 1 2)]')).toEqual([
+			'Evaluate One Step',
+			'Add xs',
+			'Copy Value',
+			'Copy Expression',
+			'Delete',
+		])
+		expect(menu('[(take [1])]')).toEqual([
+			'Evaluate One Step',
+			'Add n',
+			'Copy Value',
+			'Copy Expression',
+			'Delete',
+		])
+		expect(menu('[[1]]')).toEqual(['Add element', 'Copy Value', 'Delete'])
+		expect(menu('[1]')).toEqual(['Copy Value', 'Delete'])
+		expect(menu('(take [1] 1)', 1)).toEqual(['Copy Value'])
+	})
+
+	it('gives every action an icon', () => {
+		for (const a of actionsOf(slotOf('[(+ 1 2)]'))) {
+			expect(a.icon).toMatch(/^mdi:/)
+		}
 	})
 
 	it('applies to the parent', () => {
-		const [add, remove] = actionsOf(slotOf('[(+ 1) 2]'))
-		expect(print(add!.apply())).toBe('[(+ 1 0) 2]')
-		expect(print(remove!.apply())).toBe('[2]')
+		const apply = (label: string) => {
+			const found = action('[(+ 1) 2]', label)
+			return 'apply' in found ? print(found.apply()) : null
+		}
+		expect(apply('Add xs')).toBe('[(+ 1 0) 2]')
+		expect(apply('Delete')).toBe('[2]')
+	})
+
+	it('evaluates one step, by the abstraction ladder', () => {
+		const session = new Session(env)
+		session.exec('sq = (=> (x: number): number (* x x))')
+		const slot = viewOf(parse('[(sq 3)]'), session.env).slots[0]!
+		const step = actionsOf(slot).find(a => a.label === 'Evaluate One Step')!
+		expect('apply' in step && print(step.apply())).toBe('[(* 3 3)]')
+	})
+
+	it('goes to the value where there is no next rung', () => {
+		const step = (src: string) => {
+			const found = action(src, 'Evaluate One Step')
+			return 'apply' in found ? print(found.apply()) : null
+		}
+		expect(step('[(+ 1 2)]')).toBe('[3]')
+		expect(step('[(** 2 3)]')).toBe('[(* 2 2 2)]')
+	})
+
+	it('leaves alone what fails', () => {
+		const found = action('[(+ 1 nope)]', 'Evaluate One Step')
+		expect('apply' in found && print(found.apply())).toBe('[(+ 1 nope)]')
+	})
+
+	it('copies the value, and the source as written', () => {
+		const copy = (src: string, label: string) => {
+			const found = action(src, label)
+			return 'copy' in found ? found.copy() : null
+		}
+		expect(copy('[(+ 1  2)]', 'Copy Value')).toBe('3')
+		expect(copy('[(+ 1  2)]', 'Copy Expression')).toBe('(+ 1  2)')
+		expect(copy('["a"]', 'Copy Value')).toBe('"a"')
+	})
+
+	it('offers no value for what has none', () => {
+		const labels = actionsOf({ ...slotOf('[1]'), ast: parse('%') }).map(a => a.label)
+		expect(labels).not.toContain('Copy Value')
+		expect(labels).toContain('Copy Expression')
 	})
 })
 

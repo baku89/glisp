@@ -444,3 +444,87 @@ function lineColAt(
 		content: text.slice(lineStart, lineEnd),
 	}
 }
+
+// -----------------------------------------------------------------------------
+// Highlighting
+// -----------------------------------------------------------------------------
+
+/** What a theme says about a kind of token, as Monaco's themes do. */
+export interface TokenRule {
+	readonly token: string
+	readonly foreground?: string
+}
+
+/**
+ * The color of a token type such as `number.glisp`, from the most specific rule
+ * that covers it, as Monaco resolves one.
+ */
+export function colorOfToken(
+	type: string,
+	rules: readonly TokenRule[]
+): string | undefined {
+	const parts = type.split('.')
+	for (let n = parts.length; n >= 0; n--) {
+		const scope = parts.slice(0, n).join('.')
+		const rule = rules.find(r => r.token === scope)
+		if (rule !== undefined) {
+			return rule.foreground === undefined ? undefined : `#${rule.foreground}`
+		}
+	}
+	return undefined
+}
+
+/** A stretch of output: code to highlight, or words that are not. */
+export interface OutputSegment {
+	readonly code: boolean
+	readonly text: string
+}
+
+/** Runs of a result's tokens, split where it turns from code to words. */
+export function segmentsOf(tokens: readonly Token[]): OutputSegment[] {
+	const segments: OutputSegment[] = []
+	for (const token of tokens) {
+		const code = token.kind !== 'plain'
+		const last = segments.at(-1)
+		if (last?.code === code) {
+			segments[segments.length - 1] = { code, text: last.text + token.text }
+		} else {
+			segments.push({ code, text: token.text })
+		}
+	}
+	return segments
+}
+
+// -----------------------------------------------------------------------------
+// History
+// -----------------------------------------------------------------------------
+
+/** What has been entered, to go back through as a shell does. */
+export class InputHistory {
+	private readonly entries: string[] = []
+	/** Position in `entries`, or its length while on what is being written. */
+	private index = 0
+	private draft = ''
+
+	/** Remember `text`, unless it just repeats the last entry, and go back to the end. */
+	push(text: string): void {
+		if (this.entries.at(-1) !== text) this.entries.push(text)
+		this.index = this.entries.length
+		this.draft = ''
+	}
+
+	/** The entry before, or null at the oldest. `current` is kept to come back to. */
+	previous(current: string): string | null {
+		if (this.index === 0) return null
+		if (this.index === this.entries.length) this.draft = current
+		this.index--
+		return this.entries[this.index] ?? null
+	}
+
+	/** The entry after, or what was being written, or null if already there. */
+	next(): string | null {
+		if (this.index === this.entries.length) return null
+		this.index++
+		return this.entries[this.index] ?? this.draft
+	}
+}

@@ -18,6 +18,7 @@ import {
 	parseSource,
 	problemOf,
 	type Slot,
+	type SlotAction,
 	sourceOf,
 	viewOf,
 	withLiteral,
@@ -87,7 +88,7 @@ function commitDraft(): void {
 	else if (sourceOf(next) !== sourceOf(ast.value)) update(next)
 }
 function onFieldKey(event: KeyboardEvent): void {
-	if (event.key === 'Enter' || event.key === 'Escape') {
+	if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Escape') {
 		if (event.key === 'Escape') draft.value = sourceOf(ast.value)
 		;(event.target as HTMLElement).blur()
 	}
@@ -106,12 +107,23 @@ function select(): void {
 	}
 }
 
-const menuItems = computed<MenuItem[]>(() =>
-	actionsOf(props.entry).map(action => ({
-		label: action.label,
-		perform: () => emit('change', action.apply()),
-	}))
-)
+const menuItems = computed<MenuItem[]>(() => {
+	const items: MenuItem[] = []
+	let group: SlotAction['group'] | null = null
+	for (const action of actionsOf(props.entry)) {
+		if (group !== null && group !== action.group) items.push({ separator: true })
+		group = action.group
+		items.push({
+			label: action.label,
+			icon: action.icon,
+			perform: () => {
+				if ('apply' in action) emit('change', action.apply())
+				else void navigator.clipboard.writeText(action.copy())
+			},
+		})
+	}
+	return items
+})
 </script>
 
 <template>
@@ -161,6 +173,7 @@ const menuItems = computed<MenuItem[]>(() =>
 				v-else
 				v-model="draft"
 				font="monospace"
+				multiline
 				:menuItems="menuItems"
 				@blur="commitDraft"
 				@keydown="onFieldKey"

@@ -11,6 +11,7 @@
     "@glisp/lang": "*"
   },
   "peerDependencies": {
+    "monaco-editor": "*",
     "tweeq": "*",
     "vue": "^3.5.0",
     "@vueuse/core": "*"

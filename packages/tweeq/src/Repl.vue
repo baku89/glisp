@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import type { Session } from '@glisp/lang'
 import { InputButton } from 'tweeq/InputButton'
-import { InputTextArea } from 'tweeq/InputTextArea'
-import { computed, nextTick, onMounted, ref, useTemplateRef } from 'vue'
+import { InputCode } from 'tweeq/InputCode'
+import * as monaco from 'monaco-editor'
+import { computed, nextTick, ref, useTemplateRef } from 'vue'
 
-import { createSession, type ReplResult, type Token } from './repl'
+import GlispCode from './GlispCode.vue'
+import { GLISP, registerGlisp } from './language'
+import {
+	createSession,
+	InputHistory,
+	type ReplResult,
+	segmentsOf,
+	type Token,
+} from './repl'
 
 const props = defineProps<{ session: Session }>()
 
@@ -17,21 +26,85 @@ interface Entry {
 	readonly result: ReplResult
 }
 
-const EXAMPLES = [
-	'(+ 1 2 3 4 5)',
-	'y = (+ 20 30)',
-	':type +',
-	'(map [1 2 3] (* % %))',
-]
+registerGlisp()
+
+const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
+	placeholder: '(+ 1 2) or :help',
+	wordWrap: 'on',
+	glyphMargin: false,
+	contextmenu: false,
+	hover: { enabled: false },
+	links: false,
+	parameterHints: { enabled: false },
+	quickSuggestions: false,
+	suggestOnTriggerCharacters: false,
+	wordBasedSuggestions: 'off',
+	occurrencesHighlight: 'off',
+	selectionHighlight: false,
+	stickyScroll: { enabled: false },
+}
 
 const session = createSession(props.session)
 const input = ref('')
 const entries = ref<Entry[]>([])
-const $input = useTemplateRef('$input')
+let editor: monaco.editor.IStandaloneCodeEditor | null = null
 const $scroll = useTemplateRef<HTMLElement>('$scroll')
 let nextId = 0
+const history = new InputHistory()
 
-onMounted(() => $input.value?.focus())
+function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
+	editor = instance
+	instance.focus()
+	instance.onKeyDown(event => {
+		if (handleKey(event, instance)) {
+			event.preventDefault()
+			event.stopPropagation()
+		}
+	})
+}
+
+/** The keys a shell has. True if it was one, and has been dealt with. */
+function handleKey(
+	event: monaco.IKeyboardEvent,
+	instance: monaco.editor.IStandaloneCodeEditor
+): boolean {
+	const line = instance.getPosition()?.lineNumber ?? 1
+	const lastLine = instance.getModel()?.getLineCount() ?? 1
+	switch (event.keyCode) {
+		case monaco.KeyCode.Enter: {
+			if (event.shiftKey) return false
+			const source = input.value.trim()
+			// An unfinished form goes on to the next line.
+			if (!source.startsWith(':') && !session.isComplete(source)) return false
+			run()
+			return true
+		}
+		// Within multi-line input first, and then through what was entered.
+		case monaco.KeyCode.UpArrow: {
+			if (line !== 1) return false
+			const text = history.previous(input.value)
+			if (text !== null) recall(text)
+			return true
+		}
+		case monaco.KeyCode.DownArrow: {
+			if (line !== lastLine) return false
+			const text = history.next()
+			if (text !== null) recall(text)
+			return true
+		}
+		// Abandon what is being written, on Ctrl and not Cmd, which copies.
+		case monaco.KeyCode.KeyC:
+			if (!event.ctrlKey || !instance.getSelection()?.isEmpty()) return false
+			input.value = ''
+			return true
+		case monaco.KeyCode.KeyL:
+			if (!event.ctrlKey) return false
+			clear()
+			return true
+		default:
+			return false
+	}
+}
 
 const canRun = computed(() => input.value.trim() !== '')
 
@@ -95,6 +168,7 @@ function run(): void {
 	const source = input.value.trim()
 	if (source === '') return
 	if (!source.startsWith(':') && !session.isComplete(source)) return
+	history.push(source)
 	const result = dispatch(source)
 	// `:clear` empties the list, and is not worth an entry in it.
 	if (source !== ':clear') entries.value.push({ id: nextId++, source, result })
@@ -116,16 +190,11 @@ function reset(): void {
 
 function recall(source: string): void {
 	input.value = source
-	$input.value?.focus()
-}
-
-function onKeydown(event: KeyboardEvent): void {
-	if (event.key !== 'Enter' || event.shiftKey) return
-	const source = input.value.trim()
-	// An unfinished form goes on to the next line.
-	if (!source.startsWith(':') && !session.isComplete(source)) return
-	event.preventDefault()
-	run()
+	void nextTick(() => {
+		const end = editor?.getModel()?.getFullModelRange().getEndPosition()
+		if (end !== undefined) editor?.setPosition(end)
+		editor?.focus()
+	})
 }
 
 const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
@@ -142,15 +211,16 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 			<ol v-if="entries.length > 0" class="entries">
 				<li v-for="entry in entries" :key="entry.id" class="entry">
 					<button class="source" type="button" @click="recall(entry.source)">
-						{{ entry.source }}
+						<GlispCode :source="entry.source" />
 					</button>
 					<div v-if="entry.result.tokens.length > 0" class="output">
-						<span
-							v-for="(token, i) in entry.result.tokens"
+						<template
+							v-for="(segment, i) in segmentsOf(entry.result.tokens)"
 							:key="i"
-							:class="token.kind"
-							>{{ token.text }}</span
 						>
+							<GlispCode v-if="segment.code" :source="segment.text" />
+							<template v-else>{{ segment.text }}</template>
+						</template>
 						<span v-if="entry.result.note" class="note">
 							; {{ entry.result.note }}</span
 						>
@@ -177,22 +247,15 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 					</div>
 				</li>
 			</ol>
-			<ul v-else class="examples">
-				<li v-for="example in EXAMPLES" :key="example">
-					<button class="source" type="button" @click="recall(example)">
-						{{ example }}
-					</button>
-				</li>
-			</ul>
 		</div>
 
 		<form class="prompt" @submit.prevent="run">
-			<InputTextArea
-				ref="$input"
+			<InputCode
 				v-model="input"
-				font="monospace"
-				placeholder="(+ 1 2) or :help"
-				@keydown="onKeydown"
+				:lang="GLISP"
+				autoHeight
+				:options="EDITOR_OPTIONS"
+				@mount="onMount"
 			/>
 			<InputButton icon="mdi:play" :disabled="!canRun" tooltip="Run" @click="run" />
 		</form>
@@ -219,8 +282,7 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 	overflow-y: auto;
 	font-family: var(--tq-font-code);
 }
-.entries,
-.examples {
+.entries {
 	display: flex;
 	flex-direction: column;
 	gap: var(--tq-gap-control);
@@ -232,34 +294,18 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 	text-align: left;
 	white-space: pre-wrap;
 	word-break: break-word;
-	color: var(--tq-color-text-mute);
 	cursor: pointer;
 }
 .source:hover {
-	color: var(--tq-color-text);
+	opacity: 0.7;
 }
 .output,
 .diagnostic {
 	white-space: pre-wrap;
 	word-break: break-word;
 }
-.note,
-.punct,
-.hostfn,
-.unit {
+.note {
 	color: var(--tq-color-text-mute);
-}
-.number {
-	color: var(--tq-color-info);
-}
-.string {
-	color: var(--tq-color-success);
-}
-.boolean {
-	color: var(--tq-color-warning);
-}
-.type {
-	color: var(--tq-color-accent);
 }
 .diagnostic.error {
 	color: var(--tq-color-error);

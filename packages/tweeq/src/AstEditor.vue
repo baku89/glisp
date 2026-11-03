@@ -2,7 +2,7 @@
 import { type AST, type Env, LetAST, toAst } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import { InputButton } from 'tweeq/InputButton'
-import { ParameterGrid } from 'tweeq/ParameterGrid'
+import { ParameterTree } from 'tweeq/ParameterGrid'
 import { computed, provide, shallowRef, watch } from 'vue'
 
 import AstNode from './AstNode.vue'
@@ -77,7 +77,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				@click="document.redo()"
 			/>
 		</div>
-		<ParameterGrid>
+		<ParameterTree>
 			<AstNode
 				v-for="binding in bindings"
 				:key="binding.key"
@@ -87,7 +87,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				:show="show"
 				@change="replaceRoot"
 			/>
-		</ParameterGrid>
+		</ParameterTree>
 		<ul v-if="document.diagnostics.value.length > 0" class="problems">
 			<li v-for="(problem, i) in document.diagnostics.value" :key="i">
 				{{ problem.message }}

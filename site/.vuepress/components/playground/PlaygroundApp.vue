@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { AstEditor, Repl, useGlispDocument } from '@glisp/tweeq'
+import { useMediaQuery } from '@vueuse/core'
+import { PaneSplit } from 'tweeq/PaneSplit'
 import { TweeqProvider } from 'tweeq/TweeqProvider'
 import { Viewport } from 'tweeq/Viewport'
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
+
+self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
 
 const document = useGlispDocument(`{
   radius = 40
@@ -12,45 +17,48 @@ const document = useGlispDocument(`{
   sizes = (map [radius (* radius scale)] (* % 2))
   biggest = (reduce sizes 0 max)
 }`)
+
+const isNarrow = useMediaQuery('(max-width: 760px)')
 </script>
 
 <template>
 	<TweeqProvider>
 		<Viewport class="PlaygroundApp">
-			<section class="editor">
-				<AstEditor :document="document" />
-			</section>
-			<section class="console">
-				<Repl :session="document.session" @change="document.sync()" />
-			</section>
+			<PaneSplit
+				name="glisp.playground"
+				:direction="isNarrow ? 'vertical' : 'horizontal'"
+				:scroll="[false, true]"
+			>
+				<template #first>
+					<section class="repl">
+						<Repl :session="document.session" @change="document.sync()" />
+					</section>
+				</template>
+				<template #second>
+					<section class="env">
+						<AstEditor :document="document" />
+					</section>
+				</template>
+			</PaneSplit>
 		</Viewport>
 	</TweeqProvider>
 </template>
 
 <style scoped>
 .PlaygroundApp {
-	display: grid;
-	grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
-	gap: 16px;
-	height: calc(100vh - var(--navbar-height, 3.6rem));
-	padding: 16px;
-	box-sizing: border-box;
+	/* Under the navbar, with nothing of the page around it to scroll. */
+	position: fixed;
+	inset: var(--navbar-height, 3.6rem) 0 0;
 	background: var(--tq-color-background);
+	--tq-font-code: 'Fira Code', monospace;
+	font-variant-ligatures: contextual common-ligatures;
 }
-.editor {
-	min-width: 0;
-	overflow: auto;
-	/* It scrolls, which would clip the ring of a focused input at its edge. */
-	padding: 2px;
+.repl,
+.env {
+	box-sizing: border-box;
+	padding: var(--tq-pane-padding);
 }
-.console {
-	min-width: 0;
-	min-height: 0;
-}
-@media (max-width: 760px) {
-	.PlaygroundApp {
-		grid-template-columns: 1fr;
-		height: auto;
-	}
+.repl {
+	height: 100%;
 }
 </style>
