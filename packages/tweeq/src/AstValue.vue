@@ -341,7 +341,7 @@ const label = (value: unknown): string =>
 	--tq-color-input: var(--tq-color-error-soft);
 	--tq-color-input-hover: var(--tq-color-error-soft);
 }
-.value :deep(.TqInputTextBase) {
+.value :deep(.TqInputTextBase:not(.TqInputNumber)) {
 	cursor: text;
 }
 .up-to-now {
