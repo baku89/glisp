@@ -272,6 +272,15 @@ describe('problemOf', () => {
 		expect(problemOf(fine.ast, fine.env, fine.expected, read)).toBeNull()
 	})
 
+	it('does not judge by a slot that is still generic', () => {
+		const session = new Session(env)
+		session.exec('radius = 40')
+		const call = viewOf(parse('(map [radius (* radius 2)] (* % 2))'), session.env)
+		for (const slot of call.slots) {
+			expect(problemOf(slot.ast, slot.env, slot.expected, read)).toBeNull()
+		}
+	})
+
 	it('finds nothing wrong with what is fine', () => {
 		for (const src of ['1', '(+ 1 2)', '[1 2]', '{a: 1}', '(* % 2)', '(map [1] (* % 2))', '%']) {
 			expect(problem(src)).toBeNull()

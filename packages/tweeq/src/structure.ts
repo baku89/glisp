@@ -18,6 +18,7 @@ import {
 	evaluate,
 	expand,
 	infer,
+	isTypeValue,
 	LetAST,
 	LitAST,
 	MetaAST,
@@ -472,6 +473,22 @@ export function isExpression(ast: AST): boolean {
 	}
 }
 
+/** Whether a type has a type variable anywhere in it, such as `[...T]`. */
+function mentionsTypeVar(type: TypeValue): boolean {
+	const seen = new Set<unknown>()
+	const visit = (part: unknown): boolean => {
+		if (typeof part !== 'object' || part === null || seen.has(part)) return false
+		seen.add(part)
+		if (Array.isArray(part)) return part.some(visit)
+		if (isTypeValue(part)) {
+			const { shape } = unwrapLazy(part)
+			return shape.kind === 'var' || visit(shape)
+		}
+		return Object.values(part).some(visit)
+	}
+	return visit(type)
+}
+
 /**
  * What is wrong with a node, if anything: what evaluating it reports, what
  * checking it reports, which includes what never runs, or that it does not fit
@@ -488,8 +505,11 @@ export function problemOf(
 		diagnostic => diagnostic.level === 'error'
 	)
 	if (problem !== undefined) return problem.message
-	const type = expected === null ? null : infer(ast, env)
-	return type !== null && expected !== null && !typeFits(type, expected)
+	// A slot that is still generic says nothing until the call has been solved,
+	// and the call reports what does not fit it.
+	if (expected === null || mentionsTypeVar(expected)) return null
+	const type = infer(ast, env)
+	return type !== null && !typeFits(type, expected)
 		? `type mismatch: expected ${expected.typeName}, got ${type.typeName}`
 		: null
 }
