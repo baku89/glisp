@@ -1060,7 +1060,12 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	const bare = slot.ast.kind === 'meta' ? slot.ast.expr : slot.ast
 	const actions: SlotAction[] = []
 
-	if (bare.kind === 'call') {
+	const canStep =
+		bare.kind === 'call' ||
+		((bare.kind === 'sym' || bare.kind === 'path') &&
+			hasValue(slot.ast) &&
+			slot.role !== 'function')
+	if (canStep) {
 		actions.push({
 			id: 'step',
 			label: 'Evaluate One Step',

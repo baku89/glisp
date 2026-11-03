@@ -6,7 +6,7 @@ import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
 import { Session } from './session.js'
-import type { Env } from './types.js'
+import { type Env, LetAST, LitAST } from './types.js'
 
 describe('expand', () => {
 	let session: Session
@@ -227,6 +227,58 @@ describe('expand', () => {
 			define('double = (=> (n: number): number (+ n n))')
 			const rungs = expandLadder(parse('(double 7)'), env(), { maxSteps: 0 })
 			expect(rungs).toHaveLength(1)
+		})
+	})
+
+	describe('a name', () => {
+		const scope = (src: string) => {
+			const session = new Session(buildPrelude())
+			session.setAst(parse(src) as LetAST)
+			return session.env
+		}
+
+		it('steps to what it is bound to', () => {
+			expect(print(expand(parse('b'), scope('{a = 1 b = (+ a 1)}')))).toBe('(+ a 1)')
+			expect(print(expand(parse('a'), scope('{a = 1}')))).toBe('1')
+		})
+
+		it('goes down the ladder from there', () => {
+			const env = scope('{a = 2 b = a sq = (=> (x: number): number (* x x)) c = (sq b)}')
+			expect(expandLadder(parse('c'), env).map(print)).toEqual(['c', '(sq b)', '(* b b)'])
+		})
+
+		it('keeps what the expression means, where a name is shadowed', () => {
+			const env = scope('{a = 1 b = a}')
+			const inner: Env = {
+				ast: new LetAST([], null),
+				parent: env,
+				bindings: new Map([['a', { ast: new LitAST(2), env }]]),
+			}
+			const next = expand(parse('b'), inner)
+			expect(print(next)).toBe('1')
+			expect(evaluate(next, inner).value).toBe(evaluate(parse('b'), inner).value)
+		})
+
+		it('leaves the metadata of the binding behind', () => {
+			const env = scope('{a = ^{label: "A"} (+ 1 2)}')
+			expect(print(expand(parse('a'), env))).toBe('(+ 1 2)')
+			expect(print(expand(parse('pi'), buildPrelude()))).toBe(String(Math.PI))
+		})
+
+		it('agrees with evaluating it', () => {
+			const env = scope('{a = 3 b = (* a 2)}')
+			expect(evaluate(expand(parse('b'), env), env).value).toBe(6)
+		})
+
+		it('is a fixed point with no expression to go to', () => {
+			const env = scope('{p = {q = 1} r = ./p/q}')
+			for (const src of ['map', 'nope', 'r']) {
+				const name = parse(src)
+				expect(expand(name, env)).toBe(name)
+			}
+			const self = parse('a')
+			const loop = scope('{a = a}')
+			expect(expand(self, loop)).toBe(self)
 		})
 	})
 })

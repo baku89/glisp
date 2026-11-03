@@ -341,9 +341,11 @@ A single call to `expand` always terminates. A `~` that recurses without end lea
 
 ### Moving a body to the call site
 
+- A name steps to the expression it is bound to, and means the same thing there. A name bound to a host value has no expression, so it is a fixed point, and so is one whose expression has a path in it, as a path is relative to where it is.
+
 A body means the same thing after it moves:
 
-- A free name in the body that the call site has shadowed embeds the value it had at the definition. That rung prints it as `<closure>` or `<host-fn>`, so it does not round-trip to source.
+- A free name in the body that the call site has shadowed embeds the value it had at the definition. A number, string or boolean is written out, and otherwise that rung prints it as `<closure>` or `<host-fn>`, so it does not round-trip to source.
 - A binder in the body that would capture a free name of an argument is renamed: `{y = 1 (+ x y)}` with the argument `y` becomes `{y_1 = 1 (+ y y_1)}`.
 
 A path inside an argument is not adjusted for its new depth, so such a rung may not agree with `eval`. This is an open problem.

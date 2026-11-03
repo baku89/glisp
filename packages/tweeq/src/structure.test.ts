@@ -322,6 +322,31 @@ describe('docs', () => {
 	})
 })
 
+describe('evaluating a name', () => {
+	const step = (src: string, index: number) => {
+		const slot = view(src).slots[index]!
+		const found = actionsOf(slot).find(a => a.id === 'step')
+		return found && 'apply' in found ? print(found.apply()) : null
+	}
+
+	it('goes to what it refers to', () => {
+		expect(step('{a = (+ 1 2) b = a}', 1)).toBe('{a = (+ 1 2) b = (+ 1 2)}')
+	})
+
+	it('goes to the value for what has no expression', () => {
+		expect(step('{a = pi}', 0)).toBe(`{a = ${Math.PI}}`)
+	})
+
+	it('leaves what is not bound', () => {
+		expect(step('{a = nope}', 0)).toBe('{a = nope}')
+	})
+
+	it('is not offered for what a call calls', () => {
+		const { head } = view('(+ 1 2)')
+		expect(actionsOf(head!).map(a => a.id)).not.toContain('step')
+	})
+})
+
 describe('evaluating everything', () => {
 	const all = (src: string) => {
 		const found = actionsOf(view(src).slots[0]!).find(a => a.id === 'all')

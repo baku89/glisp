@@ -95,14 +95,16 @@ export function expandAll(
 const NON_EXPANDING = new Set(['|>', ':', 'overload'])
 
 /**
- * One step of expansion. A closure call steps to its body and `?` steps
- * to its selected clause. Anything else, including a host function call,
- * is a fixed point: its only remaining rung is its value, from `evaluate`.
+ * One step of expansion. A closure call steps to its body, `?` steps to its
+ * selected clause, and a name steps to what it is bound to. Anything else,
+ * including a host function call, is a fixed point: its only remaining rung
+ * is its value, from `evaluate`.
  *
  * A `~` that recurses without end leaves the call unexpanded, in keeping
  * with the rule that evaluation never throws on user errors.
  */
 export function expand(ast: AST, env: Env): AST {
+	if (ast.kind === 'sym') return expandName(ast, env)
 	if (ast.kind !== 'call') return ast
 	if (ast.head.kind === 'sym' && NON_EXPANDING.has(ast.head.name)) return ast
 	try {
@@ -111,6 +113,24 @@ export function expand(ast: AST, env: Env): AST {
 		if (e instanceof RangeError) return ast
 		throw e
 	}
+}
+
+/**
+ * A name steps to the expression it is bound to, without its metadata, which is
+ * about the binding. It means the same thing here as it did there. What has no expression, as a host value does not, is a fixed
+ * point, and so is one with a path in it, which is relative to where it is.
+ */
+function expandName(ast: SymAST, env: Env): AST {
+	const definition = lookupBareName(ast.name, env)
+	if (definition === null) return ast
+	const bound = definition.ast.kind === 'meta' ? definition.ast.expr : definition.ast
+	if (bound.kind === 'host' || freeRefs(definition.ast).paths.length > 0) return ast
+	if (bound.kind === 'sym' && bound.name === ast.name) return ast
+	return substitute(bound, new Map(), {
+		captured: definition.env,
+		caller: env,
+		argFrees: new Set(),
+	})
 }
 
 /** `name → replacement`, where `null` marks a name bound inside the body. */
@@ -437,7 +457,12 @@ function resolveFreeName(ast: SymAST, scope: Scope): AST {
 	const definition = lookupBareName(ast.name, scope.captured)
 	if (definition === null) return ast
 	if (definition === lookupBareName(ast.name, scope.caller)) return ast
-	return new HostAST(evaluate(definition.ast, definition.env).value)
+	const { value } = evaluate(definition.ast, definition.env)
+	return typeof value === 'number' ||
+		typeof value === 'string' ||
+		typeof value === 'boolean'
+		? new LitAST(value)
+		: new HostAST(value)
 }
 
 function enterScope(
