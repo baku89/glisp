@@ -470,6 +470,19 @@ Any expression can be prefixed with `^{...}` to attach metadata:
 
 The `{...}` after `^` is a record literal (uses `:` for keys).
 
+### Pinning — `@`
+
+`@expr` pins an expression: an edit worked out backward from a value leaves it where it is. It is metadata, written in a short form, so it changes no value and adds no level for paths. Nothing acts on it yet.
+
+<!-- test -->
+```glisp
+{a = @10 (+ a 1)}                       ;; → 11
+{z = @{a: 7} q = ./z/a q}               ;; → 7
+{z = ^{label: "Z"} @{a: 7} q = ./z/a q} ;; → 7
+```
+
+`@` joins other metadata, as in `^{label: "Width"} @100`. `@@a` is a syntax error, and so is `@` as a key of `^{...}`.
+
 ### Metadata semantics
 
 - Equality: metadata does not affect type equality. `^{default: 1} number` and `^{default: 0} number` are the same type.
@@ -564,6 +577,7 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `=>`          | function literal                                       |
 | `^{...}`      | metadata attachment                                    |
 | `~`           | work out within one expansion step                     |
+| `@`           | pin: leave as it is when working backward from a value |
 | `...`         | spread / variadic                                      |
 | `_`           | top type                                               |
 | `!`           | bottom type                                            |

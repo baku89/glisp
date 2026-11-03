@@ -37,6 +37,7 @@ export type TokenKind =
 	| '^'
 	| '?'
 	| '~'
+	| '@'
 	| '...'      // spread
 	| '...~'     // unquote-splice
 	| '.'        // accessor
@@ -276,6 +277,8 @@ function singleCharToken(ch: string, pos: number): Token | null {
 			return { kind: '?', text: '?', start: pos, end: pos + 1 }
 		case '~':
 			return { kind: '~', text: '~', start: pos, end: pos + 1 }
+		case '@':
+			return { kind: '@', text: '@', start: pos, end: pos + 1 }
 		default:
 			return null
 	}

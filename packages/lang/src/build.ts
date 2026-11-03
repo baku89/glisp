@@ -25,6 +25,7 @@ import {
 	type MetaContent,
 	MetaAST,
 	PathAST,
+	PIN,
 	RecordAST,
 	type RecordEntry,
 	SpreadAST,
@@ -191,6 +192,18 @@ export function spread(expr: AST): SpreadAST {
  */
 export function meta(content: MetaContent, expr: AST): MetaAST {
 	return expr.meta(content)
+}
+
+/** `@expr`: metadata that says to leave this where it is. */
+export function pin(expr: AST): MetaAST {
+	if (expr.kind !== 'meta') return new MetaAST(new RecordAST([[PIN, lit(true)]]), expr)
+	if (isPinned(expr)) return expr
+	const { fields, optional } = expr.metadata
+	return new MetaAST(new RecordAST([...fields, [PIN, lit(true)]], optional), expr.expr)
+}
+
+export function isPinned(ast: AST): boolean {
+	return ast.kind === 'meta' && ast.metadata.get(PIN) !== undefined
 }
 
 // -----------------------------------------------------------------------------

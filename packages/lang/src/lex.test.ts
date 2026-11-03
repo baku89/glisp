@@ -205,9 +205,6 @@ describe('lex — `:` as coerce head', () => {
 		])
 	})
 
-	it('@ is no longer a token', () => {
-		expect(() => lex('@')).toThrow()
-	})
 })
 
 describe('lex — dot family disambiguation', () => {

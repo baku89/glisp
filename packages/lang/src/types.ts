@@ -477,6 +477,9 @@ export class SpreadAST extends ASTNode {
  * Metadata-attached expression `^{...} expr`.
  * Field is `metadata` (not `meta`) to avoid clashing with the `.meta()` method.
  */
+/** The metadata key that `@` writes. It cannot be written as a key itself. */
+export const PIN = '@'
+
 /** What metadata is on. A path passes through metadata, as if it were not there. */
 export function withoutMeta(ast: AST): AST {
 	return ast.kind === 'meta' ? ast.expr : ast
@@ -492,7 +495,14 @@ export class MetaAST extends ASTNode {
 	}
 
 	override printStructural(): string {
-		return `^${this.metadata.print()} ${this.expr.print()}`
+		const { fields, optional } = this.metadata
+		const others = fields.filter(f => f instanceof SpreadAST || f[0] !== PIN)
+		const pinned = others.length < fields.length ? '@' : ''
+		const prefix =
+			others.length === 0 && pinned !== ''
+				? ''
+				: `^${pinned === '' ? this.metadata.print() : new RecordAST(others, optional).print()} `
+		return `${prefix}${pinned}${this.expr.print()}`
 	}
 }
 

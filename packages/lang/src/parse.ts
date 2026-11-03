@@ -17,7 +17,9 @@ import {
 	fn,
 	letBlock,
 	lit,
+	isPinned,
 	meta,
+	pin,
 	path,
 	spread,
 	sym,
@@ -61,7 +63,7 @@ const ELEMENT_END: ReadonlySet<TokenKind> = new Set<TokenKind>([
 const ELEMENT_START: ReadonlySet<TokenKind> = new Set<TokenKind>([
 	'(', '[', '{', '()', '_', '!',
 	'number', 'string', 'boolean', 'identifier', 'pathSegments',
-	'~', '...', '...~', '^', '=>',
+	'~', '@', '...', '...~', '^', '=>',
 ])
 
 /**
@@ -236,6 +238,12 @@ class Parser {
 			case '~':
 				this.advance()
 				return this.stamp(start, unquote(this.atom()))
+			case '@': {
+				const at = this.advance()
+				const expr = this.atom()
+				if (isPinned(expr)) throw this.error(at, 'already pinned')
+				return this.stamp(start, pin(expr))
+			}
 			case '...':
 				this.advance()
 				return this.stamp(start, spread(this.atom()))
@@ -534,6 +542,9 @@ class Parser {
 			)
 		}
 		const expr = this.expression()
-		return meta(content, expr)
+		// `@` is metadata too, so it joins these fields.
+		return expr.kind === 'meta'
+			? pin(meta(content, expr.expr))
+			: meta(content, expr)
 	}
 }

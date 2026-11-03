@@ -59,7 +59,7 @@ export function registerGlisp(): void {
 				[/\(/, 'delimiter.parenthesis', '@head'],
 				[/[)[\]{}]/, 'delimiter'],
 				[
-					/[^\s()[\]{}";^~:`]+/,
+					/[^\s()[\]{}";^~@:`]+/,
 					{
 						cases: {
 							'@keywords': 'keyword',
@@ -77,7 +77,7 @@ export function registerGlisp(): void {
 				[/\s+/, ''],
 				{ include: '@common' },
 				[
-					/[^\s()[\]{}";^~:`]+/,
+					/[^\s()[\]{}";^~@:`]+/,
 					{
 						cases: {
 							'@keywords': { token: 'keyword', next: '@pop' },
@@ -92,7 +92,7 @@ export function registerGlisp(): void {
 				[/;.*$/, 'comment'],
 				[/"/, 'string', '@string'],
 				[/\.\.\.(?=\S)/, 'keyword'],
-				[/[\^~`:]/, 'keyword'],
+				[/[\^~@`:]/, 'keyword'],
 			],
 			string: [
 				[/[^\\"]+/, 'string'],

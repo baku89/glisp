@@ -1,4 +1,4 @@
-import type { LetAST } from './types.js'
+import { type LetAST, MetaAST } from './types.js'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -6,6 +6,7 @@ import {
 	call,
 	callKw,
 	fn,
+	isPinned,
 	letBlock,
 	lit,
 	meta,
@@ -26,6 +27,38 @@ import { RecordAST, UNIT } from './types.js'
 function roundTrip(src: string): string {
 	return print(parse(src))
 }
+
+describe('@', () => {
+	const roundTrip = (src: string) => {
+		const ast = parse(src)
+		return ast.kind === 'meta' ? new MetaAST(ast.metadata, ast.expr).print() : ast.print()
+	}
+
+	it('pins what follows it, as metadata', () => {
+		for (const src of ['@a', '@10', '@(+ 1 2)', '@[1 2]']) {
+			const ast = parse(src)
+			expect(ast.kind).toBe('meta')
+			expect(isPinned(ast)).toBe(true)
+			expect(roundTrip(src)).toBe(src)
+		}
+		expect(isPinned(parse('^{label: "L"} a'))).toBe(false)
+	})
+
+	it('joins other metadata, written either way', () => {
+		for (const src of ['^{label: "L"} @a', '@^{label: "L"} a']) {
+			const ast = parse(src) as MetaAST
+			expect(isPinned(ast)).toBe(true)
+			expect(ast.expr.kind).toBe('sym')
+			expect(roundTrip(src)).toBe('^{label: "L"} @a')
+		}
+	})
+
+	it('is written once, and not as a key', () => {
+		expect(() => parse('@@a')).toThrow()
+		expect(() => parse('^{@: true} a')).toThrow()
+		expect(() => parse('a@b')).toThrow()
+	})
+})
 
 describe('parse — atoms', () => {
 	it('numbers', () => {
