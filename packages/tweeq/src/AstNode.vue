@@ -10,7 +10,7 @@ import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { slotMenuItems } from './menu'
 import { RENAMER, REVEALER, SELECTION } from './selection'
-import { fitsInline, type Slot, viewOf } from './structure'
+import { fitsInline, parseSource, type Slot, sourceOf, viewOf } from './structure'
 
 const props = defineProps<{
 	entry: Slot
@@ -34,11 +34,36 @@ const view = computed(() =>
 	viewOf(ast.value, props.entry.env, props.entry.expected)
 )
 
-const icon = computed(
-	() => iconOf(ast.value, props.entry.env, props.entry.expected) ?? undefined
+const icon = computed(() =>
+	props.entry.role === 'step'
+		? 'mdi:arrow-down-thin'
+		: (props.entry.icon ??
+			iconOf(ast.value, props.entry.env, props.entry.expected) ??
+			undefined)
 )
 
 const isBinding = computed(() => props.entry.key.startsWith('binding:'))
+const isFunction = computed(() => props.entry.role === 'function')
+
+// A function says what it does; anything else, what it is expected to be.
+const hint = computed(() =>
+	props.entry.doc === undefined
+		? props.entry.expected?.typeName
+		: { title: props.entry.label, description: props.entry.doc }
+)
+
+// A binding's name is renamed, and what a call calls is replaced, by its label.
+const renamable = computed(() => isBinding.value || isFunction.value)
+function canRename(name: string): boolean {
+	return isFunction.value
+		? parseSource(name) !== null
+		: (renamer?.can(props.path, name) ?? false)
+}
+function rename(name: string): void {
+	if (isBinding.value) renamer?.apply(props.path, name)
+	const next = isFunction.value ? parseSource(name) : null
+	if (next !== null) update(next)
+}
 
 const revealer = inject(REVEALER, null)
 const $item = useTemplateRef<{ scrollIntoView(): void }>('$item')
@@ -93,15 +118,15 @@ function select(): void {
 	selection.value = {
 		path: props.path,
 		...(remove === undefined ? {} : { remove: () => emit('change', remove()) }),
-		...(isBinding.value ? { rename: () => (renaming.value = true) } : {}),
+		...(renamable.value ? { rename: () => (renaming.value = true) } : {}),
 	}
 }
 
 const menuItems = computed<MenuItem[]>(() => [
-	...(isBinding.value
+	...(renamable.value
 		? [
 				{
-					label: 'Rename',
+					label: isFunction.value ? 'Change Function' : 'Rename',
 					icon: 'mdi:rename-outline',
 					perform: () => (renaming.value = true),
 				},
@@ -133,20 +158,21 @@ watch(
 		v-model:open="open"
 		:label="view.label ?? entry.label"
 		:icon="icon"
-		:hint="entry.expected?.typeName"
+		:hint="hint"
 		:expandable="children.length > 0"
 		:addLabel="addition === null ? undefined : `Add ${addition.label}`"
-		:renamable="isBinding"
+		:renamable="renamable"
+		:emphasized="isFunction"
 		@add="add"
 		:sortHandle="entry.sort !== undefined"
 		:dragId="isBinding ? path : undefined"
 		v-model:renaming="renaming"
-		:labelSource="entry.label"
-		:canRename="name => renamer?.can(path, name) ?? false"
-		@rename="name => renamer?.apply(path, name)"
+		:labelSource="isFunction ? sourceOf(ast) : entry.label"
+		:canRename="canRename"
+		@rename="rename"
 		:selected="selected"
 		:closedGuide="bareKind === 'call'"
-		:gapAfter="entry.display !== undefined"
+		:gapAfter="entry.role === 'subject'"
 		:menuItems="menuItems"
 		@select="select"
 	>
@@ -159,7 +185,7 @@ watch(
 			@change="update"
 		/>
 		<AstValue
-			v-else
+			v-else-if="!isFunction"
 			:entry="entry"
 			:path="path"
 			:menuItems="menuItems"

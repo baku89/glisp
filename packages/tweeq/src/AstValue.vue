@@ -76,6 +76,20 @@ const shown = computed(() => {
 	return props.show(value, props.entry.env)
 })
 
+// A step is called and not a value, and looks like it: an outline, not a fill.
+const isCallee = computed(() => props.entry.role === 'step')
+
+/** What a pipe has come to by the end of this step. */
+const upToNow = computed(() => {
+	const { upTo, env } = props.entry
+	if (upTo === undefined) return null
+	const { value } = props.read(upTo, env)
+	if (value === UNIT) return '()'
+	return typeof value === 'number'
+		? String(Number(value.toFixed(4)))
+		: props.show(value, env)
+})
+
 // What comes to a number looks like one, as a literal does.
 const isNumber = computed(
 	() => typeof result.value?.value === 'number' && props.entry.display === undefined
@@ -156,7 +170,8 @@ const label = (value: unknown): string =>
 	<div
 		class="value"
 		:class="{
-			expression: !editing && isExpression(ast),
+			expression: !editing && !isCallee && isExpression(ast),
+			callee: !editing && isCallee,
 			error: parseSource(draft) === null || (!editing && problem !== null),
 		}"
 		:title="problem ?? sourceOf(ast)"
@@ -211,6 +226,7 @@ const label = (value: unknown): string =>
 		>
 			<template #inactiveContent>
 				<span class="shown">{{ shown }}</span>
+				<span v-if="upToNow !== null" class="up-to-now">{{ upToNow }}</span>
 			</template>
 		</InputTextBase>
 	</div>
@@ -227,6 +243,13 @@ const label = (value: unknown): string =>
 	--tq-color-input: var(--tq-color-info-soft);
 	--tq-color-input-hover: var(--tq-color-info-soft);
 }
+.callee :deep(.TqInputTextBase) {
+	background: transparent;
+	box-shadow: inset 0 0 0 1px var(--tq-color-border);
+}
+.callee :deep(.TqInputTextBase:hover) {
+	background: var(--tq-color-input-hover);
+}
 .value.error {
 	--tq-color-text: var(--tq-color-error);
 	--tq-color-input: var(--tq-color-error-soft);
@@ -234,6 +257,18 @@ const label = (value: unknown): string =>
 }
 .value :deep(.TqInputTextBase) {
 	cursor: text;
+}
+.up-to-now {
+	position: absolute;
+	top: 0;
+	right: 0;
+	max-width: 50%;
+	overflow: hidden;
+	line-height: var(--tq-input-height);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--tq-color-text-mute);
+	pointer-events: none;
 }
 .value .shown {
 	display: block;

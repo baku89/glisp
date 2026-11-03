@@ -304,6 +304,13 @@ describe('parameter labels', () => {
 		expect(map.metadata.get('doc')).toBeDefined()
 	})
 
+	it('say what the function is called', () => {
+		const multiply = bindingOf('*')
+		expect(multiply?.kind === 'meta' && multiply.metadata.get('label')?.print()).toBe(
+			'"Multiply"'
+		)
+	})
+
 	it('change nothing about the function', () => {
 		const r = evaluate(parse('(map [1 2] (* % 2))'), buildPrelude())
 		expect(r.value).toEqual([2, 4])

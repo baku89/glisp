@@ -9,7 +9,7 @@
  * An icon is what Tweeq's `Icon` takes: an Iconify name such as `mdi:ruler`, or
  * `fill:` and the `d` of a path in a 24×24 box.
  *
- * `@glisp/lang` knows nothing about icons, so `withTypeIcons` adds a frame with
+ * `@glisp/lang` knows nothing about icons, so `withIcons` adds a frame with
  * them over the prelude. It is an ordinary frame: a program can shadow any of it.
  */
 
@@ -28,7 +28,8 @@ import {
 
 import { metadataOf, textOf, viewOf } from './structure'
 
-const TYPE_ICONS: Readonly<Record<string, string>> = {
+/** Icons for what the prelude binds: its types, and its functions. */
+const ICONS: Readonly<Record<string, string>> = {
 	number: 'mdi:numeric',
 	string: 'mdi:format-quote-close',
 	boolean: 'mdi:toggle-switch-outline',
@@ -36,6 +37,45 @@ const TYPE_ICONS: Readonly<Record<string, string>> = {
 	vector: 'mdi:code-brackets',
 	enum: 'mdi:format-list-bulleted',
 	IO: 'mdi:play-outline',
+
+	'+': 'mdi:plus',
+	'*': 'mdi:close',
+	'-': 'mdi:minus',
+	'/': 'mdi:slash-forward',
+	'**': 'mdi:exponent',
+	'++': 'mdi:link-variant',
+	'<': 'mdi:less-than',
+	'>': 'mdi:greater-than',
+	'<=': 'mdi:less-than-or-equal',
+	'>=': 'mdi:greater-than-or-equal',
+	'==': 'mdi:equal',
+	'!=': 'mdi:not-equal-variant',
+	mod: 'mdi:percent-outline',
+	sqrt: 'mdi:square-root',
+	abs: 'mdi:code-brackets',
+	floor: 'mdi:arrow-collapse-down',
+	ceil: 'mdi:arrow-collapse-up',
+	round: 'mdi:circle-outline',
+	sin: 'mdi:sine-wave',
+	cos: 'mdi:cosine-wave',
+	tan: 'mdi:tangent',
+	not: 'mdi:exclamation',
+	and: 'mdi:set-center',
+	or: 'mdi:set-all',
+	first: 'mdi:page-first',
+	last: 'mdi:page-last',
+	count: 'mdi:counter',
+	take: 'mdi:content-cut',
+	drop: 'mdi:content-cut',
+	map: 'mdi:arrow-right-bold-box-outline',
+	filter: 'mdi:filter-outline',
+	reduce: 'mdi:sigma',
+	join: 'mdi:vector-union',
+	split: 'mdi:call-split',
+	range: 'mdi:format-list-numbered',
+	reverse: 'mdi:swap-vertical',
+	slice: 'mdi:content-cut',
+	merge: 'mdi:call-merge',
 }
 
 /** Shapes that have no name to hang metadata on. */
@@ -52,10 +92,10 @@ const SHAPE_NAMES: Readonly<Record<string, string>> = {
 	io: 'IO',
 }
 
-/** `env`, with `icon` added to the metadata of the types it binds. */
-export function withTypeIcons(env: Env): Env {
+/** `env`, with `icon` added to the metadata of the types and functions it binds. */
+export function withIcons(env: Env): Env {
 	const bindings = new Map()
-	for (const [name, icon] of Object.entries(TYPE_ICONS)) {
+	for (const [name, icon] of Object.entries(ICONS)) {
 		for (let frame = env; frame !== null; frame = frame.parent) {
 			const binding = frame.bindings?.get(name)
 			if (binding === undefined) continue

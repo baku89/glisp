@@ -16,7 +16,7 @@ import {
 	Session,
 } from '@glisp/lang'
 
-import { withTypeIcons } from './icons'
+import { withIcons } from './icons'
 import { computed, type ComputedRef, type ShallowRef, shallowRef } from 'vue'
 
 /** Edits this close together undo as one, like a drag on a slider. */
@@ -40,7 +40,7 @@ export interface GlispDocument {
 }
 
 export function useGlispDocument(source = '{}'): GlispDocument {
-	const session = new Session(withTypeIcons(buildPrelude()))
+	const session = new Session(withIcons(buildPrelude()))
 	const initial = parse(source)
 	if (initial.kind === 'let') session.setAst(new LetAST(initial.bindings, null))
 

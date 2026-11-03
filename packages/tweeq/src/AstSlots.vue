@@ -4,6 +4,7 @@ import { InputArray } from 'tweeq/InputArray'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, ref, watch } from 'vue'
 
+import AstCase from './AstCase.vue'
 import AstInline from './AstInline.vue'
 import AstNode from './AstNode.vue'
 import { fitsInline, moveBetween, type Slot } from './structure'
@@ -64,6 +65,7 @@ function onReorder(next: readonly Slot[]): void {
 // Variadic arguments sit side by side while they fit on one row, and go down the
 // tree when they do not. It follows the width, unless it has been opened by hand.
 const tree = inject(ParameterTreeContextKey, null)
+const caseFits = computed(() => fitsInline(2, tree?.valueWidth.value ?? 0))
 const sequenceFits = computed(() =>
 	fitsInline(sortable.value.length, tree?.valueWidth.value ?? 0)
 )
@@ -90,20 +92,46 @@ const inSequence = (slot: Slot): Slot =>
 		? slot
 		: { ...slot, label: String(slot.sort?.index ?? 0) }
 
+/** Rows in order, a case with what it comes to being one. */
+const pairOf = (slots: readonly Slot[]) => {
+	const rows: { slot: Slot; result?: Slot }[] = []
+	for (let i = 0; i < slots.length; i++) {
+		const slot = slots[i]!
+		const next = slots[i + 1]
+		if (slot.role === 'pattern' && next?.role === 'result' && caseFits.value) {
+			rows.push({ slot, result: next })
+			i++
+		} else {
+			rows.push({ slot })
+		}
+	}
+	return rows
+}
+
 const pathOf = (slot: Slot): string =>
 	props.parentPath === '' ? slot.key : `${props.parentPath}/${slot.key}`
 </script>
 
 <template>
-	<AstNode
-		v-for="slot in before"
-		:key="slot.key"
-		:entry="slot"
-		:path="pathOf(slot)"
-		:read="read"
-		:show="show"
-		@change="emit('change', $event)"
-	/>
+	<template v-for="{ slot, result } in pairOf(before)" :key="slot.key">
+		<AstCase
+			v-if="result"
+			:pattern="slot"
+			:result="result"
+			:parentPath="parentPath"
+			:read="read"
+			:show="show"
+			@change="emit('change', $event)"
+		/>
+		<AstNode
+			v-else
+			:entry="slot"
+			:path="pathOf(slot)"
+			:read="read"
+			:show="show"
+			@change="emit('change', $event)"
+		/>
+	</template>
 	<ParameterTreeItem
 		v-if="sequence !== undefined && sortable.length > 0"
 		:open="sequenceOpen"

@@ -63,6 +63,14 @@ export interface Slot {
 	remove?(): AST
 	/** What its parameter's type says of a number, if anything. */
 	readonly numberOptions?: NumberOptions
+	/** What `^{doc}` on what it stands for says about it. */
+	readonly doc?: string
+	/** An icon of its own, rather than that of what it comes to. */
+	readonly icon?: string
+	/** What part it plays in what holds it, where that is more than being an argument. */
+	readonly role?: SlotRole
+	/** What has been worked out by the end of this part, for a pipe's steps. */
+	readonly upTo?: AST
 	/** Its place among the slots it can swap places with, if it has one. */
 	readonly sort?: SlotSort
 	/** What to show while it is not being edited, in place of its value. */
@@ -75,6 +83,12 @@ export interface NumberOptions {
 	readonly max?: number
 	readonly step?: number
 }
+
+/**
+ * The parts that are not like the others: what a call calls, what a match looks at,
+ * what it looks for and what it then comes to, and the steps of a pipe.
+ */
+export type SlotRole = 'function' | 'subject' | 'pattern' | 'result' | 'step'
 
 export interface SlotSort {
 	readonly index: number
@@ -280,66 +294,113 @@ function parameterInfo(
 	}
 }
 
-/**
- * Forms written like a call, with no function to call: `:`, `?` and `|>` are
- * syntax. Each says what to call what is in it.
- */
-const FORMS: Readonly<Record<string, (index: number) => string>> = {
-	':': index => (index === 0 ? 'Value' : 'Type'),
-	'?': index =>
-		index === 0
-			? 'Value'
-			: `${index % 2 === 1 ? 'Case' : 'Result'} ${Math.ceil(index / 2)}`,
-	'|>': index => (index === 0 ? 'Input' : `Step ${index}`),
+/** Forms written like a call, with no function to call: these are syntax. */
+const FORMS: ReadonlySet<string> = new Set([':', '?', '|>'])
+
+/** Whether a node is the `_` that a match takes as anything else. */
+const isWildcard = (ast: AST | undefined): boolean =>
+	ast?.kind === 'sym' && ast.name === '_'
+
+/** `(? c true a _ b)`, which is how a match is an if. */
+function isIfElse(args: readonly AST[]): boolean {
+	const [, yes, , otherwise] = args
+	return (
+		args.length === 5 && yes?.kind === 'lit' && yes.value === true && isWildcard(otherwise)
+	)
 }
 
-/** A form's parts, under what it calls them. Only the steps of a pipe can move. */
-function viewOfForm(
-	ast: CallAST,
-	env: Env,
-	labelOf: (index: number) => string
-): NodeView {
+/** A form's parts, under what they are to it. */
+function viewOfForm(ast: CallAST, env: Env, name: string): NodeView {
 	const inside = enterNode(ast, env)
-	const name = ast.head.kind === 'sym' ? ast.head.name : ''
-	const castTo = name === ':' && ast.args[1] !== undefined
-		? resolveTypeSlot(ast.args[1], inside)
-		: null
 	const withArgs = (args: readonly AST[]): CallAST =>
 		new CallAST(ast.head, [...args], ast.kwargs)
-	return {
-		...LEAF,
-		slots: ast.args.map((arg, i) => ({
-			key: `arg${i}`,
-			label: labelOf(i),
-			ast: arg,
-			env: inside,
-			expected: i === 0 ? castTo : null,
-			replace: child => withArgs(ast.args.map((a, j) => (j === i ? child : a))),
-			...(name === '|>' && i > 0
-				? {
-						remove: () => withArgs(ast.args.filter((_, j) => j !== i)),
-						sort: {
-							index: i - 1,
-							count: ast.args.length - 1,
-							move: (from: number, to: number) =>
-								withArgs([ast.args[0]!, ...moved(ast.args.slice(1), from, to)]),
-						},
-					}
-				: {}),
-		})),
+	const part = (i: number, label: string, rest: Partial<Slot> = {}): Slot => ({
+		key: `arg${i}`,
+		label,
+		ast: ast.args[i]!,
+		env: inside,
+		expected: null,
+		replace: child => withArgs(ast.args.map((a, j) => (j === i ? child : a))),
+		...rest,
+	})
+	const has = (i: number) => i < ast.args.length
+
+	if (name === ':') {
+		const type = ast.args[1]
+		return {
+			...LEAF,
+			slots: [
+				...(has(0)
+					? [
+							part(0, 'Value', {
+								expected: type === undefined ? null : resolveTypeSlot(type, inside),
+							}),
+						]
+					: []),
+				...(has(1) ? [part(1, 'Type')] : []),
+			],
+		}
 	}
+
+	if (name === '|>') {
+		return {
+			...LEAF,
+			slots: ast.args.map((_, i) =>
+				i === 0
+					? part(0, 'Input', { role: 'subject' })
+					: part(i, `Step ${i}`, {
+							role: 'step',
+							display: print(ast.args[i]!),
+							upTo: withArgs(ast.args.slice(0, i + 1)),
+							remove: () => withArgs(ast.args.filter((_, j) => j !== i)),
+							sort: {
+								index: i - 1,
+								count: ast.args.length - 1,
+								move: (from, to) =>
+									withArgs([ast.args[0]!, ...moved(ast.args.slice(1), from, to)]),
+							},
+						})
+			),
+		}
+	}
+
+	// A match.
+	if (isIfElse(ast.args)) {
+		return {
+			...LEAF,
+			slots: [
+				part(0, 'If', { role: 'subject' }),
+				part(2, 'Then', { role: 'result' }),
+				part(4, 'Else', { role: 'result' }),
+			],
+		}
+	}
+	const slots: Slot[] = has(0) ? [part(0, 'Value', { role: 'subject' })] : []
+	let n = 0
+	for (let i = 1; i < ast.args.length; i += 2) {
+		n++
+		if (isWildcard(ast.args[i]) && has(i + 1)) {
+			slots.push(part(i + 1, 'Otherwise', { role: 'result' }))
+			continue
+		}
+		slots.push(part(i, `Case ${n}`, { role: 'pattern' }))
+		if (has(i + 1)) slots.push(part(i + 1, `Result ${n}`, { role: 'result' }))
+	}
+	return { ...LEAF, slots }
 }
 
 /** A call's arguments, each under the name its parameter has. */
 function viewOfCall(ast: CallAST, env: Env): NodeView {
-	const form = ast.head.kind === 'sym' ? FORMS[ast.head.name] : undefined
-	if (form !== undefined) return viewOfForm(ast, env, form)
+	if (ast.head.kind === 'sym' && FORMS.has(ast.head.name)) {
+		return viewOfForm(ast, env, ast.head.name)
+	}
 
 	const definition =
 		ast.head.kind === 'sym' ? metadataOf(ast.head.name, env) : null
 	const title =
 		textOf(definition?.get('label')) ??
 		(ast.head.kind === 'sym' ? ast.head.name : print(ast.head))
+	const doc = textOf(definition?.get('doc'))
 	const inside = enterNode(ast, env)
 	const hasSpread = ast.args.some(arg => arg.kind === 'spread')
 	const parameters = hasSpread ? null : callParameters(ast, inside)
@@ -442,11 +503,13 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		title,
 		head: {
 			key: 'head',
-			label: 'Function',
+			label: title,
 			ast: ast.head,
 			env: inside,
 			expected: null,
-			display: title,
+			role: 'function',
+			icon: textOf(definition?.get('icon')) ?? 'mdi:function-variant',
+			...(doc === null ? {} : { doc }),
 			replace: child => new CallAST(child, ast.args, ast.kwargs),
 		},
 		slots,
@@ -981,7 +1044,12 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		})
 	}
 
-	if (isExpression(slot.ast) && hasValue(slot.ast) && slot.display === undefined) {
+	if (
+		isExpression(slot.ast) &&
+		hasValue(slot.ast) &&
+		slot.display === undefined &&
+		slot.role !== 'function'
+	) {
 		actions.push({
 			label: 'Copy Value',
 			icon: 'mdi:content-copy',

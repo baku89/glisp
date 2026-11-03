@@ -307,22 +307,77 @@ const PARAM_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> =
 	reverse: { xs: 'Items' },
 }
 
+/** What to call the functions, where their names are for writing code in. */
+const FUNCTION_LABELS: Readonly<Record<string, string>> = {
+	'+': 'Add',
+	'*': 'Multiply',
+	'-': 'Subtract',
+	'/': 'Divide',
+	'**': 'Power',
+	'++': 'Concat',
+	'<': 'Less Than',
+	'>': 'Greater Than',
+	'<=': 'At Most',
+	'>=': 'At Least',
+	'==': 'Equal',
+	'!=': 'Not Equal',
+	mod: 'Modulo',
+	sqrt: 'Square Root',
+	abs: 'Absolute',
+	sign: 'Sign',
+	floor: 'Floor',
+	ceil: 'Ceiling',
+	round: 'Round',
+	exp: 'Exponential',
+	log: 'Logarithm',
+	sin: 'Sine',
+	cos: 'Cosine',
+	tan: 'Tangent',
+	not: 'Not',
+	and: 'And',
+	or: 'Or',
+	first: 'First',
+	last: 'Last',
+	count: 'Count',
+	take: 'Take',
+	drop: 'Drop',
+	map: 'Map',
+	filter: 'Filter',
+	reduce: 'Reduce',
+	join: 'Join',
+	split: 'Split',
+	range: 'Range',
+	reverse: 'Reverse',
+	slice: 'Slice',
+	merge: 'Merge',
+}
+
 function withParamLabels(bindings: Record<string, AST>): Record<string, AST> {
 	const labelled = { ...bindings }
-	for (const [name, labels] of Object.entries(PARAM_LABELS)) {
+	for (const name of new Set([
+		...Object.keys(PARAM_LABELS),
+		...Object.keys(FUNCTION_LABELS),
+	])) {
 		const ast = labelled[name]
 		if (ast?.kind !== 'meta') continue
+		const label = FUNCTION_LABELS[name]
+		const params = PARAM_LABELS[name]
 		labelled[name] = new MetaAST(
 			new RecordAST([
 				...ast.metadata.fields,
-				[
-					'params',
-					new RecordAST(
-						Object.entries(labels).map(
-							([param, label]) => [param, new LitAST(label)] as const
-						)
-					),
-				],
+				...(label === undefined ? [] : [['label', new LitAST(label)] as const]),
+				...(params === undefined
+					? []
+					: [
+							[
+								'params',
+								new RecordAST(
+									Object.entries(params).map(
+										([param, text]) => [param, new LitAST(text)] as const
+									)
+								),
+							] as const,
+						]),
 			]),
 			ast.expr
 		)

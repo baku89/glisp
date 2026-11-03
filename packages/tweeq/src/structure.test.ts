@@ -1,10 +1,10 @@
 import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { iconOf, withTypeIcons } from './icons'
+import { iconOf, withIcons } from './icons'
 import { actionsOf, defaultFor, hasValue, isExpression, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
-const env = withTypeIcons(buildPrelude())
+const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
 const labels = (src: string) => view(src).slots.map(s => s.label)
 
@@ -30,7 +30,7 @@ describe('viewOf', () => {
 	})
 
 	it('shows call arguments by parameter name', () => {
-		expect(view('(take [1 2] 1)').title).toBe('take')
+		expect(view('(take [1 2] 1)').title).toBe('Take')
 		expect(labels('(take [1 2] 1)')).toEqual(['Items', 'Count'])
 		expect(labels('(take [1 2] n=1)')).toEqual(['Items', 'Count'])
 		expect(labels('(+ 1 2 3)')).toEqual(['Values 0', 'Values 1', 'Values 2'])
@@ -133,11 +133,38 @@ describe('editing', () => {
 describe('head', () => {
 	it('is a row of a call, apart from its arguments', () => {
 		const v = view('(take [1 2] 1)')
-		expect(v.head?.label).toBe('Function')
-		expect(v.head?.display).toBe('take')
+		expect(v.head?.label).toBe('Take')
+		expect(v.head?.role).toBe('function')
 		expect(print(v.head!.ast)).toBe('take')
 		expect(v.slots.map(s => s.label)).toEqual(['Items', 'Count'])
 		expect(view('[1]').head).toBeNull()
+	})
+
+	it('has what the function says about itself', () => {
+		expect(view('(+ 1 2)').head?.doc).toBeTruthy()
+		const session = new Session(env)
+		session.exec('f = ^{doc: "Fills it."} (=> (x: number): number x)')
+		expect(viewOf(parse('(f 1)'), session.env).head?.doc).toBe('Fills it.')
+		session.exec('g = (=> (x: number): number x)')
+		expect(viewOf(parse('(g 1)'), session.env).head?.doc).toBeUndefined()
+	})
+
+	it('goes by the name, for a function with no label', () => {
+		const session = new Session(env)
+		session.exec('sq = (=> (x: number): number (* x x))')
+		const { head } = viewOf(parse('(sq 2)'), session.env)
+		expect(head?.label).toBe('sq')
+		expect(head?.icon).toBe('mdi:function-variant')
+	})
+
+	it('has the label and icon of the function', () => {
+		const session = new Session(env)
+		session.exec('f = ^{label: "Fill" icon: "mdi:brush"} (=> (x: number): number x)')
+		const { head } = viewOf(parse('(f 1)'), session.env)
+		expect(head?.label).toBe('Fill')
+		expect(head?.icon).toBe('mdi:brush')
+		expect(view('(* 1 2)').head?.icon).toBe('mdi:close')
+		expect(view('(* 1 2)').head?.label).toBe('Multiply')
 	})
 
 	it('can be replaced, and not removed', () => {
@@ -152,7 +179,7 @@ describe('head', () => {
 	})
 
 	it('is there for a call with no arguments', () => {
-		expect(view('(+)').head?.display).toBe('+')
+		expect(view('(+)').head?.label).toBe('Add')
 	})
 })
 
@@ -209,7 +236,7 @@ describe('forms that are not calls', () => {
 	})
 
 	it('names the parts of a match', () => {
-		expect(view('(? v 1 "a" _ "b")').slots.map(s => s.label)).toEqual([
+		expect(view('(? v 1 "a" 2 "b")').slots.map(s => s.label)).toEqual([
 			'Value',
 			'Case 1',
 			'Result 1',
@@ -217,6 +244,36 @@ describe('forms that are not calls', () => {
 			'Result 2',
 		])
 		expect(view('(? v 1 "a")').head).toBeNull()
+	})
+
+	it('reads a wildcard as what is left', () => {
+		const v = view('(? v 1 "a" _ "b")')
+		expect(v.slots.map(s => [s.label, s.role])).toEqual([
+			['Value', 'subject'],
+			['Case 1', 'pattern'],
+			['Result 1', 'result'],
+			['Otherwise', 'result'],
+		])
+		expect(print(v.slots[3]!.replace(parse('"c"')))).toBe('(? v 1 "a" _ "c")')
+	})
+
+	it('reads a match on true as an if', () => {
+		const v = view('(? c true 1 _ 2)')
+		expect(v.slots.map(s => s.label)).toEqual(['If', 'Then', 'Else'])
+		expect(print(v.slots[2]!.replace(parse('3')))).toBe('(? c true 1 _ 3)')
+		expect(view('(? c false 1 _ 2)').slots.map(s => s.label)).not.toContain('Then')
+	})
+
+	it('has each step know what comes before it', () => {
+		const [, first, second] = view('(|> 2 sqrt abs)').slots
+		expect(first?.role).toBe('step')
+		expect(first?.display).toBe('sqrt')
+		expect(print(first!.upTo!)).toBe('(|> 2 sqrt)')
+		expect(print(second!.upTo!)).toBe('(|> 2 sqrt abs)')
+	})
+
+	it('marks what a call calls', () => {
+		expect(view('(+ 1 2)').head?.role).toBe('function')
 	})
 
 	it('names the parts of a pipe, and lets the steps move', () => {
@@ -229,7 +286,7 @@ describe('forms that are not calls', () => {
 	})
 
 	it('still treats a function as a function', () => {
-		expect(view('(+ 1 2)').head?.display).toBe('+')
+		expect(view('(+ 1 2)').head?.label).toBe('Add')
 	})
 })
 
