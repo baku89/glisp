@@ -170,7 +170,7 @@ export class ReplCore {
 			return theme.error(`; ! ${result.diagnostics[0]!.message}`)
 		}
 		if (isSelfEvident(ast)) return null
-		const text = `; → ${toSource(result.value, this.session.env)}`
+		const text = `; -> ${toSource(result.value, this.session.env)}`
 		return this.changed.has(name) ? theme.changed(text) : theme.hint(text)
 	}
 
@@ -266,7 +266,7 @@ export class ReplCore {
 						ladder
 							.map(
 								(rung, i) =>
-									`${theme.hint(i === 0 ? '· ' : '→ ')}${highlight(rung.print())}`
+									`${theme.hint(i === 0 ? '· ' : '-> ')}${highlight(rung.print())}`
 							)
 							.join('\n'),
 					]

@@ -190,7 +190,7 @@ describe('ReplCore', () => {
 		const lines = plain(core.envLines())
 		expect(lines).toEqual([
 			'{x = 1',
-			' y = (+ x 1) ; → 2',
+			' y = (+ x 1) ; -> 2',
 			' f = (=> (n: number): number (* n 2))',
 			'}',
 		])
@@ -204,7 +204,7 @@ describe('ReplCore', () => {
 		core.submit('z = (+ 1 1)')
 		expect(core.changedBindings()).toEqual([])
 		core.submit('x = 100')
-		expect(stripAnsi(core.envLines()[1]!)).toBe(' y = (+ x 1) ; → 101')
+		expect(stripAnsi(core.envLines()[1]!)).toBe(' y = (+ x 1) ; -> 101')
 		expect(core.changedBindings()).toEqual(['x', 'y'])
 		core.submit('z = (+ 2 2)')
 		expect(core.changedBindings()).toEqual(['z'])
@@ -219,7 +219,7 @@ describe('ReplCore', () => {
 	it('keeps a multi-line binding as it was written', () => {
 		const core = new ReplCore()
 		core.submit('p = [1\n     2]')
-		expect(plain(core.envLines())).toEqual(['{p = [1', '       2] ; → [1 2]', '}'])
+		expect(plain(core.envLines())).toEqual(['{p = [1', '       2] ; -> [1 2]', '}'])
 	})
 
 	it('reports what a submission cost, and reuses what did not change', () => {
