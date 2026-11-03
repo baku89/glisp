@@ -105,6 +105,8 @@ export function moveBetween<T>(
 	return after[last] === before[first] ? [first, last] : [last, first]
 }
 
+const BINDING = 'binding:'
+
 /** A parameter that a call could have, but does not. */
 export interface MissingArgument {
 	readonly name: string
@@ -129,7 +131,12 @@ export interface NodeView {
 	readonly slots: ReadonlyArray<Slot>
 	readonly missing: ReadonlyArray<MissingArgument>
 	/** The new node with one more element, for a form that can grow. */
-	readonly append: { readonly label: string; add(): AST } | null
+	readonly append: {
+		/** The key of the slot it adds, if that is known ahead. */
+		readonly key?: string
+		readonly label: string
+		add(): AST
+	} | null
 }
 
 const LEAF: NodeView = {
@@ -142,20 +149,6 @@ const LEAF: NodeView = {
 	slots: [],
 	missing: [],
 	append: null,
-}
-
-/**
- * A name as a label shows it: `to-string` is `To String`. Only for labels: a name
- * in an expression is shown as it is written.
- */
-export function capitalCase(name: string): string {
-	const words = name
-		.replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
-		.split(/[-_]+/)
-		.filter(word => word !== '')
-	return words.length === 0
-		? name
-		: words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 /** `min`, `max` and `step`, from metadata. A min and max out of order say nothing. */
@@ -467,7 +460,7 @@ function viewOfVec(
 			},
 		})),
 		append: {
-			label: 'element',
+			label: 'Element',
 			add: () =>
 				new VecAST([
 					...ast.elements,
@@ -531,7 +524,28 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 			replace: child => new LetAST(ast.bindings, child),
 		})
 	}
-	return { ...LEAF, slots }
+	return {
+		...LEAF,
+		slots,
+		append: {
+			label: 'Binding',
+			key: `${BINDING}${freshName(ast)}`,
+			add: () =>
+				new LetAST(
+					[...ast.bindings, [freshName(ast), new LitAST(0)] as const],
+					ast.body
+				),
+		},
+	}
+}
+
+/** A name that a let does not have yet. */
+function freshName(block: LetAST): string {
+	const taken = new Set(block.bindings.map(([name]) => name))
+	if (!taken.has('x')) return 'x'
+	let n = 2
+	while (taken.has(`x${n}`)) n++
+	return `x${n}`
 }
 
 /** Metadata is not shown as a slot of its own: the node inside takes its place. */
@@ -575,7 +589,7 @@ function viewOfMeta(
 		append:
 			inner.append === null
 				? null
-				: { label: inner.append.label, add: () => wrap(inner.append!.add()) },
+				: { ...inner.append, add: () => wrap(inner.append!.add()) },
 	}
 }
 
@@ -682,8 +696,6 @@ function editLet(
 	const bindings = edit(node.bindings)
 	return bindings === null ? null : new LetAST(bindings, node.body)
 }
-
-const BINDING = 'binding:'
 
 /**
  * `root`, with the binding at the path `source` moved to `position` of the one at
@@ -799,6 +811,14 @@ export function referenceTargetOf(
 	return null
 }
 
+/** How many elements fit side by side on one row, with room to spare. */
+const MOST_INLINE = 4
+
+/** Whether a sequence of `count` can sit on one row. */
+export function fitsInline(count: number): boolean {
+	return count > 0 && count <= MOST_INLINE
+}
+
 /** An icon for what kind of expression a node is, or null if it is not one. */
 export function kindIconOf(ast: AST): string | null {
 	if (!isExpression(ast)) return null
@@ -870,7 +890,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	}
 	for (const missing of inner.missing) {
 		actions.push({
-			label: `Add ${capitalCase(missing.name)}`,
+			label: `Add ${missing.name}`,
 			icon: 'mdi:plus',
 			group: 'edit',
 			apply: () => slot.replace(missing.add()),
@@ -879,7 +899,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	if (inner.append !== null) {
 		const append = inner.append
 		actions.push({
-			label: `Add ${capitalCase(append.label)}`,
+			label: `Add ${append.label}`,
 			icon: 'mdi:plus',
 			group: 'edit',
 			apply: () => slot.replace(append.add()),

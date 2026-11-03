@@ -2,7 +2,7 @@ import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glis
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withTypeIcons } from './icons'
-import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, kindIconOf, literalOf, moveBetween, moveBinding, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, defaultFor, hasValue, isExpression, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withTypeIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -186,6 +186,38 @@ describe('sort', () => {
 		expect(moveBetween(['a', 'b', 'c'], ['c', 'a', 'b'])).toEqual([2, 0])
 		expect(moveBetween(['a', 'b', 'c'], ['b', 'a', 'c'])).toEqual([0, 1])
 		expect(moveBetween(['a', 'b'], ['a', 'b'])).toBeNull()
+	})
+})
+
+describe('adding a binding', () => {
+	it('adds one under a name that is free', () => {
+		const add = (src: string) => print(view(src).append!.add())
+		expect(add('{y = 1}')).toBe('{y = 1 x = 0}')
+		expect(add('{x = 1}')).toBe('{x = 1 x2 = 0}')
+		expect(add('{x = 1 x2 = 2}')).toBe('{x = 1 x2 = 2 x3 = 0}')
+	})
+
+	it('says which slot it adds', () => {
+		expect(view('{x = 1}').append?.key).toBe('binding:x2')
+		expect(view('^{label: "L"} {x = 1}').append?.key).toBe('binding:x2')
+	})
+
+	it('keeps a body last', () => {
+		expect(print(view('{a = 1 a}').append!.add())).toBe('{a = 1 x = 0 a}')
+	})
+
+	it('is in the menu', () => {
+		const slot = view('{z = {a = 1}}').slots[0]!
+		expect(actionsOf(slot).map(a => a.label)).toContain('Add Binding')
+	})
+})
+
+describe('fitsInline', () => {
+	it('takes a few', () => {
+		expect(fitsInline(0)).toBe(false)
+		expect(fitsInline(1)).toBe(true)
+		expect(fitsInline(4)).toBe(true)
+		expect(fitsInline(5)).toBe(false)
 	})
 })
 
@@ -378,17 +410,6 @@ describe('numberOptions', () => {
 })
 
 describe('names', () => {
-	it('capitalizes a name for a label', () => {
-		expect(capitalCase('map')).toBe('Map')
-		expect(capitalCase('to-string')).toBe('To String')
-		expect(capitalCase('fooBar')).toBe('Foo Bar')
-		expect(capitalCase('xs 0')).toBe('Xs 0')
-		expect(capitalCase('0')).toBe('0')
-		expect(capitalCase('*')).toBe('*')
-		expect(capitalCase('-')).toBe('-')
-		expect(capitalCase('円')).toBe('円')
-	})
-
 	it('prefers the label on the definition', () => {
 		const session = new Session(env)
 		session.exec('f = ^{label: "Fill" icon: "mdi:brush"} (=> (x: number): number x)')

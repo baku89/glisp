@@ -17,8 +17,8 @@ export const RENAMER: InjectionKey<BindingRenamer> = Symbol('glisp-renamer')
 
 /** Opening the rows down to one, and selecting it. */
 export interface RowRevealer {
-	/** The row to get to, until it has been reached. */
-	readonly target: ShallowRef<string | null>
+	/** The row to get to, until it has been reached, and whether to rename it there. */
+	readonly target: ShallowRef<{ path: string; rename?: boolean } | null>
 	/** Where the name at `path` is bound, among the rows. */
 	targetOf(path: string): string | null
 }

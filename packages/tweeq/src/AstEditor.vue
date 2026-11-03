@@ -24,8 +24,19 @@ const bindings = computed(
 	() => viewOf(props.document.root.value, props.document.env.value).slots
 )
 
+const revealTarget = shallowRef<{ path: string; rename?: boolean } | null>(null)
+
+function addBinding(): void {
+	const { append } = viewOf(props.document.root.value, props.document.env.value)
+	if (append === null) return
+	replaceRoot(append.add())
+	if (append.key !== undefined) {
+		revealTarget.value = { path: append.key, rename: true }
+	}
+}
+
 provide(REVEALER, {
-	target: shallowRef<string | null>(null),
+	target: revealTarget,
 	targetOf: path =>
 		referenceTargetOf(props.document.root.value, props.document.env.value, path),
 })
@@ -123,6 +134,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				:disabled="!document.canRedo.value"
 				@click="document.redo()"
 			/>
+			<InputButton icon="mdi:plus" subtle tooltip="Add Binding" @click="addBinding" />
 		</div>
 		<ParameterTree name="glisp.env" :canDrop="canMove" @move="move">
 			<AstSlots

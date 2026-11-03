@@ -1,0 +1,246 @@
+<script setup lang="ts">
+import { type AST, type Diagnostic, type Env, UNIT } from '@glisp/lang'
+import * as monaco from 'monaco-editor'
+import { InputCode } from 'tweeq/InputCode'
+import { InputDropdown } from 'tweeq/InputDropdown'
+import { InputNumber } from 'tweeq/InputNumber'
+import { InputString } from 'tweeq/InputString'
+import { InputSwitch } from 'tweeq/InputSwitch'
+import { InputTextBase } from 'tweeq/InputTextBase'
+import { type MenuItem } from 'tweeq/Menu'
+import { computed, inject, ref, watch } from 'vue'
+
+import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
+import { REVEALER } from './selection'
+import {
+	hasValue,
+	isExpression,
+	kindIconOf,
+	parseSource,
+	problemOf,
+	type Slot,
+	sourceOf,
+	viewOf,
+	withLiteral,
+} from './structure'
+
+type InputPosition = 'start' | 'middle' | 'end'
+
+const props = defineProps<{
+	entry: Slot
+	path: string
+	menuItems: MenuItem[]
+	/** Where it is in a row of them, which also leaves no room for an icon. */
+	inlinePosition?: InputPosition
+	read: (
+		ast: AST,
+		env: Env
+	) => { value: unknown; diagnostics: readonly Diagnostic[] }
+	show: (value: unknown, env: Env) => string
+}>()
+
+const emit = defineEmits<{
+	/** A new parent: what this slot's edit makes of the node holding it. */
+	change: [parent: AST]
+	/** The kind icon was pressed, on what opens rather than leads somewhere. */
+	toggle: []
+}>()
+
+registerGlisp()
+
+const ast = computed(() => props.entry.ast)
+const update = (next: AST): void => emit('change', props.entry.replace(next))
+
+const view = computed(() =>
+	viewOf(ast.value, props.entry.env, props.entry.expected)
+)
+
+const result = computed(() =>
+	view.value.editor !== null || !hasValue(ast.value)
+		? null
+		: props.read(ast.value, props.entry.env)
+)
+const problem = computed(() =>
+	problemOf(ast.value, props.entry.env, props.entry.expected, props.read)
+)
+
+/** What the field shows while it is not being edited. */
+const shown = computed(() => {
+	if (props.entry.display !== undefined) return props.entry.display
+	const value = result.value?.value
+	if (result.value === null || typeof value === 'function') {
+		return sourceOf(ast.value)
+	}
+	if (value === UNIT) return '()'
+	if (typeof value === 'number') return String(Number(value.toFixed(4)))
+	return props.show(value, props.entry.env)
+})
+
+// What comes to a number looks like one, as a literal does.
+const isNumber = computed(
+	() => typeof result.value?.value === 'number' && props.entry.display === undefined
+)
+
+// The node's own say goes first, over what its parameter's type says.
+const numberOptions = computed(() => ({
+	...props.entry.numberOptions,
+	...view.value.numberOptions,
+}))
+
+const revealer = inject(REVEALER, null)
+
+const iconTarget = computed(() => {
+	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
+	return bare.kind === 'sym' ? (revealer?.targetOf(props.path) ?? null) : null
+})
+const kindIcon = computed(() =>
+	props.entry.display === undefined && props.inlinePosition === undefined
+		? (kindIconOf(ast.value) ?? undefined)
+		: undefined
+)
+
+function onKindIcon(): void {
+	const target = iconTarget.value
+	if (target !== null && revealer) revealer.target.value = { path: target }
+	else emit('toggle')
+}
+
+// The field holds the source while it has focus.
+const draft = ref(sourceOf(ast.value))
+watch(ast, next => {
+	draft.value = sourceOf(next)
+})
+function commitDraft(): void {
+	const next = parseSource(draft.value)
+	if (next === null) draft.value = sourceOf(ast.value)
+	else if (sourceOf(next) !== sourceOf(ast.value)) update(next)
+}
+
+// An expression shows its value, and becomes code to edit when clicked. Only the
+// one being edited has an editor, so that a long program stays light.
+const editing = ref(false)
+
+function onEditorMount(editor: monaco.editor.IStandaloneCodeEditor): void {
+	const range = editor.getModel()?.getFullModelRange()
+	if (range !== undefined) editor.setSelection(range)
+	editor.focus()
+	editor.onDidBlurEditorWidget(finishEditing)
+	editor.onKeyDown(event => {
+		if (event.keyCode === monaco.KeyCode.Escape) {
+			draft.value = sourceOf(ast.value)
+		} else if (
+			event.keyCode !== monaco.KeyCode.Enter ||
+			event.shiftKey ||
+			// An unfinished form goes on to the next line.
+			parseSource(draft.value) === null
+		) {
+			return
+		}
+		event.preventDefault()
+		event.stopPropagation()
+		finishEditing()
+	})
+}
+
+function finishEditing(): void {
+	if (!editing.value) return
+	editing.value = false
+	commitDraft()
+}
+
+const label = (value: unknown): string =>
+	typeof value === 'string' ? value : String(value)
+</script>
+
+<template>
+	<div
+		class="value"
+		:class="{
+			expression: !editing && isExpression(ast),
+			error: parseSource(draft) === null || (!editing && problem !== null),
+		}"
+		:title="problem ?? sourceOf(ast)"
+	>
+		<InputNumber
+			v-if="view.editor?.kind === 'number'"
+			v-bind="numberOptions"
+			:modelValue="view.editor.value"
+			:menuItems="menuItems"
+			:inlinePosition="inlinePosition"
+			@update:modelValue="update(withLiteral(ast, $event))"
+		/>
+		<InputString
+			v-else-if="view.editor?.kind === 'string'"
+			:modelValue="view.editor.value"
+			:menuItems="menuItems"
+			:inlinePosition="inlinePosition"
+			@update:modelValue="update(withLiteral(ast, $event))"
+		/>
+		<InputSwitch
+			v-else-if="view.editor?.kind === 'boolean'"
+			:modelValue="view.editor.value"
+			@update:modelValue="update(withLiteral(ast, $event))"
+		/>
+		<InputDropdown
+			v-else-if="view.editor?.kind === 'enum'"
+			:modelValue="view.editor.value"
+			:options="[...view.editor.options]"
+			:labelizer="label"
+			@update:modelValue="update(withLiteral(ast, $event as never))"
+		/>
+		<InputCode
+			v-else-if="editing"
+			v-model="draft"
+			:lang="GLISP"
+			:options="EDITOR_OPTIONS"
+			@mount="onEditorMount"
+		/>
+		<InputTextBase
+			v-else
+			:modelValue="draft"
+			:font="isNumber ? 'numeric' : 'monospace'"
+			:align="isNumber ? 'center' : undefined"
+			:inlinePosition="inlinePosition"
+			ignoreInput
+			:rightIcon="kindIcon"
+			:rightIconPressable="iconTarget !== null || view.slots.length > 0"
+			:menuItems="menuItems"
+			@rightIconClick="onKindIcon"
+			@click="editing = true"
+			@focus="editing = true"
+		>
+			<template #inactiveContent>
+				<span class="shown">{{ shown }}</span>
+			</template>
+		</InputTextBase>
+	</div>
+</template>
+
+<style scoped>
+.value {
+	display: grid;
+	min-width: 0;
+}
+/* As a parameter driven by an expression is in After Effects or Houdini. */
+.expression {
+	--tq-color-text: var(--tq-color-info);
+	--tq-color-input: var(--tq-color-info-soft);
+	--tq-color-input-hover: var(--tq-color-info-soft);
+}
+.value.error {
+	--tq-color-text: var(--tq-color-error);
+	--tq-color-input: var(--tq-color-error-soft);
+	--tq-color-input-hover: var(--tq-color-error-soft);
+}
+.value :deep(.TqInputTextBase) {
+	cursor: text;
+}
+.value .shown {
+	display: block;
+	line-height: var(--tq-input-height);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	pointer-events: none;
+}
+</style>

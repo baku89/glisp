@@ -1,35 +1,16 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, UNIT } from '@glisp/lang'
-import { InputButton } from 'tweeq/InputButton'
-import { InputDropdown } from 'tweeq/InputDropdown'
-import { InputNumber } from 'tweeq/InputNumber'
-import * as monaco from 'monaco-editor'
-import { InputCode } from 'tweeq/InputCode'
-import { InputString } from 'tweeq/InputString'
-import { InputSwitch } from 'tweeq/InputSwitch'
-import { InputTextBase } from 'tweeq/InputTextBase'
+import type { AST, Diagnostic, Env } from '@glisp/lang'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
+import AstInline from './AstInline.vue'
 import AstSlots from './AstSlots.vue'
+import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
-import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
+import { slotMenuItems } from './menu'
 import { RENAMER, REVEALER, SELECTION } from './selection'
-import {
-	actionsOf,
-	capitalCase,
-	hasValue,
-	isExpression,
-	kindIconOf,
-	parseSource,
-	problemOf,
-	type Slot,
-	type SlotAction,
-	sourceOf,
-	viewOf,
-	withLiteral,
-} from './structure'
+import { fitsInline, type Slot, viewOf } from './structure'
 
 const props = defineProps<{
 	entry: Slot
@@ -49,8 +30,6 @@ const update = (next: AST): void => emit('change', props.entry.replace(next))
 
 const selection = inject(SELECTION)!
 
-registerGlisp()
-
 const view = computed(() =>
 	viewOf(ast.value, props.entry.env, props.entry.expected)
 )
@@ -58,27 +37,6 @@ const view = computed(() =>
 const icon = computed(
 	() => iconOf(ast.value, props.entry.env, props.entry.expected) ?? undefined
 )
-
-const result = computed(() =>
-	view.value.editor !== null || !hasValue(ast.value)
-		? null
-		: props.read(ast.value, props.entry.env)
-)
-const problem = computed(() =>
-	problemOf(ast.value, props.entry.env, props.entry.expected, props.read)
-)
-
-/** What the field shows while it is not being edited. */
-const shown = computed(() => {
-	if (props.entry.display !== undefined) return props.entry.display
-	const value = result.value?.value
-	if (result.value === null || typeof value === 'function') {
-		return sourceOf(ast.value)
-	}
-	if (value === UNIT) return '()'
-	if (typeof value === 'number') return String(Number(value.toFixed(4)))
-	return props.show(value, props.entry.env)
-})
 
 const isBinding = computed(() => props.entry.key.startsWith('binding:'))
 
@@ -88,89 +46,42 @@ const $item = useTemplateRef<{ scrollIntoView(): void }>('$item')
 const bareKind = computed(() =>
 	ast.value.kind === 'meta' ? ast.value.expr.kind : ast.value.kind
 )
-// What comes to a number looks like one, as a literal does.
-const isNumber = computed(
-	() => typeof result.value?.value === 'number' && props.entry.display === undefined
-)
 
-// The node's own say goes first, over what its parameter's type says.
-const numberOptions = computed(() => ({
-	...props.entry.numberOptions,
-	...view.value.numberOptions,
-}))
-
-const iconTarget = computed(() => {
-	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
-	return bare.kind === 'sym' ? (revealer?.targetOf(props.path) ?? null) : null
-})
-const iconPressable = computed(() =>
-	iconTarget.value !== null || view.value.slots.length > 0
-)
-
-function onKindIcon(): void {
-	const target = iconTarget.value
-	if (target !== null && revealer) revealer.target.value = target
-	else open.value = !open.value
-}
 const renamer = inject(RENAMER, null)
 const renaming = ref(false)
 
 const open = ref(false)
 
-/** What can be added here, as new rows at the end of it. */
-const additions = computed(() => [
-	...view.value.missing.map(({ name, add }) => ({ label: name, add })),
-	...(view.value.append === null ? [] : [view.value.append]),
-])
+/** A short vector shows its elements on its own row, until it is opened. */
+const inline = computed(
+	() => bareKind.value === 'vec' && !open.value && fitsInline(view.value.slots.length)
+)
+
+/** What the + adds: the next thing missing, or else one more. */
+const addition = computed(() => {
+	const [missing] = view.value.missing
+	return missing === undefined
+		? view.value.append
+		: { label: missing.name, add: missing.add }
+})
+
+function add(): void {
+	const next = addition.value
+	if (next === null) return
+	// A vector that is still short shows the new one where it is.
+	const grows = bareKind.value === 'vec' && fitsInline(view.value.slots.length + 1)
+	if (!grows) open.value = true
+	update(next.add())
+	// A new binding has only a placeholder for a name.
+	const key = 'key' in next ? next.key : undefined
+	if (key !== undefined && revealer) {
+		revealer.target.value = { path: `${props.path}/${key}`, rename: true }
+	}
+}
 
 const children = computed(() =>
 	view.value.head === null ? view.value.slots : [view.value.head, ...view.value.slots]
 )
-
-// The field holds the source while it has focus.
-const draft = ref(sourceOf(ast.value))
-watch(ast, next => {
-	draft.value = sourceOf(next)
-})
-function commitDraft(): void {
-	const next = parseSource(draft.value)
-	if (next === null) draft.value = sourceOf(ast.value)
-	else if (sourceOf(next) !== sourceOf(ast.value)) update(next)
-}
-// An expression shows its value, and becomes code to edit when clicked. Only the
-// one being edited has an editor, so that a long program stays light.
-const editing = ref(false)
-
-function onEditorMount(editor: monaco.editor.IStandaloneCodeEditor): void {
-	const range = editor.getModel()?.getFullModelRange()
-	if (range !== undefined) editor.setSelection(range)
-	editor.focus()
-	editor.onDidBlurEditorWidget(finishEditing)
-	editor.onKeyDown(event => {
-		if (event.keyCode === monaco.KeyCode.Escape) {
-			draft.value = sourceOf(ast.value)
-		} else if (
-			event.keyCode !== monaco.KeyCode.Enter ||
-			event.shiftKey ||
-			// An unfinished form goes on to the next line.
-			parseSource(draft.value) === null
-		) {
-			return
-		}
-		event.preventDefault()
-		event.stopPropagation()
-		finishEditing()
-	})
-}
-
-function finishEditing(): void {
-	if (!editing.value) return
-	editing.value = false
-	commitDraft()
-}
-
-const label = (value: unknown): string =>
-	typeof value === 'string' ? value : String(value)
 
 const selected = computed(() => selection.value?.path === props.path)
 
@@ -183,41 +94,29 @@ function select(): void {
 	}
 }
 
-const menuItems = computed<MenuItem[]>(() => {
-	const items: MenuItem[] = isBinding.value
+const menuItems = computed<MenuItem[]>(() => [
+	...(isBinding.value
 		? [
 				{
 					label: 'Rename',
 					icon: 'mdi:rename-outline',
 					perform: () => (renaming.value = true),
 				},
-				{ separator: true },
+				{ separator: true as const },
 			]
-		: []
-	let group: SlotAction['group'] | null = null
-	for (const action of actionsOf(props.entry)) {
-		if (group !== null && group !== action.group) items.push({ separator: true })
-		group = action.group
-		items.push({
-			label: action.label,
-			icon: action.icon,
-			perform: () => {
-				if ('apply' in action) emit('change', action.apply())
-				else void navigator.clipboard.writeText(action.copy())
-			},
-		})
-	}
-	return items
-})
+		: []),
+	...slotMenuItems(props.entry, parent => emit('change', parent)),
+])
 
 // A reference leads to what it refers to: rows on the way open, and it is selected.
 watch(
 	() => revealer?.target.value ?? null,
 	target => {
 		if (target === null) return
-		if (target.startsWith(`${props.path}/`)) open.value = true
-		if (target !== props.path) return
+		if (target.path.startsWith(`${props.path}/`)) open.value = true
+		if (target.path !== props.path) return
 		select()
+		if (target.rename) renaming.value = true
 		revealer!.target.value = null
 		void nextTick(() => $item.value?.scrollIntoView())
 	},
@@ -229,10 +128,13 @@ watch(
 	<ParameterTreeItem
 		ref="$item"
 		v-model:open="open"
-		:label="view.label ?? capitalCase(entry.label)"
+		:label="view.label ?? entry.label"
 		:icon="icon"
 		:hint="entry.expected?.typeName"
-		:expandable="children.length > 0 || additions.length > 0"
+		:expandable="children.length > 0"
+		:addLabel="addition === null ? undefined : `Add ${addition.label}`"
+		:renamable="isBinding"
+		@add="add"
 		:sortHandle="entry.sort !== undefined"
 		:dragId="isBinding ? path : undefined"
 		v-model:renaming="renaming"
@@ -245,118 +147,34 @@ watch(
 		:menuItems="menuItems"
 		@select="select"
 	>
-		<div
-			class="value"
-			:class="{
-				expression: !editing && isExpression(ast),
-				error: parseSource(draft) === null || (!editing && problem !== null),
-			}"
-			:title="problem ?? sourceOf(ast)"
-		>
-			<InputNumber
-				v-if="view.editor?.kind === 'number'"
-							v-bind="numberOptions"
-	:modelValue="view.editor.value"
-				:menuItems="menuItems"
-				@update:modelValue="update(withLiteral(ast, $event))"
-			/>
-			<InputString
-				v-else-if="view.editor?.kind === 'string'"
-				:modelValue="view.editor.value"
-				:menuItems="menuItems"
-				@update:modelValue="update(withLiteral(ast, $event))"
-			/>
-			<InputSwitch
-				v-else-if="view.editor?.kind === 'boolean'"
-				:modelValue="view.editor.value"
-				@update:modelValue="update(withLiteral(ast, $event))"
-			/>
-			<InputDropdown
-				v-else-if="view.editor?.kind === 'enum'"
-				:modelValue="view.editor.value"
-				:options="[...view.editor.options]"
-				:labelizer="label"
-				@update:modelValue="update(withLiteral(ast, $event as never))"
-			/>
-			<InputCode
-				v-else-if="editing"
-				v-model="draft"
-				:lang="GLISP"
-				:options="EDITOR_OPTIONS"
-				@mount="onEditorMount"
-			/>
-			<InputTextBase
-				v-else
-				:modelValue="draft"
-				:font="isNumber ? 'numeric' : 'monospace'"
-				:align="isNumber ? 'center' : undefined"
-				ignoreInput
-				:rightIcon="entry.display === undefined ? (kindIconOf(ast) ?? undefined) : undefined"
-				:rightIconPressable="iconPressable"
-				@rightIconClick="onKindIcon"
-				:menuItems="menuItems"
-				@click="editing = true"
-				@focus="editing = true"
-			>
-				<template #inactiveContent>
-					<span class="shown">{{ shown }}</span>
-				</template>
-			</InputTextBase>
-		</div>
+		<AstInline
+			v-if="inline"
+			:slots="view.slots"
+			:parentPath="path"
+			:read="read"
+			:show="show"
+			@change="update"
+		/>
+		<AstValue
+			v-else
+			:entry="entry"
+			:path="path"
+			:menuItems="menuItems"
+			:read="read"
+			:show="show"
+			@change="emit('change', $event)"
+			@toggle="open = !open"
+		/>
 
 		<template #children>
 			<AstSlots
 				:slots="children"
 				:parentPath="path"
+				:sequence="bareKind === 'call' ? (view.append ?? undefined) : undefined"
 				:read="read"
 				:show="show"
 				@change="update"
 			/>
-			<ParameterTreeItem
-				v-for="addition in additions"
-				:key="`add:${addition.label}`"
-				label=""
-			>
-				<InputButton
-					class="add"
-					subtle
-					icon="mdi:plus"
-					:label="capitalCase(addition.label)"
-					@click="update(addition.add())"
-				/>
-			</ParameterTreeItem>
 		</template>
 	</ParameterTreeItem>
 </template>
-
-<style scoped>
-.value {
-	display: grid;
-	min-width: 0;
-}
-/* As a parameter driven by an expression is in After Effects or Houdini. */
-.expression {
-	--tq-color-text: var(--tq-color-info);
-	--tq-color-input: var(--tq-color-info-soft);
-	--tq-color-input-hover: var(--tq-color-info-soft);
-}
-.value.error {
-	--tq-color-text: var(--tq-color-error);
-	--tq-color-input: var(--tq-color-error-soft);
-	--tq-color-input-hover: var(--tq-color-error-soft);
-}
-.value :deep(.TqInputTextBase) {
-	cursor: text;
-}
-.add {
-	justify-self: start;
-}
-.value .shown {
-	display: block;
-	line-height: var(--tq-input-height);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	pointer-events: none;
-}
-</style>
