@@ -459,6 +459,36 @@ describe('fitsInline', () => {
 	})
 })
 
+describe('kindIconOf', () => {
+	const kind = (src: string) => kindIconOf(parse(src))
+
+	it('tells kinds of expression apart', () => {
+		expect(kind('(+ 1 2)')).toBe('mdi:function-variant')
+		expect(kind('{a = 1 a}')).toBe('mdi:graph-outline')
+		expect(kind('(=> (x: number): number x)')).toBe('mdi:lambda')
+		expect(kind('x')).toBe('mdi:arrow-top-right')
+		expect(kind('../x')).toBe('mdi:arrow-top-right')
+		expect(kind('[1 x]')).toBe('mdi:code-brackets')
+		expect(kind('{a: x}')).toBe('mdi:code-braces')
+		expect(kind('^{label: "L"} (+ 1 2)')).toBe('mdi:function-variant')
+		expect(kind('(: 1 number)')).toBe('mdi:tag-outline')
+		expect(kind('(? 1 1 2)')).toBe('mdi:call-split')
+		expect(kind('(|> 1 f)')).toBe('mdi:pipe')
+	})
+
+	it('tells a name that can be gone to from one that cannot', () => {
+		expect(kindIconOf(parse('x'), true)).toBe('mdi:arrow-top-right')
+		expect(kindIconOf(parse('pi'), false)).toBe('mdi:book-open-variant-outline')
+		expect(kindIconOf(parse('^{label: "L"} pi'), false)).toBe('mdi:book-open-variant-outline')
+		expect(kindIconOf(parse('(+ 1 2)'), false)).toBe('mdi:function-variant')
+		expect(kindIconOf(parse('../x'), false)).toBe('mdi:arrow-top-right')
+	})
+
+	it('has nothing for what is written down', () => {
+		for (const src of ['1', '"a"', '[1 2]', '{a: 1}']) expect(kind(src)).toBeNull()
+	})
+})
+
 describe('moveBinding', () => {
 	const SOURCE = '{x = 10 y = (+ 1 2) z = {a = 20}}'
 	const X = 'binding:x'

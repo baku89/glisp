@@ -114,7 +114,9 @@ const iconTarget = computed(() => {
 })
 const kindIcon = computed(() =>
 	props.entry.display === undefined && props.inlinePosition === undefined
-		? (view.value.head?.icon ?? kindIconOf(ast.value) ?? undefined)
+		? (view.value.head?.icon ??
+				kindIconOf(ast.value, iconTarget.value !== null) ??
+				undefined)
 		: undefined
 )
 

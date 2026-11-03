@@ -1000,12 +1000,17 @@ export function fitsInline(count: number, width: number, gap = 2): boolean {
 	return width === 0 || count * MIN_INPUT_WIDTH + (count - 1) * gap <= width
 }
 
-/** An icon for what kind of expression a node is, or null if it is not one. */
-export function kindIconOf(ast: AST): string | null {
+/**
+ * An icon for what kind of expression a node is, or null if it is not one. A name
+ * looks like a shortcut if `reachable`, for what it refers to being there to go to,
+ * and like a book otherwise, for what comes with the language.
+ */
+export function kindIconOf(ast: AST, reachable = true): string | null {
 	if (!isExpression(ast)) return null
+	if (ast.kind === 'sym' && !reachable) return 'mdi:book-open-variant-outline'
 	switch (ast.kind) {
 		case 'meta':
-			return kindIconOf(ast.expr)
+			return kindIconOf(ast.expr, reachable)
 		case 'call':
 			if (ast.head.kind === 'sym') {
 				if (ast.head.name === ':') return 'mdi:tag-outline'
