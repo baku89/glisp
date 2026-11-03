@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { type AST, type Env, LetAST, LitAST, parse, toAst } from '@glisp/lang'
+import { type AST, type Env, LetAST, toAst } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import { InputButton } from 'tweeq/InputButton'
-import { InputString } from 'tweeq/InputString'
-import { Parameter, ParameterGrid } from 'tweeq/ParameterGrid'
-import { computed, provide, ref, shallowRef, watch } from 'vue'
+import { ParameterGrid } from 'tweeq/ParameterGrid'
+import { computed, provide, shallowRef, watch } from 'vue'
 
 import AstNode from './AstNode.vue'
 import { type GlispDocument } from './document'
@@ -55,28 +54,6 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		selection.value = null
 	}
 })
-
-// Adding a binding: `name` or `name = expr`.
-const draft = ref('')
-function addBinding(): void {
-	const [, name = '', source = '0'] =
-		/^\s*([^\s=]+)\s*(?:=\s*(.*\S)\s*)?$/.exec(draft.value) ?? []
-	if (name === '') return
-	let value: AST
-	try {
-		value = parse(source)
-	} catch {
-		value = new LitAST(0)
-	}
-	const root = props.document.root.value
-	props.document.setRoot(
-		new LetAST(
-			[...root.bindings.filter(([n]) => n !== name), [name, value] as const],
-			null
-		)
-	)
-	draft.value = ''
-}
 </script>
 
 <template>
@@ -103,14 +80,6 @@ function addBinding(): void {
 				:show="show"
 				@change="replaceRoot"
 			/>
-			<Parameter>
-				<InputString
-					v-model="draft"
-					font="monospace"
-					placeholder="name = expr"
-					@confirm="addBinding"
-				/>
-			</Parameter>
 		</ParameterGrid>
 		<ul v-if="document.diagnostics.value.length > 0" class="problems">
 			<li v-for="(problem, i) in document.diagnostics.value" :key="i">

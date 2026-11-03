@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { AstEditor, useGlispDocument } from '@glisp/tweeq'
+import { AstEditor, Repl, useGlispDocument } from '@glisp/tweeq'
 import { TweeqProvider } from 'tweeq/TweeqProvider'
 import { Viewport } from 'tweeq/Viewport'
-
-import ReplFrame from '../Repl.vue'
 
 const document = useGlispDocument(`{
   radius = 40
@@ -23,7 +21,7 @@ const document = useGlispDocument(`{
 				<AstEditor :document="document" />
 			</section>
 			<section class="console">
-				<ReplFrame :shared="document.session" @change="document.sync()" />
+				<Repl :session="document.session" @change="document.sync()" />
 			</section>
 		</Viewport>
 	</TweeqProvider>
@@ -42,6 +40,8 @@ const document = useGlispDocument(`{
 .editor {
 	min-width: 0;
 	overflow: auto;
+	/* It scrolls, which would clip the ring of a focused input at its edge. */
+	padding: 2px;
 }
 .console {
 	min-width: 0;

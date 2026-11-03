@@ -1,5 +1,5 @@
 /**
- * Glisp session adapter for the browser playground.
+ * What a REPL does with a session, apart from drawing it.
  *
  * Wraps the shared `Session` (let-block as session state) plus
  * `parse` / `infer` / `check` / `expand` so the Vue UI can render
@@ -12,7 +12,6 @@
 
 import {
 	type AST,
-	buildPrelude,
 	check as coreCheck,
 	type Diagnostic,
 	type Env,
@@ -102,10 +101,8 @@ export interface Session {
 	readonly isComplete: (src: string) => boolean
 }
 
-/** A session of its own, or one on `session`, shared with something else. */
-export function createSession(
-	session: CoreSession = new CoreSession(buildPrelude())
-): Session {
+/** What a REPL does with `session`, which it may share with something else. */
+export function createSession(session: CoreSession): Session {
 	return {
 		env: () => session.env,
 		bindings: () => session.bindings(),
