@@ -143,6 +143,11 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		event.preventDefault()
 		if (event.shiftKey) props.document.redo()
 		else props.document.undo()
+	} else if (isMod && event.key.toLowerCase() === 'c') {
+		// Text that is selected, as in a REPL, is what a copy means if there is any.
+		if (selection.value?.evaluate === undefined || !getSelection()?.isCollapsed) return
+		event.preventDefault()
+		selection.value.evaluate('copy')
 	} else if (event.key.toLowerCase() === 'e' && !isMod && !event.altKey) {
 		if (selection.value?.evaluate === undefined) return
 		event.preventDefault()

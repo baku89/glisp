@@ -134,7 +134,9 @@ function select(): void {
 		editExpression,
 		evaluate(id) {
 			const action = actionsOf(props.entry).find(a => a.id === id)
-			if (action !== undefined && 'apply' in action) emit('change', action.apply())
+			if (action === undefined) return
+			if ('apply' in action) emit('change', action.apply())
+			else void navigator.clipboard.writeText(action.copy())
 		},
 	}
 }

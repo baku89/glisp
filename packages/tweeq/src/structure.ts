@@ -1079,7 +1079,7 @@ export type SlotAction = {
 	readonly label: string
 	readonly icon: string
 	/** Which one it is, for what runs it by a key. */
-	readonly id?: 'step' | 'all' | 'pin'
+	readonly id?: 'step' | 'all' | 'pin' | 'copy'
 	/** The keys that run it, as a menu shows them. */
 	readonly keys?: readonly string[]
 	/** Actions of a group go together, in a menu. */
@@ -1190,6 +1190,8 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		})
 	}
 	actions.push({
+		id: 'copy',
+		keys: ['⌘', 'C'],
 		label: isExpression(slot.ast) ? 'Copy Expression' : 'Copy Value',
 		icon: isExpression(slot.ast) ? 'mdi:code-parentheses' : 'mdi:content-copy',
 		group: 'copy',
@@ -1201,6 +1203,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		actions.push({
 			label: 'Delete',
 			icon: 'mdi:trash-can-outline',
+			keys: ['⌫'],
 			group: 'remove',
 			apply: remove,
 		})
