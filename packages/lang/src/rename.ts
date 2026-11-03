@@ -19,6 +19,7 @@ import {
 	SymAST,
 	UnquoteAST,
 	VecAST,
+	withoutMeta,
 } from './types.js'
 
 /** Whether `name` can name a binding: it has to read back as that symbol. */
@@ -110,6 +111,7 @@ export function renameBindingIn(
 				entered = true
 				continue
 			}
+			here = withoutMeta(here)
 			if (here === block && segment === from) segments[i] = to
 			const child: AST | null =
 				here.kind === 'call'

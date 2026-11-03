@@ -33,6 +33,7 @@ import {
 	type PathAST,
 	SpreadAST,
 	type SymAST,
+	withoutMeta,
 } from './types.js'
 
 /** Call heads dispatched by name, which never refer to a binding. */
@@ -425,6 +426,7 @@ function walkPath(
 			continue
 		}
 		if (here === null) return 'path descended below the root'
+		here = withoutMeta(here)
 		const child =
 			here.kind === 'call' && typeof segment === 'string'
 				? argumentByName(here, segment, scope, env)

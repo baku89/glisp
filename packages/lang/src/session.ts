@@ -37,10 +37,12 @@ import {
 	LetAST,
 	RecordAST,
 	type RecordEntry,
+	MetaAST,
 	SpreadAST,
 	UNIT,
 	VecAST,
 } from './types.js'
+
 
 export class Session {
 	private letBlock = new LetAST([], null)
@@ -222,6 +224,10 @@ function setAtPathInAst(
 	env: Env
 ): AST | string {
 	if (path.length === 0) return replacement
+	if (ast.kind === 'meta') {
+		const next = setAtPathInAst(ast.expr, path, replacement, env)
+		return typeof next === 'string' ? next : new MetaAST(ast.metadata, next)
+	}
 	const seg = path[0]!
 	const rest = path.slice(1)
 	const inside =

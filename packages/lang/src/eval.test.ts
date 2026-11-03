@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { check } from './check.js'
+import { infer } from './infer.js'
+import { Runtime } from './runtime.js'
+import { Session } from './session.js'
+import { print } from './print.js'
 import {
 	access,
 	call,
@@ -1258,6 +1263,40 @@ describe('evaluate — memo lifetime', () => {
 			await new Promise(resolve => setTimeout(resolve, 10))
 		}
 		expect(roots.filter(r => r.deref() !== undefined)).toEqual([])
+	})
+})
+
+describe('evaluate — a path passes through metadata', () => {
+	const env = buildPrelude()
+	const run = (src: string) => evaluate(parse(src), env)
+
+	it('reaches a field, a binding and an element', () => {
+		expect(run('{z = ^{label: "L"} {a: 7} q = ./z/a q}').value).toBe(7)
+		expect(run('{z = ^{label: "L"} {a = 7} q = ./z/a q}').value).toBe(7)
+		expect(run('{z = ^{label: "L"} [7] q = ./z/0 q}').value).toBe(7)
+	})
+
+	it('does not count it as a level', () => {
+		expect(run('{a = 7 z = ^{label: "L"} {b = ../a b} z}').value).toBe(7)
+	})
+
+	it('reports nothing statically either', () => {
+		expect(check(parse('{z = ^{label: "L"} {a: 7} q = ./z/a q}'), env)).toEqual([])
+		expect(infer(parse('{z = ^{label: "L"} {a: 7} q = ./z/a q}'), env)?.typeName).toBe('number')
+	})
+
+	it('is the same through a Runtime', () => {
+		const runtime = new Runtime(env)
+		runtime.setRoot(parse('{z = ^{label: "L"} {a: 7} q = ./z/a}'))
+		expect(runtime.read('q').value).toBe(7)
+		expect(runtime.read('z', 'a').value).toBe(7)
+	})
+
+	it('lets a session set through it, and keeps the metadata', () => {
+		const session = new Session(env)
+		session.setBinding('z', parse('^{label: "L"} {a: 7}'))
+		expect(session.setAtPath(['z', 'a'], parse('8'))).toBeNull()
+		expect(print(session.ast())).toContain('^{label: "L"} {a: 8}')
 	})
 })
 

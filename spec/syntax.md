@@ -168,7 +168,7 @@ Distinguishing path from spread/splice: a path always begins with `./` or `../` 
                                 ;; → equivalent to (+ x x)
 ```
 
-Paths walk every AST level, including records, vectors, and function applications, but not every expression has a path:
+Paths walk every AST level, including records, vectors, and function applications, but not every expression has a path. Metadata is not a level: a path passes through it, so `{z = ^{label: "L"} {a: 7} q = ./z/a}` reaches `7`.
 
 - A let-block's trailing expression has none. Bind it to a name to reference it (`{a = 10 r = (* a 2) r}`, then `./r`).
 - A call's head has none, and neither does a function's parameters, generics, or body. A path cannot descend into a function literal.

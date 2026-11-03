@@ -27,6 +27,7 @@ import {
 	type RecordEntry,
 	SpreadAST,
 	UNIT,
+	withoutMeta,
 } from './types.js'
 
 // -----------------------------------------------------------------------------
@@ -2081,6 +2082,7 @@ export function pathTarget(
 			continue
 		}
 		if (astHere === null) return { message: 'path descended below the root' }
+		astHere = withoutMeta(astHere)
 		const child = childAt(astHere, seg, frame)
 		if (child === null) return { message: `path segment not found: ${seg}` }
 		if (!entered) frame = enterNode(astHere, frame)

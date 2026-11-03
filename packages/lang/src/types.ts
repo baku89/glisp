@@ -477,6 +477,11 @@ export class SpreadAST extends ASTNode {
  * Metadata-attached expression `^{...} expr`.
  * Field is `metadata` (not `meta`) to avoid clashing with the `.meta()` method.
  */
+/** What metadata is on. A path passes through metadata, as if it were not there. */
+export function withoutMeta(ast: AST): AST {
+	return ast.kind === 'meta' ? ast.expr : ast
+}
+
 export class MetaAST extends ASTNode {
 	readonly kind = 'meta' as const
 	constructor(

@@ -37,7 +37,7 @@ import {
 } from './eval.js'
 import { desugar } from './desugar.js'
 import { type FreePath, freeRefs } from './resolve.js'
-import { type AST, type Env, SpreadAST, UNIT } from './types.js'
+import { type AST, type Env, SpreadAST, UNIT, withoutMeta } from './types.js'
 
 export interface RuntimeOptions {
 	/** Cached results to keep across edits. Older ones are evicted first. */
@@ -128,6 +128,7 @@ export class Runtime {
 		let here: AST = desugar(this.rootAst)
 		let env = this.rootEnv
 		for (const segment of path) {
+			here = withoutMeta(here)
 			const child = childAt(here, segment, env)
 			if (child === null) return { value: UNIT, diagnostics: [] }
 			env = enterNode(here, env)

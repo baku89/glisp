@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { buildPrelude } from './prelude.js'
 import { evaluate, parse, print, Session } from './index.js'
 import { isBindingName, renameBinding, renameBindingIn } from './rename.js'
-import type { LetAST } from './types.js'
+import type { LetAST, MetaAST } from './types.js'
 
 const rename = (src: string, from: string, to: string) => {
 	const next = renameBinding(parse(src) as LetAST, from, to)
@@ -150,6 +150,14 @@ describe('renameBindingIn', () => {
 		const env = buildPrelude()
 		expect(evaluate(renameBindingIn(before, block, 'a', 'b')!, env).value).toBe(8)
 		expect(evaluate(before, env).value).toBe(8)
+	})
+
+	it('takes along a path that passes through metadata', () => {
+		const root = parse('{z = ^{label: "L"} {a = 1} q = ./z/a}') as LetAST
+		const block = (root.bindings[0]![1] as MetaAST).expr as LetAST
+		expect(print(renameBindingIn(root, block, 'a', 'b')!)).toBe(
+			'{z = ^{label: "L"} {b = 1} q = ./z/b}'
+		)
 	})
 
 	it('leaves names outside the block, and another block of that name', () => {
