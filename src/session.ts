@@ -23,7 +23,8 @@
  * from the same source.
  */
 
-import { type EvalResult, IO, isIO, pushLetFrame } from './eval.js'
+import { enterNode, type EvalResult, IO, isIO, pushLetFrame } from './eval.js'
+import { parameterIndex } from './infer.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
 import { Runtime, type RuntimeStats } from './runtime.js'
@@ -131,7 +132,7 @@ export class Session {
 		}
 		const target = this.letBlock.bindings.find(([name]) => name === head)
 		if (target === undefined) return `no such binding: ${head}`
-		const updated = setAtPathInAst(target[1], rest, expr)
+		const updated = setAtPathInAst(target[1], rest, expr, this.frame)
 		if (typeof updated === 'string') return updated
 		this.setBinding(head, updated)
 		return null
@@ -196,17 +197,25 @@ export { isIO }
 function setAtPathInAst(
 	ast: AST,
 	path: ReadonlyArray<string | number>,
-	replacement: AST
+	replacement: AST,
+	env: Env
 ): AST | string {
 	if (path.length === 0) return replacement
-	const [seg, ...rest] = path
+	const seg = path[0]!
+	const rest = path.slice(1)
+	const inside =
+		ast.kind === 'let' || ast.kind === 'call' || ast.kind === 'vec' || ast.kind === 'record'
+			? enterNode(ast, env)
+			: env
+	const descend = (child: AST): AST | string =>
+		setAtPathInAst(child, rest, replacement, inside)
 	switch (ast.kind) {
 		case 'let': {
 			if (typeof seg !== 'string') return `expected name segment, got ${seg}`
 			for (let i = 0; i < ast.bindings.length; i++) {
 				const [name, value] = ast.bindings[i]!
 				if (name !== seg) continue
-				const next = setAtPathInAst(value, rest, replacement)
+				const next = descend(value)
 				if (typeof next === 'string') return next
 				const newBindings: Array<readonly [string, AST]> = ast.bindings.slice()
 				newBindings[i] = [name, next] as const
@@ -222,7 +231,7 @@ function setAtPathInAst(
 				if (entry instanceof SpreadAST) continue
 				const [name, value] = entry
 				if (name !== seg) continue
-				const next = setAtPathInAst(value, rest, replacement)
+				const next = descend(value)
 				if (typeof next === 'string') return next
 				const newFields: RecordEntry[] = ast.fields.slice()
 				newFields[i] = [name, next] as const
@@ -236,20 +245,20 @@ function setAtPathInAst(
 			if (seg < 0 || seg >= ast.elements.length) {
 				return `vector index out of range: ${seg}`
 			}
-			const next = setAtPathInAst(ast.elements[seg]!, rest, replacement)
+			const next = descend(ast.elements[seg]!)
 			if (typeof next === 'string') return next
 			const newElements = ast.elements.slice()
 			newElements[seg] = next
 			return new VecAST(newElements)
 		}
 		case 'call': {
-			if (typeof seg !== 'number') return `expected index, got ${seg}`
+			if (typeof seg === 'string') return setCallArgumentByName(ast, seg, rest, descend, replacement, inside)
 			if (seg === 0) {
-				const head = setAtPathInAst(ast.head, rest, replacement)
+				const head = descend(ast.head)
 				return typeof head === 'string' ? head : new CallAST(head, ast.args, ast.kwargs)
 			}
 			if (seg < 0 || seg > ast.args.length) return `argument index out of range: ${seg}`
-			const next = setAtPathInAst(ast.args[seg - 1]!, rest, replacement)
+			const next = descend(ast.args[seg - 1]!)
 			if (typeof next === 'string') return next
 			const args = ast.args.slice()
 			args[seg - 1] = next
@@ -266,6 +275,42 @@ function setAtPathInAst(
  */
 export function assignmentExpression(src: string): string | null {
 	return parseAssignmentSugar(src)?.exprSrc ?? null
+}
+
+/**
+ * Set an argument by its parameter's name. One that was not passed is added as
+ * a keyword argument, if the name is the last segment.
+ */
+function setCallArgumentByName(
+	call: CallAST,
+	name: string,
+	rest: ReadonlyArray<string | number>,
+	descend: (child: AST) => AST | string,
+	replacement: AST,
+	env: Env
+): AST | string {
+	const keyword = call.kwargs?.get(name)
+	if (keyword !== undefined) {
+		const next = descend(keyword)
+		if (typeof next === 'string') return next
+		return new CallAST(call.head, call.args, new Map(call.kwargs).set(name, next))
+	}
+	const index = parameterIndex(call, name, env)
+	if (index === null) return `no parameter named ${name}`
+	const argument = call.args[index]
+	if (argument !== undefined) {
+		const next = descend(argument)
+		if (typeof next === 'string') return next
+		const args = call.args.slice()
+		args[index] = next
+		return new CallAST(call.head, args, call.kwargs)
+	}
+	if (rest.length > 0) return `no argument for parameter ${name}`
+	return new CallAST(
+		call.head,
+		call.args,
+		new Map(call.kwargs ?? []).set(name, replacement)
+	)
 }
 
 interface AssignmentSugar {

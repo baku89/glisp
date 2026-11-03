@@ -697,6 +697,23 @@ export function checkCall(
 	return null
 }
 
+/**
+ * The positional index of the parameter called `name`, going by the head's
+ * signature. Null when the head has no known signature or no such parameter.
+ */
+export function parameterIndex(
+	call: CallAST,
+	name: string,
+	env: Env
+): number | null {
+	const head = infer(call.head, env)
+	if (head === null) return null
+	const shape = unwrapLazy(head).shape
+	if (shape.kind !== 'function') return null
+	const index = shape.paramNames?.indexOf(name) ?? -1
+	return index === -1 ? null : index
+}
+
 function overloadOf(head: AST, env: Env): OverloadValue | null {
 	let inner: AST = head
 	if (head.kind === 'sym') {

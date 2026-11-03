@@ -151,7 +151,7 @@ A path atom carries a sequence of segments. Each segment is one of: `'..'` (go u
 To resolve a path at env `e`, start with the env's top frame (representing the AST node containing the path) and process segments in order:
 
 1. `'..'` — pop one frame off `e` (move to the parent's frame). The resulting frame is the new "current frame".
-2. a name — interpret it as a child name within the current frame's AST node (record field, let-block binding).
+2. a name — interpret it as a child name within the current frame's AST node: a record field, a let-block binding, or a call's argument, by keyword or by the name of the parameter in the head's signature.
 3. an integer — interpret it as an index into the syntactic children of the current frame's AST node, in source order. Let-blocks are addressed by name only, so a let-block's trailing expression has no path. A path cannot descend into a function literal, and cannot appear in a function signature (a syntax error).
 
 After processing all segments, the result is the evaluation node `(target_AST, env_at_target)`. When the path runs out of frames to pop (popping above top-level) or a name/integer fails to address a child, a diagnostic is emitted and the path yields `()`.

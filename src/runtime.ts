@@ -128,7 +128,7 @@ export class Runtime {
 		let here: AST = desugar(this.rootAst)
 		let env = this.rootEnv
 		for (const segment of path) {
-			const child = childAt(here, segment)
+			const child = childAt(here, segment, env)
 			if (child === null) return { value: UNIT, diagnostics: [] }
 			env = enterNode(here, env)
 			here = child

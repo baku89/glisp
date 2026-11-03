@@ -145,7 +145,7 @@ A path is a sequence of segments separated by `/`. Each segment is one of:
 
 - `.` — stay at the current node (no-op; required as the first segment when the path otherwise starts with a name).
 - `..` — go up to the immediate parent AST node.
-- a name — descend into a named child (record field, let-binding).
+- a name — descend into a named child: a record field, a let-binding, or a call's argument by its parameter's name (`./x/xs` in `x = (first [1 2])`). The name is looked up in the head's signature, without running anything.
 - an integer — descend into a positional child (vector element, positional argument).
 
 `..` may be repeated arbitrarily by chaining with `/` to walk further up: `../..` is two levels up, `../../..` is three, and so on. There is no special "deeper" syntax — chained `..` segments are how depth is expressed.

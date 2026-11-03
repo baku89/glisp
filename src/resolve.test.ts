@@ -126,6 +126,20 @@ describe('resolve — paths', () => {
 		])
 	})
 
+	it('finds an argument by its parameter name, as evaluation does', () => {
+		expect(pathTarget('[(take [1 2] 1) ./0/n]', './0/n')).toBe('1')
+		expect(pathTarget('{f = (=> (a: number): number a) [(f 5) ./0/a]}', './0/a')).toBe('5')
+		expect(pathTarget('[((=> (a: number): number a) 5) ./0/a]', './0/a')).toBe('5')
+		expect(pathTarget('[(take [1] n=3) ./0/n]', './0/n')).toBe('3')
+		expect(messages('[(take [1 2] 1) ./0/nope]')).toEqual([
+			'path segment not found: nope',
+		])
+	})
+
+	it('makes no claim about a head it cannot read', () => {
+		expect(messages('[((? true true take _ drop) [1 2] 1) ./0/n]')).toEqual([])
+	})
+
 	it('gives a let-block trailing expression no path', () => {
 		expect(messages('[{a = 1 (+ a 1)} ./0/1]')).toEqual([
 			'path segment not found: 1',
@@ -182,6 +196,8 @@ describe('resolve agrees with evaluate', () => {
 		'[5 ((=> (T) (x: number): _ ../0) 1)]',
 		'[[1 2] 9 ./0/../1]',
 		'[1 ./]',
+		'[(take [1 2] 1) ./0/n]',
+		'[(take [1 2] 1) ./0/nope]',
 		'[1 ~./0]',
 		'^{label: "x"} [1 ./0]',
 		'(? 1 number 2 _ 3)',

@@ -10,7 +10,12 @@
  */
 
 import { desugar } from './desugar.js'
-import { infer, resolveTypeSlot, solveClosureGenerics } from './infer.js'
+import {
+	infer,
+	parameterIndex,
+	resolveTypeSlot,
+	solveClosureGenerics,
+} from './infer.js'
 import {
 	type AST,
 	type BindingTarget,
@@ -2019,7 +2024,7 @@ export function pathTarget(
 			continue
 		}
 		if (astHere === null) return { message: 'path descended below the root' }
-		const child = childAt(astHere, seg)
+		const child = childAt(astHere, seg, frame)
 		if (child === null) return { message: `path segment not found: ${seg}` }
 		if (!entered) frame = enterNode(astHere, frame)
 		astHere = child
@@ -2035,7 +2040,15 @@ export function enterNode(node: AST, env: Env): Env {
 	return node.kind === 'let' ? pushLetFrame(node, env) : pushAncestor(node, env)
 }
 
-export function childAt(node: AST, seg: string | number): AST | null {
+/**
+ * The child of `node` that a path segment names. `env` is the env `node` is
+ * evaluated in, for finding an argument by its parameter's name.
+ */
+export function childAt(
+	node: AST,
+	seg: string | number,
+	env: Env
+): AST | null {
 	if (node.kind === 'record' && typeof seg === 'string') {
 		const fields = node.fields
 		// last-wins lookup, ignoring SpreadAST entries (they need eval)
@@ -2062,6 +2075,13 @@ export function childAt(node: AST, seg: string | number): AST | null {
 		// 0 = head, 1.. = args
 		if (seg === 0) return node.head
 		return node.args[seg - 1] ?? null
+	}
+	if (node.kind === 'call' && typeof seg === 'string') {
+		const keyword = node.kwargs?.get(seg)
+		if (keyword !== undefined) return keyword
+		if (node.args.some(arg => arg.kind === 'spread')) return null
+		const index = parameterIndex(node, seg, env)
+		return index === null ? null : (node.args[index] ?? null)
 	}
 	return null
 }

@@ -20,6 +20,7 @@
 
 import { desugar } from './desugar.js'
 import { childAt } from './eval.js'
+import { infer } from './infer.js'
 import {
 	type AST,
 	type BindingTarget,
@@ -327,7 +328,9 @@ class Walker {
 
 	private addPath(node: PathAST, scope: Scope | null): void {
 		const walked = walkPath(node, scope)
-		if (typeof walked === 'string') {
+		if (walked === UNKNOWN) {
+			this.references.push({ node, target: null })
+		} else if (typeof walked === 'string') {
 			this.references.push({ node, target: null })
 			this.error(node, walked)
 		} else {
@@ -360,8 +363,48 @@ function lookup(name: string, scope: Scope | null): Target | null {
 	return null
 }
 
-/** The node a path lands on, or the message for why it does not resolve. */
-function walkPath(path: PathAST, start: Scope | null): AST | string {
+/** The parameter names a call's head declares, if that can be read off it. */
+function parameterNames(
+	call: CallAST,
+	scope: Scope | null
+): ReadonlyArray<string> | null {
+	let head: AST = desugar(call.head)
+	if (head.kind === 'sym') {
+		const target = lookup(head.name, scope)
+		if (target?.kind === 'env') {
+			const type = infer(target.binding.ast, target.binding.env)
+			return type?.shape.kind === 'function' ? (type.shape.paramNames ?? []) : null
+		}
+		if (target?.kind !== 'let') return null
+		head = desugar(target.value)
+	}
+	while (head.kind === 'meta') head = head.expr
+	return head.kind === 'fn' ? head.params.map(p => p.name) : null
+}
+
+/** A name in a path, on a call: its keyword argument or parameter's argument. */
+function argumentByName(
+	call: CallAST,
+	name: string,
+	scope: Scope | null
+): AST | null | typeof UNKNOWN {
+	const keyword = call.kwargs?.get(name)
+	if (keyword !== undefined) return keyword
+	if (call.args.some(arg => arg.kind === 'spread')) return null
+	const names = parameterNames(call, scope)
+	if (names === null) return UNKNOWN
+	const index = names.indexOf(name)
+	return index === -1 ? null : (call.args[index] ?? null)
+}
+
+/** The head's signature cannot be read statically, so neither can the path. */
+const UNKNOWN = Symbol('unknown')
+
+/**
+ * The node a path lands on, `UNKNOWN`, or the message for why it does not
+ * resolve.
+ */
+function walkPath(path: PathAST, start: Scope | null): AST | string | typeof UNKNOWN {
 	let scope = start
 	let here: AST | null = scope?.ast ?? null
 	let entered = true
@@ -376,7 +419,11 @@ function walkPath(path: PathAST, start: Scope | null): AST | string {
 			continue
 		}
 		if (here === null) return 'path descended below the root'
-		const child = childAt(here, segment)
+		const child =
+			here.kind === 'call' && typeof segment === 'string'
+				? argumentByName(here, segment, scope)
+				: childAt(here, segment, null)
+		if (child === UNKNOWN) return UNKNOWN
 		if (child === null) return `path segment not found: ${segment}`
 		if (!entered) scope = { ast: here, parent: scope }
 		here = child

@@ -142,6 +142,22 @@ describe('Session — assignment', () => {
 		expect(after('x = {y = {}}', './x/y/z = 1')).toBe('{x = {y = {z: 1}}}')
 	})
 
+	it('sets an argument by its parameter name', () => {
+		expect(after('x = (first [1])', './x/xs = [2]')).toBe('{x = (first [2])}')
+		expect(after('x = (take [1 2] 1)', './x/n = 2')).toBe('{x = (take [1 2] 2)}')
+		expect(after('x = (take [1 2] n=1)', './x/n = 2')).toBe('{x = (take [1 2] n=2)}')
+		expect(after('x = (first [(+ 1 2)])', './x/xs/0/1 = 5')).toBe('{x = (first [(+ 5 2)])}')
+	})
+
+	it('adds an argument that was not passed, as a keyword', () => {
+		expect(after('x = (take [1 2])', './x/n = 1')).toBe('{x = (take [1 2] n=1)}')
+		const s = new Session(buildPrelude())
+		s.exec('x = (first [1])')
+		expect(s.exec('./x/nope = 1').diagnostics[0]!.message).toContain(
+			'no parameter named nope'
+		)
+	})
+
 	it('reads back what it wrote', () => {
 		const s = new Session(buildPrelude())
 		s.exec('x = {a = 20}')
@@ -231,5 +247,47 @@ describe('Session — reading by path', () => {
 		const s = new Session(buildPrelude())
 		s.exec('x = {a = 20}')
 		expect(() => s.exec('x/a')).toThrow()
+	})
+})
+
+describe('Session — paths through calls', () => {
+	const session = () => {
+		const s = new Session(buildPrelude())
+		s.exec('x = (first (reverse (map (range 0 3) (+ 1 %))))')
+		s.exec('f = (=> (a: number b: number): number (+ a b))')
+		s.exec('y = (f 1 b=2)')
+		return s
+	}
+
+	it('finds an argument by its parameter name', () => {
+		const s = session()
+		expect(s.exec('./x/xs').value).toEqual([3, 2, 1])
+		expect(s.exec('./x/xs/xs').value).toEqual([1, 2, 3])
+		expect(s.exec('./x/xs/xs/xs').value).toEqual([0, 1, 2])
+		expect(s.exec('./x/xs/xs/xs/start').value).toBe(0)
+		expect(s.exec('./x/xs/xs/xs/end').value).toBe(3)
+		expect(s.exec('./x/1').value).toEqual([3, 2, 1])
+	})
+
+	it('finds it for a closure, and by keyword', () => {
+		const s = session()
+		expect(s.exec('./y/a').value).toBe(1)
+		expect(s.exec('./y/b').value).toBe(2)
+	})
+
+	it('reports what is not there', () => {
+		const s = session()
+		expect(s.exec('./x/nope').diagnostics[0]!.message).toBe(
+			'path segment not found: nope'
+		)
+		s.exec('z = (take [1 2])')
+		expect(s.exec('./z/n').diagnostics[0]!.message).toBe(
+			'path segment not found: n'
+		)
+	})
+
+	it('finds it from inside an expression', () => {
+		const s = new Session(buildPrelude())
+		expect(s.exec('[(take [1 2] 1) ./0/n]').value).toEqual([[1], 1])
 	})
 })
