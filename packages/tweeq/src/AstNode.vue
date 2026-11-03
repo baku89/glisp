@@ -83,16 +83,6 @@ function onFieldKey(event: KeyboardEvent): void {
 	}
 }
 
-// Tweeq's unranged InputNumber decides its decimals from what it last displayed,
-// which is nothing at first, so `1.5` first shows as `2`. A step gives it the
-// decimals until that is fixed there.
-const numberStep = computed(() => {
-	const editor = view.value.editor
-	if (editor?.kind !== 'number') return undefined
-	const decimals = /\.(\d+)$/.exec(String(editor.value))?.[1]?.length ?? 0
-	return decimals === 0 ? undefined : 10 ** -decimals
-})
-
 const label = (value: unknown): string =>
 	typeof value === 'string' ? value : String(value)
 
@@ -168,12 +158,13 @@ function openMenu(event: MouseEvent): void {
 		<InputNumber
 			v-if="view.editor?.kind === 'number'"
 			:modelValue="view.editor.value"
-			:step="numberStep"
+			:menuItems="menuItems"
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
 		<InputString
 			v-else-if="view.editor?.kind === 'string'"
 			:modelValue="view.editor.value"
+			:menuItems="menuItems"
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
 		<InputCheckbox
@@ -248,11 +239,11 @@ function openMenu(event: MouseEvent): void {
 		transparent 0 var(--tq-icon-size)
 	);
 }
-/* The start of that line, from the tip of an open chevron. */
+/* The start of that line, just below the tip of an open chevron. */
 .toggle.open::after {
 	content: '';
 	position: absolute;
-	top: 64%;
+	top: calc(64% + 2px);
 	bottom: calc((var(--tq-input-height) - var(--tq-icon-size)) / -2 - var(--tq-gap-control));
 	left: 50%;
 	width: 1px;

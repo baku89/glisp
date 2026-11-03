@@ -78,8 +78,6 @@ export default defineUserConfig({
 			// Tweeq is used from source, as a submodule. Without dedupe there would
 			// be two copies of its stores' pinia and of vue.
 			plugins: [glsl()],
-			// Tweeq has a `var(-tq-...)` typo, which the CSS minifier rejects.
-			build: { cssMinify: false },
 			resolve: {
 				dedupe: ['vue', 'pinia', '@vueuse/core'],
 				alias: [
