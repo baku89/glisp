@@ -33,6 +33,17 @@ describe('Session — let-block as session state', () => {
 		expect(r.value).toBe(120)
 	})
 
+	it('re-evaluates dependents after a binding changes', () => {
+		const s = new Session(buildPrelude())
+		s.evalSrc('x = 1')
+		s.evalSrc('y = (+ x 1)')
+		expect(s.evalSrc('y').value).toBe(2)
+		s.evalSrc('x = 100')
+		expect(s.evalSrc('y').value).toBe(101)
+		s.evalSrc('(undef "x")')
+		expect(s.evalSrc('x').diagnostics.length).toBeGreaterThan(0)
+	})
+
 	it('redefinition replaces last-wins', () => {
 		const s = new Session(buildPrelude())
 		s.evalSrc('(def "x" 1)')

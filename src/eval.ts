@@ -677,24 +677,26 @@ type MemoState =
  *
  * Rationale: the cache key `(AST instance, Env instance)` is identity-based,
  * so two evaluations sharing the same AST and Env produce the same result —
- * sharing one cache lets repeated work hit. Lifetime is managed by the
- * outer `WeakMap`: when an AST subtree becomes unreachable, its memo entries
- * are GCed automatically. The inner map is a plain `Map` because `Env` may
- * be `null` (the root sentinel), which `WeakMap` cannot key.
+ * sharing one cache lets repeated work hit. Both levels are `WeakMap`s: a
+ * long-lived AST (a shared subtree, a closure body) must not keep every env
+ * it was ever evaluated in alive, and through `frame.ast` the old roots those
+ * envs belong to. `Env` may be `null` (the root sentinel), which a `WeakMap`
+ * cannot key, so `null` maps to `ROOT_ENV_KEY`.
  */
-const memo: WeakMap<AST, Map<Env, MemoState>> = new WeakMap()
+const memo: WeakMap<AST, WeakMap<object, MemoState>> = new WeakMap()
+const ROOT_ENV_KEY = {}
 
 function lookupMemo(ast: AST, env: Env): MemoState | undefined {
-	return memo.get(ast)?.get(env)
+	return memo.get(ast)?.get(env ?? ROOT_ENV_KEY)
 }
 
 function storeMemo(ast: AST, env: Env, state: MemoState): void {
 	let inner = memo.get(ast)
 	if (inner === undefined) {
-		inner = new Map()
+		inner = new WeakMap()
 		memo.set(ast, inner)
 	}
-	inner.set(env, state)
+	inner.set(env ?? ROOT_ENV_KEY, state)
 }
 
 /**

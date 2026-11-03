@@ -1316,3 +1316,31 @@ describe('evaluate — path lookup', () => {
 		expect(r.value).toEqual({ x: 10, y: 10 })
 	})
 })
+
+describe('evaluate — memo lifetime', () => {
+	it('a shared sub-AST does not keep old roots alive', async () => {
+		const prelude = buildPrelude()
+		const shared = parse('(+ 1 2)')
+		const roots = (() => {
+			const refs: WeakRef<object>[] = []
+			for (let i = 0; i < 20; i++) {
+				const root = letBlock(
+					[
+						['a', shared],
+						['b', lit(i)],
+					],
+					parse('(+ a b)')
+				)
+				evaluate(root, prelude)
+				refs.push(new WeakRef(root))
+			}
+			return refs
+		})()
+		const gc = (globalThis as { gc?: () => void }).gc!
+		for (let i = 0; i < 6; i++) {
+			gc()
+			await new Promise(resolve => setTimeout(resolve, 10))
+		}
+		expect(roots.filter(r => r.deref() !== undefined)).toEqual([])
+	})
+})

@@ -40,15 +40,38 @@ import {
 } from './types.js'
 
 export class Session {
-	private readonly bindingMap = new Map<string, BindingTarget>()
-	private readonly frame: Frame
+	private bindingMap = new Map<string, BindingTarget>()
+	private frame: Frame
 
-	constructor(parent: Env) {
+	constructor(private readonly parent: Env) {
 		this.frame = {
 			ast: new LetAST([], null),
 			parent,
 			bindings: this.bindingMap,
 		}
+	}
+
+	/**
+	 * Replace the session's bindings with a fresh frame. The evaluator
+	 * memoizes on env identity, so mutating a frame in place would keep
+	 * serving values computed from the old bindings.
+	 */
+	private install(asts: ReadonlyMap<string, AST>): void {
+		const bindings = new Map<string, BindingTarget>()
+		const frame: Frame = {
+			ast: new LetAST([], null),
+			parent: this.parent,
+			bindings,
+		}
+		for (const [name, ast] of asts) bindings.set(name, { ast, env: frame })
+		this.bindingMap = bindings
+		this.frame = frame
+	}
+
+	private bindingAsts(): Map<string, AST> {
+		const asts = new Map<string, AST>()
+		for (const [name, target] of this.bindingMap) asts.set(name, target.ast)
+		return asts
 	}
 
 	/** Env to evaluate against: the session's let-frame on top of the prelude. */
@@ -72,12 +95,15 @@ export class Session {
 
 	/** Set or replace a binding. Last-wins by name. */
 	setBinding(name: string, ast: AST): void {
-		this.bindingMap.set(name, { ast, env: this.frame })
+		this.install(this.bindingAsts().set(name, ast))
 	}
 
 	/** Remove a binding. Returns whether it was present. */
 	unsetBinding(name: string): boolean {
-		return this.bindingMap.delete(name)
+		const asts = this.bindingAsts()
+		if (!asts.delete(name)) return false
+		this.install(asts)
+		return true
 	}
 
 	/**
@@ -109,7 +135,7 @@ export class Session {
 
 	/** Clear every binding. Equivalent to a fresh session. */
 	reset(): void {
-		this.bindingMap.clear()
+		this.install(new Map())
 	}
 
 	/**
