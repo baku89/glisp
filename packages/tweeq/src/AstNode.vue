@@ -122,7 +122,6 @@ const selected = computed(() => selection.value?.path === props.path)
 
 function select(): void {
 	const remove = props.entry.remove
-	if (isFunction.value) editingCode.value = true
 	selection.value = {
 		path: props.path,
 		...(remove === undefined ? {} : { remove: () => emit('change', remove()) }),
@@ -203,6 +202,7 @@ watch(
 		:closedGuide="bareKind === 'call'"
 		:menuItems="menuItems"
 		@select="select"
+		@nameClick="isFunction && (editingCode = true)"
 	>
 		<div v-if="inline" ref="$anchor" class="inline">
 			<AstInline
