@@ -299,8 +299,8 @@ describe('Session — paths through calls', () => {
 		expect(s.exec('./y/a').value).toBe(1)
 		expect(s.exec('./y/xs/0').value).toBe(2)
 		expect(s.exec('./y/rest').diagnostics[0]!.message).toContain('not found')
-		expect(s.exec('./z/first').value).toEqual([1])
-		expect(s.exec('./z/rest/1').value).toEqual([3])
+		expect(s.exec('./z/xs/0').value).toEqual([1])
+		expect(s.exec('./z/xs/2').value).toEqual([3])
 		expect(s.exec('./c/xs/9').diagnostics[0]!.message).toContain('not found')
 	})
 

@@ -293,7 +293,7 @@ describe('forms that are not calls', () => {
 describe('docs', () => {
 	it('says a parameter by its label', () => {
 		expect(view('(reduce [1] 0 max)').head?.doc).toBe(
-			'Left-fold Items through Combine starting from Initial.'
+			'Folds Items into one with Combine, starting from Initial.'
 		)
 	})
 
@@ -541,6 +541,12 @@ describe('parameter labels', () => {
 		expect(labels('(+ 1 2)')).toEqual(['Values 0', 'Values 1'])
 		expect(view('(+ 1 2)').append?.label).toBe('Values')
 		expect(view('(take [1])').missing[0]?.name).toBe('Count')
+	})
+
+	it('take the name of a variadic overload', () => {
+		expect(labels('(++ [1] [2])')).toEqual(['Values 0', 'Values 1'])
+		expect(labels('(++ "a" "b")')).toEqual(['Values 0', 'Values 1'])
+		expect(view('(++ [1])').append?.label).toBe('Values')
 	})
 
 	it('come from the metadata on a parameter type', () => {

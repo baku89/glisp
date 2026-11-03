@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { evaluate, IO, isTypeValue } from './eval.js'
+import { UNIT } from './types.js'
 import { infer } from './infer.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
@@ -165,6 +166,15 @@ describe('prelude — standard library', () => {
 	it('size dispatches between vector and string', () => {
 		expect(evaluate(parse('(size [1 2 3])'), env).value).toBe(3)
 		expect(evaluate(parse('(size "hello")'), env).value).toBe(5)
+	})
+
+	it('++ of nothing is ()', () => {
+		const r = evaluate(parse('(++)'), env)
+		expect(r.value).toBe(UNIT)
+		expect(r.diagnostics).toEqual([])
+		expect(evaluate(parse('(++ [1])'), env).value).toEqual([1])
+		expect(evaluate(parse('(++ "a")'), env).value).toBe('a')
+		expect(evaluate(parse('(++ [[1]] [[2]])'), env).value).toEqual([[1], [2]])
 	})
 
 	it('++ is variadic over both vectors and strings', () => {

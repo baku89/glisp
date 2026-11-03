@@ -457,7 +457,7 @@ export function buildPrelude(): Env {
 		number: bind('The base numeric type. Default `0`.', host(numberType)),
 		string: bind('The base string type. Default `""`.', host(stringType)),
 		boolean: bind('The base boolean type. Default `false`.', host(booleanType)),
-		unit: bind('The unit type; sole inhabitant is `()`.', host(unitType)),
+		unit: bind('The type of `()`, which is its only value.', host(unitType)),
 		_: bind('Top type. Accepts every value. Default `()`.', host(topType)),
 		'!': bind('Bottom type. Accepts no value. Default `()`.', host(bottomType)),
 		vector: bind(
@@ -473,53 +473,53 @@ export function buildPrelude(): Env {
 		// Arithmetic
 		// -----------------------------------------------------------------
 		'+': bind(
-			'Sum of the numbers. `(+)` = 0; non-numeric args coerce to 0 with a diagnostic.',
+			'Adds up `xs`. With nothing to add, it is 0.',
 			host(variadicNumFold((a, b) => a + b, numberType))
 		),
 		'*': bind(
-			'Product of the numbers. `(*)` = 1; non-numeric args coerce to 1 with a diagnostic.',
+			'Multiplies `xs` together. With nothing to multiply, it is 1.',
 			host(multiply)
 		),
 		'-': bind(
-			'Subtraction. `(-)` = 0; `(- x)` negates; `(- a b c)` = a−b−c.',
+			'Takes the rest of `xs` away from the first. With just one, it flips the sign.',
 			host(variadicNumLeftFold((a, b) => a - b, 0, numberType))
 		),
 		'/': bind(
-			'Division. `(/)` = 1; `(/ x)` reciprocates; `(/ a b c)` = a/b/c.',
+			'Divides the first of `xs` by the rest. With just one, it gives 1 over it.',
 			host(variadicNumLeftFold((a, b) => a / b, 1, numberOneType))
 		),
 		mod: bind(
-			'Remainder of `a / b` with the JS `%` semantics.',
+			'What is left after dividing `a` by `b`.',
 			host(fn2(numberType, numberType, numberType, (a, b) =>
 				(a as number) % (b as number)
 			))
 		),
 		'**': bind(
-			'`base` raised to the `exp` power. A small whole `exp` expands to repeated `*`.',
+			'`base` raised to the power of `exp`.',
 			host(makePower(multiply))
 		),
-		sqrt: bind('Square root. Negative input yields NaN.', host(numUnary(Math.sqrt))),
-		abs: bind('Absolute value of `x`.', host(numUnary(Math.abs))),
-		sign: bind('Sign of `x` (−1, 0, or 1).', host(numUnary(Math.sign))),
-		floor: bind('Round `x` down to the nearest integer.', host(numUnary(Math.floor))),
-		ceil: bind('Round `x` up to the nearest integer.', host(numUnary(Math.ceil))),
-		round: bind('Round `x` to the nearest integer.', host(numUnary(Math.round))),
-		exp: bind('e raised to `x`.', host(numUnary(Math.exp))),
-		log: bind('Natural log of `x`.', host(numUnary(Math.log))),
-		log2: bind('Base-2 log of `x`.', host(numUnary(Math.log2))),
-		log10: bind('Base-10 log of `x`.', host(numUnary(Math.log10))),
+		sqrt: bind('The square root of `x`. A negative number has none, and gives NaN.', host(numUnary(Math.sqrt))),
+		abs: bind('How far `x` is from 0.', host(numUnary(Math.abs))),
+		sign: bind('−1, 0 or 1, by whether `x` is below, at or above 0.', host(numUnary(Math.sign))),
+		floor: bind('Rounds `x` down to a whole number.', host(numUnary(Math.floor))),
+		ceil: bind('Rounds `x` up to a whole number.', host(numUnary(Math.ceil))),
+		round: bind('Rounds `x` to the nearest whole number.', host(numUnary(Math.round))),
+		exp: bind('e raised to the power of `x`.', host(numUnary(Math.exp))),
+		log: bind('The natural logarithm of `x`.', host(numUnary(Math.log))),
+		log2: bind('The base-2 logarithm of `x`.', host(numUnary(Math.log2))),
+		log10: bind('The base-10 logarithm of `x`.', host(numUnary(Math.log10))),
 
 		// -----------------------------------------------------------------
 		// Trigonometry — radians.
 		// -----------------------------------------------------------------
-		sin: bind('Sine of `x` (radians).', host(numUnary(Math.sin))),
-		cos: bind('Cosine of `x` (radians).', host(numUnary(Math.cos))),
-		tan: bind('Tangent of `x` (radians).', host(numUnary(Math.tan))),
-		asin: bind('Arcsine of `x`; result in radians.', host(numUnary(Math.asin))),
-		acos: bind('Arccosine of `x`; result in radians.', host(numUnary(Math.acos))),
-		atan: bind('Arctangent of `x`; result in radians.', host(numUnary(Math.atan))),
+		sin: bind('The sine of `x`, an angle in radians.', host(numUnary(Math.sin))),
+		cos: bind('The cosine of `x`, an angle in radians.', host(numUnary(Math.cos))),
+		tan: bind('The tangent of `x`, an angle in radians.', host(numUnary(Math.tan))),
+		asin: bind('The angle in radians whose sine is `x`.', host(numUnary(Math.asin))),
+		acos: bind('The angle in radians whose cosine is `x`.', host(numUnary(Math.acos))),
+		atan: bind('The angle in radians whose tangent is `x`.', host(numUnary(Math.atan))),
 		atan2: bind(
-			'Angle (radians) of the vector `(x, y)`, in `(-π, π]`.',
+			'The angle in radians of the direction to `x`, `y`.',
 			host(fn2(numberType, numberType, numberType, (y, x) =>
 				Math.atan2(y as number, x as number), ['y', 'x']
 			))
@@ -528,25 +528,25 @@ export function buildPrelude(): Env {
 		// -----------------------------------------------------------------
 		// Constants
 		// -----------------------------------------------------------------
-		pi: bind('π ≈ 3.14159', lit(Math.PI)),
-		tau: bind('τ = 2π ≈ 6.28318. One full turn in radians.', lit(Math.PI * 2)),
-		'half-pi': bind('π / 2 ≈ 1.5708', lit(Math.PI / 2)),
-		'quarter-pi': bind('π / 4 ≈ 0.7854', lit(Math.PI / 4)),
-		e: bind('e ≈ 2.71828, the base of the natural log.', lit(Math.E)),
-		inf: bind('Positive infinity.', lit(Infinity)),
+		pi: bind('A half turn in radians, about 3.14159.', lit(Math.PI)),
+		tau: bind('A full turn in radians, about 6.28318.', lit(Math.PI * 2)),
+		'half-pi': bind('A quarter turn in radians, about 1.5708.', lit(Math.PI / 2)),
+		'quarter-pi': bind('An eighth of a turn in radians, about 0.7854.', lit(Math.PI / 4)),
+		e: bind('The base of the natural logarithm, about 2.71828.', lit(Math.E)),
+		inf: bind('Larger than any number.', lit(Infinity)),
 
 		// -----------------------------------------------------------------
 		// Comparison & boolean
 		// -----------------------------------------------------------------
-		'<': bind('Whether `xs` strictly increases. `(<)` is true.', host(chainCmp((a, b) => a < b))),
-		'>': bind('Whether `xs` strictly decreases. `(>)` is true.', host(chainCmp((a, b) => a > b))),
-		'<=': bind('Whether `xs` never decreases. `(<=)` is true.', host(chainCmp((a, b) => a <= b))),
-		'>=': bind('Whether `xs` never increases. `(>=)` is true.', host(chainCmp((a, b) => a >= b))),
-		'==': bind('Whether adjacent `xs` are equal. `(==)` is true.', host(chainEq(true))),
-		'!=': bind('Whether adjacent `xs` are distinct. `(!=)` is true.', host(chainEq(false))),
-		not: bind('Boolean negation.', host(fn1(booleanType, booleanType, a => !a))),
+		'<': bind('Whether each of `xs` is less than the next.', host(chainCmp((a, b) => a < b))),
+		'>': bind('Whether each of `xs` is greater than the next.', host(chainCmp((a, b) => a > b))),
+		'<=': bind('Whether each of `xs` is at most the next.', host(chainCmp((a, b) => a <= b))),
+		'>=': bind('Whether each of `xs` is at least the next.', host(chainCmp((a, b) => a >= b))),
+		'==': bind('Whether `xs` are all equal.', host(chainEq(true))),
+		'!=': bind('Whether each of `xs` differs from the next.', host(chainEq(false))),
+		not: bind('The opposite of a boolean.', host(fn1(booleanType, booleanType, a => !a))),
 		and: bind(
-			'Logical AND of one or more booleans. Non-booleans coerce to true.',
+			'Whether all of them are true.',
 			host(
 				makeTypedFn(
 					[booleanType],
@@ -558,7 +558,7 @@ export function buildPrelude(): Env {
 			)
 		),
 		or: bind(
-			'Logical OR of one or more booleans. Non-booleans coerce to false.',
+			'Whether any of them is true.',
 			host(
 				makeTypedFn(
 					[booleanType],
@@ -574,7 +574,7 @@ export function buildPrelude(): Env {
 		// Vectors — element access / shape / order
 		// -----------------------------------------------------------------
 		first: bind(
-			'First element of a vector; `()` if empty.',
+			'The first of `xs`, or `()` if there are none.',
 			host(
 				withSignature(
 					fn1(vectorType, topType, xs => (Array.isArray(xs) ? xs[0] ?? UNIT : UNIT), 'xs'),
@@ -583,7 +583,7 @@ export function buildPrelude(): Env {
 			)
 		),
 		last: bind(
-			'Last element of a vector; `()` if empty.',
+			'The last of `xs`, or `()` if there are none.',
 			host(
 				withSignature(
 					fn1(vectorType, topType, xs =>
@@ -594,11 +594,11 @@ export function buildPrelude(): Env {
 			)
 		),
 		count: bind(
-			'Number of elements in a vector.',
+			'How many of `xs` there are.',
 			host(fn1(vectorType, numberType, xs => (Array.isArray(xs) ? xs.length : 0), 'xs'))
 		),
 		take: bind(
-			'First `n` elements of `xs` (or all if `n` exceeds length).',
+			'The first `n` of `xs`, or all of them if there are fewer.',
 			host(
 				withSignature(
 					fn2(vectorType, numberType, vectorType, (xs, n) =>
@@ -610,7 +610,7 @@ export function buildPrelude(): Env {
 			)
 		),
 		drop: bind(
-			'`xs` without its first `n` elements.',
+			'All of `xs` but the first `n`.',
 			host(
 				withSignature(
 					fn2(vectorType, numberType, vectorType, (xs, n) =>
@@ -626,15 +626,15 @@ export function buildPrelude(): Env {
 		// Higher-order over vectors
 		// -----------------------------------------------------------------
 		map: bind(
-			'Apply `f` to each element of `xs`; returns a new vector.',
+			'Makes a new vector by applying `f` to each of `xs`.',
 			host(makeMap())
 		),
 		filter: bind(
-			'Keep elements of `xs` where `p` returns true.',
+			'Keeps those of `xs` that meet `p`.',
 			host(makeFilter())
 		),
 		reduce: bind(
-			'Left-fold `xs` through `f` starting from `init`.',
+			'Folds `xs` into one with `f`, starting from `init`.',
 			host(makeReduce())
 		),
 
@@ -662,19 +662,19 @@ export function buildPrelude(): Env {
 			)
 		),
 		lowercase: bind(
-			'Convert `str` to lowercase.',
+			'`str` in lowercase.',
 			host(fn1(stringType, stringType, s => (s as string).toLowerCase(), 'str'))
 		),
 		uppercase: bind(
-			'Convert `str` to uppercase.',
+			'`str` in uppercase.',
 			host(fn1(stringType, stringType, s => (s as string).toUpperCase(), 'str'))
 		),
 		trim: bind(
-			'Strip leading and trailing whitespace from `str`.',
+			'`str` without the whitespace at its ends.',
 			host(fn1(stringType, stringType, s => (s as string).trim(), 'str'))
 		),
 		split: bind(
-			'Split `str` on each `sep` occurrence.',
+			'Splits `str` at each `sep`.',
 			host(
 				makeTypedFn(
 					[stringType, stringType],
@@ -685,7 +685,7 @@ export function buildPrelude(): Env {
 			)
 		),
 		join: bind(
-			'Concatenate `xs` (any values, stringified) with `sep` between.',
+			'Puts `xs` together into a string, with `sep` between them.',
 			host(
 				makeTypedFn(
 					[vectorType, stringType],
@@ -703,7 +703,7 @@ export function buildPrelude(): Env {
 		// Records
 		// -----------------------------------------------------------------
 		keys: bind(
-			'Vector of `rec`\'s field names in declaration order.',
+			'The names of the fields of `rec`, in order.',
 			host(
 				fn1(recordType, vectorOf(stringType), rec =>
 					rec !== null && typeof rec === 'object' && !Array.isArray(rec)
@@ -714,7 +714,7 @@ export function buildPrelude(): Env {
 			)
 		),
 		values: bind(
-			'Vector of `rec`\'s field values in declaration order.',
+			'The values of the fields of `rec`, in order.',
 			host(
 				fn1(recordType, vectorType, rec =>
 					rec !== null && typeof rec === 'object' && !Array.isArray(rec)
@@ -725,7 +725,7 @@ export function buildPrelude(): Env {
 			)
 		),
 		merge: bind(
-			'Right-biased record merge: `(merge a b)` = a ∪ b, b wins on collision.',
+			'Puts records together. Where they share a field, the later one wins.',
 			host(
 				makeTypedFn(
 					[recordType, recordType],
@@ -748,11 +748,11 @@ export function buildPrelude(): Env {
 		// Type constructors
 		// -----------------------------------------------------------------
 		enum: bind(
-			'`(enum v1 v2 ...)`: a type whose inhabitants are exactly those values. Default = first member.',
+			'A type of just the values given. It defaults to the first.',
 			host(makeEnum())
 		),
 		refine: bind(
-			'`(refine T default pred)`: a subset of `T` satisfying `pred`, with an explicit fallback.',
+			'The values of `base` that meet `pred`, falling back to `default`.',
 			host(makeRefine())
 		),
 
@@ -760,28 +760,28 @@ export function buildPrelude(): Env {
 		// Misc
 		// -----------------------------------------------------------------
 		identity: bind(
-			'Returns its argument unchanged. Useful as a pass-through callback.',
+			'Gives back what it is given.',
 			host(fn1(topType, topType, a => a))
 		),
 		show: bind(
-			'Idempotent printing of any value as its Glisp source.',
+			'Writes any value as Glisp source.',
 			host(fn1(topType, stringType, v => showValue(v)))
 		),
 		range: bind(
-			'`(range start end)` → `[start start+1 ... end-1]` (or descending if `start > end`).',
+			'The whole numbers from `start` up to, and not including, `end`. It counts down if `end` is lower.',
 			host(makeRange())
 		),
-		reverse: bind('Reverse the elements of a vector.', host(makeReverse())),
+		reverse: bind('`xs` in reverse.', host(makeReverse())),
 		slice: bind(
-			'Sub-sequence of a vector or string between `start` and `end`.',
+			'The part of `xs` from `start` up to `end`.',
 			host(makeSliceOverload())
 		),
 		size: bind(
-			'Number of elements (vector) or characters (string).',
+			'How many elements or characters there are.',
 			host(makeSizeOverload())
 		),
 		'++': bind(
-			'Variadic concatenation: all vectors / all strings.',
+			'Puts vectors, or strings, end to end. With nothing to put, it is `()`.',
 			host(makeConcatOverload())
 		),
 	}
@@ -790,33 +790,33 @@ export function buildPrelude(): Env {
 	// itself, using the host primitives above (`+`, `*`, `map`, `reduce`, etc.)
 	const helpers: ReadonlyArray<readonly [string, string]> = [
 		// integer step / sign helpers
-		['inc', '^{doc: "`(inc n)` = n + 1."} (=> (n: number): number (+ n 1))'],
-		['dec', '^{doc: "`(dec n)` = n − 1."} (=> (n: number): number (- n 1))'],
-		['neg', '^{doc: "Negation. `(neg n)` = −n."} (=> (n: number): number (- n))'],
+		['inc', '^{doc: "One more than `n`."} (=> (n: number): number (+ n 1))'],
+		['dec', '^{doc: "One less than `n`."} (=> (n: number): number (- n 1))'],
+		['neg', '^{doc: "`n` with its sign flipped."} (=> (n: number): number (- n))'],
 
 		// 2-arg min / max
-		['min', '^{doc: "Smaller of `a` and `b`."} (=> (a: number b: number): number (? (< a b) true a _ b))'],
-		['max', '^{doc: "Larger of `a` and `b`."} (=> (a: number b: number): number (? (> a b) true a _ b))'],
+		['min', '^{doc: "The smaller of `a` and `b`."} (=> (a: number b: number): number (? (< a b) true a _ b))'],
+		['max', '^{doc: "The larger of `a` and `b`."} (=> (a: number b: number): number (? (> a b) true a _ b))'],
 
 		// reductions over a vector
-		['sum', '^{doc: "Sum every element of a numeric vector."} (=> (xs: _): number (reduce xs 0 +))'],
-		['product', '^{doc: "Product of every element of a numeric vector."} (=> (xs: _): number (reduce xs 1 *))'],
+		['sum', '^{doc: "Adds up a vector of numbers."} (=> (xs: _): number (reduce xs 0 +))'],
+		['product', '^{doc: "Multiplies a vector of numbers together."} (=> (xs: _): number (reduce xs 1 *))'],
 
 		// angle conversion — Glisp's trig is radians; these are the bridges
-		['to-deg', '^{doc: "Convert radians to degrees."} (=> (rad: number): number (/ (* rad 180) pi))'],
-		['to-rad', '^{doc: "Convert degrees to radians."} (=> (deg: number): number (/ (* deg pi) 180))'],
-		['to-turn', '^{doc: "Convert radians to turns (1 turn = 2π rad)."} (=> (rad: number): number (/ rad tau))'],
-		['turn', '^{doc: "Convert turns to radians."} (=> (t: number): number (* t tau))'],
+		['to-deg', '^{doc: "An angle in radians, in degrees."} (=> (rad: number): number (/ (* rad 180) pi))'],
+		['to-rad', '^{doc: "An angle in degrees, in radians."} (=> (deg: number): number (/ (* deg pi) 180))'],
+		['to-turn', '^{doc: "An angle in radians, in turns."} (=> (rad: number): number (/ rad tau))'],
+		['turn', '^{doc: "An angle in turns, in radians."} (=> (t: number): number (* t tau))'],
 
 		// range remapping — staples for design / motion code
-		['lerp', '^{doc: "Linear interpolation: `(lerp a b t)` = a + (b−a)·t."} (=> (a: number b: number t: number): number (+ a (* (- b a) t)))'],
-		['mix', '^{doc: "Alias for `lerp`."} (=> (a: number b: number t: number): number (lerp a b t))'],
-		['clamp', '^{doc: "Clamp `x` to `[lo, hi]`."} (=> (lo: number hi: number x: number): number (min hi (max lo x)))'],
-		['clamp01', '^{doc: "Clamp `x` to `[0, 1]`."} (=> (x: number): number (clamp 0 1 x))'],
-		['fit', '^{doc: "Map `x` from `[omin, omax]` to `[nmin, nmax]` linearly."} (=> (omin: number omax: number nmin: number nmax: number x: number): number (+ nmin (* (- nmax nmin) (/ (- x omin) (- omax omin)))))'],
-		['fit01', '^{doc: "Map `x` (in [0, 1]) to `[lo, hi]` linearly."} (=> (lo: number hi: number x: number): number (lerp lo hi x))'],
-		['fit11', '^{doc: "Map `x` (in [-1, 1]) to `[lo, hi]` linearly."} (=> (lo: number hi: number x: number): number (lerp lo hi (* 0.5 (+ x 1))))'],
-		['step', '^{doc: "0 if x < edge, otherwise 1. (GLSL-style step.)"} (=> (edge: number x: number): number (? (< x edge) true 0 _ 1))'],
+		['lerp', '^{doc: "Goes from `a` to `b` as `t` goes from 0 to 1."} (=> (a: number b: number t: number): number (+ a (* (- b a) t)))'],
+		['mix', '^{doc: "Goes from `a` to `b` as `t` goes from 0 to 1."} (=> (a: number b: number t: number): number (lerp a b t))'],
+		['clamp', '^{doc: "Keeps `x` between `lo` and `hi`."} (=> (lo: number hi: number x: number): number (min hi (max lo x)))'],
+		['clamp01', '^{doc: "Keeps `x` between 0 and 1."} (=> (x: number): number (clamp 0 1 x))'],
+		['fit', '^{doc: "Maps `x` from `omin` to `omax` onto `nmin` to `nmax`."} (=> (omin: number omax: number nmin: number nmax: number x: number): number (+ nmin (* (- nmax nmin) (/ (- x omin) (- omax omin)))))'],
+		['fit01', '^{doc: "Maps `x` from 0 to 1 onto `lo` to `hi`."} (=> (lo: number hi: number x: number): number (lerp lo hi x))'],
+		['fit11', '^{doc: "Maps `x` from −1 to 1 onto `lo` to `hi`."} (=> (lo: number hi: number x: number): number (lerp lo hi (* 0.5 (+ x 1))))'],
+		['step', '^{doc: "0 while `x` is below `edge`, and 1 from there on."} (=> (edge: number x: number): number (? (< x edge) true 0 _ 1))'],
 
 		// Note: `?` is not an identifier character per spec, so the
 		// Scheme-style predicate naming `even?` / `empty?` is unavailable.
@@ -1033,24 +1033,22 @@ function makeSizeOverload(): OverloadValue {
 	return new OverloadValue([sizeVec, sizeStr])
 }
 
-/** `++` overload: strings or vectors, variadic (1+ args). */
+/** `++`: vectors or strings, any number of them. With none, there is nothing: `()`. */
 function makeConcatOverload(): OverloadValue {
-	const concatVec = makeTypedFn(
-		[vectorType],
-		vectorType,
-		(first, ...rest) =>
-			(first as unknown[]).concat(...(rest as unknown[][])),
-		['first'],
-		vectorType
-	)
-	const concatStr = makeTypedFn(
-		[stringType],
-		stringType,
-		(first, ...rest) => (first as string) + (rest as string[]).join(''),
-		['first'],
-		stringType
-	)
-	return new OverloadValue([concatVec, concatStr])
+	const variadic = (type: TypeValue, concat: (xs: unknown[]) => unknown) =>
+		withSignature(
+			makeTypedFn([], type, (...xs) => concat(xs), [], type),
+			makeFunctionType([], type, {
+				paramNames: [],
+				variadicTail: type,
+				variadicName: 'xs',
+			})
+		)
+	return new OverloadValue([
+		makeTypedFn([], unitType, () => UNIT, []),
+		variadic(vectorType, xs => (xs as unknown[][]).flat(1)),
+		variadic(stringType, xs => (xs as string[]).join('')),
+	])
 }
 
 // -----------------------------------------------------------------------------

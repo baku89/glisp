@@ -65,6 +65,7 @@ function onReorder(next: readonly Slot[]): void {
 
 // Variadic arguments sit side by side while they fit on one row, and go down the
 // tree when they do not. It follows the width, unless it has been opened by hand.
+// Just one has nothing to group, and is a row of its own.
 const tree = inject(ParameterTreeContextKey, null)
 const caseFits = computed(() => fitsInline(2, tree?.valueWidth.value ?? 0))
 const sequenceFits = computed(() =>
@@ -133,8 +134,16 @@ const pathOf = (slot: Slot): string =>
 			@change="emit('change', $event)"
 		/>
 	</template>
+	<AstNode
+		v-if="sequence !== undefined && sortable.length === 1"
+		:entry="{ ...sortable[0]!, label: sequence.label }"
+		:path="pathOf(sortable[0]!)"
+		:read="read"
+		:show="show"
+		@change="emit('change', $event)"
+	/>
 	<ParameterTreeItem
-		v-if="sequence !== undefined && sortable.length > 0"
+		v-else-if="sequence !== undefined && sortable.length > 0"
 		:open="sequenceOpen"
 		@update:open="onSequenceOpen"
 		:label="sequence.label"
