@@ -30,7 +30,7 @@ import { metadataOf, type Slot, textOf, viewOf } from './structure'
 
 /** Icons for what the prelude binds: its types, and its functions. */
 const ICONS: Readonly<Record<string, string>> = {
-	number: 'mdi:numeric',
+	number: 'mdi:pound',
 	string: 'mdi:format-quote-close',
 	boolean: 'mdi:toggle-switch-outline',
 	unit: 'mdi:code-parentheses',

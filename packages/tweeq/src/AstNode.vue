@@ -56,7 +56,7 @@ const hint = computed(() =>
 )
 
 // A binding's name is edited on its label. What a call calls is an expression, so it
-// is edited as code, in the value column that it otherwise leaves empty.
+// is edited as code, across the row.
 const renamable = computed(() => isBinding.value || isFunction.value)
 function canRename(name: string): boolean {
 	return renamer?.can(props.path, name) ?? false
@@ -188,7 +188,6 @@ watch(
 		:sortHandle="entry.sort !== undefined"
 		:dragId="isBinding ? path : undefined"
 		v-model:renaming="renaming"
-		:renameElsewhere="isFunction"
 		:labelSource="entry.label"
 		:canRename="canRename"
 		@rename="rename"
@@ -206,13 +205,6 @@ watch(
 			:show="show"
 			@change="update"
 		/>
-		<InputCode
-			v-else-if="isFunction && renaming"
-			v-model="functionDraft"
-			:lang="GLISP"
-			:options="EDITOR_OPTIONS"
-			@mount="onFunctionEditor"
-		/>
 		<AstValue
 			v-else-if="!isFunction"
 			:entry="entry"
@@ -223,6 +215,15 @@ watch(
 			@change="emit('change', $event)"
 			@toggle="open = !open"
 		/>
+
+		<template v-if="isFunction && renaming" #wide>
+			<InputCode
+				v-model="functionDraft"
+				:lang="GLISP"
+				:options="EDITOR_OPTIONS"
+				@mount="onFunctionEditor"
+			/>
+		</template>
 
 		<template #children>
 			<AstSlots

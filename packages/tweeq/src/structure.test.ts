@@ -563,13 +563,13 @@ describe('icons', () => {
 	const icon = (src: string, scope = env) => iconOf(parse(src), scope)
 
 	it('comes from the metadata on the type', () => {
-		expect(icon('1')).toBe('mdi:numeric')
-		expect(icon('(* 2 3)')).toBe('mdi:numeric')
+		expect(icon('1')).toBe('mdi:pound')
+		expect(icon('(* 2 3)')).toBe('mdi:pound')
 		expect(icon('"a"')).toBe('mdi:format-quote-close')
 		expect(icon('[1 "a"]')).toBe('mdi:code-brackets')
 		expect(icon('(map [1 2] (* % 2))')).toBe('mdi:code-brackets')
 		expect(icon('(: 3 (refine number 1 (=> (x: number): boolean (> x 0))))')).toBe(
-			'mdi:numeric'
+			'mdi:pound'
 		)
 		expect(icon('(=> (x: number): number x)')).toBe('mdi:function-variant')
 		expect(icon('{a: 1}')).toBe('mdi:code-braces')
@@ -600,7 +600,7 @@ describe('icons', () => {
 		session.exec('g = (=> (x: number): Plain x)')
 		expect(icon('(f 1)', session.env)).toBe('mdi:ruler')
 		expect(icon('(: 3 Len)', session.env)).toBe('mdi:ruler')
-		expect(icon('(g 1)', session.env)).toBe('mdi:numeric')
+		expect(icon('(g 1)', session.env)).toBe('mdi:pound')
 	})
 
 	it('prefers what is on the node itself', () => {
@@ -667,8 +667,8 @@ describe('problemOf', () => {
 
 describe('iconOfSequence', () => {
 	it('goes by what the parameter holds', () => {
-		expect(iconOfSequence(view('(+ 1 2)').slots)).toBe('mdi:numeric')
-		expect(iconOfSequence(view('(+ "a" 2)').slots)).toBe('mdi:numeric')
+		expect(iconOfSequence(view('(+ 1 2)').slots)).toBe('mdi:pound')
+		expect(iconOfSequence(view('(+ "a" 2)').slots)).toBe('mdi:pound')
 	})
 
 	it('goes by what is in it, where the parameter says nothing', () => {
