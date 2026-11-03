@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { AstEditor, Repl, useGlispDocument } from '@glisp/tweeq'
-import { useMediaQuery } from '@vueuse/core'
+import { useMediaQuery, useMutationObserver } from '@vueuse/core'
 import { PaneSplit } from 'tweeq/PaneSplit'
+import { useThemeStore } from 'tweeq/stores/theme'
 import { TweeqProvider } from 'tweeq/TweeqProvider'
 import { Viewport } from 'tweeq/Viewport'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
@@ -19,6 +20,24 @@ const document = useGlispDocument(`{
 }`)
 
 const isNarrow = useMediaQuery('(max-width: 760px)')
+
+// The site's own switch says which it is, on the root element. Tweeq's blue sinks
+// into a dark background, so there it takes the site's accent.
+const LIGHT_ACCENT = '#0000ff'
+const theme = useThemeStore()
+function followSite(): void {
+	const root = window.document.documentElement
+	const dark = root.dataset.theme === 'dark'
+	theme.colorMode = dark ? 'dark' : 'light'
+	theme.accentColor = dark
+		? getComputedStyle(root).getPropertyValue('--vp-c-accent').trim() || LIGHT_ACCENT
+		: LIGHT_ACCENT
+}
+followSite()
+useMutationObserver(window.document.documentElement, followSite, {
+	attributes: true,
+	attributeFilter: ['data-theme'],
+})
 </script>
 
 <template>

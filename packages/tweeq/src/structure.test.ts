@@ -959,6 +959,10 @@ describe('editing a value that is worked out', () => {
 		expect(canSolve(row('{a = (+ 1 2)}'), 'x')).toBe(false)
 		expect(canSolve(row('{a = (or true false)}'), true)).toBe(true)
 		expect(canSolve(row('{a = true}'), true)).toBe(false)
+		expect(canSolve(row('{a = (map [1 2] (* % 2))}'), [2, 4])).toBe(true)
+		expect(canSolve(row('{a = (map [1 2] (* % 2))}'), [])).toBe(false)
+		expect(canSolve(row('{a = (map ["x"] %)}'), ['x'])).toBe(false)
+		expect(canSolve(row('{x = 1 a = [x x]}'), [1, 1])).toBe(false)
 		expect(canSolve(row('{a = (+ 1 2)}'), Infinity)).toBe(false)
 	})
 

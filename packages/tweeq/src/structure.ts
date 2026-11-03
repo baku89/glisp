@@ -1014,14 +1014,22 @@ export function expressionFromField(
 	return field.value.slice(field.selectionEnd ?? 0)
 }
 
+const isFiniteNumber = (value: unknown): value is number =>
+	typeof value === 'number' && Number.isFinite(value)
+
 /**
- * Whether what a slot shows as `value` is a number or a boolean to edit, which then
- * changes what it comes from. Only what is worked out comes from anything.
+ * Whether what a slot shows as `value` is a number, a boolean or a vector of numbers
+ * to edit, which then changes what it comes from. Only what is worked out comes from
+ * anything, and a vector written out already has its elements to edit.
  */
 export function canSolve(slot: Slot, value: unknown): boolean {
 	return (
 		(typeof value === 'boolean' ||
-			(typeof value === 'number' && Number.isFinite(value))) &&
+			isFiniteNumber(value) ||
+			(Array.isArray(value) &&
+				value.length > 0 &&
+				value.every(isFiniteNumber) &&
+				(slot.ast.kind === 'meta' ? slot.ast.expr : slot.ast).kind !== 'vec')) &&
 		isExpression(slot.ast) &&
 		!isPinned(slot.ast) &&
 		slot.display === undefined &&

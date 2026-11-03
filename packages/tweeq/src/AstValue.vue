@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, UNIT } from '@glisp/lang'
 import { InputDropdown } from 'tweeq/InputDropdown'
+import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
 import { InputString } from 'tweeq/InputString'
 import { InputSwitch } from 'tweeq/InputSwitch'
 import { InputTextBase } from 'tweeq/InputTextBase'
 import { type MenuItem } from 'tweeq/Menu'
+import { ParameterTreeContextKey } from 'tweeq/ParameterGrid'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
@@ -14,6 +16,7 @@ import { REVEALER, SOLVER } from './selection'
 import {
 	canSolve,
 	expressionFromField,
+	fitsInline,
 	hasValue,
 	isExpression,
 	kindIconOf,
@@ -172,6 +175,25 @@ const solvable = computed(
 const solvableNumber = computed(
 	() => solvable.value && typeof result.value?.value === 'number'
 )
+const solvableBoolean = computed(
+	() => solvable.value && typeof result.value?.value === 'boolean'
+)
+// Side by side while they fit, and otherwise as text, as anything else that long.
+const tree = inject(ParameterTreeContextKey, null)
+const solvableNumbers = computed(() => {
+	const value = result.value?.value
+	return solvable.value &&
+		Array.isArray(value) &&
+		fitsInline(value.length, tree?.valueWidth.value ?? 0)
+		? (value as number[])
+		: null
+})
+function solveElement(index: number, next: number): void {
+	const numbers = solvableNumbers.value
+	if (numbers !== null) {
+		solver?.solve(ast.value, numbers.map((n, i) => (i === index ? next : n)))
+	}
+}
 const hasNumber = computed(
 	() => view.value.editor?.kind === 'number' || solvableNumber.value
 )
@@ -237,8 +259,17 @@ const label = (value: unknown): string =>
 			@rightIconClick="onKindIcon"
 			@update:modelValue="solver?.solve(ast, $event)"
 		/>
+		<InputGroup v-else-if="solvableNumbers !== null">
+			<InputNumber
+				v-for="(number, i) in solvableNumbers"
+				:key="i"
+				:modelValue="number"
+				:menuItems="fieldMenu"
+				@update:modelValue="solveElement(i, $event)"
+			/>
+		</InputGroup>
 		<InputSwitch
-			v-else-if="solvable"
+			v-else-if="solvableBoolean"
 			:modelValue="result?.value as boolean"
 			@update:modelValue="solver?.solve(ast, $event)"
 		/>
@@ -297,6 +328,9 @@ const label = (value: unknown): string =>
 	min-width: 0;
 }
 /* As wide as it looks, for what opens from it. */
+.value > :deep(.TqInputGroup > *) {
+	flex: 1 1 0;
+}
 .value > :deep(.TqInputSwitch) {
 	justify-self: start;
 }
