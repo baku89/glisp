@@ -38,6 +38,13 @@ watch(props.document.root, () => {
 	selection.value = null
 })
 
+// A press anywhere but on a row's label, or the menu it opened, ends a selection.
+useEventListener(window, 'pointerdown', (event: PointerEvent) => {
+	const target = event.target as Element | null
+	if (target?.closest('.TqParameterTreeItem .row, [popover]')) return
+	selection.value = null
+})
+
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	const target = event.target as HTMLElement | null
 	if (target?.closest('input, textarea, [contenteditable]')) return
