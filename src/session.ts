@@ -26,7 +26,7 @@
 import { type EvalResult, IO, isIO, pushLetFrame } from './eval.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
-import { Runtime } from './runtime.js'
+import { Runtime, type RuntimeStats } from './runtime.js'
 import {
 	type AST,
 	type Env,
@@ -69,6 +69,20 @@ export class Session {
 		this.letBlock = ast
 		this.frame = pushLetFrame(ast, this.parent) as Frame
 		this.runtime.setRoot(ast)
+	}
+
+	/** What a binding is bound to, or undefined if it is unbound. */
+	bindingAst(name: string): AST | undefined {
+		return this.letBlock.bindings.find(([n]) => n === name)?.[1]
+	}
+
+	/** What evaluation has cost since the last `resetStats`. */
+	stats(): RuntimeStats {
+		return this.runtime.stats()
+	}
+
+	resetStats(): void {
+		this.runtime.resetStats()
 	}
 
 	/** Names currently bound in the session, in insertion order. */
@@ -241,6 +255,14 @@ function setAtPathInAst(
 		default:
 			return `cannot descend into ${ast.kind}`
 	}
+}
+
+/**
+ * The expression being assigned in `name = expr` or `path/seg = expr`, or null
+ * if `src` is not an assignment.
+ */
+export function assignmentExpression(src: string): string | null {
+	return parseAssignmentSugar(src)?.exprSrc ?? null
 }
 
 interface AssignmentSugar {

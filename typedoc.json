@@ -5,6 +5,7 @@
 	"exclude": [
 		"**/*.test.ts",
 		"**/repl.ts",
+		"**/repl/**",
 		"**/index.ts",
 		"**/desugar.ts",
 		"**/prelude.ts"

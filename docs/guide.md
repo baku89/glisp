@@ -12,7 +12,7 @@ npm install
 npm run repl
 ```
 
-The REPL prints prompts as `glisp>`. Top-level expressions evaluate immediately; `name = expr` sets a binding in the session. It is shell syntax for an `IO` action, and the REPL runs top-level `IO` values automatically.
+The REPL shows two columns: input and results on the left, and on the right the environment, always visible as the let-block it is, with each value in a comment. The prompt is `glisp>`. Top-level expressions evaluate immediately; `name = expr` sets a binding in the session. It is shell syntax for an `IO` action, and the REPL runs top-level `IO` values automatically.
 
 ## Atoms
 
