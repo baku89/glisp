@@ -1,7 +1,7 @@
 import { buildPrelude, evaluate, host, isPinned, meta, parse, print, Session, solve, unpin } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { iconOf, iconOfSequence, withIcons } from './icons'
+import { iconOf, withIcons } from './icons'
 import { actionsOf, canSolve, numberOptionsAt, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
@@ -33,7 +33,7 @@ describe('viewOf', () => {
 		expect(view('(take [1 2] 1)').title).toBe('Take')
 		expect(labels('(take [1 2] 1)')).toEqual(['Items', 'Count'])
 		expect(labels('(take [1 2] n=1)')).toEqual(['Items', 'Count'])
-		expect(labels('(+ 1 2 3)')).toEqual(['Values 0', 'Values 1', 'Values 2'])
+		expect(labels('(+ 1 2 3)')).toEqual(['0', '1', '2'])
 	})
 
 	it('knows what each parameter wants, unless it is generic', () => {
@@ -582,14 +582,14 @@ describe('moveBinding', () => {
 describe('parameter labels', () => {
 	it('come from the definition in the prelude', () => {
 		expect(labels('(map [1] (* % 2))')).toEqual(['Items', 'Transform'])
-		expect(labels('(+ 1 2)')).toEqual(['Values 0', 'Values 1'])
+		expect(labels('(+ 1 2)')).toEqual(['0', '1'])
 		expect(view('(+ 1 2)').append?.label).toBe('Values')
 		expect(view('(take [1])').missing[0]?.name).toBe('Count')
 	})
 
 	it('take the name of a variadic overload', () => {
-		expect(labels('(++ [1] [2])')).toEqual(['Values 0', 'Values 1'])
-		expect(labels('(++ "a" "b")')).toEqual(['Values 0', 'Values 1'])
+		expect(labels('(++ [1] [2])')).toEqual(['0', '1'])
+		expect(labels('(++ "a" "b")')).toEqual(['0', '1'])
 		expect(view('(++ [1])').append?.label).toBe('Values')
 	})
 
@@ -825,24 +825,6 @@ describe('problemOf', () => {
 		for (const src of ['1', '(+ 1 2)', '[1 2]', '{a: 1}', '(* % 2)', '(map [1] (* % 2))', '%']) {
 			expect(problem(src)).toBeNull()
 		}
-	})
-})
-
-describe('iconOfSequence', () => {
-	it('goes by what the parameter holds', () => {
-		expect(iconOfSequence(view('(+ 1 2)').slots)).toBe('mdi:pound')
-		expect(iconOfSequence(view('(+ "a" 2)').slots)).toBe('mdi:pound')
-	})
-
-	it('goes by what is in it, where the parameter says nothing', () => {
-		const session = new Session(env)
-		session.exec('f = (=> (T) (...xs: T): number 1)')
-		const { slots } = viewOf(parse('(f "a" "b")'), session.env)
-		expect(iconOfSequence(slots)).toBe('mdi:format-quote-close')
-	})
-
-	it('has nothing for nothing', () => {
-		expect(iconOfSequence([])).toBeNull()
 	})
 })
 

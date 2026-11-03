@@ -240,7 +240,6 @@ watch(
 			<AstSlots
 				:slots="children"
 				:parentPath="path"
-				:sequence="bareKind === 'call' ? (view.append ?? undefined) : undefined"
 				:read="read"
 				:show="show"
 				@change="update"

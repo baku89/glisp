@@ -473,9 +473,12 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 	ast.args.forEach((arg, i) => {
 		const isVariadic = i >= positional.length
 		const name = positional[i]
-		const label = isVariadic
-			? `${labelOf(parameters?.variadicName ?? '')}${parameters === null ? `${i}` : ` ${i - positional.length}`}`.trim()
-			: labelOf(name!)
+		// With only these, a call's arguments go by their place, as `(* 1 2 3)` does.
+		const label = !isVariadic
+			? labelOf(name!)
+			: positional.length === 0
+				? `${i}`
+				: `${labelOf(parameters?.variadicName ?? '')} ${i - positional.length}`
 		const numberOptions = numberOptionsOfParameter(
 			isVariadic ? (parameters?.variadicName ?? '') : name!
 		)

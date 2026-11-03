@@ -26,7 +26,7 @@ import {
 	unwrapLazy,
 } from '@glisp/lang'
 
-import { metadataOf, type Slot, textOf, viewOf } from './structure'
+import { metadataOf, textOf, viewOf } from './structure'
 
 /** Icons for what the prelude binds: its types, and its functions. */
 const ICONS: Readonly<Record<string, string>> = {
@@ -150,16 +150,4 @@ export function iconOf(
 	if (view.editor?.kind === 'enum') return iconBoundTo('enum', env)
 	const type = infer(ast, env)
 	return type === null ? null : iconOfType(type, env)
-}
-
-/**
- * The icon of a sequence of arguments: of what its parameter holds, as `number` for
- * `...xs: number`, or else, for a generic one, of what is in it.
- */
-export function iconOfSequence(slots: readonly Slot[]): string | null {
-	const [first] = slots
-	if (first === undefined) return null
-	const declared =
-		first.expected === null ? null : iconOfType(first.expected, first.env)
-	return declared ?? iconOf(first.ast, first.env)
 }
