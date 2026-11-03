@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "vite/client",
+      "node"
+    ]
+  },
+  "include": [
+    "./modules.d.ts",
+    ".vuepress/**/*.ts",
+    ".vuepress/**/*.vue"
+  ]
+}

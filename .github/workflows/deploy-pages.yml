@@ -1,4 +1,4 @@
-name: Deploy docs site to GitHub Pages
+name: Deploy site to GitHub Pages
 
 on:
   push:
@@ -34,14 +34,14 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Build docs (typedoc + vuepress)
-        run: npm run build:doc
+      - name: Build site
+        run: npm run build
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/.vuepress/dist
+          path: site/.vuepress/dist
 
   deploy:
     name: Deploy

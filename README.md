@@ -1,20 +1,25 @@
 # Glisp
 
-A pure functional, S-expression based programming language with strong static typing, type inference, lazy evaluation, and DAG-based execution semantics.
+A pure functional, S-expression based language with lazy evaluation, static type inference, and incremental evaluation, made to be embedded in creative software.
 
-This branch (`lang-2026`) is a clean redesign focused on the language core only — no UI, no editor integration, no domain-specific (graphics) features. Specification is being drafted from scratch.
+This branch (`lang-2026`) is a redesign focused on the language.
 
-## Status
+## Layout
 
-Specification in design. Core in active implementation under `src/`.
+- `packages/lang`: the language (`@glisp/lang`). No dependencies.
+- `packages/repl`: the terminal REPL.
+- `site`: the website, with the guide and the browser REPL.
+- `spec`: the specification.
 
 ## Try it
 
-- **Terminal REPL**: `npm install && npm run repl`
-- **Browser REPL**: see [`playground/`](./playground/) — Vite + Vue 3.
-  Live demo deploys from `main` / `lang-2026` to GitHub Pages
-  (workflow in [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml)).
+```sh
+npm install
+npm run repl   # terminal REPL
+npm run dev    # website, with the browser REPL
+npm test
+```
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).

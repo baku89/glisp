@@ -1,30 +1,8 @@
-import { readdirSync } from 'node:fs'
-import { fileURLToPath, URL } from 'node:url'
-
 import { viteBundler } from '@vuepress/bundler-vite'
 import { defaultTheme } from '@vuepress/theme-default'
-import markdownItCjkFriendly from 'markdown-it-cjk-friendly'
 import { defineUserConfig } from 'vuepress'
 
 const repo = 'baku89/glisp'
-
-// Auto-discover the typedoc-generated API pages so the sidebar tracks
-// whatever modules src/ contains, without hand-listing them.
-function apiSidebarChildren(): string[] {
-	const dir = fileURLToPath(new URL('../api', import.meta.url))
-	let files: string[]
-	try {
-		files = readdirSync(dir).filter(f => f.endsWith('.md'))
-	} catch {
-		return ['/api/index.md']
-	}
-	const index = files.includes('index.md') ? ['/api/index.md'] : []
-	const rest = files
-		.filter(f => f !== 'index.md')
-		.sort()
-		.map(f => `/api/${f}`)
-	return [...index, ...rest]
-}
 
 export default defineUserConfig({
 	title: 'Glisp',
@@ -64,7 +42,6 @@ export default defineUserConfig({
 							{ text: 'Host API', link: '/spec/host-api' },
 						],
 					},
-					{ text: 'API', link: '/api/' },
 				],
 				sidebar: {
 					'/spec/': [
@@ -79,12 +56,6 @@ export default defineUserConfig({
 							],
 						},
 					],
-					'/api/': [
-						{
-							text: 'API',
-							children: apiSidebarChildren(),
-						},
-					],
 				},
 			},
 		},
@@ -97,20 +68,8 @@ export default defineUserConfig({
 				'A small guest language for creative software. Hosted on TypeScript, embedded in design tools, motion editors, and generative pipelines.',
 		},
 	},
-	bundler: viteBundler({
-		viteOptions: {
-			resolve: {
-				alias: {
-					'@core': fileURLToPath(new URL('../../src', import.meta.url)),
-				},
-			},
-		},
-	}),
-	extendsMarkdown: md => {
-		md.use(markdownItCjkFriendly)
-	},
+	bundler: viteBundler(),
 	markdown: {
-		// @ts-expect-error: vuepress passes through markdown-it options
 		linkify: true,
 		typographer: true,
 	},

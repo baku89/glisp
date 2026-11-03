@@ -10,32 +10,32 @@
  * re-pasting it yields the same value.
  */
 
-import { check as coreCheck } from '@core/check.js'
 import {
+	type AST,
+	buildPrelude,
+	check as coreCheck,
+	type Diagnostic,
+	type Env,
 	evaluate as coreEval,
+	expandLadder as coreExpandLadder,
+	type Frame,
+	infer as coreInfer,
 	IO,
 	isGlispClosure,
 	isTypedHostFn,
 	isTypeValue,
-	toAst,
-} from '@core/eval.js'
-import { expandLadder as coreExpandLadder } from '@core/expand.js'
-import { infer as coreInfer } from '@core/infer.js'
-import { parse, ParseError } from '@core/parse.js'
-import { print } from '@core/print.js'
-import { buildPrelude } from '@core/prelude.js'
-import { Session as CoreSession } from '@core/session.js'
-import {
-	type AST,
-	type Diagnostic,
-	type Env,
 	LitAST,
+	parse,
+	ParseError,
+	print,
 	RecordAST,
+	Session as CoreSession,
 	SpreadAST,
 	SymAST,
+	toAst,
 	UNIT,
 	VecAST,
-} from '@core/types.js'
+} from '@glisp/lang'
 
 // -----------------------------------------------------------------------------
 // Token model — the unit the UI renders with theme colors

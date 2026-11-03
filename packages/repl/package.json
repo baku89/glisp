@@ -1,0 +1,15 @@
+{
+  "name": "@glisp/repl",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Terminal REPL for Glisp",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@glisp/lang": "*",
+    "picocolors": "^1.1.1"
+  },
+  "license": "MIT"
+}

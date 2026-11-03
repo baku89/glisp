@@ -6,22 +6,29 @@
 
 import pc from 'picocolors'
 
-import { check } from '../check.js'
-import { IO, isGlispClosure, isTypedHostFn, isTypeValue, toAst } from '../eval.js'
-import { expandLadder } from '../expand.js'
-import { infer } from '../infer.js'
-import { lex, LexError } from '../lex.js'
-import { parse, ParseError } from '../parse.js'
-import { buildPrelude } from '../prelude.js'
-import { assignmentExpression, Session } from '../session.js'
 import {
+	assignmentExpression,
 	type AST,
+	buildPrelude,
+	check,
 	type Diagnostic,
 	type Env,
+	expandLadder,
+	infer,
+	IO,
+	isGlispClosure,
+	isTypedHostFn,
+	isTypeValue,
+	lex,
+	LexError,
+	parse,
+	ParseError,
+	Session,
 	SpreadAST,
 	SymAST,
+	toAst,
 	UNIT,
-} from '../types.js'
+} from '@glisp/lang'
 
 export const theme = {
 	prompt: pc.cyan('> '),

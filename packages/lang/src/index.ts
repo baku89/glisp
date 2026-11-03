@@ -1,8 +1,5 @@
 /**
- * Glisp public API entry point.
- *
- * The shape is documented in docs/spec/host-api.md. This module re-exports
- * the pieces the host needs.
+ * Glisp public API entry point. See spec/host-api.md.
  */
 
 export * from './types.js'
@@ -18,3 +15,4 @@ export * from './expectedType.js'
 export * from './expand.js'
 export * from './session.js'
 export * from './runtime.js'
+export { buildPrelude, ioType } from './prelude.js'

@@ -1,0 +1,25 @@
+{
+  "name": "site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Glisp website",
+  "type": "module",
+  "scripts": {
+    "dev": "vuepress dev .",
+    "build": "vuepress build .",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@glisp/lang": "*",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vuepress/bundler-vite": "^2.0.0-rc.26",
+    "@vuepress/plugin-shiki": "^2.0.0-rc.123",
+    "@vuepress/theme-default": "^2.0.0-rc.123",
+    "sass-embedded": "^1.86.0",
+    "vuepress": "^2.0.0-rc.26",
+    "vue-tsc": "^2.2.0"
+  }
+}

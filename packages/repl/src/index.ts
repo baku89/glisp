@@ -12,8 +12,8 @@ import { join } from 'node:path'
 import { stdin as input, stdout as output } from 'node:process'
 import { createInterface } from 'node:readline'
 
-import { ReplCore } from './repl/core.js'
-import { runTui } from './repl/tui.js'
+import { ReplCore } from './core.js'
+import { runTui } from './tui.js'
 
 const HISTORY_PATH = join(homedir(), '.glisp', 'history')
 const HISTORY_LIMIT = 1000

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { parse } from '@glisp/lang'
+
 import { charWidth, cursorCell, fit, stripAnsi, visibleWidth, wrap } from './ansi.js'
 import { ReplCore } from './core.js'
 import { LineEditor } from './editor.js'
@@ -180,9 +182,8 @@ describe('ReplCore', () => {
 		}
 	})
 
-	it('shows the environment as a let-block that parses', async () => {
-		const { parse } = await import('../parse.js')
-		const core = new ReplCore()
+	it('shows the environment as a let-block that parses', () => {
+				const core = new ReplCore()
 		expect(plain(core.envLines())).toEqual(['{}'])
 		core.submit('x = 1')
 		core.submit('y = (+ x 1)')

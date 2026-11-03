@@ -3,10 +3,9 @@ node_modules
 /dist
 
 # Generated docs output
-/docs/.vuepress/.cache
-/docs/.vuepress/.temp
-/docs/.vuepress/dist
-/docs/api
+/site/.vuepress/.cache
+/site/.vuepress/.temp
+/site/.vuepress/dist
 
 # local env files
 .env.local

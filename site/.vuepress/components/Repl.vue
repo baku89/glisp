@@ -1,20 +1,16 @@
 <script setup lang="ts">
-// Re-export the existing playground REPL as a VuePress component so the
-// docs and the live playground share a single implementation. Both
-// trees see `@core/*` thanks to the alias in `.vuepress/config.ts`.
-import PlaygroundRepl from '../../../playground/src/components/Repl.vue'
+import ReplConsole from './repl/ReplConsole.vue'
 </script>
 
 <template>
 	<div class="repl-frame">
-		<PlaygroundRepl />
+		<ReplConsole />
 	</div>
 </template>
 
 <style scoped>
-/* The playground's Repl.vue references theme CSS vars defined in the
- * playground's global stylesheet. Scope a copy here so the embed works
- * inside VuePress without leaking color-scheme to the rest of the page. */
+/* The console's colors, scoped here so that they do not leak color-scheme to
+ * the rest of the page. */
 .repl-frame {
 	color-scheme: dark;
 	--bg: #0d1117;

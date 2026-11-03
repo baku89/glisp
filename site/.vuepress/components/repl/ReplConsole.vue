@@ -6,7 +6,7 @@ import {
 	type DiagnosticView,
 	type ReplResult,
 	type Token,
-} from '../lib/glisp'
+} from './glisp'
 
 interface HistoryItem {
 	readonly id: number

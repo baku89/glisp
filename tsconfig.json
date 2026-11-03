@@ -8,12 +8,22 @@
     "exactOptionalPropertyTypes": true,
     "esModuleInterop": true,
     "isolatedModules": true,
-    "declaration": true,
-    "outDir": "dist",
-    "lib": ["ES2022"],
+    "noEmit": true,
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ],
     "skipLibCheck": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": [
+    "packages/*/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "**/*.test.ts"
+  ]
 }

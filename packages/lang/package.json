@@ -1,0 +1,14 @@
+{
+  "name": "@glisp/lang",
+  "version": "0.0.0",
+  "description": "Glisp language core",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "license": "MIT",
+  "author": "Baku Hashimoto <mail@baku89.com>"
+}
