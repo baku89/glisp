@@ -88,20 +88,20 @@ Types are first-class values. The prelude binds `number`, `string`, `boolean`, `
 (IO number)            ;; → (IO number)  (a type value)
 ```
 
-### Coercion: `@`
+### Coercion: `:`
 
-`(@ T v)` coerces `v` through type `T`. If `v` fits, it's passed through; otherwise the type's `default` takes its place and a diagnostic is recorded.
+`(: v T)` coerces `v` through type `T`. If `v` fits, it's passed through; otherwise the type's `default` takes its place and a diagnostic is recorded.
 
 ```glisp
-(@ number 42)          ;; → 42
-(@ number "oops")      ;; → 0   (default; diagnostic emitted)
-(@ Color "red")        ;; → "red"
-(@ Color "purple")     ;; → "red"  (default = first member)
-(@ Pos 5)              ;; → 5
-(@ Pos -3)             ;; → 1   (default; predicate failed)
+(: 42 number)          ;; → 42
+(: "oops" number)      ;; → 0   (default; diagnostic emitted)
+(: "red" Color)        ;; → "red"
+(: "purple" Color)     ;; → "red"  (default = first member)
+(: 5 Pos)              ;; → 5
+(: -3 Pos)             ;; → 1   (default; predicate failed)
 ```
 
-The `@` form replaces the older "types are callable" cast. A bare `(T v)` is rejected with a hint pointing to `@`.
+`(: v T)` is the prefix form of the `v: T` annotation. A bare `(T v)` is rejected with a hint pointing to it.
 
 ## Pattern match: `?`
 

@@ -178,7 +178,7 @@ export interface TypeValue {
 	 * Optional type-constructor hook. When set, `(T arg ...)` is dispatched
 	 * here with the args evaluated as types, and the result is the
 	 * parameterized TypeValue. Most types do not have this; for them, a
-	 * `(T v)` call is rejected with a hint to use `(@ T v)`.
+	 * `(T v)` call is rejected with a hint to use `(: v T)`.
 	 */
 	readonly apply?: (
 		typeArgs: ReadonlyArray<TypeValue>
@@ -190,7 +190,7 @@ export interface TypeValue {
  * `fits` predicate, default, and structural shape.
  *
  * Type values are **not** callable — `(T v)` is rejected by the
- * evaluator with a hint to use `(@ T v)` instead. The cast machinery
+ * evaluator with a hint to use `(: v T)` instead. The cast machinery
  * still exists internally (typed slots, default fallback for missing
  * args) but goes through `coerceTo`, not through invocation.
  */
@@ -477,7 +477,7 @@ export function isIO(v: unknown): v is IO {
 export { lookupBareName }
 
 // -----------------------------------------------------------------------------
-// Type-value head: parametric apply, or reject with `@` hint
+// Type-value head: parametric apply, or reject with `(: v T)` hint
 // -----------------------------------------------------------------------------
 
 function evalTypeApply(
@@ -493,7 +493,7 @@ function evalTypeApply(
 			diag(
 				site,
 				env,
-				`${head.typeName} is a type — use (@ ${head.typeName} v) for coercion`
+				`${head.typeName} is a type — use (: v ${head.typeName}) for coercion`
 			)
 		)
 		return { value: UNIT, diagnostics }
@@ -987,7 +987,7 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 				return evalMatch(ast, inside)
 			case '|>':
 				return evalPipe(ast, inside)
-			case '@':
+			case ':':
 				return evalCoerce(ast, inside)
 			case 'def':
 				return evalDef(ast, inside)
@@ -1035,7 +1035,7 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 
 	// Type values: check before record fall-through (a TypeValue is a
 	// branded plain object). Parametric types dispatch through `apply`;
-	// non-parametric ones reject with a hint to use `@`.
+	// non-parametric ones reject with a hint to use `(: v T)`.
 	if (isTypeValue(headValue)) {
 		return evalTypeApply(headValue, positional, kwargs, inside, ast, diagnostics)
 	}
@@ -1529,7 +1529,7 @@ function matchValue(value: unknown, pattern: unknown): boolean {
 }
 
 /**
- * `(@ T v)` — explicit coercion. `T` must evaluate to a type value;
+ * `(: v T)` — explicit coercion. `T` must evaluate to a type value;
  * `v` is then run through `T.fits`. On success the original `v` flows
  * through; on failure the call returns `T.default` and emits a
  * diagnostic. `()` always coerces silently to the type's default
@@ -1543,23 +1543,23 @@ function evalCoerce(ast: CallAST, env: Env): EvalResult {
 		return fail(
 			ast,
 			env,
-			'@ expects exactly 2 arguments: type and value'
+			': expects exactly 2 arguments: value and type'
 		)
 	}
-	const tResult = evaluate(ast.args[0]!, env)
+	const tResult = evaluate(ast.args[1]!, env)
 	const diagnostics = [...tResult.diagnostics]
 	const t = tResult.value
 	if (!isTypeValue(t)) {
 		diagnostics.push(
 			diag(
-				ast.args[0]!,
+				ast.args[1]!,
 				env,
-				`@: first argument must be a type, got ${describeType(t)}`
+				`(: v T): second argument must be a type, got ${describeType(t)}`
 			)
 		)
 		return { value: UNIT, diagnostics }
 	}
-	const vResult = evaluate(ast.args[1]!, env)
+	const vResult = evaluate(ast.args[0]!, env)
 	push(diagnostics, vResult.diagnostics)
 	const v = vResult.value
 	if (v === UNIT) {
@@ -1568,7 +1568,7 @@ function evalCoerce(ast: CallAST, env: Env): EvalResult {
 	if (!t.fits(v)) {
 		diagnostics.push(
 			diag(
-				ast.args[1]!,
+				ast.args[0]!,
 				env,
 				`${t.typeName} doesn't accept ${describeType(v)} value`
 			)

@@ -60,12 +60,11 @@ Several bare tokens are reserved and cannot stand alone as identifiers; embedded
 | `%`        | partial-application placeholder             | `URL%encoded`                  |
 | `\|>`      | pipe special form                           | (none, distinct from `\|`)     |
 | `?`        | match special form (head); optional suffix  | (none, `?` already reserved)   |
-| `@`        | coerce special form head (`(@ T v)`)        | (none, `@` not an identifier char) |
 | `/`        | division function; also path separator      | (none, `/` not an identifier char) |
 
 Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` and whitespace.
 
-`/` and `@` are listed in the table for completeness even though they cannot appear inside an identifier; both are also single-character bare tokens with reserved bare-form meaning.
+`/` is listed in the table for completeness even though it cannot appear inside an identifier; it is also a single-character bare token with reserved bare-form meaning.
 
 ### Comments
 
@@ -96,8 +95,6 @@ Opening brackets in succession (`((`, `[[`, `[(`, `({`, ...) are not element bou
 ((if c f g) x)       ;; head can be any expression
 ([1 2 3] 0)          ;; vector invocation → 1 (index)
 ({x: 10 y: 20} "x")  ;; record invocation → field access by string key
-(number 42)          ;; type invocation → cast
-(number "hello")     ;; cast failure → default fallback
 ```
 
 All values are callable; the calling behavior is determined by the value's type:
@@ -106,7 +103,7 @@ All values are callable; the calling behavior is determined by the value's type:
 | Value type                  | `(value args...)`                |
 | --------------------------- | -------------------------------- |
 | Function                    | apply                            |
-| Type                        | cast / validate                  |
+| Type                        | rejected; use `(: v T)`          |
 | vector                      | element access by integer index  |
 | Record                      | field access by string key       |
 | Other (number, string, ...) | type mismatch → default fallback |
@@ -315,7 +312,7 @@ The `...` of a spread is always followed directly by an identifier or `~`. This 
 
 ## Special forms
 
-Six forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), `%` (partial-application placeholder), `@` (coerce), `def`, and `undef`. They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
+Six forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), `%` (partial-application placeholder), `:` (coerce), `def`, and `undef`. They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
 
 ### Match — `?`
 
@@ -408,18 +405,18 @@ Only single-argument partial application is supported. For multi-argument anonym
 
 The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 %)` becomes a function via the `%` expansion, then `|>` applies it. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
 
-### Coerce — `@`
+### Coerce — `:`
 
-`(@ T v)` coerces a value through a type. `T` is evaluated as a type value, `v` is the input. On match `v` flows through; on mismatch the call returns `T`'s default and emits a diagnostic. `()` always coerces silently to the default.
+`(: v T)` coerces a value through a type, as the prefix form of the annotation `v: T`. A `:` directly after `(` is this form; anywhere else it keeps its annotation or key role. `T` is evaluated first as a type value, then `v`. On match `v` flows through; on mismatch the call returns `T`'s default and emits a diagnostic. `()` always coerces silently to the default.
 
 ```glisp
-(@ number 42)            ;; → 42
-(@ number "hi")          ;; → 0   (default — diagnostic)
-(@ number ())            ;; → 0   (silent — () convention)
-(@ JoinType "diamond")   ;; → "round"   (default — diagnostic)
+(: 42 number)            ;; → 42
+(: "hi" number)          ;; → 0   (default — diagnostic)
+(: () number)            ;; → 0   (silent — () convention)
+(: "diamond" JoinType)   ;; → "round"   (default — diagnostic)
 ```
 
-`@` is the **only** way to invoke the coerce/validate semantics on a type value. Calling a type value directly — `(number 42)` — is rejected with a diagnostic suggesting `(@ number 42)`. See [types.md — Coercion](./types.md#coercion-t-v) for the full semantics.
+`(: v T)` is the **only** way to invoke the coerce/validate semantics on a type value. Calling a type value directly — `(number 42)` — is rejected with a diagnostic suggesting `(: 42 number)`. See [types.md — Coercion](./types.md#coercion-v-t) for the full semantics.
 
 For non-fallback type tests (membership without consuming the default), pattern-match via `?`.
 
@@ -504,16 +501,16 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `Top`, a
 
 `enum` takes literal values and produces a type that validates against membership in the value set. `"round"` itself remains of type `string`, distinct from any `enum` containing it.
 
-### Type as cast
+### Coercing through a type
 
-`(T value)` casts/validates `value` as `T`:
+`(: v T)` casts/validates `v` as `T`:
 
 ```glisp
-(number 42)                       ;; → 42
-(number "hello")                  ;; → default fallback
-([...number] [1 2 3])             ;; → [1 2 3]
-(JoinType "round")                ;; → "round"  (JoinType = (enum "round" "butt" "square"))
-(JoinType "diamond")              ;; → default fallback
+(: 42 number)                     ;; → 42
+(: "hello" number)                ;; → default fallback
+(: [1 2 3] [...number])           ;; → [1 2 3]
+(: "round" JoinType)              ;; → "round"  (JoinType = (enum "round" "butt" "square"))
+(: "diamond" JoinType)            ;; → default fallback
 ```
 
 ### Subtyping
@@ -562,7 +559,7 @@ The result of ``...` is itself a Glisp value (a syntax tree).
 | `(...)`       | function/value application                             |
 | `[...]`       | vector                                                 |
 | `{...}`       | record / let-block                                     |
-| `:`           | type annotation, return type, record key, metadata key |
+| `:`           | type annotation, return type, record key, metadata key; coerce form when directly after `(` |
 | `=`           | local binding, keyword argument                        |
 | `=>`          | function literal                                       |
 | `^{...}`      | metadata attachment                                    |

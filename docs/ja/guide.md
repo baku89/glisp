@@ -88,20 +88,20 @@ _                   ;; top  (どんな値も受け入れる)
 (IO number)            ;; → (IO number)  （型の値）
 ```
 
-### 型変換: `@`
+### 型変換: `:`
 
-`(@ T v)` は `v` を型 `T` に変換します。`v` が型に合えばそのまま、合わなければ型の `default` に置き換わって診断が記録されます。
+`(: v T)` は `v` を型 `T` に変換します。`v` が型に合えばそのまま、合わなければ型の `default` に置き換わって診断が記録されます。
 
 ```glisp
-(@ number 42)          ;; → 42
-(@ number "oops")      ;; → 0   (default。診断あり)
-(@ Color "red")        ;; → "red"
-(@ Color "purple")     ;; → "red"  (default は最初のメンバ)
-(@ Pos 5)              ;; → 5
-(@ Pos -3)             ;; → 1   (述語が false なので default)
+(: 42 number)          ;; → 42
+(: "oops" number)      ;; → 0   (default。診断あり)
+(: "red" Color)        ;; → "red"
+(: "purple" Color)     ;; → "red"  (default は最初のメンバ)
+(: 5 Pos)              ;; → 5
+(: -3 Pos)             ;; → 1   (述語が false なので default)
 ```
 
-`@` は古い「型を関数として呼ぶ」キャストの代わりです。素の `(T v)` は「`@` を使ってください」というヒント付きで reject されます。
+`(: v T)` は `v: T` という型注釈を前置にした形です。素の `(T v)` は `(: v T)` を使うよう促すヒント付きで reject されます。
 
 ## パターンマッチ: `?`
 

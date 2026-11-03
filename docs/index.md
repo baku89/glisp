@@ -100,6 +100,6 @@ The language core is in active implementation under `src/`. The terminal REPL is
 ## Where to look
 
 - [`syntax`](./spec/syntax.md): concrete syntax. Tokens, structure, functions, metadata, quoting.
-- [`types`](./spec/types.md): type system. Values-as-types, constructors, parametric IO, coercion via `@`.
+- [`types`](./spec/types.md): type system. Values-as-types, constructors, parametric IO, coercion via `(: v T)`.
 - [`eval`](./spec/eval.md): evaluation. Scopes, lazy semantics, DAG, diagnostics, abstraction ladder.
 - [`host-api`](./spec/host-api.md): embedding API. Marshaling, AST/type combinators, TS type inference.

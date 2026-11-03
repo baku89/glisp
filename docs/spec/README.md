@@ -31,7 +31,7 @@ These follow from the GUI-primary premise:
 5. **Diagnostics as a side channel**. Errors and warnings are accumulated on each evaluation node, with `(message, source)` structure, queryable by the host without disrupting evaluation.
 6. **Static name resolution**. Names and paths can be resolved without running the program, so the GUI can show types and references.
 7. **DAG with memoization**. Shared sub-computations form a graph; memoization keyed on `(AST, env)` makes sharing explicit and supports incremental re-evaluation when one node changes.
-8. **All values are callable**. Function → apply, type → cast, vector → index, record → field. The GUI exposes one uniform "feed something in" affordance per node.
+8. **Values are callable**. Function → apply, vector → index, record → field. Types are the exception: coercion is written `(: v T)`. The GUI exposes one uniform "feed something in" affordance per node.
 9. **Metadata as a separate value-layer**. `^{...}` carries `default`, `label`, `color`, `icon`, `doc`, etc. The core only assigns meaning to `default`; the rest is for hosts.
 10. **Code-as-data with macro transparency**. `` ` ``, `~`, `...~` shape the AST produced by `expand` but are transparent in `eval`. The host can climb the ladder; the runtime gets the final value.
 

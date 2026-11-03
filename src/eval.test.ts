@@ -516,26 +516,26 @@ describe('evaluate — type values (cast & match)', () => {
 			string: lit(stringType as never),
 		})
 
-	it('(@ number 42) returns 42 (coerce pass)', () => {
-		expect(evaluate(parse('(@ number 42)'), envWithTypes()).value).toBe(42)
+	it('(: 42 number) returns 42 (coerce pass)', () => {
+		expect(evaluate(parse('(: 42 number)'), envWithTypes()).value).toBe(42)
 	})
 
-	it('(@ number "hi") falls back to default (0)', () => {
-		const r = evaluate(parse('(@ number "hi")'), envWithTypes())
+	it('(: "hi" number) falls back to default (0)', () => {
+		const r = evaluate(parse('(: "hi" number)'), envWithTypes())
 		expect(r.value).toBe(0)
 		expect(r.diagnostics.some(d => d.message.includes("doesn't accept"))).toBe(
 			true
 		)
 	})
 
-	it('(@ string 42) falls back to default ("")', () => {
-		expect(evaluate(parse('(@ string 42)'), envWithTypes()).value).toBe('')
+	it('(: 42 string) falls back to default ("")', () => {
+		expect(evaluate(parse('(: 42 string)'), envWithTypes()).value).toBe('')
 	})
 
-	it('(T v) is rejected with a hint to use @', () => {
+	it('(T v) is rejected with a hint to use (: v T)', () => {
 		const r = evaluate(parse('(number 42)'), envWithTypes())
 		expect(
-			r.diagnostics.some(d => d.message.includes('(@ number v)'))
+			r.diagnostics.some(d => d.message.includes('(: v number)'))
 		).toBe(true)
 	})
 
@@ -1139,11 +1139,11 @@ describe('evaluate — coerce edge cases', () => {
 			string: lit(stringType as never),
 		})
 
-	it('(@ T <unresolvable-name>) — silent default, no extra coerce-mismatch noise', () => {
+	it('(: <unresolvable-name> T) — silent default, no extra coerce-mismatch noise', () => {
 		// Unresolved name → `()` (silent failure per the "evaluation never
 		// throws" rule). `()` does not fit `number`, but coerce of an
 		// already-failed value is silent — only the lookup diagnostic surfaces.
-		const r = evaluate(parse('(@ number undefined-var)'), env())
+		const r = evaluate(parse('(: undefined-var number)'), env())
 		expect(r.value).toBe(0)
 		// At least one diagnostic — for the lookup. We don't pin the exact
 		// shape, only that the coerce form does not silently swallow it.
@@ -1151,25 +1151,25 @@ describe('evaluate — coerce edge cases', () => {
 	})
 
 	it('coercion of () is silent (no diagnostic noise)', () => {
-		// (@ T ()) is the "give me the default" idiom — should not emit a
+		// (: () T) is the "give me the default" idiom — should not emit a
 		// type-mismatch diagnostic.
-		const r = evaluate(parse('(@ number ())'), env())
+		const r = evaluate(parse('(: () number)'), env())
 		expect(r.value).toBe(0)
 		expect(
 			r.diagnostics.some(d => d.message.includes("doesn't accept"))
 		).toBe(false)
 	})
 
-	it('(@ T (@ T v)) is idempotent', () => {
-		const r = evaluate(parse('(@ number (@ number 42))'), env())
+	it('(: (: v T) T) is idempotent', () => {
+		const r = evaluate(parse('(: (: 42 number) number)'), env())
 		expect(r.value).toBe(42)
 		expect(r.diagnostics).toHaveLength(0)
 	})
 
-	it('(@ unbound-name v) — head fails to resolve to a type', () => {
-		// `T` is not bound → eval head produces unit + diagnostic; the
+	it('(: v unbound-name) — type fails to resolve', () => {
+		// `T` is not bound → evaluating it produces unit + diagnostic; the
 		// coerce form must not crash and must surface a useful message.
-		const r = evaluate(parse('(@ NoSuchType 42)'), env())
+		const r = evaluate(parse('(: 42 NoSuchType)'), env())
 		// Result is the value verbatim or unit — but no exception.
 		expect(r.diagnostics.length).toBeGreaterThan(0)
 	})
@@ -1202,7 +1202,7 @@ describe('evaluate — typed host fn: multi-mismatch diagnostic accumulation', (
 	})
 })
 
-describe('evaluate — parametric IO (@-coerce / fits)', () => {
+describe('evaluate — parametric IO (coerce / fits)', () => {
 	const ioType: import('./eval.js').TypeValue = (() => {
 		// Shadowed minimal env: re-create what prelude does without
 		// pulling the full prelude into this test bed. We just need

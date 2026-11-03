@@ -374,13 +374,20 @@ describe('parse — special forms (parser is permissive)', () => {
 		expect(parse('(|>)').kind).toBe('call')
 	})
 
-	it('(@ T) with one arg parses (eval will reject)', () => {
-		expect(parse('(@ number)').kind).toBe('call')
+	it('(: v) with one arg parses (eval will reject)', () => {
+		expect(parse('(: number)').kind).toBe('call')
 	})
 
 	it('round-trips coerce form', () => {
-		const src = '(@ number 42)'
+		const src = '(: 42 number)'
 		expect(roundTrip(src)).toBe(src)
+	})
+
+	it('`:` is only a coerce head directly after `(`', () => {
+		expect(() => parse('(x: number)')).toThrow()
+		expect(() => parse('(f : number)')).toThrow()
+		const fnAst = parse('(=> (x: number): number (: x number))')
+		expect(fnAst.kind).toBe('fn')
 	})
 
 	it('round-trips IO-parametric form', () => {

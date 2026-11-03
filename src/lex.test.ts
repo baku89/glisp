@@ -163,19 +163,19 @@ describe('lex — comment edge cases', () => {
 	})
 })
 
-describe('lex — bare @ for coerce', () => {
-	it('@ is a single-character identifier', () => {
-		expect(lex('@')[0]).toMatchObject({ kind: 'identifier', value: '@' })
-	})
-
-	it('@ as call head separates from following token', () => {
-		expect(kinds('(@ T v)')).toEqual([
+describe('lex — `:` as coerce head', () => {
+	it('`(: v T)` lexes `:` as its own token', () => {
+		expect(kinds('(: v T)')).toEqual([
 			'(',
-			'identifier',
+			':',
 			'identifier',
 			'identifier',
 			')',
 		])
+	})
+
+	it('@ is no longer a token', () => {
+		expect(() => lex('@')).toThrow()
 	})
 })
 

@@ -5,6 +5,13 @@ import { infer } from './infer.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 
+describe('coerce form with %', () => {
+	it('(: % T) is a function that coerces its argument', () => {
+		const r = evaluate(parse('(map ["a" 1] (: % number))'), buildPrelude())
+		expect(r.value).toEqual([0, 1])
+	})
+})
+
 describe('prelude — primitive types', () => {
 	it('binds top as `_` and bottom as `!`', () => {
 		const env = buildPrelude()
@@ -117,31 +124,31 @@ describe('prelude — higher-order functions', () => {
 describe('prelude — type constructors', () => {
 	const env = buildPrelude()
 
-	it('@ coerces an enum member through to its value', () => {
+	it('(: v T) coerces an enum member through to its value', () => {
 		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
 			.value as IO).run()
-		expect(evaluate(parse('(@ C "g")'), env).value).toBe('g')
+		expect(evaluate(parse('(: "g" C)'), env).value).toBe('g')
 	})
 
-	it('@ on a non-member falls back to the first listed value', () => {
+	it('(: v T) on a non-member falls back to the first listed value', () => {
 		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
 			.value as IO).run()
-		const r = evaluate(parse('(@ C "purple")'), env)
+		const r = evaluate(parse('(: "purple" C)'), env)
 		expect(r.value).toBe('r')
 		expect(
 			r.diagnostics.some(d => d.message.includes("doesn't accept"))
 		).toBe(true)
 	})
 
-	it('refine narrows base type via @', () => {
+	it('refine narrows base type via (: v T)', () => {
 		;(evaluate(
 			parse(
 				'(def "Pos" (refine number 1 (=> (x: number): boolean (> x 0))))'
 			),
 			env
 		).value as IO).run()
-		expect(evaluate(parse('(@ Pos 5)'), env).value).toBe(5)
-		const fail = evaluate(parse('(@ Pos -3)'), env)
+		expect(evaluate(parse('(: 5 Pos)'), env).value).toBe(5)
+		const fail = evaluate(parse('(: -3 Pos)'), env)
 		expect(fail.value).toBe(1) // declared default
 		expect(
 			fail.diagnostics.some(d => d.message.includes("doesn't accept"))

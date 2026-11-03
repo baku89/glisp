@@ -95,6 +95,6 @@ Glisp は単独で動く処理系ではなく、ホスト側の TypeScript ア�
 ## 仕様書
 
 - [`syntax`](../spec/syntax.md) 構文。トークン、構造、関数、メタデータ、quote。
-- [`types`](../spec/types.md) 型。値としての型、構成子、`(IO T)`、`@` による coerce。
+- [`types`](../spec/types.md) 型。値としての型、構成子、`(IO T)`、`(: v T)` による coerce。
 - [`eval`](../spec/eval.md) 評価。スコープ、遅延評価、DAG、診断、抽象化のはしご。
 - [`host-api`](../spec/host-api.md) ホスト側 API。値の受け渡し、AST/型ビルダ、TS 側からの型推論。

@@ -213,6 +213,12 @@ class Parser {
 		}
 	}
 
+	private colonHead(): AST {
+		const start = this.peek().start
+		this.advance()
+		return this.stamp(start, sym(':'))
+	}
+
 	// --- (...) — call or function literal ------------------------------------
 
 	private parenForm(): AST {
@@ -226,7 +232,8 @@ class Parser {
 			throw this.error(this.peek(), 'empty application — use `()` for unit')
 		}
 
-		const head = this.expression()
+		// `(: v T)` — a `:` in head position is the coercion special form.
+		const head = this.peek().kind === ':' ? this.colonHead() : this.expression()
 		const args: AST[] = []
 		const kwargs: Record<string, AST> = {}
 		let sawKwarg = false

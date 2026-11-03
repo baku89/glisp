@@ -88,7 +88,7 @@ Notes on tuple types:
 
 `enum` is the mechanism for finite sets of literal values. Members must share a single base type; validation at cast time is membership in the value set.
 
-`refine` is the mechanism for value-restricted subtypes — a base type narrowed by a predicate. Coercing through `(refine T default pred)` via `(@ ... v)` first checks that `v` fits `T`; if so, `pred(v)` is called; if `pred` returns true, the value is accepted, otherwise the result falls back to the explicit `default`. The default is supplied separately because `T`'s default need not satisfy `pred`.
+`refine` is the mechanism for value-restricted subtypes — a base type narrowed by a predicate. Coercing through `(refine T default pred)` first checks that `v` fits `T`; if so, `pred(v)` is called; if `pred` returns true, the value is accepted, otherwise the result falls back to the explicit `default`. The default is supplied separately because `T`'s default need not satisfy `pred`.
 
 ```glisp
 ColorCode = (refine string "#000000"
@@ -96,15 +96,15 @@ ColorCode = (refine string "#000000"
                        (and (= (size s) 7)
                             (= (s 0) "#"))))
 
-(ColorCode "#FF0000")    ;; → "#FF0000"
-(ColorCode "hello")      ;; → "#000000" (default — size mismatch)
+(: "#FF0000" ColorCode)  ;; → "#FF0000"
+(: "hello" ColorCode)    ;; → "#000000" (default — size mismatch)
 
 NonNegative = (refine number 0 (=> (n: number): boolean (>= n 0)))
 ```
 
-`refine` does not introduce subtyping. A `ColorCode` value is a distinct type from `string`; passing it where `string` is expected requires an explicit coercion `(@ string c)` (which trivially succeeds since the underlying representation is the same). `enum` could in principle be expressed as a special-cased `refine`, but is kept as its own constructor for readability of the common literal-set case.
+`refine` does not introduce subtyping. A `ColorCode` value is a distinct type from `string`; passing it where `string` is expected requires an explicit coercion `(: c string)` (which trivially succeeds since the underlying representation is the same). `enum` could in principle be expressed as a special-cased `refine`, but is kept as its own constructor for readability of the common literal-set case.
 
-When `@` is used to coerce, a value that does not fit `T` produces a diagnostic in addition to falling back to the default. This is the same surfacing rule typed function slots use: explicit `@` and implicit slot share the diagnostic boundary so type mismatches are never silent.
+When `(: v T)` is used to coerce, a value that does not fit `T` produces a diagnostic in addition to falling back to the default. This is the same surfacing rule typed function slots use: explicit `(: v T)` and implicit slot share the diagnostic boundary so type mismatches are never silent.
 
 ## Recursive types
 
@@ -121,7 +121,7 @@ defines a recursive type. There is no anonymous recursive-type form (`(rec X ...
 
 ## Type interpretation at type slots
 
-A **type slot** is a position in the AST where a type is expected — the right of `:` in a parameter or record-field annotation, the return-type position of `(=> ... : T ...)`, the first argument of `(@ T v)`, and the equivalent positions in metadata.
+A **type slot** is a position in the AST where a type is expected — the right of `:` in a parameter or record-field annotation, the return-type position of `(=> ... : T ...)`, the second argument of `(: v T)`, and the equivalent positions in metadata.
 
 At a type slot the AST is evaluated, then the resulting value is interpreted as a type:
 
@@ -149,19 +149,19 @@ A type-slot annotation like `x: number` always reads as "x has type `number`" �
 
 This rule keeps the meaning of every annotation unambiguous: the right side of `:` always describes the *kind of values* the slot accepts, never a specific value pinned by identity.
 
-## Coercion: `(@ T v)`
+## Coercion: `(: v T)`
 
-Explicit type coercion uses the `@` special form. `T` must evaluate to a type value, `v` is the value to coerce:
+Explicit type coercion uses the `:` special form, the prefix form of the annotation `v: T`. `T` must evaluate to a type value, `v` is the value to coerce:
 
 ```glisp
-(@ number 42)                 ;; → 42
-(@ number "hello")            ;; → 0      (default — diagnostic)
-(@ [...number] [1 2 3])       ;; → [1 2 3]
-(@ JoinType "round")          ;; → "round"   (JoinType = (enum "round" "butt" "square"))
-(@ JoinType "diamond")        ;; → "round"   (default — diagnostic)
+(: 42 number)                 ;; → 42
+(: "hello" number)            ;; → 0      (default — diagnostic)
+(: [1 2 3] [...number])       ;; → [1 2 3]
+(: "round" JoinType)          ;; → "round"   (JoinType = (enum "round" "butt" "square"))
+(: "diamond" JoinType)        ;; → "round"   (default — diagnostic)
 ```
 
-`@` is the only way to invoke the cast/validate semantics on a type value. The bare-call form `(T v)` is **not** a cast — type values are not callable. Calling a type value emits a diagnostic suggesting `(@ T v)`.
+`(: v T)` is the only way to invoke the cast/validate semantics on a type value. The bare-call form `(T v)` is **not** a cast — type values are not callable. Calling a type value emits a diagnostic suggesting `(: v T)`.
 
 The rule:
 
@@ -175,24 +175,24 @@ For non-fallback type tests (membership without consuming the default), pattern-
 
 ```glisp
 (? v
-   (number) (handle-number v)
-   (string) (handle-string v)
+   number (handle-number v)
+   string (handle-string v)
    _        (handle-other v))
 ```
 
 ### Constant-function lifting
 
-When `@`'s target type is a function type `(=> (...): R)` and the input `v` is **not** a function, the coercion tries to interpret `v` as the return value of a constant function:
+When the target type of `(: v T)` is a function type `(=> (...): R)` and the input `v` is **not** a function, the coercion tries to interpret `v` as the return value of a constant function:
 
 - If `v` coerces to `R`, the result is a constant function `(=> (...): R v)` — calling it ignores its arguments and returns `v`.
 - Otherwise, the standard default fallback applies.
 
 ```glisp
-(@ (=> (x: number): number) 20)        ;; → (=> (x: number): number 20)
-(map [1 2 3] (@ (=> (x: number): number) 20))   ;; → [20 20 20]
+(: 20 (=> (x: number): number))        ;; → (=> (x: number): number 20)
+(map [1 2 3] (: 20 (=> (x: number): number)))   ;; → [20 20 20]
 ```
 
-Lifting only happens inside `@` against a function type. Outside `@` a value's identity is unchanged. This rule complements the ban on zero-parameter functions: instead of writing `(=> (): T body)` (which is a syntax error), pass `body` through `@` wherever a function is expected.
+Lifting only happens inside `(: v T)` against a function type. Outside it a value's identity is unchanged. This rule complements the ban on zero-parameter functions: instead of writing `(=> (): T body)` (which is a syntax error), pass `body` through `(: body T)` wherever a function is expected.
 
 ## Metadata
 
@@ -233,7 +233,7 @@ All other keys are unrestricted. Hosts may register typed schemas for them via t
 
 Default substitution happens in any of these situations:
 
-- **`()` arrives at a typed slot**: function parameter, record field declared with `:`, `(@ T v)`, predicate of `if`, etc. The slot's `default` is used.
+- **`()` arrives at a typed slot**: function parameter, record field declared with `:`, `(: v T)`, predicate of `if`, etc. The slot's `default` is used.
   - For required slots: a diagnostic is emitted at the substitution site.
   - For optional slots (declared with `?`): substitution is silent.
 - **Non-`()` type mismatch at a typed slot**: a diagnostic is emitted and the slot's `default` is used.
