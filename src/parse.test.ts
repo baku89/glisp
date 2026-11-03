@@ -420,6 +420,19 @@ describe('parse — special forms (parser is permissive)', () => {
 		}
 	})
 
+	it('rejects paths in a function signature', () => {
+		for (const src of [
+			'(=> (x: ./0): number)',
+			'(=> (T) (x: ../T): T 1)',
+			'(=> (x: number): ../r x)',
+			'(=> ([./0]): number)',
+			'(=> (f: (=> (y: ./0): number)): number 1)',
+		]) {
+			expect(() => parse(src), src).toThrow(ParseError)
+		}
+		expect(() => parse('[1 (=> (x: number): number ../0)]')).not.toThrow()
+	})
+
 	it('allows unnamed parameters in a function type only', () => {
 		for (const src of [
 			'(=> (number number): number)',

@@ -151,8 +151,8 @@ A path atom carries a sequence of segments. Each segment is one of: `'..'` (go u
 To resolve a path at env `e`, start with the env's top frame (representing the AST node containing the path) and process segments in order:
 
 1. `'..'` — pop one frame off `e` (move to the parent's frame). The resulting frame is the new "current frame".
-2. a name — interpret it as a child name within the current frame's AST node (record field, kwarg name, let-block binding, function parameter).
-3. an integer — interpret it as an index into the syntactic children of the current frame's AST node, in source order. Let-blocks are addressed by name only, so a let-block's trailing expression has no path.
+2. a name — interpret it as a child name within the current frame's AST node (record field, let-block binding).
+3. an integer — interpret it as an index into the syntactic children of the current frame's AST node, in source order. Let-blocks are addressed by name only, so a let-block's trailing expression has no path. A path cannot descend into a function literal, and cannot appear in a function signature (a syntax error).
 
 After processing all segments, the result is the evaluation node `(target_AST, env_at_target)`. When the path runs out of frames to pop (popping above top-level) or a name/integer fails to address a child, a diagnostic is emitted and the path yields `()`.
 
@@ -161,12 +161,9 @@ For a function application `(head arg0 arg1 ...)`, the indices are `0` = head, `
 `env_at_target` is the env that the target AST would be evaluated in if reached by ordinary recursive descent from the top-level: walk the AST from top-level down to the target, pushing a frame at each scope-introducing form on the way:
 
 - **Let-block** entered: push a frame whose bindings are the let-block's `name = value` pairs (with self-referential `parent`).
-- **Function literal** entered (i.e. path traverses into a function literal's body without a call): push a parameter frame whose bindings are **empty**, and whose `parent` is the lexical env that would have captured the literal at that position.
 - **Top-level**: the host's initial env.
 
 For path traversals that stay within scope-flat structures (records, vectors, applications), `env_at_target` equals the current env — no pop/push is needed.
-
-When a path lands inside an uncalled function body, parameter references resolve to nothing and yield `()`, which is then handled by the missing-value machinery at the next typed slot.
 
 If the parent walk takes the path above top-level, or a segment fails to address any child, emit a diagnostic and yield `()` (see [Failure as `()`](#failure-as-)).
 

@@ -111,6 +111,8 @@ export class ParseError extends Error {
 class Parser {
 	private pos = 0
 
+	private inSignature = false
+
 	constructor(
 		private readonly tokens: Token[],
 		private readonly source: string
@@ -217,6 +219,9 @@ class Parser {
 				this.advance()
 				return this.stamp(start, sym('?'))
 			case 'pathSegments':
+				if (this.inSignature) {
+					throw this.error(t, 'a path cannot appear in a function signature')
+				}
 				this.advance()
 				return this.stamp(
 					start,
@@ -318,7 +323,7 @@ class Parser {
 		this.expect('(')
 		const params = this.parseParams()
 		this.expect(':')
-		const returnType = this.expression()
+		const returnType = this.signatureType()
 
 		let body: AST | null = null
 		if (this.peek().kind !== ')') {
@@ -365,7 +370,7 @@ class Parser {
 			}
 			if (!this.atNamedParam()) {
 				// Function types may omit names: `(=> (number number): number)`.
-				params.push({ name: '', type: this.expression(), variadic })
+				params.push({ name: '', type: this.signatureType(), variadic })
 				continue
 			}
 			const name = this.advance().value as string
@@ -375,11 +380,19 @@ class Parser {
 				optional = true
 			}
 			this.expect(':')
-			const type = this.expression()
+			const type = this.signatureType()
 			params.push({ name, type, optional, variadic })
 		}
 		this.advance() // ')'
 		return params
+	}
+
+	private signatureType(): AST {
+		const outer = this.inSignature
+		this.inSignature = true
+		const type = this.expression()
+		this.inSignature = outer
+		return type
 	}
 
 	private atNamedParam(): boolean {

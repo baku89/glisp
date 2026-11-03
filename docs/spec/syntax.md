@@ -143,7 +143,7 @@ A path is a sequence of segments separated by `/`. Each segment is one of:
 
 - `.` — stay at the current node (no-op; required as the first segment when the path otherwise starts with a name).
 - `..` — go up to the immediate parent AST node.
-- a name — descend into a named child (record field, kwarg, let-binding, function parameter).
+- a name — descend into a named child (record field, let-binding).
 - an integer — descend into a positional child (vector element, positional argument).
 
 `..` may be repeated arbitrarily by chaining with `/` to walk further up: `../..` is two levels up, `../../..` is three, and so on. There is no special "deeper" syntax — chained `..` segments are how depth is expressed.
@@ -163,7 +163,11 @@ Distinguishing path from spread/splice: a path always begins with `./` or `../` 
                                 ;; ./1 = child 1 = x → equivalent to (+ x x)
 ```
 
-Paths walk every AST level, including records, vectors, and function applications, but not every expression has a path. A let-block's trailing expression has none; bind it to a name to reference it (`{a = 10 r = (* a 2) r}`, then `./r`). Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
+Paths walk every AST level, including records, vectors, and function applications, but not every expression has a path:
+
+- A let-block's trailing expression has none. Bind it to a name to reference it (`{a = 10 r = (* a 2) r}`, then `./r`).
+- A function's parameters, generics, and body have none. A path cannot descend into a function literal.
+- A path cannot appear in a function signature, as a parameter's type or the return type. This is a syntax error. Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
 
 There is no absolute path form (no leading `/...`).
 
