@@ -19,8 +19,8 @@
  */
 
 import { desugar } from './desugar.js'
-import { childAt } from './eval.js'
-import { infer } from './infer.js'
+import { argumentOf, type CallParameters, childAt } from './eval.js'
+import { callParameters } from './infer.js'
 import {
 	type AST,
 	type BindingTarget,
@@ -327,7 +327,7 @@ class Walker {
 	}
 
 	private addPath(node: PathAST, scope: Scope | null): void {
-		const walked = walkPath(node, scope)
+		const walked = walkPath(node, scope, this.env)
 		if (walked === UNKNOWN) {
 			this.references.push({ node, target: null })
 		} else if (typeof walked === 'string') {
@@ -363,38 +363,40 @@ function lookup(name: string, scope: Scope | null): Target | null {
 	return null
 }
 
-/** The parameter names a call's head declares, if that can be read off it. */
-function parameterNames(
+/** The parameters a call's head declares, if they can be read off it. */
+function parametersOfHead(
 	call: CallAST,
-	scope: Scope | null
-): ReadonlyArray<string> | null {
+	scope: Scope | null,
+	env: Env
+): CallParameters | null {
 	let head: AST = desugar(call.head)
 	if (head.kind === 'sym') {
 		const target = lookup(head.name, scope)
-		if (target?.kind === 'env') {
-			const type = infer(target.binding.ast, target.binding.env)
-			return type?.shape.kind === 'function' ? (type.shape.paramNames ?? []) : null
-		}
+		if (target?.kind === 'env') return callParameters(call, env)
 		if (target?.kind !== 'let') return null
 		head = desugar(target.value)
 	}
 	while (head.kind === 'meta') head = head.expr
-	return head.kind === 'fn' ? head.params.map(p => p.name) : null
+	if (head.kind !== 'fn') return null
+	const variadic = head.params.find(p => p.variadic)
+	return {
+		names: head.params.filter(p => !p.variadic).map(p => p.name),
+		...(variadic !== undefined ? { variadicName: variadic.name } : {}),
+	}
 }
 
 /** A name in a path, on a call: its keyword argument or parameter's argument. */
 function argumentByName(
 	call: CallAST,
 	name: string,
-	scope: Scope | null
+	scope: Scope | null,
+	env: Env
 ): AST | null | typeof UNKNOWN {
 	const keyword = call.kwargs?.get(name)
 	if (keyword !== undefined) return keyword
 	if (call.args.some(arg => arg.kind === 'spread')) return null
-	const names = parameterNames(call, scope)
-	if (names === null) return UNKNOWN
-	const index = names.indexOf(name)
-	return index === -1 ? null : (call.args[index] ?? null)
+	const parameters = parametersOfHead(call, scope, env)
+	return parameters === null ? UNKNOWN : argumentOf(call, name, parameters)
 }
 
 /** The head's signature cannot be read statically, so neither can the path. */
@@ -404,7 +406,11 @@ const UNKNOWN = Symbol('unknown')
  * The node a path lands on, `UNKNOWN`, or the message for why it does not
  * resolve.
  */
-function walkPath(path: PathAST, start: Scope | null): AST | string | typeof UNKNOWN {
+function walkPath(
+	path: PathAST,
+	start: Scope | null,
+	env: Env
+): AST | string | typeof UNKNOWN {
 	let scope = start
 	let here: AST | null = scope?.ast ?? null
 	let entered = true
@@ -421,7 +427,7 @@ function walkPath(path: PathAST, start: Scope | null): AST | string | typeof UNK
 		if (here === null) return 'path descended below the root'
 		const child =
 			here.kind === 'call' && typeof segment === 'string'
-				? argumentByName(here, segment, scope)
+				? argumentByName(here, segment, scope, env)
 				: childAt(here, segment, null)
 		if (child === UNKNOWN) return UNKNOWN
 		if (child === null) return `path segment not found: ${segment}`

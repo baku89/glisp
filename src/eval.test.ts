@@ -1202,8 +1202,8 @@ describe('evaluate — path lookup', () => {
 		expect(r.value).toBe(10)
 	})
 
-	it('positional sibling inside a call via ./N', () => {
-		// (+ 1 ./1) — slot 1 is the first arg (= 1), so this is (+ 1 1).
+	it('sibling argument inside a call, by parameter name', () => {
+		// (+ 1 ./rest/0) — the first of the variadic arguments (= 1), so (+ 1 1).
 		const numberType = makeType('number', v => typeof v === 'number', 0)
 		const env = makeTopLevel({
 			number: lit(numberType as never),
@@ -1218,7 +1218,7 @@ describe('evaluate — path lookup', () => {
 				) as never
 			),
 		})
-		const r = evaluate(parse('(+ 1 ./1)'), env)
+		const r = evaluate(parse('(+ 1 ./rest/0)'), env)
 		expect(r.value).toBe(2)
 	})
 

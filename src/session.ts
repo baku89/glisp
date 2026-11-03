@@ -24,7 +24,7 @@
  */
 
 import { enterNode, type EvalResult, IO, isIO, pushLetFrame } from './eval.js'
-import { parameterIndex } from './infer.js'
+import { callParameters } from './infer.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
 import { Runtime, type RuntimeStats } from './runtime.js'
@@ -191,7 +191,7 @@ export { isIO }
  * exist yet is added, if it is the last segment and its parent is a let-block or
  * a record. The
  * traversal handles let-blocks (by binding name), records (by field
- * name), vectors (by integer index), and calls (0 is the head, as in paths). Returns the rewritten AST,
+ * name), vectors (by integer index), and calls (by parameter name). Returns the rewritten AST,
  * or a string error message if the path goes off the end.
  */
 function setAtPathInAst(
@@ -251,19 +251,9 @@ function setAtPathInAst(
 			newElements[seg] = next
 			return new VecAST(newElements)
 		}
-		case 'call': {
-			if (typeof seg === 'string') return setCallArgumentByName(ast, seg, rest, descend, replacement, inside)
-			if (seg === 0) {
-				const head = descend(ast.head)
-				return typeof head === 'string' ? head : new CallAST(head, ast.args, ast.kwargs)
-			}
-			if (seg < 0 || seg > ast.args.length) return `argument index out of range: ${seg}`
-			const next = descend(ast.args[seg - 1]!)
-			if (typeof next === 'string') return next
-			const args = ast.args.slice()
-			args[seg - 1] = next
-			return new CallAST(ast.head, args, ast.kwargs)
-		}
+		case 'call':
+			if (typeof seg !== 'string') return `expected parameter name, got ${seg}`
+			return setCallArgument(ast, seg, rest, descend, replacement, inside)
 		default:
 			return `cannot descend into ${ast.kind}`
 	}
@@ -279,9 +269,11 @@ export function assignmentExpression(src: string): string | null {
 
 /**
  * Set an argument by its parameter's name. One that was not passed is added as
- * a keyword argument, if the name is the last segment.
+ * a keyword argument, if the name is the last segment. A variadic parameter
+ * holds the remaining arguments: `rest/0` is the first of them, and setting
+ * `rest` to a vector literal replaces them all.
  */
-function setCallArgumentByName(
+function setCallArgument(
 	call: CallAST,
 	name: string,
 	rest: ReadonlyArray<string | number>,
@@ -295,22 +287,56 @@ function setCallArgumentByName(
 		if (typeof next === 'string') return next
 		return new CallAST(call.head, call.args, new Map(call.kwargs).set(name, next))
 	}
-	const index = parameterIndex(call, name, env)
-	if (index === null) return `no parameter named ${name}`
-	const argument = call.args[index]
-	if (argument !== undefined) {
-		const next = descend(argument)
-		if (typeof next === 'string') return next
-		const args = call.args.slice()
-		args[index] = next
-		return new CallAST(call.head, args, call.kwargs)
+	const parameters = callParameters(call, env)
+	if (parameters === null) return `no parameter named ${name}`
+	const index = parameters.names.indexOf(name)
+	if (index !== -1) {
+		const argument = call.args[index]
+		if (argument !== undefined) {
+			const next = descend(argument)
+			if (typeof next === 'string') return next
+			const args = call.args.slice()
+			args[index] = next
+			return new CallAST(call.head, args, call.kwargs)
+		}
+		if (rest.length > 0) return `no argument for parameter ${name}`
+		return new CallAST(
+			call.head,
+			call.args,
+			new Map(call.kwargs ?? []).set(name, replacement)
+		)
 	}
-	if (rest.length > 0) return `no argument for parameter ${name}`
-	return new CallAST(
-		call.head,
-		call.args,
-		new Map(call.kwargs ?? []).set(name, replacement)
-	)
+	if (name !== parameters.variadicName) return `no parameter named ${name}`
+	return setVariadicArguments(call, parameters.names.length, rest, replacement, env)
+}
+
+function setVariadicArguments(
+	call: CallAST,
+	fixed: number,
+	path: ReadonlyArray<string | number>,
+	replacement: AST,
+	env: Env
+): AST | string {
+	const head = call.args.slice(0, fixed)
+	const tail = call.args.slice(fixed)
+	if (path.length === 0) {
+		return replacement.kind === 'vec'
+			? new CallAST(call.head, [...head, ...replacement.elements], call.kwargs)
+			: `expected a vector literal for the variadic arguments`
+	}
+	const seg = path[0]!
+	if (typeof seg !== 'number') return `expected index, got ${seg}`
+	if (seg < 0 || seg > tail.length || (seg === tail.length && path.length > 1)) {
+		return `argument index out of range: ${seg}`
+	}
+	if (seg === tail.length) {
+		return new CallAST(call.head, [...call.args, replacement], call.kwargs)
+	}
+	const next = setAtPathInAst(tail[seg]!, path.slice(1), replacement, env)
+	if (typeof next === 'string') return next
+	const args = call.args.slice()
+	args[fixed + seg] = next
+	return new CallAST(call.head, args, call.kwargs)
 }
 
 interface AssignmentSugar {

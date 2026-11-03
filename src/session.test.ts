@@ -132,7 +132,7 @@ describe('Session — assignment', () => {
 		expect(after('x = {y = {z = 1}}', './x/y/z = 99')).toBe('{x = {y = {z = 99}}}')
 		expect(after('p = {x: 1 y: 2}', './p/y = 7')).toBe('{p = {x: 1 y: 7}}')
 		expect(after('xs = [10 20 30]', './xs/1 = 99')).toBe('{xs = [10 99 30]}')
-		expect(after('c = (+ 1 2)', './c/2 = 5')).toBe('{c = (+ 1 5)}')
+		expect(after('c = (+ 1 2)', './c/first = 5')).toBe('{c = (+ 5 2)}')
 	})
 
 	it('adds a name that does not exist yet', () => {
@@ -146,7 +146,7 @@ describe('Session — assignment', () => {
 		expect(after('x = (first [1])', './x/xs = [2]')).toBe('{x = (first [2])}')
 		expect(after('x = (take [1 2] 1)', './x/n = 2')).toBe('{x = (take [1 2] 2)}')
 		expect(after('x = (take [1 2] n=1)', './x/n = 2')).toBe('{x = (take [1 2] n=2)}')
-		expect(after('x = (first [(+ 1 2)])', './x/xs/0/1 = 5')).toBe('{x = (first [(+ 5 2)])}')
+		expect(after('x = (first [(+ 1 2)])', './x/xs/0/first = 5')).toBe('{x = (first [(+ 5 2)])}')
 	})
 
 	it('adds an argument that was not passed, as a keyword', () => {
@@ -213,10 +213,10 @@ describe('Session — edits', () => {
 	it('edits inside a call', () => {
 		const s = new Session(buildPrelude())
 		s.exec('p = {r: (+ 1 2)}')
-		s.exec('./p/r/1 = 5')
+		s.exec('./p/r/first = 5')
 		expect(print(s.ast())).toBe('{p = {r: (+ 5 2)}}')
 		expect(s.exec('p').value).toEqual({ r: 7 })
-		expect(s.exec('./p/r/9 = 5').diagnostics[0]!.message).toContain(
+		expect(s.exec('./p/r/rest/9 = 5').diagnostics[0]!.message).toContain(
 			'argument index out of range'
 		)
 	})
@@ -266,13 +266,65 @@ describe('Session — paths through calls', () => {
 		expect(s.exec('./x/xs/xs/xs').value).toEqual([0, 1, 2])
 		expect(s.exec('./x/xs/xs/xs/start').value).toBe(0)
 		expect(s.exec('./x/xs/xs/xs/end').value).toBe(3)
-		expect(s.exec('./x/1').value).toEqual([3, 2, 1])
 	})
 
 	it('finds it for a closure, and by keyword', () => {
 		const s = session()
 		expect(s.exec('./y/a').value).toBe(1)
 		expect(s.exec('./y/b').value).toBe(2)
+	})
+
+	it('has no numeric path into a call', () => {
+		const s = session()
+		expect(s.exec('./x/1').diagnostics[0]!.message).toBe(
+			'path segment not found: 1'
+		)
+		expect(s.exec('./x/0').diagnostics[0]!.message).toBe(
+			'path segment not found: 0'
+		)
+		s.exec('./x/1 = 5')
+		expect(s.exec('./x/1 = 5').diagnostics[0]!.message).toContain(
+			'expected parameter name'
+		)
+	})
+
+	it('reads variadic arguments as a vector', () => {
+		const s = new Session(buildPrelude())
+		s.exec('c = (+ 1 2 3)')
+		s.exec('f = (=> (a: number ...xs: number): number a)')
+		s.exec('y = (f 1 2 3)')
+		s.exec('z = (concat [1] [2] [3])')
+		expect(s.exec('./c/first').value).toBe(1)
+		expect(s.exec('./c/rest').value).toEqual([2, 3])
+		expect(s.exec('./c/rest/1').value).toBe(3)
+		expect(s.exec('./y/a').value).toBe(1)
+		expect(s.exec('./y/xs/0').value).toBe(2)
+		expect(s.exec('./y/rest').diagnostics[0]!.message).toContain('not found')
+		expect(s.exec('./z/first').value).toEqual([1])
+		expect(s.exec('./z/rest/1').value).toEqual([3])
+		expect(s.exec('./c/rest/9').diagnostics[0]!.message).toContain('not found')
+	})
+
+	it('adds no level for a path inside a variadic argument', () => {
+		const s = new Session(buildPrelude())
+		s.exec('c = (+ 5 (* 2 ../first))')
+		expect(s.exec('c').value).toBe(15)
+		expect(s.exec('./c/rest/0').value).toBe(10)
+		expect(s.exec('./c/rest').value).toEqual([10])
+	})
+
+	it('sets variadic arguments', () => {
+		const set = (...lines: string[]): string => {
+			const s = new Session(buildPrelude())
+			s.exec('c = (+ 1 2 3)')
+			for (const line of lines) s.exec(line)
+			return print(s.ast())
+		}
+		expect(set('./c/rest/0 = 9')).toBe('{c = (+ 1 9 3)}')
+		expect(set('./c/rest/2 = 9')).toBe('{c = (+ 1 2 3 9)}')
+		expect(set('./c/rest/5 = 9')).toBe('{c = (+ 1 2 3)}')
+		expect(set('./c/rest = [7 8 9]')).toBe('{c = (+ 1 7 8 9)}')
+		expect(set('./c/rest = 9')).toBe('{c = (+ 1 2 3)}')
 	})
 
 	it('reports what is not there', () => {

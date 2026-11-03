@@ -113,9 +113,7 @@ describe('resolve — paths', () => {
 	})
 
 	it('counts a function literal as a level around its body', () => {
-		expect(pathTarget('[5 ((=> (x: number): _ ../0) 1)]', '../0')).toBe(
-			'(=> (x: number): _ ../0)'
-		)
+		expect(pathTarget('[5 ((=> (x: number): _ ../../0) 1)]', '../../0')).toBe('5')
 	})
 
 	it('reports paths that do not resolve', () => {

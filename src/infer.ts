@@ -19,6 +19,7 @@
 
 import { desugar } from './desugar.js'
 import {
+	type CallParameters,
 	enterNode,
 	evaluate,
 	type GlispClosure,
@@ -249,10 +250,12 @@ function functionTypeOfLiteral(fn: FnAST, env: Env): TypeValue {
 	const paramNames: string[] = []
 	const paramTypes: TypeValue[] = []
 	let variadicTail: TypeValue | undefined
+	let variadicName: string | undefined
 	for (const param of fn.params) {
 		const type = resolveTypeSlot(param.type, typeEnv) ?? top()
 		if (param.variadic) {
 			variadicTail = type
+			variadicName = param.name
 		} else {
 			paramNames.push(param.name)
 			paramTypes.push(type)
@@ -265,6 +268,7 @@ function functionTypeOfLiteral(fn: FnAST, env: Env): TypeValue {
 			paramNames,
 			generics: fn.generics,
 			...(variadicTail !== undefined ? { variadicTail } : {}),
+			...(variadicName !== undefined ? { variadicName } : {}),
 		}
 	)
 	memoSet(signatureMemo, fn, env, type)
@@ -698,20 +702,32 @@ export function checkCall(
 }
 
 /**
- * The positional index of the parameter called `name`, going by the head's
- * signature. Null when the head has no known signature or no such parameter.
+ * What a call's head says its parameters are called, without running anything.
+ * Null when the head has no known signature. An overload goes by the first
+ * variant that fits the arguments.
  */
-export function parameterIndex(
+export function callParameters(
 	call: CallAST,
-	name: string,
 	env: Env
-): number | null {
+): CallParameters | null {
+	const overload = overloadOf(call.head, env)
+	if (overload !== null) {
+		const variant = selectOverloadVariant(overload, call, env)
+		return variant === null ? null : parametersOfType(variant.type)
+	}
 	const head = infer(call.head, env)
-	if (head === null) return null
-	const shape = unwrapLazy(head).shape
+	return head === null ? null : parametersOfType(head)
+}
+
+function parametersOfType(type: TypeValue): CallParameters | null {
+	const shape = unwrapLazy(type).shape
 	if (shape.kind !== 'function') return null
-	const index = shape.paramNames?.indexOf(name) ?? -1
-	return index === -1 ? null : index
+	return {
+		names: shape.paramNames ?? [],
+		...(shape.variadicTail !== undefined
+			? { variadicName: shape.variadicName ?? 'rest' }
+			: {}),
+	}
 }
 
 function overloadOf(head: AST, env: Env): OverloadValue | null {
@@ -904,12 +920,12 @@ function inferPipe(ast: CallAST, env: Env): TypeValue | null {
 	return flowing
 }
 
-/** The return type of the first variant whose parameters fit the arguments. */
-function overloadReturnType(
+/** The first variant whose parameters fit the arguments. */
+function selectOverloadVariant(
 	overload: OverloadValue,
 	ast: CallAST,
 	env: Env
-): TypeValue | null {
+): { type: TypeValue; returnType: TypeValue } | null {
 	const argTypes = ast.args.map(arg => infer(arg, env))
 	for (const variant of overload.variants) {
 		const type = isTypedHostFn(variant)
@@ -930,7 +946,18 @@ function overloadReturnType(
 			unify(param, actual, solution)
 			return typeFits(actual, substitute(param, solution, 'top'))
 		})
-		if (fits) return substitute(shape.returnType, solution, 'top')
+		if (fits) {
+			return { type, returnType: substitute(shape.returnType, solution, 'top') }
+		}
 	}
 	return null
+}
+
+/** The return type of the first variant whose parameters fit the arguments. */
+function overloadReturnType(
+	overload: OverloadValue,
+	ast: CallAST,
+	env: Env
+): TypeValue | null {
+	return selectOverloadVariant(overload, ast, env)?.returnType ?? null
 }

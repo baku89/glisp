@@ -12,7 +12,7 @@
 import { desugar } from './desugar.js'
 import {
 	infer,
-	parameterIndex,
+	callParameters,
 	resolveTypeSlot,
 	solveClosureGenerics,
 } from './infer.js'
@@ -151,6 +151,8 @@ export type TypeShape =
 			readonly returnType: TypeValue
 			readonly variadicTail?: TypeValue
 			readonly paramNames?: ReadonlyArray<string>
+			/** What a path calls the variadic arguments. `rest` if unsaid. */
+			readonly variadicName?: string
 			/** Type variables this signature is generic over. */
 			readonly generics?: ReadonlyArray<string>
 	  }
@@ -374,6 +376,7 @@ export function makeFunctionType(
 	options?: {
 		paramNames?: ReadonlyArray<string>
 		variadicTail?: TypeValue
+		variadicName?: string
 		generics?: ReadonlyArray<string>
 	}
 ): TypeValue {
@@ -382,7 +385,7 @@ export function makeFunctionType(
 		return name === '' ? t.typeName : `${name}: ${t.typeName}`
 	})
 	if (options?.variadicTail !== undefined) {
-		params.push(`...rest: ${options.variadicTail.typeName}`)
+		params.push(`...${options.variadicName ?? 'rest'}: ${options.variadicTail.typeName}`)
 	}
 	const generics = options?.generics ?? []
 	const genericList = generics.length > 0 ? `(${generics.join(' ')}) ` : ''
@@ -396,6 +399,9 @@ export function makeFunctionType(
 			: {}),
 		...(options?.paramNames !== undefined
 			? { paramNames: options.paramNames }
+			: {}),
+		...(options?.variadicName !== undefined
+			? { variadicName: options.variadicName }
 			: {}),
 		...(generics.length > 0 ? { generics } : {}),
 	}
@@ -1006,7 +1012,7 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 		case 'vec': {
 			// Push a transparent frame so paths inside elements (`./0`,
 			// `./1`, …) can navigate to siblings via the AST chain.
-			const inside = pushAncestor(ast, env)
+			const inside = enterNode(ast, env)
 			const { values, diagnostics } = evalListElements(
 				ast.elements,
 				inside
@@ -2037,7 +2043,39 @@ export function pathTarget(
 
 /** The frame the evaluator pushes on entering a path-addressable node. */
 export function enterNode(node: AST, env: Env): Env {
-	return node.kind === 'let' ? pushLetFrame(node, env) : pushAncestor(node, env)
+	if (node.kind === 'let') return pushLetFrame(node, env)
+	return variadicViews.has(node) ? env : pushAncestor(node, env)
+}
+
+/** What a call's head says its parameters are called. */
+export interface CallParameters {
+	readonly names: ReadonlyArray<string>
+	readonly variadicName?: string
+}
+
+const variadicViewOf: WeakMap<AST, VecASTClass> = new WeakMap()
+const variadicViews: WeakSet<AST> = new WeakSet()
+
+/**
+ * The argument a parameter name refers to. A variadic parameter refers to the
+ * remaining arguments, as a vector that is not a node of the tree: it adds no
+ * level for paths inside those arguments.
+ */
+export function argumentOf(
+	call: CallAST,
+	name: string,
+	parameters: CallParameters
+): AST | null {
+	const index = parameters.names.indexOf(name)
+	if (index !== -1) return call.args[index] ?? null
+	if (name !== parameters.variadicName) return null
+	let view = variadicViewOf.get(call)
+	if (view === undefined) {
+		view = new VecASTClass(call.args.slice(parameters.names.length))
+		variadicViewOf.set(call, view)
+		variadicViews.add(view)
+	}
+	return view
 }
 
 /**
@@ -2071,17 +2109,12 @@ export function childAt(
 		}
 		return null
 	}
-	if (node.kind === 'call' && typeof seg === 'number') {
-		// 0 = head, 1.. = args
-		if (seg === 0) return node.head
-		return node.args[seg - 1] ?? null
-	}
 	if (node.kind === 'call' && typeof seg === 'string') {
 		const keyword = node.kwargs?.get(seg)
 		if (keyword !== undefined) return keyword
 		if (node.args.some(arg => arg.kind === 'spread')) return null
-		const index = parameterIndex(node, seg, env)
-		return index === null ? null : (node.args[index] ?? null)
+		const parameters = callParameters(node, env)
+		return parameters === null ? null : argumentOf(node, seg, parameters)
 	}
 	return null
 }
