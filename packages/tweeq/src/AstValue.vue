@@ -155,7 +155,8 @@ function onFieldKey(event: KeyboardEvent): void {
 	event.preventDefault()
 	event.stopPropagation()
 	target.blur()
-	editingStart.value = start
+	// With nothing left to go on from, it starts from what it is, and not from nothing.
+	editingStart.value = start === '' ? undefined : start
 	editing.value = true
 }
 
@@ -170,6 +171,9 @@ const hasNumber = computed(
 )
 
 const $root = useTemplateRef<HTMLElement>('$root')
+
+/** What the code opens from: the widget, which may not fill the column. */
+const widget = computed(() => ($root.value?.firstElementChild ?? null) as HTMLElement | null)
 
 function editValue(): void {
 	// After a menu has closed, which gives the focus back to where it was.
@@ -267,7 +271,7 @@ const label = (value: unknown): string =>
 		</InputTextBase>
 		<AstCodePopup
 			v-if="editing"
-			:reference="$root"
+			:reference="widget"
 			:ast="ast"
 			:start="editingStart"
 			@change="update"
@@ -280,6 +284,10 @@ const label = (value: unknown): string =>
 .value {
 	display: grid;
 	min-width: 0;
+}
+/* As wide as it looks, for what opens from it. */
+.value > :deep(.TqInputSwitch) {
+	justify-self: start;
 }
 /* As a parameter driven by an expression is in After Effects or Houdini. */
 .expression {
