@@ -352,6 +352,7 @@ export class LetAST extends ASTNode {
  * the `optional?: ` / `...rest` markers from source.
  */
 export interface FnParam {
+	/** Empty for an unnamed parameter, which only a function type may have. */
 	readonly name: string
 	readonly type: AST
 	readonly optional?: boolean
@@ -359,10 +360,12 @@ export interface FnParam {
 }
 
 function printFnParam(p: FnParam): string {
+	const type = p.type.print()
+	if (p.name === '') return p.variadic ? `...${type}` : type
 	let name = p.name
 	if (p.optional) name += '?'
 	if (p.variadic) name = '...' + name
-	return `${name}: ${p.type.print()}`
+	return `${name}: ${type}`
 }
 
 /**

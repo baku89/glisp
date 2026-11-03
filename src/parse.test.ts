@@ -390,6 +390,60 @@ describe('parse — special forms (parser is permissive)', () => {
 		expect(fnAst.kind).toBe('fn')
 	})
 
+	it('requires a separator between adjacent elements', () => {
+		for (const src of [
+			'(concat [][])',
+			'[[1][2]]',
+			'(f)(g)',
+			'(+ 1 2)3',
+			'[1 2][0]',
+			'f(x)',
+			'"a""b"',
+			'{a: 1}{b: 2}',
+			'[1(f)]',
+			'[a...b]',
+			'1/2',
+			'20rad',
+		]) {
+			expect(() => parse(src), src).toThrow(ParseError)
+		}
+	})
+
+	it('accepts adjacency that is not between elements', () => {
+		for (const src of [
+			'(concat [] [])',
+			'[[1] [2]]',
+			'((f) (g))',
+			'[(f)]',
+			'(make-point).x',
+			'a.b.c',
+			'(=> (x: number): number x)',
+			'(f k=(g))',
+			'[...xs]',
+			'`(* ~x ...~xs)',
+			'^{a: 1} x',
+			'(/ 1 2)',
+			'{x?: number}',
+			'(f) ; comment',
+		]) {
+			expect(() => parse(src), src).not.toThrow()
+		}
+	})
+
+	it('allows unnamed parameters in a function type only', () => {
+		for (const src of [
+			'(=> (number number): number)',
+			'(=> (T) (T [...T]): T)',
+			'(=> (a: number string): number)',
+			'(=> (number ...string): number)',
+		]) {
+			expect(roundTrip(src), src).toBe(src)
+			expect(parse(src).printStructural(), src).toBe(src)
+		}
+		expect(() => parse('(=> (number number): number 1)')).toThrow(ParseError)
+		expect(() => parse('(=> (a: number string): number a)')).toThrow(ParseError)
+	})
+
 	it('round-trips IO-parametric form', () => {
 		const src = '(IO number)'
 		expect(roundTrip(src)).toBe(src)

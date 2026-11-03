@@ -73,7 +73,7 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | `[T1 T2 ... Tn ...Trest]` | tuple with a trailing rest: first `n` fixed, then any number of `Trest` |
 | `[...T]` | rest-only tuple — equivalent to "vector of `T`" with no fixed prefix |
 | `{k1: T1 k2: T2 ...}` | record with the given field types (same shape as a record value) |
-| `(=> (a: T1 b: T2 ...): R)` | Function type (parameter names are required syntactically; not part of identity) |
+| `(=> (a: T1 b: T2 ...): R)`, `(=> (T1 T2 ...): R)` | Function type (parameter names are optional; not part of identity) |
 | `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
 | `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)`, with an explicit default for failed casts |
 | `(IO T)` | parametric IO: a deferred effect that, when forced, produces a `T`. Compatibility is covariant in the payload (`(IO !)` fits `(IO _)`) |

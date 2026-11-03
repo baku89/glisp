@@ -240,7 +240,7 @@ export function makeFunctionType(
 ): TypeValue {
 	const params = paramTypes.map((t, i) => {
 		const name = options?.paramNames?.[i] ?? `_${i}`
-		return `${name}: ${t.typeName}`
+		return name === '' ? t.typeName : `${name}: ${t.typeName}`
 	})
 	if (options?.variadicTail !== undefined) {
 		params.push(`...rest: ${options.variadicTail.typeName}`)

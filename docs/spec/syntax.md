@@ -80,6 +80,8 @@ Adjacent elements at the same nesting level must be separated by at least one wh
 [[1][2]]      ;; ❌ — write [[1] [2]]
 (foo)(bar)    ;; ❌ — write (foo) (bar)
 (+ 1 2)3      ;; ❌ — write (+ 1 2) 3
+(f x)(g)      ;; ❌ — write (f x) (g)
+"a""b"        ;; ❌ — write "a" "b"
 ```
 
 This is stricter than traditional Lisp (where closing brackets implicitly terminate tokens). The benefit is regular tokenization and trivial whole-tree text rewrites: a primitive-level find/replace never has to worry about token boundaries hidden inside `]a` or `)(`.
@@ -162,7 +164,7 @@ Distinguishing path from spread/splice: a path always begins with `./` or `../` 
                                 ;; ./1 = child 1 = x → equivalent to (+ x x)
 ```
 
-Paths walk every AST level, including records, vectors, function applications, and quasi-quotes. Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
+Paths walk every AST level, including records, vectors, function applications, and quasi-quotes, but not every expression has a path. A let-block's trailing expression has none; bind it to a name to reference it (`{a = 10 r = (* a 2) r}`, then `./r`). Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
 
 There is no absolute path form (no leading `/...`).
 
@@ -217,13 +219,14 @@ The last-wins rule keeps the language consistent with hosts whose serialization 
 (=> (T) (x: T): T x)                                ;; generic
 (=> (T U) (a: T b: U): T a)                         ;; multiple generics
 (=> (a: number b: number): number)                  ;; function type (no body)
+(=> (number number): number)                        ;; function type, parameter names omitted
 ```
 
 Argument signature and return type are mandatory. Inside the body, types are inferred.
 
 When two parens lists appear before the return type `:`, the first is the generic parameter list (bare names) and the second is the value parameter list (`name: Type` entries). When one list appears, it is the value parameter list.
 
-Every value parameter must have a name. There is no anonymous parameter form (e.g. `(=> (number number): number)` is invalid). Parameter names are part of each function value's keyword-argument interface (see [Application — keyword arguments](#application--keyword-arguments)) — they are required syntactically and matter at call sites — but they are **not** part of the function's *type* identity. `(=> (a: number b: number): number)` and `(=> (x: number y: number): number)` are the same type. See [types.md — Function-type equality](./types.md#function-type-equality).
+A function with a body must name every value parameter. A function type (no body) may omit names, as in `(=> (number number): number)`. Parameter names are part of each function value's keyword-argument interface (see [Application — keyword arguments](#application--keyword-arguments)) and matter at call sites, but they are **not** part of the function's *type* identity. `(=> (a: number b: number): number)` and `(=> (x: number y: number): number)` are the same type. See [types.md — Function-type equality](./types.md#function-type-equality).
 
 A function takes **at least one value parameter**. A zero-parameter function `(=> (): T body)` is a syntax error: in a purely functional language the body's value is fully determined by its lexical context, so "calling" the function is indistinguishable from referencing the body directly — `body` and `((=> (): T body))` are the same expression. Use the body in place. Hosts that need to expose an impure operation (e.g. `Date.now()`) conventionally insert a nominal `unit` parameter, making the call site visible: `(=> (tick: unit): Date ...)`.
 

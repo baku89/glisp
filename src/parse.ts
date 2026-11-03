@@ -47,10 +47,46 @@ import {
  * parsing) on malformed input.
  */
 export function parse(src: string): AST {
-	const parser = new Parser(lex(src), src)
+	const tokens = lex(src)
+	checkSeparators(tokens, src)
+	const parser = new Parser(tokens, src)
 	const ast = parser.expression()
 	parser.expectEof()
 	return ast
+}
+
+const ELEMENT_END: ReadonlySet<TokenKind> = new Set<TokenKind>([
+	')', ']', '}', '()', '_', '!',
+	'number', 'string', 'boolean', 'identifier', 'pathSegments',
+])
+
+const ELEMENT_START: ReadonlySet<TokenKind> = new Set<TokenKind>([
+	'(', '[', '{', '()', '_', '!',
+	'number', 'string', 'boolean', 'identifier', 'pathSegments',
+	'`', '~', '...', '...~', '^', '=>',
+])
+
+/**
+ * Adjacent elements must be separated: `[][]`, `(f)(g)`, `f(x)` and
+ * `"a""b"` are syntax errors. Runs here rather than in `lex` because
+ * the session's `name/seg = expr` sugar lexes `/` next to identifiers.
+ */
+function checkSeparators(tokens: ReadonlyArray<Token>, src: string): void {
+	for (let i = 1; i < tokens.length; i++) {
+		const prev = tokens[i - 1]!
+		const next = tokens[i]!
+		if (
+			prev.end === next.start &&
+			ELEMENT_END.has(prev.kind) &&
+			ELEMENT_START.has(next.kind)
+		) {
+			throw new ParseError(
+				`missing whitespace between \`${prev.text}\` and \`${next.text}\``,
+				src,
+				next.start
+			)
+		}
+	}
 }
 
 /**
@@ -283,6 +319,7 @@ class Parser {
 			}
 		}
 
+		const start = this.peek()
 		this.expect('(')
 		const params = this.parseParams()
 		this.expect(':')
@@ -293,6 +330,12 @@ class Parser {
 			body = this.expression()
 		}
 		this.expect(')')
+		if (body !== null && params.some(p => p.name === '')) {
+			throw this.error(
+				start,
+				'a function with a body must name every parameter'
+			)
+		}
 		let result = fn(params, returnType)
 		if (generics.length > 0) result = result.withGenerics(...generics)
 		if (body !== null) result = result.withBody(body)
@@ -325,8 +368,10 @@ class Parser {
 				this.advance()
 				variadic = true
 			}
-			if (this.peek().kind !== 'identifier') {
-				throw this.error(this.peek(), 'expected parameter name')
+			if (!this.atNamedParam()) {
+				// Function types may omit names: `(=> (number number): number)`.
+				params.push({ name: '', type: this.expression(), variadic })
+				continue
 			}
 			const name = this.advance().value as string
 			let optional = false
@@ -340,6 +385,12 @@ class Parser {
 		}
 		this.advance() // ')'
 		return params
+	}
+
+	private atNamedParam(): boolean {
+		if (this.peek().kind !== 'identifier') return false
+		const next = this.peek(1).kind
+		return next === ':' || next === '?'
 	}
 
 	// --- [...] — vector ------------------------------------------------------
