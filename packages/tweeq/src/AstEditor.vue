@@ -251,8 +251,10 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 /* Only the tree scrolls, so that what acts on it stays in reach. */
 .tree {
 	flex: 1;
-	/* Room for the ring of a focused input, which it would clip. */
-	padding: 2px;
+	/* Room for the ring of a focused input, and a selected row's color, which it would
+	clip, taken from around it so that the rows stay where they are. */
+	margin: -1px;
+	padding: 3px;
 }
 .reset {
 	margin-left: auto;
