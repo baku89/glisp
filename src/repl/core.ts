@@ -151,7 +151,7 @@ export class ReplCore {
 		const { computed, hits } = this.session.stats()
 		const ms = this.lastEvaluatedMs
 		const time = ms < 10 ? ms.toFixed(1) : Math.round(ms).toString()
-		return `${computed} computed · ${hits} cached · ${time}ms   ^D quit  PgUp/PgDn log  Alt+↑↓ env  Tab complete`
+		return `${computed} computed · ${hits} cached · ${time}ms   ^C quit  PgUp/PgDn log  Alt+↑↓ env  Tab complete`
 	}
 
 	private bindingLines(name: string): string[] {
@@ -494,7 +494,7 @@ function helpText(): string {
 		row(':doc', '<name>', "show a name's type, doc and value"),
 		row(':unset', '<name>', 'remove a binding'),
 		row(':reset', '', 'empty the environment'),
-		row(':quit', '', 'exit (or Ctrl-D)'),
+		row(':quit', '', 'exit (or Ctrl-C)'),
 		'',
 		theme.hint('`name = expr` sets a binding in the environment.'),
 		theme.hint('`name/seg = expr` edits inside one, by path.'),

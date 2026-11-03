@@ -134,8 +134,7 @@ export function runTui(core: ReplCore, options: TuiOptions): void {
 		if (key.ctrl) {
 			switch (key.name) {
 				case 'c':
-					editor.clear()
-					return
+					return exit()
 				case 'd':
 					if (editor.text === '') exit()
 					else editor.delete()
