@@ -161,13 +161,15 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		<div class="toolbar">
 			<InputButton
 				icon="mdi:undo"
-				label="Undo"
+				tooltip="Undo"
+				subtle
 				:disabled="!document.canUndo.value"
 				@click="document.undo()"
 			/>
 			<InputButton
 				icon="mdi:redo"
-				label="Redo"
+				tooltip="Redo"
+				subtle
 				:disabled="!document.canRedo.value"
 				@click="document.redo()"
 			/>
