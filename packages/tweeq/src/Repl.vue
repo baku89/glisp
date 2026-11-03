@@ -2,6 +2,7 @@
 import type { Session } from '@glisp/lang'
 import { InputButton } from 'tweeq/InputButton'
 import { InputCode } from 'tweeq/InputCode'
+import { ScrollArea } from 'tweeq/ScrollArea'
 import * as monaco from 'monaco-editor'
 import { computed, nextTick, ref, useTemplateRef } from 'vue'
 
@@ -37,7 +38,7 @@ const session = createSession(props.session)
 const input = ref('')
 const entries = ref<Entry[]>([])
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
-const $scroll = useTemplateRef<HTMLElement>('$scroll')
+const $scroll = useTemplateRef<{ $el: HTMLElement }>('$scroll')
 let nextId = 0
 const history = new InputHistory()
 
@@ -163,7 +164,8 @@ function run(): void {
 	if (source !== ':clear') entries.value.push({ id: nextId++, source, result })
 	input.value = ''
 	void nextTick(() => {
-		if ($scroll.value !== null) $scroll.value.scrollTop = $scroll.value.scrollHeight
+		const el = $scroll.value?.$el
+		if (el) el.scrollTop = el.scrollHeight
 	})
 }
 
@@ -193,10 +195,9 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 	<div class="GlispRepl">
 		<div class="toolbar">
 			<InputButton subtle label="Clear" @click="clear" />
-			<InputButton subtle label="Reset" @click="reset" />
 		</div>
 
-		<div ref="$scroll" class="scroll">
+		<ScrollArea ref="$scroll" class="scroll">
 			<ol v-if="entries.length > 0" class="entries">
 				<li v-for="entry in entries" :key="entry.id" class="entry">
 					<button class="source" type="button" @click="recall(entry.source)">
@@ -236,7 +237,7 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 					</div>
 				</li>
 			</ol>
-		</div>
+		</ScrollArea>
 
 		<form class="prompt" @submit.prevent="run">
 			<InputCode
@@ -266,8 +267,6 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 }
 .scroll {
 	flex: 1;
-	min-height: 0;
-	overflow-y: auto;
 	font-family: var(--tq-font-code);
 }
 .entries {

@@ -27,7 +27,7 @@ const isNarrow = useMediaQuery('(max-width: 760px)')
 			<PaneSplit
 				name="glisp.playground"
 				:direction="isNarrow ? 'vertical' : 'horizontal'"
-				:scroll="[false, true]"
+				:scroll="[false, false]"
 			>
 				<template #first>
 					<section class="repl">
@@ -56,9 +56,7 @@ const isNarrow = useMediaQuery('(max-width: 760px)')
 .repl,
 .env {
 	box-sizing: border-box;
-	padding: var(--tq-pane-padding);
-}
-.repl {
 	height: 100%;
+	padding: var(--tq-pane-padding);
 }
 </style>
