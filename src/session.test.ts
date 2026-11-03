@@ -210,3 +210,22 @@ describe('Session — edits', () => {
 		expect(s.exec('a').value).toBe(before)
 	})
 })
+
+describe('Session — reading by path', () => {
+	it('reads inside a binding with an ordinary path', () => {
+		const s = new Session(buildPrelude())
+		s.exec('x = {a = 20 b = {c = (+ a 1)}}')
+		s.exec('xs = [10 20]')
+		expect(s.exec('./x/a').value).toBe(20)
+		expect(s.exec('./x/b/c').value).toBe(21)
+		expect(s.exec('./xs/1').value).toBe(20)
+		s.exec('x/a = 5')
+		expect(s.exec('./x/a').value).toBe(5)
+	})
+
+	it('has no shell form for reading: `x/a` is a syntax error', () => {
+		const s = new Session(buildPrelude())
+		s.exec('x = {a = 20}')
+		expect(() => s.exec('x/a')).toThrow()
+	})
+})
