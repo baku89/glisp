@@ -161,6 +161,9 @@ describe('ReplCore', () => {
 		expect(run(core, '(+ x 1)')).toEqual(['2'])
 		expect(run(core, '(')[0]).toContain('syntax error')
 		expect(run(core, 'nope')[1]).toContain('unresolvable name: nope')
+		expect(run(core, 'うんこ = 1')).toEqual([
+			'syntax error · Unexpected character: "う" (at offset 0)',
+		].map(line => `${line}\n1 | うんこ = 1\n    ^`))
 		expect(run(core, 'nope/y = 1')[0]).toContain('no such binding: nope')
 	})
 
@@ -290,27 +293,28 @@ describe('renderFrame', () => {
 		expect(rows[1]).toMatch(/│\{x = 1 +$/)
 		expect(rows[2]).toMatch(/│\} +$/)
 		expect(rows[1]).toMatch(/^one +│/)
-		expect(rows[6]).toMatch(/^glisp> +│/)
+		expect(rows[2]).toMatch(/^glisp> +│/)
+		expect(rows[6]).toMatch(/^ +│/)
 		expect(rows[7]).toMatch(/^status +$/)
 	})
 
 	it('puts the cursor after the prompt', () => {
 		const frame = render({ input: 'ab', inputPlain: 'ab', inputCursor: 1 })
-		expect(frame.cursor).toEqual({ row: 6, col: 8 })
+		expect(frame.cursor).toEqual({ row: 1, col: 8, visible: true })
 	})
 
 	it('grows the input over multiple lines, with the cursor on the right one', () => {
 		const frame = render({ input: 'a\nbc', inputPlain: 'a\nbc', inputCursor: 4 })
 		const rows = plain(frame.rows)
-		expect(rows[5]).toMatch(/^glisp> a +│/)
-		expect(rows[6]).toMatch(/^ {5}\| bc +│/)
-		expect(frame.cursor).toEqual({ row: 6, col: 9 })
+		expect(rows[1]).toMatch(/^glisp> a +│/)
+		expect(rows[2]).toMatch(/^ {5}\| bc +│/)
+		expect(frame.cursor).toEqual({ row: 2, col: 9, visible: true })
 	})
 
 	it('wraps long input and follows the cursor', () => {
 		const text = 'x'.repeat(60)
 		const frame = render({ input: text, inputPlain: text, inputCursor: 60 })
-		expect(frame.cursor.row).toBe(6)
+		expect(frame.cursor.row).toBe(2)
 		expect(frame.cursor.col).toBe((7 + 60) % 47)
 	})
 
@@ -318,6 +322,7 @@ describe('renderFrame', () => {
 		const text = Array.from({ length: 20 }, (_, i) => `l${i}`).join('\n')
 		const atEnd = render({ input: text, inputPlain: text, inputCursor: text.length })
 		expect(atEnd.cursor.row).toBeLessThan(7)
+		expect(atEnd.cursor.visible).toBe(true)
 		expect(plain(atEnd.rows)[atEnd.cursor.row]).toContain('l19')
 		const atStart = render({ input: text, inputPlain: text, inputCursor: 0 })
 		expect(plain(atStart.rows)[atStart.cursor.row]).toContain('l0')
@@ -326,10 +331,13 @@ describe('renderFrame', () => {
 	it('shows the newest log lines and scrolls back', () => {
 		const log = Array.from({ length: 20 }, (_, i) => `line${i}`)
 		const newest = plain(render({ log }).rows)
+		expect(newest[6]).toMatch(/^glisp> /)
 		expect(newest[5]).toMatch(/^line19 /)
 		expect(newest[1]).toMatch(/^line15 /)
 		const scrolled = plain(render({ log, logScroll: 3 }).rows)
-		expect(scrolled[5]).toMatch(/^line16 /)
+		expect(scrolled[6]).toMatch(/^line17 /)
+		expect(render({ log, logScroll: 3 }).cursor.visible).toBe(false)
+		expect(render({ log }).cursor.visible).toBe(true)
 		expect(render({ log }).maxLogScroll).toBe(15)
 		expect(plain(render({ log, logScroll: 3 }).rows)[0]).toMatch(/^REPL +↓3│/)
 		expect(plain(render({ log, logScroll: 999 }).rows)[1]).toMatch(/^line0 /)
@@ -355,8 +363,8 @@ describe('renderFrame', () => {
 		expect(rows).toHaveLength(12)
 		expect(rows[0]).toMatch(/^Env/)
 		expect(rows[3]).toMatch(/^REPL/)
-		expect(rows[10]).toMatch(/^glisp>/)
-		expect(frame.cursor).toEqual({ row: 10, col: 7 })
+		expect(rows[5]).toMatch(/^glisp>/)
+		expect(frame.cursor).toEqual({ row: 5, col: 7, visible: true })
 	})
 
 	it('survives a very small terminal', () => {

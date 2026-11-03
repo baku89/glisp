@@ -28,7 +28,12 @@ export interface ScreenState {
 
 export interface Frame {
 	readonly rows: ReadonlyArray<string>
-	readonly cursor: { readonly row: number; readonly col: number }
+	readonly cursor: {
+		readonly row: number
+		readonly col: number
+		/** False when scrolled back past the input. */
+		readonly visible: boolean
+	}
 	/** The most that `logScroll` can usefully be right now. */
 	readonly maxLogScroll: number
 	/** The most that `envScroll` can usefully be right now. */
@@ -52,7 +57,14 @@ export function renderFrame(
 		cols >= MIN_SIDE_BY_SIDE
 			? sideBySide(state, cols, bodyRows)
 			: stacked(state, cols, bodyRows)
-	return { ...frame, rows: [...frame.rows, status].slice(0, rows) }
+	return {
+		...frame,
+		rows: [...frame.rows, status].slice(0, rows),
+		cursor: {
+			...frame.cursor,
+			row: Math.max(Math.min(frame.cursor.row, rows - 1), 0),
+		},
+	}
 }
 
 function sideBySide(
@@ -83,44 +95,46 @@ function stacked(
 	const repl = replPane(state, cols, rows - envRows)
 	return {
 		rows: [...env.rows, ...repl.rows],
-		cursor: { row: repl.cursor.row + envRows, col: repl.cursor.col },
+		cursor: { ...repl.cursor, row: repl.cursor.row + envRows },
 		maxLogScroll: repl.maxLogScroll,
 		maxEnvScroll: env.maxEnvScroll,
 	}
 }
 
+/**
+ * Like a console: the log runs from the top, the input follows right after it,
+ * and once that outgrows the pane the top scrolls away. Scrolling back moves
+ * the view up through the log, past the input.
+ */
 function replPane(state: ScreenState, width: number, rows: number) {
-	const input = inputLines(state, width)
-	const body = rows - 1
-	// The input may not push the log off entirely, but the cursor must stay on
-	// screen: when input outgrows the pane, show the part around the cursor.
-	const inputCursor = cursorInInput(state, width)
-	const inputHeight = Math.min(input.length, Math.max(body, 1))
-	const inputStart = Math.max(
-		0,
-		Math.min(inputCursor.row - inputHeight + 1, input.length - inputHeight)
-	)
-	const shownInput = input.slice(inputStart, inputStart + inputHeight)
-	const logRows = Math.max(body - inputHeight, 0)
-
+	const body = Math.max(rows - 1, 0)
 	const logLines = state.log.flatMap(entry => wrap(entry, width))
-	const maxLogScroll = Math.max(logLines.length - logRows, 0)
-	const scroll = Math.min(state.logScroll, maxLogScroll)
-	const end = logLines.length - scroll
-	const shownLog = logLines.slice(Math.max(end - logRows, 0), end)
+	const input = inputLines(state, width)
+	const lines = [...logLines, ...input]
+	const inputCursor = cursorInInput(state, width)
+	const cursorRow = logLines.length + inputCursor.row
 
-	const filler = Math.max(logRows - shownLog.length, 0)
-	const lines = [
+	const maxLogScroll = Math.max(lines.length - body, 0)
+	const scroll = Math.min(state.logScroll, maxLogScroll)
+	// Input taller than the pane: keep the line being edited in view.
+	const newestEnd = Math.max(lines.length - scroll, 0)
+	const end =
+		scroll === 0 ? Math.min(newestEnd, cursorRow + body) : newestEnd
+	const start = Math.max(end - body, 0)
+	const shown = lines.slice(start, end)
+
+	const filler = new Array<string>(Math.max(body - shown.length, 0)).fill('')
+	const paneRows = [
 		titleRow(REPL_TITLE, width, scroll > 0 ? `↓${scroll}` : ''),
-		...shownLog,
-		...new Array<string>(filler).fill(''),
-		...shownInput,
+		...shown,
+		...filler,
 	].slice(0, rows)
 	return {
-		rows: lines.map(line => fit(line, width)),
+		rows: paneRows.map(line => fit(line, width)),
 		cursor: {
-			row: Math.min(1 + logRows + inputCursor.row - inputStart, rows - 1),
+			row: Math.min(1 + cursorRow - start, Math.max(rows - 1, 0)),
 			col: Math.min(inputCursor.col, width - 1),
+			visible: cursorRow >= start && cursorRow < end,
 		},
 		maxLogScroll,
 	}

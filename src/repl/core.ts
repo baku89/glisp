@@ -10,7 +10,7 @@ import { check } from '../check.js'
 import { IO, isGlispClosure, isTypedHostFn, isTypeValue, toAst } from '../eval.js'
 import { expandLadder } from '../expand.js'
 import { infer } from '../infer.js'
-import { lex } from '../lex.js'
+import { lex, LexError } from '../lex.js'
 import { parse, ParseError } from '../parse.js'
 import { buildPrelude } from '../prelude.js'
 import { assignmentExpression, Session } from '../session.js'
@@ -24,8 +24,8 @@ import {
 } from '../types.js'
 
 export const theme = {
-	prompt: pc.cyan(pc.bold('glisp> ')),
-	continuation: pc.dim('     | '),
+	prompt: pc.cyan('> '),
+	continuation: '  ',
 	number: pc.yellow,
 	string: pc.green,
 	boolean: pc.magenta,
@@ -433,7 +433,7 @@ function formatDiagnostic(d: Diagnostic): string {
 }
 
 function formatError(e: unknown, source: string): string {
-	if (e instanceof ParseError) {
+	if (e instanceof ParseError || e instanceof LexError) {
 		return [
 			`${theme.error('syntax error')} ${theme.hint('·')} ${e.message}`,
 			...sourceExcerpt(source, e.position, e.position + 1),

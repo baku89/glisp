@@ -75,7 +75,8 @@ export function runTui(core: ReplCore, options: TuiOptions): void {
 		frame.rows.forEach((row, i) => {
 			if (row !== previousRows[i]) out += `\x1b[${i + 1};1H${row}\x1b[K`
 		})
-		out += `\x1b[${frame.cursor.row + 1};${frame.cursor.col + 1}H\x1b[?25h`
+		out += `\x1b[${frame.cursor.row + 1};${frame.cursor.col + 1}H`
+		if (frame.cursor.visible) out += '\x1b[?25h'
 		previousRows = frame.rows
 		stdout.write(out)
 	}
@@ -235,6 +236,10 @@ export function runTui(core: ReplCore, options: TuiOptions): void {
 	stdin.resume()
 	stdin.on('keypress', (text: string | undefined, key: Key) => {
 		try {
+			// Any key but a scrolling one goes back to where the input is.
+			if (key.name !== 'pageup' && key.name !== 'pagedown' && !key.meta) {
+				logScroll = 0
+			}
 			onKey(text, key)
 		} catch (e) {
 			log.push(theme.error(e instanceof Error ? e.message : String(e)))
