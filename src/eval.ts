@@ -1297,7 +1297,11 @@ function applyClosure(
 		diagnostics
 	)
 
-	const map = new Map<string, BindingTarget>()
+	// Generics live in the body frame, so whether they resolved does not
+	// change how many levels a path in the body has to climb.
+	const map = new Map<string, BindingTarget>(
+		typeEvalEnv === closure.capturedEnv ? [] : typeEvalEnv?.bindings ?? []
+	)
 	let posIdx = 0
 
 	// Pre-evaluate each parameter's declared type in the type-eval env
@@ -1447,7 +1451,7 @@ function applyClosure(
 
 	const bodyFrame: Frame = {
 		ast: fnAst,
-		parent: typeEvalEnv,
+		parent: closure.capturedEnv,
 		bindings: map,
 	}
 	const r = evaluate(fnAst.body, bodyFrame)
@@ -1875,24 +1879,25 @@ function evalPath(
 	env: Env,
 	source: AST
 ): EvalResult {
-	// Path navigation per eval.md — Path lookup. Each '..' segment pops a
-	// frame; name/integer segments descend into the current frame's AST node.
+	// Path navigation per eval.md — Path lookup. A descended node has no
+	// frame of its own until the walk goes past it, so the target ends up
+	// in the env it would have if reached by ordinary recursive descent.
 	let frame: Env = env
 	let astHere: AST | null = frame?.ast ?? null
+	let entered = true
 
 	for (const seg of segments) {
 		if (seg === '..') {
-			if (frame === null) {
-				return fail(source, env, 'path goes above top-level')
+			if (entered) {
+				if (frame === null) {
+					return fail(source, env, 'path goes above top-level')
+				}
+				frame = frame.parent
 			}
-			frame = frame.parent
 			astHere = frame?.ast ?? null
+			entered = true
 			continue
 		}
-		// descending — currently only supports record / vec / let-block
-		// directly visible in the current AST node. A full implementation
-		// would also traverse path-transparent forms (record / vec /
-		// application children).
 		if (astHere === null) {
 			return fail(source, env, 'path descended below the root')
 		}
@@ -1900,16 +1905,25 @@ function evalPath(
 		if (child === null) {
 			return fail(source, env, `path segment not found: ${seg}`)
 		}
+		if (!entered) frame = enterNode(astHere, frame)
 		astHere = child
+		entered = false
 	}
 
 	if (astHere === null) {
 		return ok(UNIT)
 	}
-	return evaluate(astHere, frame)
+	// A path that ends on a container itself evaluates it where it stands,
+	// so `[1 ./]` reaches the evaluation in progress and is seen as a cycle.
+	return evaluate(astHere, entered ? (frame?.parent ?? null) : frame)
 }
 
-function childAt(node: AST, seg: string | number): AST | null {
+/** The frame the evaluator pushes on entering a path-addressable node. */
+function enterNode(node: AST, env: Env): Env {
+	return node.kind === 'let' ? pushLetFrame(node, env) : pushAncestor(node, env)
+}
+
+export function childAt(node: AST, seg: string | number): AST | null {
 	if (node.kind === 'record' && typeof seg === 'string') {
 		const fields = node.fields
 		// last-wins lookup, ignoring SpreadAST entries (they need eval)

@@ -414,11 +414,15 @@ The evaluator's return value is a plain `Value`. Diagnostic information is reach
 
 ## Static name resolution pass
 
-Before evaluation, a static resolution pass walks the AST and verifies that every bare name and every path can be resolved against the surrounding container/scope structure. Unresolvable references are recorded as diagnostics. The pass does not evaluate; it only validates. Implementations may additionally cache resolved binding/path pointers as an optimization.
+`resolve(ast, env)` walks the AST and binds every bare name and path to its target against the surrounding scope structure, running nothing. References that fail become diagnostics with the same messages evaluating them would produce, including in branches and function bodies that never run. `check` reports them alongside type errors. Duplicate let bindings and record fields are reported as warnings, and the last one wins.
+
+Scopes mirror the evaluator's frames: vectors, records, calls, and let-blocks each add a level, and a function literal adds one around its body. Generics are visible to a function's types and body; parameters to its body only, since a parameter's type is evaluated before any argument is bound. The captured body of `def` is not walked.
+
+`freeRefs(ast)` is the context-independent half: the bare names a node does not bind itself, and the paths that climb out of it. It depends on the node alone, so it is cached per AST instance. Since a node's value is determined by its own structure and what these refer to, it is the basis for incremental evaluation (see [Open questions](#open-questions)).
 
 ## Open questions
 
 - **Default fallback propagation**: when a sub-expression's evaluation falls back to a default value, how does the diagnostic propagate up the surrounding expression?
 - **Partial evaluation**: any evaluation node is in principle evaluable. What host API surfaces this for tooling?
-- **Incremental / differential evaluation**: not achieved yet. Replacing an AST node creates new instances of its ancestors, and evaluating a new ancestor creates new env frames for everything beneath it. Because the memo key includes env identity, unchanged siblings miss the cache too, so re-evaluation cost is currently O(tree size) even with structural sharing. Reaching O(change) requires keying each node on what it actually references rather than on its whole env. The host-API surface for "replace this AST node, give me a refreshed root" is unspecified.
+- **Incremental / differential evaluation**: not achieved yet. Replacing an AST node creates new instances of its ancestors, and evaluating a new ancestor creates new env frames for everything beneath it. Because the memo key includes env identity, unchanged siblings miss the cache too, so re-evaluation cost is currently O(tree size) even with structural sharing. Reaching O(change) requires keying each node on what it actually references, per `freeRefs`, rather than on its whole env. The host-API surface for "replace this AST node, give me a refreshed root" is unspecified.
 - **Bidirectional evaluation**: editing a result value, how is the corresponding input inferred?

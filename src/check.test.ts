@@ -13,6 +13,11 @@ describe('check — call-site type mismatches', () => {
 		expect(ds[0]!.message).toMatch(/expected number/)
 	})
 
+	it('reports unresolved references, even in a body that never runs', () => {
+		const ds = check(parse('(=> (n: number): number (+ n nope))'), env)
+		expect(ds.map(d => d.message)).toContain('unresolvable name: nope')
+	})
+
 	it('passes a well-typed call', () => {
 		const ds = check(parse('(+ 1 2 3)'), env)
 		expect(ds).toEqual([])

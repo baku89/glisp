@@ -1340,3 +1340,38 @@ describe('evaluate — memo lifetime', () => {
 		expect(roots.filter(r => r.deref() !== undefined)).toEqual([])
 	})
 })
+
+describe('evaluate — path targets', () => {
+	const env = buildPrelude()
+	const run = (src: string) => evaluate(parse(src), env)
+
+	it('evaluates a let binding reached by path inside its let-block', () => {
+		const r = run('[{k = 1 y = (+ k 1) y} ./0/y]')
+		expect(r.value).toEqual([2, 2])
+		expect(r.diagnostics).toEqual([])
+	})
+
+	it('evaluates a nested target relative to its own position', () => {
+		expect(run('[[1 ./0] ./0/1]').value).toEqual([[1, 1], 1])
+	})
+
+	it('can climb back up after descending', () => {
+		expect(run('[[1 2] 9 ./0/../1]').value).toEqual([[1, 2], 9, 9])
+	})
+
+	it('reports a path to its own container as a cycle', () => {
+		const r = run('[1 ./]')
+		expect(r.diagnostics.map(d => d.message)).toContain('cycle detected')
+	})
+
+	it('counts the same levels whether or not a generic resolved', () => {
+		const climbs = (params: string): unknown =>
+			(run(`[5 [6 ((=> (T) (${params}): _ ../../0) 1)]]`).value as unknown[][])[1]![1]
+		expect(climbs('x: T')).toBe(6)
+		expect(climbs('x: number')).toBe(6)
+	})
+
+	it('keeps a resolved generic visible in the body', () => {
+		expect(run('((=> (T) (x: T): T (: x T)) 1)').value).toBe(1)
+	})
+})

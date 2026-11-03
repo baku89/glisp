@@ -25,6 +25,7 @@ import {
 	typeFits,
 } from './eval.js'
 import { infer } from './infer.js'
+import { resolve } from './resolve.js'
 import {
 	type AST,
 	type CallAST,
@@ -34,11 +35,12 @@ import {
 } from './types.js'
 
 /**
- * Check `ast` for type errors against `env`. Returns all diagnostics
- * produced by recursive traversal. Never throws.
+ * Check `ast` against `env` for references that do not resolve and for
+ * type errors. Returns all diagnostics produced by recursive traversal.
+ * Never throws.
  */
 export function check(ast: AST, env: Env): ReadonlyArray<Diagnostic> {
-	const diagnostics: Diagnostic[] = []
+	const diagnostics = [...resolve(ast, env).diagnostics]
 	walk(ast, env, diagnostics)
 	return diagnostics
 }

@@ -26,6 +26,7 @@ import {
 	matchValue,
 	toAst,
 } from './eval.js'
+import { freeRefs } from './resolve.js'
 import {
 	AccessAST,
 	type AST,
@@ -163,7 +164,7 @@ class Step {
 		const subst = this.bindArgs(closure, call)
 		const argFrees = new Set<string>()
 		for (const arg of subst.values()) {
-			if (arg !== null) collectFreeNames(arg, new Set(), argFrees)
+			for (const name of freeRefs(arg).names) argFrees.add(name)
 		}
 		return substitute(closure.ast.body!, subst, {
 			captured: closure.capturedEnv,
@@ -430,67 +431,5 @@ function freshName(
 	for (let i = 1; ; i++) {
 		const candidate = `${name}_${i}`
 		if (!taken.has(candidate) && !siblings.includes(candidate)) return candidate
-	}
-}
-
-function collectFreeNames(
-	ast: AST,
-	bound: ReadonlySet<string>,
-	out: Set<string>
-): void {
-	const walk = (a: AST): void => collectFreeNames(a, bound, out)
-	switch (ast.kind) {
-		case 'sym':
-			if (!bound.has(ast.name)) out.add(ast.name)
-			return
-		case 'lit':
-		case 'host':
-		case 'path':
-			return
-		case 'unquote':
-		case 'spread':
-			walk(ast.expr)
-			return
-		case 'call':
-			walk(ast.head)
-			ast.args.forEach(walk)
-			ast.kwargs?.forEach(walk)
-			return
-		case 'vec':
-			ast.elements.forEach(walk)
-			return
-		case 'record':
-			for (const entry of ast.fields) {
-				walk(entry instanceof SpreadAST ? entry.expr : entry[1])
-			}
-			return
-		case 'access':
-			walk(ast.target)
-			return
-		case 'meta':
-			walk(ast.metadata)
-			walk(ast.expr)
-			return
-		case 'let': {
-			const inner = new Set([...bound, ...ast.bindings.map(([n]) => n)])
-			for (const [, value] of ast.bindings) {
-				collectFreeNames(value, inner, out)
-			}
-			if (ast.body !== null) collectFreeNames(ast.body, inner, out)
-			return
-		}
-		case 'fn': {
-			const inner = new Set([
-				...bound,
-				...ast.generics,
-				...ast.params.map(p => p.name),
-			])
-			for (const param of ast.params) {
-				collectFreeNames(param.type, inner, out)
-			}
-			collectFreeNames(ast.returnType, inner, out)
-			if (ast.body !== null) collectFreeNames(ast.body, inner, out)
-			return
-		}
 	}
 }
