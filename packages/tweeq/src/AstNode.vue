@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, UNIT } from '@glisp/lang'
-import { InputCheckbox } from 'tweeq/InputCheckbox'
+import { InputButton } from 'tweeq/InputButton'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputNumber } from 'tweeq/InputNumber'
+import * as monaco from 'monaco-editor'
+import { InputCode } from 'tweeq/InputCode'
 import { InputString } from 'tweeq/InputString'
+import { InputSwitch } from 'tweeq/InputSwitch'
 import { InputTextBase } from 'tweeq/InputTextBase'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, ref, watch } from 'vue'
 
 import { iconOf } from './icons'
+import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
 import { SELECTION } from './selection'
 import {
 	actionsOf,
@@ -42,6 +46,8 @@ const update = (next: AST): void => emit('change', props.entry.replace(next))
 
 const selection = inject(SELECTION)!
 
+registerGlisp()
+
 const view = computed(() =>
 	viewOf(ast.value, props.entry.env, props.entry.expected)
 )
@@ -73,6 +79,12 @@ const shown = computed(() => {
 
 const open = ref(false)
 
+/** What can be added here, as new rows at the end of it. */
+const additions = computed(() => [
+	...view.value.missing.map(({ name, add }) => ({ label: name, add })),
+	...(view.value.append === null ? [] : [view.value.append]),
+])
+
 const children = computed(() =>
 	view.value.head === null ? view.value.slots : [view.value.head, ...view.value.slots]
 )
@@ -87,11 +99,36 @@ function commitDraft(): void {
 	if (next === null) draft.value = sourceOf(ast.value)
 	else if (sourceOf(next) !== sourceOf(ast.value)) update(next)
 }
-function onFieldKey(event: KeyboardEvent): void {
-	if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Escape') {
-		if (event.key === 'Escape') draft.value = sourceOf(ast.value)
-		;(event.target as HTMLElement).blur()
-	}
+// An expression shows its value, and becomes code to edit when clicked. Only the
+// one being edited has an editor, so that a long program stays light.
+const editing = ref(false)
+
+function onEditorMount(editor: monaco.editor.IStandaloneCodeEditor): void {
+	const range = editor.getModel()?.getFullModelRange()
+	if (range !== undefined) editor.setSelection(range)
+	editor.focus()
+	editor.onDidBlurEditorWidget(finishEditing)
+	editor.onKeyDown(event => {
+		if (event.keyCode === monaco.KeyCode.Escape) {
+			draft.value = sourceOf(ast.value)
+		} else if (
+			event.keyCode !== monaco.KeyCode.Enter ||
+			event.shiftKey ||
+			// An unfinished form goes on to the next line.
+			parseSource(draft.value) === null
+		) {
+			return
+		}
+		event.preventDefault()
+		event.stopPropagation()
+		finishEditing()
+	})
+}
+
+function finishEditing(): void {
+	if (!editing.value) return
+	editing.value = false
+	commitDraft()
 }
 
 const label = (value: unknown): string =>
@@ -132,10 +169,13 @@ const menuItems = computed<MenuItem[]>(() => {
 		:label="view.label ?? entry.label"
 		:icon="icon"
 		:hint="entry.expected?.typeName"
-		:expandable="view.head !== null || view.slots.length > 0"
+		:expandable="children.length > 0 || additions.length > 0"
+		:sortGroup="entry.sort === undefined ? undefined : path.slice(0, path.lastIndexOf('/'))"
+		:sortIndex="entry.sort?.index"
 		:selected="selected"
 		:menuItems="menuItems"
 		@select="select"
+		@sort="(from, to) => entry.sort && emit('change', entry.sort.move(from, to))"
 	>
 		<div
 			class="value"
@@ -157,7 +197,7 @@ const menuItems = computed<MenuItem[]>(() => {
 				:menuItems="menuItems"
 				@update:modelValue="update(withLiteral(ast, $event))"
 			/>
-			<InputCheckbox
+			<InputSwitch
 				v-else-if="view.editor?.kind === 'boolean'"
 				:modelValue="view.editor.value"
 				@update:modelValue="update(withLiteral(ast, $event))"
@@ -169,14 +209,21 @@ const menuItems = computed<MenuItem[]>(() => {
 				:labelizer="label"
 				@update:modelValue="update(withLiteral(ast, $event as never))"
 			/>
+			<InputCode
+				v-else-if="editing"
+				v-model="draft"
+				:lang="GLISP"
+				:options="EDITOR_OPTIONS"
+				@mount="onEditorMount"
+			/>
 			<InputTextBase
 				v-else
-				v-model="draft"
+				:modelValue="draft"
 				font="monospace"
-				multiline
+				ignoreInput
 				:menuItems="menuItems"
-				@blur="commitDraft"
-				@keydown="onFieldKey"
+				@click="editing = true"
+				@focus="editing = true"
 			>
 				<template #inactiveContent>
 					<span class="shown">{{ shown }}</span>
@@ -194,6 +241,19 @@ const menuItems = computed<MenuItem[]>(() => {
 				:show="show"
 				@change="update"
 			/>
+			<ParameterTreeItem
+				v-for="addition in additions"
+				:key="`add:${addition.label}`"
+				label=""
+			>
+				<InputButton
+					class="add"
+					subtle
+					icon="mdi:plus"
+					:label="addition.label"
+					@click="update(addition.add())"
+				/>
+			</ParameterTreeItem>
 		</template>
 	</ParameterTreeItem>
 </template>
@@ -213,6 +273,12 @@ const menuItems = computed<MenuItem[]>(() => {
 	--tq-color-text: var(--tq-color-error);
 	--tq-color-input: var(--tq-color-error-soft);
 	--tq-color-input-hover: var(--tq-color-error-soft);
+}
+.value :deep(.TqInputTextBase) {
+	cursor: text;
+}
+.add {
+	justify-self: start;
 }
 .value .shown {
 	display: block;

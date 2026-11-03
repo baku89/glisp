@@ -6,7 +6,7 @@ import * as monaco from 'monaco-editor'
 import { computed, nextTick, ref, useTemplateRef } from 'vue'
 
 import GlispCode from './GlispCode.vue'
-import { GLISP, registerGlisp } from './language'
+import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
 import {
 	createSession,
 	InputHistory,
@@ -28,20 +28,9 @@ interface Entry {
 
 registerGlisp()
 
-const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
+const OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
+	...EDITOR_OPTIONS,
 	placeholder: '(+ 1 2) or :help',
-	wordWrap: 'on',
-	glyphMargin: false,
-	contextmenu: false,
-	hover: { enabled: false },
-	links: false,
-	parameterHints: { enabled: false },
-	quickSuggestions: false,
-	suggestOnTriggerCharacters: false,
-	wordBasedSuggestions: 'off',
-	occurrencesHighlight: 'off',
-	selectionHighlight: false,
-	stickyScroll: { enabled: false },
 }
 
 const session = createSession(props.session)
@@ -253,8 +242,7 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 			<InputCode
 				v-model="input"
 				:lang="GLISP"
-				autoHeight
-				:options="EDITOR_OPTIONS"
+				:options="OPTIONS"
 				@mount="onMount"
 			/>
 			<InputButton icon="mdi:play" :disabled="!canRun" tooltip="Run" @click="run" />

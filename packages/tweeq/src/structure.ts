@@ -59,8 +59,25 @@ export interface Slot {
 	replace(child: AST): AST
 	/** The new parent without this slot, if it can go. */
 	remove?(): AST
+	/** Its place among the slots it can swap places with, if it has one. */
+	readonly sort?: SlotSort
 	/** What to show while it is not being edited, in place of its value. */
 	readonly display?: string
+}
+
+export interface SlotSort {
+	readonly index: number
+	readonly count: number
+	/** The new parent, with the item at `from` moved to be at `to`. */
+	move(from: number, to: number): AST
+}
+
+/** `items`, with the one at `from` moved to be at `to`. */
+function moved<T>(items: readonly T[], from: number, to: number): T[] {
+	const next = items.slice()
+	const [item] = next.splice(from, 1)
+	if (item !== undefined) next.splice(to, 0, item)
+	return next
 }
 
 /** A parameter that a call could have, but does not. */
@@ -227,6 +244,23 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 								ast.args.filter((_, j) => j !== i),
 								ast.kwargs
 							),
+						...(hasSpread
+							? {}
+							: {
+									sort: {
+										index: i - positional.length,
+										count: ast.args.length - positional.length,
+										move: (from, to) =>
+											new CallAST(
+												ast.head,
+												[
+													...ast.args.slice(0, positional.length),
+													...moved(ast.args.slice(positional.length), from, to),
+												],
+												ast.kwargs
+											),
+									} satisfies SlotSort,
+								}),
 					}
 				: {}),
 		})
@@ -335,6 +369,11 @@ function viewOfVec(
 				return new VecAST(elements)
 			},
 			remove: () => new VecAST(ast.elements.filter((_, j) => j !== i)),
+			sort: {
+				index: i,
+				count: ast.elements.length,
+				move: (from, to) => new VecAST(moved(ast.elements, from, to)),
+			},
 		})),
 		append: {
 			label: 'element',
@@ -431,6 +470,14 @@ function viewOfMeta(
 			...(slot.remove === undefined
 				? {}
 				: { remove: () => wrap(slot.remove!()) }),
+			...(slot.sort === undefined
+				? {}
+				: {
+						sort: {
+							...slot.sort,
+							move: (from, to) => wrap(slot.sort!.move(from, to)),
+						},
+					}),
 		})),
 		missing: inner.missing.map(m => ({ ...m, add: () => wrap(m.add()) })),
 		append:
@@ -573,6 +620,24 @@ export function actionsOf(slot: Slot): SlotAction[] {
 			icon: 'mdi:plus',
 			group: 'edit',
 			apply: () => slot.replace(append.add()),
+		})
+	}
+
+	const { sort } = slot
+	if (sort !== undefined && sort.index > 0) {
+		actions.push({
+			label: 'Move Up',
+			icon: 'mdi:arrow-up',
+			group: 'edit',
+			apply: () => sort.move(sort.index, sort.index - 1),
+		})
+	}
+	if (sort !== undefined && sort.index < sort.count - 1) {
+		actions.push({
+			label: 'Move Down',
+			icon: 'mdi:arrow-down',
+			group: 'edit',
+			apply: () => sort.move(sort.index, sort.index + 1),
 		})
 	}
 

@@ -156,6 +156,40 @@ describe('head', () => {
 	})
 })
 
+describe('sort', () => {
+	it('moves the elements of a vector', () => {
+		const { sort } = view('[1 2 3]').slots[0]!
+		expect(sort?.count).toBe(3)
+		expect(print(sort!.move(0, 2))).toBe('[2 3 1]')
+		expect(print(sort!.move(2, 0))).toBe('[3 1 2]')
+	})
+
+	it('moves variadic arguments, and nothing else of a call', () => {
+		const v = view('(reduce [1] 0 max)')
+		expect(v.slots.every(slot => slot.sort === undefined)).toBe(true)
+		const { sort } = view('(+ 1 2 3)').slots[1]!
+		expect(sort?.index).toBe(1)
+		expect(print(sort!.move(1, 2))).toBe('(+ 1 3 2)')
+	})
+
+	it('does not move arguments around a spread', () => {
+		expect(view('(+ 1 ...xs)').slots[0]!.sort).toBeUndefined()
+	})
+
+	it('keeps metadata around it', () => {
+		const { sort } = view('^{label: "L"} [1 2]').slots[0]!
+		expect(print(sort!.move(0, 1))).toBe('^{label: "L"} [2 1]')
+	})
+
+	it('is in the menu, where it can go', () => {
+		const labels = (i: number) => actionsOf(view('[1 2]').slots[i]!).map(a => a.label)
+		expect(labels(0)).toContain('Move Down')
+		expect(labels(0)).not.toContain('Move Up')
+		expect(labels(1)).toContain('Move Up')
+		expect(labels(1)).not.toContain('Move Down')
+	})
+})
+
 describe('names', () => {
 	it('capitalizes what a function is called', () => {
 		expect(capitalCase('map')).toBe('Map')
@@ -321,6 +355,7 @@ describe('actionsOf', () => {
 		])
 		expect(menu('[[1]]')).toEqual(['Add element', 'Copy Value', 'Delete'])
 		expect(menu('[1]')).toEqual(['Copy Value', 'Delete'])
+		expect(menu('[1 2 3]', 1)).toEqual(['Move Up', 'Move Down', 'Copy Value', 'Delete'])
 		expect(menu('(take [1] 1)', 1)).toEqual(['Copy Value'])
 	})
 

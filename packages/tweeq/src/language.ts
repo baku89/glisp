@@ -6,6 +6,24 @@ import * as monaco from 'monaco-editor'
 
 export const GLISP = 'glisp'
 
+/** Monaco, without what is of no use for one short piece of Glisp. */
+export const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
+	wordWrap: 'on',
+	// Typing replaces what is selected, whatever is typed.
+	autoSurround: 'never',
+	glyphMargin: false,
+	contextmenu: false,
+	hover: { enabled: false },
+	links: false,
+	parameterHints: { enabled: false },
+	quickSuggestions: false,
+	suggestOnTriggerCharacters: false,
+	wordBasedSuggestions: 'off',
+	occurrencesHighlight: 'off',
+	selectionHighlight: false,
+	stickyScroll: { enabled: false },
+}
+
 let registered = false
 
 /** Register the language, once. Monaco's registry is global. */
