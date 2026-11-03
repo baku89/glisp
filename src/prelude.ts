@@ -177,24 +177,32 @@ function variadicNumFold(
 }
 
 /**
- * `-` and `/` style: first arg seeds; remaining args left-fold through
- * `op`. Single arg unary: `(- x)` = `0 - x` = `-x`, `(/ x)` = `1 / x`.
+ * `-` and `/` style: the first arg seeds, and the rest left-fold through `op`.
+ * With fewer args, `identity` fills in: `(-)` is 0, `(- x)` is `0 - x`, `(/)`
+ * is 1, and `(/ x)` is `1 / x`.
  */
 function variadicNumLeftFold(
 	op: (a: number, b: number) => number,
-	unaryIdentity: number,
+	identity: number,
 	tailType: TypeValue
 ): TypedHostFn {
-	return makeTypedFn(
-		[numberType],
-		numberType,
-		(first, ...rest) => {
-			const f = first as number
-			const r = rest as number[]
-			return r.length === 0 ? op(unaryIdentity, f) : r.reduce(op, f)
-		},
-		['first'],
-		tailType
+	return withSignature(
+		makeTypedFn(
+			[],
+			numberType,
+			(...args) => {
+				const xs = args as number[]
+				if (xs.length === 0) return identity
+				if (xs.length === 1) return op(identity, xs[0]!)
+				return xs.slice(1).reduce(op, xs[0]!)
+			},
+			[],
+			tailType
+		),
+		makeFunctionType([], numberType, {
+			variadicTail: numberType,
+			variadicName: 'xs',
+		})
 	)
 }
 
@@ -304,11 +312,11 @@ export function buildPrelude(): Env {
 			host(variadicNumFold((a, b) => a * b, numberOneType))
 		),
 		'-': bind(
-			'Subtraction. `(- x)` negates; `(- a b c)` = a−b−c.',
+			'Subtraction. `(-)` = 0; `(- x)` negates; `(- a b c)` = a−b−c.',
 			host(variadicNumLeftFold((a, b) => a - b, 0, numberType))
 		),
 		'/': bind(
-			'Division. `(/ x)` reciprocates; `(/ a b c)` = a/b/c.',
+			'Division. `(/)` = 1; `(/ x)` reciprocates; `(/ a b c)` = a/b/c.',
 			host(variadicNumLeftFold((a, b) => a / b, 1, numberOneType))
 		),
 		mod: bind(

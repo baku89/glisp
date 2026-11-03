@@ -6,11 +6,18 @@ import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 
 describe('prelude — identities', () => {
-	it('(+) is 0 and (*) is 1', () => {
+	it('an empty arithmetic call is its identity', () => {
 		const env = buildPrelude()
 		const run = (src: string) => evaluate(parse(src), env)
 		expect(run('(+)').value).toBe(0)
 		expect(run('(*)').value).toBe(1)
+		expect(run('(-)').value).toBe(0)
+		expect(run('(/)').value).toBe(1)
+		expect(run('(-)').diagnostics).toEqual([])
+		expect(run('(- 3)').value).toBe(-3)
+		expect(run('(/ 4)').value).toBe(0.25)
+		expect(run('(- 10 1 2)').value).toBe(7)
+		expect(run('(/ 8 2 2)').value).toBe(2)
 		expect(run('(+)').diagnostics).toEqual([])
 		expect(run('(+ ...[])').value).toBe(0)
 		expect(run('(+ 2)').value).toBe(2)
