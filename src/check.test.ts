@@ -39,14 +39,6 @@ describe('check — call-site type mismatches', () => {
 		expect(ds.some(d => d.message.includes('expected number'))).toBe(true)
 	})
 
-	it('skips special forms `def` body and `?` clauses without spurious errors', () => {
-		// def's value is captured, not type-checked at the def site itself.
-		// The `(+ 1 "x")` mismatch *should* still surface because we
-		// recurse into the captured AST.
-		const ds = check(parse('(def "y" (+ 1 "x"))'), env)
-		expect(ds.some(d => d.message.includes('expected number'))).toBe(true)
-	})
-
 	it('reports a closure-arg mismatch at a HOF call', () => {
 		// map expects (=> (_): _) — passing a closure with the wrong
 		// declared input type was historically a problem; now structural

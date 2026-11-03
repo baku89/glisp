@@ -13,75 +13,83 @@ describe('Session — let-block as session state', () => {
 		expect(s.bindings()).toEqual([])
 	})
 
-	it('intercepts top-level (def "name" expr) as a binding mutation', () => {
+	it('`x = expr` evaluates to an IO that assigns when run', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('(def "x" (+ 20 40))')
+		const r = s.evalSrc('x = (+ 20 40)')
+		expect(r.value instanceof IO).toBe(true)
+		expect(s.bindings()).toEqual([])
+		;(r.value as IO).run()
 		expect(s.bindings()).toEqual(['x'])
 		expect(print(s.ast())).toBe('{x = (+ 20 40)}')
 	})
 
-	it('def at top level does not return an IO (intercepted)', () => {
+	it('reports a bad assignment when run, without changing anything', () => {
 		const s = new Session(buildPrelude())
-		const r = s.evalSrc('(def "x" 42)')
-		expect(r.value instanceof IO).toBe(false)
+		const r = s.evalSrc('nope/y = 1')
+		expect(r.diagnostics).toEqual([])
+		expect((r.value as IO).run().map(d => d.message)).toEqual([
+			'assignment failed: no such binding: nope',
+		])
+		expect(s.bindings()).toEqual([])
+	})
+
+	it('def and undef are not part of the language', () => {
+		const s = new Session(buildPrelude())
+		expect(s.exec('(def "x" 1)').diagnostics[0]!.message).toBe(
+			'unresolvable name: def'
+		)
+		expect(s.bindings()).toEqual([])
 	})
 
 	it('subsequent expressions see the new binding', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('(def "x" (+ 20 40))')
-		const r = s.evalSrc('(* x 2)')
+		s.exec('x = (+ 20 40)')
+		const r = s.exec('(* x 2)')
 		expect(r.value).toBe(120)
 	})
 
 	it('re-evaluates dependents after a binding changes', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('x = 1')
-		s.evalSrc('y = (+ x 1)')
-		expect(s.evalSrc('y').value).toBe(2)
-		s.evalSrc('x = 100')
-		expect(s.evalSrc('y').value).toBe(101)
-		s.evalSrc('(undef "x")')
-		expect(s.evalSrc('x').diagnostics.length).toBeGreaterThan(0)
+		s.exec('x = 1')
+		s.exec('y = (+ x 1)')
+		expect(s.exec('y').value).toBe(2)
+		s.exec('x = 100')
+		expect(s.exec('y').value).toBe(101)
+		s.unsetBinding('x')
+		expect(s.exec('x').diagnostics.length).toBeGreaterThan(0)
 	})
 
 	it('redefinition replaces last-wins', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('(def "x" 1)')
-		s.evalSrc('(def "x" 99)')
+		s.exec('x = 1')
+		s.exec('x = 99')
 		expect(s.bindings()).toEqual(['x'])
 		expect(print(s.ast())).toBe('{x = 99}')
-		expect(s.evalSrc('x').value).toBe(99)
+		expect(s.exec('x').value).toBe(99)
 	})
 
 	it('insertion order is preserved across multiple bindings', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('(def "x" 10)')
-		s.evalSrc('(def "y" 20)')
-		s.evalSrc('(def "z" (+ x y))')
+		s.exec('x = 10')
+		s.exec('y = 20')
+		s.exec('z = (+ x y)')
 		expect(s.bindings()).toEqual(['x', 'y', 'z'])
 		expect(print(s.ast())).toBe('{x = 10 y = 20 z = (+ x y)}')
 	})
 
-	it('(undef "name") removes the binding', () => {
+	it('unsetBinding removes a binding and reports whether it was there', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('(def "x" 10)')
-		s.evalSrc('(def "y" 20)')
-		s.evalSrc('(undef "x")')
+		s.exec('x = 10')
+		s.exec('y = 20')
+		expect(s.unsetBinding('x')).toBe(true)
+		expect(s.unsetBinding('ghost')).toBe(false)
 		expect(s.bindings()).toEqual(['y'])
-	})
-
-	it('(undef "missing") returns a warning diagnostic', () => {
-		const s = new Session(buildPrelude())
-		const r = s.evalSrc('(undef "ghost")')
-		expect(
-			r.diagnostics.some(d => d.message.includes('no such binding'))
-		).toBe(true)
 	})
 
 	it('reset clears every binding', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('(def "x" 1)')
-		s.evalSrc('(def "y" 2)')
+		s.exec('x = 1')
+		s.exec('y = 2')
 		s.reset()
 		expect(s.bindings()).toEqual([])
 		expect(print(s.ast())).toBe('{}')
@@ -89,25 +97,16 @@ describe('Session — let-block as session state', () => {
 
 	it('non-mutation expressions evaluate normally and do not touch the let-block', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('(def "x" 5)')
-		const r = s.evalSrc('(+ x 7)')
+		s.exec('x = 5')
+		const r = s.exec('(+ x 7)')
 		expect(r.value).toBe(12)
 		expect(print(s.ast())).toBe('{x = 5}')
 	})
 
-	it('nested def stays as an IO (not a session-level mutation)', () => {
-		// `(if true (def "x" 1) ())` is not a top-level def, so it falls
-		// through to the regular IO mechanism. The session's bindings
-		// should NOT pick it up unless the user runs the IO.
-		const s = new Session(buildPrelude())
-		s.evalSrc('(? true _ (def "x" 1) _ ())')
-		expect(s.bindings()).toEqual([])
-	})
-
 	it('the session ast() round-trips through parse', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('(def "x" 10)')
-		s.evalSrc('(def "y" (+ x 5))')
+		s.exec('x = 10')
+		s.exec('y = (+ x 5)')
 		const printed = print(s.ast())
 		expect(printed).toBe('{x = 10 y = (+ x 5)}')
 		const reparsed = parse(printed)
@@ -119,42 +118,42 @@ describe('Session — let-block as session state', () => {
 describe('Session — assignment sugar (name = expr, path = expr)', () => {
 	it('top-level `x = expr` is a binding mutation', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('x = (+ 20 40)')
+		s.exec('x = (+ 20 40)')
 		expect(print(s.ast())).toBe('{x = (+ 20 40)}')
 	})
 
 	it('path `x/y = expr` updates a nested let-block binding', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('x = {y = 30}')
-		s.evalSrc('x/y = 400')
+		s.exec('x = {y = 30}')
+		s.exec('x/y = 400')
 		expect(print(s.ast())).toBe('{x = {y = 400}}')
 	})
 
 	it('deeper paths walk through nested let-blocks', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('x = {y = {z = 1}}')
-		s.evalSrc('x/y/z = 99')
+		s.exec('x = {y = {z = 1}}')
+		s.exec('x/y/z = 99')
 		expect(print(s.ast())).toBe('{x = {y = {z = 99}}}')
 	})
 
 	it('numeric segment addresses a vector element', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('xs = [10 20 30]')
-		s.evalSrc('xs/1 = 99')
+		s.exec('xs = [10 20 30]')
+		s.exec('xs/1 = 99')
 		expect(print(s.ast())).toBe('{xs = [10 99 30]}')
 	})
 
 	it('record field assignment via path', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('p = {x: 1 y: 2}')
-		s.evalSrc('p/y = 7')
+		s.exec('p = {x: 1 y: 2}')
+		s.exec('p/y = 7')
 		expect(print(s.ast())).toBe('{p = {x: 1 y: 7}}')
 	})
 
 	it('missing path emits a diagnostic and does not mutate', () => {
 		const s = new Session(buildPrelude())
-		s.evalSrc('x = {y = 30}')
-		const r = s.evalSrc('x/z = 99')
+		s.exec('x = {y = 30}')
+		const r = s.exec('x/z = 99')
 		expect(
 			r.diagnostics.some(d => d.message.includes('no binding named z'))
 		).toBe(true)
@@ -163,7 +162,7 @@ describe('Session — assignment sugar (name = expr, path = expr)', () => {
 
 	it('missing top-level binding emits a diagnostic', () => {
 		const s = new Session(buildPrelude())
-		const r = s.evalSrc('ghost/y = 1')
+		const r = s.exec('ghost/y = 1')
 		expect(
 			r.diagnostics.some(d => d.message.includes('no such binding: ghost'))
 		).toBe(true)

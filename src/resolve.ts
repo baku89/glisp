@@ -35,7 +35,7 @@ import {
 } from './types.js'
 
 /** Call heads dispatched by name, which never refer to a binding. */
-const SPECIAL_FORMS = new Set(['?', '|>', ':', 'def', 'undef', 'overload'])
+const SPECIAL_FORMS = new Set(['?', '|>', ':', 'overload'])
 
 function isSpecialHead(ast: AST): ast is SymAST {
 	return ast.kind === 'sym' && SPECIAL_FORMS.has(ast.name)
@@ -64,9 +64,6 @@ const freeRefsCache: WeakMap<AST, FreeRefs> = new WeakMap()
  * Everything `ast` needs from its surroundings: the bare names it does not
  * bind itself, and the paths that climb out of it. The value of a node is
  * determined by its own structure and what these refer to.
- *
- * The body of a `def` is left out. It is captured rather than evaluated, so
- * the resulting `IO` does not depend on what the body refers to.
  */
 export function freeRefs(ast: AST): FreeRefs {
 	const cached = freeRefsCache.get(ast)
@@ -130,7 +127,6 @@ function climbCount(path: PathAST): number {
 /** The operands a call evaluates, without a special form's dispatch name. */
 function callOperands(ast: CallAST): AST[] {
 	if (isSpecialHead(ast.head)) {
-		if (ast.head.name === 'def') return ast.args.slice(0, 1)
 		if (ast.head.name === '?') return ast.args.filter(isNotCatchAll)
 		return [...ast.args, ...(ast.kwargs?.values() ?? [])]
 	}

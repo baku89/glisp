@@ -3,10 +3,11 @@
  * let-block AST.
  *
  * The conceptual chain is `prelude ← session`, where the session is
- * one let-block that grows as the user types. `name = expr` and
- * `(def "name" expr)` add or replace a binding; `(undef "name")`
- * removes one; everything else is evaluated against the session's
- * env (its bindings layered on the prelude). The let-block is the
+ * one let-block that grows as the user types. `name = expr` is shell
+ * syntax for an `IO` action that adds or replaces a binding; everything
+ * else is evaluated against the session's env (its bindings layered on
+ * the prelude). Evaluating never changes anything: only running an action
+ * does, by installing a new frame. The let-block is the
  * single source of truth for the session — `ast()` returns it as a
  * regular `LetAST`, which a host can edit, render in a tree pane,
  * or persist as a project file.
@@ -22,13 +23,12 @@
  * from the same source.
  */
 
-import { evaluate, type EvalResult, isIO } from './eval.js'
+import { evaluate, type EvalResult, IO, isIO } from './eval.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
 import {
 	type AST,
 	type BindingTarget,
-	type Diagnostic,
 	type Env,
 	type Frame,
 	LetAST,
@@ -138,82 +138,49 @@ export class Session {
 		this.install(new Map())
 	}
 
-	/**
-	 * Evaluate an AST against the session env. Top-level
-	 * `(def "name" expr)` / `(undef "name")` are intercepted as
-	 * binding mutations on the session's let-block; everything else
-	 * is delegated to `evaluate`. Top-level `IO` results are passed
-	 * through unchanged so the caller can decide whether to force them
-	 * (the CLI / browser REPLs auto-run them).
-	 */
+	/** Evaluate an AST against the session env. */
 	evalAst(ast: AST): EvalResult {
-		const mut = detectBindingMutation(ast)
-		if (mut !== null) return this.applyMutation(mut, ast)
 		return evaluate(ast, this.env)
 	}
 
 	/**
-	 * REPL-friendly entry point. Recognizes top-level
-	 * `name = expr`, `path/seg = expr` (path-based assignment over
-	 * the existing let-block), and `(undef "name")`; everything else
-	 * goes through `parse` + `evalAst`. Path segments are identifiers
-	 * or integer indices separated by `/`. Throws `ParseError` if the
-	 * source can't be parsed.
+	 * Shell entry point. `name = expr` and `path/seg = expr` (path segments
+	 * are identifiers or integer indices) evaluate to an `IO` that performs
+	 * the assignment when run; everything else goes through `parse` and
+	 * `evalAst`. Throws `ParseError` if the source can't be parsed.
 	 */
 	evalSrc(src: string): EvalResult {
 		const sugar = parseAssignmentSugar(src)
-		if (sugar !== null) {
-			return this.applyAssignment(sugar, src)
-		}
-		return this.evalAst(parse(src))
+		if (sugar === null) return this.evalAst(parse(src))
+		const expr = parse(sugar.exprSrc)
+		const action = new IO(src.trim(), () => {
+			const err = this.setAtPath(sugar.path, expr)
+			if (err === null) return []
+			return [
+				{
+					level: 'error',
+					message: `assignment failed: ${err}`,
+					source: { ast: expr, env: this.env },
+				},
+			]
+		})
+		return { value: action, diagnostics: [] }
 	}
 
-	private applyAssignment(
-		s: AssignmentSugar,
-		source: string
-	): EvalResult {
-		let exprAst: AST
-		try {
-			exprAst = parse(s.exprSrc)
-		} catch (e) {
-			throw e
-		}
-		const err = this.setAtPath(s.path, exprAst)
-		if (err !== null) {
-			const diag: Diagnostic = {
-				level: 'error',
-				message: `assignment failed: ${err}`,
-				source: { ast: exprAst, env: this.env },
-			}
-			return { value: UNIT, diagnostics: [diag] }
-		}
-		return { value: UNIT, diagnostics: [] }
-	}
-
-	private applyMutation(mut: BindingMutation, source: AST): EvalResult {
-		if (mut.kind === 'set') {
-			this.setBinding(mut.name, mut.expr)
-			return { value: UNIT, diagnostics: [] }
-		}
-		const removed = this.unsetBinding(mut.name)
-		if (!removed) {
-			const diag: Diagnostic = {
-				level: 'warning',
-				message: `undef: no such binding ${JSON.stringify(mut.name)}`,
-				source: { ast: source, env: this.env },
-			}
-			return { value: UNIT, diagnostics: [diag] }
-		}
-		return { value: UNIT, diagnostics: [] }
+	/**
+	 * `evalSrc`, then run the result if it is an `IO`. An action's own
+	 * diagnostics are appended to the evaluation's.
+	 */
+	exec(src: string): EvalResult {
+		const r = this.evalSrc(src)
+		if (!isIO(r.value)) return r
+		const effects = r.value.run()
+		return { value: UNIT, diagnostics: [...r.diagnostics, ...effects] }
 	}
 }
 
 /** Re-export for downstream callers that wrap session.evalAst. */
 export { isIO }
-
-type BindingMutation =
-	| { kind: 'set'; name: string; expr: AST }
-	| { kind: 'unset'; name: string }
 
 /**
  * Replace the sub-AST at `path` inside `ast` with `replacement`. The
@@ -324,38 +291,4 @@ function parseAssignmentSugar(src: string): AssignmentSugar | null {
 		}
 		return null
 	}
-}
-
-/**
- * Detect a top-level `(def "name" expr)` or `(undef "name")` call.
- * Returns null for any other shape (including nested def / undef).
- */
-function detectBindingMutation(ast: AST): BindingMutation | null {
-	if (ast.kind !== 'call') return null
-	const head = ast.head
-	if (head.kind !== 'sym') return null
-	if (head.name === 'def') {
-		const [nameAst, exprAst] = ast.args
-		if (
-			nameAst === undefined ||
-			exprAst === undefined ||
-			nameAst.kind !== 'lit' ||
-			typeof nameAst.value !== 'string'
-		) {
-			return null
-		}
-		return { kind: 'set', name: nameAst.value, expr: exprAst }
-	}
-	if (head.name === 'undef') {
-		const [nameAst] = ast.args
-		if (
-			nameAst === undefined ||
-			nameAst.kind !== 'lit' ||
-			typeof nameAst.value !== 'string'
-		) {
-			return null
-		}
-		return { kind: 'unset', name: nameAst.value }
-	}
-	return null
 }

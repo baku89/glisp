@@ -66,17 +66,11 @@ describe('resolve — names', () => {
 		expect(messages('(: 1 number)')).toEqual([])
 		expect(messages('(|> 1 (+ % 1))')).toEqual([])
 		expect(messages('(? 1 number 2 _ 3)')).toEqual([])
-		expect(messages('(undef "x")')).toEqual([])
 	})
 
 	it('accepts `_` as the catch-all of ? without a binding for it', () => {
 		const bare = makeTopLevel({ number: lit(0) })
 		expect(resolve(parse('(? 1 _ 2)'), bare).diagnostics).toEqual([])
-	})
-
-	it('leaves the captured body of def alone', () => {
-		expect(messages('(def "f" (=> (n: number): number (f n)))')).toEqual([])
-		expect(messages('(def "y" later)')).toEqual([])
 	})
 
 	it('walks kwargs, spread, access, meta and ~', () => {
@@ -154,7 +148,6 @@ describe('freeRefs', () => {
 	it('does not count special forms or a catch-all', () => {
 		expect(freeNames('(? a number 1 _ 2)')).toEqual(['a', 'number'])
 		expect(freeNames('(: a number)')).toEqual(['a', 'number'])
-		expect(freeNames('(def "y" later)')).toEqual([])
 	})
 
 	it('keeps paths that climb out and drops those that stay inside', () => {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { evaluate, IO } from './eval.js'
+import { evaluate } from './eval.js'
 import { expectedTypeAt } from './expectedType.js'
 import { parse } from './parse.js'
+import { Session } from './session.js'
 import { buildPrelude } from './prelude.js'
 import type { CallAST, FnAST } from './types.js'
 
@@ -90,12 +91,9 @@ describe('expectedTypeAt — edge cases', () => {
 	})
 
 	it('overload head: no per-variant routing yet (returns null)', () => {
-		const env2 = buildPrelude()
-		const def = parse(
-			'(def "f" (overload (=> (n: number): _ n) (=> (s: string): _ s)))'
-		)
-		;(evaluate(def, env2).value as IO).run()
+		const session = new Session(buildPrelude())
+		session.exec('f = (overload (=> (n: number): _ n) (=> (s: string): _ s))')
 		const call = parse('(f 1)') as CallAST
-		expect(expectedTypeAt(call, 0, env2)).toBeNull()
+		expect(expectedTypeAt(call, 0, session.env)).toBeNull()
 	})
 })

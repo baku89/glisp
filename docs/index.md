@@ -38,8 +38,7 @@ Most language design decisions follow from that target.
 
 ```glisp
 ;; A Glisp host might bind canvas primitives like this:
-(def "circle"
-  (=> (cx: number cy: number r: number): Shape ...))
+circle = (=> (cx: number cy: number r: number): Shape ...)
 
 ;; The user's project file then mixes static data and computed values
 {

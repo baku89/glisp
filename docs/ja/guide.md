@@ -12,7 +12,7 @@ npm install
 npm run repl
 ```
 
-REPL のプロンプトは `glisp>`。トップレベルの式はそのまま評価されます。`def` や `undef` が返す `IO` 値は自動で実行されます。
+REPL のプロンプトは `glisp>`。トップレベルの式はそのまま評価されます。`name = expr` はセッションに束縛を追加します。これはシェル専用の書き方で、実体は `IO` のアクションです。REPL はトップレベルの `IO` 値を自動で実行します。
 
 ## アトム
 
@@ -58,7 +58,7 @@ _                   ;; top  (どんな値も受け入れる)
 (=> (n: number): number (* n n))
 
 ;; 名前付きで bind
-(def "square" (=> (n: number): number (* n n)))
+square = (=> (n: number): number (* n n))
 (square 7)             ;; → 49
 ```
 
@@ -78,11 +78,10 @@ _                   ;; top  (どんな値も受け入れる)
 
 ```glisp
 ;; リテラル値の集合（enum）
-(def "Color" (enum "red" "green" "blue"))
+Color = (enum "red" "green" "blue")
 
 ;; 述語で絞った refinement。default を明示的に渡す
-(def "Pos"
-  (refine number 1 (=> (n: number): boolean (> n 0))))
+Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
 
 ;; parametric IO: 実行すると number を返す IO
 (IO number)            ;; → (IO number)  （型の値）

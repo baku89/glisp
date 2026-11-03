@@ -185,7 +185,7 @@ export class HostAST extends ASTNode {
 /**
  * AST node for a bare identifier. Evaluation looks `name` up in the
  * current env's binding chain (see `eval.md` — name resolution).
- * Special-form heads like `?`, `|>`, `def`, `:` arrive here too and
+ * Special-form heads like `?`, `|>`, `:` arrive here too and
  * are dispatched by name, not by lookup.
  */
 export class SymAST extends ASTNode {

@@ -986,10 +986,6 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 				return evalPipe(ast, inside)
 			case ':':
 				return evalCoerce(ast, inside)
-			case 'def':
-				return evalDef(ast, inside)
-			case 'undef':
-				return evalUndef(ast, inside)
 			case 'overload':
 				return evalOverload(ast, inside)
 		}
@@ -1735,97 +1731,6 @@ function describeVariantSignature(
 		return `(=> (${params.join(' ')}): ${variant.returnType.typeName})`
 	}
 	return variant.ast.print()
-}
-
-/**
- * `(def name expr)` — REPL/host primitive that lazily binds `name` to
- * `expr` in the topmost mutable scope of the calling env. Returns an
- * `IO`; the host runs it (in the REPL, top-level IO actions run
- * automatically) which mutates the target frame's bindings.
- *
- * Crucially, `expr` is captured as an AST without being evaluated. The
- * expression only runs when the bound name is later referenced, and
- * memoization ensures it runs at most once.
- */
-function evalDef(ast: CallAST, env: Env): EvalResult {
-	if (ast.args.length !== 2) {
-		return fail(ast, env, 'def expects exactly 2 arguments: name and expression')
-	}
-
-	const nameResult = evaluate(ast.args[0]!, env)
-	const diagnostics = [...nameResult.diagnostics]
-	const name = nameResult.value
-	if (typeof name !== 'string') {
-		diagnostics.push(
-			diag(ast.args[0]!, env, 'def: name must evaluate to a string')
-		)
-		return { value: UNIT, diagnostics }
-	}
-
-	const valueAst = ast.args[1]!
-	const target = topmostMutableFrame(env)
-	if (target === null) {
-		diagnostics.push(diag(ast, env, 'def: no mutable scope to bind into'))
-		return { value: UNIT, diagnostics }
-	}
-
-	const action = new IO(`def ${JSON.stringify(name)}`, () => {
-		const map = target.bindings as Map<string, BindingTarget>
-		map.set(name, { ast: valueAst, env: target })
-		return []
-	})
-	return { value: action, diagnostics }
-}
-
-/**
- * `(undef name)` — companion to `def`. Returns an `IO` that, when
- * run, deletes the binding `name` from the topmost mutable scope. If the
- * name isn't bound there, the action emits a diagnostic at run time.
- */
-function evalUndef(ast: CallAST, env: Env): EvalResult {
-	if (ast.args.length !== 1) {
-		return fail(ast, env, 'undef expects exactly 1 argument: name')
-	}
-	const nameResult = evaluate(ast.args[0]!, env)
-	const diagnostics = [...nameResult.diagnostics]
-	const name = nameResult.value
-	if (typeof name !== 'string') {
-		diagnostics.push(
-			diag(ast.args[0]!, env, 'undef: name must evaluate to a string')
-		)
-		return { value: UNIT, diagnostics }
-	}
-	const target = topmostMutableFrame(env)
-	if (target === null) {
-		diagnostics.push(diag(ast, env, 'undef: no mutable scope to unbind from'))
-		return { value: UNIT, diagnostics }
-	}
-	const action = new IO(`undef ${JSON.stringify(name)}`, () => {
-		const map = target.bindings as Map<string, BindingTarget>
-		if (!map.has(name)) {
-			return [diag(ast, env, `undef: '${name}' is not bound`)]
-		}
-		map.delete(name)
-		return []
-	})
-	return { value: action, diagnostics }
-}
-
-/**
- * Walk up the env chain and return the topmost frame whose `bindings`
- * map is a real (mutable) `Map`. Used by `def` to find the prelude scope
- * — outer frames win over inner ones so a `(def ...)` deep inside a
- * let-block still affects the REPL prelude rather than a transient
- * binding map that's about to go out of scope.
- */
-function topmostMutableFrame(env: Env): Frame | null {
-	let frame = env
-	let chosen: Frame | null = null
-	while (frame !== null) {
-		if (frame.bindings instanceof Map) chosen = frame
-		frame = frame.parent
-	}
-	return chosen
 }
 
 function evalPipe(ast: CallAST, env: Env): EvalResult {

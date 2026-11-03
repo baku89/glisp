@@ -39,7 +39,7 @@ These follow from the GUI-primary premise:
 
 These align with the premise but are also independent design decisions:
 
-- Pure functional, lazy, strongly typed with static inference.
+- Pure functional, lazy, strongly typed with static inference. Evaluation changes nothing; editing a program means producing a new AST.
 - S-expression syntax (parser simplicity, portability, no dedicated keywords).
 - Same-ADT for values and types — types are first-class values.
 - No subtyping. Types are nominal/equality-based.

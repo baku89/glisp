@@ -468,10 +468,8 @@ async function main(): Promise<void> {
 		try {
 			lastSource = fullSource
 			const r = session.evalSrc(fullSource)
-			// Top-level IO actions are run automatically — that's what
-			// `(def ...)` returns when nested, and the user expects the REPL
-			// to apply it. Top-level def / undef are intercepted by the
-			// session and never produce an IO.
+			// Top-level IO actions are run automatically: that is what
+			// `name = expr` evaluates to.
 			if (r.value instanceof IO) {
 				const effectDiagnostics = r.value.run()
 				output.write(
@@ -545,7 +543,7 @@ function handleCommand(
 					'',
 					theme.hint('  Tips:'),
 					theme.hint('    - multi-line input wraps automatically when brackets are unbalanced.'),
-					theme.hint('    - top-level `name = expr` is sugar for `(def "name" expr)`.'),
+					theme.hint('    - top-level `name = expr` sets a binding in the session let-block.'),
 					theme.hint('    - the session itself is a let-block; :tree shows it.'),
 					'',
 				].join('\n')

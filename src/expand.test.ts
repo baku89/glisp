@@ -13,7 +13,7 @@ describe('expand', () => {
 	let env: () => Env
 
 	const define = (...sources: string[]): void => {
-		for (const src of sources) session.evalSrc(src)
+		for (const src of sources) session.exec(src)
 	}
 	const step = (src: string): string =>
 		print(expand(parse(src), env()))

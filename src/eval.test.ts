@@ -843,84 +843,6 @@ describe('evaluate — generic closure', () => {
 	})
 })
 
-describe('evaluate — special form def (IO action)', () => {
-	const numberType = makeType('number', v => typeof v === 'number', 0)
-
-	const baseEnv = () =>
-		makeTopLevel({
-			number: lit(numberType as never),
-			'+': lit(
-				makeTypedFn(
-					[numberType, numberType],
-					numberType,
-					(a, b) => (a as number) + (b as number)
-				) as never
-			),
-		})
-
-	it('returns an IO without evaluating the value expression', () => {
-		const env = baseEnv()
-		const r = evaluate(parse('(def "y" (+ 20 30))'), env)
-		expect(r.value).toBeInstanceOf(IO)
-		expect(r.diagnostics).toEqual([])
-		// y is NOT yet bound — the action hasn't run.
-		const before = (env as { bindings?: Map<string, unknown> }).bindings
-		expect(before?.has('y')).toBe(false)
-	})
-
-	it('running the action binds the name; the body evaluates lazily', () => {
-		const env = baseEnv()
-		const r = evaluate(parse('(def "y" (+ 20 30))'), env)
-		;(r.value as IO).run()
-		const ref = evaluate(parse('y'), env)
-		expect(ref.value).toBe(50)
-	})
-
-	it('lazy: a binding to a failing expr does not error until referenced', () => {
-		const env = baseEnv()
-		;(evaluate(parse('(def "z" undefined-name)'), env).value as IO).run()
-		// Reference `z` to force evaluation — diagnostics show up here.
-		const ref = evaluate(parse('z'), env)
-		expect(
-			ref.diagnostics.some(d => d.message.includes('unresolvable'))
-		).toBe(true)
-	})
-
-	it('rejects a non-string name', () => {
-		const env = baseEnv()
-		const r = evaluate(parse('(def 42 1)'), env)
-		expect(
-			r.diagnostics.some(d => d.message.includes('name must evaluate to'))
-		).toBe(true)
-	})
-
-	it('undef removes a binding', () => {
-		const env = baseEnv()
-		;(evaluate(parse('(def "y" 1)'), env).value as IO).run()
-		expect(evaluate(parse('y'), env).value).toBe(1)
-		;(evaluate(parse('(undef "y")'), env).value as IO).run()
-		const after = evaluate(parse('y'), env)
-		expect(
-			after.diagnostics.some(d => d.message.includes('unresolvable'))
-		).toBe(true)
-	})
-
-	it('undef on a missing name reports a diagnostic at run-time', () => {
-		const env = baseEnv()
-		const action = evaluate(parse('(undef "never-bound")'), env)
-			.value as IO
-		const ds = action.run()
-		expect(ds.some(d => d.message.includes('not bound'))).toBe(true)
-	})
-
-	it('rebinding a name updates the prelude binding', () => {
-		const env = baseEnv()
-		;(evaluate(parse('(def "y" 1)'), env).value as IO).run()
-		;(evaluate(parse('(def "y" 2)'), env).value as IO).run()
-		expect(evaluate(parse('y'), env).value).toBe(2)
-	})
-})
-
 describe('evaluate — overload', () => {
 	const numberType = makeType('number', v => typeof v === 'number', 0)
 	const stringType = makeType('string', v => typeof v === 'string', '')
@@ -953,17 +875,15 @@ describe('evaluate — overload', () => {
 
 	it('dispatches to the matching variant by arg type', () => {
 		const env = baseEnv()
-		;(evaluate(parse('(def "f" (overload sq-num dup-str))'), env)
-			.value as IO).run()
-		expect(evaluate(parse('(f 4)'), env).value).toBe(16)
-		expect(evaluate(parse('(f "ab")'), env).value).toBe('abab')
+		const overloaded = (arg: string): string =>
+			`{f = (overload sq-num dup-str) (f ${arg})}`
+		expect(evaluate(parse(overloaded('4')), env).value).toBe(16)
+		expect(evaluate(parse(overloaded('"ab"')), env).value).toBe('abab')
 	})
 
 	it('emits a no-match diagnostic when no variant fits', () => {
 		const env = baseEnv()
-		;(evaluate(parse('(def "f" (overload sq-num dup-str))'), env)
-			.value as IO).run()
-		const r = evaluate(parse('(f true)'), env)
+		const r = evaluate(parse('{f = (overload sq-num dup-str) (f true)}'), env)
 		expect(
 			r.diagnostics.some(d => d.message.includes('no overload matches'))
 		).toBe(true)
@@ -982,14 +902,13 @@ describe('evaluate — overload', () => {
 	it('dispatch order: first matching variant wins', () => {
 		// Two variants both accept (top): the first one is the one
 		// chosen.
-		const env = baseEnv()
-		;(evaluate(
+		const r = evaluate(
 			parse(
-				'(def "g" (overload (=> (x: _): _ "first") (=> (x: _): _ "second")))'
+				'{g = (overload (=> (x: _): _ "first") (=> (x: _): _ "second")) (g 1)}'
 			),
-			env
-		).value as IO).run()
-		expect(evaluate(parse('(g 1)'), env).value).toBe('first')
+			baseEnv()
+		)
+		expect(r.value).toBe('first')
 	})
 })
 

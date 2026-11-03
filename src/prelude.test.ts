@@ -125,15 +125,12 @@ describe('prelude — type constructors', () => {
 	const env = buildPrelude()
 
 	it('(: v T) coerces an enum member through to its value', () => {
-		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
-			.value as IO).run()
-		expect(evaluate(parse('(: "g" C)'), env).value).toBe('g')
+		const r = evaluate(parse('{C = (enum "r" "g" "b") (: "g" C)}'), env)
+		expect(r.value).toBe('g')
 	})
 
 	it('(: v T) on a non-member falls back to the first listed value', () => {
-		;(evaluate(parse('(def "C" (enum "r" "g" "b"))'), env)
-			.value as IO).run()
-		const r = evaluate(parse('(: "purple" C)'), env)
+		const r = evaluate(parse('{C = (enum "r" "g" "b") (: "purple" C)}'), env)
 		expect(r.value).toBe('r')
 		expect(
 			r.diagnostics.some(d => d.message.includes("doesn't accept"))
@@ -141,14 +138,10 @@ describe('prelude — type constructors', () => {
 	})
 
 	it('refine narrows base type via (: v T)', () => {
-		;(evaluate(
-			parse(
-				'(def "Pos" (refine number 1 (=> (x: number): boolean (> x 0))))'
-			),
-			env
-		).value as IO).run()
-		expect(evaluate(parse('(: 5 Pos)'), env).value).toBe(5)
-		const fail = evaluate(parse('(: -3 Pos)'), env)
+		const pos = (arg: string): string =>
+			`{Pos = (refine number 1 (=> (x: number): boolean (> x 0))) (: ${arg} Pos)}`
+		expect(evaluate(parse(pos('5')), env).value).toBe(5)
+		const fail = evaluate(parse(pos('-3')), env)
 		expect(fail.value).toBe(1) // declared default
 		expect(
 			fail.diagnostics.some(d => d.message.includes("doesn't accept"))

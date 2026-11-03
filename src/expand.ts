@@ -87,7 +87,7 @@ export function expandAll(
 }
 
 /** Forms with custom dispatch, which have no body to step into. */
-const NON_EXPANDING = new Set(['|>', ':', 'def', 'undef', 'overload'])
+const NON_EXPANDING = new Set(['|>', ':', 'overload'])
 
 /**
  * One step of expansion. A closure call steps to its body and `?` steps

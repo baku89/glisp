@@ -36,8 +36,7 @@ Glisp はクリエイティブソフトに組み込むことを前提とした�
 
 ```glisp
 ;; ホスト側がキャンバス用のプリミティブを bind する例
-(def "circle"
-  (=> (cx: number cy: number r: number): Shape ...))
+circle = (=> (cx: number cy: number r: number): Shape ...)
 
 ;; プロジェクトファイルは静的データと計算式を混ぜて書ける
 {

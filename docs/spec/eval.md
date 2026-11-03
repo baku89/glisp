@@ -257,22 +257,9 @@ Evaluation:
 
 If any `stepK` does not evaluate to a function, the call FK(V) is a type error, handled by the standard default-fallback rules at the surrounding typed slot.
 
-#### `def` and `undef` — scope-mutating IO
+#### `IO`
 
-`(def name expr)` and `(undef name)` are special forms that produce **deferred effects** as values of type `IO`. The host runs the effect by invoking the value's `run` operation; until then, neither `name` nor `expr` has affected any scope.
-
-`def` evaluation:
-
-1. Force `name` to a string. A non-string emits a diagnostic and yields `()`.
-2. Capture `expr` as an AST without evaluating it.
-3. Locate the **topmost mutable frame** in the current env chain — the outermost frame whose `bindings` map is mutable (typically the prelude).
-4. Return an `IO` value whose `run` extends that frame's `bindings` with `name → (expr-AST, that frame)`.
-
-The captured AST is bound lazily: `expr` is evaluated only when something later references `name`, and the standard memoization (see [Cycle detection](#cycle-detection)) ensures it runs at most once per env.
-
-`undef` is the inverse: it returns an `IO` value whose `run` removes `name` from the topmost mutable frame, or emits a diagnostic at run-time if the name isn't bound there.
-
-Both forms only affect a frame whose `bindings` map is mutable. In an environment composed of immutable frames only — the design default for evaluator-side composition — running the IO is a no-op (with a diagnostic). The REPL and `g.def`-extended host envs supply a mutable top frame; pure evaluator embeddings do not.
+Evaluation changes nothing: not the AST, not any env. An effect is a value of type `IO`, which the host runs when it chooses. Editing the environment is such an effect, and it produces a new let-block rather than changing a frame in place, so evaluation results stay valid and undo is a matter of restoring the old one. `name = expr` in a REPL or application shell evaluates to this kind of `IO`.
 
 The `IO` type itself is a brand on the deferred-effect value. `eval` treats `IO`-typed values like any other value (no implicit forcing); explicit `run` is the host's responsibility.
 
@@ -413,7 +400,7 @@ The evaluator's return value is a plain `Value`. Diagnostic information is reach
 
 `resolve(ast, env)` walks the AST and binds every bare name and path to its target against the surrounding scope structure, running nothing. References that fail become diagnostics with the same messages evaluating them would produce, including in branches and function bodies that never run. `check` reports them alongside type errors. Duplicate let bindings and record fields are reported as warnings, and the last one wins.
 
-Scopes mirror the evaluator's frames: vectors, records, calls, and let-blocks each add a level, and a function literal adds one around its body. Generics are visible to a function's types and body; parameters to its body only, since a parameter's type is evaluated before any argument is bound. The captured body of `def` is not walked.
+Scopes mirror the evaluator's frames: vectors, records, calls, and let-blocks each add a level, and a function literal adds one around its body. Generics are visible to a function's types and body; parameters to its body only, since a parameter's type is evaluated before any argument is bound.
 
 `freeRefs(ast)` is the context-independent half: the bare names a node does not bind itself, and the paths that climb out of it. It depends on the node alone, so it is cached per AST instance. Since a node's value is determined by its own structure and what these refer to, it is the basis for incremental evaluation (see [Open questions](#open-questions)).
 

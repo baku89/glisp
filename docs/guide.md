@@ -12,7 +12,7 @@ npm install
 npm run repl
 ```
 
-The REPL prints prompts as `glisp>`. Top-level expressions evaluate immediately; `IO`-typed values (those returned by `def` and `undef`) are forced automatically.
+The REPL prints prompts as `glisp>`. Top-level expressions evaluate immediately; `name = expr` sets a binding in the session. It is shell syntax for an `IO` action, and the REPL runs top-level `IO` values automatically.
 
 ## Atoms
 
@@ -58,7 +58,7 @@ Function literals take an explicit signature and an inferred body. The arrow is 
 (=> (n: number): number (* n n))
 
 ;; Bind it
-(def "square" (=> (n: number): number (* n n)))
+square = (=> (n: number): number (* n n))
 (square 7)             ;; → 49
 ```
 
@@ -78,11 +78,10 @@ Types are first-class values. The prelude binds `number`, `string`, `boolean`, `
 
 ```glisp
 ;; Enumeration of literal members
-(def "Color" (enum "red" "green" "blue"))
+Color = (enum "red" "green" "blue")
 
 ;; Refinement: a base type narrowed by a predicate, with a default
-(def "Pos"
-  (refine number 1 (=> (n: number): boolean (> n 0))))
+Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
 
 ;; Parametric IO: an IO that produces a number when forced
 (IO number)            ;; → (IO number)  (a type value)

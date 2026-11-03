@@ -72,7 +72,7 @@ export interface DiagnosticView {
 export interface ReplResult {
 	readonly tokens: ReadonlyArray<Token>
 	readonly diagnostics: ReadonlyArray<DiagnosticView>
-	/** Free-form description for IO actions (`def`, `undef`). */
+	/** Free-form description for IO actions (`x = 1`). */
 	readonly note?: string
 }
 

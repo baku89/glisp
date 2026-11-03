@@ -53,7 +53,7 @@ There is no subtyping. Types are nominal/equality-based.
 | `boolean` | `true`, `false` |
 | `unit` | `()` |
 | `ast` | Any AST node, as handed over by the host |
-| `IO` | Deferred host effects — opaque values produced by `def`, `undef`, etc. Parametric: `(IO T)` is an IO that produces a `T` when forced; bare `IO` is sugar for `(IO _)` (see [eval.md](./eval.md)) |
+| `IO` | Deferred host effects — opaque values produced by host functions and shell assignment. Parametric: `(IO T)` is an IO that produces a `T` when forced; bare `IO` is sugar for `(IO _)` (see [eval.md](./eval.md)) |
 | `_` (top) | Any value |
 | `!` (bottom) | No value |
 

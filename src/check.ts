@@ -84,19 +84,10 @@ function walk(ast: AST, env: Env, diagnostics: Diagnostic[]): void {
 }
 
 function walkCall(ast: CallAST, env: Env, diagnostics: Diagnostic[]): void {
-	// Special forms — short-circuit. `def` and `undef` have a non-standard
-	// argument convention (the body is captured as an AST without being
-	// evaluated); `?` and `|>` evaluate selectively. We recurse into the
-	// arms that *will* be type-checked at run-time and skip the rest.
+	// Special forms — short-circuit. `?` and `|>` evaluate selectively, so
+	// recurse into their arms but don't validate them as a normal call.
 	if (ast.head.kind === 'sym') {
 		switch (ast.head.name) {
-			case 'def':
-			case 'undef':
-				// `(def "name" expr)` — only the name is evaluated; the
-				// expression is captured. Walk the expr (it's still part
-				// of the program) but skip call-form checking here.
-				for (const a of ast.args) walk(a, env, diagnostics)
-				return
 			case '?':
 				// `(? value pat1 res1 pat2 res2 ...)` — recurse into all,
 				// but don't try to validate this as a normal call.
