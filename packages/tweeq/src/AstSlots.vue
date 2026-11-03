@@ -17,7 +17,7 @@ const props = defineProps<{
 	 * The slots that can sort are a call's variadic arguments, which get a row of
 	 * their own under this label, and with this to add one.
 	 */
-	sequence?: { readonly label: string; add(): AST }
+	sequence?: { readonly label: string; readonly doc?: string; add(): AST }
 	read: (
 		ast: AST,
 		env: Env
@@ -139,6 +139,11 @@ const pathOf = (slot: Slot): string =>
 		@update:open="onSequenceOpen"
 		:label="sequence.label"
 		:icon="iconOfSequence(sortable) ?? undefined"
+		:hint="
+			sequence.doc === undefined
+				? undefined
+				: { title: sequence.label, description: sequence.doc }
+		"
 		expandable
 		:addLabel="`Add ${sequence.label}`"
 		@add="emit('change', sequence!.add())"

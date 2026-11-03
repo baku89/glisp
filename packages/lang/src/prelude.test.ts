@@ -300,7 +300,8 @@ describe('parameter labels', () => {
 		expect(map?.kind).toBe('meta')
 		if (map?.kind !== 'meta') return
 		const params = map.metadata.get('params')
-		expect(params?.print()).toBe('{xs: "Items" f: "Transform"}')
+		expect(params?.print()).toContain('xs: {label: "Items" doc: ')
+		expect(params?.print()).toContain('f: {label: "Transform" doc: ')
 		expect(map.metadata.get('doc')).toBeDefined()
 	})
 

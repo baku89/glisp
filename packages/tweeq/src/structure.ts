@@ -149,6 +149,8 @@ export interface NodeView {
 	readonly append: {
 		/** The key of the slot it adds, if that is known ahead. */
 		readonly key?: string
+		/** What it is for, where that is said. */
+		readonly doc?: string
 		readonly label: string
 		add(): AST
 	} | null
@@ -265,7 +267,11 @@ function editorOf(ast: LitAST, expected: TypeValue | null): Editor | null {
 function parameterInfo(
 	head: AST,
 	env: Env
-): { label(name: string): string; numberOptions(name: string): NumberOptions } {
+): {
+	label(name: string): string
+	doc(name: string): string | null
+	numberOptions(name: string): NumberOptions
+} {
 	let definition: AST | null = head
 	if (head.kind === 'sym') {
 		definition = null
@@ -284,11 +290,21 @@ function parameterInfo(
 		const type = fn?.kind === 'fn' ? fn.params.find(p => p.name === name)?.type : null
 		return type?.kind === 'meta' ? type.metadata : null
 	}
+	const fromParams = (name: string): AST | undefined =>
+		params?.kind === 'record' ? params.get(name) : undefined
 	return {
 		label(name) {
+			const said = fromParams(name)
 			const fromDefinition =
-				params?.kind === 'record' ? textOf(params.get(name)) : null
+				said?.kind === 'record' ? textOf(said.get('label')) : textOf(said)
 			return textOf(metadataOfType(name)?.get('label')) ?? fromDefinition ?? name
+		},
+		doc(name) {
+			const said = fromParams(name)
+			return (
+				textOf(metadataOfType(name)?.get('doc')) ??
+				(said?.kind === 'record' ? textOf(said.get('doc')) : null)
+			)
 		},
 		numberOptions: name => numberOptionsOf(metadataOfType(name)),
 	}
@@ -389,6 +405,14 @@ function viewOfForm(ast: CallAST, env: Env, name: string): NodeView {
 	return { ...LEAF, slots }
 }
 
+/**
+ * A `doc` as a label would say it. A word in backticks stands for a parameter, or is
+ * a bit of code: a parameter goes by its label, and code goes without the backticks.
+ */
+export function readableDoc(doc: string, labelOf: (name: string) => string): string {
+	return doc.replace(/`([^`]+)`/g, (_, word: string) => labelOf(word))
+}
+
 /** A call's arguments, each under the name its parameter has. */
 function viewOfCall(ast: CallAST, env: Env): NodeView {
 	if (ast.head.kind === 'sym' && FORMS.has(ast.head.name)) {
@@ -400,7 +424,6 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 	const title =
 		textOf(definition?.get('label')) ??
 		(ast.head.kind === 'sym' ? ast.head.name : print(ast.head))
-	const doc = textOf(definition?.get('doc'))
 	const inside = enterNode(ast, env)
 	const hasSpread = ast.args.some(arg => arg.kind === 'spread')
 	const parameters = hasSpread ? null : callParameters(ast, inside)
@@ -413,6 +436,11 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 
 	const info = parameterInfo(ast.head, inside)
 	const labelOf = info.label
+	const docOf = (name: string): { doc?: string } => {
+		const doc = info.doc(name)
+		return doc === null ? {} : { doc }
+	}
+	const doc = textOf(definition?.get('doc'))
 	const slots: Slot[] = []
 	const missing: MissingArgument[] = []
 	const positional = parameters?.names ?? []
@@ -433,6 +461,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 			env: inside,
 			expected: signature?.(i) ?? null,
 			numberOptions,
+			...docOf(isVariadic ? (parameters?.variadicName ?? '') : name!),
 			replace: child => withArg(i, child),
 			...(isVariadic
 				? {
@@ -469,6 +498,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 			key: `kw:${name}`,
 			label: labelOf(name),
 			numberOptions: info.numberOptions(name),
+			...docOf(name),
 			ast: arg,
 			env: inside,
 			expected: signature?.(positional.indexOf(name)) ?? null,
@@ -509,7 +539,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 			expected: null,
 			role: 'function',
 			icon: textOf(definition?.get('icon')) ?? 'mdi:function-variant',
-			...(doc === null ? {} : { doc }),
+			...(doc === null ? {} : { doc: readableDoc(doc, labelOf) }),
 			replace: child => new CallAST(child, ast.args, ast.kwargs),
 		},
 		slots,
@@ -519,6 +549,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 				? null
 				: {
 						label: labelOf(variadicName),
+						...docOf(variadicName),
 						add: () =>
 							new CallAST(
 								ast.head,
@@ -939,6 +970,23 @@ export function referenceTargetOf(
 	return null
 }
 
+/**
+ * What an expression starts with, when `=` is typed in a field as in a spreadsheet,
+ * or null if it is not at the start of the field and is just a character. A field
+ * with no text, such as a switch, starts empty.
+ */
+export function expressionFromField(
+	field: {
+		readonly value: string
+		readonly selectionStart: number | null
+		readonly selectionEnd: number | null
+	} | null
+): string | null {
+	if (field === null || field.selectionStart === null) return ''
+	if (field.selectionStart !== 0) return null
+	return field.value.slice(field.selectionEnd ?? 0)
+}
+
 /** The narrowest an input can be, side by side with others. */
 const MIN_INPUT_WIDTH = 64
 
@@ -986,6 +1034,10 @@ export function kindIconOf(ast: AST): string | null {
 export type SlotAction = {
 	readonly label: string
 	readonly icon: string
+	/** Which one it is, for what runs it by a key. */
+	readonly id?: 'step' | 'all'
+	/** The keys that run it, as a menu shows them. */
+	readonly keys?: readonly string[]
 	/** Actions of a group go together, in a menu. */
 	readonly group: 'edit' | 'copy' | 'remove'
 } & (
@@ -1010,8 +1062,10 @@ export function actionsOf(slot: Slot): SlotAction[] {
 
 	if (bare.kind === 'call') {
 		actions.push({
+			id: 'step',
 			label: 'Evaluate One Step',
 			icon: 'mdi:debug-step-into',
+			keys: ['E'],
 			group: 'edit',
 			apply: () => {
 				const next = expand(slot.ast, slot.env)
@@ -1020,6 +1074,24 @@ export function actionsOf(slot: Slot): SlotAction[] {
 				const { value, diagnostics } = evaluate(slot.ast, slot.env)
 				return slot.replace(
 					diagnostics.some(d => d.level === 'error')
+						? slot.ast
+						: toAst(value, slot.env)
+				)
+			},
+		})
+	}
+	if (isExpression(slot.ast) && hasValue(slot.ast) && slot.role !== 'function') {
+		actions.push({
+			id: 'all',
+			label: 'Evaluate All',
+			icon: 'mdi:debug-step-over',
+			keys: ['⇧', 'E'],
+			group: 'edit',
+			apply: () => {
+				const { value, diagnostics } = evaluate(slot.ast, slot.env)
+				return slot.replace(
+					diagnostics.some(d => d.level === 'error') ||
+						typeof value === 'function'
 						? slot.ast
 						: toAst(value, slot.env)
 				)

@@ -16,6 +16,7 @@ export function slotMenuItems(
 		items.push({
 			label: action.label,
 			icon: action.icon,
+			...(action.keys === undefined ? {} : { bindIcon: [...action.keys] }),
 			perform: () => {
 				if ('apply' in action) apply(action.apply())
 				else void navigator.clipboard.writeText(action.copy())

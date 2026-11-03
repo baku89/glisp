@@ -281,30 +281,58 @@ function makePower(multiply: TypedHostFn): TypedHostFn {
  * An editor reads them from `^{params: {...}}` on the definition. As with `doc`,
  * nothing here changes what the function does.
  */
-const PARAM_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-	'+': { xs: 'Values' },
-	'*': { xs: 'Values' },
-	'-': { xs: 'Values' },
-	'/': { xs: 'Values' },
-	'<': { xs: 'Values' },
-	'>': { xs: 'Values' },
-	'<=': { xs: 'Values' },
-	'>=': { xs: 'Values' },
-	'==': { xs: 'Values' },
-	'!=': { xs: 'Values' },
-	'++': { xs: 'Values' },
-	'**': { exp: 'Exponent' },
-	first: { xs: 'Items' },
-	last: { xs: 'Items' },
-	count: { xs: 'Items' },
-	take: { xs: 'Items', n: 'Count' },
-	drop: { xs: 'Items', n: 'Count' },
-	map: { xs: 'Items', f: 'Transform' },
-	filter: { xs: 'Items', p: 'Condition' },
-	reduce: { xs: 'Items', init: 'Initial', f: 'Combine' },
-	join: { xs: 'Items', sep: 'Separator' },
-	slice: { xs: 'Items' },
-	reverse: { xs: 'Items' },
+const PARAMS: Readonly<
+	Record<string, Readonly<Record<string, readonly [label: string, doc: string]>>>
+> = {
+	'+': { xs: ['Values', 'The numbers to add up.'] },
+	'*': { xs: ['Values', 'The numbers to multiply.'] },
+	'-': { xs: ['Values', 'The number to start from, and those to take away from it.'] },
+	'/': { xs: ['Values', 'The number to start from, and those to divide it by.'] },
+	'<': { xs: ['Values', 'What to compare, each with the next.'] },
+	'>': { xs: ['Values', 'What to compare, each with the next.'] },
+	'<=': { xs: ['Values', 'What to compare, each with the next.'] },
+	'>=': { xs: ['Values', 'What to compare, each with the next.'] },
+	'==': { xs: ['Values', 'What should all be the same.'] },
+	'!=': { xs: ['Values', 'What should not be the same.'] },
+	'++': { xs: ['Values', 'What to put end to end.'] },
+	'**': {
+		base: ['Base', 'The number to raise.'],
+		exp: ['Exponent', 'The power to raise it to.'],
+	},
+	first: { xs: ['Items', 'The vector to take it from.'] },
+	last: { xs: ['Items', 'The vector to take it from.'] },
+	count: { xs: ['Items', 'The vector to count.'] },
+	take: {
+		xs: ['Items', 'The vector to take them from.'],
+		n: ['Count', 'How many to take.'],
+	},
+	drop: {
+		xs: ['Items', 'The vector to drop them from.'],
+		n: ['Count', 'How many to drop.'],
+	},
+	map: {
+		xs: ['Items', 'The vector to go through.'],
+		f: ['Transform', 'What to make of each element.'],
+	},
+	filter: {
+		xs: ['Items', 'The vector to go through.'],
+		p: ['Condition', 'Whether to keep an element.'],
+	},
+	reduce: {
+		xs: ['Items', 'The vector to go through.'],
+		init: ['Initial', 'What to start from.'],
+		f: ['Combine', 'What to make of what there is so far and the next element.'],
+	},
+	join: {
+		xs: ['Items', 'What to put together.'],
+		sep: ['Separator', 'What goes between them.'],
+	},
+	slice: {
+		xs: ['Items', 'The vector or string to cut from.'],
+		start: ['Start', 'Where to begin.'],
+		end: ['End', 'Where to stop, before that.'],
+	},
+	reverse: { xs: ['Items', 'The vector to turn around.'] },
 }
 
 /** What to call the functions, where their names are for writing code in. */
@@ -355,13 +383,13 @@ const FUNCTION_LABELS: Readonly<Record<string, string>> = {
 function withParamLabels(bindings: Record<string, AST>): Record<string, AST> {
 	const labelled = { ...bindings }
 	for (const name of new Set([
-		...Object.keys(PARAM_LABELS),
+		...Object.keys(PARAMS),
 		...Object.keys(FUNCTION_LABELS),
 	])) {
 		const ast = labelled[name]
 		if (ast?.kind !== 'meta') continue
 		const label = FUNCTION_LABELS[name]
-		const params = PARAM_LABELS[name]
+		const params = PARAMS[name]
 		labelled[name] = new MetaAST(
 			new RecordAST([
 				...ast.metadata.fields,
@@ -373,7 +401,14 @@ function withParamLabels(bindings: Record<string, AST>): Record<string, AST> {
 								'params',
 								new RecordAST(
 									Object.entries(params).map(
-										([param, text]) => [param, new LitAST(text)] as const
+										([param, [text, doc]]) =>
+											[
+												param,
+												new RecordAST([
+													['label', new LitAST(text)],
+													['doc', new LitAST(doc)],
+												]),
+											] as const
 									)
 								),
 							] as const,

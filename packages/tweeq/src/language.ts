@@ -111,13 +111,18 @@ export function registerGlisp(): void {
 export function editOneExpression(
 	editor: monaco.editor.IStandaloneCodeEditor,
 	handlers: {
+		/** Go on writing what is there, rather than having it all selected. */
+		caretAtEnd?: boolean
 		isFinished(): boolean
 		cancel(): void
 		confirm(): void
 	}
 ): void {
 	const range = editor.getModel()?.getFullModelRange()
-	if (range !== undefined) editor.setSelection(range)
+	if (range !== undefined) {
+		if (handlers.caretAtEnd) editor.setPosition(range.getEndPosition())
+		else editor.setSelection(range)
+	}
 	editor.focus()
 	editor.onDidBlurEditorWidget(handlers.confirm)
 	editor.onKeyDown(event => {

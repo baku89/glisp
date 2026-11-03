@@ -107,6 +107,10 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		event.preventDefault()
 		if (event.shiftKey) props.document.redo()
 		else props.document.undo()
+	} else if (event.key.toLowerCase() === 'e' && !isMod && !event.altKey) {
+		if (selection.value?.evaluate === undefined) return
+		event.preventDefault()
+		selection.value.evaluate(event.shiftKey ? 'all' : 'step')
 	} else if (event.key === 'Enter' || event.key === 'F2') {
 		if (selection.value?.rename === undefined) return
 		event.preventDefault()

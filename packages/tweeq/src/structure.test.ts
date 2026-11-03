@@ -2,7 +2,7 @@ import { buildPrelude, evaluate, host, meta, parse, print, Session } from '@glis
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, iconOfSequence, withIcons } from './icons'
-import { actionsOf, defaultFor, hasValue, isExpression, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -290,6 +290,59 @@ describe('forms that are not calls', () => {
 	})
 })
 
+describe('docs', () => {
+	it('says a parameter by its label', () => {
+		expect(view('(reduce [1] 0 max)').head?.doc).toBe(
+			'Left-fold Items through Combine starting from Initial.'
+		)
+	})
+
+	it('reads code without its backticks', () => {
+		expect(readableDoc('`(*)` is 1', name => name)).toBe('(*) is 1')
+	})
+
+	it('says what a parameter is for', () => {
+		const [items, transform] = view('(map [1] (* % 2))').slots
+		expect(items?.doc).toBe('The vector to go through.')
+		expect(transform?.doc).toBe('What to make of each element.')
+		expect(view('(+ 1 2)').slots[0]?.doc).toBe('The numbers to add up.')
+		expect(view('(+ 1 2)').append?.doc).toBe('The numbers to add up.')
+	})
+
+	it('takes a doc from a parameter type', () => {
+		const session = new Session(env)
+		session.exec('f = (=> (w: ^{doc: "How wide."} number): number w)')
+		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.doc).toBe('How wide.')
+	})
+
+	it('still reads params given as just labels', () => {
+		const session = new Session(env)
+		session.exec('f = ^{params: {w: "Width"}} (=> (w: number): number w)')
+		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.label).toBe('Width')
+	})
+})
+
+describe('evaluating everything', () => {
+	const all = (src: string) => {
+		const found = actionsOf(view(src).slots[0]!).find(a => a.id === 'all')
+		return found && 'apply' in found ? print(found.apply()) : null
+	}
+
+	it('goes to the value', () => {
+		expect(all('[(+ 1 (* 2 3))]')).toBe('[7]')
+		expect(all('[(** 2 3)]')).toBe('[8]')
+	})
+
+	it('leaves alone what fails, and what is a function', () => {
+		expect(all('[(+ 1 nope)]')).toBe('[(+ 1 nope)]')
+		expect(all('[map]')).toBe('[map]')
+	})
+
+	it('is not there for what is written down', () => {
+		expect(all('[1]')).toBeNull()
+	})
+})
+
 describe('adding an element', () => {
 	const add = (src: string) => print(view(src).append!.add())
 
@@ -333,6 +386,33 @@ describe('adding a binding', () => {
 	it('is in the menu', () => {
 		const slot = view('{z = {a = 1}}').slots[0]!
 		expect(actionsOf(slot).map(a => a.label)).toContain('Add Binding')
+	})
+})
+
+describe('expressionFromField', () => {
+	const field = (value: string, start: number | null, end: number | null = start) => ({
+		value,
+		selectionStart: start,
+		selectionEnd: end,
+	})
+
+	it('replaces what is selected', () => {
+		expect(expressionFromField(field('40', 0, 2))).toBe('')
+	})
+
+	it('keeps what comes after the caret at the start', () => {
+		expect(expressionFromField(field('40', 0))).toBe('40')
+		expect(expressionFromField(field('40', 0, 1))).toBe('0')
+	})
+
+	it('is just a character anywhere else', () => {
+		expect(expressionFromField(field('40', 1))).toBeNull()
+		expect(expressionFromField(field('40', 2))).toBeNull()
+	})
+
+	it('starts empty where there is no text', () => {
+		expect(expressionFromField(null)).toBe('')
+		expect(expressionFromField(field('on', null))).toBe('')
 	})
 })
 
@@ -459,7 +539,9 @@ describe('parameter labels', () => {
 	})
 
 	it('fall back to the name', () => {
-		expect(labels('(** 2 3)')).toEqual(['base', 'Exponent'])
+		const session = new Session(env)
+		session.exec('f = (=> (w: number): number w)')
+		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.label).toBe('w')
 	})
 
 	it('leave what the call means alone', () => {
@@ -702,6 +784,7 @@ describe('actionsOf', () => {
 	it('offers what a slot allows', () => {
 		expect(menu('[(+ 1 2)]')).toEqual([
 			'Evaluate One Step',
+			'Evaluate All',
 			'Add Values',
 			'Copy Value',
 			'Copy Expression',
@@ -709,6 +792,7 @@ describe('actionsOf', () => {
 		])
 		expect(menu('[(take [1])]')).toEqual([
 			'Evaluate One Step',
+			'Evaluate All',
 			'Add Count',
 			'Copy Value',
 			'Copy Expression',

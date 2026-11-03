@@ -13,7 +13,7 @@ import { iconOf } from './icons'
 import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
 import { slotMenuItems } from './menu'
 import { RENAMER, REVEALER, SELECTION } from './selection'
-import { fitsInline, parseSource, type Slot, sourceOf, viewOf } from './structure'
+import { actionsOf, fitsInline, parseSource, type Slot, sourceOf, viewOf } from './structure'
 
 const props = defineProps<{
 	entry: Slot
@@ -140,6 +140,10 @@ function select(): void {
 		path: props.path,
 		...(remove === undefined ? {} : { remove: () => emit('change', remove()) }),
 		...(renamable.value ? { rename: () => (renaming.value = true) } : {}),
+		evaluate(id) {
+			const action = actionsOf(props.entry).find(a => a.id === id)
+			if (action !== undefined && 'apply' in action) emit('change', action.apply())
+		},
 	}
 }
 

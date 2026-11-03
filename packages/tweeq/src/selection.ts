@@ -5,6 +5,8 @@ export interface Selection {
 	readonly path: string
 	readonly remove?: () => void
 	readonly rename?: () => void
+	/** Run one of the actions that have a key. */
+	readonly evaluate?: (id: 'step' | 'all') => void
 }
 
 /** How a row renames the binding it shows, which takes the whole program. */

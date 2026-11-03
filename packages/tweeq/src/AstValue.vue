@@ -13,6 +13,7 @@ import { computed, inject, ref, watch } from 'vue'
 import { EDITOR_OPTIONS, editOneExpression, GLISP, registerGlisp } from './language'
 import { REVEALER } from './selection'
 import {
+	expressionFromField,
 	hasValue,
 	isExpression,
 	kindIconOf,
@@ -109,7 +110,7 @@ const iconTarget = computed(() => {
 })
 const kindIcon = computed(() =>
 	props.entry.display === undefined && props.inlinePosition === undefined
-		? (kindIconOf(ast.value) ?? undefined)
+		? (view.value.head?.icon ?? kindIconOf(ast.value) ?? undefined)
 		: undefined
 )
 
@@ -136,18 +137,51 @@ const editing = ref(false)
 
 function onEditorMount(editor: monaco.editor.IStandaloneCodeEditor): void {
 	editOneExpression(editor, {
-		isFinished: () => parseSource(draft.value) !== null,
+		caretAtEnd: startedByTyping,
+		// With nothing written, there is nothing to go on with.
+		isFinished: () => draft.value.trim() === '' || parseSource(draft.value) !== null,
 		cancel() {
 			draft.value = sourceOf(ast.value)
 			editing.value = false
+			startedByTyping = false
 		},
 		confirm: finishEditing,
 	})
 }
 
+// Typing `=` first in a number or the like turns it into an expression, as in a
+// spreadsheet. A string can begin with `=`, so it stays a string.
+let startedByTyping = false
+
+function onFieldKey(event: KeyboardEvent): void {
+	const { kind } = view.value.editor ?? {}
+	if (
+		event.key !== '=' ||
+		event.isComposing ||
+		event.metaKey ||
+		event.ctrlKey ||
+		event.altKey ||
+		(kind !== 'number' && kind !== 'boolean' && kind !== 'enum')
+	) {
+		return
+	}
+	const target = event.target as HTMLElement
+	const isText =
+		target instanceof HTMLInputElement && target.type === 'text'
+	const start = expressionFromField(isText ? target : null)
+	if (start === null) return
+	event.preventDefault()
+	event.stopPropagation()
+	target.blur()
+	startedByTyping = true
+	draft.value = start
+	editing.value = true
+}
+
 function finishEditing(): void {
 	if (!editing.value) return
 	editing.value = false
+	startedByTyping = false
 	commitDraft()
 }
 
@@ -161,12 +195,22 @@ const label = (value: unknown): string =>
 		:class="{
 			expression: !editing && !isCallee && isExpression(ast),
 			callee: !editing && isCallee,
-			error: parseSource(draft) === null || (!editing && problem !== null),
+			error:
+				(draft.trim() !== '' && parseSource(draft) === null) ||
+				(!editing && problem !== null),
 		}"
 		:title="problem ?? sourceOf(ast)"
+		@keydown.capture="onFieldKey"
 	>
+		<InputCode
+			v-if="editing"
+			v-model="draft"
+			:lang="GLISP"
+			:options="EDITOR_OPTIONS"
+			@mount="onEditorMount"
+		/>
 		<InputNumber
-			v-if="view.editor?.kind === 'number'"
+			v-else-if="view.editor?.kind === 'number'"
 			v-bind="numberOptions"
 			:modelValue="view.editor.value"
 			:menuItems="menuItems"
@@ -191,13 +235,6 @@ const label = (value: unknown): string =>
 			:options="[...view.editor.options]"
 			:labelizer="label"
 			@update:modelValue="update(withLiteral(ast, $event as never))"
-		/>
-		<InputCode
-			v-else-if="editing"
-			v-model="draft"
-			:lang="GLISP"
-			:options="EDITOR_OPTIONS"
-			@mount="onEditorMount"
 		/>
 		<InputTextBase
 			v-else
