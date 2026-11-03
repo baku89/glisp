@@ -68,7 +68,7 @@ export interface NodeView {
 	readonly title: string | null
 	/** What `^{label}` calls this node, in place of its slot's name. */
 	readonly label: string | null
-	/** A name for Tweeq's `Icon`, from `^{icon}` on the node or its function. */
+	/** A name for Tweeq's `Icon`, from `^{icon}` on the node itself. */
 	readonly icon: string | null
 	/** Set if a widget can edit this node directly. */
 	readonly editor: Editor | null
@@ -181,7 +181,6 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 	const title =
 		textOf(definition?.get('label')) ??
 		(ast.head.kind === 'sym' ? capitalCase(ast.head.name) : print(ast.head))
-	const icon = textOf(definition?.get('icon'))
 	const inside = enterNode(ast, env)
 	const hasSpread = ast.args.some(arg => arg.kind === 'spread')
 	const parameters = hasSpread ? null : callParameters(ast, inside)
@@ -258,7 +257,6 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 	return {
 		...LEAF,
 		title,
-		icon,
 		slots,
 		missing,
 		append:

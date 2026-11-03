@@ -140,12 +140,12 @@ describe('names', () => {
 		expect(capitalCase('円')).toBe('円')
 	})
 
-	it('prefers the label and icon on the definition', () => {
+	it('prefers the label on the definition', () => {
 		const session = new Session(env)
 		session.exec('f = ^{label: "Fill" icon: "mdi:brush"} (=> (x: number): number x)')
 		const v = viewOf(parse('(f 1)'), session.env)
 		expect(v.title).toBe('Fill')
-		expect(v.icon).toBe('mdi:brush')
+		expect(v.icon).toBeNull()
 	})
 
 	it('takes a label and icon from the node itself', () => {
@@ -180,10 +180,27 @@ describe('icons', () => {
 		expect(icon('1', buildPrelude())).toBeNull()
 	})
 
-	it('prefers the node, and then its function', () => {
+	it('gives a call the icon of what it returns', () => {
 		const session = new Session(env)
-		session.exec('f = ^{icon: "mdi:brush"} (=> (x: number): number x)')
-		expect(icon('(f 1)', session.env)).toBe('mdi:brush')
+		session.exec('f = ^{icon: "mdi:brush"} (=> (x: number): string "a")')
+		expect(icon('(f 1)', session.env)).toBe('mdi:format-quote-close')
+		expect(icon('f', session.env)).toBe('mdi:function-variant')
+	})
+
+	it('takes the icon of a type a program defines', () => {
+		const session = new Session(env)
+		session.exec(
+			'Len = ^{icon: "mdi:ruler"} (refine number 1 (=> (x: number): boolean (> x 0)))'
+		)
+		session.exec('Plain = (refine number 1 (=> (x: number): boolean (> x 0)))')
+		session.exec('f = (=> (x: number): Len x)')
+		session.exec('g = (=> (x: number): Plain x)')
+		expect(icon('(f 1)', session.env)).toBe('mdi:ruler')
+		expect(icon('(: 3 Len)', session.env)).toBe('mdi:ruler')
+		expect(icon('(g 1)', session.env)).toBe('mdi:numeric')
+	})
+
+	it('prefers what is on the node itself', () => {
 		expect(icon('^{icon: "fill:M0 0h24v24H0z"} 1')).toBe('fill:M0 0h24v24H0z')
 	})
 

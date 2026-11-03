@@ -1,7 +1,10 @@
 /**
- * Icons are metadata, on whatever a value's type is bound to:
+ * An icon belongs to a type, as metadata on what the type is bound to:
  *
  *   ^{icon: "mdi:ruler"} number
+ *
+ * A row shows the icon of its value's type, so a call shows that of what it
+ * returns.
  *
  * An icon is what Tweeq's `Icon` takes: an Iconify name such as `mdi:ruler`, or
  * `fill:` and the `d` of a path in a 24×24 box.
@@ -18,6 +21,7 @@ import {
 	LitAST,
 	MetaAST,
 	RecordAST,
+	toAst,
 	type TypeValue,
 	unwrapLazy,
 } from '@glisp/lang'
@@ -75,9 +79,15 @@ export function withTypeIcons(env: Env): Env {
 const iconBoundTo = (name: string, env: Env): string | null =>
 	textOf(metadataOf(name, env)?.get('icon'))
 
-/** The icon of a type, from the metadata on what it is bound to. */
+/**
+ * The icon of a type: the one on the name it is bound to, or else that of the
+ * type it refines, or of its shape.
+ */
 export function iconOfType(type: TypeValue, env: Env): string | null {
 	const resolved = unwrapLazy(type)
+	const named = toAst(resolved, env)
+	const own = named.kind === 'sym' ? iconBoundTo(named.name, env) : null
+	if (own !== null) return own
 	const { shape } = resolved
 	if (shape.kind === 'refine') return iconOfType(shape.base, env)
 	if (shape.kind in SHAPE_ICONS) return SHAPE_ICONS[shape.kind] ?? null
@@ -85,10 +95,7 @@ export function iconOfType(type: TypeValue, env: Env): string | null {
 	return iconBoundTo(name, env)
 }
 
-/**
- * The icon of a node: its own or its function's if it has one, or else that of
- * its type.
- */
+/** The icon of a node: its own if it has one, or else that of its type. */
 export function iconOf(
 	ast: AST,
 	env: Env,
