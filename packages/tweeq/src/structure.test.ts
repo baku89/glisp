@@ -351,28 +351,29 @@ describe('referenceTargetOf', () => {
 	})
 })
 
-describe('range', () => {
-	it('comes from the metadata on a value', () => {
-		expect(view('^{range: [0 10]} 5').range).toEqual([0, 10])
-		expect(view('5').range).toBeNull()
+describe('numberOptions', () => {
+	it('come from the metadata on a value', () => {
+		expect(view('^{min: 0 max: 10 step: 2} 4').numberOptions).toEqual({ min: 0, max: 10, step: 2 })
+		expect(view('^{min: 0} 5').numberOptions).toEqual({ min: 0 })
+		expect(view('5').numberOptions).toEqual({})
 	})
 
-	it('comes from the metadata on a parameter type', () => {
+	it('come from the metadata on a parameter type', () => {
 		const session = new Session(env)
-		session.exec('f = (=> (w: ^{range: [0 100]} number h: number): number w)')
+		session.exec('f = (=> (w: ^{min: 0 max: 100} number h: number): number w)')
 		const [w, h] = viewOf(parse('(f 1 2)'), session.env).slots
-		expect(w?.range).toEqual([0, 100])
-		expect(h?.range).toBeUndefined()
+		expect(w?.numberOptions).toEqual({ min: 0, max: 100 })
+		expect(h?.numberOptions).toEqual({})
 	})
 
-	it('wants two numbers, in order', () => {
-		for (const src of ['^{range: [0]} 5', '^{range: [1 0]} 5', '^{range: ["a" 1]} 5', '^{range: 3} 5']) {
-			expect(view(src).range).toBeNull()
-		}
+	it('say nothing that does not make sense', () => {
+		expect(view('^{min: 1 max: 0} 5').numberOptions).toEqual({})
+		expect(view('^{min: "a"} 5').numberOptions).toEqual({})
+		expect(view('^{step: 0} 5').numberOptions).toEqual({})
 	})
 
-	it('changes nothing about the value', () => {
-		expect(evaluate(parse('^{range: [0 10]} 50'), env).value).toBe(50)
+	it('change nothing about the value', () => {
+		expect(evaluate(parse('^{min: 0 max: 10} 50'), env).value).toBe(50)
 	})
 })
 

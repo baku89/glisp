@@ -476,7 +476,7 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 - The `default` key is the only metadata key with semantic meaning to the language core: when type mismatch or runtime error occurs, the `default` of the expected type is returned.
 - `label` and `icon` are for editors. An editor shows a node by its own `label`, and a call by the `label` on the function's definition. `icon` is named the way the host names icons. A value with no `icon` of its own can take the one on what its type is bound to, so `^{icon: "..."} number` is the icon of numbers.
 - A parameter is labelled by `label` on its type, as in `(xs: ^{label: "Items"} [...T])`, or by `params` on the function's definition, as in `^{params: {xs: "Items"}} (=> ...)`, which is how a host function does it.
-- `range` says what a number can be, for an editor to offer a slider: `^{range: [0 100]} 50`, or on a parameter's type, as in `(w: ^{range: [0 100]} number)`. It does not limit the value.
+- `min`, `max` and `step` say what a number can be, for an editor's widget: `^{min: 0 max: 100} 50`, or on a parameter's type, as in `(w: ^{min: 0 max: 100} number)`. They do not limit the value.
 - Metadata wraps cannot stack. `^{a: 1} ^{b: 2} expr` is a syntax error — combine the fields into a single `^{a: 1 b: 2}` instead. (Merge semantics for stacked metadata are intentionally not defined.)
 - Other keys (`label`, `color`, `icon`, `doc`, ...) have no effect on evaluation. The host attaches typed hints for these keys.
 

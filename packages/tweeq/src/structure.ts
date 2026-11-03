@@ -60,16 +60,20 @@ export interface Slot {
 	replace(child: AST): AST
 	/** The new parent without this slot, if it can go. */
 	remove?(): AST
-	/** What its parameter's type says a number can be, if it says. */
-	readonly range?: Range
+	/** What its parameter's type says of a number, if anything. */
+	readonly numberOptions?: NumberOptions
 	/** Its place among the slots it can swap places with, if it has one. */
 	readonly sort?: SlotSort
 	/** What to show while it is not being edited, in place of its value. */
 	readonly display?: string
 }
 
-/** The least and the most a number can be, for a slider. */
-export type Range = readonly [min: number, max: number]
+/** What can be said of a number, for its widget, as InputNumber's props do. */
+export interface NumberOptions {
+	readonly min?: number
+	readonly max?: number
+	readonly step?: number
+}
 
 export interface SlotSort {
 	readonly index: number
@@ -116,8 +120,8 @@ export interface NodeView {
 	readonly head: Slot | null
 	/** What `^{label}` calls this node, in place of its slot's name. */
 	readonly label: string | null
-	/** What `^{range: [min max]}` on the node says a number can be. */
-	readonly range: Range | null
+	/** What `min`, `max` and `step` in the node's metadata say of a number. */
+	readonly numberOptions: NumberOptions
 	/** A name for Tweeq's `Icon`, from `^{icon}` on the node itself. */
 	readonly icon: string | null
 	/** Set if a widget can edit this node directly. */
@@ -132,7 +136,7 @@ const LEAF: NodeView = {
 	title: null,
 	head: null,
 	label: null,
-	range: null,
+	numberOptions: {},
 	icon: null,
 	editor: null,
 	slots: [],
@@ -154,17 +158,21 @@ export function capitalCase(name: string): string {
 		: words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
-/** `[min max]`, from metadata. */
-function rangeOf(ast: AST | undefined): Range | null {
-	if (ast?.kind !== 'vec' || ast.elements.length !== 2) return null
-	const [min, max] = ast.elements
-	return min?.kind === 'lit' &&
-		max?.kind === 'lit' &&
-		typeof min.value === 'number' &&
-		typeof max.value === 'number' &&
-		min.value < max.value
-		? [min.value, max.value]
-		: null
+/** `min`, `max` and `step`, from metadata. A min and max out of order say nothing. */
+function numberOptionsOf(metadata: MetaAST['metadata'] | null | undefined): NumberOptions {
+	const read = (key: string): number | undefined => {
+		const field = metadata?.get(key)
+		return field?.kind === 'lit' && typeof field.value === 'number'
+			? field.value
+			: undefined
+	}
+	const [min, max, step] = [read('min'), read('max'), read('step')]
+	const ordered = min === undefined || max === undefined || min < max
+	return {
+		...(ordered && min !== undefined ? { min } : {}),
+		...(ordered && max !== undefined ? { max } : {}),
+		...(step !== undefined && step > 0 ? { step } : {}),
+	}
 }
 
 export function textOf(ast: AST | undefined): string | null {
@@ -249,7 +257,7 @@ function editorOf(ast: LitAST, expected: TypeValue | null): Editor | null {
 function parameterInfo(
 	head: AST,
 	env: Env
-): { label(name: string): string; range(name: string): Range | null } {
+): { label(name: string): string; numberOptions(name: string): NumberOptions } {
 	let definition: AST | null = head
 	if (head.kind === 'sym') {
 		definition = null
@@ -274,7 +282,7 @@ function parameterInfo(
 				params?.kind === 'record' ? textOf(params.get(name)) : null
 			return textOf(metadataOfType(name)?.get('label')) ?? fromDefinition ?? name
 		},
-		range: name => rangeOf(metadataOfType(name)?.get('range')),
+		numberOptions: name => numberOptionsOf(metadataOfType(name)),
 	}
 }
 
@@ -307,7 +315,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		const label = isVariadic
 			? `${labelOf(parameters?.variadicName ?? '')}${parameters === null ? `${i}` : ` ${i - positional.length}`}`.trim()
 			: labelOf(name!)
-		const range = info.range(
+		const numberOptions = info.numberOptions(
 			isVariadic ? (parameters?.variadicName ?? '') : name!
 		)
 		slots.push({
@@ -316,7 +324,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 			ast: arg,
 			env: inside,
 			expected: signature?.(i) ?? null,
-			...(range === null ? {} : { range }),
+			numberOptions,
 			replace: child => withArg(i, child),
 			...(isVariadic
 				? {
@@ -352,7 +360,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		slots.push({
 			key: `kw:${name}`,
 			label: labelOf(name),
-			...(info.range(name) === null ? {} : { range: info.range(name)! }),
+			numberOptions: info.numberOptions(name),
 			ast: arg,
 			env: inside,
 			expected: signature?.(positional.indexOf(name)) ?? null,
@@ -538,7 +546,7 @@ function viewOfMeta(
 	return {
 		...inner,
 		label,
-		range: rangeOf(ast.metadata.get('range')),
+		numberOptions: numberOptionsOf(ast.metadata),
 		title: label ?? inner.title,
 		icon: textOf(ast.metadata.get('icon')) ?? inner.icon,
 		head:

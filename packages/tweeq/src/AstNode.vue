@@ -93,7 +93,11 @@ const isNumber = computed(
 	() => typeof result.value?.value === 'number' && props.entry.display === undefined
 )
 
-const range = computed(() => view.value.range ?? props.entry.range ?? null)
+// The node's own say goes first, over what its parameter's type says.
+const numberOptions = computed(() => ({
+	...props.entry.numberOptions,
+	...view.value.numberOptions,
+}))
 
 const iconTarget = computed(() => {
 	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
@@ -251,8 +255,7 @@ watch(
 		>
 			<InputNumber
 				v-if="view.editor?.kind === 'number'"
-							:min="range?.[0]"
-				:max="range?.[1]"
+							v-bind="numberOptions"
 	:modelValue="view.editor.value"
 				:menuItems="menuItems"
 				@update:modelValue="update(withLiteral(ast, $event))"
