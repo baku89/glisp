@@ -308,6 +308,9 @@ const label = (value: unknown): string =>
 	--tq-color-accent: var(--tq-color-info);
 	--tq-color-accent-hover: var(--tq-color-info);
 }
+.expression :deep(.icon.right) {
+	color: var(--tq-color-info);
+}
 .callee :deep(.TqInputTextBase) {
 	background: transparent;
 	box-shadow: inset 0 0 0 1px var(--tq-color-border);
