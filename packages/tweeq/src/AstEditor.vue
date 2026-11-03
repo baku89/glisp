@@ -99,7 +99,6 @@ function addBinding(): void {
 				:key="binding.key"
 				:entry="binding"
 				:path="binding.key"
-				:depth="0"
 				:read="document.read"
 				:show="show"
 				@change="replaceRoot"

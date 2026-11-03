@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { type AST, type Env, UNIT } from '@glisp/lang'
-import { Icon } from 'tweeq/Icon'
 import { InputCheckbox } from 'tweeq/InputCheckbox'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputNumber } from 'tweeq/InputNumber'
 import { InputString } from 'tweeq/InputString'
 import { InputTextBase } from 'tweeq/InputTextBase'
-import { Menu, type MenuItem } from 'tweeq/Menu'
-import { Parameter } from 'tweeq/ParameterGrid'
-import Popover from 'tweeq/Popover/Popover.vue'
-import { computed, inject, ref, useTemplateRef, watch } from 'vue'
+import { type MenuItem } from 'tweeq/Menu'
+import { ParameterTreeItem } from 'tweeq/ParameterGrid'
+import { computed, inject, ref, watch } from 'vue'
 
 import { SELECTION } from './selection'
 import {
@@ -26,7 +24,6 @@ import {
 const props = defineProps<{
 	entry: Slot
 	path: string
-	depth: number
 	read: (
 		ast: AST,
 		env: Env
@@ -102,59 +99,20 @@ const menuItems = computed<MenuItem[]>(() =>
 		perform: () => emit('change', action.apply()),
 	}))
 )
-
-// The menu on the label.
-const $label = useTemplateRef<HTMLElement>('$label')
-const menuPosition = ref<[number, number] | null>(null)
-
-function openMenu(event: MouseEvent): void {
-	event.preventDefault()
-	select()
-	if (menuItems.value.length > 0) {
-		menuPosition.value = [event.clientX, event.clientY]
-	}
-}
 </script>
 
 <template>
-	<Parameter>
-		<template #label>
-			<span
-				ref="$label"
-				class="row-label"
-				:style="{ '--depth': depth }"
-				:title="entry.expected?.typeName"
-				@click="select"
-				@contextmenu="openMenu"
-			>
-				<button
-					v-if="view.slots.length > 0"
-					class="toggle"
-					:class="{ open }"
-					type="button"
-					@click.stop="open = !open"
-				>
-					<Icon class="chevron" :class="{ collapsed: !open }" icon="mdi:chevron-down" />
-				</button>
-				<span v-else class="toggle" />
-				<Icon v-if="view.icon !== null" class="icon" :icon="view.icon" />
-				<span class="name" :class="{ selected }">{{ view.label ?? entry.label }}</span>
-				<span v-if="view.label === null && view.title !== null" class="title">
-					{{ view.title }}
-				</span>
-			</span>
-			<Popover
-				v-if="menuPosition !== null"
-				:reference="$label"
-				:placement="menuPosition"
-				:open="true"
-				teleport=".TqViewport"
-				@update:open="$event || (menuPosition = null)"
-			>
-				<Menu :items="menuItems" @close="menuPosition = null" />
-			</Popover>
-		</template>
-
+	<ParameterTreeItem
+		v-model:open="open"
+		:label="view.label ?? entry.label"
+		:note="view.label === null ? (view.title ?? undefined) : undefined"
+		:icon="view.icon ?? undefined"
+		:hint="entry.expected?.typeName"
+		:expandable="view.slots.length > 0"
+		:selected="selected"
+		:menuItems="menuItems"
+		@select="select"
+	>
 		<InputNumber
 			v-if="view.editor?.kind === 'number'"
 			:modelValue="view.editor.value"
@@ -198,93 +156,22 @@ function openMenu(event: MouseEvent): void {
 				</template>
 			</InputTextBase>
 		</div>
-	</Parameter>
 
-	<template v-if="open">
-		<AstNode
-			v-for="child in view.slots"
-			:key="child.key"
-			:entry="child"
-			:path="`${path}/${child.key}`"
-			:depth="depth + 1"
-			:read="read"
-			:show="show"
-			@change="update"
-		/>
-	</template>
+		<template #children>
+			<AstNode
+				v-for="child in view.slots"
+				:key="child.key"
+				:entry="child"
+				:path="`${path}/${child.key}`"
+				:read="read"
+				:show="show"
+				@change="update"
+			/>
+		</template>
+	</ParameterTreeItem>
 </template>
 
 <style scoped>
-.row-label {
-	display: flex;
-	align-items: center;
-	position: relative;
-	align-self: stretch;
-	padding-left: calc(var(--depth) * var(--tq-icon-size));
-	cursor: pointer;
-}
-/* One line for each level this row is inside, under that level's chevron. */
-.row-label::before {
-	content: '';
-	position: absolute;
-	top: calc(-1 * var(--tq-gap-control));
-	bottom: 0;
-	left: 0;
-	width: calc(var(--depth) * var(--tq-icon-size));
-	pointer-events: none;
-	background: repeating-linear-gradient(
-		to right,
-		transparent 0 calc(var(--tq-icon-size) / 2),
-		var(--tq-color-border) 0 calc(var(--tq-icon-size) / 2 + 1px),
-		transparent 0 var(--tq-icon-size)
-	);
-}
-/* The start of that line, just below the tip of an open chevron. */
-.toggle.open::after {
-	content: '';
-	position: absolute;
-	top: calc(64% + 2px);
-	bottom: calc((var(--tq-input-height) - var(--tq-icon-size)) / -2 - var(--tq-gap-control));
-	left: 50%;
-	width: 1px;
-	pointer-events: none;
-	background: var(--tq-color-border);
-}
-.toggle {
-	position: relative;
-	display: block;
-	flex-shrink: 0;
-	width: var(--tq-icon-size);
-	height: var(--tq-icon-size);
-	color: var(--tq-color-text-mute);
-	cursor: pointer;
-}
-.chevron {
-	display: block;
-	width: 100%;
-	height: 100%;
-	transition: transform var(--tq-hover-transition-duration) ease;
-}
-.chevron.collapsed {
-	transform: rotate(-90deg);
-}
-.icon {
-	flex-shrink: 0;
-	width: var(--tq-icon-size);
-	height: var(--tq-icon-size);
-}
-.title {
-	margin-left: var(--tq-gap-related);
-	color: var(--tq-color-text-subtle);
-}
-.name {
-	border-radius: var(--tq-radius-input);
-	padding-inline: 0.25em;
-}
-.name.selected {
-	background: var(--tq-color-accent);
-	color: var(--tq-color-on-accent);
-}
 .field {
 	display: flex;
 	min-width: 0;
