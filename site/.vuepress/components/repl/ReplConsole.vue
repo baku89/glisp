@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Session as CoreSession } from '@glisp/lang'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import {
@@ -17,7 +18,13 @@ interface HistoryItem {
 
 const STORAGE_KEY = 'glisp-playground-history-v1'
 
-const session = createSession()
+const props = defineProps<{
+	/** Share a session, whose state is then shown elsewhere. */
+	shared?: CoreSession
+}>()
+const emit = defineEmits<{ change: [] }>()
+
+const session = createSession(props.shared)
 const input = ref('')
 const history = ref<HistoryItem[]>([])
 const tree = ref<string>(session.tree())
@@ -27,7 +34,7 @@ let nextId = 0
 
 onMounted(() => {
 	try {
-		const raw = localStorage.getItem(STORAGE_KEY)
+		const raw = props.shared ? null : localStorage.getItem(STORAGE_KEY)
 		if (raw !== null) {
 			const lines = JSON.parse(raw) as string[]
 			for (const line of lines) replay(line)
@@ -54,6 +61,7 @@ function persistHistory(): void {
 
 function refreshTree(): void {
 	tree.value = session.tree()
+	emit('change')
 }
 
 function replay(src: string): void {
@@ -211,7 +219,7 @@ function caretMarker(span: number): string {
 </script>
 
 <template>
-	<div class="repl-shell">
+	<div class="repl-shell" :class="{ single: shared }">
 		<section class="repl">
 			<header>
 				<span class="title">Glisp REPL</span>
@@ -309,7 +317,7 @@ function caretMarker(span: number): string {
 			</form>
 		</section>
 
-		<aside class="tree-pane">
+		<aside v-if="!shared" class="tree-pane">
 			<header>
 				<span class="title">Session</span>
 			</header>
@@ -326,6 +334,10 @@ function caretMarker(span: number): string {
 	max-height: 100dvh;
 	gap: 1px;
 	background: var(--border);
+}
+
+.repl-shell.single {
+	grid-template-columns: minmax(0, 1fr);
 }
 
 .repl,

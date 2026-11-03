@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import type { Session } from '@glisp/lang'
+
 import ReplConsole from './repl/ReplConsole.vue'
+
+defineProps<{ shared?: Session }>()
+defineEmits<{ change: [] }>()
 </script>
 
 <template>
 	<div class="repl-frame">
-		<ReplConsole />
+		<ReplConsole :shared="shared" @change="$emit('change')" />
 	</div>
 </template>
 

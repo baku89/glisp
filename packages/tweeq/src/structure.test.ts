@@ -1,0 +1,207 @@
+import { buildPrelude, evaluate, parse, print, Session } from '@glisp/lang'
+import { describe, expect, it } from 'vitest'
+
+import { actionsOf, capitalCase, defaultFor, hasValue, isExpression, literalOf, parseSource, viewOf, withLiteral } from './structure'
+
+const env = buildPrelude()
+const view = (src: string) => viewOf(parse(src), env)
+const labels = (src: string) => view(src).slots.map(s => s.label)
+
+describe('viewOf', () => {
+	it('gives a literal a widget for its type', () => {
+		expect(view('1').editor).toEqual({ kind: 'number', value: 1 })
+		expect(view('"a"').editor).toEqual({ kind: 'string', value: 'a' })
+		expect(view('true').editor).toEqual({ kind: 'boolean', value: true })
+		expect(view('()').editor).toEqual({ kind: 'unit' })
+	})
+
+	it('gives a literal an enum widget where the slot expects one', () => {
+		const session = new Session(env)
+		session.exec('Join = (enum "round" "butt")')
+		session.exec('f = (=> (j: Join): Join j)')
+		const call = parse('(f "butt")')
+		const slot = viewOf(call, session.env).slots[0]!
+		expect(viewOf(slot.ast, slot.env, slot.expected).editor).toEqual({
+			kind: 'enum',
+			value: 'butt',
+			options: ['round', 'butt'],
+		})
+	})
+
+	it('shows call arguments by parameter name', () => {
+		expect(view('(take [1 2] 1)').title).toBe('Take')
+		expect(labels('(take [1 2] 1)')).toEqual(['xs', 'n'])
+		expect(labels('(take [1 2] n=1)')).toEqual(['xs', 'n'])
+		expect(labels('(+ 1 2 3)')).toEqual(['xs 0', 'xs 1', 'xs 2'])
+	})
+
+	it('knows what each parameter wants, unless it is generic', () => {
+		const [xs, n] = view('(take [1 2] 1)').slots
+		expect(xs!.expected?.typeName).toBe('[...T]')
+		expect(n!.expected?.typeName).toBe('number')
+		expect(view('(first [1])').slots[0]!.expected?.typeName).toBe('[...T]')
+		expect(view('(+ 1)').slots[0]!.expected?.typeName).toBe('number')
+	})
+
+	it('offers a parameter that was not passed', () => {
+		const { missing } = view('(take [1 2])')
+		expect(missing.map(m => m.name)).toEqual(['n'])
+		expect(print(missing[0]!.add())).toBe('(take [1 2] n=0)')
+		expect(view('(take [1 2] n=1)').missing).toEqual([])
+	})
+
+	it('shows vectors, records and let-blocks by their children', () => {
+		expect(labels('[1 2]')).toEqual(['0', '1'])
+		expect(labels('{x: 1 y: 2}')).toEqual(['x', 'y'])
+		expect(labels('{a = 1 b = 2 (+ a b)}')).toEqual(['a', 'b', '='])
+	})
+
+	it('sees through metadata', () => {
+		const v = view('^{label: "Sum"} (+ 1 2)')
+		expect(v.title).toBe('Sum')
+		expect(print(v.slots[0]!.replace(parse('5')))).toBe('^{label: "Sum"} (+ 5 2)')
+		expect(view('^{label: "x"} 1').editor).toEqual({ kind: 'number', value: 1 })
+	})
+
+	it('leaves names, paths and functions to be edited as source', () => {
+		for (const src of ['x', './a', '(=> (x: number): number x)']) {
+			const v = view(src)
+			expect(v.editor, src).toBeNull()
+			expect(v.slots, src).toEqual([])
+		}
+	})
+
+	it('does not name arguments it cannot place', () => {
+		expect(labels('(+ ...[1 2])')).toEqual(['0'])
+	})
+})
+
+describe('editing', () => {
+	const replaced = (src: string, index: number, next: string) =>
+		print(view(src).slots[index]!.replace(parse(next)))
+	const removed = (src: string, index: number) =>
+		print(view(src).slots[index]!.remove!())
+
+	it('replaces a child and keeps the rest of the source', () => {
+		expect(replaced('(+ 1  2)', 0, '9')).toBe('(+ 9 2)')
+		expect(replaced('(take [1] n=1)', 1, '2')).toBe('(take [1] n=2)')
+		expect(replaced('[1 2]', 1, '9')).toBe('[1 9]')
+		expect(replaced('{x: 1 y: (+  1 2)}', 0, '9')).toBe('{x: 9 y: (+  1 2)}')
+		expect(replaced('{a = 1 a}', 0, '9')).toBe('{a = 9 a}')
+		expect(replaced('{a = 1 a}', 1, '(+ a 1)')).toBe('{a = 1 (+ a 1)}')
+	})
+
+	it('shares what did not change, so a Runtime can reuse it', () => {
+		const ast = parse('[(+ 1 2) (+ 3 4)]')
+		const before = viewOf(ast, env).slots
+		const next = before[0]!.replace(parse('9'))
+		const after = viewOf(next, env).slots
+		expect(after[1]!.ast).toBe(before[1]!.ast)
+	})
+
+	it('removes what can go, and not what cannot', () => {
+		expect(removed('[1 2 3]', 1)).toBe('[1 3]')
+		expect(removed('{x: 1 y: 2}', 0)).toBe('{y: 2}')
+		expect(removed('{a = 1 b = 2}', 0)).toBe('{b = 2}')
+		expect(removed('(+ 1 2 3)', 1)).toBe('(+ 1 3)')
+		expect(removed('(take [1] n=1)', 1)).toBe('(take [1])')
+		expect(view('(take [1] 1)').slots[0]!.remove).toBeUndefined()
+		expect(view('{a = 1 a}').slots[1]!.remove).toBeUndefined()
+	})
+
+	it('grows a variadic call and a vector', () => {
+		expect(print(view('(+ 1)').append!.add())).toBe('(+ 1 0)')
+		expect(print(view('[1 2]').append!.add())).toBe('[1 2 2]')
+		expect(print(view('[]').append!.add())).toBe('[0]')
+		expect(view('(take [1] 1)').append).toBeNull()
+	})
+
+	it('produces programs that evaluate', () => {
+		const next = view('(+ 1 2)').slots[1]!.replace(parse('(* 2 3)'))
+		expect(evaluate(next, env).value).toBe(7)
+	})
+
+	it('replaces a literal, keeping metadata', () => {
+		expect(print(withLiteral(parse('1'), 2))).toBe('2')
+		expect(print(withLiteral(parse('^{label: "x"} 1'), 2))).toBe('^{label: "x"} 2')
+		expect(literalOf(parse('^{label: "x"} 1'))?.value).toBe(1)
+		expect(literalOf(parse('(+ 1)'))).toBeNull()
+	})
+})
+
+describe('names', () => {
+	it('capitalizes what a function is called', () => {
+		expect(capitalCase('map')).toBe('Map')
+		expect(capitalCase('to-string')).toBe('To String')
+		expect(capitalCase('fooBar')).toBe('Foo Bar')
+		expect(capitalCase('*')).toBe('*')
+		expect(capitalCase('-')).toBe('-')
+		expect(capitalCase('円')).toBe('円')
+	})
+
+	it('prefers the label and icon on the definition', () => {
+		const session = new Session(env)
+		session.exec('f = ^{label: "Fill" icon: "mdi:brush"} (=> (x: number): number x)')
+		const v = viewOf(parse('(f 1)'), session.env)
+		expect(v.title).toBe('Fill')
+		expect(v.icon).toBe('mdi:brush')
+	})
+
+	it('takes a label and icon from the node itself', () => {
+		const v = view('^{label: "Width" icon: "mdi:ruler"} 100')
+		expect(v.label).toBe('Width')
+		expect(v.icon).toBe('mdi:ruler')
+		expect(view('100').label).toBeNull()
+	})
+})
+
+describe('isExpression', () => {
+	it('tells what is written down from what is worked out', () => {
+		for (const src of ['1', '"a"', 'true', '[1 2]', '{a: 1}', '^{label: "x"} 1'])
+			expect(isExpression(parse(src))).toBe(false)
+		for (const src of ['x', '(+ 1 2)', '[1 x]', '{a: (+ 1 2)}', '../x', '^{label: "x"} y'])
+			expect(isExpression(parse(src))).toBe(true)
+	})
+})
+
+describe('actionsOf', () => {
+	const slotOf = (src: string, index = 0) => view(src).slots[index]!
+	const menu = (src: string, index = 0) =>
+		actionsOf(slotOf(src, index)).map(a => a.label)
+
+	it('offers what a slot allows', () => {
+		expect(menu('[(+ 1 2)]')).toEqual(['Add xs', 'Delete'])
+		expect(menu('[(take [1])]')).toEqual(['Add n', 'Delete'])
+		expect(menu('[[1]]')).toEqual(['Add element', 'Delete'])
+		expect(menu('[1]')).toEqual(['Delete'])
+		expect(menu('(take [1] 1)', 1)).toEqual([])
+	})
+
+	it('applies to the parent', () => {
+		const [add, remove] = actionsOf(slotOf('[(+ 1) 2]'))
+		expect(print(add!.apply())).toBe('[(+ 1 0) 2]')
+		expect(print(remove!.apply())).toBe('[2]')
+	})
+})
+
+describe('helpers', () => {
+	it('gives the default of a type as source', () => {
+		const t = view('(+ 1)').slots[0]!.expected
+		expect(print(defaultFor(t, env))).toBe('0')
+		expect(print(defaultFor(null, env))).toBe('0')
+	})
+
+	it('knows what has a value worth showing', () => {
+		expect(hasValue(parse('(+ 1 2)'))).toBe(true)
+		expect(hasValue(parse('x'))).toBe(true)
+		expect(hasValue(parse('{a = 1 a}'))).toBe(true)
+		expect(hasValue(parse('{a = 1}'))).toBe(false)
+		expect(hasValue(parse('^{label: "x"} {a = 1}'))).toBe(false)
+		expect(hasValue(parse('%'))).toBe(false)
+	})
+
+	it('parses source, or says it cannot', () => {
+		expect(print(parseSource('(+ 1 2)')!)).toBe('(+ 1 2)')
+		expect(parseSource('(+ 1')).toBeNull()
+	})
+})

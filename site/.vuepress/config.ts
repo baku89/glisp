@@ -1,5 +1,8 @@
+import { fileURLToPath, URL } from 'node:url'
+
 import { viteBundler } from '@vuepress/bundler-vite'
 import { defaultTheme } from '@vuepress/theme-default'
+import glsl from 'vite-plugin-glsl'
 import { defineUserConfig } from 'vuepress'
 
 const repo = 'baku89/glisp'
@@ -24,6 +27,8 @@ export default defineUserConfig({
 		],
 	],
 	theme: defaultTheme({
+		docsDir: 'site',
+		docsBranch: 'lang-2026',
 		logo: '/logo.svg',
 		repo,
 		locales: {
@@ -68,7 +73,26 @@ export default defineUserConfig({
 				'A small guest language for creative software. Hosted on TypeScript, embedded in design tools, motion editors, and generative pipelines.',
 		},
 	},
-	bundler: viteBundler(),
+	bundler: viteBundler({
+		viteOptions: {
+			// Tweeq is used from source, as a submodule. Without dedupe there would
+			// be two copies of its stores' pinia and of vue.
+			plugins: [glsl()],
+			// Tweeq has a `var(-tq-...)` typo, which the CSS minifier rejects.
+			build: { cssMinify: false },
+			resolve: {
+				dedupe: ['vue', 'pinia', '@vueuse/core'],
+				alias: [
+					{
+						find: /^tweeq(\/.*)?$/,
+						replacement: fileURLToPath(
+							new URL('../../dev_modules/tweeq/src$1', import.meta.url)
+						),
+					},
+				],
+			},
+		},
+	}),
 	markdown: {
 		linkify: true,
 		typographer: true,

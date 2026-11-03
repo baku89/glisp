@@ -148,6 +148,11 @@ export class Session {
 		return this.runtime.evaluate(ast, this.env)
 	}
 
+	/** Evaluate an AST in any env, sharing the session's cache. */
+	evalAstIn(ast: AST, env: Env): EvalResult {
+		return this.runtime.evaluate(ast, env)
+	}
+
 	/**
 	 * Shell entry point. `name = expr` and `./path/seg = expr` evaluate to an `IO` that performs
 	 * the assignment when run; everything else goes through `parse` and

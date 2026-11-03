@@ -6,7 +6,8 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "site"
+    "site",
+    "dev_modules/tweeq"
   ],
   "scripts": {
     "test": "vitest run",

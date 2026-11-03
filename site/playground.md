@@ -1,11 +1,13 @@
 ---
 pageClass: repl-page
+sidebar: false
+editLink: false
+lastUpdated: false
+contributors: false
 ---
 
 <script setup lang="ts">
-import Repl from './.vuepress/components/Repl.vue'
+import Playground from './.vuepress/components/Playground.vue'
 </script>
 
-<ClientOnly>
-	<Repl />
-</ClientOnly>
+<Playground />

@@ -8,12 +8,14 @@ This branch (`lang-2026`) is a redesign focused on the language.
 
 - `packages/lang`: the language (`@glisp/lang`). No dependencies.
 - `packages/repl`: the terminal REPL.
+- `packages/tweeq`: edit an AST directly through [Tweeq](https://github.com/baku89/tweeq) widgets.
 - `site`: the website, with the guide and the browser REPL.
 - `spec`: the specification.
 
 ## Try it
 
 ```sh
+git submodule update --init
 npm install
 npm run repl   # terminal REPL
 npm run dev    # website, with the browser REPL

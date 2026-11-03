@@ -102,9 +102,10 @@ export interface Session {
 	readonly isComplete: (src: string) => boolean
 }
 
-export function createSession(): Session {
-	let session = new CoreSession(buildPrelude())
-
+/** A session of its own, or one on `session`, shared with something else. */
+export function createSession(
+	session: CoreSession = new CoreSession(buildPrelude())
+): Session {
 	return {
 		env: () => session.env,
 		bindings: () => session.bindings(),
@@ -114,9 +115,7 @@ export function createSession(): Session {
 		check: src => checkLine(src, session.env),
 		expand: src => expandLine(src, session.env),
 		doc: name => docLine(name, session.env),
-		reset: () => {
-			session = new CoreSession(buildPrelude())
-		},
+		reset: () => session.reset(),
 		isComplete: src => isInputComplete(src),
 	}
 }

@@ -10,7 +10,16 @@
     "types": [
       "vite/client",
       "node"
-    ]
+    ],
+    "paths": {
+      "tweeq": [
+        "../dev_modules/tweeq/src"
+      ],
+      "tweeq/*": [
+        "../dev_modules/tweeq/src/*"
+      ]
+    },
+    "exactOptionalPropertyTypes": false
   },
   "include": [
     "./modules.d.ts",
