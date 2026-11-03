@@ -49,11 +49,7 @@ const isBinding = computed(() => props.entry.key.startsWith('binding:'))
 const isFunction = computed(() => props.entry.role === 'function')
 
 // A function says what it does; anything else, what it is expected to be.
-const hint = computed(() =>
-	props.entry.doc === undefined
-		? props.entry.expected?.typeName
-		: { title: props.entry.label, description: props.entry.doc }
-)
+const hint = computed(() => props.entry.doc ?? props.entry.expected?.typeName)
 
 // A binding's name is edited on its label. What a call calls is an expression, so it
 // is edited as code, across the row.

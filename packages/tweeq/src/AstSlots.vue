@@ -139,11 +139,7 @@ const pathOf = (slot: Slot): string =>
 		@update:open="onSequenceOpen"
 		:label="sequence.label"
 		:icon="iconOfSequence(sortable) ?? undefined"
-		:hint="
-			sequence.doc === undefined
-				? undefined
-				: { title: sequence.label, description: sequence.doc }
-		"
+		:hint="sequence.doc"
 		expandable
 		:addLabel="`Add ${sequence.label}`"
 		@add="emit('change', sequence!.add())"
