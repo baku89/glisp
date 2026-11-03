@@ -74,6 +74,7 @@ const shown = computed(() => {
 	}
 	if (value === UNIT) return '()'
 	if (typeof value === 'number') return String(Number(value.toFixed(4)))
+	if (typeof value === 'string') return value
 	return props.show(value, props.entry.env)
 })
 
@@ -91,9 +92,12 @@ const upToNow = computed(() => {
 		: props.show(value, env)
 })
 
-// What comes to a number looks like one, as a literal does.
+// What comes to a number or a string looks like one, as a literal does.
 const isNumber = computed(
 	() => typeof result.value?.value === 'number' && props.entry.display === undefined
+)
+const isString = computed(
+	() => typeof result.value?.value === 'string' && props.entry.display === undefined
 )
 
 // The node's own say goes first, over what its parameter's type says.
@@ -239,7 +243,7 @@ const label = (value: unknown): string =>
 		<InputTextBase
 			v-else
 			:modelValue="draft"
-			:font="isNumber ? 'numeric' : 'monospace'"
+			:font="isNumber ? 'numeric' : isString ? undefined : 'monospace'"
 			:align="isNumber ? 'center' : undefined"
 			:inlinePosition="inlinePosition"
 			ignoreInput
