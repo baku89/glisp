@@ -130,6 +130,32 @@ describe('editing', () => {
 	})
 })
 
+describe('head', () => {
+	it('is a row of a call, apart from its arguments', () => {
+		const v = view('(take [1 2] 1)')
+		expect(v.head?.label).toBe('Function')
+		expect(v.head?.display).toBe('Take')
+		expect(print(v.head!.ast)).toBe('take')
+		expect(v.slots.map(s => s.label)).toEqual(['xs', 'n'])
+		expect(view('[1]').head).toBeNull()
+	})
+
+	it('can be replaced, and not removed', () => {
+		const { head } = view('(take [1 2] 1)')
+		expect(print(head!.replace(parse('drop')))).toBe('(drop [1 2] 1)')
+		expect(head!.remove).toBeUndefined()
+	})
+
+	it('keeps metadata around the call', () => {
+		const { head } = view('^{label: "Part"} (take [1 2] 1)')
+		expect(print(head!.replace(parse('drop')))).toBe('^{label: "Part"} (drop [1 2] 1)')
+	})
+
+	it('is there for a call with no arguments', () => {
+		expect(view('(+)').head?.display).toBe('+')
+	})
+})
+
 describe('names', () => {
 	it('capitalizes what a function is called', () => {
 		expect(capitalCase('map')).toBe('Map')

@@ -57,6 +57,7 @@ const problem = computed(() => result.value?.diagnostics[0]?.message ?? null)
 
 /** What the field shows while it is not being edited. */
 const shown = computed(() => {
+	if (props.entry.display !== undefined) return props.entry.display
 	const value = result.value?.value
 	if (result.value === null || typeof value === 'function') {
 		return sourceOf(ast.value)
@@ -67,6 +68,10 @@ const shown = computed(() => {
 })
 
 const open = ref(false)
+
+const children = computed(() =>
+	view.value.head === null ? view.value.slots : [view.value.head, ...view.value.slots]
+)
 
 // The field holds the source while it has focus.
 const draft = ref(sourceOf(ast.value))
@@ -110,10 +115,9 @@ const menuItems = computed<MenuItem[]>(() =>
 	<ParameterTreeItem
 		v-model:open="open"
 		:label="view.label ?? entry.label"
-		:note="view.label === null ? (view.title ?? undefined) : undefined"
 		:icon="icon"
 		:hint="entry.expected?.typeName"
-		:expandable="view.slots.length > 0"
+		:expandable="view.head !== null || view.slots.length > 0"
 		:selected="selected"
 		:menuItems="menuItems"
 		@select="select"
@@ -164,7 +168,7 @@ const menuItems = computed<MenuItem[]>(() =>
 
 		<template #children>
 			<AstNode
-				v-for="child in view.slots"
+				v-for="child in children"
 				:key="child.key"
 				:entry="child"
 				:path="`${path}/${child.key}`"

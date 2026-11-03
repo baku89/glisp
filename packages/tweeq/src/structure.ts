@@ -53,6 +53,8 @@ export interface Slot {
 	replace(child: AST): AST
 	/** The new parent without this slot, if it can go. */
 	remove?(): AST
+	/** What to show while it is not being edited, in place of its value. */
+	readonly display?: string
 }
 
 /** A parameter that a call could have, but does not. */
@@ -66,6 +68,8 @@ export interface MissingArgument {
 export interface NodeView {
 	/** What the node is called on screen, such as a call's head. */
 	readonly title: string | null
+	/** What a call calls: its first row when open, above the arguments. */
+	readonly head: Slot | null
 	/** What `^{label}` calls this node, in place of its slot's name. */
 	readonly label: string | null
 	/** A name for Tweeq's `Icon`, from `^{icon}` on the node itself. */
@@ -80,6 +84,7 @@ export interface NodeView {
 
 const LEAF: NodeView = {
 	title: null,
+	head: null,
 	label: null,
 	icon: null,
 	editor: null,
@@ -257,6 +262,15 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 	return {
 		...LEAF,
 		title,
+		head: {
+			key: 'head',
+			label: 'Function',
+			ast: ast.head,
+			env: inside,
+			expected: null,
+			display: title,
+			replace: child => new CallAST(child, ast.args, ast.kwargs),
+		},
 		slots,
 		missing,
 		append:
@@ -398,6 +412,13 @@ function viewOfMeta(
 		label,
 		title: label ?? inner.title,
 		icon: textOf(ast.metadata.get('icon')) ?? inner.icon,
+		head:
+			inner.head === null
+				? null
+				: {
+						...inner.head,
+						replace: child => wrap(inner.head!.replace(child)),
+					},
 		slots: inner.slots.map(slot => ({
 			...slot,
 			replace: child => wrap(slot.replace(child)),
