@@ -6,6 +6,7 @@ node_modules
 /site/lang/.vuepress/.cache
 /site/lang/.vuepress/.temp
 /site/lang/.vuepress/dist
+/site/canvas/dist
 
 # local env files
 .env.local

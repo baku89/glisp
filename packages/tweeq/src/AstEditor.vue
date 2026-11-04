@@ -21,6 +21,11 @@ import {
 
 const props = defineProps<{ document: GlispDocument }>()
 
+const emit = defineEmits<{
+	/** A row has been selected, or nothing is any more. */
+	select: [path: string | null]
+}>()
+
 const show = (value: unknown, env: Env): string => {
 	try {
 		return toAst(value, env).print()
@@ -144,6 +149,14 @@ const refuseAsEnv = (next: AST): string | null =>
 
 const selection = shallowRef<Selection | null>(null)
 provide(SELECTION, selection)
+watch(selection, next => emit('select', next?.path ?? null))
+
+defineExpose({
+	/** Open the rows down to one, and select it. */
+	reveal(path: string): void {
+		revealTarget.value = { path }
+	},
+})
 
 // A selection deletes through the tree as it was, so an edit ends it.
 watch(props.document.root, () => {

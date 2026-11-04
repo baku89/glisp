@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "node"],
+    "paths": {
+      "tweeq": ["../../dev_modules/tweeq/src"],
+      "tweeq/*": ["../../dev_modules/tweeq/src/*"],
+      "pave/*": ["../../dev_modules/pave/src/*"],
+      "geome": ["../../dev_modules/geome/src"]
+    },
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["./src/**/*.ts", "./src/**/*.vue", "../lang/modules.d.ts"],
+  "exclude": ["**/*.test.ts"]
+}

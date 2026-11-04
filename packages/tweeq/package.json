@@ -5,7 +5,8 @@
   "description": "Edit a Glisp AST directly through Tweeq widgets",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./structure": "./src/structure.ts"
   },
   "dependencies": {
     "@glisp/lang": "*"

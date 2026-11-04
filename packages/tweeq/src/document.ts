@@ -39,8 +39,13 @@ export interface GlispDocument {
 	redo(): void
 }
 
-export function useGlispDocument(source = '{}'): GlispDocument {
-	const session = new Session(withIcons(buildPrelude()))
+export function useGlispDocument(
+	source = '{}',
+	/** What a host adds to the language, which the program can then refer to. */
+	options: { env?: (prelude: Env) => Env } = {}
+): GlispDocument {
+	const prelude = withIcons(buildPrelude())
+	const session = new Session(options.env?.(prelude) ?? prelude)
 	const initial = parse(source)
 	if (initial.kind === 'let') session.setAst(new LetAST(initial.bindings, null))
 

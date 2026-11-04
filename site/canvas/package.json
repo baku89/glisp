@@ -1,0 +1,27 @@
+{
+  "name": "@glisp/site-canvas",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Glisp Canvas, a vector drawing app",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 8124",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@glisp/lang": "*",
+    "@glisp/tweeq": "*",
+    "linearly": "^0.33.0",
+    "pinia": "^3.0.1",
+    "svgpath": "^2.6.0",
+    "tweeq": "*",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "stylus": "^0.63.0",
+    "vite-plugin-glsl": "^1.3.0",
+    "vue-tsc": "^2.2.0"
+  }
+}

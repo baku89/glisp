@@ -12,10 +12,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && npm run typecheck -w site/lang",
+    "typecheck": "tsc --noEmit && npm run typecheck -w site/lang && npm run typecheck -w site/canvas",
     "repl": "npm run start -w @glisp/repl",
     "dev": "npm run dev -w site/lang",
-    "build": "npm run build -w site/lang"
+    "dev:canvas": "npm run dev -w site/canvas",
+    "build": "npm run build -w site/lang && npm run build -w site/canvas"
   },
   "license": "MIT",
   "author": "Baku Hashimoto <mail@baku89.com>",

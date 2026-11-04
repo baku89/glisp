@@ -9,7 +9,7 @@ A language made to be embedded in creative software: the same program is edited 
 - `packages/repl`: the terminal REPL. Logic in `core.ts`, `editor.ts`, `screen.ts`; `tui.ts` is the thin part that touches the terminal.
 - `packages/tweeq`: edit an AST directly through Tweeq widgets, with a REPL beside it. The mapping from AST to GUI is pure (`structure.ts`, `repl.ts`), and the Vue components are thin.
 - `site/lang`: the language's website, in English, with the guide and the playground, at `/lang/`.
-- `site/canvas`: the drawing app, at `/canvas`, which is the point of all this. Not started yet.
+- `site/canvas`: the drawing app, at `/canvas`, which is the point of all this. What is on the canvas comes from the program (`scene.ts`), and what moves it goes back with `solve`.
 - `dev_modules/tweeq`: Tweeq, as a submodule, used from source.
 
 Hosts depend on `@glisp/lang`, and it depends on nothing. Keep it that way.

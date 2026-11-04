@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, isHidden, readByName, UNIT, UNSET } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, infer, isHidden, readByName, UNIT, unwrapLazy, UNSET } from '@glisp/lang'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
@@ -75,6 +75,9 @@ const shown = computed(() => {
 	if (value === UNIT) return '()'
 	if (typeof value === 'number') return String(Number(value.toFixed(4)))
 	if (typeof value === 'string') return value
+	// What a host has made its own type goes by that, rather than what it is made of.
+	const type = infer(readByName(ast.value), props.entry.env)
+	if (type !== null && unwrapLazy(type).shape.kind === 'primitive') return type.typeName
 	return props.show(value, props.entry.env)
 })
 
