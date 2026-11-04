@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { parse, print } from '@glisp/lang'
-import { AstEditor, AstProgramCode, Repl, useGlispDocument } from '@glisp/tweeq'
+import { AstEditor, AstProgramCode, inspectionOf, Repl, useGlispDocument } from '@glisp/tweeq'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
@@ -122,6 +122,12 @@ function selectOnCanvas(rows: readonly string[]): void {
 /** What the inspector shows: one row, as several have nothing in common to show. */
 const inspected = computed(() => (selected.value.length === 1 ? selected.value[0]! : null))
 
+const inspection = computed(() =>
+	inspected.value === null
+		? null
+		: inspectionOf(document.root.value, document.env.value, inspected.value)
+)
+
 // A row that is one of several stays one of several, as the tree only has the one.
 function selectInTree(row: string | null): void {
 	if (row === null) selected.value = []
@@ -207,16 +213,29 @@ function selectInTree(row: string | null): void {
 					:width="320"
 				>
 					<template #header>
+						<button
+							v-if="inspection?.outer"
+							v-tooltip="'What holds this'"
+							class="outer"
+							aria-label="What holds this"
+							@click="selectOnCanvas([inspection!.outer!])"
+						>
+							<Icon icon="ph:arrow-up-left" />
+						</button>
 						<span class="panel-title">
-							<Icon icon="ph:sliders-horizontal" />
-							Inspector
+							<template v-if="inspection">
+								<span class="name">{{ inspection.name }}</span>
+								<span v-if="inspection.fn" class="fn">{{ inspection.fn }}</span>
+							</template>
+							<span v-else-if="selected.length > 1" class="name">
+								{{ selected.length }} selected
+							</span>
 						</span>
 					</template>
 					<AstEditor
 						:document="document"
 						:inspect="inspected"
 						:iconOfValue="iconOfPath"
-						@outer="selectOnCanvas([$event])"
 					/>
 				</FloatPanel>
 				<div class="tools" data-selects-rows>
@@ -257,7 +276,35 @@ function selectInTree(row: string | null): void {
 	padding-inline: 6px;
 }
 .panel-title {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+}
+.panel-title .name {
+	overflow: hidden;
+	text-overflow: ellipsis;
 	font-weight: 600;
+}
+.panel-title .fn {
+	overflow: hidden;
+	color: var(--tq-color-text-mute);
+	text-overflow: ellipsis;
+}
+.outer {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	border: none;
+	border-radius: var(--tq-radius-input);
+	background: none;
+	color: var(--tq-color-text-mute);
+	cursor: pointer;
+}
+.outer:hover {
+	background: var(--tq-color-input-hover);
+	color: var(--tq-color-text);
 }
 .tab {
 	border: none;

@@ -55,8 +55,6 @@ const emit = defineEmits<{
 	code: []
 	/** These rows have just been pasted. */
 	pasted: [paths: readonly string[]]
-	/** An inspector would go out to the row that holds what it shows. */
-	outer: [path: string]
 }>()
 
 const show = (value: unknown, env: Env): string => {
@@ -213,7 +211,6 @@ const inspected = computed(() => {
 		view,
 		// With nothing inside it, what there is to see of it is itself.
 		alone: view.slots.length === 0 && view.missing.length === 0 && view.append === null,
-		title: view.head?.label ?? own.label,
 		doc: view.head?.doc ?? own.doc ?? null,
 	}
 })
@@ -414,21 +411,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	<div v-if="isInspector" class="AstEditor inspector" data-selects-rows>
 		<ScrollArea class="tree">
 			<template v-if="inspected !== null">
-				<div class="inspector-header">
-					<h3 class="inspector-name">
-						{{ inspected.title }}
-						<InputButton
-							v-if="inspected.parentPath !== ''"
-							class="inspector-outer"
-							icon="mdi:arrow-up-left"
-							subtle
-							narrow
-							tooltip="What holds this"
-							@click="emit('outer', inspected!.parentPath)"
-						/>
-					</h3>
-					<p v-if="inspected.doc !== null" class="inspector-doc">{{ inspected.doc }}</p>
-				</div>
+				<p v-if="inspected.doc !== null" class="inspector-doc">{{ inspected.doc }}</p>
 				<ParameterTree name="glisp.inspector" :labelWidth="110">
 					<AstSlots
 						:key="inspect ?? ''"
@@ -525,22 +508,9 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 .AstEditor.inspector .tree {
 	flex: 0 1 auto;
 }
-.inspector-header {
+.inspector-doc {
 	margin-bottom: var(--tq-gap-control);
 	padding-inline: 3px;
-}
-.inspector-name {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	min-height: var(--tq-input-height);
-	font-weight: 600;
-}
-.inspector-outer {
-	flex: none;
-	width: auto;
-}
-.inspector-doc {
 	line-height: 1.4;
 	color: var(--tq-color-text-mute);
 }

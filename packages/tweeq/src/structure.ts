@@ -1386,3 +1386,32 @@ export function literalOf(ast: AST): LitAST | null {
 	const inner = ast.kind === 'meta' ? ast.expr : ast
 	return inner.kind === 'lit' ? inner : null
 }
+
+/** What a row is, to head an inspector with. */
+export interface Inspection {
+	/** What it is called: its name, or the label of what it is an argument for. */
+	readonly name: string
+	/** The function it is a call of, if it is one. */
+	readonly fn: string | null
+	/** The row that holds it, if there is one. */
+	readonly outer: string | null
+}
+
+export function inspectionOf(root: AST, env: Env, path: string): Inspection | null {
+	const parts = path.split('/')
+	let node = root
+	let nodeEnv = env
+	let own: Slot | undefined
+	for (const key of parts) {
+		const slots: readonly Slot[] = viewOf(node, nodeEnv).slots
+		own = slots.find(s => s.key === key)
+		if (own === undefined) return null
+		node = own.ast
+		nodeEnv = own.env
+	}
+	return {
+		name: own!.label,
+		fn: viewOf(node, nodeEnv).head?.label ?? null,
+		outer: parts.length > 1 ? parts.slice(0, -1).join('/') : null,
+	}
+}

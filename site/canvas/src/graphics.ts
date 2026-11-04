@@ -92,11 +92,11 @@ const point = withTypeMeta(
 		makeTupleType([
 			part([
 				['title', 'X'],
-				['prefix', 'X'],
+				['fieldIcon', 'char:X'],
 			]),
 			part([
 				['title', 'Y'],
-				['prefix', 'Y'],
+				['fieldIcon', 'char:Y'],
 			]),
 		]),
 		'point',

@@ -8,7 +8,7 @@ import {
 	print,
 	toAst,
 } from '@glisp/lang'
-import { isTranslatable, viewOf } from '@glisp/tweeq/structure'
+import { inspectionOf, isTranslatable, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
@@ -203,8 +203,8 @@ describe('what a vector is made of', () => {
 
 	it('says X and Y, for a point', () => {
 		expect(elements('(path.circle [1 2] 3)', 0)).toEqual([
-			['X', { prefix: 'X' }],
-			['Y', { prefix: 'Y' }],
+			['X', { leftIcon: 'char:X' }],
+			['Y', { leftIcon: 'char:Y' }],
 		])
 	})
 
@@ -220,6 +220,23 @@ describe('what a vector is made of', () => {
 		const [, rectSize] = viewOf(parse('(path.rect [0 0] [1 2])'), env).slots
 		expect(isTranslatable(center!.expected)).toBe(true)
 		expect(isTranslatable(rectSize!.expected)).toBe(false)
+	})
+})
+
+describe('what heads an inspector', () => {
+	const root = parse('{r = (path.rect [0 0] [1 1]) n = 1}')
+
+	it('is its name, and the function it is a call of', () => {
+		expect(inspectionOf(root, env, 'binding:r')).toEqual({ name: 'r', fn: 'path.rect', outer: null })
+		expect(inspectionOf(root, env, 'binding:n')).toEqual({ name: 'n', fn: null, outer: null })
+	})
+
+	it('goes out to what holds it', () => {
+		expect(inspectionOf(root, env, 'binding:r/arg1')).toMatchObject({ name: 'size', outer: 'binding:r' })
+	})
+
+	it('is nothing for a row no longer there', () => {
+		expect(inspectionOf(root, env, 'binding:gone')).toBeNull()
 	})
 })
 
