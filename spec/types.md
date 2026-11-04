@@ -170,6 +170,8 @@ JoinType = (enum "round" "butt" "square")
 (: "hello" number)            ;; → 0  (default, with a diagnostic)
 (: [1 2 3] [...number])       ;; → [1 2 3]
 (: "round" JoinType)          ;; → "round"
+((=> (j: JoinType): JoinType j) "butt")       ;; → "butt"
+((=> (o: {j: JoinType}): _ o) {j: "butt"})    ;; → {j: "butt"}
 (: "diamond" JoinType)        ;; → "round"  (default, with a diagnostic)
 ```
 
@@ -259,6 +261,8 @@ The language core assigns semantic meaning only to:
 
 All other keys are unrestricted. Hosts may register typed schemas for them via the host API.
 
+A value of an `enum` can have metadata of its own, which goes with it: `(enum ^{icon: "ph:a"} "a" ^{icon: "ph:b"} "b")`. It is the same type as `(enum "a" "b")`. As elsewhere, only what is written as a literal can be read back, so a value from `(enum ...xs)` has none. An editor shows the values by their `icon` if all of them have one. What an icon's name means is up to the host.
+
 ### `()` and default fallback
 
 `()` (the unit literal) plays a dual role:
@@ -302,7 +306,7 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 
 Signatures are mandatory, so types flow locally rather than through a global solver. `infer(ast, env)` runs no value expression. The only thing it evaluates is a type expression, since types are values.
 
-- **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else.
+- **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else. A slot also takes a literal for what it is, so `"round"` goes in a slot of `(enum "round" "butt")` and `"z"` does not. This is true of what is written there, a vector or record of literals included. A name bound to `"round"` is a `string`, which `(: name J)` casts.
 - **Generics are solved at a call**, one argument at a time, by matching types structurally: `(xs: [...T])` given `[1 2]` solves `T` as `number`. A generic seen twice takes whichever of the two types the other fits; if neither does, that is a diagnostic. An unsolved generic is `_`.
 - **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] (+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
 - **Type constructors can be generic.** In `(=> (F T) (x: (F T)): T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.

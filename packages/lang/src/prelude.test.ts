@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { evaluate, IO, isTypeValue } from './eval.js'
+import { evaluate, IO, isTypeValue, type TypeValue, typeFits, unwrapLazy } from './eval.js'
 import { UNIT } from './types.js'
 import { infer } from './infer.js'
 import { parse } from './parse.js'
@@ -129,6 +129,19 @@ describe('prelude — higher-order functions', () => {
 
 describe('prelude — type constructors', () => {
 	const env = buildPrelude()
+
+	it('keeps what is said about each value of an enum, which is the same type without it', () => {
+		const env = buildPrelude()
+		const about = evaluate(parse('(enum ^{icon: "x"} "r" "g")'), env).value as TypeValue
+		const { shape } = unwrapLazy(about)
+		if (shape.kind !== 'enum') throw new Error('not an enum')
+		expect(shape.about!.get('r')!.print()).toBe('{icon: "x"}')
+		expect(shape.about!.has('g')).toBe(false)
+		expect(about.typeName).toBe('(enum "r" "g")')
+		expect(about.fits('g')).toBe(true)
+		const plain = evaluate(parse('(enum "r" "g")'), env).value as TypeValue
+		expect(typeFits(about, plain) && typeFits(plain, about)).toBe(true)
+	})
 
 	it('(: v T) coerces an enum member through to its value', () => {
 		const r = evaluate(parse('{C = (enum "r" "g" "b") (: "g" C)}'), env)

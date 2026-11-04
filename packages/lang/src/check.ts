@@ -6,7 +6,7 @@
  * Spec: docs/spec/types.md — Type inference
  */
 
-import { enterNode, pushLetFrame, typeFits, withDefaultFrom } from './eval.js'
+import { argFits, enterNode, pushLetFrame, withDefaultFrom } from './eval.js'
 import { bodyFrame, checkCall, infer, resolveTypeSlot } from './infer.js'
 import { resolve } from './resolve.js'
 import {
@@ -99,7 +99,7 @@ function walkFn(ast: FnAST, env: Env, diagnostics: Diagnostic[]): void {
 
 	const declared = resolveTypeSlot(ast.returnType, frame)
 	const actual = infer(ast.body, frame)
-	if (declared !== null && actual !== null && !typeFits(actual, declared)) {
+	if (declared !== null && actual !== null && !argFits(ast.body, actual, declared)) {
 		diagnostics.push({
 			level: 'error',
 			message: `return type mismatch: expected ${declared.typeName}, got ${actual.typeName}`,

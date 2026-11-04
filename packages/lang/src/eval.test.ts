@@ -33,6 +33,7 @@ import {
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
+	withOptional,
 	type TypeValue,
 	toAst,
 	typeFits,
@@ -657,6 +658,21 @@ describe('evaluate — typed host function arg cast / default', () => {
 				d.message.includes('cannot pass keyword arguments')
 			)
 		).toBe(true)
+	})
+
+	it('takes the default of a host parameter that can go unpassed, quietly', () => {
+		const numberType = makeType('number', v => typeof v === 'number', 7)
+		const f = withOptional(
+			makeTypedFn([numberType, numberType], numberType, (a, b) => (a as number) + (b as number), [
+				'a',
+				'b',
+			]),
+			['b']
+		)
+		const env = makeTopLevel({ number: lit(numberType as never), f: lit(f as never) })
+		expect(evaluate(parse('(f 1)'), env)).toMatchObject({ value: 8, diagnostics: [] })
+		expect(evaluate(parse('(f b=1)'), env).value).toBe(8)
+		expect(evaluate(parse('(f b=1)'), env).diagnostics).toHaveLength(1)
 	})
 
 	it('typed host fn detects double-binding via kwargs', () => {

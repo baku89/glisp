@@ -341,6 +341,14 @@ describe('check', () => {
 		expect(problems('(=> (...xs: number): [...number] xs)')).toEqual([])
 	})
 
+	it('takes a literal that is one of an enum, as an argument and as what is returned', () => {
+		const J = '(enum "a" "b")'
+		expect(problems(`{f = (=> (j: ${J}): number 1) (f "a")}`)).toEqual([])
+		expect(problems(`{f = (=> (j: ${J}): number 1) (f "z")}`)).toHaveLength(1)
+		expect(problems(`(=> (x: number): ${J} "a")`)).toEqual([])
+		expect(problems(`(=> (x: number): ${J} "z")`)).toHaveLength(1)
+	})
+
 	it('looks into what never runs', () => {
 		expect(problems('{unused = (+ 1 "a") 0}')).toEqual([
 			'type mismatch: expected number, got string',

@@ -105,6 +105,10 @@ The types are checked at run time: an argument that does not fit is replaced by 
 
 A host function that throws yields `()` with a diagnostic.
 
+A parameter is required, and leaving it out is a diagnostic. `withOptional(fn, ['a'])` lets it go unpassed, when it quietly takes its type's default, as `a?:` does in a function literal.
+
+A host function gets values, in which nothing is left of how they were written. `withWritten(fn, (value, args) => ...)` goes over what it returned, given the arguments as written. This is how `enum` keeps what is said about each of its values, in `shape.about`.
+
 ### A more precise type
 
 The parameter types are what values are checked against at run time. `withSignature` adds what only static checking can use, such as generics:

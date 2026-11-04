@@ -42,6 +42,7 @@ import {
 	pushLetFrame,
 	stringType,
 	type TypedHostFn,
+	argFits,
 	typeFits,
 	type TypeValue,
 	unitType,
@@ -833,7 +834,7 @@ function applyFunctionType(
 			})
 		}
 		const expected = substitute(param, solution, 'top')
-		if (!conflicted && !typeFits(actual, expected)) {
+		if (!conflicted && !argFits(arg, actual, expected)) {
 			report(arg, `type mismatch: expected ${expected.typeName}, got ${actual.typeName}`)
 		}
 	}

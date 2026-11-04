@@ -158,7 +158,12 @@ export type TypeShape =
 			/** Type variables this signature is generic over. */
 			readonly generics?: ReadonlyArray<string>
 	  }
-	| { readonly kind: 'enum'; readonly values: ReadonlySet<unknown> }
+	| {
+			readonly kind: 'enum'
+			readonly values: ReadonlySet<unknown>
+			/** What is said about each value, where it was written with `^{...}`. */
+			readonly about?: ReadonlyMap<unknown, RecordAST>
+	  }
 	| { readonly kind: 'refine'; readonly base: TypeValue }
 	| { readonly kind: 'io'; readonly payload: TypeValue }
 	| { readonly kind: 'vector'; readonly element: TypeValue }
@@ -628,6 +633,10 @@ export interface TypedHostFn {
 	 * the call site emit a diagnostic — there's no way to route them.
 	 */
 	readonly paramNames?: ReadonlyArray<string>
+	/** The parameters that can go unpassed, by name. See `withOptional`. */
+	readonly optional?: ReadonlySet<string>
+	/** Goes over what it returned, knowing what was written. See `withWritten`. */
+	readonly written?: (value: unknown, args: ReadonlyArray<AST>) => unknown
 	/**
 	 * Optional element type for an open trailing variadic. When set, any
 	 * positional arguments past `paramTypes.length` are cast through this
@@ -716,6 +725,73 @@ export function makeTypedFn(
 		Object.defineProperty(wrapped, 'variadicTail', { value: variadicTail })
 	}
 	return wrapped as TypedHostFn
+}
+
+/**
+ * Say which parameters of a host function can go unpassed, which then quietly take their
+ * type's default, as `y?:` does in a function literal.
+ */
+export function withOptional<F extends TypedHostFn>(
+	fn: F,
+	names: ReadonlyArray<string>
+): F {
+	Object.defineProperty(fn, 'optional', { value: new Set(names) })
+	return fn
+}
+
+/**
+ * Let a host function see what its arguments were written as, which evaluating them does
+ * not leave anything of, such as metadata on a value. `finish` goes over what it returned.
+ */
+export function withWritten<F extends TypedHostFn>(
+	fn: F,
+	finish: (value: unknown, args: ReadonlyArray<AST>) => unknown
+): F {
+	Object.defineProperty(fn, 'written', { value: finish })
+	return fn
+}
+
+/**
+ * What an expression comes to if it is written out whole, as `"round"` or `[4 2]`, which
+ * takes only reading it. `undefined` if it would take running something.
+ */
+export function literalValue(ast: AST): unknown {
+	switch (ast.kind) {
+		case 'lit':
+			return ast.value
+		case 'meta':
+			return literalValue(ast.expr)
+		case 'vec': {
+			const values = ast.elements.map(literalValue)
+			return values.includes(undefined) ? undefined : values
+		}
+		case 'record': {
+			const values: Record<string, unknown> = {}
+			for (const field of ast.fields) {
+				if ('kind' in field) return undefined
+				const value = literalValue(field[1])
+				if (value === undefined) return undefined
+				values[field[0]] = value
+			}
+			return values
+		}
+		default:
+			return undefined
+	}
+}
+
+/**
+ * Whether an argument can go in a slot. Its type says so, or else what is written does:
+ * `"round"` is a `string`, which does not fit `(enum "round" "butt")`, though it is one.
+ */
+export function argFits(
+	arg: AST,
+	inferred: TypeValue,
+	expected: TypeValue
+): boolean {
+	if (typeFits(inferred, expected)) return true
+	const value = literalValue(arg)
+	return value !== undefined && expected.fits(value)
 }
 
 /** Give a host function a more precise static type, such as a generic one. */
@@ -955,6 +1031,11 @@ function callTypedHostFn(
 
 		// Missing required argument → diagnostic + paramType.default
 		if (argAst === undefined) {
+			const name = fn.paramNames?.[i]
+			if (name !== undefined && fn.optional?.has(name)) {
+				argValues.push(paramType.default)
+				continue
+			}
 			diagnostics.push(
 				diag(
 					site,
@@ -971,7 +1052,7 @@ function callTypedHostFn(
 		// handles top, function-structural compat, and primitive identity
 		// uniformly.
 		const inferred = infer(argAst, env)
-		if (inferred !== null && !typeFits(inferred, paramType)) {
+		if (inferred !== null && !argFits(argAst, inferred, paramType)) {
 			diagnostics.push(
 				diag(
 					argAst,
@@ -1017,7 +1098,7 @@ function callTypedHostFn(
 			fn(...argValues)
 		)
 		for (const d of bubbled) diagnostics.push(d)
-		return { value, diagnostics }
+		return { value: fn.written?.(value, positional) ?? value, diagnostics }
 	} catch (e) {
 		if (isStackOverflow(e)) throw e
 		const message = e instanceof Error ? e.message : String(e)
@@ -1746,7 +1827,7 @@ function applyClosure(
 		// Static type check — a confirmed mismatch lets us skip evaluation
 		// of the argument entirely and substitute the type's default.
 		const inferred = infer(argAst, argEnv)
-		if (inferred !== null && !typeFits(inferred, paramType)) {
+		if (inferred !== null && !argFits(argAst, inferred, paramType)) {
 			diagnostics.push(
 				diag(
 					argAst,
@@ -2100,7 +2181,15 @@ function variantMatches(
 ): boolean {
 	if (isTypedHostFn(variant)) {
 		const variadic = variant.variadicTail !== undefined
-		if (!variadic && positional.length !== variant.paramTypes.length) {
+		const required = variant.paramTypes.filter((_, i) => {
+			const name = variant.paramNames?.[i]
+			return name === undefined || !variant.optional?.has(name)
+		}).length
+		if (
+			!variadic &&
+			(positional.length < required ||
+				positional.length > variant.paramTypes.length)
+		) {
 			return false
 		}
 		if (variadic && positional.length < variant.paramTypes.length) {
@@ -2113,7 +2202,7 @@ function variantMatches(
 					: variant.variadicTail!
 			const inferred = argTypes[i]
 			if (inferred === null || inferred === undefined) continue
-			if (!typeFits(inferred, expected)) return false
+			if (!argFits(positional[i]!, inferred, expected)) return false
 		}
 		return true
 	}
@@ -2139,7 +2228,7 @@ function variantMatches(
 		if (t === null) continue
 		const inferred = argTypes[i]
 		if (inferred === null || inferred === undefined) continue
-		if (!typeFits(inferred, t)) return false
+		if (!argFits(positional[i]!, inferred, t)) return false
 	}
 	void env
 	return true
