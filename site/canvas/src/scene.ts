@@ -671,7 +671,22 @@ function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] 
 	return value.flatMap((element, i) => shapesIn(elementType(i), element, row))
 }
 
-export function sceneOf(root: AST, env: Env): Shape[] {
+export const sceneOf = (root: AST, env: Env): Shape[] =>
+	drawnIn(root, env).filter(({ draw }) => draw !== 'background')
+
+/** The color behind everything, by the last that says so. Null if nothing does, or it is none. */
+export function backgroundOf(root: AST, env: Env): string | null {
+	const color = drawnIn(root, env)
+		.filter(({ draw }) => draw === 'background')
+		.at(-1)?.value
+	return typeof color === 'string' && color !== 'none' ? color : null
+}
+
+/** Whether the row at `row` is a background, which has no fill or line to give it. */
+export const isBackgroundAt = (root: AST, env: Env, row: string): boolean =>
+	drawnIn(root, env).some(shape => shape.row === row && shape.draw === 'background')
+
+function drawnIn(root: AST, env: Env): Shape[] {
 	const visit = (slots: readonly Slot[], parent: string): Shape[] =>
 		slots.flatMap(slot => {
 			if (!slot.key.startsWith('binding:') || isHidden(slot.ast)) return []

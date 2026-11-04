@@ -16,12 +16,13 @@ import {
 	withPointRemoved,
 	withPointsClosed,
 } from './modulate'
-import { type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec, onlyShapes } from './graphics'
+import { type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec, inkOn, onlyShapes } from './graphics'
 import {
 	changed,
 	type Dimension,
 	dimensionChanges,
 	dimensionsHeld,
+	backgroundOf,
 	dimensionsDrawn,
 	dimensionsMoved,
 	dimensionsOf,
@@ -284,6 +285,7 @@ const DASH = [3, 2]
 const RANGE_OPACITY = 0.1
 
 const scene = computed(() => sceneOf(props.document.root.value, props.document.env.value))
+const background = computed(() => backgroundOf(props.document.root.value, props.document.env.value))
 
 const gripOfRow = (row: string) =>
 	gripAt(props.document.root.value, props.document.env.value, row)
@@ -553,8 +555,14 @@ function draw(): void {
 	context.setTransform(ratio, 0, 0, ratio, 0, 0)
 	context.clearRect(0, 0, width, height)
 
-	const ink = color('--tq-color-text')
-	const guide = color('--tq-color-text-subtle')
+	if (background.value !== null) {
+		context.fillStyle = background.value
+		context.fillRect(0, 0, width, height)
+	}
+
+	// The theme's text is for the theme's background, not for the one the program says.
+	const ink = background.value === null ? color('--tq-color-text') : inkOn(background.value)
+	const guide = background.value === null ? color('--tq-color-text-subtle') : ink
 	const accent = color('--tq-color-accent')
 	const paper = color('--tq-color-background')
 
@@ -687,6 +695,7 @@ watchEffect(() => {
 		draggedHandle.value,
 		evenLine.value,
 		scene.value,
+		background.value,
 		grip.value,
 		view.value,
 		size.value,

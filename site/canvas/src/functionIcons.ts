@@ -25,6 +25,7 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.cubic': 'ph:bezier-curve',
 	'path.transform': 'ph:bounding-box',
 	style: 'ph:paint-brush',
+	background: 'ph:paint-bucket',
 	'mat2d.translate': 'ph:arrows-out-cardinal',
 	'mat2d.rotate': 'ph:arrow-clockwise',
 	'mat2d.scale': 'ph:arrows-out',

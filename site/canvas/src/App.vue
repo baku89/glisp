@@ -25,7 +25,7 @@ import CanvasView from './CanvasView.vue'
 import { exportSvg, openFile, saveFile } from './files'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
-import { iconOfPath, withGraphics } from './graphics'
+import { iconOfPath, inkOn, withGraphics } from './graphics'
 import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
 import {
@@ -40,7 +40,7 @@ import {
 	ungrouped,
 	viewToFit,
 } from './rows'
-import { paintedRow } from './scene'
+import { backgroundOf, isBackgroundAt, paintedRow } from './scene'
 import { bindingsOfSvg, svgOfRows } from './svg'
 import ToolBar from './ToolBar.vue'
 import { type Arrangement, arranged as arrangedTools } from './toolbar'
@@ -261,6 +261,24 @@ function showCode(): void {
 }
 
 const selected = ref<readonly string[]>([])
+const paintable = computed(() =>
+	selected.value.filter(row => !isBackgroundAt(document.root.value, document.env.value, row))
+)
+
+// A background goes up through the title bar, and the window's own where it has one.
+const background = computed(() => backgroundOf(document.root.value, document.env.value))
+const titleBarStyle = computed(() =>
+	background.value === null
+		? undefined
+		: { '--tq-titlebar-background': background.value, color: inkOn(background.value) }
+)
+// After the theme, which writes its own background here whenever it changes.
+const themeColorMeta = window.document.querySelector('meta[name="theme-color"]')
+watchEffect(
+	() => themeColorMeta?.setAttribute('content', background.value ?? theme.colorBackground),
+	{ flush: 'post' }
+)
+
 const $editor = useTemplateRef<{
 	reveal(path: string): void
 	deselect(): void
@@ -442,12 +460,13 @@ function selectInTree(row: string | null): void {
 <template>
 	<TqApp>
 		<template #title>
-			<TitleBar name="Glisp / Canvas" icon="favicon.svg" />
+			<TitleBar name="Glisp / Canvas" icon="favicon.svg" :style="titleBarStyle" />
 		</template>
 		<template #default>
 			<div class="stage">
 				<CanvasView
 					ref="$canvas"
+					class="canvas"
 					:document="document"
 					:selected="selected"
 					:origin="origin"
@@ -546,7 +565,7 @@ function selectInTree(row: string | null): void {
 						:rows="insideRows"
 						:iconOfFunction="iconOfFunction"
 					>
-						<PaintControls :document="document" :rows="selected" />
+						<PaintControls v-if="paintable.length > 0" :document="document" :rows="paintable" />
 					</AstMultiInspector>
 					<AstEditor
 						v-else
@@ -557,7 +576,7 @@ function selectInTree(row: string | null): void {
 						:pasteAs="bindingsOfSvg"
 						:iconOfFunction="iconOfFunction"
 					>
-						<PaintControls v-if="selected.length > 0" :document="document" :rows="selected" />
+						<PaintControls v-if="paintable.length > 0" :document="document" :rows="paintable" />
 					</AstEditor>
 				</FloatPanel>
 				<ToolBar
@@ -588,7 +607,12 @@ function selectInTree(row: string | null): void {
 .stage {
 	position: relative;
 	height: 100%;
-	overflow: hidden;
+}
+/* The canvas goes on up under the title bar, and only the canvas: panels stay below it. */
+.stage .canvas {
+	position: absolute;
+	top: calc(-1 * var(--titlebar-area-height));
+	height: calc(100% + var(--titlebar-area-height));
 }
 .tabs {
 	display: flex;

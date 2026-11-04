@@ -2036,10 +2036,22 @@ export function withinArg(fn: unknown, arg: number, args: readonly unknown[]): M
 	return null
 }
 
+/** A color that fills the whole of a canvas, however far it goes. */
+const makeBackground = withDoc(
+	makeTypedFn([paintColor], said(paintColor, 'background', 'ph:paint-bucket'), color => color, ['color']),
+	'Fills the whole of the canvas with a `color`, behind everything drawn.',
+	'Background'
+)
+
+/** What shows up on a background of `color`. */
+export const inkOn = (color: string): string =>
+	(parsed(color).to('oklch').coords[0] || 0) > 0.6 ? '#000000' : '#ffffff'
+
 const BINDINGS: Readonly<Record<string, unknown>> = {
 	path: pathType,
 	color: colorType,
 	style: makeStyled,
+	background: makeBackground,
 	vec2,
 	point,
 	size,
