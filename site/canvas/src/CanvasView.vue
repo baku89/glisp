@@ -1022,10 +1022,6 @@ let pressed:
 	  }
 	| null = null
 
-/** Whether something floats over the canvas there, which what is carried has left it for. */
-const overPanel = (x: number, y: number): boolean =>
-	window.document.elementFromPoint(x, y)?.closest('.FloatPanel, [data-tq-takes-drag]') != null
-
 let spaceDown = false
 const typing = (event: Event): boolean =>
 	(event.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]') != null
@@ -1493,15 +1489,6 @@ function onPointerMove(event: PointerEvent): void {
 			if (!pressed.moving && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
 			pressed.moving = true
 			hovered.value = null
-			// Carried off the canvas, it is not being moved, for as long as it stays there.
-			if (overPanel(event.clientX, event.clientY)) {
-				props.document.rewind(pressed.base)
-				problem.value = null
-				held.value = null
-				snapMark.value = null
-				evenLine.value = null
-				break
-			}
 			const [toX, toY] = snappedMove(pressed.own, pressed.others, pressed.from, [x, y])
 			let next: ReturnType<typeof apply> = {
 				ast: props.document.root.value,
@@ -1602,6 +1589,12 @@ useEventListener(window, 'pointerup', event => {
 			@pointermove="onPointerMove"
 			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null)"
 			@auxclick.prevent
+	// Taken by what it was let go of over, it was being brought there, and was never moved.
+	if (pressed?.kind === 'move' && pressed.moving && event.defaultPrevented) {
+		props.document.rewind(pressed.base)
+		problem.value = null
+		held.value = null
+	}
 		/>
 		<Dimensions
 			v-if="held !== null && heldDimensions.length > 0"
