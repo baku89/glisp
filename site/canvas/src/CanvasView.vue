@@ -37,6 +37,8 @@ import {
 	linked,
 	nameFor,
 	nearestSnap,
+	closingPulled,
+	penGuided,
 	penned,
 	hasInside,
 	placedDimensions,
@@ -237,8 +239,10 @@ const snapAt = (points: readonly SnapPoint[], x: number, y: number): SnapPoint |
 
 /** A path being drawn with the pen, which goes on until it is finished. */
 let pen: { base: LetAST; name: string; anchors: readonly Anchor[] } | null = null
-/** From the last place to the pointer, on screen. */
-const penLine = shallowRef<[Vec, Vec] | null>(null)
+/** From the last place to where it would go next, on screen, and what that lines up by. */
+const penLine = shallowRef<[Vec, Vec, (readonly (readonly [Vec, Vec])[])?] | null>(null)
+/** Where the pointer last was, for what is held down to say at once where a pen would go. */
+let penPointer: Vec | null = null
 
 /** What a handle being dragged has made of what it changes, beside the pointer. */
 const readout = shallowRef<{
@@ -862,9 +866,10 @@ function draw(): void {
 	}
 
 	if (penLine.value !== null) {
-		const [[ax, ay], [bx, by]] = penLine.value
-		context.lineWidth = 1
+		const [[ax, ay], [bx, by], guides = []] = penLine.value
 		context.strokeStyle = accent
+		for (const [from, to] of guides) drawExtended(context, toScreen(from, view.value), toScreen(to, view.value))
+		context.lineWidth = 1
 		context.beginPath()
 		context.moveTo(ax, ay)
 		if (penPulled.value === null) {
@@ -1114,6 +1119,7 @@ let pressed:
 	  }
 	| { kind: 'pan'; from: [number, number] }
 	| { kind: 'pen'; from: Vec; at?: Vec }
+	| { kind: 'closing'; from: Vec; first: Anchor; at?: Vec }
 	| { kind: 'pencil'; points: readonly SnapPoint[] }
 	| {
 			kind: 'draw'
@@ -1157,7 +1163,13 @@ useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {
 	}
 	if (isModifier && pressed?.kind === 'handle') dragHandle(event.altKey, valueOnly, event.shiftKey)
 	if (isModifier && pressed?.kind === 'pen' && pressed.at !== undefined) {
-		pullPen(pressed.at[0], pressed.at[1], event.altKey, valueOnly)
+		pullPen(pressed.at[0], pressed.at[1], event.altKey, valueOnly, event.shiftKey)
+	}
+	if (isModifier && pressed?.kind === 'closing' && pressed.at !== undefined) {
+		pullClosing(pressed.at[0], pressed.at[1], event.altKey, valueOnly, event.shiftKey)
+	}
+	if (isModifier && pressed === null && props.drawing === 'pen' && pen !== null && penPointer !== null) {
+		hoverPen(penPointer[0], penPointer[1], event.shiftKey, valueOnly)
 	}
 })
 
@@ -1194,7 +1206,7 @@ function onPointerDown(event: PointerEvent): void {
 	if (shaping !== null) {
 		penLine.value = null
 	} else if (props.drawing === 'pen') {
-		penDown(x, y, event.metaKey || event.ctrlKey)
+		penDown(x, y, event.metaKey || event.ctrlKey, event.shiftKey)
 		return
 	} else if (props.drawing === 'pencil') {
 		const points = snapPoints()
@@ -1330,7 +1342,45 @@ function setModulated(next: { ast: AST; row: string } | null): void {
 	if (taken.value[0] !== next.row) emit('select', [next.row])
 }
 
-function penDown(x: number, y: number, valueOnly: boolean): void {
+/** Where a pen would go, at this place on screen: on something, or lined up with itself. */
+function penNext(
+	x: number,
+	y: number,
+	even: boolean
+): { at: Vec; snap: SnapPoint | null; lines: readonly (readonly [Vec, Vec])[] } {
+	const near = even ? null : snapAt(snapPoints(pen?.base), x, y)
+	const to = roundedPlace(x, y)
+	// A place is more of a place than being in line with one. A line is less of one.
+	if (near !== null && near.line === undefined) return { at: near.at, snap: near, lines: [] }
+	const tolerance = props.snapping ? SNAP_REACH / view.value[0] : 0
+	const guided = pen === null ? null : penGuided(pen.anchors, to, tolerance, even, pointerStep())
+	if (guided !== null) return { ...guided, snap: null }
+	return { at: near?.at ?? to, snap: near, lines: [] }
+}
+
+/** What a pen shows of where it would go next, at this place on screen. */
+function hoverPen(x: number, y: number, even: boolean, valueOnly: boolean): void {
+	penPointer = [x, y]
+	const closes = closesPen(x, y)
+	const modulation = modulationHere(x, y)
+	cursor.value = closes || modulation !== null ? 'pointer' : 'crosshair'
+	const next = closes || modulation !== null ? null : penNext(x, y, even)
+	const near = next?.snap ?? null
+	// What a pen goes on to write can be a path as a whole, with no place in it to refer from.
+	const toPath =
+		near !== null &&
+		penKind([...(pen?.anchors ?? []), { at: near.at }], false) === 'path' &&
+		(pen?.anchors.length ?? 0) > 0
+	linking.value = near !== null && canRefer(near) && !toPath && !valueOnly ? near : null
+	snapMark.value =
+		modulation === null ? near : { at: modulation.at, target: null, label: MODULATION_LABEL[modulation.kind] }
+	const last = pen?.anchors.at(-1)
+	penLine.value = last
+		? [toScreen(last.at, view.value), next === null ? [x, y] : toScreen(next.at, view.value), next?.lines ?? []]
+		: null
+}
+
+function penDown(x: number, y: number, valueOnly: boolean, even: boolean): void {
 	const { root, env } = props.document
 	if (extending !== null) {
 		const here = modulationAt(
@@ -1376,21 +1426,21 @@ function penDown(x: number, y: number, valueOnly: boolean): void {
 		return
 	}
 	if (closesPen(x, y)) {
+		// Closed as it is, until it is let go of, for how it comes back to be pulled.
 		writePen(true)
-		penPulled.value = null
-		pen = null
 		penLine.value = null
+		pressed = { kind: 'closing', from: [x, y], first: pen!.anchors[0]! }
 		return
 	}
 	if (pen === null) {
 		const base = props.document.root.value
 		pen = { base, name: '', anchors: [] }
 	}
-	const snap = snapAt(snapPoints(pen.base), x, y)
+	const { at, snap } = penNext(x, y, even)
 	pen.anchors = [
 		...pen.anchors,
 		{
-			at: snap?.at ?? roundedPlace(x, y),
+			at,
 			...(snap !== null && !valueOnly ? { snap } : {}),
 		},
 	]
@@ -1400,12 +1450,27 @@ function penDown(x: number, y: number, valueOnly: boolean): void {
 	pressed = { kind: 'pen', from: [x, y] }
 }
 
-/** The anchor a pen has got to, pulled to a place: broken with Option, or uneven with Command. */
-function pullPen(x: number, y: number, broken: boolean, uneven: boolean): void {
+/** How a path comes back to where it started, pulled to a place, and it is closed as that. */
+function pullClosing(x: number, y: number, both: boolean, smooth: boolean, even: boolean): void {
+	if (pen === null || pressed?.kind !== 'closing') return
+	const first = closingPulled(pressed.first, roundedPlace(x, y), { symmetric: both, smooth, even })
+	pen.anchors = [first, ...pen.anchors.slice(1)]
+	writePen(true)
+	const { at, out = at, into = at } = first
+	penPulled.value = { at, out, into }
+}
+
+/** The anchor a pen has got to, pulled to a place: broken with Option, uneven with Command, by even angles with Shift. */
+function pullPen(x: number, y: number, broken: boolean, uneven: boolean, even: boolean): void {
 	if (pen === null) return
 	const anchor = pen.anchors.at(-1)!
 	const { into: _into, ...rest } = anchor
-	const out = roundedPlace(x, y)
+	const pulled = roundedPlace(x, y)
+	const step = pointerStep()
+	const out: Vec = even
+		? (evenlyFrom(anchor.at, pulled).map(n => roundedTo(n, step)) as unknown as Vec)
+		: pulled
+	evenLine.value = even ? [toScreen(anchor.at, view.value), toScreen(out, view.value)] : null
 	const was = anchor.out
 	const before = was === undefined ? anchor.at : (anchor.into ?? ([anchor.at[0] * 2 - was[0], anchor.at[1] * 2 - was[1]] as Vec))
 	const into = broken
@@ -1573,27 +1638,20 @@ function onPointerMove(event: PointerEvent): void {
 			cursor.value = cursorOf(grip.value!.handles[shaping]!)
 			return
 		}
+		if (props.drawing === 'pen') {
+			hovered.value = null
+			hoveredHandle.value = null
+			hoverPen(x, y, event.shiftKey, event.metaKey || event.ctrlKey)
+			return
+		}
 		if (props.drawing) {
 			hovered.value = null
 			hoveredHandle.value = null
-			const closes = props.drawing === 'pen' && closesPen(x, y)
-			const modulation = props.drawing === 'pen' ? modulationHere(x, y) : null
-			cursor.value = closes || modulation !== null ? 'pointer' : 'crosshair'
-			const near = closes || modulation !== null ? null : snapAt(snapPoints(), x, y)
-			// What a pen goes on to write can be a path as a whole, with no place in it to refer from.
-			const toPath =
-				props.drawing === 'pen' &&
-				near !== null &&
-				penKind([...(pen?.anchors ?? []), { at: near.at }], false) === 'path' &&
-				(pen?.anchors.length ?? 0) > 0
-			linking.value =
-				near !== null && canRefer(near) && !toPath && !event.metaKey && !event.ctrlKey ? near : null
-			snapMark.value =
-				modulation === null
-					? near
-					: { at: modulation.at, target: null, label: MODULATION_LABEL[modulation.kind] }
-			const last = pen?.anchors.at(-1)
-			penLine.value = last ? [toScreen(last.at, view.value), [x, y]] : null
+			cursor.value = 'crosshair'
+			const near = snapAt(snapPoints(), x, y)
+			linking.value = near !== null && canRefer(near) && !event.metaKey && !event.ctrlKey ? near : null
+			snapMark.value = near
+			penLine.value = null
 			return
 		}
 		const index = handleAt(x, y)
@@ -1629,7 +1687,14 @@ function onPointerMove(event: PointerEvent): void {
 			const [fromX, fromY] = pressed.from
 			if (pen === null || Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) break
 			pressed.at = [x, y]
-			pullPen(x, y, event.altKey, event.metaKey || event.ctrlKey)
+			pullPen(x, y, event.altKey, event.metaKey || event.ctrlKey, event.shiftKey)
+			break
+		}
+		case 'closing': {
+			const [fromX, fromY] = pressed.from
+			if (pen === null || (pressed.at === undefined && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD)) break
+			pressed.at = [x, y]
+			pullClosing(x, y, event.altKey, event.metaKey || event.ctrlKey, event.shiftKey)
 			break
 		}
 		case 'draw': {
@@ -1714,6 +1779,12 @@ useEventListener(window, 'pointerup', event => {
 	}
 	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : 'default'
 	if (pressed?.kind === 'pencil') finishPencil(snapMark.value)
+	// That is how it comes back, and it is done.
+	if (pressed?.kind === 'closing') {
+		penPulled.value = null
+		pen = null
+		penLine.value = null
+	}
 	// Letting go of a drag is being at what it got hold of.
 	if (pressed !== null && held.value !== null) {
 		const base = props.document.root.value
