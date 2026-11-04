@@ -413,7 +413,8 @@ function selectInTree(row: string | null): void {
 	padding: var(--padding);
 	border: 1px solid var(--tq-color-border);
 	border-radius: calc(var(--radius) + var(--padding));
-	background: var(--tq-color-background);
+	background: var(--tq-color-surface);
+	backdrop-filter: blur(var(--tq-popup-blur));
 	box-shadow: 0 0 20px 0 var(--tq-color-shadow);
 }
 .tool {

@@ -131,8 +131,8 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	width: var(--tab-width);
 	height: var(--tab-height);
 	border: 1px solid var(--tq-color-border);
-	/* Solid, as a blur of what is behind it is worked out again as the canvas changes. */
-	background: var(--tq-color-background);
+	background: var(--tq-color-surface);
+	backdrop-filter: blur(var(--tq-popup-blur));
 	box-shadow: 0 0 20px 0 var(--tq-color-shadow);
 	transition:
 		width var(--ease),
