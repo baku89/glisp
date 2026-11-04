@@ -45,6 +45,7 @@ import {
 	rowsChanged,
 	rowsWithin,
 	type Anchor,
+	hiddenShapesOf,
 	sceneOf,
 	type Shape,
 	type ShapeTool,
@@ -348,6 +349,9 @@ const DASH = [3, 2]
 const RANGE_OPACITY = 0.1
 
 const scene = computed(() => sceneOf(props.document.root.value, props.document.env.value))
+const hiddenSelected = computed(() =>
+	hiddenShapesOf(props.document.root.value, props.document.env.value, taken.value)
+)
 const background = computed(() => backgroundOf(props.document.root.value, props.document.env.value))
 
 const gripOfRow = (row: string) =>
@@ -746,6 +750,11 @@ function draw(): void {
 	context.lineWidth = 1
 	context.setLineDash(DASH)
 	for (const path of grip.value?.guides ?? []) context.stroke(pathOnScreen(path))
+	// What is selected but hidden has only this to it, as it is not drawn.
+	for (const shape of hiddenSelected.value) {
+		if (isOutlined(shape.draw)) context.stroke(pathOnScreen(shape.value as Path, view.value))
+		else if (shape.draw === 'point') drawPoint(shape)
+	}
 	context.setLineDash([])
 
 	for (const [i, handle] of grip.value?.handles.entries() ?? []) {

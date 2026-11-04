@@ -52,6 +52,7 @@ import {
 	roundedTo,
 	rowsChanged,
 	rowsWithin,
+	hiddenShapesOf,
 	sceneOf,
 	snapPointsOf,
 	withPaint,
@@ -128,6 +129,38 @@ describe('sceneOf', () => {
 
 	it('leaves out what is bypassed, which can still be referred to', () => {
 		expect(scene('{c = #_(path.circle [0 0] 1) d = c}')).toEqual(['binding:d path'])
+	})
+})
+
+describe('hiddenShapesOf', () => {
+	const rowsOf = (src: string, rows: string[]) =>
+		hiddenShapesOf(parse(src), env, rows).map(({ row, draw, paint }) => [row, draw, paint?.fill])
+
+	it('has what is hidden of what is selected, and sceneOf does not', () => {
+		const src = '{a = #_(path.rect [0 0] [1 1]) b = (path.rect [0 0] [2 2])}'
+		expect(rowsOf(src, ['binding:a'])).toEqual([['binding:a', 'path', undefined]])
+		expect(sceneOf(parse(src), env).map(({ row }) => row)).toEqual(['binding:b'])
+	})
+
+	it('has nothing of what is not hidden, or not selected', () => {
+		const src = '{a = #_(path.rect [0 0] [1 1]) b = (path.rect [0 0] [2 2])}'
+		expect(rowsOf(src, ['binding:b'])).toEqual([])
+		expect(rowsOf(src, [])).toEqual([])
+	})
+
+	it('goes into a group that is hidden, and to what is hidden in one that is not', () => {
+		expect(rowsOf('{g = #_{a = (path.rect [0 0] [1 1])}}', ['binding:g'])).toEqual([
+			['binding:g/binding:a', 'path', undefined],
+		])
+		expect(
+			rowsOf('{g = {a = #_(path.rect [0 0] [1 1]) b = (path.rect [0 0] [1 1])}}', ['binding:g'])
+		).toEqual([['binding:g/binding:a', 'path', undefined]])
+	})
+
+	it('has what is in a style, with what it says', () => {
+		expect(rowsOf('{s = #_(style (path.rect [0 0] [1 1]) "#ff0000")}', ['binding:s'])).toEqual([
+			['binding:s', 'path', '#ff0000'],
+		])
 	})
 })
 

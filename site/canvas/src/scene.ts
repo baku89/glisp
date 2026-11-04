@@ -723,6 +723,18 @@ function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] 
 export const sceneOf = (root: AST, env: Env): Shape[] =>
 	drawnIn(root, env).filter(({ draw }) => draw !== 'background')
 
+/**
+ * What is hidden of the rows at `rows`, and of what they hold. It is not drawn, but what is
+ * selected still has to be seen, to be taken hold of.
+ */
+export const hiddenShapesOf = (root: AST, env: Env, rows: readonly string[]): Shape[] =>
+	rows.length === 0
+		? []
+		: drawnIn(root, env, true).filter(
+				({ row, draw }) =>
+					draw !== 'background' && rows.some(path => row === path || row.startsWith(`${path}/`))
+			)
+
 /** The color behind everything, by the last that says so. Null if nothing does, or it is none. */
 export function backgroundOf(root: AST, env: Env): string | null {
 	const color = drawnIn(root, env)
@@ -735,21 +747,25 @@ export function backgroundOf(root: AST, env: Env): string | null {
 export const isBackgroundAt = (root: AST, env: Env, row: string): boolean =>
 	drawnIn(root, env).some(shape => shape.row === row && shape.draw === 'background')
 
-function drawnIn(root: AST, env: Env): Shape[] {
-	const visit = (slots: readonly Slot[], parent: string): Shape[] =>
+/** What the program draws, or else what it would if nothing were hidden, of what is. */
+function drawnIn(root: AST, env: Env, hidden = false): Shape[] {
+	const visit = (slots: readonly Slot[], parent: string, inHidden: boolean): Shape[] =>
 		slots.flatMap(slot => {
-			if (!slot.key.startsWith('binding:') || isHidden(slot.ast)) return []
+			if (!slot.key.startsWith('binding:')) return []
+			const isOut = inHidden || isHidden(slot.ast)
+			if (isOut && !hidden) return []
 			const row = parent === '' ? slot.key : `${parent}/${slot.key}`
 			const node = bare(slot.ast)
 			// A block with nothing to return is a group, and one with a Return gives
 			// only that.
 			if (node.kind === 'let' && node.body === null) {
-				return visit(viewOf(node, slot.env).slots, row)
+				return visit(viewOf(node, slot.env).slots, row, isOut)
 			}
+			if (isOut !== hidden) return []
 			const value = evaluate(readByName(slot.ast), slot.env).value
 			return shapesIn(infer(readByName(slot.ast), slot.env), value, row)
 		})
-	return visit(viewOf(root, env).slots, '')
+	return visit(viewOf(root, env).slots, '', false)
 }
 
 /** What a name comes to, in the program, however many names away. */
