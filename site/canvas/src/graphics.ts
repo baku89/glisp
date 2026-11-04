@@ -811,12 +811,6 @@ const makeGray = withInverse(
 	),
 	(_, result) => channelsOf(result, 'srgb')[0]
 )
-const mixed = makeTypedFn(
-	[colorType, colorType, percentType],
-	colorType,
-	(a, b, t) => toHex(parsed(a).mix(parsed(b), t as number, { space: 'oklch' }) as Color),
-	['a', 'b', 'ratio']
-)
 /** Lighter by this much in OKLCH, in which it looks like that much. */
 const lighter = (value: unknown, by: number): string => {
 	const color = parsed(value).to('oklch')
@@ -853,17 +847,6 @@ const makeInverted = withInverse(
 		return toHex(new Color('srgb', [1 - (r || 0), 1 - (g || 0), 1 - (b || 0)], color.alpha))
 	}
 )
-withMembers(colorType, {
-	rgb: withDoc(makeRgb, 'A color from how much `red`, `green` and `blue` it has, from 0 to 1.', 'RGB'),
-	hsl: withDoc(makeHsl, 'A color from its `hue` in degrees, and `saturation` and `lightness` from 0 to 1.', 'HSL'),
-	gray: withDoc(makeGray, 'A gray, from black at 0 to white at 1.', 'Gray'),
-	alpha: withDoc(makeAlpha, 'A `color`, as see-through as `alpha` says, from 0 to 1.', 'Alpha'),
-	mix: withDoc(mixed, 'What `a` and `b` come to together, as far from `a` as `ratio` says.', 'Mix'),
-	brighten: withDoc(makeBrighter, 'A `color`, lighter by how much it looks.', 'Brighten'),
-	darken: withDoc(makeDarker, 'A `color`, darker by how much it looks.', 'Darken'),
-	invert: withDoc(makeInverted, 'The opposite of a `color`.', 'Invert'),
-})
-
 const styledType = withTypeMeta(
 	said(
 		makeType('styled', isStyled, new StyledValue(pathType.default as PathValue, NO_PAINT)),
@@ -880,6 +863,120 @@ const enumOf = (icons: Readonly<Record<string, string>>): TypeValue => {
 	)
 	return evaluate(parse(`(enum ${values.join(' ')})`), buildPrelude()).value as TypeValue
 }
+
+/** What colors go from one to another by, and how it looks on the way. */
+const colorSpaceType = enumOf({
+	oklch: 'ph:circle-half',
+	oklab: 'ph:drop-half',
+	srgb: 'ph:monitor',
+	hsl: 'ph:palette',
+	lab: 'ph:drop',
+	lch: 'ph:circle-half-tilt',
+})
+const spaceOf = (space: unknown): string => (typeof space === 'string' ? space : 'oklch')
+const between = (a: unknown, b: unknown, t: number, space: unknown): string =>
+	toHex(parsed(a).mix(parsed(b), t, { space: spaceOf(space) }) as Color)
+/** Two colors, `ratio` of the way, through a space that can be said. */
+const makeBetween = (): TypedHostFn =>
+	withOptional(
+		makeTypedFn(
+			[colorType, colorType, percentType, colorSpaceType],
+			colorType,
+			(a, b, t, space) => between(a, b, t as number, space),
+			['a', 'b', 'ratio', 'space']
+		),
+		['space']
+	)
+const mixed = makeBetween()
+const makeRamp = withOptional(
+	makeTypedFn(
+		[withDefault(makeTupleType([], colorType), ['#000000', '#ffffff']), percentType, colorSpaceType],
+		colorType,
+		(colors, ratio, space) => {
+			const stops = colors as readonly string[]
+			if (stops.length === 0) return '#000000'
+			const along = Math.max(0, Math.min(1, ratio as number)) * (stops.length - 1)
+			const at = Math.min(Math.floor(along), stops.length - 2)
+			return stops.length === 1
+				? toHex(parsed(stops[0]))
+				: between(stops[at], stops[at + 1], along - at, space)
+		},
+		['colors', 'ratio', 'space']
+	),
+	['space']
+)
+/** The channels of a color in OKLCH, in which how far they go is how far they look to go. */
+const oklchOf = (value: unknown): readonly [number, number, number, number] => {
+	const color = parsed(value).to('oklch')
+	const [l, c, h] = color.coords
+	return [l || 0, c || 0, h || 0, color.alpha ?? 1]
+}
+const fromOklch = (l: number, c: number, h: number, alpha: number): string =>
+	toHex(
+		new Color(
+			'oklch',
+			[Math.max(0, Math.min(1, l)), Math.max(0, c), ((h % 360) + 360) % 360],
+			Math.max(0, Math.min(1, alpha))
+		)
+	)
+const makeOklch = withOptional(
+	makeTypedFn(
+		[number, number, degreesType, withDefault(number, 1)],
+		colorType,
+		(l, c, h, alpha) => fromOklch(l as number, c as number, h as number, (alpha ?? 1) as number),
+		['lightness', 'chroma', 'hue', 'alpha']
+	),
+	['alpha']
+)
+/** As a relative color is in CSS: what `color` has, each of them moved by as much as is said. */
+const makeRelative = withOptional(
+	makeTypedFn(
+		[colorType, withDefault(number, 0), withDefault(number, 0), withDefault(degreesType, 0), withDefault(number, 0)],
+		colorType,
+		(color, l, c, h, alpha) => {
+			const [ownL, ownC, ownH, ownAlpha] = oklchOf(color)
+			return fromOklch(
+				ownL + ((l ?? 0) as number),
+				ownC + ((c ?? 0) as number),
+				ownH + ((h ?? 0) as number),
+				ownAlpha + ((alpha ?? 0) as number)
+			)
+		},
+		['color', 'lightness', 'chroma', 'hue', 'alpha']
+	),
+	['lightness', 'chroma', 'hue', 'alpha']
+)
+const makeComplement = makeTypedFn(
+	[colorType],
+	colorType,
+	color => {
+		const [l, c, h, alpha] = oklchOf(color)
+		return fromOklch(l, c, h + 180, alpha)
+	},
+	['color']
+)
+const channelOf = (at: 0 | 1 | 2 | 3, type: TypeValue): TypedHostFn =>
+	makeTypedFn([colorType], type, color => oklchOf(color)[at], ['color'])
+
+withMembers(colorType, {
+	rgb: withDoc(makeRgb, 'A color from how much `red`, `green` and `blue` it has, from 0 to 1.', 'RGB'),
+	hsl: withDoc(makeHsl, 'A color from its `hue` in degrees, and `saturation` and `lightness` from 0 to 1.', 'HSL'),
+	oklch: withDoc(makeOklch, 'A color from how light it looks from 0 to 1, its `chroma`, and its `hue` in degrees, as OKLCH has them.', 'OKLCH'),
+	gray: withDoc(makeGray, 'A gray, from black at 0 to white at 1.', 'Gray'),
+	alpha: withDoc(makeAlpha, 'A `color`, as see-through as `alpha` says, from 0 to 1.', 'Alpha'),
+	mix: withDoc(mixed, 'What `a` and `b` come to together, as far from `a` as `ratio` says, by way of a `space`.', 'Mix'),
+	lerp: withDoc(makeBetween(), 'The color `ratio` of the way from `a` to `b`, by way of a `space`.', 'Lerp'),
+	ramp: withDoc(makeRamp, 'The color `ratio` of the way along all of `colors`, as along a gradient.', 'Ramp'),
+	from: withDoc(makeRelative, 'A `color` with its OKLCH channels moved by as much as is said, as a relative color is in CSS.', 'Relative Color'),
+	brighten: withDoc(makeBrighter, 'A `color`, lighter by how much it looks.', 'Brighten'),
+	darken: withDoc(makeDarker, 'A `color`, darker by how much it looks.', 'Darken'),
+	invert: withDoc(makeInverted, 'The opposite of a `color`, channel by channel.', 'Invert'),
+	complement: withDoc(makeComplement, 'A `color` with its hue on the other side, and as light as it was.', 'Complement'),
+	lightnessOf: withDoc(channelOf(0, number), 'How light a `color` looks, from 0 to 1.', 'Lightness of'),
+	chromaOf: withDoc(channelOf(1, number), 'How much of its hue a `color` has.', 'Chroma of'),
+	hueOf: withDoc(channelOf(2, degreesType), 'The hue of a `color`, in degrees.', 'Hue of'),
+	alphaOf: withDoc(channelOf(3, number), 'How opaque a `color` is, from 0 to 1.', 'Alpha of'),
+})
 
 /** Where a line stops is the upright, which each goes up to or past. */
 const LINE_END = 'M12 5h1v14h-1z'

@@ -246,6 +246,30 @@ describe('a line as a guide', () => {
 	})
 })
 
+describe('what goes in a value of what there is', () => {
+	const fillers = (src: string, path: string) =>
+		fillersAt(parse(src) as LetAST, env, path).map(({ name }) => name)
+
+	it('has what a prelude writes in Glisp, such as going from degrees to radians', () => {
+		const here = fillers('[c = (path.circle [0 0] 10)]', 'binding:c/arg1')
+		for (const name of ['to-rad', 'to-deg', 'to-turn', 'turn', 'lerp', 'sin']) expect(here).toContain(name)
+	})
+
+	it('has all there is for a color, where one goes', () => {
+		const here = fillers('[b = (background "#ffffff")]', 'binding:b/arg0')
+		for (const name of ['color.lerp', 'color.mix', 'color.ramp', 'color.from', 'color.oklch', 'color.invert', 'color.complement']) {
+			expect(here).toContain(name)
+		}
+	})
+
+	it('starts each with what works it out', () => {
+		const next = withFilled(parse('[c = (path.circle [0 0] 10)]') as LetAST, env, 'binding:c/arg1', { name: 'to-rad', label: 'to-rad', group: 'Math' }, [0, 0])
+		expect(print(next!)).toContain('(path.circle [0 0] (to-rad 10))')
+		expect(evaluate(parse('(to-rad 180)'), env).value).toBeCloseTo(Math.PI)
+		expect(evaluate(parse('(to-deg pi)'), env).value).toBeCloseTo(180)
+	})
+})
+
 describe('what a program has of its own', () => {
 	const PROGRAM = parse(`{
 		flower = (=> (c: vec2 r: number): path (path.circle c r))

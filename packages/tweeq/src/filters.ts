@@ -11,6 +11,7 @@ import {
 	type Env,
 	evaluate,
 	freeRefs,
+	type GlispClosure,
 	isGlispClosure,
 	isTypedHostFn,
 	LetAST,
@@ -97,8 +98,12 @@ export function functionsIn(env: Env): Filter[] {
 	for (let frame = env; frame !== null; frame = frame.parent) {
 		for (const [name, { ast, env: bound }] of frame.bindings ?? []) {
 			const inner = ast.kind === 'meta' ? ast.expr : ast
-			if (inner.kind !== 'host') continue
 			const { value } = evaluate(inner, bound)
+			// What a prelude writes in Glisp is there as much as what is given to it.
+			if (isGlispClosure(value) && !found.has(name)) {
+				found.set(name, { name, label: name, fn: asHostFn(value), more: [] })
+			}
+			if (inner.kind !== 'host') continue
 			add(name, value)
 			const { members } = (value ?? {}) as Partial<TypeValue>
 			for (const [member, of] of Object.entries(members ?? {})) add(`${name}.${member}`, of)
@@ -110,31 +115,30 @@ export function functionsIn(env: Env): Filter[] {
 /** What says nothing of what it is, for what does not say. */
 const anything: TypeValue = makeType('_', () => true, null)
 
-/**
- * The functions that `root` says itself, as what they would be if a host gave them: taking
- * and giving what they say, for them to be gone about in the same way.
- */
+/** A function written in Glisp, as what it would be if a host gave it: taking and giving what it says. */
+function asHostFn({ ast: { params, returnType }, capturedEnv }: GlispClosure): TypedHostFn {
+	const typeOf = (type: AST): TypeValue => resolveTypeSlot(type, capturedEnv) ?? anything
+	const plain = params.filter(({ variadic }) => !variadic)
+	const tail = params.find(({ variadic }) => variadic)
+	return withOptional(
+		makeTypedFn(
+			plain.map(({ type }) => typeOf(type)),
+			typeOf(returnType),
+			() => undefined,
+			plain.map(param => param.name),
+			tail && typeOf(tail.type),
+			tail?.name
+		),
+		plain.filter(({ optional }) => optional).map(param => param.name)
+	)
+}
+
+/** The functions that `root` says itself, to be gone about as a host's are. */
 export function functionsOfProgram(root: LetAST, env: Env): Filter[] {
 	const frame = pushLetFrame(root, env)
 	return [...(frame?.bindings ?? [])].flatMap(([name, { ast, env: bound }]): Filter[] => {
 		const { value } = evaluate(ast, bound)
-		if (!isGlispClosure(value)) return []
-		const { params, returnType } = value.ast
-		const typeOf = (type: AST): TypeValue => resolveTypeSlot(type, value.capturedEnv) ?? anything
-		const plain = params.filter(({ variadic }) => !variadic)
-		const tail = params.find(({ variadic }) => variadic)
-		const fn = withOptional(
-			makeTypedFn(
-				plain.map(({ type }) => typeOf(type)),
-				typeOf(returnType),
-				() => undefined,
-				plain.map(param => param.name),
-				tail && typeOf(tail.type),
-				tail?.name
-			),
-			plain.filter(({ optional }) => optional).map(param => param.name)
-		)
-		return [{ name, label: name, fn, more: [] }]
+		return isGlispClosure(value) ? [{ name, label: name, fn: asHostFn(value), more: [] }] : []
 	})
 }
 

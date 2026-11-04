@@ -1544,3 +1544,47 @@ describe('what turns a line at an angle', () => {
 		expect(print(changed(root, env, 'binding:l', handle.to([0, 100], [0, 0])).ast!)).toContain('(line.at [0 0] 90)')
 	})
 })
+
+describe('what there is for colors', () => {
+	const value = (source: string) => evaluate(parse(source), env).value
+
+	it('goes between two, by the way that is said', () => {
+		expect(value('(color.lerp "#000000" "#ffffff" 0.5 "srgb")')).toBe('#808080')
+		expect(value('(color.mix "#000000" "#ffffff" 0.5 space="srgb")')).toBe('#808080')
+		// By how it looks, unless it is said otherwise.
+		expect(value('(color.lerp "#000000" "#ffffff" 0.5)')).not.toBe('#808080')
+		expect(value('(color.lerp "#000000" "#ffffff" 0)')).toBe('#000000')
+	})
+
+	it('goes along as many as there are', () => {
+		const ramp = (at: number) => value(`(color.ramp ["#ff0000" "#00ff00" "#0000ff"] ${at} "srgb")`)
+		expect(ramp(0)).toBe('#ff0000')
+		expect(ramp(0.5)).toBe('#00ff00')
+		expect(ramp(1)).toBe('#0000ff')
+		expect(ramp(0.25)).toBe('#808000')
+		expect(value('(color.ramp ["#ff0000"] 0.5)')).toBe('#ff0000')
+		expect(value('(color.ramp [] 0.5)')).toBe('#000000')
+	})
+
+	it('goes from what a color has, as a relative color does', () => {
+		expect(value('(color.from "#ff0000")')).toBe('#ff0000')
+		expect(value('(color.from "#ff0000" alpha=-0.5)')).toBe('#ff000080')
+		expect(value('(color.from "#808080" lightness=1)')).toBe('#ffffff')
+		expect(value('(color.from "#808080" lightness=-1)')).toBe('#000000')
+		expect(value('(color.chromaOf (color.from "#808080" chroma=-1))')).toBeCloseTo(0)
+	})
+
+	it('has its hue on the other side, and is as light', () => {
+		const [hue, other] = [value('(color.hueOf "#3366cc")') as number, value('(color.hueOf (color.complement "#3366cc"))') as number]
+		// As far as it can be shown: what cannot be is brought in, which moves it a little.
+		expect(Math.abs(Math.abs(hue - other) - 180)).toBeLessThan(10)
+	})
+
+	it('says what it has', () => {
+		expect(value('(color.lightnessOf "#ffffff")')).toBeCloseTo(1)
+		expect(value('(color.lightnessOf "#000000")')).toBeCloseTo(0)
+		expect(value('(color.alphaOf "#ff000080")')).toBeCloseTo(0.5, 1)
+		expect(value('(color.lightnessOf (color.oklch 0.5 0 0))')).toBeCloseTo(0.5, 1)
+		expect(value('(color.alphaOf (color.oklch 0.5 0.1 30 0.5))')).toBeCloseTo(0.5, 1)
+	})
+})

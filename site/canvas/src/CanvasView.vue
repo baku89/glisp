@@ -1372,14 +1372,6 @@ function shapingHandleAt(x: number, y: number): number | null {
 	return index !== null && onlyShapes(grip.value!.handles[index]!) ? index : null
 }
 
-function cursorOf(handle: Handle): string {
-	if (handle.kind === 'button') return 'pointer'
-	if (handle.kind === 'direction') return 'grab'
-	if (handle.angle === undefined) return 'move'
-	const quarter = Math.round((facing(handle.angle) / Math.PI) * 4 + 4) % 4
-	return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][quarter]!
-}
-
 function apply(row: string, changes: readonly Change[], root: AST = props.document.root.value) {
 	return changed(root, props.document.env.value, row, changes)
 }
@@ -2064,7 +2056,7 @@ function onPointerMove(event: PointerEvent): void {
 			hoveredHandle.value = shaping
 			snapMark.value = null
 			penLine.value = null
-			cursor.value = cursorOf(grip.value!.handles[shaping]!)
+			cursor.value = 'none'
 			return
 		}
 		if (props.drawing === 'pen') {
@@ -2104,7 +2096,8 @@ function onPointerMove(event: PointerEvent): void {
 			: spaceDown
 			? 'grab'
 			: index !== null
-				? cursorOf(grip.value!.handles[index]!)
+				? // What is reached for lights up, and is what shows where the pointer is.
+					'none'
 				: shape !== null
 					? 'move'
 					: 'default'
