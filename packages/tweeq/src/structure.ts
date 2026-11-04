@@ -52,6 +52,7 @@ import {
 export type Editor =
 	| { readonly kind: 'number'; readonly value: number }
 	| { readonly kind: 'string'; readonly value: string }
+	| { readonly kind: 'color'; readonly value: string }
 	| { readonly kind: 'boolean'; readonly value: boolean }
 	| {
 			readonly kind: 'enum'
@@ -67,6 +68,8 @@ export interface Slot {
 	/** Stable among siblings, and what the slot is called on screen. */
 	readonly key: string
 	readonly label: string
+	/** The name of the parameter it is for, or of the field it is, if it goes by one. */
+	readonly parameter?: string
 	readonly ast: AST
 	readonly env: Env
 	/** What this position wants, if anything says. */
@@ -144,9 +147,13 @@ const BINDING = 'binding:'
 /** A parameter that a call could have, but does not. */
 export interface MissingArgument {
 	readonly name: string
+	/** What the parameter is called in code, where `name` is what it is called on screen. */
+	readonly parameter: string
 	readonly expected: TypeValue | null
 	/** The new call, with this argument given its type's default. */
 	add(): AST
+	/** The new call, with this argument being `child`. */
+	give(child: AST): AST
 }
 
 export interface NodeView {
@@ -344,7 +351,7 @@ export function viewOf(
 ): NodeView {
 	switch (ast.kind) {
 		case 'lit':
-			return { ...LEAF, editor: editorOf(ast, expected) }
+			return { ...LEAF, editor: editorOfValue(ast.value, expected) }
 		case 'call':
 			return viewOfCall(ast, env)
 		case 'vec':
@@ -391,14 +398,18 @@ export function enumIconsOf(type: TypeValue | null): readonly string[] | null {
 	return said.includes(null) ? null : (said as string[])
 }
 
-function editorOf(ast: LitAST, expected: TypeValue | null): Editor | null {
-	const value = ast.value
+/** The widget for a value of what is `expected`, whether it is written so or comes to it. */
+export function editorOfValue(value: unknown, expected: TypeValue | null): Editor | null {
 	const shape = expected === null ? null : unwrapLazy(expected).shape
 	if (shape?.kind === 'enum') {
 		const icons = enumIconsOf(expected)
 		return { kind: 'enum', value, options: [...shape.values], ...(icons ? { icons } : {}) }
 	}
 	if (typeof value === 'number') return { kind: 'number', value }
+	// No color at all is not something a swatch can show: it would look like black.
+	if (typeof value === 'string' && value !== 'none' && textOf(expected?.meta?.get('input')) === 'color') {
+		return { kind: 'color', value }
+	}
 	if (typeof value === 'string') return { kind: 'string', value }
 	if (typeof value === 'boolean') return { kind: 'boolean', value }
 	return value === UNIT ? { kind: 'unit' } : null
@@ -613,6 +624,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		slots.push({
 			key: `arg${i}`,
 			label,
+			...(isVariadic ? {} : { parameter: name! }),
 			...(!isVariadic && labelOf(name!) !== name ? { labelled: true } : {}),
 			ast: arg,
 			env: inside,
@@ -654,6 +666,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		slots.push({
 			key: `kw:${name}`,
 			label: labelOf(name),
+			parameter: name,
 			numberOptions: numberOptionsOfParameter(name),
 			...docOf(name),
 			ast: arg,
@@ -672,15 +685,14 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 	positional.forEach((name, i) => {
 		if (i < ast.args.length || ast.kwargs?.has(name)) return
 		const expected = signature?.(i) ?? null
+		const give = (child: AST): CallAST =>
+			new CallAST(ast.head, ast.args, new Map(ast.kwargs ?? []).set(name, child))
 		missing.push({
 			name: labelOf(name),
+			parameter: name,
 			expected,
-			add: () =>
-				new CallAST(
-					ast.head,
-					ast.args,
-					new Map(ast.kwargs ?? []).set(name, defaultFor(expected, inside))
-				),
+			add: () => give(defaultFor(expected, inside)),
+			give,
 		})
 	})
 
@@ -811,6 +823,7 @@ function viewOfRecord(ast: RecordAST, env: Env): NodeView {
 		slots.push({
 			key: `field:${name}`,
 			label: name,
+			parameter: name,
 			ast: child,
 			env: inside,
 			expected: null,
@@ -864,8 +877,10 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 				? [
 						{
 							name: RETURN,
+							parameter: RETURN,
 							expected: null,
 							add: () => new LetAST(ast.bindings, new LitAST(0)),
+							give: child => new LetAST(ast.bindings, child),
 						},
 					]
 				: [],
@@ -932,7 +947,11 @@ function viewOfMeta(
 						},
 					}),
 		})),
-		missing: inner.missing.map(m => ({ ...m, add: () => wrap(m.add()) })),
+		missing: inner.missing.map(m => ({
+			...m,
+			add: () => wrap(m.add()),
+			give: child => wrap(m.give(child)),
+		})),
 		append:
 			inner.append === null
 				? null
@@ -1023,10 +1042,10 @@ function editAt(
 	ast: AST,
 	env: Env,
 	path: readonly string[],
-	edit: (node: AST) => AST | null
+	edit: (node: AST, env: Env) => AST | null
 ): AST | null {
 	const [key, ...rest] = path
-	if (key === undefined) return edit(ast)
+	if (key === undefined) return edit(ast, env)
 	const view = viewOf(ast, env)
 	const slot = view.slots.find(s => s.key === key)
 	if (slot === undefined) return null
@@ -1130,6 +1149,40 @@ export function renameBindingAt(
 
 const bareOf = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
 
+/** The row at `parts`, and the names and indices a path goes through to reach it. */
+function levelsTo(
+	root: AST,
+	env: Env,
+	parts: readonly string[]
+): { slot: Slot; levels: (string | number)[] } | null {
+	let node = root
+	let nodeEnv = env
+	let found: Slot | null = null
+	const levels: (string | number)[] = []
+	for (const key of parts) {
+		const bare = bareOf(node)
+		const slot = viewOf(node, nodeEnv).slots.find(s => s.key === key)
+		if (slot === undefined) return null
+		if (key.startsWith(BINDING)) levels.push(key.slice(BINDING.length))
+		else if (key.startsWith('field:')) levels.push(key.slice('field:'.length))
+		else if (key.startsWith('kw:')) levels.push(key.slice('kw:'.length))
+		else if (/^\d+$/.test(key)) levels.push(Number(key))
+		else if (key.startsWith('arg') && bare.kind === 'call') {
+			const index = Number(key.slice('arg'.length))
+			const parameters = callParameters(bare, slot.env)
+			const name = parameters?.names[index]
+			if (name !== undefined) levels.push(name)
+			else if (parameters?.variadicName !== undefined) {
+				levels.push(parameters.variadicName, index - parameters.names.length)
+			} else return null
+		} else return null
+		found = slot
+		node = slot.ast
+		nodeEnv = slot.env
+	}
+	return found === null ? null : { slot: found, levels }
+}
+
 /**
  * `root`, with what is at the path `source` referring to what is at `target`: by
  * name if that name means it from there, or else by a path. Paths are slot keys
@@ -1148,34 +1201,7 @@ export function referenceAt(
 	if (from.length === 0 || to.length === 0) return null
 	if (`${source}/`.startsWith(`${target}/`)) return null
 
-	const walk = (parts: readonly string[]): { slot: Slot; levels: (string | number)[] } | null => {
-		let node = root
-		let nodeEnv = env
-		let found: Slot | null = null
-		const levels: (string | number)[] = []
-		for (const key of parts) {
-			const bare = bareOf(node)
-			const slot = viewOf(node, nodeEnv).slots.find(s => s.key === key)
-			if (slot === undefined) return null
-			if (key.startsWith(BINDING)) levels.push(key.slice(BINDING.length))
-			else if (key.startsWith('field:')) levels.push(key.slice('field:'.length))
-			else if (key.startsWith('kw:')) levels.push(key.slice('kw:'.length))
-			else if (/^\d+$/.test(key)) levels.push(Number(key))
-			else if (key.startsWith('arg') && bare.kind === 'call') {
-				const index = Number(key.slice('arg'.length))
-				const parameters = callParameters(bare, slot.env)
-				const name = parameters?.names[index]
-				if (name !== undefined) levels.push(name)
-				else if (parameters?.variadicName !== undefined) {
-					levels.push(parameters.variadicName, index - parameters.names.length)
-				} else return null
-			} else return null
-			found = slot
-			node = slot.ast
-			nodeEnv = slot.env
-		}
-		return found === null ? null : { slot: found, levels }
-	}
+	const walk = (parts: readonly string[]) => levelsTo(root, env, parts)
 	const sourceAt = walk(from)
 	const targetAt = walk(to)
 	if (sourceAt === null || targetAt === null) return null
@@ -1204,6 +1230,54 @@ export function referenceAt(
 	if (next === null) return null
 	return editAt(root, env, from, node =>
 		node.kind === 'meta' ? new MetaAST(node.metadata, next) : next
+	)
+}
+
+const givenMissing = (
+	root: AST,
+	env: Env,
+	at: string,
+	parameter: string,
+	give: (missing: MissingArgument) => AST
+): AST | null =>
+	editAt(root, env, at.split('/').filter(part => part !== ''), (node, nodeEnv) => {
+		const missing = viewOf(node, nodeEnv).missing.find(m => m.parameter === parameter)
+		return missing === undefined ? null : give(missing)
+	})
+
+/** `root`, with what the call at `at` is not yet given of `parameter` being `code`. */
+export function missingWritten(
+	root: AST,
+	env: Env,
+	at: string,
+	parameter: string,
+	code: AST
+): AST | null {
+	return givenMissing(root, env, at, parameter, missing => missing.give(code))
+}
+
+/** `root`, with what the call at `at` is not yet given of `parameter` referring to `target`. */
+export function missingReferringTo(
+	root: AST,
+	env: Env,
+	at: string,
+	parameter: string,
+	target: string
+): AST | null {
+	const given = givenMissing(root, env, at, parameter, missing => missing.add())
+	return given && referenceAt(given, env, `${at}/kw:${parameter}`, target)
+}
+
+/**
+ * What refers to the row at `path` from the top of `root`, written out, as there is no
+ * path from nowhere in particular. Null if nothing can reach it.
+ */
+export function writtenReference(root: AST, env: Env, path: string): string | null {
+	const levels = levelsTo(root, env, path.split('/').filter(part => part !== ''))?.levels
+	if (levels === undefined) return null
+	const [only] = levels
+	return print(
+		levels.length === 1 && typeof only === 'string' ? new SymAST(only) : new PathAST(levels)
 	)
 }
 
@@ -1265,10 +1339,17 @@ const isFiniteNumber = (value: unknown): value is number =>
  * to edit, which then changes what it comes from. Only what is worked out comes from
  * anything, and a vector written out already has its elements to edit.
  */
+const isReference = (ast: AST): boolean => {
+	const { kind } = bareOf(ast)
+	return kind === 'sym' || kind === 'path'
+}
+
 export function canSolve(slot: Slot, value: unknown): boolean {
 	return (
 		(typeof value === 'boolean' ||
 			isFiniteNumber(value) ||
+			// Any other way of coming to a string is as good as code, and not undone by typing.
+			(typeof value === 'string' && isReference(slot.ast)) ||
 			(Array.isArray(value) &&
 				value.length > 0 &&
 				value.every(isFiniteNumber) &&

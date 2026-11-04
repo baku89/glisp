@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import type { AST, Diagnostic, Env } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, MetaAST } from '@glisp/lang'
 import { InputGroup } from 'tweeq/InputGroup'
+import type { MenuItem } from 'tweeq/Menu'
+import { inject } from 'vue'
 
 import AstValue from './AstValue.vue'
-import { slotMenuItems } from './menu'
+import { referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
+import { LINKER } from './selection'
 import type { Slot } from './structure'
 
-defineProps<{
+const props = defineProps<{
 	slots: readonly Slot[]
 	parentPath: string
 	read: (
@@ -17,6 +20,19 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{ change: [parent: AST] }>()
+
+const linker = inject(LINKER, null)
+
+/** Each of them can be referred to, and made to refer, as a row of its own could. */
+const menuOf = (slot: Slot): MenuItem[] =>
+	withCopyItems(
+		slotMenuItems(slot, parent => emit('change', parent)),
+		linker === null
+			? []
+			: referenceMenuItems(linker, `${props.parentPath}/${slot.key}`, code =>
+					emit('change', slot.replace(slot.ast.kind === 'meta' ? new MetaAST(slot.ast.metadata, code) : code))
+				)
+	)
 </script>
 
 <template>
@@ -27,7 +43,7 @@ const emit = defineEmits<{ change: [parent: AST] }>()
 			:key="slot.key"
 			:entry="slot"
 			:path="`${parentPath}/${slot.key}`"
-			:menuItems="slotMenuItems(slot, parent => emit('change', parent))"
+			:menuItems="menuOf(slot)"
 			:read="read"
 			:show="show"
 			@change="emit('change', $event)"

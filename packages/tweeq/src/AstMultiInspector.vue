@@ -89,8 +89,6 @@ const extractItems = (field: MultiField): MenuItem[] =>
 <template>
 	<div class="AstMultiInspector" data-selects-rows>
 		<ScrollArea class="tree">
-		<!-- What a host has to say of them too, in rows of its own. -->
-		<slot />
 		<template v-if="inspection">
 		<FunctionAbout
 			:label="inspection.label"
@@ -113,6 +111,8 @@ const extractItems = (field: MultiField): MenuItem[] =>
 			</Parameter>
 		</ParameterTree>
 		</template>
+		<!-- What a host has to say of them too, in rows of its own. -->
+		<slot />
 		</ScrollArea>
 		<p v-if="inspection && problem !== null" class="problem">Cannot do that: {{ problem }}</p>
 	</div>

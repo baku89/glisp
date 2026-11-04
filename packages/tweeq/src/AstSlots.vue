@@ -7,7 +7,8 @@ import { computed, inject } from 'vue'
 import AstCase from './AstCase.vue'
 import AstGapAdd from './AstGapAdd.vue'
 import AstNode from './AstNode.vue'
-import { REVEALER } from './selection'
+import { missingMenuItems } from './menu'
+import { LINKER, REVEALER } from './selection'
 import { fitsInline, type MissingArgument, moveBetween, type NodeView, type Slot } from './structure'
 
 const props = defineProps<{
@@ -80,6 +81,13 @@ const pairOf = (slots: readonly Slot[]) => {
 		}
 	}
 	return rows
+}
+
+const linker = inject(LINKER, null)
+
+/** Pressing it adds it, while opening its menu is only that. */
+function addMissing(event: MouseEvent, argument: MissingArgument): void {
+	if (event.type !== 'contextmenu') emit('change', argument.add())
 }
 
 const revealer = inject(REVEALER, null)
@@ -180,7 +188,8 @@ const pathOf = (slot: Slot): string =>
 		:key="`missing:${argument.name}`"
 		:label="argument.name"
 		icon="mdi:plus"
-		@select="emit('change', argument.add())"
+		:menuItems="linker === null ? [] : missingMenuItems(linker, parentPath, argument.parameter)"
+		@select="addMissing($event, argument)"
 	/>
 	<div v-if="append && !noAddRow" class="add-row">
 		<ParameterTreeItem

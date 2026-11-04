@@ -14,6 +14,7 @@ import {
 	LetAST,
 	parse,
 	Session,
+	type TypeValue,
 } from '@glisp/lang'
 
 import { withIcons } from './icons'
@@ -29,6 +30,10 @@ export interface GlispDocument {
 	readonly canRedo: ComputedRef<boolean>
 	readonly session: Session
 	readonly env: ComputedRef<Env>
+	/** The row a reference has been copied of, and what is on the clipboard for it. */
+	readonly copiedReference: ShallowRef<{ readonly path: string; readonly written: string } | null>
+	/** What the parameter copied wants, which what is on the clipboard for it cannot say. */
+	readonly copiedParameter: ShallowRef<{ readonly written: string; readonly expected: TypeValue | null } | null>
 	/** Replace the whole program. */
 	setRoot(next: LetAST): void
 	/** Have every `setRoot` that `write` makes undo as one. */
@@ -39,6 +44,8 @@ export interface GlispDocument {
 	sync(): void
 	undo(): void
 	redo(): void
+	/** Go back to `to`, a program it has been, as if nothing since had happened. */
+	rewind(to: LetAST): void
 }
 
 export function useGlispDocument(
@@ -77,6 +84,8 @@ export function useGlispDocument(
 	return {
 		root,
 		session,
+		copiedReference: shallowRef(null),
+		copiedParameter: shallowRef(null),
 		env: computed(() => {
 			void root.value
 			return session.env
@@ -117,6 +126,13 @@ export function useGlispDocument(
 			future.value = [...future.value, root.value]
 			lastEditAt = 0
 			install(previous)
+		},
+		rewind(to) {
+			if (root.value === to) return
+			const at = past.value.lastIndexOf(to)
+			if (at >= 0) past.value = past.value.slice(0, at)
+			lastEditAt = 0
+			install(to)
 		},
 		redo() {
 			const next = future.value.at(-1)

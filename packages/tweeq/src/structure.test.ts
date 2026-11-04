@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, make
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -14,6 +14,14 @@ describe('viewOf', () => {
 		expect(view('"a"').editor).toEqual({ kind: 'string', value: 'a' })
 		expect(view('true').editor).toEqual({ kind: 'boolean', value: true })
 		expect(view('()').editor).toEqual({ kind: 'unit' })
+	})
+
+	it('gives a string a color input if its type says, unless it is no color at all', () => {
+		const string = evaluate(parse('string'), env).value as TypeValue
+		const color = withTypeMeta(string, parse('{input: "color"}') as RecordAST)
+		expect(viewOf(parse('"#ff0000"'), env, color).editor).toEqual({ kind: 'color', value: '#ff0000' })
+		expect(viewOf(parse('"none"'), env, color).editor).toEqual({ kind: 'string', value: 'none' })
+		expect(viewOf(parse('"#ff0000"'), env, string).editor).toEqual({ kind: 'string', value: '#ff0000' })
 	})
 
 	it('gives a literal an enum widget where the slot expects one', () => {
@@ -1132,6 +1140,12 @@ describe('referenceAt', () => {
 		)
 	})
 
+	it('refers to an element of what a call is given, and from one', () => {
+		const next = referenceAt(parse('{f = (=> (p: _): _ p) a = (f [3 4]) b = (f [0 0]) b}'), env, 'binding:b/arg0/0', 'binding:a/arg0/1')!
+		expect(print(next)).toContain('b = (f [../../a/p/1 0])')
+		expect(evaluate(next, env).value).toEqual([4, 0])
+	})
+
 	it('evaluates to what it refers to', () => {
 		const next = referenceAt(parse('{z = {a = 7} q = 0 q}'), env, 'binding:q', 'binding:z/binding:a')!
 		expect(evaluate(next, env).value).toBe(7)
@@ -1149,6 +1163,71 @@ describe('referenceAt', () => {
 	it('wants both to be there', () => {
 		expect(linked('{a = 1}', 'binding:a', 'binding:z')).toBeNull()
 		expect(linked('{a = 1}', 'binding:z', 'binding:a')).toBeNull()
+	})
+})
+
+describe('what a call is not yet given', () => {
+	const program = '{f = (=> (a: number b?: string): number a) x = (f 1 b="red") y = (f 2)}'
+
+	it('can refer to something, where it comes to be said', () => {
+		const next = missingReferringTo(parse(program), env, 'binding:y', 'b', 'binding:x/kw:b')!
+		expect(print(next)).toContain('y = (f 2 b=../x/b)')
+	})
+
+	it('can be written', () => {
+		const next = missingWritten(parse(program), env, 'binding:y', 'b', parse('"blue"'))!
+		expect(print(next)).toContain('y = (f 2 b="blue")')
+	})
+
+	it('is nothing to do of what is given already, or what is not there', () => {
+		expect(missingWritten(parse(program), env, 'binding:x', 'b', parse('"blue"'))).toBeNull()
+		expect(missingWritten(parse(program), env, 'binding:y', 'z', parse('"blue"'))).toBeNull()
+		expect(missingReferringTo(parse(program), env, 'binding:y', 'b', 'binding:z')).toBeNull()
+	})
+})
+
+describe('a string, that comes from elsewhere', () => {
+	const row = (src: string) => viewOf(parse(src), env).slots.at(-1)!
+
+	it('can be sent back by what refers to it, and not by what works it out', () => {
+		expect(canSolve(row('{s = "x" a = s}'), 'x')).toBe(true)
+		expect(canSolve(row('{s = {t = "x"} a = ./s/t}'), 'x')).toBe(true)
+		expect(canSolve(row('{a = "x"}'), 'x')).toBe(false)
+		expect(canSolve(row('{f = (=> (n?: number): string "x") a = (f)}'), 'x')).toBe(false)
+	})
+
+	it('has the widget it would have had if written', () => {
+		const shades = evaluate(parse('(enum "a" "b")'), env).value as Parameters<typeof editorOfValue>[1]
+		expect(editorOfValue('a', null)).toEqual({ kind: 'string', value: 'a' })
+		expect(editorOfValue('a', shades)).toMatchObject({ kind: 'enum', value: 'a', options: ['a', 'b'] })
+	})
+
+	it('comes back to where it is written', () => {
+		const root = parse('{s = "x" a = s}')
+		const slot = viewOf(root, env).slots.at(-1)!
+		expect(print(solve(root, env, slot.ast, 'y').ast!)).toBe('{s = "y" a = s}')
+	})
+})
+
+describe('writtenReference', () => {
+	const written = (src: string, path: string) => writtenReference(parse(src), env, path)
+
+	it('is a name for what is at the top', () => {
+		expect(written('{a = 1}', 'binding:a')).toBe('a')
+	})
+
+	it('is a path from the top to anything further in', () => {
+		expect(written('{a = [1 2]}', 'binding:a/1')).toBe('./a/1')
+		expect(written('{f = (=> (p: _): _ p) a = (f [3 4])}', 'binding:a/arg0/1')).toBe('./a/p/1')
+	})
+
+	it('comes to it, as code at the top of the program', () => {
+		const src = '{a = [3 4] b = ' + written('{a = [3 4]}', 'binding:a/1') + ' b}'
+		expect(evaluate(parse(src), env).value).toBe(4)
+	})
+
+	it('is nothing, of what is not there', () => {
+		expect(written('{a = 1}', 'binding:z')).toBeNull()
 	})
 })
 

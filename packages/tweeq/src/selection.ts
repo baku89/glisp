@@ -14,6 +14,12 @@ export interface Selection {
 	readonly editExpression?: () => void
 	/** Put this in its place, as what is pasted. */
 	readonly paste?: (next: AST) => void
+	/** How a reference goes from and to it, if it is not simply the row at `path`. */
+	readonly reference?: {
+		copy(): boolean
+		/** Have it refer to the row at `target`. */
+		paste(target: string): boolean
+	}
 }
 
 /**
@@ -78,8 +84,15 @@ export const RATIO_KEEPER: InjectionKey<RatioKeeper> = Symbol('glisp-ratio-keepe
 export interface Linker {
 	can(source: string, target: string): boolean
 	link(source: string, target: string): void
-	/** The row a reference has been copied of, to paste as a reference to it. */
-	readonly copied: ShallowRef<string | null>
+	canCopy(path: string): boolean
+	/** Puts a reference to the row on the clipboard, as what it is written as from the top. */
+	copy(path: string): boolean
+	/** The row that `text` on the clipboard is a reference to, if it is one. */
+	pasted(text: string): string | null
+	/** Give the call at `at` what it is not yet given of `parameter`, as `text` on the clipboard. */
+	pasteMissing(at: string, parameter: string, text: string): boolean
+	/** Puts what `text` binds where it belongs at `path`, if it reads so and has a place. */
+	pasteInto(path: string, text: string): boolean
 }
 
 export const LINKER: InjectionKey<Linker> = Symbol('glisp-linker')

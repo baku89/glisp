@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AST } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import { InputColor } from 'tweeq/InputColor'
 import { InputEnum } from 'tweeq/InputEnum'
@@ -7,12 +8,13 @@ import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTree, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, ref, watch } from 'vue'
 
-import { type GlispDocument, MixedNumber, SELECTION } from '@glisp/tweeq'
+import { type GlispDocument, LINKER, MixedNumber, SELECTION } from '@glisp/tweeq'
 import { isMixed } from '@glisp/tweeq/multiRows'
-import { capitalCase, enumIconsOf } from '@glisp/tweeq/structure'
+import { capitalCase, enumIconsOf, parseSource } from '@glisp/tweeq/structure'
 
 import { LINE_CAPS, LINE_JOINS, lineCapType, lineJoinType, NO_PAINT, type Paint } from './graphics'
 import NoPaint from './NoPaint.vue'
+import { paintArgument, paintReferringTo, paintSource, paintWritten, withPaintThrough } from './paintArguments'
 import { paintAt, withPaint } from './scene'
 
 const props = defineProps<{
@@ -46,14 +48,27 @@ const valuesOf = <K extends keyof Paint>(key: K): Array<Paint[K]> =>
 const mixed = (key: keyof Paint): boolean =>
 	isMixed(valuesOf(key).map(value => (Array.isArray(value) ? value.join() : value)))
 
-/** What `part` says of each row, with `partOf` having what differs from one to the next. */
-function setEach(rows: readonly string[], partOf: (i: number) => Partial<Paint>): void {
+/**
+ * What `part` says of each row, with `partOf` having what differs from one to the next.
+ * What an argument refers to comes to it, unless it is being told otherwise by `write`.
+ */
+function setEach(
+	rows: readonly string[],
+	partOf: (i: number) => Partial<Paint>,
+	write: typeof withPaint = withPaintThrough
+): void {
 	const { root, env } = props.document
 	const next = rows.reduce(
-		(program, row, i) => withPaint(program, env.value, row, partOf(i)),
+		(program, row, i) => write(program, env.value, row, partOf(i)),
 		root.value as Parameters<typeof withPaint>[0]
 	)
-	if (next.kind === 'let' && next !== root.value) props.document.setRoot(next)
+	setProgram(next)
+}
+
+function setProgram(next: AST | null): boolean {
+	if (next?.kind !== 'let') return false
+	if (next !== props.document.root.value) props.document.setRoot(next)
+	return true
 }
 
 function set(part: Partial<Paint>): void {
@@ -70,6 +85,11 @@ const DEFAULT_WIDTH = 1
 
 const addStroke = (): void =>
 	set({ stroke: DEFAULT_COLOR, width: paint.value.width || DEFAULT_WIDTH })
+
+/** Pressing what is not there adds it, while opening its menu is only that. */
+const addBy = (event: MouseEvent, add: () => void): void => {
+	if (event.type !== 'contextmenu') add()
+}
 
 const capIcons = enumIconsOf(lineCapType) ?? undefined
 const joinIcons = enumIconsOf(lineJoinType) ?? undefined
@@ -107,14 +127,108 @@ const pathOf = (key: keyof Paint): string => `${PATH}${key}`
 const isSelected = (key: keyof Paint): boolean => selection.value?.path === pathOf(key)
 const ownSelection = (): boolean => selection.value?.path.startsWith(PATH) ?? false
 
-/** Deleting one is having none of it, or as much as a line has without being told. */
-const remove = (key: keyof Paint): void => set({ [key]: NO_PAINT[key] })
+/**
+ * Deleting one is having none of it, or as much as a line has without being told. What it
+ * may refer to stays as it was.
+ */
+const remove = (key: keyof Paint): void =>
+	setEach(paintsOf(key).map(({ row }) => row), () => ({ [key]: NO_PAINT[key] }), withPaint)
+
+const linker = inject(LINKER, null)
+
+/** One at a time: a reference is to one place, and these can be saying it of several. */
+const only = computed(() => (linker !== null && props.rows.length === 1 ? props.rows[0]! : null))
+
+const argumentOf = (key: keyof Paint): string | null =>
+	only.value && paintArgument(props.document.root.value, props.document.env.value, only.value, key)
+
+const copyReference = (key: keyof Paint): boolean => {
+	const at = argumentOf(key)
+	return at !== null && linker!.copy(at)
+}
+
+const pasteReference = (key: keyof Paint, target: string): boolean =>
+	only.value !== null &&
+	setProgram(
+		paintReferringTo(props.document.root.value, props.document.env.value, only.value, key, target)
+	)
+
+/** What it says of the first of them, as code, to go on the clipboard. */
+const sourceOf = (key: keyof Paint): string | null => {
+	const row = paintsOf(key)[0]?.row ?? props.rows[0]
+	return row === undefined
+		? null
+		: paintSource(props.document.root.value, props.document.env.value, row, key)
+}
+
+/** What is on the clipboard said of this by all of them, a reference being one from each. */
+function pasteText(key: keyof Paint, text: string): boolean {
+	const { root, env, copiedReference } = props.document
+	const target = copiedReference.value?.written === text ? copiedReference.value.path : null
+	const code = target === null ? parseSource(text) : null
+	if (target === null && code === null) return false
+	let program: AST | null = root.value
+	for (const row of props.rows) {
+		if (program === null) return false
+		program =
+			target === null
+				? paintWritten(program, env.value, row, key, code!)
+				: paintReferringTo(program, env.value, row, key, target)
+	}
+	return setProgram(program)
+}
+
+const pasteFromClipboard = async (key: keyof Paint): Promise<void> =>
+	void pasteText(key, await navigator.clipboard.readText())
 
 function select(key: keyof Paint): void {
-	selection.value = { path: pathOf(key), remove: () => remove(key) }
+	selection.value = {
+		path: pathOf(key),
+		remove: () => remove(key),
+		...(only.value === null
+			? {}
+			: {
+					reference: {
+						copy: () => copyReference(key),
+						paste: (target: string) => pasteReference(key, target),
+					},
+				}),
+	}
+}
+
+/** What can be done of one, which being said or not has a say in. */
+const referenceMenuOf = (key: keyof Paint): MenuItem[] => [
+	{
+		label: 'Paste',
+		icon: 'mdi:clipboard-text-outline',
+		bindIcon: ['⌘', 'V'],
+		perform: () => void pasteFromClipboard(key),
+	},
+	...(argumentOf(key) === null
+		? []
+		: [
+				{
+					label: 'Copy Reference',
+					icon: 'mdi:link-variant',
+					bindIcon: ['⌘', '⌥', 'C'],
+					perform: () => void copyReference(key),
+				},
+			]),
+]
+
+const copySource = (key: keyof Paint): void => {
+	const source = sourceOf(key)
+	if (source !== null) void navigator.clipboard.writeText(source)
 }
 
 const menuOf = (key: keyof Paint): MenuItem[] => [
+	{
+		label: 'Copy',
+		icon: 'mdi:content-copy',
+		bindIcon: ['⌘', 'C'],
+		perform: () => copySource(key),
+	},
+	...referenceMenuOf(key),
 	{ label: 'Delete', icon: 'mdi:delete-outline', bindIcon: ['⌫'], perform: () => remove(key) },
 ]
 
@@ -133,10 +247,50 @@ useEventListener(window, 'pointerdown', (event: PointerEvent) => {
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (event.key === 'Escape') deselect()
 })
+
+/** The row of one that is selected, while a key is for it and not for text being typed. */
+function keyOfSelected(event: Event): keyof Paint | null {
+	if (!ownSelection()) return null
+	const target = event.target as Element | null
+	if (target?.closest?.('input, textarea, [contenteditable]')) return null
+	return selection.value!.path.slice(PATH.length) as keyof Paint
+}
+
+// Of the row selected here, and not of the shape it is the style of, which stays selected.
+useEventListener(
+	window,
+	'keydown',
+	(event: KeyboardEvent) => {
+		const letter = event.key.toLowerCase()
+		if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
+		if (letter !== 'c' && letter !== 'x') return
+		const key = keyOfSelected(event)
+		if (key === null || !getSelection()?.isCollapsed) return
+		event.preventDefault()
+		event.stopPropagation()
+		copySource(key)
+		if (letter === 'x') remove(key)
+	},
+	{ capture: true }
+)
+
+useEventListener(
+	window,
+	'paste',
+	(event: ClipboardEvent) => {
+		const key = keyOfSelected(event)
+		if (key === null || event.defaultPrevented) return
+		event.preventDefault()
+		event.stopPropagation()
+		pasteText(key, event.clipboardData?.getData('text') ?? '')
+	},
+	{ capture: true }
+)
 </script>
 
 <template>
 	<div class="PaintControls" data-selects-rows>
+		<h3 class="heading">Style</h3>
 		<ParameterTree name="glisp.inspector" :labelWidth="110">
 			<ParameterTreeItem
 				v-if="paint.fill !== 'none'"
@@ -146,7 +300,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				:menuItems="menuOf('fill')"
 				@select="select('fill')"
 			>
-				<div class="color" :class="{ mixed: mixed('fill') }">
+				<div class="color" :class="{ mixed: mixed('fill') }" data-takes-reference @focusin="select('fill')">
 					<InputColor :modelValue="paint.fill" @update:modelValue="set({ fill: $event })" />
 					<span v-if="mixed('fill')" class="multiple">Mixed</span>
 				</div>
@@ -156,7 +310,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				class="absent"
 				label="Fill"
 				icon="ph:paint-bucket"
-				@select="set({ fill: DEFAULT_COLOR })"
+				:menuItems="referenceMenuOf('fill')"
+				@select="addBy($event, () => set({ fill: DEFAULT_COLOR }))"
 			>
 				<NoPaint label="Fill" @click="set({ fill: DEFAULT_COLOR })" />
 			</ParameterTreeItem>
@@ -171,17 +326,18 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				@select="select('stroke')"
 			>
 				<div class="field">
-					<div class="color" :class="{ mixed: mixed('stroke') }">
+					<div class="color" :class="{ mixed: mixed('stroke') }" data-takes-reference @focusin="select('stroke')">
 						<InputColor
 							:modelValue="paint.stroke"
 							@update:modelValue="set({ stroke: $event })"
 						/>
 						<span v-if="mixed('stroke')" class="multiple">Mixed</span>
 					</div>
-					<div class="width">
+					<div class="width" data-takes-reference @focusin="select('width')">
 						<MixedNumber
 							leftIcon="ph:line-weight"
 							:values="valuesOf('width')"
+							:items="menuOf('width')"
 							:min="0"
 							@update:values="setNumbers('width', $event)"
 						/>
@@ -194,13 +350,15 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 						:menuItems="menuOf('cap')"
 						@select="select('cap')"
 					>
-						<InputEnum
-							:modelValue="(mixed('cap') ? null : paint.cap) as Paint['cap']"
-							:options="[...LINE_CAPS]"
-							:icons="capIcons"
-							:labelizer="capitalCase"
-							@update:modelValue="set({ cap: $event })"
-						/>
+						<div data-takes-reference @focusin="select('cap')">
+							<InputEnum
+								:modelValue="(mixed('cap') ? null : paint.cap) as Paint['cap']"
+								:options="[...LINE_CAPS]"
+								:icons="capIcons"
+								:labelizer="capitalCase"
+								@update:modelValue="set({ cap: $event })"
+							/>
+						</div>
 					</ParameterTreeItem>
 					<ParameterTreeItem
 						label="Join"
@@ -208,13 +366,15 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 						:menuItems="menuOf('join')"
 						@select="select('join')"
 					>
-						<InputEnum
-							:modelValue="(mixed('join') ? null : paint.join) as Paint['join']"
-							:options="[...LINE_JOINS]"
-							:icons="joinIcons"
-							:labelizer="capitalCase"
-							@update:modelValue="set({ join: $event })"
-						/>
+						<div data-takes-reference @focusin="select('join')">
+							<InputEnum
+								:modelValue="(mixed('join') ? null : paint.join) as Paint['join']"
+								:options="[...LINE_JOINS]"
+								:icons="joinIcons"
+								:labelizer="capitalCase"
+								@update:modelValue="set({ join: $event })"
+							/>
+						</div>
 					</ParameterTreeItem>
 					<ParameterTreeItem
 						v-if="valuesOf('join').includes('miter')"
@@ -223,11 +383,13 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 						:menuItems="menuOf('miterLimit')"
 						@select="select('miterLimit')"
 					>
-						<MixedNumber
-							:values="valuesOf('miterLimit')"
-							:min="1"
-							@update:values="setNumbers('miterLimit', $event)"
-						/>
+						<div data-takes-reference @focusin="select('miterLimit')">
+							<MixedNumber
+								:values="valuesOf('miterLimit')"
+								:min="1"
+								@update:values="setNumbers('miterLimit', $event)"
+							/>
+						</div>
 					</ParameterTreeItem>
 					<ParameterTreeItem
 						label="Dash"
@@ -235,11 +397,13 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 						:menuItems="menuOf('dash')"
 						@select="select('dash')"
 					>
-						<InputString
-							:modelValue="dashText"
-							:placeholder="mixed('dash') ? 'Mixed' : 'Solid'"
-							@update:modelValue="setDash"
-						/>
+						<div data-takes-reference @focusin="select('dash')">
+							<InputString
+								:modelValue="dashText"
+								:placeholder="mixed('dash') ? 'Mixed' : 'Solid'"
+								@update:modelValue="setDash"
+							/>
+						</div>
 					</ParameterTreeItem>
 					<ParameterTreeItem
 						v-if="valuesOf('dash').some(dash => dash.length > 0)"
@@ -248,10 +412,12 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 						:menuItems="menuOf('dashOffset')"
 						@select="select('dashOffset')"
 					>
-						<MixedNumber
-							:values="valuesOf('dashOffset')"
-							@update:values="setNumbers('dashOffset', $event)"
-						/>
+						<div data-takes-reference @focusin="select('dashOffset')">
+							<MixedNumber
+								:values="valuesOf('dashOffset')"
+								@update:values="setNumbers('dashOffset', $event)"
+							/>
+						</div>
 					</ParameterTreeItem>
 				</template>
 			</ParameterTreeItem>
@@ -260,7 +426,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				class="absent"
 				label="Stroke"
 				icon="ph:line-segment"
-				@select="addStroke"
+				:menuItems="referenceMenuOf('stroke')"
+				@select="addBy($event, addStroke)"
 			>
 				<NoPaint label="Stroke" @click="addStroke" />
 			</ParameterTreeItem>
@@ -269,10 +436,17 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 </template>
 
 <style scoped>
-.PaintControls {
-	margin-bottom: var(--tq-gap-control);
-	padding-bottom: var(--tq-gap-control);
-	border-bottom: 1px solid var(--tq-color-border);
+/* After what it is a style of, if there is anything to say of that. */
+.PaintControls:not(:first-child) {
+	margin-top: var(--tq-gap-control);
+	padding-top: var(--tq-gap-control);
+	border-top: 1px solid var(--tq-color-border);
+}
+.heading {
+	margin: 0 0 var(--tq-gap-related);
+	padding-inline: 3px;
+	font: inherit;
+	font-weight: 600;
 }
 .absent :deep(.icon),
 .absent :deep(.name) {

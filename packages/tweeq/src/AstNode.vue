@@ -13,7 +13,7 @@ import AstInline from './AstInline.vue'
 import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
-import { editMenuItems, slotMenuItems } from './menu'
+import { editMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import { ALSO_SELECTED, LINKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
@@ -28,7 +28,6 @@ import {
 	titleOf,
 	isTranslatable,
 	kindIconOf,
-	parseSource,
 	type Slot,
 	sourceOf,
 	viewOf,
@@ -338,49 +337,19 @@ function paste(next: AST): void {
 	update(ast.value.kind === 'meta' ? new MetaAST(ast.value.metadata, next) : next)
 }
 
-async function pasteFromClipboard(): Promise<void> {
-	const next = parseSource(await navigator.clipboard.readText())
-	if (next !== null) paste(next)
-}
+const referenceItems = computed<MenuItem[]>(() =>
+	linker === null || isFunction.value ? [] : referenceMenuItems(linker, props.path, paste)
+)
 
-// As Houdini copies a parameter, to paste as a reference to it.
-const referenceItems = computed<MenuItem[]>(() => {
-	if (linker === null || isFunction.value) return []
-	const copied = linker.copied.value
-	return [
-		{
-			label: 'Paste',
-			icon: 'mdi:clipboard-text-outline',
-			bindIcon: ['⌘', 'V'],
-			perform: () => void pasteFromClipboard(),
-		},
-		{
-			label: 'Copy Reference',
-			icon: 'mdi:link-variant',
-			perform: () => (linker.copied.value = props.path),
-		},
-		...(copied !== null && linker.can(props.path, copied)
-			? [
-					{
-						label: 'Paste Reference',
-						icon: 'mdi:link-variant-plus',
-						perform: () => linker.link(props.path, copied),
-					},
-				]
-			: []),
-	]
-})
-
-const slotMenu = computed(() => {
-	const items = slotMenuItems(props.entry, (parent, action) => {
-		if (action.opens) open.value = true
-		emit('change', parent)
-	})
-	// With the other copies, ahead of what deletes it, if anything does.
-	const end = items.findIndex(item => 'label' in item && item.label === 'Delete')
-	items.splice(end < 0 ? items.length : end - 1, 0, ...referenceItems.value)
-	return items
-})
+const slotMenu = computed(() =>
+	withCopyItems(
+		slotMenuItems(props.entry, (parent, action) => {
+			if (action.opens) open.value = true
+			emit('change', parent)
+		}),
+		referenceItems.value
+	)
+)
 
 // What the value's own field offers by itself, and the row offers on its behalf.
 const menuItems = computed<MenuItem[]>(() => [

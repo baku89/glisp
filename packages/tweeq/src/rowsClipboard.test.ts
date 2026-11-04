@@ -1,7 +1,7 @@
 import { buildPrelude, type Env, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { copiedRows, pastedRows, withoutNearest, withoutRows } from './rowsClipboard'
+import { copiedRows, evaluatedRows, evaluationsAt, pastedArguments, pastedRows, reach, withoutNearest, withoutRows } from './rowsClipboard'
 
 const env: Env = buildPrelude()
 
@@ -11,8 +11,49 @@ describe('copiedRows', () => {
 		expect(copiedRows(root, env, ['binding:a', 'binding:b'])).toBe('a = 1\nb = (+ a 1)')
 	})
 
-	it('is only what is a binding', () => {
+	it('is a parameter too, by its name', () => {
+		expect(copiedRows(parse('{a = (take [1 2] 1)}'), env, ['binding:a/arg1'])).toBe('n = 1')
+	})
+
+	it('is only what goes by a name', () => {
 		expect(copiedRows(parse('{a = (+ 1 2)}'), env, ['binding:a/arg0'])).toBe('')
+		expect(copiedRows(parse('{a = [1 2]}'), env, ['binding:a/0'])).toBe('')
+	})
+})
+
+describe('evaluating rows', () => {
+	const root = parse(`{
+		sq = (=> (x: number): number (* x x))
+		a = (sq 2)
+		b = (+ 1 2)
+		n = 1
+	}`)
+
+	it('says what can be done to a row', () => {
+		expect([...evaluationsAt(root, env, 'binding:a')].sort()).toEqual(['all', 'step'])
+		expect(evaluationsAt(root, env, 'binding:n').has('step')).toBe(false)
+		expect(evaluationsAt(root, env, 'binding:nowhere').size).toBe(0)
+	})
+
+	it('goes one step down', () => {
+		const next = evaluatedRows(root, env, ['binding:a'], 'step')!
+		expect(print(next)).toContain('a = (* 2 2)')
+	})
+
+	it('goes all the way down', () => {
+		const next = evaluatedRows(root, env, ['binding:a'], 'all')!
+		expect(print(next)).toContain('a = 4')
+	})
+
+	it('does all of the rows', () => {
+		const next = print(evaluatedRows(root, env, ['binding:a', 'binding:b'], 'all')!)
+		expect(next).toContain('a = 4')
+		expect(next).toContain('b = 3')
+	})
+
+	it('is nothing, if nothing comes of it', () => {
+		expect(evaluatedRows(root, env, ['binding:n'], 'step')).toBeNull()
+		expect(evaluatedRows(root, env, ['binding:nowhere'], 'all')).toBeNull()
 	})
 })
 
@@ -85,9 +126,91 @@ describe('pastedRows', () => {
 		])
 	})
 
+	it('goes after the binding that the row selected is in', () => {
+		expect(pasted('{a = (take [1] 1) b = 2}', 'binding:a/arg1', 'n = 3')).toEqual([
+			'{a = (take [1] 1) n = 3 b = 2}',
+			['binding:n'],
+		])
+	})
+
+	it('hides nothing that can be seen from there', () => {
+		expect(pasted('{a = 1}', null, 'take = 2')).toEqual(['{a = 1 take2 = 2}', ['binding:take2']])
+		expect(pasted('{x = 1 g = {a = (+ x 1)}}', 'binding:g/binding:a', 'x = 2')).toEqual([
+			'{x = 1 g = {a = (+ x 1) x2 = 2}}',
+			['binding:g/binding:x2'],
+		])
+	})
+
 	it('is nothing for what does not read as bindings', () => {
 		expect(pasted('{a = 1}', null, '(+ 1 2)')).toBeNull()
 		expect(pasted('{a = 1}', null, 'not (code')).toBeNull()
 		expect(pasted('{a = 1}', null, '')).toBeNull()
+	})
+})
+
+describe('pastedArguments', () => {
+	const given = (src: string, rows: string[], text: string) => {
+		const next = pastedArguments(parse(src), env, rows, text)
+		return next && print(next)
+	}
+
+	it('goes to the parameter of the same name', () => {
+		expect(given('{a = (take [1 2 3] 1)}', ['binding:a'], 'n = 2')).toBe('{a = (take [1 2 3] 2)}')
+	})
+
+	it('gives a parameter that has not been given yet', () => {
+		expect(given('{a = (take [1 2 3])}', ['binding:a'], 'n = 2')).toBe('{a = (take [1 2 3] n=2)}')
+	})
+
+	it('goes into what the row is made of, the nearest first', () => {
+		expect(given('{a = (+ (take [1] 1) 2)}', ['binding:a'], 'n = 2')).toBe('{a = (+ (take [1] 2) 2)}')
+		expect(given('{a = (take (take [1] 1) 1)}', ['binding:a'], 'n = 2')).toBe(
+			'{a = (take (take [1] 1) 2)}'
+		)
+	})
+
+	it('has no place for what the parameter would not take', () => {
+		expect(given('{a = (take [1 2 3] 1)}', ['binding:a'], 'n = "x"')).toBeNull()
+	})
+
+	it('has no place for a name that is not there', () => {
+		expect(given('{a = (take [1 2 3] 1)}', ['binding:a'], 'radius = 2')).toBeNull()
+		expect(given('{a = 1}', ['binding:a'], 'n = 2')).toBeNull()
+	})
+
+	it('takes the row itself if that is a part, whatever it is called', () => {
+		expect(given('{a = (take [1 2 3] 1)}', ['binding:a/arg1'], 'radius = 2')).toBe(
+			'{a = (take [1 2 3] 2)}'
+		)
+		expect(given('{a = (take [1 2 3] 1)}', ['binding:a/arg1'], 'radius = "x"')).toBeNull()
+	})
+
+	it('leaves what is said about what it replaces', () => {
+		expect(given('{a = (take [1] ^{max: 9} 1)}', ['binding:a'], 'n = 2')).toBe(
+			'{a = (take [1] ^{max: 9} 2)}'
+		)
+	})
+
+	it('goes to each of the rows that has a place for it', () => {
+		expect(given('{a = (take [1] 1) b = 2 c = (take [2] 1)}', ['binding:a', 'binding:b', 'binding:c'], 'n = 5')).toBe(
+			'{a = (take [1] 5) b = 2 c = (take [2] 5)}'
+		)
+	})
+
+	it('needs a place for all of what is on the clipboard', () => {
+		expect(given('{a = (take [1] 1)}', ['binding:a'], 'n = 5\nz = 1')).toBeNull()
+	})
+
+	it('is nothing for what does not read as bindings', () => {
+		expect(given('{a = (take [1] 1)}', ['binding:a'], '5')).toBeNull()
+	})
+
+	it('reads what a row is copied as back into another', () => {
+		const root = parse('{a = (take [1] 7) b = (take [2] 1)}')
+		const text = copiedRows(root, env, ['binding:a/arg1'])
+		expect(reach(root, env, 'binding:a/arg1')?.chain.at(-1)?.parameter).toBe('n')
+		expect(print(pastedArguments(root, env, ['binding:b'], text)!)).toBe(
+			'{a = (take [1] 7) b = (take [2] 7)}'
+		)
 	})
 })

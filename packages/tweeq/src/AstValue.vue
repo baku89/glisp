@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, infer, isHidden, readByName, UNIT, unwrapLazy, UNSET } from '@glisp/lang'
+import { InputColor } from 'tweeq/InputColor'
 import { InputEnum } from 'tweeq/InputEnum'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
@@ -18,6 +19,7 @@ import type { Place } from './multiRows'
 import { RATIO_KEEPER, SOLVER } from './selection'
 import {
 	canSolve,
+	editorOfValue,
 	expressionFromField,
 	fitsInline,
 	hasValue,
@@ -133,18 +135,20 @@ const editingStart = ref<string | undefined>(undefined)
 // spreadsheet. A string can begin with `=`, so it stays a string.
 function onFieldKey(event: KeyboardEvent): void {
 	const { kind } = view.value.editor ?? {}
+	// A string can begin with `=`, whatever it comes from.
+	const takesCode = solvable.value && solvedEditor.value?.kind !== 'string'
 	if (
 		event.key !== '=' ||
 		event.isComposing ||
 		event.metaKey ||
 		event.ctrlKey ||
 		event.altKey ||
-		(kind !== 'number' && kind !== 'boolean' && kind !== 'enum' && !solvable.value)
+		(kind !== 'number' && kind !== 'color' && kind !== 'boolean' && kind !== 'enum' && !takesCode)
 	) {
 		return
 	}
 	const target = event.target as HTMLElement
-	if (solvable.value) {
+	if (takesCode) {
 		event.preventDefault()
 		event.stopPropagation()
 		target.blur()
@@ -170,8 +174,15 @@ const keepRatio = inject(RATIO_KEEPER, null)
 const solvable = computed(
 	() => solver !== null && canSolve(props.entry, result.value?.value)
 )
+/** What it comes to is edited as such a value would be, if it can be sent back. */
+const solvedEditor = computed(() =>
+	solvable.value ? editorOfValue(result.value?.value, props.entry.expected) : null
+)
 const solvableNumber = computed(
-	() => solvable.value && typeof result.value?.value === 'number'
+	() =>
+		solvable.value &&
+		typeof result.value?.value === 'number' &&
+		solvedEditor.value?.kind !== 'enum'
 )
 const solvableBoolean = computed(
 	() => solvable.value && typeof result.value?.value === 'boolean'
@@ -252,6 +263,28 @@ const label = (value: unknown): string =>
 			:multiSelectData="place"
 			@update:modelValue="keepRatio?.(path, $event) || update(withLiteral(ast, $event))"
 		/>
+		<InputEnum
+			v-else-if="solvedEditor?.kind === 'enum'"
+			:modelValue="solvedEditor.value"
+			:options="[...solvedEditor.options]"
+			:icons="solvedEditor.icons"
+			:labelizer="label"
+			@update:modelValue="solver?.solve(ast, $event, path)"
+		/>
+		<InputColor
+			v-else-if="solvedEditor?.kind === 'color'"
+			:modelValue="solvedEditor.value"
+			:inlinePosition="inlinePosition"
+			@update:modelValue="solver?.solve(ast, $event, path)"
+		/>
+		<InputString
+			v-else-if="solvedEditor?.kind === 'string'"
+			:modelValue="solvedEditor.value"
+			:menuItems="fieldMenu"
+			:inlinePosition="inlinePosition"
+			:multiSelectData="place"
+			@update:modelValue="solver?.solve(ast, $event, path)"
+		/>
 		<InputNumber
 			v-else-if="solvableNumber"
 			v-bind="numberOptions"
@@ -284,6 +317,12 @@ const label = (value: unknown): string =>
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
 			:multiSelectData="place"
+			@update:modelValue="update(withLiteral(ast, $event))"
+		/>
+		<InputColor
+			v-else-if="view.editor?.kind === 'color'"
+			:modelValue="view.editor.value"
+			:inlinePosition="inlinePosition"
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
 		<InputSwitch
@@ -338,8 +377,8 @@ const label = (value: unknown): string =>
 	display: grid;
 	min-width: 0;
 }
-/* As wide as it looks, for what opens from it. */
-.value > :deep(.TqInputGroup > *) {
+/* As wide as it looks, for what opens from it. A color's parts have widths of their own. */
+.value > :deep(.TqInputGroup:not(.TqInputColor) > *) {
 	flex: 1 1 0;
 }
 /* As wide as a switch looks, for what opens from it. */

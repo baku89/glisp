@@ -12,7 +12,15 @@ import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
 import FunctionAbout from './FunctionAbout.vue'
 import { multiSelectHostOf } from './multiInputs'
-import { copiedRows, pastedRows, reach, withoutNearest, withoutRows, withParent } from './rowsClipboard'
+import {
+	copiedRows,
+	pastedArguments,
+	pastedRows,
+	reach,
+	withoutNearest,
+	withoutRows,
+	withParent,
+} from './rowsClipboard'
 import {
 	ALSO_SELECTED,
 	LINKER,
@@ -30,6 +38,9 @@ import {
 	moveBinding,
 	parseSource,
 	referenceAt,
+	writtenReference,
+	missingReferringTo,
+	missingWritten,
 	referenceTargetOf,
 	renameBindingAt,
 	type Slot,
@@ -133,15 +144,53 @@ provide(RENAMER, {
 const linked = (source: string, target: string): AST | null =>
 	referenceAt(props.document.root.value, props.document.env.value, source, target)
 
+function linkReference(source: string, target: string): boolean {
+	const next = linked(source, target)
+	if (next === null) return false
+	replaceRoot(next)
+	return true
+}
+
+const writtenOf = (path: string): string | null =>
+	writtenReference(props.document.root.value, props.document.env.value, path)
+
+const pastedReference = (text: string): string | null =>
+	props.document.copiedReference.value?.written === text
+		? props.document.copiedReference.value.path
+		: null
+
+function copyReference(path: string): boolean {
+	const written = writtenOf(path)
+	if (written === null) return false
+	props.document.copiedReference.value = { path, written }
+	void navigator.clipboard.writeText(written)
+	return true
+}
+
 provide(VALUE_ICON, value => props.iconOfValue?.(value) ?? null)
 
 provide(LINKER, {
-	copied: shallowRef<string | null>(null),
 	can: (source, target) => linked(source, target) !== null,
-	link(source, target) {
-		const next = linked(source, target)
-		if (next !== null) replaceRoot(next)
+	link: linkReference,
+	canCopy: path => writtenOf(path) !== null,
+	copy: copyReference,
+	pasted: pastedReference,
+	pasteMissing(at, parameter, text) {
+		const root = props.document.root.value
+		const env = props.document.env.value
+		const copied = pastedReference(text)
+		const code = copied === null ? parseSource(text) : null
+		const next =
+			copied !== null
+				? missingReferringTo(root, env, at, parameter, copied)
+				: code !== null
+					? missingWritten(root, env, at, parameter, code)
+					: null
+		if (next === null) return false
+		replaceRoot(next)
+		return true
 	},
+	pasteInto: (path, text) => giveArguments([path], text),
 })
 
 /** Why the last value asked of a row could not be, until something changes. */
@@ -262,8 +311,53 @@ function copyRows(): boolean {
 		selectedRows()
 	)
 	if (text === '') return false
-	void navigator.clipboard.writeText(props.copyAs?.(selectedRows()) ?? text)
+	const rows = selectedRows()
+	const last =
+		rows.length === 1
+			? reach(props.document.root.value, props.document.env.value, rows[0]!)?.chain.at(-1)
+			: undefined
+	props.document.copiedParameter.value =
+		last?.parameter === undefined ? null : { written: text, expected: last.expected }
+	void navigator.clipboard.writeText(props.copyAs?.(rows) ?? text)
 	return true
+}
+
+/** What is on the clipboard, given to the parameters that the rows at `paths` have for it. */
+function giveArguments(paths: readonly string[], text: string): boolean {
+	const copied = props.document.copiedParameter.value
+	const next = pastedArguments(
+		props.document.root.value,
+		props.document.env.value,
+		paths,
+		text,
+		copied?.written === text ? copied.expected : null
+	)
+	if (next === null) return false
+	replaceRoot(next)
+	return true
+}
+
+/** What is on the clipboard, as more bindings, if it reads as them. */
+function pasteBindings(text: string): boolean {
+	const rows = pastedRows(
+		props.document.root.value,
+		props.document.env.value,
+		selectedRows().at(-1) ?? null,
+		text
+	)
+	if (rows === null) return false
+	replaceRoot(rows.ast)
+	emit('pasted', rows.paths)
+	return true
+}
+
+/**
+ * What is on the clipboard, by what it means to what is selected: a parameter that is
+ * there for it, or else more bindings, which are also what it is if it has no place.
+ */
+function pasteOnSelection(written: string): boolean {
+	const text = props.pasteAs?.(written) ?? written
+	return giveArguments(selectedRows(), text) || pasteBindings(text)
 }
 
 /** The row at `path`, or the nearest of what holds it that can go. */
@@ -330,17 +424,17 @@ defineExpose({
 		if (copyRows()) removeRows()
 	},
 	remove: () => removeRows(),
+	/** These bindings, again, as they are, whatever is selected. */
+	duplicate: (text: string) => void pasteBindings(text),
 	/** What is on the clipboard, as a paste would have it. */
 	paste(written: string): void {
-		const rows = pastedRows(
-			props.document.root.value,
-			props.document.env.value,
-			selectedRows().at(-1) ?? null,
-			props.pasteAs?.(written) ?? written
-		)
-		if (rows === null) return
-		replaceRoot(rows.ast)
-		emit('pasted', rows.paths)
+		const copied = props.document.copiedReference.value
+		const place = selection.value?.path ?? null
+		if (copied?.written === written && place !== null) {
+			linkReference(place, copied.path)
+			return
+		}
+		pasteOnSelection(written)
 	},
 })
 
@@ -368,33 +462,128 @@ useEventListener(window, 'pointerdown', (event: PointerEvent) => {
 	selection.value = null
 })
 
-// Pasting into a row, as code, whether it was copied as a value or as an expression.
-useEventListener(window, 'paste', (event: ClipboardEvent) => {
-	if (isInspector.value) return
-	const target = event.target as HTMLElement | null
-	if (target?.closest?.('input, textarea, [contenteditable]')) return
-	const written =
-		event.clipboardData?.getData('image/svg+xml') || (event.clipboardData?.getData('text') ?? '')
-	const text = props.pasteAs?.(written) ?? written
-	// Bindings are more of them, whatever is selected, which is where they go after.
-	const rows = pastedRows(
-		props.document.root.value,
-		props.document.env.value,
-		selectedRows().at(-1) ?? null,
-		text
-	)
-	if (rows !== null) {
-		event.preventDefault()
-		replaceRoot(rows.ast)
-		emit('pasted', rows.paths)
-		return
+/**
+ * What a reference is copied from, or pasted to, by the keyboard: the field being typed
+ * in, if it is a row's, or else what is selected. Not the code being written, or a field
+ * for something else, such as a name, unless what it is in says it is for this.
+ */
+function referencePlace(target: Element | null): NonNullable<Selection['reference']> | null {
+	if (target?.closest?.('[data-takes-reference]')) {
+		// Of what is selected where that field is, and not of some row elsewhere.
+		if (!isInspector.value) return null
+	} else {
+		if (target?.closest?.('.AstCodePopup, [contenteditable]')) return null
+		const field = target?.closest?.('.value[data-path]')?.getAttribute('data-path')
+		if (field != null) return rowReference(field)
+		if (target?.closest?.('input, textarea')) return null
 	}
-	if (selection.value?.paste === undefined) return
-	event.preventDefault()
-	const next = parseSource(text)
-	if (next === null) unsolved.value = 'what is on the clipboard cannot be read as code'
-	else selection.value.paste(next)
+	const selected = selection.value
+	return selected === null ? null : (selected.reference ?? rowReference(selected.path))
+}
+
+const rowReference = (path: string): NonNullable<Selection['reference']> => ({
+	copy: () => copyReference(path),
+	paste: target => linkReference(path, target),
 })
+
+// What is selected in the inspector is more particular than the row it is of, which
+// stays selected, so the inspector has the first say.
+const inspectorFirst = { capture: isInspector.value }
+
+useEventListener(
+	window,
+	'keydown',
+	(event: KeyboardEvent) => {
+		const isCopy =
+			(event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === 'KeyC'
+		if (!isCopy || event.defaultPrevented) return
+		if (referencePlace(event.target as Element | null)?.copy()) event.preventDefault()
+	},
+	inspectorFirst
+)
+
+// A reference pastes as one, to wherever it goes, even into a field for a number.
+useEventListener(
+	window,
+	'paste',
+	(event: ClipboardEvent) => {
+		if (event.defaultPrevented) return
+		const copied = props.document.copiedReference.value
+		if (copied === null || event.clipboardData?.getData('text') !== copied.written) return
+		const place = referencePlace(event.target as Element | null)
+		if (place === null) return
+		event.preventDefault()
+		if (!place.paste(copied.path)) {
+			unsolved.value = 'it cannot refer to that from here'
+		}
+	},
+	inspectorFirst
+)
+
+// A parameter that has been copied goes into a field as its value, not as what it is
+// written as, which is only for finding where it goes.
+useEventListener(
+	window,
+	'paste',
+	(event: ClipboardEvent) => {
+		if (event.defaultPrevented) return
+		const target = event.target as Element | null
+		const field = target?.closest?.('.value[data-path]')?.getAttribute('data-path')
+		if (field == null || target?.closest?.('textarea, [contenteditable]')) return
+		const text = event.clipboardData?.getData('text') ?? ''
+		if (giveArguments([field], text)) event.preventDefault()
+	},
+	inspectorFirst
+)
+
+/** A row of the program, rather than something a host has put among them. */
+const isRow = (path: string): boolean =>
+	reach(props.document.root.value, props.document.env.value, path) !== null
+
+// Pasting into a row, as code, whether it was copied as a value or as an expression. The
+// inspector only has a say about a row selected in it.
+useEventListener(
+	window,
+	'paste',
+	(event: ClipboardEvent) => {
+		if (event.defaultPrevented) return
+		if (isInspector.value && (selection.value === null || !isRow(selection.value.path))) return
+		const target = event.target as HTMLElement | null
+		if (target?.closest?.('input, textarea, [contenteditable]')) return
+		const written =
+			event.clipboardData?.getData('image/svg+xml') || (event.clipboardData?.getData('text') ?? '')
+		if (pasteOnSelection(written)) {
+			event.preventDefault()
+			return
+		}
+		if (selection.value?.paste === undefined) return
+		event.preventDefault()
+		const next = parseSource(props.pasteAs?.(written) ?? written)
+		if (next === null) unsolved.value = 'what is on the clipboard cannot be read as code'
+		else selection.value.paste(next)
+	},
+	inspectorFirst
+)
+
+// What is selected in an inspector is what a copy is of, over the row it is inside of.
+useEventListener(
+	window,
+	'keydown',
+	(event: KeyboardEvent) => {
+		const key = event.key.toLowerCase()
+		if (!(event.metaKey || event.ctrlKey) || event.altKey || (key !== 'c' && key !== 'x')) return
+		const selected = selection.value
+		if (!isInspector.value || selected === null || !isRow(selected.path)) return
+		const target = event.target as HTMLElement | null
+		if (target?.closest?.('input, textarea, [contenteditable]')) return
+		if (!getSelection()?.isCollapsed) return
+		event.stopPropagation()
+		event.preventDefault()
+		if (!copyRows()) selected.evaluate?.('copy')
+		else if (key === 'x') removeRows()
+	},
+	{ capture: true }
+)
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (isInspector.value) return
@@ -405,7 +594,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		event.preventDefault()
 		if (event.shiftKey) props.document.redo()
 		else props.document.undo()
-	} else if (isMod && event.key.toLowerCase() === 'c') {
+	} else if (isMod && !event.altKey && event.key.toLowerCase() === 'c') {
 		// Text that is selected, as in a REPL, is what a copy means if there is any.
 		if (selection.value?.evaluate === undefined || !getSelection()?.isCollapsed) return
 		event.preventDefault()
@@ -465,8 +654,6 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 <template>
 	<div v-if="isInspector" class="AstEditor inspector" data-selects-rows>
 		<ScrollArea class="tree">
-			<!-- What a host has to say of it too, in rows that share this selection. -->
-			<slot />
 			<template v-if="inspected !== null">
 				<FunctionAbout
 					:label="inspected.view.head?.label ?? null"
@@ -486,6 +673,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 					/>
 				</ParameterTree>
 			</template>
+			<!-- What a host has to say of it too, in rows that share this selection. -->
+			<slot />
 		</ScrollArea>
 	</div>
 	<div v-else class="AstEditor" :class="{ layers }">
