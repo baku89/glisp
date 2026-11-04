@@ -3,10 +3,11 @@ import { parse, print } from '@glisp/lang'
 import { AstEditor, Repl, useGlispDocument } from '@glisp/tweeq'
 import { useMediaQuery } from '@vueuse/core'
 import { App as TqApp } from 'tweeq/App'
-import { InputRadio } from 'tweeq/InputRadio'
+import { Icon } from 'tweeq/Icon'
 import { PaneSplit } from 'tweeq/PaneSplit'
 import { useThemeStore } from 'tweeq/stores/theme'
 import { TitleBar } from 'tweeq/TitleBar'
+import { vTooltip } from 'tweeq/Tooltip'
 import { initTweeq } from 'tweeq/useTweeq'
 import { ref, useTemplateRef, watch, watchEffect } from 'vue'
 
@@ -59,6 +60,7 @@ watch(document.root, root => {
 	}
 })
 
+const TOOLS = [{ name: 'select', label: 'Select', icon: 'ph:cursor-fill' }]
 const tool = ref('select')
 
 const selected = ref<readonly string[]>([])
@@ -99,12 +101,18 @@ function selectInTree(row: string | null): void {
 							@select="selectOnCanvas"
 						/>
 						<div class="tools" data-selects-rows>
-							<InputRadio
-								v-model="tool"
-								:options="['select']"
-								:icons="['ph:cursor-fill']"
-								:tooltips="['Select']"
-							/>
+							<button
+								v-for="{ name, label, icon } in TOOLS"
+								:key="name"
+								v-tooltip="label"
+								class="tool"
+								:class="{ active: tool === name }"
+								:aria-label="label"
+								:aria-pressed="tool === name"
+								@click="tool = name"
+							>
+								<Icon :icon="icon" />
+							</button>
 						</div>
 					</div>
 				</template>
@@ -151,15 +159,39 @@ function selectInTree(row: string | null): void {
 	height: 100%;
 }
 .tools {
+	--padding: 6px;
+	--radius: 6px;
 	position: absolute;
-	bottom: calc(var(--tq-pane-padding) * 2);
+	bottom: 16px;
 	left: 50%;
 	translate: -50% 0;
-	padding: var(--tq-gap-related);
+	display: flex;
+	gap: 2px;
+	padding: var(--padding);
 	border: 1px solid var(--tq-color-border);
-	border-radius: calc(var(--tq-radius-input) + var(--tq-gap-related));
+	border-radius: calc(var(--radius) + var(--padding));
 	background: var(--tq-color-surface);
 	backdrop-filter: blur(var(--tq-popup-blur));
+	box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}
+.tool {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border: none;
+	border-radius: var(--radius);
+	background: none;
+	color: var(--tq-color-text);
+	font-size: 18px;
+	cursor: pointer;
+}
+.tool:hover {
+	background: var(--tq-color-input-hover);
+}
+.tool.active {
+	background: var(--tq-color-accent);
+	color: var(--tq-color-on-accent, white);
 }
 .pane {
 	box-sizing: border-box;
