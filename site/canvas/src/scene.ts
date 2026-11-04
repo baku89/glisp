@@ -249,7 +249,9 @@ export function withPaintOfRows(root: LetAST, env: Env, rows: readonly string[],
 /** How the row at `row` is drawn, if it draws anything, or would if it were not hidden. */
 export function paintAt(root: AST, env: Env, row: string): Paint | null {
 	const atRow = (s: Shape): boolean => s.row === row
-	const shape = sceneOf(root, env).find(atRow) ?? hiddenShapesOf(root, env, [row]).find(atRow)
+	const shape =
+		shapesAtRow(drawnIn(root, env)).get(row)?.find(({ draw }) => !NOT_SHAPES.has(draw)) ??
+		hiddenShapesOf(root, env, [row]).find(atRow)
 	return shape === undefined ? null : (shape.paint ?? NO_PAINT)
 }
 
@@ -1132,7 +1134,7 @@ export function backgroundOf(root: AST, env: Env): string | null {
 
 /** Whether the row at `row` is said of the canvas, so has no fill or line to give it. */
 export const isOfCanvasAt = (root: AST, env: Env, row: string): boolean =>
-	drawnIn(root, env).some(shape => shape.row === row && NOT_SHAPES.has(shape.draw))
+	shapesAtRow(drawnIn(root, env)).get(row)?.some(({ draw }) => NOT_SHAPES.has(draw)) ?? false
 
 export const backgroundRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
 	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'background')
@@ -1150,8 +1152,38 @@ export const gridOf = (root: AST, env: Env): GridKind =>
 /** A row of a program that says what of a grid to show. */
 export const gridCall = (kind: GridKind): AST => parse(`(grid ${JSON.stringify(kind)})`)
 
-/** What the program draws, or else what it would if nothing were hidden, of what is. */
-function drawnIn(root: AST, env: Env, hidden = false): Shape[] {
+const drawnMemo = [new WeakMap<AST, WeakMap<object, readonly Shape[]>>(), new WeakMap<AST, WeakMap<object, readonly Shape[]>>()] as const
+const atRowMemo = new WeakMap<readonly Shape[], ReadonlyMap<string, readonly Shape[]>>()
+
+/** What is drawn in `shapes` by each row, as much is asked of each of a great many rows. */
+function shapesAtRow(shapes: readonly Shape[]): ReadonlyMap<string, readonly Shape[]> {
+	const known = atRowMemo.get(shapes)
+	if (known !== undefined) return known
+	const atRow = new Map<string, Shape[]>()
+	for (const shape of shapes) {
+		const others = atRow.get(shape.row)
+		if (others === undefined) atRow.set(shape.row, [shape])
+		else others.push(shape)
+	}
+	atRowMemo.set(shapes, atRow)
+	return atRow
+}
+
+/**
+ * What the program draws, or else what it would if nothing were hidden, of what is. A program
+ * is never changed, only replaced, so that this is worked out once for each that is asked about.
+ */
+function drawnIn(root: AST, env: Env, hidden = false): readonly Shape[] {
+	if (env === null) return workedOutDrawn(root, env, hidden)
+	const memo = drawnMemo[hidden ? 1 : 0]
+	let ofRoot = memo.get(root)
+	if (ofRoot === undefined) memo.set(root, (ofRoot = new WeakMap()))
+	let shapes = ofRoot.get(env)
+	if (shapes === undefined) ofRoot.set(env, (shapes = workedOutDrawn(root, env, hidden)))
+	return shapes
+}
+
+function workedOutDrawn(root: AST, env: Env, hidden: boolean): readonly Shape[] {
 	const visit = (block: AST, blockEnv: Env, parent: string, inHidden: boolean): Shape[] => {
 		const node = bare(block)
 		// What is drawn is what a block's vector holds, however it is bound. What comes first is
@@ -1159,7 +1191,7 @@ function drawnIn(root: AST, env: Env, hidden = false): Shape[] {
 		const elements =
 			node.kind === 'vec' ? node.elements : node.kind === 'let' && node.body?.kind === 'vec' ? node.body.elements : null
 		if (elements === null) return []
-		const { slots } = viewOf(node, blockEnv)
+		const slots = new Map(viewOf(node, blockEnv).slots.map(slot => [slot.key, slot]))
 		const held = new Set(node.kind === 'let' ? layersOf(node) : [])
 		return [...elements.entries()].reverse().flatMap(([i, element]) => {
 			const key =
@@ -1168,7 +1200,7 @@ function drawnIn(root: AST, env: Env, hidden = false): Shape[] {
 					: element.kind === 'sym' && held.has(element.name)
 						? `binding:${element.name}`
 						: `element:${i}`
-			const slot = slots.find(other => other.key === key)
+			const slot = slots.get(key)
 			if (slot === undefined) return []
 			const isOut = inHidden || isHidden(slot.ast)
 			if (isOut && !hidden) return []
@@ -1198,11 +1230,11 @@ export function isVecOfDrawn(ast: AST, env: Env): boolean {
 }
 
 /** All that is drawn in the end, in that order: what is on the canvas, and what it is on. */
-export const paintedIn = (root: AST, env: Env): Shape[] => drawnIn(root, env)
+export const paintedIn = (root: AST, env: Env): readonly Shape[] => drawnIn(root, env)
 
 /** Whether the row at `row` draws something of its own, or would if it were not hidden. */
 export const drawsAt = (root: AST, env: Env, row: string): boolean =>
-	[...drawnIn(root, env), ...drawnIn(root, env, true)].some(shape => shape.row === row)
+	shapesAtRow(drawnIn(root, env)).has(row) || shapesAtRow(drawnIn(root, env, true)).has(row)
 
 /**
  * A program as it is written now, from when what it drew went by the order of its bindings: its

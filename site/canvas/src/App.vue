@@ -868,18 +868,17 @@ useEventListener(
 	{ capture: true }
 )
 
+/** The same for each row of what is selected, of which there can be very many to list it for. */
+const selectionMenu = computed(() => actions.menuFor(selection.value))
+
 /** What can be done to the slot at `path`, or to all that is selected, if it is among that. */
 function commandsFor(path: string): MenuItem[] {
-	const rows = selected.value.includes(path) ? selected.value : [path]
-	return actions.menuFor(selectedOf(document.root.value, document.env.value, rows))
+	if (selected.value.includes(path)) return selectionMenu.value
+	return actions.menuFor(selectedOf(document.root.value, document.env.value, [path]))
 }
 
 const canvasMenu = ref<readonly [number, number] | null>(null)
-const canvasMenuItems = computed(() =>
-	canvasMenu.value === null
-		? []
-		: actions.menuFor(selection.value)
-)
+const canvasMenuItems = computed(() => (canvasMenu.value === null ? [] : selectionMenu.value))
 
 /** A right click is on what is under it, along with what it is selected with. */
 function openCanvasMenu(x: number, y: number, row: string | null): void {

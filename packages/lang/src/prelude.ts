@@ -876,8 +876,8 @@ export function buildPrelude(): Env {
 		['max', '^{doc: "The larger of `a` and `b`."} (=> (a: number b: number): number (? (> a b) true a _ b))'],
 
 		// reductions over a vector
-		['sum', '^{doc: "Adds up a vector of numbers."} (=> (xs: _): number (reduce xs 0 +))'],
-		['product', '^{doc: "Multiplies a vector of numbers together."} (=> (xs: _): number (reduce xs 1 *))'],
+		['sum', '^{doc: "Adds up a vector of numbers."} (=> (xs: [...number]): number (reduce xs 0 +))'],
+		['product', '^{doc: "Multiplies a vector of numbers together."} (=> (xs: [...number]): number (reduce xs 1 *))'],
 
 		// angle conversion — Glisp's trig is radians; these are the bridges
 		['to-deg', '^{doc: "An angle in radians, in degrees."} (=> (rad: number): number (/ (* rad 180) pi))'],

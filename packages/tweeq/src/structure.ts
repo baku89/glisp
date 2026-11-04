@@ -498,7 +498,7 @@ export function viewOf(
 		case 'record':
 			return viewOfRecord(ast, env)
 		case 'let':
-			return viewOfLet(ast, env)
+			return letViewOf(ast, env)
 		case 'meta':
 			return viewOfMeta(ast, env, expected)
 		default:
@@ -1041,6 +1041,21 @@ function viewOfRecord(ast: RecordAST, env: Env): NodeView {
 /** What a block comes to, which it may have or not. */
 const RETURN = 'Return'
 
+/**
+ * What has been seen of a block, from where. Everything that says where a row is starts from
+ * the program's block, so working this out afresh each time grows with the square of its rows.
+ */
+const viewsOfLets = new WeakMap<LetAST, WeakMap<object, NodeView>>()
+
+function letViewOf(ast: LetAST, env: Env): NodeView {
+	if (env === null) return viewOfLet(ast, env)
+	let views = viewsOfLets.get(ast)
+	if (views === undefined) viewsOfLets.set(ast, (views = new WeakMap()))
+	let view = views.get(env)
+	if (view === undefined) views.set(env, (view = viewOfLet(ast, env)))
+	return view
+}
+
 function viewOfLet(ast: LetAST, env: Env): NodeView {
 	const inside = pushLetFrame(ast, env)
 	const slotOf = (name: string, value: AST): Slot => ({
@@ -1057,6 +1072,7 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 		remove: () => withoutBinding(ast, name),
 	})
 	const held = new Set(layersOf(ast))
+	const values = new Map(ast.bindings)
 	// What is only bound first, and then what its vector holds, in the order that has.
 	const slots: Slot[] = ast.bindings
 		.filter(([name]) => !held.has(name))
@@ -1068,7 +1084,7 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 		elements.forEach((element, i) => {
 			if (element.kind === 'sym' && held.has(element.name) && !shown.has(element.name)) {
 				shown.add(element.name)
-				slots.push(slotOf(element.name, ast.bindings.find(([n]) => n === element.name)![1]))
+				slots.push(slotOf(element.name, values.get(element.name)!))
 				return
 			}
 			slots.push({

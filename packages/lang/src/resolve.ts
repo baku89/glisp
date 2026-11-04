@@ -240,8 +240,13 @@ export function resolve(ast: AST, env: Env): Resolution {
 	return { ast: root, references: walker.references, diagnostics: walker.diagnostics }
 }
 
+/** An env does not change, and what is asked of one is asked of it for each thing checked in it. */
+const scopesOfEnvs = new WeakMap<NonNullable<Env>, Scope>()
+
 function scopeOfEnv(env: Env): Scope | null {
 	if (env === null) return null
+	const known = scopesOfEnvs.get(env)
+	if (known !== undefined) return known
 	const scope: { -readonly [K in keyof Scope]: Scope[K] } = {
 		ast: env.ast,
 		parent: scopeOfEnv(env.parent),
@@ -254,6 +259,7 @@ function scopeOfEnv(env: Env): Scope | null {
 			])
 		)
 	}
+	scopesOfEnvs.set(env, scope)
 	return scope
 }
 

@@ -1117,6 +1117,8 @@ const makeBounds = makeTypedFn(
 	rectType,
 	value => {
 		const [[left, top], [right, bottom]] = bounds((value as PathValue).path)
+		// A path with nothing on it has no bounds to speak of, and is nowhere.
+		if (!Number.isFinite(left)) return new RectValue([0, 0], [0, 0])
 		return new RectValue([left, top], [right - left, bottom - top])
 	},
 	['path']

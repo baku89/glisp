@@ -337,12 +337,12 @@ useEventListener(
 			</ParameterTreeItem>
 			<ParameterTreeItem
 				v-else-if="!compact"
-				class="absent"
 				label="Fill"
 				icon="ph:paint-bucket"
 				:menuItems="referenceMenuOf('fill')"
 				@select="addBy($event, () => set({ fill: DEFAULT_COLOR }))"
 			>
+				<span class="paint-absent" hidden />
 				<NoPaint label="Fill" @click="set({ fill: DEFAULT_COLOR })" />
 			</ParameterTreeItem>
 			<ParameterTreeItem
@@ -454,12 +454,12 @@ useEventListener(
 			</ParameterTreeItem>
 			<ParameterTreeItem
 				v-else-if="!compact"
-				class="absent"
 				label="Stroke"
 				icon="ph:line-segment"
 				:menuItems="referenceMenuOf('stroke')"
 				@select="addBy($event, addStroke)"
 			>
+				<span class="paint-absent" hidden />
 				<NoPaint label="Stroke" @click="addStroke" />
 			</ParameterTreeItem>
 		</ParameterTree>
@@ -485,8 +485,8 @@ useEventListener(
 	font: inherit;
 	font-weight: 600;
 }
-.absent :deep(.icon),
-.absent :deep(.name) {
+:global(.TqParameterTreeItem:has(.paint-absent) > .label .icon),
+:global(.TqParameterTreeItem:has(.paint-absent) > .label .name) {
 	color: var(--tq-color-text-mute);
 }
 .field {
