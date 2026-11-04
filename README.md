@@ -27,6 +27,8 @@ This is a work in progress, and the language may still change.
 }
 ```
 
+![A ring of orange dots around white lines on blue, as the program above draws it](assets/canvas.png)
+
 ## About
 
 Glisp stands for Graphical LISP. A project in the drawing app is a Glisp program: dragging a handle on the canvas rewrites a value in the program, and the program can be edited as code at any time. The app is not aimed at one kind of graphics.
