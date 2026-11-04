@@ -24,7 +24,7 @@ import { computed, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import CanvasView from './CanvasView.vue'
 import { exportSvg, openFile, saveFile } from './files'
 import FloatPanel from './FloatPanel.vue'
-import { iconOfFunction } from './functionIcons'
+import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import { iconOfPath, withGraphics } from './graphics'
 import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
@@ -42,6 +42,8 @@ import {
 } from './rows'
 import { paintedRow } from './scene'
 import { bindingsOfSvg, svgOfRows } from './svg'
+import ToolBar from './ToolBar.vue'
+import { type Arrangement, arranged as arrangedTools } from './toolbar'
 
 initTweeq('app.glisp.canvas', { accentColor: '#1473e6' })
 
@@ -103,11 +105,26 @@ watch(document.root, root => {
 const TOOLS = [
 	{ name: 'select', tooltip: { content: 'Select', shortcut: ['V'] }, icon: 'ph:cursor-fill' },
 	{ name: 'pen', tooltip: { content: 'Pen', shortcut: ['P'] }, icon: 'ph:pen-nib' },
-	{ name: 'rect', tooltip: { content: 'Rectangle', shortcut: ['R'] }, icon: 'ph:rectangle' },
-	{ name: 'ellipse', tooltip: { content: 'Ellipse', shortcut: ['O'] }, icon: 'ph:circle' },
-	{ name: 'ngon', tooltip: { content: 'Polygon', shortcut: ['N'] }, icon: 'ph:polygon' },
+	{ name: 'rect', tooltip: { content: 'Rectangle', shortcut: ['R'] }, icon: SHAPE_ICONS.rect },
+	{ name: 'ellipse', tooltip: { content: 'Ellipse', shortcut: ['O'] }, icon: SHAPE_ICONS.circle },
+	{ name: 'ngon', tooltip: { content: 'Polygon', shortcut: ['N'] }, icon: SHAPE_ICONS.ngon },
+	{ name: 'star', tooltip: { content: 'Star' }, icon: SHAPE_ICONS.star },
+	{ name: 'roundRect', tooltip: { content: 'Rounded Rectangle' }, icon: SHAPE_ICONS.roundRect },
+	{ name: 'superellipse', tooltip: { content: 'Superellipse' }, icon: SHAPE_ICONS.superellipse },
+	{ name: 'capsule', tooltip: { content: 'Capsule' }, icon: SHAPE_ICONS.capsule },
+	{ name: 'fan', tooltip: { content: 'Fan' }, icon: SHAPE_ICONS.fan },
+	{ name: 'spiral', tooltip: { content: 'Spiral' }, icon: SHAPE_ICONS.spiral },
+	{ name: 'clothoid', tooltip: { content: 'Clothoid' }, icon: SHAPE_ICONS.clothoid },
 ] as const
 const tool = ref<(typeof TOOLS)[number]['name']>('select')
+
+/** What is on the bar at first: the rest is there behind its dots, until it is wanted. */
+const FIRST_TOOLS: Arrangement = {
+	shown: ['select', 'pen', 'rect', 'ellipse', 'ngon'],
+	stowed: ['star', 'roundRect', 'superellipse', 'capsule', 'fan', 'spiral', 'clothoid'],
+}
+const toolsKept = useAppConfigStore().ref<Partial<Arrangement> | null>('glisp.canvas.tools', null)
+const toolArrangement = computed(() => arrangedTools(toolsKept.value, FIRST_TOOLS))
 const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
 
 /** A drag says its numbers exactly, and they can be typed once it is let go of. */
@@ -540,19 +557,13 @@ function selectInTree(row: string | null): void {
 						<PaintControls v-if="selected.length > 0" :document="document" :rows="selected" />
 					</AstEditor>
 				</FloatPanel>
-				<div class="tools" data-selects-rows>
-					<button
-						v-for="{ name, tooltip, icon } in TOOLS"
-						:key="name"
-						v-tooltip="{ ...tooltip, shortcut: [...tooltip.shortcut] }"
-						class="tool"
-						:class="{ active: tool === name }"
-						:aria-label="tooltip.content"
-						:aria-pressed="tool === name"
-						@click="tool = name"
-					>
-						<Icon :icon="icon" />
-					</button>
+				<ToolBar
+					:tools="TOOLS"
+					:active="tool"
+					:arrangement="toolArrangement"
+					@select="tool = $event as typeof tool"
+					@update:arrangement="toolsKept = $event"
+				>
 					<span class="tools-divider" />
 					<button
 						v-tooltip="{ content: 'Dimensions', shortcut: ['D'] }"
@@ -564,7 +575,7 @@ function selectInTree(row: string | null): void {
 					>
 						<Icon icon="ph:ruler" />
 					</button>
-				</div>
+				</ToolBar>
 			</div>
 		</template>
 	</TqApp>
@@ -647,41 +658,6 @@ function selectInTree(row: string | null): void {
 	height: 6px;
 	border-radius: 50%;
 	background: var(--tq-color-error);
-}
-.tools {
-	--padding: 6px;
-	--radius: 6px;
-	position: absolute;
-	bottom: 16px;
-	left: 50%;
-	translate: -50% 0;
-	display: flex;
-	gap: 2px;
-	padding: var(--padding);
-	border: 1px solid var(--tq-color-border);
-	border-radius: calc(var(--radius) + var(--padding));
-	background: var(--tq-color-surface);
-	backdrop-filter: blur(var(--tq-popup-blur));
-	box-shadow: 0 0 20px 0 var(--tq-color-shadow);
-}
-.tool {
-	display: grid;
-	place-items: center;
-	width: 32px;
-	height: 32px;
-	border: none;
-	border-radius: var(--radius);
-	background: none;
-	color: var(--tq-color-text);
-	font-size: 18px;
-	cursor: pointer;
-}
-.tool:hover {
-	background: var(--tq-color-input-hover);
-}
-.tool.active {
-	background: var(--tq-color-accent);
-	color: var(--tq-color-on-accent, white);
 }
 .tools-divider {
 	align-self: center;

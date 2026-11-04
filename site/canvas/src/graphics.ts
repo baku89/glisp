@@ -37,15 +37,22 @@ import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
 import {
 	arc,
+	capsule,
+	empty,
 	circle,
 	cubicBezier,
 	ellipse,
+	fan,
 	line,
 	polygon,
 	polyline,
 	rectangle,
 	regularPolygon,
+	roundRect,
+	star,
 } from 'pave/path/primitives'
+import { clothoid, spiral } from 'pave/path/spirals'
+import { superellipse } from 'pave/path/superellipse'
 import { fromD, toD } from 'pave/path/svg'
 
 const said = (type: TypeValue, draw: string, icon: string): TypeValue =>
@@ -58,6 +65,12 @@ const said = (type: TypeValue, draw: string, icon: string): TypeValue =>
 	)
 
 const number = evaluate(parse('number'), buildPrelude()).value as TypeValue
+
+/** A number that is shown by its icon, as what it means, in place of that of a number. */
+const numberShownBy = (icon: string): TypeValue =>
+	withTypeMeta(number, new RecordAST([['icon', lit(icon)]]))
+const angleType = numberShownBy('ph:angle')
+const cornerType = numberShownBy('tabler:border-radius')
 
 export type Path = Parameters<typeof transform>[0]
 export type Vec = readonly [number, number]
@@ -140,7 +153,7 @@ const makeTranslation = makeTypedFn(
 	['by']
 )
 const makeRotation = makeTypedFn(
-	[number],
+	[angleType],
 	mat2d,
 	angle => Mat2d.fromRotation(angle as number),
 	['angle']
@@ -254,7 +267,7 @@ export function iconOfPath(value: unknown): string | null {
 	return `stroke:${toD(transform(path, fit))}`
 }
 
-const pathType = said(
+export const pathType = said(
 	makeType('path', isPath, new PathValue({ curves: [] } as unknown as Path)),
 	'path',
 	'mdi:vector-curve'
@@ -299,16 +312,18 @@ const makeCircle = withExpansion(
 const makePolyline = makeTypedFn(
 	[],
 	pathType,
-	(...points) => new PathValue(polyline(...(points as Vec[]))),
+	(...points) => new PathValue(points.length === 0 ? empty : polyline(...(points as Vec[]))),
 	[],
-	point
+	point,
+	'points'
 )
 const makePolygon = makeTypedFn(
 	[],
 	pathType,
-	(...points) => new PathValue(polygon(...(points as Vec[]))),
+	(...points) => new PathValue(points.length === 0 ? empty : polygon(...(points as Vec[]))),
 	[],
-	point
+	point,
+	'points'
 )
 const makeRect = withExpansion(
 	makeTypedFn(
@@ -356,6 +371,8 @@ const makeLine = withExpansion(
 	([start, end]) =>
 		start === undefined || end === undefined ? null : callOf('polyline', [start, end])
 )
+const finiteAngle = (value: unknown): number => (Number.isFinite(value) ? (value as number) : 0)
+
 /** As many as there can be sides, of which a shape has at least three. */
 const sideCount = withTypeMeta(
 	number,
@@ -366,28 +383,37 @@ const sideCount = withTypeMeta(
 )
 
 const makeNgon = withExpansion(
-	makeTypedFn(
-		[point, number, sideCount],
-		pathType,
-		(center, radius, sides) =>
-			new PathValue(
-				regularPolygon(center as Vec, radius as number, Math.max(3, Math.round(sides as number)))
-			),
-		['center', 'radius', 'sides']
+	withOptional(
+		makeTypedFn(
+			[point, number, sideCount, angleType],
+			pathType,
+			(center, radius, sides, angle) =>
+				new PathValue(
+					regularPolygon(
+						center as Vec,
+						radius as number,
+						Math.max(3, Math.round(sides as number)),
+						Number.isFinite(angle) ? (angle as number) : 0
+					)
+				),
+			['center', 'radius', 'sides', 'angle']
+		),
+		['angle']
 	),
-	([center, radius, sides], { value }) => {
+	([center, radius, sides, angle], { value }) => {
 		if (center === undefined || radius === undefined || sides === undefined) return null
 		const c = value(center) as Vec
 		const r = value(radius) as number
 		const count = Math.max(3, Math.round(value(sides) as number))
+		const first = angle === undefined ? 0 : finiteAngle(value(angle))
 		const vertices = Array.from({ length: count }, (_, i) =>
-			toAst(add(c, toward((360 / count) * i, r)), null)
+			toAst(add(c, toward(first + (360 / count) * i, r)), null)
 		)
 		return callOf('polygon', vertices)
 	}
 )
 const makeArc = makeTypedFn(
-	[point, number, number, number],
+	[point, number, angleType, angleType],
 	pathType,
 	(center, radius, start, end) =>
 		new PathValue(arc(center as Vec, radius as number, start as number, end as number)),
@@ -399,6 +425,101 @@ const makeCubic = makeTypedFn(
 	(start, control1, control2, end) =>
 		new PathValue(cubicBezier(start as Vec, control1 as Vec, control2 as Vec, end as Vec)),
 	['start', 'control1', 'control2', 'end']
+)
+/** What is written can be anything, and what pave is asked for has to be something it can draw. */
+const finite = (value: unknown): number => (Number.isFinite(value) ? (value as number) : 0)
+const outward = (value: unknown): number => Math.max(0, finite(value))
+const tipCount = (value: unknown): number => Math.max(2, Math.round(finite(value)))
+
+const tipsOf = withTypeMeta(
+	number,
+	new RecordAST([
+		['min', lit(2)],
+		['step', lit(1)],
+	])
+)
+
+const makeStar = withExpansion(
+	withOptional(
+		makeTypedFn(
+			[point, number, number, tipsOf, angleType],
+			pathType,
+			(center, outer, inner, tips, angle) =>
+				new PathValue(
+					star(center as Vec, outward(outer), outward(inner), tipCount(tips), finite(angle))
+				),
+			['center', 'outerRadius', 'innerRadius', 'points', 'angle']
+		),
+		['angle']
+	),
+	([center, outer, inner, tips, angle], { value }) => {
+		if (center === undefined || outer === undefined || inner === undefined || tips === undefined) {
+			return null
+		}
+		const c = value(center) as Vec
+		const count = tipCount(value(tips))
+		const first = angle === undefined ? 0 : finite(value(angle))
+		const vertices = Array.from({ length: count * 2 }, (_, i) =>
+			toAst(
+				add(c, toward(first + (180 / count) * i, outward(value(i % 2 === 0 ? outer : inner)))),
+				null
+			)
+		)
+		return callOf('polygon', vertices)
+	}
+)
+const makeCapsule = makeTypedFn(
+	[point, point, number],
+	pathType,
+	(start, end, radius) => new PathValue(capsule(start as Vec, end as Vec, outward(radius))),
+	['start', 'end', 'radius']
+)
+const makeRoundRect = makeTypedFn(
+	[point, size, cornerType],
+	pathType,
+	(origin, extent, radius) =>
+		new PathValue(roundRect(origin as Vec, add(origin as Vec, extent as Vec), outward(radius))),
+	['origin', 'size', 'radius']
+)
+const makeSuperellipse = makeTypedFn(
+	[point, size, number],
+	pathType,
+	(center, radius, shape) =>
+		new PathValue(
+			superellipse(center as Vec, radius as Vec, Number.isNaN(shape) ? 2 : (shape as number))
+		),
+	['center', 'radius', 'shape']
+)
+const makeFan = makeTypedFn(
+	[point, number, number, angleType, angleType],
+	pathType,
+	(center, inner, outer, start, end) =>
+		new PathValue(
+			fan(center as Vec, outward(inner), outward(outer), finite(start), finite(end))
+		),
+	['center', 'innerRadius', 'outerRadius', 'start', 'end']
+)
+const makeSpiral = makeTypedFn(
+	[point, number, number, number],
+	pathType,
+	(center, start, end, turns) =>
+		new PathValue(spiral(center as Vec, outward(start), outward(end), finite(turns))),
+	['center', 'startRadius', 'endRadius', 'turns']
+)
+/** How a clothoid is, as pave can draw it. */
+const clothoidOf = (args: readonly unknown[]): Path =>
+	clothoid(
+		args[0] as Vec,
+		finite(args[1]),
+		outward(args[2]),
+		finite(args[3]),
+		finite(args[4])
+	)
+const makeClothoid = makeTypedFn(
+	[point, angleType, number, number, number],
+	pathType,
+	(...args) => new PathValue(clothoidOf(args)),
+	['start', 'angle', 'length', 'startCurvature', 'endCurvature']
 )
 const makeTransformed = makeTypedFn(
 	[pathType, mat2d],
@@ -601,8 +722,15 @@ withMembers(pathType, {
 	line: withDoc(makeLine, 'A straight line from `start` to `end`.', 'Line'),
 	polyline: withDoc(makePolyline, 'Straight lines through each of the points, in turn.', 'Polyline'),
 	polygon: withDoc(makePolygon, 'Straight lines through each of the points, and back.', 'Polygon'),
-	ngon: withDoc(makeNgon, 'A regular polygon around `center`, with as many sides as `sides`.', 'Regular Polygon'),
+	ngon: withDoc(makeNgon, 'A regular polygon around `center`, with as many sides as `sides`, and its first vertex toward `angle`, in degrees.', 'Regular Polygon'),
+	star: withDoc(makeStar, 'A star around `center`, of as many `points`, going between `outerRadius` and `innerRadius`, with its first point toward `angle`, in degrees.', 'Star'),
+	roundRect: withDoc(makeRoundRect, 'A rectangle from its `origin`, of this `size`, with corners rounded by `radius`.', 'Rounded Rectangle'),
+	capsule: withDoc(makeCapsule, 'What is within `radius` of the line from `start` to `end`: a line with round ends.', 'Capsule'),
+	superellipse: withDoc(makeSuperellipse, 'Between shapes around `center`, by `shape`: 0 is a diamond, 1 an ellipse, 2 a squircle, and more comes toward a rectangle. Less than 0 has its sides drawn in.', 'Superellipse'),
 	arc: withDoc(makeArc, 'Part of a circle around `center`, from the angle `start` to `end`, in degrees.', 'Arc'),
+	fan: withDoc(makeFan, 'What is between `innerRadius` and `outerRadius` around `center`, from the angle `start` to `end`, in degrees.', 'Fan'),
+	spiral: withDoc(makeSpiral, 'A line going around `center` as many `turns`, from `startRadius` out to `endRadius`.', 'Spiral'),
+	clothoid: withDoc(makeClothoid, 'A line from `start`, going at `angle` in degrees, that bends steadily more along its `length`, from `startCurvature` to `endCurvature`. One over a curvature is the radius of the bend.', 'Clothoid'),
 	cubic: withDoc(makeCubic, 'A curve from `start` to `end`, drawn toward `control1` and `control2`.', 'Cubic Curve'),
 	transform: withDoc(makeTransformed, 'The same `path`, moved, turned and scaled `by` a matrix.', 'Transform'),
 })
@@ -619,16 +747,19 @@ const change = (arg: number, value: unknown): Change => ({ route: [arg], value }
 export interface HandleDrag {
 	/** The opposite side goes the other way, so that the center stays where it is. */
 	readonly symmetric?: boolean
+	/** An angle goes by steps, rather than wherever it is pulled. */
+	readonly even?: boolean
 }
 
 /** A place on a canvas to take hold of a call by. */
 export interface Handle {
 	/**
 	 * What it looks like, which tells what it does: `point` is a place, `translate`
-	 * takes the whole, `arrow` pulls a length, `dia` a count, and `path` is its own
-	 * line, such as an edge.
+	 * takes the whole, `arrow` pulls a length, `offset` moves an outline out along its normal,
+	 * `direction` turns toward where it is,
+	 * `dia` a count, and `path` is its own line, such as an edge.
 	 */
-	readonly kind: 'point' | 'translate' | 'arrow' | 'dia' | 'path'
+	readonly kind: 'point' | 'translate' | 'arrow' | 'offset' | 'direction' | 'dia' | 'path'
 	/** Where it is, but for a `path`, which is everywhere along `path`. */
 	readonly at?: Vec
 	readonly path?: Path
@@ -647,6 +778,10 @@ export interface Handle {
 	readonly fine?: boolean
 	/** It is drawn with a broken line, being there only to take hold of. */
 	readonly dashed?: boolean
+	/** What it turns around, when it goes by even angles, for the line that it is then on. */
+	readonly pivot?: Vec
+	/** It pulls what goes through somewhere else, and is not on it, as a curve's controls are. */
+	readonly control?: boolean
 	/** It does not end up where it is taken to, so it is not to refer to what it snapped to. */
 	readonly constrained?: boolean
 	/** What has to change, for it to be at `to`, having been taken at `from`. */
@@ -729,6 +864,17 @@ const linesThrough = (points: readonly Vec[], closed: boolean): NonNullable<Snap
 	})
 
 export const NO_GRIP: Grip = { handles: [], guides: [] }
+
+/**
+ * Whether all there is to a handle is what it changes, with nothing there to begin something
+ * else from: which is what it is still taken for, with a tool in hand.
+ */
+export const onlyShapes = ({ kind, control, place, code, name }: Handle): boolean =>
+	kind !== 'path' &&
+	(control === true ||
+		kind === 'direction' ||
+		kind === 'dia' ||
+		(place === undefined && code === undefined && name === undefined))
 
 /** A grip the same, for the call that is the argument at `arg`. */
 export const under = (arg: number, grip: Grip): Grip => {
@@ -819,6 +965,7 @@ function gripOfD(path: Path): Grip {
 					handles.push({
 						kind: 'point',
 						name: 'control',
+						control: true,
 						at: control,
 						to: to =>
 							whole(
@@ -915,6 +1062,75 @@ const squarePlace = placeIn('arg1', 'arg1')
 
 const GIZMO_SIZE = 80
 const NGON_RING = 40
+/** How far out a handle stays from what it is measured from, so as to be taken apart from it. */
+const HANDLE_CLEAR = 12
+
+/** How far out from `c` something is, by an arrow that way, which stays clear of `c`. */
+const radiusHandle = (arg: number, c: Vec, angle: number, radius: number): Handle => {
+	const at = add(c, toward(angle, Math.max(radius, HANDLE_CLEAR)))
+	return {
+		kind: 'arrow',
+		at,
+		angle,
+		to: to => [change(arg, Math.max(0, radius + dist(c, to) - dist(c, at)))],
+	}
+}
+
+/** The same, of an outline around `c` that it moves in and out. */
+const offsetHandle = (arg: number, c: Vec, angle: number, radius: number): Handle => ({
+	...radiusHandle(arg, c, angle, radius),
+	kind: 'offset',
+})
+
+/** How many of something go around `c`, by a dial on a ring out from it, from `first`. */
+const countDial = (arg: number, c: Vec, ring: number, count: number, first = 0): Handle => ({
+	kind: 'dia',
+	at: add(c, toward(first + 360 / count, ring)),
+	to: to => {
+		const angle = Math.min(120, Math.max(3.6, shortest(degrees(sub(to, c)) - first)))
+		return [change(arg, Math.round(360 / angle))]
+	},
+})
+
+/** The angle around `c` that `to` is at, by the short way from `angle`. */
+const angleNear = (c: Vec, angle: number, to: Vec): number =>
+	angle + shortest(degrees(sub(to, c)) - angle)
+
+/** How far apart the angles are that something goes by, if it is to go evenly. */
+const ANGLE_STEP = 45
+
+/** The angle to go to, for how it is being dragged. */
+const angleHeld = (c: Vec, angle: number, to: Vec, how?: HandleDrag): number => {
+	const near = angleNear(c, angle, to)
+	return how?.even ? Math.round(near / ANGLE_STEP) * ANGLE_STEP : near
+}
+
+/** As far from `c` as `to` is, at the nearest of the angles that go evenly. */
+const evenFrom = (c: Vec, to: Vec): Vec =>
+	add(c, toward(Math.round(degrees(sub(to, c)) / ANGLE_STEP) * ANGLE_STEP, dist(c, to)))
+
+/** The first vertex of what goes around `c`, pulled out as far, and turned as far, as it is. */
+const vertexHandle = (
+	radiusArg: number,
+	angleArg: number,
+	c: Vec,
+	angle: number,
+	radius: number
+): Handle => {
+	const at = add(c, toward(angle, Math.max(radius, HANDLE_CLEAR)))
+	return {
+		kind: 'point',
+		name: 'vertex',
+		at,
+		pivot: c,
+		to: (to, _, how) => {
+			const out = change(radiusArg, Math.max(0, radius + dist(c, to) - dist(c, at)))
+			const turned = angleHeld(c, angle, to, how)
+			// What is pulled straight out need not come to say which way it faces.
+			return turned === angle ? [out] : [out, change(angleArg, turned)]
+		},
+	}
+}
 
 /** A row of points, each of its own argument, that move together. */
 const pointsGrip = (
@@ -1014,7 +1230,7 @@ type Maker = (
 	proportional: (arg: number) => boolean
 ) => Grip
 
-const makers = new Map<unknown, Maker>([
+const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	[makeD, ([d]) => gripOfD(fromD(d as string))],
 	// All there is to take hold of is what it is the style of.
 	[makeStyled, (_, inner) => inner(0) ?? NO_GRIP],
@@ -1027,7 +1243,8 @@ const makers = new Map<unknown, Maker>([
 				marks: [...pointMarks([0], [c[0], c[1] - r]), { route: [1], at: [c[0] + r, c[1]], side: 'right' }],
 				handles: [
 					{
-						kind: 'arrow',
+						kind: 'offset',
+						name: 'right',
 						at: [c[0] + r, c[1]],
 						angle: 0,
 						to: to => [change(1, dist(c, to))],
@@ -1060,12 +1277,14 @@ const makers = new Map<unknown, Maker>([
 				handles: [
 					{
 						kind: 'arrow',
+						name: 'right',
 						at: [c[0] + rx, c[1]],
 						angle: 0,
 						to: to => [change(1, [Math.abs(to[0] - c[0]), UNSET])],
 					},
 					{
 						kind: 'arrow',
+						name: 'bottom',
 						at: [c[0], c[1] + ry],
 						angle: 90,
 						to: to => [change(1, [UNSET, Math.abs(to[1] - c[1])])],
@@ -1197,10 +1416,10 @@ const makers = new Map<unknown, Maker>([
 					{ route: [1], index: 1, at: [Math.max(s[0], e[0]), middle[1]], side: 'right' },
 				],
 				handles: [
-					{ kind: 'arrow', name: 'left', code: rectPlace(0, 2), angle: 0, at: [s[0], middle[1]], means: sideMeans(sides.left, widthBy.left), to: (to, _, how) => sideTo(sides.left, to[0], how) },
-					{ kind: 'arrow', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], means: sideMeans(sides.top, heightBy.top), to: (to, _, how) => sideTo(sides.top, to[1], how) },
-					{ kind: 'arrow', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], means: sideMeans(sides.right, widthBy.right), to: (to, _, how) => sideTo(sides.right, to[0], how) },
-					{ kind: 'arrow', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], means: sideMeans(sides.bottom, heightBy.bottom), to: (to, _, how) => sideTo(sides.bottom, to[1], how) },
+					{ kind: 'offset', name: 'left', code: rectPlace(0, 2), angle: 0, at: [s[0], middle[1]], means: sideMeans(sides.left, widthBy.left), to: (to, _, how) => sideTo(sides.left, to[0], how) },
+					{ kind: 'offset', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], means: sideMeans(sides.top, heightBy.top), to: (to, _, how) => sideTo(sides.top, to[1], how) },
+					{ kind: 'offset', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], means: sideMeans(sides.right, widthBy.right), to: (to, _, how) => sideTo(sides.right, to[0], how) },
+					{ kind: 'offset', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], means: sideMeans(sides.bottom, heightBy.bottom), to: (to, _, how) => sideTo(sides.bottom, to[1], how) },
 					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, constrained: keeps, means: cornerMeans(sides.left, sides.top, widthBy.left, heightBy.top), to: (to, _, how) => cornerTo(sides.left, sides.top, to, how) },
 					{ kind: 'point', name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], means: cornerMeans(sides.right, sides.top, widthBy.right, heightBy.top), to: (to, _, how) => cornerTo(sides.right, sides.top, to, how) },
 					{ kind: 'point', name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], means: cornerMeans(sides.left, sides.bottom, widthBy.left, heightBy.bottom), to: (to, _, how) => cornerTo(sides.left, sides.bottom, to, how) },
@@ -1240,8 +1459,8 @@ const makers = new Map<unknown, Maker>([
 					{ route: [1], at: [middle[0], Math.max(s[1], e[1])], side: 'below' },
 				],
 				handles: [
-					{ kind: 'arrow', name: 'right', code: squarePlace(1, 2), angle: 0, at: [e[0], middle[1]], to: to => [sized(to[0] - s[0])] },
-					{ kind: 'arrow', name: 'bottom', code: squarePlace(2, 1), angle: 90, at: [middle[0], e[1]], to: to => [sized(to[1] - s[1])] },
+					{ kind: 'offset', name: 'right', code: squarePlace(1, 2), angle: 0, at: [e[0], middle[1]], to: to => [sized(to[0] - s[0])] },
+					{ kind: 'offset', name: 'bottom', code: squarePlace(2, 1), angle: 90, at: [middle[0], e[1]], to: to => [sized(to[1] - s[1])] },
 					{
 						kind: 'point',
 						name: 'top left',
@@ -1288,48 +1507,44 @@ const makers = new Map<unknown, Maker>([
 		args => {
 			const [start, control1, control2, end] = args as Vec[]
 			// A place where it goes through, before what only pulls it, wherever they coincide.
-			return pointsGrip(
+			const grip = pointsGrip(
 				args as Vec[],
 				[line(start!, control1!), line(end!, control2!)],
 				undefined,
 				[1, 2, 0, 3]
 			)
+			return {
+				...grip,
+				handles: grip.handles.map(handle =>
+					handle.place === 1 || handle.place === 2 ? { ...handle, control: true } : handle
+				),
+			}
 		},
 	],
 	[
 		makeNgon,
-		([center, radius, sides]) => {
+		([center, radius, sides, turned]) => {
 			const c = center as Vec
 			const r = radius as number
+			const first = finiteAngle(turned)
 			const ring = r + NGON_RING
 			const count = Math.max(3, Math.round(sides as number))
 			return {
 				marks: [
 					...pointMarks([0], [c[0], c[1] - r]),
-					{ route: [1], at: [c[0] + r, c[1]], side: 'right' },
-					{ route: [2], at: add(c, toward(360 / count, ring)), side: 'right' },
+					{ route: [1], at: add(c, toward(first, r)), side: 'right' },
+					{ route: [2], at: add(c, toward(first + 360 / count, ring)), side: 'right' },
+					{ route: [3], at: add(c, toward(first, r)), side: 'below' },
 				],
 				handles: [
-					{
-						kind: 'arrow',
-						at: [c[0] + r, c[1]],
-						angle: 0,
-						to: to => [change(1, dist(c, to))],
-					},
-					{
-						kind: 'dia',
-						at: add(c, toward(360 / count, ring)),
-						to: to => {
-							const angle = Math.min(120, Math.max(3.6, degrees(sub(to, c))))
-							return [change(2, Math.round(360 / angle))]
-						},
-					},
+					vertexHandle(1, 3, c, first, r),
+					countDial(2, c, ring, count, first),
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
-				guides: [arc(c, ring, 3.6, 120)],
+				guides: [arc(c, ring, first + 3.6, first + 120)],
 				snaps: (() => {
 					const vertices = Array.from({ length: count }, (_, i) =>
-						add(c, toward((360 / count) * i, r))
+						add(c, toward(first + (360 / count) * i, r))
 					)
 					return {
 						points: vertices.map(at => ({ at, name: 'vertex' })),
@@ -1348,8 +1563,6 @@ const makers = new Map<unknown, Maker>([
 			const from = start as number
 			const until = end as number
 			const middle = (from + until) / 2
-			const angleFor = (angle: number, to: Vec): number =>
-				angle + shortest(degrees(sub(to, c)) - angle)
 			return {
 				marks: [
 					...pointMarks([0], c),
@@ -1359,25 +1572,279 @@ const makers = new Map<unknown, Maker>([
 				],
 				handles: [
 					{
-						kind: 'arrow',
+						kind: 'offset',
 						at: add(c, toward(middle, r)),
 						angle: middle,
 						to: to => [change(1, dist(c, to))],
 					},
 					{
 						kind: 'point',
+						name: 'start',
 						at: add(c, toward(from, r)),
-						to: to => [change(2, angleFor(from, to))],
+						to: to => [change(2, angleNear(c, from, to))],
 					},
 					{
 						kind: 'point',
+						name: 'end',
 						at: add(c, toward(until, r)),
-						to: to => [change(3, angleFor(until, to))],
+						to: to => [change(3, angleNear(c, until, to))],
 					},
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
 				guides: [],
 				move: delta => [change(0, add(c, delta))],
+			}
+		},
+	],
+	[
+		makeStar,
+		([center, outer, inner, tips, turned]) => {
+			const c = center as Vec
+			const out = outward(outer)
+			const within = outward(inner)
+			const count = tipCount(tips)
+			const first = finite(turned)
+			const ring = Math.max(out, within) + NGON_RING
+			const vertices = Array.from({ length: count * 2 }, (_, i) =>
+				add(c, toward(first + (180 / count) * i, i % 2 === 0 ? out : within))
+			)
+			return {
+				marks: [
+					...pointMarks([0], [c[0], c[1] - out]),
+					{ route: [1], at: add(c, toward(first, out)), side: 'right' },
+					{ route: [2], at: add(c, toward(first + 180 / count, within)), side: 'right' },
+					{ route: [3], at: add(c, toward(first + 360 / count, ring)), side: 'right' },
+					{ route: [4], at: add(c, toward(first, out)), side: 'below' },
+				],
+				handles: [
+					vertexHandle(1, 4, c, first, out),
+					{ ...radiusHandle(2, c, first + 180 / count, within), name: 'vertex' },
+					countDial(3, c, ring, count, first),
+					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
+				],
+				guides: [arc(c, ring, first + 3.6, first + 120)],
+				snaps: {
+					points: vertices.map(at => ({ at, name: 'vertex' })),
+					lines: linesThrough(vertices, true),
+				},
+				move: delta => [change(0, add(c, delta))],
+			}
+		},
+	],
+	[
+		makeCapsule,
+		([start, end, radius]) => {
+			const [a, b] = [start as Vec, end as Vec]
+			const r = outward(radius)
+			const length = dist(a, b)
+			// A capsule with no length has no side, and goes the same way around.
+			const side: Vec =
+				length === 0 ? [0, -1] : [(b[1] - a[1]) / length, (a[0] - b[0]) / length]
+			const away = (at: Vec, by: number): Vec => [at[0] + side[0] * by, at[1] + side[1] * by]
+			const middle: Vec = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+			const ends = pointsGrip([a, b], [], {
+				lines: [
+					{ from: away(a, r), to: away(b, r), name: 'edge' },
+					{ from: away(a, -r), to: away(b, -r), name: 'edge' },
+				],
+			})
+			const at = away(middle, r)
+			return {
+				...ends,
+				marks: [...ends.marks!, { route: [2], at, side: 'right' }],
+				handles: [
+					...ends.handles.map((handle, i) => {
+						const other = i === 0 ? b : a
+						return {
+							...handle,
+							pivot: other,
+							to: (to: Vec, _: Vec, how?: HandleDrag) => [change(i, how?.even ? evenFrom(other, to) : to)],
+						}
+					}),
+					{
+						kind: 'offset',
+						at,
+						angle: degrees(side),
+						to: to =>
+							[change(2, Math.abs((to[0] - a[0]) * side[0] + (to[1] - a[1]) * side[1]))],
+					},
+				],
+			}
+		},
+	],
+	[
+		makeRoundRect,
+		([origin, extent, radius], inner, proportional) => {
+			const s = origin as Vec
+			const [width, height] = extent as Vec
+			const box = makers.get(makeRect)!([s, extent], inner, proportional)
+			const most = Math.min(Math.abs(width), Math.abs(height)) / 2
+			const r = Math.min(outward(radius), most)
+			const x = Math.sign(width) || 1
+			const y = Math.sign(height) || 1
+			const held = Math.min(Math.max(r, HANDLE_CLEAR), most)
+			const at: Vec = [s[0] + x * held, s[1] + y * held]
+			return {
+				...box,
+				marks: [...box.marks!, { route: [2], at, side: 'below' }],
+				// Last, to be what is taken where it comes to a corner.
+				handles: [
+					...box.handles,
+					{
+						kind: 'arrow',
+						at,
+						angle: degrees([x, y]),
+						to: to => {
+							const by = ((to[0] - at[0]) * x + (to[1] - at[1]) * y) / 2
+							return [change(2, Math.min(most, Math.max(0, r + by)))]
+						},
+					},
+				],
+			}
+		},
+	],
+	[
+		makeSuperellipse,
+		([center, radius, shape], inner, proportional) => {
+			const c = center as Vec
+			const [rx, ry] = radius as Vec
+			const box = makers.get(makeEllipse)!([c, radius], inner, proportional)
+			const held = Number.isNaN(shape) ? 2 : (shape as number)
+			// How far out it is on the way to a corner, which is all that a shape says.
+			const out = 2 ** (-1 / 2 ** held)
+			const at: Vec = [c[0] + rx * out, c[1] + ry * out]
+			return {
+				...box,
+				marks: [...box.marks!, { route: [2], at, side: 'right' }],
+				handles: [
+					{
+						kind: 'arrow',
+						fine: true,
+						at,
+						angle: degrees([rx, ry]),
+						to: to => {
+							const x = rx === 0 ? 0 : (to[0] - c[0]) / rx
+							const y = ry === 0 ? 0 : (to[1] - c[1]) / ry
+							const along = Math.min(0.99, Math.max(0.01, (x + y) / 2))
+							return [change(2, Math.log2(-Math.LN2 / Math.log(along)))]
+						},
+					},
+					...box.handles,
+				],
+			}
+		},
+	],
+	[
+		makeFan,
+		([center, inner, outer, start, end]) => {
+			const c = center as Vec
+			const within = outward(inner)
+			const out = outward(outer)
+			const from = finite(start)
+			const until = finite(end)
+			const middle = (from + until) / 2
+			const fromAt = add(c, toward(from, out))
+			const untilAt = add(c, toward(until, out))
+			return {
+				marks: [
+					...pointMarks([0], c),
+					{ route: [1], at: add(c, toward(middle, within)), side: 'right' },
+					{ route: [2], at: add(c, toward(middle, out)), side: 'right' },
+					{ route: [3], at: fromAt, side: 'right' },
+					{ route: [4], at: untilAt, side: 'right' },
+				],
+				handles: [
+					offsetHandle(1, c, middle, within),
+					offsetHandle(2, c, middle, out),
+					{ kind: 'point', name: 'start', at: fromAt, to: to => [change(3, angleNear(c, from, to))] },
+					{ kind: 'point', name: 'end', at: untilAt, to: to => [change(4, angleNear(c, until, to))] },
+					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
+				],
+				guides: [],
+				snaps: {
+					points: [
+						{ at: fromAt, name: 'start' },
+						{ at: untilAt, name: 'end' },
+					],
+				},
+				move: delta => [change(0, add(c, delta))],
+			}
+		},
+	],
+	[
+		makeSpiral,
+		([center, start, end, turns]) => {
+			const c = center as Vec
+			const startRadius = outward(start)
+			const endRadius = outward(end)
+			const angle = finite(turns) * 360
+			const endAt = add(c, toward(angle, endRadius))
+			return {
+				marks: [
+					...pointMarks([0], c),
+					{ route: [1], at: add(c, [startRadius, 0]), side: 'right' },
+					{ route: [2], at: endAt, side: 'right' },
+					{ route: [3], at: endAt, side: 'below' },
+				],
+				handles: [
+					radiusHandle(1, c, 0, startRadius),
+					{
+						kind: 'point',
+						fine: true,
+						name: 'end',
+						at: endAt,
+						to: to => [change(2, dist(c, to)), change(3, angleNear(c, angle, to) / 360)],
+					},
+					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
+				],
+				guides: [],
+				move: delta => [change(0, add(c, delta))],
+			}
+		},
+	],
+	[
+		makeClothoid,
+		args => {
+			const s = args[0] as Vec
+			const angle = finite(args[1])
+			const length = outward(args[2])
+			const startCurvature = finite(args[3])
+			const endCurvature = finite(args[4])
+			const { curves } = clothoidOf(args) as unknown as { curves: readonly Curve[] }
+			const end = curves[0]!.vertices.at(-1)!.point
+			const facing = add(s, toward(angle, GIZMO_SIZE))
+			// The curvature changes evenly, so it turns by what the middle of it does, all along.
+			const endAngle = angle + (((startCurvature + endCurvature) / 2) * length * 180) / Math.PI
+			const ahead = toward(endAngle, 1)
+			return {
+				marks: [
+					...pointMarks([0], s),
+					{ route: [1], at: facing, side: 'right' },
+					{ route: [2], at: end, side: 'right' },
+				],
+				handles: [
+					{
+						kind: 'arrow',
+						name: 'end',
+						at: end,
+						angle: endAngle,
+						to: to => {
+							const by = (to[0] - end[0]) * ahead[0] + (to[1] - end[1]) * ahead[1]
+							return [change(2, Math.max(0, length + by))]
+						},
+					},
+					{
+						kind: 'direction',
+						at: facing,
+						pivot: s,
+						angle,
+						to: (to, _, how) => [change(1, angleHeld(s, angle, to, how))],
+					},
+					{ kind: 'translate', name: 'start', place: 0, at: s, to: to => [change(0, to)] },
+				],
+				guides: [line(s, facing)],
+				snaps: { points: [{ at: end, name: 'end' }] },
+				move: delta => [change(0, add(s, delta))],
 			}
 		},
 	],
@@ -1400,9 +1867,11 @@ const makers = new Map<unknown, Maker>([
 			return {
 				handles: [
 					{
-						kind: 'point',
+						kind: 'direction',
 						at,
-						to: to => [change(0, turned + shortest(degrees(to) - turned))],
+						pivot: [0, 0],
+						angle: turned,
+						to: (to, _, how) => [change(0, angleHeld([0, 0], turned, to, how))],
 					},
 				],
 				guides: [line([0, 0], at), arc([0, 0], GIZMO_SIZE, 0, turned)],

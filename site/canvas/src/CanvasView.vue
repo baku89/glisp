@@ -16,13 +16,14 @@ import {
 	withPointRemoved,
 	withPointsClosed,
 } from './modulate'
-import { type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec } from './graphics'
+import { type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec, onlyShapes } from './graphics'
 import {
 	changed,
 	type Dimension,
 	dimensionChanges,
 	dimensionsHeld,
 	dimensionsDrawn,
+	dimensionsMoved,
 	dimensionsOf,
 	dragStep,
 	drawn,
@@ -44,6 +45,9 @@ import {
 	type ShapeTool,
 	type SnapPoint,
 	snapPointsOf,
+	evenlyFrom,
+	facesWhenDrawn,
+	placesTakenBy,
 } from './scene'
 
 const props = defineProps<{
@@ -84,6 +88,10 @@ const view = shallowRef<mat2d>(storedView() ?? mat2d.fromTranslation([...props.o
 /** The row of what the pointer is over, which is about to be selected. */
 const hovered = ref<string | null>(null)
 const hoveredHandle = ref<number | null>(null)
+/** The handle being dragged, which is all there is to see of the pointer meanwhile. */
+const draggedHandle = ref<number | null>(null)
+/** Two places on screen on the line that something going by even angles is on. */
+const evenLine = shallowRef<readonly [Vec, Vec] | null>(null)
 /** The corners, on screen, of a range being drawn. */
 const range = shallowRef<{ from: Vec; to: Vec } | null>(null)
 /** How much finer than a pixel what a handle changes is, where that is small. */
@@ -332,6 +340,17 @@ function color(name: string): string {
 const ARROW = new Path2D('M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5')
 const CROSS = new Path2D('M 12 0 H -12 M 0 12 V -12')
 const DIAMOND = new Path2D('M 7 0 L 0 7 L -7 0 L 0 -7 Z')
+/** What only says which way: the head of an arrow, at the end of its line. */
+const POINTER = new Path2D('M -8 -6 L 0 0 L -8 6')
+/** How far either side of an outline the marks of what moves it are, and how far they bend. */
+const OFFSET_GAP = 4
+const OFFSET_REACH = HANDLE_RADIUS * 1.25
+const OFFSET_BEND = 3.5
+/** How far along the outline they reach once bent, which is less, for them to come to a point. */
+const OFFSET_BENT_REACH = 3.5
+const OFFSET_BEND_TIME = 100
+/** What is being dragged is larger, for there being no pointer to find it by. */
+const HELD_SCALE = 1.3
 
 /** Which way `angle` faces on screen, in radians. */
 function facing(angle: number): number {
@@ -346,7 +365,8 @@ function drawHandle(
 	handle: Handle,
 	active: boolean,
 	accent: string,
-	paper: string
+	paper: string,
+	dragged = false
 ): void {
 	context.strokeStyle = accent
 	context.lineWidth = active ? HOVER_WIDTH : 1
@@ -359,11 +379,33 @@ function drawHandle(
 	const [x, y] = toScreen(handle.at!)
 	context.save()
 	context.translate(x, y)
+	if (dragged) context.scale(HELD_SCALE, HELD_SCALE)
 	context.fillStyle = active ? accent : paper
 	if (handle.kind === 'dia') {
 		context.fill(DIAMOND)
 		context.lineWidth = 1
 		context.stroke(DIAMOND)
+	} else if (handle.kind === 'offset') {
+		// Along the outline, either side of it: reached for, they point the two ways it can go.
+		const bent = active ? (dragged ? 1 : hoverBend.value) : 0
+		const out = OFFSET_GAP + bent * OFFSET_BEND
+		const reach = OFFSET_REACH + bent * (OFFSET_BENT_REACH - OFFSET_REACH)
+		context.rotate(facing(handle.angle ?? 0))
+		context.lineWidth = active ? 1.5 : 1
+		context.lineJoin = 'miter'
+		context.lineCap = 'butt'
+		context.beginPath()
+		for (const side of [1, -1]) {
+			context.moveTo(side * OFFSET_GAP, -reach)
+			context.lineTo(side * out, 0)
+			context.lineTo(side * OFFSET_GAP, reach)
+		}
+		context.stroke()
+	} else if (handle.kind === 'direction') {
+		context.rotate(facing(handle.angle ?? 0))
+		context.lineJoin = 'round'
+		context.lineCap = 'round'
+		context.stroke(POINTER)
 	} else {
 		// Which way an arrow pulls is for when it is reached for, along with the cursor.
 		if (handle.kind === 'translate' || (handle.kind === 'arrow' && active)) {
@@ -384,6 +426,21 @@ function drawHandle(
 
 const SNAP_LABEL_FONT = `11px ${getComputedStyle(window.document.documentElement).getPropertyValue('--tq-font-numeric') || 'sans-serif'}`
 
+/** The line through two places, on and on past them, broken to say it is not there. */
+function drawExtended(context: CanvasRenderingContext2D, [ax, ay]: Vec, [bx, by]: Vec): void {
+	const length = Math.hypot(bx - ax, by - ay)
+	if (length === 0) return
+	const reach = (size.value[0] + size.value[1]) / length
+	context.save()
+	context.lineWidth = 1
+	context.setLineDash(DASH)
+	context.beginPath()
+	context.moveTo(ax - (bx - ax) * reach, ay - (by - ay) * reach)
+	context.lineTo(bx + (bx - ax) * reach, by + (by - ay) * reach)
+	context.stroke()
+	context.restore()
+}
+
 /**
  * What has been snapped to, as Illustrator says it: a mark there, the line if it was
  * one, and its name.
@@ -398,6 +455,7 @@ function drawSnap(
 	context.save()
 	context.strokeStyle = accent
 	if (line) {
+		// As far as it snaps, which is no further than it goes.
 		const [[ax, ay], [bx, by]] = [toScreen(line[0], view.value), toScreen(line[1], view.value)]
 		context.lineWidth = 2
 		context.beginPath()
@@ -554,7 +612,13 @@ function draw(): void {
 	context.setLineDash([])
 
 	for (const [i, handle] of grip.value?.handles.entries() ?? []) {
-		drawHandle(context, handle, i === hoveredHandle.value, accent, paper)
+		const dragged = draggedHandle.value
+		drawHandle(context, handle, dragged === null ? i === hoveredHandle.value : i === dragged, accent, paper, i === dragged)
+	}
+
+	if (evenLine.value !== null) {
+		context.strokeStyle = accent
+		drawExtended(context, evenLine.value[0], evenLine.value[1])
 	}
 
 	if (snapMark.value !== null) {
@@ -589,8 +653,27 @@ function draw(): void {
 
 let drawing: number | null = null
 
+/** How far what is being reached for has come to show what it does, from 0 to 1. */
+const hoverBend = ref(0)
+let bending: number | null = null
+watch(hoveredHandle, index => {
+	if (bending !== null) cancelAnimationFrame(bending)
+	bending = null
+	hoverBend.value = 0
+	if (index === null) return
+	const start = performance.now()
+	const step = (now: number) => {
+		hoverBend.value = Math.min(1, (now - start) / OFFSET_BEND_TIME)
+		bending = hoverBend.value < 1 ? requestAnimationFrame(step) : null
+	}
+	bending = requestAnimationFrame(step)
+})
+
 watchEffect(() => {
 	void [
+		hoverBend.value,
+		draggedHandle.value,
+		evenLine.value,
 		scene.value,
 		grip.value,
 		view.value,
@@ -667,7 +750,14 @@ function handleAt(x: number, y: number): number | null {
 }
 
 /** What a handle shows it does, as a cursor. */
+function shapingHandleAt(x: number, y: number): number | null {
+	if (!props.drawing) return null
+	const index = handleAt(x, y)
+	return index !== null && onlyShapes(grip.value!.handles[index]!) ? index : null
+}
+
 function cursorOf(handle: Handle): string {
+	if (handle.kind === 'direction') return 'grab'
 	if (handle.angle === undefined) return 'move'
 	const quarter = Math.round((facing(handle.angle) / Math.PI) * 4 + 4) % 4
 	return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][quarter]!
@@ -746,7 +836,7 @@ useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {
 	if (isModifier && pressed?.kind === 'draw' && pressed.drawing) {
 		drawPressed(event.shiftKey, valueOnly)
 	}
-	if (isModifier && pressed?.kind === 'handle') dragHandle(event.altKey, valueOnly)
+	if (isModifier && pressed?.kind === 'handle') dragHandle(event.altKey, valueOnly, event.shiftKey)
 })
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
@@ -775,12 +865,17 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
-	if (props.drawing === 'pen') {
+	// With a tool in hand, what is only there to shape something is still that.
+	const shaping = shapingHandleAt(x, y)
+	if (shaping !== null) {
+		// The drawing stops there, as what it draws is written from where it has been.
+		pen = null
+		extending = null
+		penLine.value = null
+	} else if (props.drawing === 'pen') {
 		penDown(x, y, event.metaKey || event.ctrlKey)
 		return
-	}
-
-	if (props.drawing) {
+	} else if (props.drawing) {
 		const base = props.document.root.value
 		pressed = {
 			kind: 'draw',
@@ -796,12 +891,13 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
-	const index = handleAt(x, y)
+	const index = shaping ?? handleAt(x, y)
 	if (index !== null && grip.value !== null) {
 		const handle = grip.value.handles[index]!
 		const mat = onScreen.value
 		const from = fromScreen(x, y, mat)
 		const at = handle.at ?? from
+		draggedHandle.value = index
 		pressed = {
 			kind: 'handle',
 			row: props.selected[0]!,
@@ -844,7 +940,11 @@ function onPointerDown(event: PointerEvent): void {
 			row: shape.row,
 			rows: moving,
 			from: [x, y],
-			...snapsFor(moving),
+			...(() => {
+				const snaps = snapsFor(moving)
+				const near = fromScreen(x, y)
+				return { ...snaps, own: placesTakenBy(snaps.own, near, SNAP_REACH / view.value[0]) }
+			})(),
 			moving: false,
 			collapse: already && !event.shiftKey && rows.length > 1,
 		}
@@ -991,8 +1091,20 @@ useEventListener(
 	{ capture: true }
 )
 
+/** Of those of `kind`, the handle that is nearest to `to`, or as it was if there are none. */
+function nearestHandleOf(kind: Handle['kind'], to: Vec): number | null {
+	let nearest = draggedHandle.value
+	let distance = Infinity
+	for (const [i, { kind: other, at }] of grip.value?.handles.entries() ?? []) {
+		if (other !== kind || at === undefined) continue
+		const away = Math.hypot(at[0] - to[0], at[1] - to[1])
+		if (away < distance) [nearest, distance] = [i, away]
+	}
+	return nearest
+}
+
 /** The handle being dragged, to where the pointer has got. */
-function dragHandle(symmetric: boolean, valueOnly: boolean): void {
+function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void {
 	if (pressed?.kind !== 'handle' || pressed.at === null) return
 	const { row, handle, mat, from, offset, at, base, points } = pressed
 	const [px, py] = fromScreen(at[0], at[1], mat)
@@ -1000,7 +1112,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean): void {
 	const snap = nearestSnap(points, wanted, SNAP_REACH / view.value[0])
 	snapMark.value = snap
 
-	const changes = handle.to(snap?.at ?? wanted, from, { symmetric })
+	const changes = handle.to(snap?.at ?? wanted, from, { symmetric, even })
 	const finest = handle.fine ? pointerStep() / FINE_BY : pointerStep()
 	const rounded = roundedChanges(changes, finest)
 	const next = apply(row, rounded, base)
@@ -1010,6 +1122,13 @@ function dragHandle(symmetric: boolean, valueOnly: boolean): void {
 		if (referring !== null) next.ast = referring
 	}
 	commit(next)
+	// A side taken past the other is the other one now, wherever it has been let go.
+	draggedHandle.value = nearestHandleOf(handle.kind, snap?.at ?? wanted)
+	const now = draggedHandle.value === null ? undefined : grip.value?.handles[draggedHandle.value]?.at
+	evenLine.value =
+		even && handle.pivot !== undefined && now !== undefined
+			? [toScreen(handle.pivot), toScreen(now)]
+			: null
 	const numbers =
 		props.dimensions && next.ast !== null
 			? dimensionsHeld(next.ast, props.document.env.value, row, handle, rounded, base, snap?.at ?? wanted, {
@@ -1040,6 +1159,11 @@ function drawPressed(even: boolean, valueOnly: boolean): void {
 	const to = end?.at ?? fromScreen(x, y)
 	const { base, tool, snap } = pressed
 	const { env } = props.document
+	const start = snap?.at ?? fromScreen(fromX, fromY)
+	evenLine.value =
+		even && facesWhenDrawn(tool)
+			? [toScreen(start, view.value), toScreen(evenlyFrom(start, to), view.value)]
+			: null
 	props.document.setRoot(
 		// Command has it only be the same value, for now, rather than refer to that.
 		snap === null || valueOnly
@@ -1059,6 +1183,15 @@ function drawPressed(even: boolean, valueOnly: boolean): void {
 function onPointerMove(event: PointerEvent): void {
 	const { offsetX: x, offsetY: y } = event
 	if (pressed === null) {
+		const shaping = shapingHandleAt(x, y)
+		if (shaping !== null) {
+			hovered.value = null
+			hoveredHandle.value = shaping
+			snapMark.value = null
+			penLine.value = null
+			cursor.value = cursorOf(grip.value!.handles[shaping]!)
+			return
+		}
 		if (props.drawing) {
 			hovered.value = null
 			hoveredHandle.value = null
@@ -1104,7 +1237,8 @@ function onPointerMove(event: PointerEvent): void {
 		}
 		case 'handle': {
 			pressed.at = [x, y]
-			dragHandle(event.altKey, event.metaKey || event.ctrlKey)
+			cursor.value = 'none'
+			dragHandle(event.altKey, event.metaKey || event.ctrlKey, event.shiftKey)
 			break
 		}
 		case 'move': {
@@ -1127,7 +1261,7 @@ function onPointerMove(event: PointerEvent): void {
 				next = apply(row, changes, next.ast)
 				// Of several, each has numbers of its own, which are not any one thing to type.
 				if (props.dimensions && pressed.rows.length === 1 && next.ast !== null) {
-					moved = { row, numbers: dimensionsOf(next.ast, props.document.env.value, row, changes) }
+					moved = { row, numbers: dimensionsMoved(next.ast, props.document.env.value, row, changes) }
 				}
 			}
 			commit(next)
@@ -1160,7 +1294,8 @@ function onPointerMove(event: PointerEvent): void {
 	}
 }
 
-useEventListener(window, 'pointerup', () => {
+useEventListener(window, 'pointerup', event => {
+	const wasHandle = pressed?.kind === 'handle'
 	// A click on one of several, not having moved them, is about that one.
 	if (pressed?.kind === 'move' && pressed.collapse && !pressed.moving) {
 		emit('select', [pressed.row])
@@ -1174,8 +1309,15 @@ useEventListener(window, 'pointerup', () => {
 	}
 	pressed = null
 	range.value = null
+	evenLine.value = null
 	snapMark.value = null
 	readout.value = null
+	if (wasHandle) {
+		draggedHandle.value = null
+		// The pointer is back, and is over whatever it has got to.
+		if (event.target === $canvas.value) onPointerMove(event)
+		else cursor.value = 'default'
+	}
 })
 </script>
 

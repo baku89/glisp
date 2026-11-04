@@ -146,7 +146,7 @@ describe('the numbers of a shape just drawn', () => {
 	it('have what a polygon has', () => {
 		const root = drawn(base, 'c', 'ngon', [0, 0], [30, 40], false)
 		const { dimensions, first } = dimensionsDrawn(root, env, ROW)
-		expect(said(dimensions)).toEqual(['X 0', 'Y 0', 'Radius 50', 'Sides 5'])
+		expect(said(dimensions)).toEqual(['X 0', 'Y 0', 'Radius 50', 'Sides 5', 'Angle 53.13'])
 		expect(dimensions[first]?.label).toBe('Radius')
 	})
 

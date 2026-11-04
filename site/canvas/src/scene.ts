@@ -27,6 +27,7 @@ import {
 	type TypeValue,
 	UNSET,
 	unwrapLazy,
+	callParameters,
 } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import {
@@ -89,10 +90,44 @@ export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 	return [...new Set(rows)]
 }
 
-export type ShapeTool = 'rect' | 'ellipse' | 'ngon'
+export type ShapeTool =
+	| 'rect'
+	| 'ellipse'
+	| 'ngon'
+	| 'star'
+	| 'roundRect'
+	| 'superellipse'
+	| 'capsule'
+	| 'fan'
+	| 'spiral'
+	| 'clothoid'
 
 /** How many sides a polygon starts with. */
 const NGON_SIDES = 5
+/** How far apart the directions are that a shape is drawn toward, if it is drawn evenly. */
+const DRAWN_ANGLE_STEP = 45
+
+/** Whether a shape from `tool` faces the way it is drawn, and so goes by even angles. */
+export const facesWhenDrawn = (tool: ShapeTool): boolean =>
+	tool === 'ngon' || tool === 'star' || tool === 'capsule' || tool === 'fan' || tool === 'clothoid'
+
+/** As far from `from` as `to` is, at the nearest of the angles that a shape is evenly drawn at. */
+export function evenlyFrom(from: Vec, to: Vec): Vec {
+	const [dx, dy] = [to[0] - from[0], to[1] - from[1]]
+	const angle = Math.round(Math.atan2(dy, dx) / ((DRAWN_ANGLE_STEP * Math.PI) / 180))
+	const radians = angle * ((DRAWN_ANGLE_STEP * Math.PI) / 180)
+	const reach = Math.hypot(dx, dy)
+	return [from[0] + Math.cos(radians) * reach, from[1] + Math.sin(radians) * reach]
+}
+/** What a shape starts as, that its drag does not say, in proportion to what it does. */
+const STAR_INNER = 0.45
+const ROUND_CORNER = 0.2
+const CAPSULE_RADIUS = 0.25
+const FAN_INNER = 0.5
+const FAN_SPREAD = 45
+const SPIRAL_TURNS = 3
+/** It comes to have turned this far, in radians, at the end. */
+const CLOTHOID_TURN = 3
 
 /**
  * As finely as a pointer can say anything, at this zoom and on this screen: a power of
@@ -289,6 +324,16 @@ export function nearestSnap(
 }
 
 /**
+ * Of the places on what is being moved, those that it was taken by: for it lines up by a
+ * place that was taken hold of, and anywhere else on it means nothing in particular.
+ */
+export const placesTakenBy = (
+	own: readonly SnapPoint[],
+	[x, y]: Vec,
+	tolerance: number
+): SnapPoint[] => own.filter(({ at }) => Math.hypot(at[0] - x, at[1] - y) <= tolerance)
+
+/**
  * `drawn`, with where it starts referring to what it snapped to, which is then its origin,
  * or its center. An ellipse goes out from there. A rect's origin is its top left, and its
  * size is never less than nothing, so one drawn up or left of there has no reference.
@@ -304,7 +349,8 @@ export function drawnFrom(
 	step = FINEST
 ): LetAST {
 	const [dx, dy] = [to[0] - snap.at[0], to[1] - snap.at[1]]
-	const anchored = canRefer(snap) && !(tool === 'rect' && (dx < 0 || dy < 0))
+	const fromCorner = tool === 'rect' || tool === 'roundRect'
+	const anchored = canRefer(snap) && !(fromCorner && (dx < 0 || dy < 0))
 	const next = drawn(root, name, tool, snap.at, to, even, step, anchored)
 	if (!anchored) return next
 	const source = `binding:${name}/arg0`
@@ -414,9 +460,28 @@ export function drawn(
 	const size: Vec = [Math.abs(end[0] - from[0]), Math.abs(end[1] - from[1])]
 	const size2: Vec = [end[0] - from[0], end[1] - from[1]]
 	const out = Math.max(Math.abs(dx), Math.abs(dy))
+	const reach = Math.hypot(dx, dy)
+	const toward = (Math.atan2(dy, dx) * 180) / Math.PI
+	const heading = even ? Math.round(toward / DRAWN_ANGLE_STEP) * DRAWN_ANGLE_STEP : toward
+	// Toward +X is what they are anyway, and needs no saying.
+	const turned = rounded(heading) === 0 ? '' : ` ${rounded(heading)}`
 	const source =
 		tool === 'ngon'
-			? `(path.ngon ${written(from)} ${rounded(Math.hypot(dx, dy))} ${NGON_SIDES})`
+			? `(path.ngon ${written(from)} ${rounded(reach)} ${NGON_SIDES}${turned})`
+			: tool === 'star'
+			? `(path.star ${written(from)} ${rounded(reach)} ${rounded(reach * STAR_INNER)} ${NGON_SIDES}${turned})`
+			: tool === 'capsule'
+			? `(path.capsule ${written(from)} ${written(even ? evenlyFrom(from, to) : to)} ${rounded(reach * CAPSULE_RADIUS)})`
+			: tool === 'fan'
+			? `(path.fan ${written(from)} ${rounded(reach * FAN_INNER)} ${rounded(reach)} ${rounded(heading - FAN_SPREAD)} ${rounded(heading + FAN_SPREAD)})`
+			: tool === 'spiral'
+			? `(path.spiral ${written(from)} 0 ${rounded(reach)} ${SPIRAL_TURNS})`
+			: tool === 'clothoid'
+			? `(path.clothoid ${written(from)} ${rounded(heading)} ${rounded(reach)} 0 ${reach === 0 ? 0 : Number(((2 * CLOTHOID_TURN) / reach).toPrecision(3))})`
+			: tool === 'roundRect'
+			? `(path.roundRect ${written(anchored ? from : corner)} ${written(anchored ? size2 : size)} ${rounded(Math.min(size[0], size[1]) * ROUND_CORNER)})`
+			: tool === 'superellipse'
+			? `(path.superellipse ${written(anchored ? from : center)} ${written(anchored ? [Math.abs(end[0] - from[0]), Math.abs(end[1] - from[1])] : [size[0] / 2, size[1] / 2])} 2)`
 			: anchored && tool === 'rect' && even
 			? `(path.square ${written(from)} ${rounded(size2[0])})`
 			: tool === 'rect' && even
@@ -611,10 +676,13 @@ const argsOf = (call: CallAST, env: Env) => {
 	const inside = enterNode(call, env)
 	const head = evaluate(call.head, inside).value
 	const { paramTypes = [], variadicTail } = (isTypedHostFn(head) ? head : {}) as Partial<TypedHostFn>
+	const names = call.kwargs === undefined ? [] : (callParameters(call, inside)?.names ?? [])
 	return {
 		inside,
 		head,
-		args: call.args.map((arg, i) => {
+		args: Array.from({ length: Math.max(call.args.length, names.length) }, (_, i) => {
+			const arg = call.args[i] ?? call.kwargs?.get(names[i]!)
+			if (arg === undefined) return undefined
 			const { value } = evaluate(arg, inside)
 			const type = paramTypes[i] ?? variadicTail
 			return type === undefined ? value : coerceTo(type, value)
@@ -752,6 +820,20 @@ function readAt(
 	}
 }
 
+/** Whether a row is a block with nothing to return. */
+export function isGroupRow(root: AST, env: Env, row: string): boolean {
+	const node = rowAt(root, env, row)?.node
+	if (!node) return false
+	const inner = bare(node)
+	return inner.kind === 'let' && inner.body === null
+}
+
+/** What a row comes to, past the style it is only given. */
+export function valueOfRow(root: AST, env: Env, row: string): unknown {
+	const found = rowAt(root, env, paintedRow(root, env, row))
+	return found && evaluate(readByName(found.node), found.env).value
+}
+
 /** Where one number is in a row: an argument, and which of it, if it is a vector. */
 export interface DimensionPlace {
 	readonly route: readonly number[]
@@ -785,7 +867,11 @@ export function dimensionAt(
 		...(set === undefined ? {} : { set }),
 	}
 	if (index === undefined) {
-		return typeof value === 'number' ? { ...place, label, value, options, length: 1 } : null
+		if (typeof value !== 'number') return null
+		// Out on its own, it has no row to show what it is by.
+		const icon = expected === null ? null : textOf(expected.meta?.get('icon'))
+		const shown = icon === null || options.leftIcon !== undefined ? options : { ...options, leftIcon: icon }
+		return { ...place, label, value, options: shown, length: 1 }
 	}
 	const element = isNumbers(value) ? value[index] : undefined
 	if (element === undefined || !isNumbers(value)) return null
@@ -855,6 +941,17 @@ export function dimensionsOf(
  * may be something else's, which is not for typing over here. Which to go to first is
  * what the drag said, which is the argument after where it started.
  */
+/**
+ * The numbers to say while the whole of it is being moved, which are where it is: a place,
+ * not every one of them that goes with it.
+ */
+export const dimensionsMoved = (
+	root: AST,
+	env: Env,
+	row: string,
+	changes: readonly Change[]
+): Dimension[] => dimensionsOf(root, env, row, changes.slice(0, 1))
+
 export function dimensionsDrawn(
 	root: AST,
 	env: Env,
@@ -1062,12 +1159,47 @@ function nodeAt(start: AST, startEnv: Env, route: readonly number[]): AST | null
 		if (found === null) return null
 		const call = bare(found.node)
 		if (call.kind !== 'call') return null
-		const next = call.args[arg]
+		const inside = enterNode(call, found.env)
+		const name = call.kwargs === undefined ? undefined : callParameters(call, inside)?.names[arg]
+		const next = call.args[arg] ?? (name === undefined ? undefined : call.kwargs?.get(name))
 		if (next === undefined) return null
-		env = enterNode(call, found.env)
+		env = inside
 		node = next
 	}
 	return node
+}
+
+/** `ast`, with the argument that comes next on the call at `route` being `added`, if it does. */
+function withArgument(ast: AST, route: readonly number[], added: AST): AST | null {
+	const call = bare(ast)
+	const [arg, ...rest] = route
+	if (call.kind !== 'call' || arg === undefined) return null
+	const args = [...call.args]
+	if (rest.length === 0) {
+		if (arg !== args.length) return null
+		args.push(added)
+	} else {
+		const within = args[arg] && withArgument(args[arg], rest, added)
+		if (!within) return null
+		args[arg] = within
+	}
+	const next = new CallAST(call.head, args, call.kwargs)
+	return ast.kind === 'meta' ? new MetaAST(ast.metadata, next) : next
+}
+
+/** `root` with an argument that was left unsaid on the row at `row` said. */
+function withAddedArgument(
+	root: AST,
+	env: Env,
+	row: string,
+	route: readonly number[],
+	value: unknown
+): AST | null {
+	const reached = reach(root, env, row)
+	const last = reached?.chain.at(-1)
+	if (!reached || !last) return null
+	const next = withArgument(last.ast, route, toAst(value, null))
+	return next === null ? null : withParent(reached.chain, last.replace(next))
 }
 
 /**
@@ -1084,7 +1216,12 @@ export function changed(
 	for (const { route, value } of changes) {
 		const found = rowAt(next, env, row)
 		const node = found && nodeAt(found.node, found.env, route)
-		if (!node) return { ast: null, problem: 'that is no longer there' }
+		if (!node) {
+			const added = withAddedArgument(next, env, row, route, value)
+			if (added === null) return { ast: null, problem: 'that is no longer there' }
+			next = added
+			continue
+		}
 		const { ast, diagnostics } = solve(next, env, node, value)
 		if (ast === null) {
 			return { ast: null, problem: diagnostics[0]?.message ?? 'cannot be moved' }

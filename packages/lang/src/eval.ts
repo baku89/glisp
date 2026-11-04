@@ -643,6 +643,8 @@ export interface TypedHostFn {
 	 * type and forwarded as additional positional args.
 	 */
 	readonly variadicTail?: TypeValue
+	/** What those arguments are called, for a path to go by (`rest` if unsaid). */
+	readonly variadicName?: string
 	/**
 	 * The full type, when it says more than the parameter types above, which
 	 * are what values are checked against at run time: `map` is generic here.
@@ -697,7 +699,8 @@ export function makeTypedFn(
 	returnType: TypeValue,
 	fn: (...args: unknown[]) => unknown,
 	paramNames?: ReadonlyArray<string>,
-	variadicTail?: TypeValue
+	variadicTail?: TypeValue,
+	variadicName?: string
 ): TypedHostFn {
 	const wrapped = (...args: unknown[]): unknown => {
 		const cast: unknown[] = []
@@ -723,6 +726,9 @@ export function makeTypedFn(
 	}
 	if (variadicTail !== undefined) {
 		Object.defineProperty(wrapped, 'variadicTail', { value: variadicTail })
+	}
+	if (variadicName !== undefined) {
+		Object.defineProperty(wrapped, 'variadicName', { value: variadicName })
 	}
 	return wrapped as TypedHostFn
 }

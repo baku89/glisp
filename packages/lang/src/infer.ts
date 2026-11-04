@@ -295,6 +295,7 @@ function functionTypeOfHost(fn: TypedHostFn): TypeValue {
 	return makeFunctionType(fn.paramTypes, fn.returnType, {
 		...(fn.paramNames !== undefined ? { paramNames: fn.paramNames } : {}),
 		...(fn.variadicTail !== undefined ? { variadicTail: fn.variadicTail } : {}),
+		...(fn.variadicName !== undefined ? { variadicName: fn.variadicName } : {}),
 	})
 }
 

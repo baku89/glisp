@@ -183,7 +183,7 @@ describe('drawing a shape', () => {
 	})
 
 	it('adds a polygon out from where it was pressed', () => {
-		expect(shape('ngon', [13, 14])).toBe('{a = 1 x = (path.ngon [10 10] 5 5)}')
+		expect(shape('ngon', [13, 14])).toBe('{a = 1 x = (path.ngon [10 10] 5 5 53.13)}')
 		expect(nameFor(root, 'ngon', false)).toBe('ngon1')
 	})
 
@@ -530,12 +530,13 @@ describe('snapping', () => {
 
 	it('refers from there, whichever way it was drawn', () => {
 		const start = points.find(p => p.target === 'binding:c/arg0')!
-		const drawnAs = (tool: 'rect' | 'ellipse', to: Vec, even = false) =>
+		const drawnAs = (tool: 'rect' | 'roundRect' | 'ellipse', to: Vec, even = false) =>
 			print(drawnFrom(root, env, 'x', tool, start, to, even).bindings.at(-1)![1])
 		expect(drawnAs('rect', [130, 120])).toBe('(path.rect ../c/center [30 20])')
 		expect(drawnAs('rect', [90, 90])).toBe('(path.rect [90 90] [10 10])')
 		expect(drawnAs('rect', [130, 90])).toBe('(path.rect [100 90] [30 10])')
 		expect(drawnAs('rect', [90, 90], true)).toBe('(path.square [90 90] 10)')
+		expect(drawnAs('roundRect', [90, 90])).toMatch(/^\(path\.roundRect \[90 90\] \[10 10\] /)
 		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse ../c/center [20 30])')
 		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle ../c/center 30)')
 	})
@@ -955,10 +956,10 @@ describe('grips', () => {
 	it('take a rect by the middle of each side, the far side staying where it is', () => {
 		const source = '{c = (path.rect [0 0] [10 10])}'
 		expect(gripAt(parse(source), env, row)!.handles.slice(0, 4).map(h => [h.kind, h.at])).toEqual([
-			['arrow', [0, 5]],
-			['arrow', [5, 0]],
-			['arrow', [10, 5]],
-			['arrow', [5, 10]],
+			['offset', [0, 5]],
+			['offset', [5, 0]],
+			['offset', [10, 5]],
+			['offset', [5, 10]],
 		])
 		expect(pulled(source, 0, [-5, 99])).toBe('{c = (path.rect [-5 0] [15 10])}')
 		expect(pulled(source, 1, [99, -5])).toBe('{c = (path.rect [0 -5] [10 15])}')
@@ -979,7 +980,7 @@ describe('grips', () => {
 
 	it('count the sides of an ngon by how far round', () => {
 		const source = '{c = (path.ngon [0 0] 10 6)}'
-		expect(kinds(source)).toEqual(['arrow', 'dia', 'translate'])
+		expect(kinds(source)).toEqual(['point', 'dia', 'translate'])
 		expect(pulled(source, 1, [0, 50])).toBe('{c = (path.ngon [0 0] 10 4)}')
 	})
 
