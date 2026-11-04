@@ -1120,7 +1120,7 @@ describe('what goes out and around, of which only one can change', () => {
 	it('does both where it can, and says so where it can do neither', () => {
 		expect(dragged('{c = (path.ngon [0 0] 50 5 0)}', [0, 70]).source).toBe('[c = (path.ngon [0 0] 70 5 90)]')
 		expect(dragged('{c = (path.ngon [0 0] 50 5)}', [0, 70]).source).toBe('[c = (path.ngon [0 0] 70 5 90)]')
-		expect(dragged('{c = (path.ngon [0 0] @50 5 @0)}', [0, 70]).problem).toBe('pinned')
+		expect(dragged('{c = (path.ngon [0 0] @50 5 @0)}', [0, 70]).problem).toBe('locked')
 	})
 
 	it('is the same for the end of a spiral', () => {
@@ -1148,8 +1148,8 @@ describe('a place of which only a part can change', () => {
 	})
 
 	it('says why, if it cannot go at all', () => {
-		expect(moved('{c = (path.circle @[1 2] 5)}', [7, 8]).problem).toBe('pinned')
-		expect(moved('{c = (path.circle [@1 @2] 5)}', [7, 8]).problem).toBe('pinned')
+		expect(moved('{c = (path.circle @[1 2] 5)}', [7, 8]).problem).toBe('locked')
+		expect(moved('{c = (path.circle [@1 @2] 5)}', [7, 8]).problem).toBe('locked')
 	})
 })
 

@@ -536,7 +536,7 @@ describe('several rows at once', () => {
 		const pinned = parse('{w = @10 a = (path.rect [0 0] [w 20]) b = (path.rect [5 5] [30 20])}')
 		const { ast, problem } = withValuesAt(pinned, env, field(1, 0).places, [7, 8])
 		expect(ast).toBeNull()
-		expect(problem).toBe('pinned')
+		expect(problem).toBe('locked')
 	})
 
 	it('can have a number pulled out, that they all refer to', () => {
@@ -1050,7 +1050,7 @@ describe('grips', () => {
 	})
 
 	it('stop at a pin', () => {
-		expect(pulled('{r = @10 c = (path.circle [100 100] r)}', 0, [130, 100])).toBe('pinned')
+		expect(pulled('{r = @10 c = (path.circle [100 100] r)}', 0, [130, 100])).toBe('locked')
 	})
 
 	it('pull an ellipse one way at a time', () => {
@@ -1282,7 +1282,7 @@ describe('moving the whole', () => {
 	})
 
 	it('says why it cannot, at a pin', () => {
-		expect(move('{p = @[1 2] c = (path.circle p 5)}')).toBe('pinned')
+		expect(move('{p = @[1 2] c = (path.circle p 5)}')).toBe('locked')
 	})
 
 	it('moves the matrix of a transformed path, or if that cannot, what is inside', () => {

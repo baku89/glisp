@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetA
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, isAllOnItsRow, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -1059,7 +1059,7 @@ describe('actionsOf', () => {
 			'Evaluate One Step',
 			'Evaluate All',
 			'Add Values',
-			'Pin',
+			'Lock',
 			'Hide',
 			'Copy Value',
 			'Copy Expression',
@@ -1069,16 +1069,16 @@ describe('actionsOf', () => {
 			'Evaluate One Step',
 			'Evaluate All',
 			'Add Count',
-			'Pin',
+			'Lock',
 			'Hide',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
 		])
-		expect(menu('[[1]]')).toEqual(['Add Element', 'Pin', 'Hide', 'Copy Value', 'Delete'])
-		expect(menu('[1]')).toEqual(['Pin', 'Hide', 'Copy Value', 'Delete'])
-		expect(menu('(take [1] 1)', 1)).toEqual(['Revert to Default', 'Pin', 'Hide', 'Copy Value'])
-		expect(menu('(take [1] 0)', 1)).toEqual(['Pin', 'Hide', 'Copy Value'])
+		expect(menu('[[1]]')).toEqual(['Add Element', 'Lock', 'Hide', 'Copy Value', 'Delete'])
+		expect(menu('[1]')).toEqual(['Lock', 'Hide', 'Copy Value', 'Delete'])
+		expect(menu('(take [1] 1)', 1)).toEqual(['Revert to Default', 'Lock', 'Hide', 'Copy Value'])
+		expect(menu('(take [1] 0)', 1)).toEqual(['Lock', 'Hide', 'Copy Value'])
 	})
 
 	it('gives every action an icon', () => {
@@ -1154,7 +1154,7 @@ describe('hiding from a menu', () => {
 describe('pinning from a menu', () => {
 	const toggled = (src: string) => {
 		const slot = view(src).slots[0]!
-		const action = actionsOf(slot).find(a => a.label === 'Pin' || a.label === 'Unpin')!
+		const action = actionsOf(slot).find(a => a.label === 'Lock' || a.label === 'Unlock')!
 		return 'apply' in action ? print(action.apply()) : null
 	}
 
@@ -1168,7 +1168,7 @@ describe('pinning from a menu', () => {
 
 	it('has nothing to pin in what a call calls', () => {
 		const head = view('(+ 1 2)').head!
-		expect(actionsOf(head).map(a => a.label)).not.toContain('Pin')
+		expect(actionsOf(head).map(a => a.label)).not.toContain('Lock')
 	})
 
 	it('leaves alone what is not pinned', () => {
@@ -1527,7 +1527,7 @@ describe('what a default is written as', () => {
 	})
 })
 
-describe('what a type is called, and what there is to open', () => {
+describe('what a type is called', () => {
 	const typed = (fields: string) =>
 		withTypeMeta(makeTupleType([numberType, numberType]), parse(`{${fields}}`) as RecordAST)
 	const numberType = evaluate(parse('number'), env).value as TypeValue
@@ -1538,16 +1538,29 @@ describe('what a type is called, and what there is to open', () => {
 		expect(typeHintOf(numberType)).toBe('number')
 		expect(typeHintOf(null)).toBe(null)
 	})
+})
 
-	it('has nothing to open a place or a size for when its row has all of it', () => {
-		expect(isAllOnItsRow(parse('[1 -2]'), typed('input: "translate"'))).toBe(true)
-		expect(isAllOnItsRow(parse('[1 2]'), typed('input: "size"'))).toBe(true)
+describe('a vector of as many as its type says', () => {
+	const number = evaluate(parse('number'), env).value as TypeValue
+	const two = makeTupleType([number, number])
+
+	it('has no more to add, and none to take away or move', () => {
+		const { append, slots } = viewOf(parse('[1 2]'), env, two)
+		expect(append).toBeNull()
+		expect(slots[0]?.remove).toBeUndefined()
+		expect(slots[0]?.sort).toBeUndefined()
 	})
 
-	it('still opens for an expression in it, or what is not a place or a size', () => {
-		expect(isAllOnItsRow(parse('[1 (+ 1 1)]'), typed('input: "translate"'))).toBe(false)
-		expect(isAllOnItsRow(parse('(+ 1 1)'), typed('input: "translate"'))).toBe(false)
-		expect(isAllOnItsRow(parse('[1 2]'), makeTupleType([numberType, numberType]))).toBe(false)
+	it('can come to as many, from fewer or more', () => {
+		expect(viewOf(parse('[1]'), env, two).append).not.toBeNull()
+		expect(viewOf(parse('[1 2 3]'), env, two).slots[0]?.remove).toBeDefined()
+	})
+
+	it('is as it was, for one that can be any length', () => {
+		const { append, slots } = viewOf(parse('[1 2]'), env, makeTupleType([number], number))
+		expect(append).not.toBeNull()
+		expect(slots[0]?.remove).toBeDefined()
+		expect(slots[0]?.sort).toBeDefined()
 	})
 })
 
@@ -1559,7 +1572,9 @@ describe('slotCommandOfKey', () => {
 		expect(key('e')).toBe('step')
 		expect(key('E', { shiftKey: true })).toBe('all')
 		expect(key('h')).toBe('hide')
-		expect(key('P', { shiftKey: true })).toBe('pin')
+		expect(key('l', { metaKey: true })).toBe('pin')
+		expect(key('l', { ctrlKey: true })).toBe('pin')
+		expect(key('l')).toBeNull()
 	})
 
 	it('is none of them, for what is something else', () => {

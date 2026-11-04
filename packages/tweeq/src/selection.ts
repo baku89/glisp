@@ -110,6 +110,8 @@ export const VALUE_ICON: InjectionKey<(value: unknown) => string | null> =
 	Symbol('glisp-value-icon')
 
 /** Whether this is a list of what there is, where only a group opens. */
+/** Whether what is around a row is locked, and what is in it with it. */
+export const LOCKED: InjectionKey<() => boolean> = Symbol('glisp-locked')
 export const LAYERS: InjectionKey<boolean> = Symbol('glisp-layers')
 
 /** Opening the rows down to one, and selecting it. */

@@ -244,7 +244,7 @@ class Parser {
 			case '@': {
 				const at = this.advance()
 				const expr = this.atom()
-				if (isPinned(expr)) throw this.error(at, 'already pinned')
+				if (isPinned(expr)) throw this.error(at, 'already locked')
 				return this.stamp(start, pin(expr))
 			}
 			case '#_': {

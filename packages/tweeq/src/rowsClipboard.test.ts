@@ -38,8 +38,8 @@ describe('slot commands on rows', () => {
 
 	it('says what one is called there', () => {
 		const pinned = withSlotCommand(root, env, ['binding:a'], 'pin')!
-		expect(slotCommandAt(root, env, 'binding:a', 'pin')?.label).toBe('Pin')
-		expect(slotCommandAt(pinned, env, 'binding:a', 'pin')?.label).toBe('Unpin')
+		expect(slotCommandAt(root, env, 'binding:a', 'pin')?.label).toBe('Lock')
+		expect(slotCommandAt(pinned, env, 'binding:a', 'pin')?.label).toBe('Unlock')
 	})
 
 	it('goes one step down', () => {

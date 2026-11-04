@@ -333,20 +333,6 @@ export const isAngleInput = (expected: TypeValue | null): boolean =>
 export const isSizeInput = (expected: TypeValue | null): boolean =>
 	textOf(expected?.meta?.get('input')) === 'size'
 
-/**
- * Whether a place or a size has nothing more to it than the numbers on its row, so that
- * there is nothing to open it for. One with an expression in it still has that to show.
- */
-export function isAllOnItsRow(ast: AST, expected: TypeValue | null): boolean {
-	if (!isTranslatable(expected) && !isSizeInput(expected)) return false
-	const bare = ast.kind === 'meta' ? ast.expr : ast
-	return (
-		bare.kind === 'vec' &&
-		bare.elements.length <= MOST_STACKED &&
-		bare.elements.every(element => element.kind === 'lit' && typeof element.value === 'number')
-	)
-}
-
 const PROPORTIONAL = 'proportional'
 
 /** Whether the numbers of what `ast` comes to go together, by its own say or its type's. */
@@ -961,6 +947,9 @@ function viewOfVec(
 		if (shape?.kind === 'tuple') return shape.elements[i] ?? shape.rest ?? null
 		return null
 	}
+	// How many there are to be, if its type says, each being what it is by where it is.
+	const fixed = shape?.kind === 'tuple' && shape.rest === undefined ? shape.elements.length : null
+	const count = ast.elements.length
 	return {
 		...LEAF,
 		slots: ast.elements.map((element, i) => ({
@@ -975,23 +964,31 @@ function viewOfVec(
 				elements[i] = child
 				return new VecAST(elements)
 			},
-			remove: () => new VecAST(ast.elements.filter((_, j) => j !== i)),
-			sort: {
-				index: i,
-				count: ast.elements.length,
-				move: (from, to) => new VecAST(moved(ast.elements, from, to)),
-			},
+			...(fixed !== null && count <= fixed
+				? {}
+				: { remove: () => new VecAST(ast.elements.filter((_, j) => j !== i)) }),
+			...(fixed !== null
+				? {}
+				: {
+						sort: {
+							index: i,
+							count,
+							move: (from: number, to: number) => new VecAST(moved(ast.elements, from, to)),
+						},
+					}),
 		})),
-		append: {
-			label: 'Element',
-			add: () =>
-				new VecAST([...ast.elements, newElement(ast, inside, elementType(ast.elements.length))]),
-			insert: at => {
-				const elements = ast.elements.slice()
-				elements.splice(at, 0, newElement(ast, inside, elementType(at)))
-				return new VecAST(elements)
-			},
-		},
+		append:
+			fixed !== null && count >= fixed
+				? null
+				: {
+						label: 'Element',
+						add: () => new VecAST([...ast.elements, newElement(ast, inside, elementType(count))]),
+						insert: at => {
+							const elements = ast.elements.slice()
+							elements.splice(at, 0, newElement(ast, inside, elementType(at)))
+							return new VecAST(elements)
+						},
+					},
 	}
 }
 
@@ -1713,7 +1710,7 @@ export function kindIconOf(ast: AST): string | null {
 export const SLOT_COMMANDS = {
 	step: { id: 'step', label: 'Evaluate One Step', icon: 'mdi:debug-step-into', keys: ['E'], group: 'edit' },
 	all: { id: 'all', label: 'Evaluate All', icon: 'mdi:debug-step-over', keys: ['⇧', 'E'], group: 'edit' },
-	pin: { id: 'pin', label: 'Pin', icon: 'mdi:pin', keys: ['⇧', 'P'], group: 'edit' },
+	pin: { id: 'pin', label: 'Lock', icon: 'mdi:lock', keys: ['⌘', 'L'], group: 'edit' },
 	hide: { id: 'hide', label: 'Hide', icon: 'mdi:eye-off-outline', keys: ['H'], group: 'edit' },
 	value: { id: 'value', label: 'Copy Value', icon: 'mdi:content-copy', group: 'copy' },
 	copy: { id: 'copy', label: 'Copy Expression', icon: 'mdi:code-parentheses', keys: ['⌘', 'C'], group: 'copy' },
@@ -1730,11 +1727,11 @@ export function slotCommandOfKey(event: {
 	readonly ctrlKey: boolean
 	readonly altKey: boolean
 }): 'step' | 'all' | 'pin' | 'hide' | null {
-	if (event.metaKey || event.ctrlKey || event.altKey) return null
+	if (event.altKey) return null
 	const key = event.key.toLowerCase()
+	if (event.metaKey || event.ctrlKey) return key === 'l' && !event.shiftKey ? 'pin' : null
 	if (key === 'e') return event.shiftKey ? 'all' : 'step'
-	if (key === 'h') return 'hide'
-	return key === 'p' && event.shiftKey ? 'pin' : null
+	return key === 'h' ? 'hide' : null
 }
 
 /** A value as it is outside of a program: a string is its text, and not how it is written. */
@@ -1771,7 +1768,7 @@ export type SlotAction = {
  * written by name goes, and one written by its place, which has to be there, becomes the default.
  */
 function revertOf(slot: Slot): (() => AST) | null {
-	if (slot.parameter === undefined || slot.expected === null) return null
+	if (isPinned(slot.ast) || slot.parameter === undefined || slot.expected === null) return null
 	if (slot.key.startsWith('kw:')) return slot.remove ?? null
 	if (!/^arg\d+$/.test(slot.key)) return null
 	const fallback = defaultFor(slot.expected, slot.env)
@@ -1851,7 +1848,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		const pinned = isPinned(slot.ast)
 		actions.push({
 			...SLOT_COMMANDS.pin,
-			...(pinned ? { label: 'Unpin', icon: 'mdi:pin-off' } : {}),
+			...(pinned ? { label: 'Unlock', icon: 'mdi:lock-open-variant' } : {}),
 			apply: () => slot.replace(pinned ? unpin(slot.ast) : pin(slot.ast)),
 		})
 		const hidden = isHidden(slot.ast)

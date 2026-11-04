@@ -17,7 +17,7 @@ import { iconOf } from './icons'
 import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
-	HOST_KEY, ALSO_SELECTED, LAYERS, LINKER, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
+	HOST_KEY, ALSO_SELECTED, LAYERS, LINKER, LOCKED, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	canSolve,
@@ -27,7 +27,6 @@ import {
 	type NumbersFit,
 	isGroup,
 	isProportional,
-	isAllOnItsRow,
 	isSizeInput,
 	typeHintOf,
 	keepingRatio,
@@ -97,8 +96,12 @@ const renamable = isBinding
 // A row with no field of its own for it, such as these, opens it from itself.
 const editingCode = ref(false)
 const $anchor = useTemplateRef<HTMLElement>('$anchor')
+// A row of the project shows no value to open from, so its label is what it opens from.
+const $labelEnd = useTemplateRef<HTMLElement>('$labelEnd')
 function editExpression(): void {
-	if ($value.value === null) editingCode.value = true
+	if (locked.value) return
+	// What a row of the project holds is out of view, and is nowhere to open from.
+	if ($value.value === null || layers) editingCode.value = true
 	else $value.value.editExpression()
 }
 function canRename(name: string): boolean {
@@ -147,11 +150,10 @@ const fit = computed(() => roomFor(view.value.slots.length))
 /** Whether its numbers are there to read as they change, on its row or the rows of them. */
 const numbersInView = computed(() => inline.value || open.value || roomFor(2) !== 'stacked')
 // Numbers have ways of making room, where anything else goes by how much it needs.
-const allOnItsRow = computed(() => isAllOnItsRow(ast.value, props.entry.expected))
 const inline = computed(
 	() =>
 		bareKind.value === 'vec' &&
-		(!open.value || allOnItsRow.value) &&
+		!open.value &&
 		(fit.value === 'side' || canStack(placeValue.value))
 )
 
@@ -197,9 +199,8 @@ const kindHint = computed(() => {
 })
 const expandable = computed(
 	() =>
-		!allOnItsRow.value &&
-		(children.value.length > 0 ||
-			(!layers && (view.value.append !== null || view.value.missing.length > 0)))
+		children.value.length > 0 ||
+		(!layers && (view.value.append !== null || view.value.missing.length > 0))
 )
 const kindPressable = computed(() => referenceTarget.value !== null || expandable.value)
 
@@ -316,7 +317,12 @@ function onKind(): void {
 }
 
 const pinned = computed(() => isPinned(ast.value))
+const lockedAround = inject(LOCKED, null)
+/** Not to be changed from here or from the canvas, until it is unlocked. */
+const locked = computed(() => pinned.value || (lockedAround?.() ?? false))
+provide(LOCKED, () => locked.value)
 const hidden = computed(() => isHidden(ast.value))
+const canLock = computed(() => actionsOf(props.entry).some(action => action.id === 'pin'))
 const canHide = computed(() => actionsOf(props.entry).some(action => action.id === 'hide'))
 function toggle(id: 'pin' | 'hide'): void {
 	const action = actionsOf(props.entry).find(a => a.id === id)
@@ -375,7 +381,7 @@ const hostKey = inject(HOST_KEY, undefined)
 const commandsFor = inject(COMMANDS_FOR, undefined)
 
 const referenceItems = computed<MenuItem[]>(() =>
-	linker === null || isFunction.value
+	linker === null || isFunction.value || locked.value
 		? []
 		: props.entry.absent
 			? missingMenuItems(linker, props.path.slice(0, Math.max(0, props.path.lastIndexOf('/'))), props.entry.parameter!)
@@ -398,7 +404,7 @@ const slotMenu = computed(() =>
 
 // What the value's own field offers by itself, and the row offers on its behalf.
 const menuItems = computed<MenuItem[]>(() => [
-	...(isFunction.value
+	...(isFunction.value || locked.value
 		? []
 		: editMenuItems($value.value?.editValue ?? null, editExpression, hostKey)),
 	...(renamable.value || isFunction.value
@@ -457,9 +463,10 @@ watch(
 		@select="pick"
 		@nameClick="isFunction && (editingCode = true)"
 	>
-		<div class="value-row" :class="{ stacked: inline && fit === 'stacked' }">
+		<div class="value-row" :class="{ stacked: inline && fit === 'stacked', locked }">
 			<InputTranslate
 				v-if="translatable"
+				:inert="locked"
 				:modelValue="placeValue as [number, number]"
 				:showOverlayLabel="!numbersInView"
 				@update:modelValue="solver?.solve(ast, $event)"
@@ -467,6 +474,7 @@ watch(
 			<!-- 0 is along X, as it is on a canvas, rather than up. -->
 			<InputRotary
 				v-if="turnable"
+				:inert="locked"
 				:modelValue="placeValue as number"
 				:angleOffset="0"
 				@update:modelValue="solver?.solve(ast, $event)"
@@ -496,6 +504,7 @@ watch(
 			<button
 				v-if="sized"
 				class="chain"
+				:inert="locked"
 				:class="{ proportional }"
 				type="button"
 				aria-label="Keep Proportions"
@@ -508,27 +517,29 @@ watch(
 		</div>
 		<AstCodePopup
 			v-if="editingCode"
-			:reference="$anchor"
+			:reference="layers ? $labelEnd : ($anchor ?? $labelEnd)"
 			:ast="ast"
 			@change="update"
 			@close="editingCode = false"
 		/>
 
 		<template #labelEnd>
+			<span ref="$labelEnd" />
 			<span v-if="entry.absent" class="row-absent" hidden />
 			<span v-else class="row-path" :data-path="path" hidden />
 			<span v-if="problem !== null" class="row-problem" hidden />
 			<AstGapAdd v-if="insertBefore" @add="insertBefore" />
 			<button
-				v-if="pinned"
-				v-tooltip="'Unpin'"
+				v-if="pinned || canLock"
+				v-tooltip="pinned ? 'Unlock' : 'Lock'"
 				class="end pin"
+				:class="pinned ? 'locked' : 'reveals'"
 				type="button"
-				aria-label="Unpin"
+				:aria-label="pinned ? 'Unlock' : 'Lock'"
 				@click.stop="toggle('pin')"
 				@dblclick.stop
 			>
-				<Icon icon="mdi:pin" />
+				<Icon :icon="pinned ? 'mdi:lock' : 'mdi:lock-open-variant'" />
 			</button>
 			<button
 				v-if="hidden || canHide"
@@ -586,13 +597,21 @@ watch(
 	opacity: 0.5;
 }
 /* There when reached for, or when it is what the row being selected would do. */
+/* Taking no room from the name, until it is what is reached for. */
 .end.reveals {
-	opacity: 0;
+	display: none;
 }
 .row:hover .end.reveals,
-.TqParameterTreeItem.selected .end.reveals,
-.end.reveals:focus-visible {
-	opacity: 1;
+.TqParameterTreeItem.selected .end.reveals {
+	display: block;
+}
+/* A lock stays in its own column, whether what comes after it is showing or not. */
+.end.locked:has(+ .end.reveals) {
+	margin-right: var(--tq-icon-size);
+}
+.row:hover .end.locked:has(+ .end.reveals),
+.TqParameterTreeItem.selected .end.locked:has(+ .end.reveals) {
+	margin-right: 0;
 }
 .value-row {
 	position: relative;
@@ -684,6 +703,12 @@ watch(
 	color: var(--tq-color-text-mute);
 	cursor: pointer;
 }
+/* Only what can be said of a row, which is no more than the name beside it. */
+.pin > * {
+	width: 13px;
+	height: 13px;
+	margin: auto;
+}
 .kind {
 	color: var(--tq-color-info);
 }
@@ -696,6 +721,16 @@ watch(
 	color: var(--tq-color-background);
 	background: var(--tq-color-info);
 	transform: scale(0.78);
+}
+.pin.locked {
+	color: var(--tq-color-warning);
+}
+/* What takes hold of it says as well that it cannot be taken hold of. */
+.value-row.locked {
+	--tq-color-accent: var(--tq-color-warning);
+	--tq-color-accent-hover: var(--tq-color-warning);
+	--tq-color-input: var(--tq-color-warning-soft);
+	--tq-color-input-hover: var(--tq-color-warning-soft);
 }
 .pin:hover,
 .kind.pressable:not(.reference):hover {

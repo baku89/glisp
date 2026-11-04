@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, infer, isHidden, readByName, UNIT, unwrapLazy, UNSET } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, infer, isHidden, isPinned, readByName, UNIT, unwrapLazy, UNSET } from '@glisp/lang'
 import { InputColor } from 'tweeq/InputColor'
 import { InputEnum } from 'tweeq/InputEnum'
 import { InputGroup } from 'tweeq/InputGroup'
@@ -19,7 +19,7 @@ import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import type { Place } from './multiRows'
 import { displayedAs } from './numberField'
-import { HOST_KEY, RATIO_KEEPER, SOLVER } from './selection'
+import { HOST_KEY, LOCKED, RATIO_KEEPER, SOLVER } from './selection'
 import {
 	canSolve,
 	editorOfValue,
@@ -70,7 +70,11 @@ const emit = defineEmits<{
 const ast = computed(() => props.entry.ast)
 // By where it is, in the program as it is now, as several can change at once: another
 // of them may have changed it since this was drawn.
+const lockedAround = inject(LOCKED, null)
+/** Not to be changed from here or from the canvas, until it is unlocked. */
+const locked = computed(() => isPinned(ast.value) || (lockedAround?.() ?? false))
 const update = (next: AST): void => {
+	if (locked.value) return
 	if (!solver?.replaceAt(props.path, next)) emit('change', props.entry.replace(next))
 }
 
@@ -180,6 +184,10 @@ function confirmExpression(): void {
 // Typing `=` first in a number or the like turns it into an expression, as in a
 // spreadsheet. A string can begin with `=`, so it stays a string.
 function onFieldKey(event: KeyboardEvent): void {
+	if (locked.value) {
+		if (event.key !== 'Tab') event.preventDefault()
+		return
+	}
 	if (event.key === 'Escape') typedExpression = null
 	const { kind } = view.value.editor ?? {}
 	// A string can begin with `=`, whatever it comes from.
@@ -276,25 +284,25 @@ function editValue(): void {
 }
 
 function editExpression(): void {
-	if (editing.value) return
+	if (editing.value || locked.value) return
 	editingStart.value = undefined
 	editing.value = true
 }
 
 const hostKey = inject(HOST_KEY, undefined)
 const editItems = computed(() =>
-	editMenuItems(hasNumber.value ? editValue : null, editExpression, hostKey)
+	locked.value ? [] : editMenuItems(hasNumber.value ? editValue : null, editExpression, hostKey)
 )
 const fieldMenu = computed<MenuItem[]>(() => [...editItems.value, ...props.menuItems])
 
 defineExpose({
-	editValue: computed(() => (hasNumber.value ? editValue : null)),
+	editValue: computed(() => (hasNumber.value && !locked.value ? editValue : null)),
 	editExpression,
 })
 
 // What each input stands for, so that what is selected can be edited as one.
 const place = computed<Place | undefined>(() =>
-	props.entry.absent ? undefined : { path: props.path, element: null }
+	props.entry.absent || locked.value ? undefined : { path: props.path, element: null }
 )
 
 const label = (value: unknown): string =>
@@ -310,6 +318,7 @@ const label = (value: unknown): string =>
 			expression: !isCallee && isExpression(ast),
 			callee: isCallee,
 			hidden: isHidden(ast),
+			locked,
 			error: problem !== null,
 		}"
 		v-tooltip="problem ?? undefined"
@@ -502,6 +511,17 @@ const label = (value: unknown): string =>
 	--tq-color-input-hover: var(--tq-color-info-soft);
 	--tq-color-accent: var(--tq-color-info);
 	--tq-color-accent-hover: var(--tq-color-info);
+}
+.locked {
+	--tq-color-text: var(--tq-color-warning);
+	--tq-color-input: var(--tq-color-warning-soft);
+	--tq-color-input-hover: var(--tq-color-warning-soft);
+	--tq-color-accent: var(--tq-color-warning);
+	--tq-color-accent-hover: var(--tq-color-warning);
+}
+/* Seen, but not taken hold of. */
+.locked > * {
+	pointer-events: none;
 }
 .hidden {
 	opacity: 0.5;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, MetaAST } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isPinned, MetaAST } from '@glisp/lang'
 import { InputGroup } from 'tweeq/InputGroup'
 import type { MenuItem } from 'tweeq/Menu'
 import { inject } from 'vue'
@@ -34,7 +34,7 @@ const menuOf = (slot: Slot): MenuItem[] =>
 			parent => emit('change', parent),
 			commandsFor?.(`${props.parentPath}/${slot.key}`)
 		),
-		linker === null
+		linker === null || isPinned(slot.ast)
 			? []
 			: referenceMenuItems(linker, `${props.parentPath}/${slot.key}`, code =>
 					emit('change', slot.replace(slot.ast.kind === 'meta' ? new MetaAST(slot.ast.metadata, code) : code))

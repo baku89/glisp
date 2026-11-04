@@ -499,9 +499,9 @@ Any expression can be prefixed with `^{...}` to attach metadata:
 
 The `{...}` after `^` is a record literal (uses `:` for keys).
 
-### Pinning — `@`
+### Locking — `@`
 
-`@expr` pins an expression: [working backward](./eval.md#working-backward) from a value leaves it where it is. It is metadata, written in a short form, so it changes no value and adds no level for paths.
+`@expr` locks an expression: [working backward](./eval.md#working-backward) from a value leaves it where it is, and a host does not change it, from a canvas or from an inspector, until it is unlocked. It is metadata, written in a short form, so it changes no value and adds no level for paths.
 
 <!-- test -->
 ```glisp
@@ -626,7 +626,7 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `^{...}`      | metadata attachment                                    |
 | `~`           | work out within one expansion step                     |
 | `#_`          | bypass: comes to `()` where it stands, and is not output |
-| `@`           | pin: leave as it is when working backward from a value |
+| `@`           | lock: leave as it is when working backward from a value, and in a host until it is unlocked |
 | `...`         | spread / variadic                                      |
 | `_`           | top type                                               |
 | `!`           | bottom type                                            |

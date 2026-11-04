@@ -148,7 +148,7 @@ describe('solve — @', () => {
 	it('leaves a pinned expression where it is', () => {
 		expect(edited('{a = 1 r = (+ a @1)}', 10)).toBe('{a = 9 r = (+ a @1)}')
 		expect(edited('{r = @1}', 5)).toBeNull()
-		expect(reason('{r = @1}', 5)).toBe('pinned')
+		expect(reason('{r = @1}', 5)).toBe('locked')
 	})
 
 	it('stops at a pinned name, or a pinned binding', () => {
@@ -368,7 +368,7 @@ describe('solve — a path into what is pinned', () => {
 	it('leaves it, as it is pinned as a whole', () => {
 		const { ast, diagnostics } = moved('{z = @[1 2] r = ./z/0}', 5)
 		expect(ast).toBeNull()
-		expect(diagnostics[0]?.message).toBe('pinned')
+		expect(diagnostics[0]?.message).toBe('locked')
 		expect(moved('{z = @{a: 7} r = ./z/a}', 5).ast).toBeNull()
 	})
 

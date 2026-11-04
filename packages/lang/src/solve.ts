@@ -111,7 +111,7 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 			case 'meta':
 				if (isHidden(ast)) return stop(ast, at, 'bypassed')
 				return isPinned(ast)
-					? stop(ast, at, 'pinned')
+					? stop(ast, at, 'locked')
 					: next(ast.expr, at, wanted)
 			case 'unquote':
 				return next(ast.expr, at, wanted)
@@ -126,7 +126,7 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 				if ('message' in target) return stop(ast, at, target.message)
 				// What it goes through being pinned, what is in it is as well.
 				for (const step of stepsOf(ast.segments, at)) {
-					if (isPinned(step.parent) && step.parent !== target.ast) return stop(step.parent, at, 'pinned')
+					if (isPinned(step.parent) && step.parent !== target.ast) return stop(step.parent, at, 'locked')
 				}
 				return next(target.ast, target.env, wanted)
 			}
