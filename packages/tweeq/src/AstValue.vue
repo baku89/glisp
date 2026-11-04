@@ -13,6 +13,7 @@ import { ParameterTreeContextKey } from 'tweeq/ParameterGrid'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
+import AstLongText from './AstLongText.vue'
 import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import type { Place } from './multiRows'
@@ -323,6 +324,15 @@ const label = (value: unknown): string =>
 			:inlinePosition="inlinePosition"
 			@update:modelValue="solver?.solve(ast, $event, path)"
 		/>
+		<AstLongText
+			v-else-if="solvedEditor?.kind === 'longText'"
+			:value="solvedEditor.value"
+			:label="solvedEditor.label"
+			:icon="solvedEditor.icon"
+			:menuItems="fieldMenu"
+			:inlinePosition="inlinePosition"
+			@change="solver?.solve(ast, $event, path)"
+		/>
 		<InputString
 			v-else-if="solvedEditor?.kind === 'string'"
 			:modelValue="solvedEditor.value"
@@ -359,6 +369,15 @@ const label = (value: unknown): string =>
 			:modelValue="result?.value as boolean"
 			:multiSelectData="place"
 			@update:modelValue="solver?.solve(ast, $event, path)"
+		/>
+		<AstLongText
+			v-else-if="view.editor?.kind === 'longText'"
+			:value="view.editor.value"
+			:label="view.editor.label"
+			:icon="view.editor.icon"
+			:menuItems="fieldMenu"
+			:inlinePosition="inlinePosition"
+			@change="update(withLiteral(ast, $event))"
 		/>
 		<InputString
 			v-else-if="view.editor?.kind === 'string'"
@@ -422,6 +441,12 @@ const label = (value: unknown): string =>
 </template>
 
 <style scoped>
+/* However long it is, one line of it, until it is what is being written. */
+.value:not(:focus-within) > :deep(.TqInputString.multiline .input) {
+	overflow: hidden;
+	height: var(--tq-input-height);
+	white-space: nowrap;
+}
 .value {
 	display: grid;
 	min-width: 0;

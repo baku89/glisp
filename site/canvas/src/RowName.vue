@@ -51,6 +51,7 @@ function onKey(event: KeyboardEvent): void {
 		v-model="draft"
 		class="RowName editing"
 		theme="underline"
+		spaceAs="_"
 		:invalid="!isFine"
 		@confirm="confirm"
 		@blur="confirm"

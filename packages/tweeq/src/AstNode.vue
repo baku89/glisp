@@ -422,6 +422,7 @@ watch(
 		v-model:renaming="renaming"
 		:labelSource="entry.label"
 		:canRename="canRename"
+		renameSpaceAs="_"
 		@rename="rename"
 		:selected="selected"
 		:closedGuide="bareKind === 'call'"

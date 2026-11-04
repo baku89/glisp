@@ -1239,6 +1239,25 @@ describe('what a call is not yet given', () => {
 	})
 })
 
+describe('a string that is expected to be long', () => {
+	const of = (fields: string) =>
+		withTypeMeta(evaluate(parse('string'), env).value as TypeValue, parse(`{${fields}}`) as RecordAST)
+
+	it('shows only what it is, as its type says', () => {
+		expect(editorOfValue('M 0,0', of('input: "long-text" icon: "ph:path" summary: "SVG Path"'))).toEqual({
+			kind: 'longText',
+			value: 'M 0,0',
+			label: 'SVG Path',
+			icon: 'ph:path',
+		})
+		expect(editorOfValue('x', of('input: "long-text"'))).toEqual({ kind: 'longText', value: 'x', label: 'Text' })
+	})
+
+	it('is not what any other string is', () => {
+		expect(editorOfValue('x', of('label: "L"'))).toEqual({ kind: 'string', value: 'x' })
+	})
+})
+
 describe('a string, that comes from elsewhere', () => {
 	const row = (src: string) => viewOf(parse(src), env).slots.at(-1)!
 

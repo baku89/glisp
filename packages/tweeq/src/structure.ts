@@ -53,6 +53,13 @@ export type Editor =
 	| { readonly kind: 'number'; readonly value: number }
 	| { readonly kind: 'string'; readonly value: string }
 	| { readonly kind: 'color'; readonly value: string }
+	| {
+			readonly kind: 'longText'
+			readonly value: string
+			/** What it is, which is all that shows of it until it is opened. */
+			readonly label: string
+			readonly icon?: string
+	  }
 	| { readonly kind: 'boolean'; readonly value: boolean }
 	| {
 			readonly kind: 'enum'
@@ -432,6 +439,16 @@ export function editorOfValue(value: unknown, expected: TypeValue | null): Edito
 	// No color at all is not something a swatch can show: it would look like black.
 	if (typeof value === 'string' && value !== 'none' && textOf(expected?.meta?.get('input')) === 'color') {
 		return { kind: 'color', value }
+	}
+	// A type says so of what is expected to be too long to read in a row.
+	if (typeof value === 'string' && textOf(expected?.meta?.get('input')) === 'long-text') {
+		const icon = textOf(expected?.meta?.get('icon'))
+		return {
+			kind: 'longText',
+			value,
+			label: textOf(expected?.meta?.get('summary')) ?? 'Text',
+			...(icon ? { icon } : {}),
+		}
 	}
 	if (typeof value === 'string') return { kind: 'string', value }
 	if (typeof value === 'boolean') return { kind: 'boolean', value }

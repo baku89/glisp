@@ -302,7 +302,17 @@ const callOf = (member: string, args: readonly AST[]): AST =>
 	new CallAST(parse(`path.${member}`), [...args])
 
 const makeD = makeTypedFn(
-	[evaluate(parse('string'), buildPrelude()).value as TypeValue],
+	[pathData],
+/** Too long to read in a row, and rarely written by hand. */
+const pathData = withTypeMeta(
+	evaluate(parse('string'), buildPrelude()).value as TypeValue,
+	new RecordAST([
+		['input', lit('long-text')],
+		['icon', lit('ph:path')],
+		['summary', lit('SVG Path')],
+	])
+)
+
 	pathType,
 	d => {
 		try {
