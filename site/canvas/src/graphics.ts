@@ -2926,6 +2926,20 @@ const makeBackground = withDoc(
 	'Background'
 )
 
+/** What of a grid a canvas shows, by the same words as what is laid over it. */
+export const gridKindType = enumOf({
+	dots: 'ph:dots-nine',
+	lines: 'ph:grid-four',
+	none: 'ph:prohibit',
+})
+
+/** What a canvas is seen by, and as much of the project as what is behind it. */
+const makeGrid = withDoc(
+	makeTypedFn([gridKindType], said(gridKindType, 'grid', 'ph:grid-four'), kind => kind, ['kind']),
+	'Lays `dots` or `lines` over the canvas to see by, at the program\'s coordinates. It is not drawn into anything exported.',
+	'Grid'
+)
+
 /** What shows up on a background of `color`. */
 export const inkOn = (color: string): string =>
 	(parsed(color).to('oklch').coords[0] || 0) > 0.6 ? '#000000' : '#ffffff'
@@ -2937,6 +2951,7 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 	color: colorType,
 	style: makeStyled,
 	background: makeBackground,
+	grid: makeGrid,
 	vec2,
 	point,
 	size,

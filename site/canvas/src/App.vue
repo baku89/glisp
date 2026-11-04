@@ -30,7 +30,6 @@ import { exportSvg, openFile, saveFile } from './files'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import { iconOfPath, inkOn, withGraphics, isRect, type RectValue } from './graphics'
-import type { GridKind } from './grid'
 import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
 import {
@@ -44,8 +43,9 @@ import {
 	rowCalled,
 	ungrouped,
 	viewToFit,
+	withGridToggled,
 } from './rows'
-import { backgroundOf, isBackgroundAt, paintedRow, pathOfRow, withPaintOfRows } from './scene'
+import { backgroundOf, gridCall, gridOf, isOfCanvasAt, paintedRow, pathOfRow, withPaintOfRows } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -72,6 +72,7 @@ watchEffect(() => {
 })
 
 const EXAMPLE = `{
+  grid1 = (grid "dots")
   radius = 60
   c = (path.circle [240 200] radius)
   r = (path.rect [360 140] [160 120])
@@ -153,13 +154,15 @@ const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
 /** A drag says its numbers exactly, and they can be typed once it is let go of. */
 const dimensionsOn = useAppConfigStore().ref('glisp.canvas.dimensions', false)
 
-/** What is laid over the canvas to see by, which is of this browser and not of the program. */
-const grid = useAppConfigStore().ref<GridKind>('glisp.canvas.grid', 'dots')
-const toggleGrid = (kind: GridKind): void => {
-	grid.value = grid.value === kind ? 'none' : kind
-}
 /** A drag or a drawing goes to what it comes near. */
 const snappingOn = useAppConfigStore().ref('glisp.canvas.snapping', true)
+
+/** What is laid over the canvas to see by, as the program says. */
+const grid = computed(() => gridOf(document.root.value, document.env.value))
+const toggleGrid = (kind: 'dots' | 'lines'): void => {
+	const root = document.root.value
+	if (root instanceof LetAST) setProgram(withGridToggled(root, document.env.value, kind))
+}
 
 const toolKeys = new Set<string>(TOOLS.flatMap(tool => ('key' in tool ? [tool.key] : [])))
 
@@ -300,7 +303,7 @@ const paintable = computed(() =>
 		const [root, env] = [document.root.value, document.env.value]
 		// A part of what a row is written as, such as a number, has no fill or line unless it is a path.
 		const isPart = !row.split('/').every(key => key.startsWith('binding:'))
-		return !isBackgroundAt(root, env, row) && (!isPart || pathOfRow(root, env, row) !== null)
+		return !isOfCanvasAt(root, env, row) && (!isPart || pathOfRow(root, env, row) !== null)
 	})
 )
 
@@ -587,7 +590,7 @@ actions.register([
 				icon: 'mdi:file-plus-outline',
 				perform() {
 					fileHandle = null
-					document.setRoot(new LetAST([], null))
+					document.setRoot(new LetAST([['grid1', gridCall('dots')]], null))
 					selectOnCanvas([])
 				},
 			},

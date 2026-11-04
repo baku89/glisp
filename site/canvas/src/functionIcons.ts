@@ -35,6 +35,7 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.replicate': 'ph:copy-simple',
 	style: 'ph:paint-brush',
 	background: 'ph:paint-bucket',
+	grid: 'ph:grid-four',
 	'mat2d.translate': 'ph:arrows-out-cardinal',
 	'mat2d.rotate': 'ph:arrow-clockwise',
 	'mat2d.scale': 'ph:arrows-out',

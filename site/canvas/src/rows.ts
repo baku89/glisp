@@ -3,12 +3,13 @@
  * the order they are drawn in, and groups, which are let-blocks with no Return.
  */
 
-import { type AST, type Env, evaluate, LetAST, readByName } from '@glisp/lang'
+import { type AST, type Env, evaluate, isHidden, LetAST, readByName } from '@glisp/lang'
+import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import { viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import type { Path, Vec } from './graphics'
-import { isOutlined, sceneOf } from './scene'
+import { gridCall, gridOf, gridRowsIn, isOutlined, sceneOf } from './scene'
 
 const BINDING = 'binding:'
 
@@ -58,6 +59,42 @@ function freeName(root: LetAST, stem: string): string {
 	let n = 1
 	while (taken.has(`${stem}${n}`)) n++
 	return `${stem}${n}`
+}
+
+/**
+ * The row that says something of the canvas: the last that shows, or else the last that is
+ * hidden itself, as a row in something hidden as a whole would say it to no effect.
+ */
+function rowSaying(
+	root: LetAST,
+	env: Env,
+	rowsIn: (root: AST, env: Env, hidden: boolean) => readonly { row: string }[]
+): string | undefined {
+	return (
+		rowsIn(root, env, false).at(-1)?.row ??
+		rowsIn(root, env, true)
+			.filter(({ row }) =>
+				reach(root, env, row)
+					?.chain.slice(0, -1)
+					.every(({ ast }) => !isHidden(ast))
+			)
+			.at(-1)?.row
+	)
+}
+
+/**
+ * `root`, showing `kind` of a grid, or none if that is what it shows. It is said by the row
+ * that says so already, which comes out of being hidden, and by a new one at the top if
+ * there is none. A row in something hidden as a whole would say it to no effect.
+ */
+export function withGridToggled(root: LetAST, env: Env, kind: 'dots' | 'lines'): LetAST {
+	const next = gridOf(root, env) === kind ? 'none' : kind
+	const row = rowSaying(root, env, gridRowsIn)
+	const reached = row === undefined ? null : reach(root, env, row)
+	const last = reached?.chain.at(-1)
+	return reached && last
+		? (withParent(reached.chain, last.replace(gridCall(next))) as LetAST)
+		: new LetAST([[freeName(root, 'grid'), gridCall(next)], ...root.bindings], root.body)
 }
 
 /**

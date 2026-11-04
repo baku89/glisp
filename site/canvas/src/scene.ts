@@ -48,6 +48,8 @@ import { fit } from 'pave/path/fitting'
 import { toD } from 'pave/path/svg'
 import { bounds } from 'pave/path/metrics'
 
+import type { GridKind } from './grid'
+
 import {
 	type Change,
 	type DimensionSide,
@@ -797,8 +799,11 @@ function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] 
 	return value.flatMap((element, i) => shapesIn(elementType(i), element, row))
 }
 
+/** What a project says of the canvas it is on, with nothing to take hold of. */
+const NOT_SHAPES: ReadonlySet<string> = new Set(['background', 'grid'])
+
 export const sceneOf = (root: AST, env: Env): Shape[] =>
-	drawnIn(root, env).filter(({ draw }) => draw !== 'background')
+	drawnIn(root, env).filter(({ draw }) => !NOT_SHAPES.has(draw))
 
 /**
  * What is hidden of the rows at `rows`, and of what they hold. It is not drawn, but what is
@@ -809,7 +814,7 @@ export const hiddenShapesOf = (root: AST, env: Env, rows: readonly string[]): Sh
 		? []
 		: drawnIn(root, env, true).filter(
 				({ row, draw }) =>
-					draw !== 'background' && rows.some(path => row === path || row.startsWith(`${path}/`))
+					!NOT_SHAPES.has(draw) && rows.some(path => row === path || row.startsWith(`${path}/`))
 			)
 
 /** The color behind everything, by the last that says so. Null if nothing does, or it is none. */
@@ -820,9 +825,19 @@ export function backgroundOf(root: AST, env: Env): string | null {
 	return typeof color === 'string' && color !== 'none' ? color : null
 }
 
-/** Whether the row at `row` is a background, which has no fill or line to give it. */
-export const isBackgroundAt = (root: AST, env: Env, row: string): boolean =>
-	drawnIn(root, env).some(shape => shape.row === row && shape.draw === 'background')
+/** Whether the row at `row` is said of the canvas, so has no fill or line to give it. */
+export const isOfCanvasAt = (root: AST, env: Env, row: string): boolean =>
+	drawnIn(root, env).some(shape => shape.row === row && NOT_SHAPES.has(shape.draw))
+
+export const gridRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
+	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'grid')
+
+/** What of a grid the canvas shows, by the last that says so. None if nothing does. */
+export const gridOf = (root: AST, env: Env): GridKind =>
+	(gridRowsIn(root, env, false).at(-1)?.value as GridKind | undefined) ?? 'none'
+
+/** A row of a program that says what of a grid to show. */
+export const gridCall = (kind: GridKind): AST => parse(`(grid ${JSON.stringify(kind)})`)
 
 /** What the program draws, or else what it would if nothing were hidden, of what is. */
 function drawnIn(root: AST, env: Env, hidden = false): Shape[] {
