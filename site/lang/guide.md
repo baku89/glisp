@@ -76,6 +76,19 @@ A function is itself a value. Higher-order use is the same as anywhere:
 ;; → 15
 ```
 
+### Randomness
+
+A program comes to the same every time, on any machine, so there is nothing random to call. `random.number` takes a seed and makes a sequence instead: a function from a number to the value at that place in it. Asking for more leaves what came before as it was.
+
+<!-- test -->
+```glisp
+((random.number 42) 0)                        ;; → 0.2608322922664409
+(map (range 0 2) (random.number 42))          ;; → [0.2608322922664409 0.18141092023533278]
+((random.pick 42 ["a" "b" "c"]) 0)            ;; → "a"
+```
+
+`random.between` makes one from `lo` up to `hi`. A vector as a seed gives another sequence for another purpose, as `(random.number [seed "radius"])`.
+
 ## Types
 
 Types are first-class values. The prelude binds `number`, `string`, `boolean`, `unit`, `_`, `!`, `IO`. You can build new ones:

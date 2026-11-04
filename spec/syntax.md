@@ -267,7 +267,7 @@ When two parens lists appear before the return type `:`, the first is the generi
 
 A function with a body must name every value parameter. A function type (no body) may omit names, as in `(=> (number number): number)`. Parameter names are part of each function value's keyword-argument interface (see [Application — keyword arguments](#application--keyword-arguments)) and matter at call sites, but they are **not** part of the function's *type* identity. `(=> (a: number b: number): number)` and `(=> (x: number y: number): number)` are the same type. See [types.md — Function-type equality](./types.md#function-type-equality).
 
-A function takes **at least one value parameter**. A zero-parameter function `(=> (): T body)` is a syntax error: in a purely functional language the body's value is fully determined by its lexical context, so "calling" the function is indistinguishable from referencing the body directly — `body` and `((=> (): T body))` are the same expression. Use the body in place. Hosts that need to expose an impure operation (e.g. `Date.now()`) conventionally insert a nominal `unit` parameter, making the call site visible: `(=> (tick: unit): Date ...)`.
+A function takes **at least one value parameter**. A zero-parameter function `(=> (): T body)` is a syntax error: in a purely functional language the body's value is fully determined by its lexical context, so "calling" the function is indistinguishable from referencing the body directly — `body` and `((=> (): T body))` are the same expression. Use the body in place. A host has no impure operation to expose as a function: what changes from one moment to the next, such as the time, reaches a program as an `IO` that a host runs, or as a value it writes in.
 
 ### Variadic parameters
 

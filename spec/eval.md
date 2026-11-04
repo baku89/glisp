@@ -177,6 +177,8 @@ eval: (AST, Env) → Value
 
 `eval` is a pure function over evaluation nodes. For any fixed `(AST, env)` pair the result is identical, so the result can be memoized on `(AST identity, env identity)`. Memoization on the evaluation node is what makes shared sub-computations explicit as a DAG.
 
+Nothing in a program can come out differently from one evaluation or one machine to the next. There is no clock and no source of entropy to evaluate. Randomness is `random`, whose values only its seed and a number decide. What varies, a host chooses when editing, and writes into the program as a literal: a tool rolling a seed is an edit.
+
 When `eval` recurses into a sub-expression, it passes the sub-AST and the *same* env (no new frame created), unless the sub-expression is itself a scope-introducing form (let-block, function call), in which case a new frame is pushed.
 
 ### Lazy semantics

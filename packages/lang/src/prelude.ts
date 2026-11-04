@@ -44,11 +44,13 @@ import {
 	type TypeValue,
 	unitType,
 	UNSET,
+	withDoc,
 	withExpansion,
 	withInverse,
 	withSignature,
 } from './eval.js'
 import { parse } from './parse.js'
+import { isSeed, randomAt } from './random.js'
 
 // -----------------------------------------------------------------------------
 // Primitive types
@@ -838,6 +840,14 @@ export function buildPrelude(): Env {
 			'The whole numbers from `start` up to, and not including, `end`. It counts down if `end` is lower.',
 			host(makeRange())
 		),
+		seed: bind(
+			'What decides what `random` gives: a number, a string, a boolean, or a vector of them.',
+			host(seedType)
+		),
+		random: bind(
+			'What makes a sequence of random values, as a function from a number to a value of it. The same seed and the same number give the same value, on any machine.',
+			host(makeRandom())
+		),
 		reverse: bind('`xs` in reverse.', host(makeReverse())),
 		slice: bind(
 			'The part of `xs` from `start` up to `end`.',
@@ -1070,6 +1080,58 @@ function makeRange(): TypedHostFn {
 		},
 		['start', 'end']
 	)
+}
+
+const seedType = makeType('seed', isSeed, 0)
+
+/** What makes a sequence: a function from a number to the value at that place in it. */
+function makeRandom(): Record<string, TypedHostFn> {
+	const sequenceOf = (element: TypeValue): TypeValue =>
+		makeFunctionType([numberType], element, { paramNames: ['i'] })
+	const sequence = (element: TypeValue, at: (i: number) => unknown): TypedHostFn =>
+		makeTypedFn([numberType], element, i => at(i as number), ['i'])
+
+	return {
+		number: withDoc(
+			makeTypedFn(
+				[seedType],
+				sequenceOf(numberType),
+				seed => sequence(numberType, i => randomAt(seed, i)),
+				['seed']
+			),
+			'A sequence of numbers from 0 up to, and not including, 1.',
+			'Random Number'
+		),
+		between: withDoc(
+			makeTypedFn(
+				[seedType, numberType, numberType],
+				sequenceOf(numberType),
+				(seed, lo, hi) =>
+					sequence(numberType, i => (lo as number) + ((hi as number) - (lo as number)) * randomAt(seed, i)),
+				['seed', 'lo', 'hi']
+			),
+			'A sequence of numbers from `lo` up to, and not including, `hi`.',
+			'Random Between'
+		),
+		pick: withDoc(
+			withSignature(
+				makeTypedFn(
+					[seedType, vectorType],
+					sequenceOf(topType),
+					(seed, xs) => {
+						const from = xs as unknown[]
+						return sequence(topType, i =>
+							from.length === 0 ? UNIT : from[Math.floor(randomAt(seed, i) * from.length)]
+						)
+					},
+					['seed', 'xs']
+				),
+				generic(['T'], { seed: seedType, xs: vectorOf(T) }, sequenceOf(T))
+			),
+			'A sequence of what is in `xs`, each as likely as the next. With nothing in `xs`, it gives `()`.',
+			'Random Pick'
+		),
+	}
 }
 
 function makeReverse(): TypedHostFn {

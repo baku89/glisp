@@ -19,6 +19,7 @@ Hosts depend on `@glisp/lang`, and it depends on nothing. Keep it that way.
 These decide most questions. If a change seems to need breaking one, ask.
 
 - **Evaluation changes nothing.** Not the AST, not any env. Editing means producing a new AST. An effect is an `IO` value that a host runs.
+- **Evaluation comes to the same, every time and on any machine.** No clock and no `Math.random`: randomness is `random`, from a seed that a host writes into the program.
 - **The environment is a let-block**, visible and editable, not hidden state. `prelude ← session ← project` are let-blocks in a chain.
 - **Evaluation never throws on errors in the program.** A failure yields `()` with a diagnostic, and a typed slot turns `()` into the type's default, so there is always something to draw.
 - **Syntax stays minimal.** Every form has to work in code, blocks, and direct manipulation alike. Reserved words are symbols where possible (`=>`, `?`, `|>`, `:`). There are no keyword literals (`:foo`).

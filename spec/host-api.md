@@ -101,7 +101,7 @@ makeTopLevel({ add: host(add) })
 
 The fifth argument is the type of variadic arguments, and the sixth is what they are called (`rest` if unsaid). `numberType` and the others are bound in the prelude, so read them from there: `evaluate(parse('number'), env).value`.
 
-The types are checked at run time: an argument that does not fit is replaced by the type's default, with a diagnostic. A host function must be pure, because `Runtime` caches its results across edits.
+The types are checked at run time: an argument that does not fit is replaced by the type's default, with a diagnostic. A host function must be pure, because `Runtime` caches its results across edits, and because a program comes to the same on any machine: it reads no clock and no `Math.random`.
 
 A host function that throws yields `()` with a diagnostic.
 
