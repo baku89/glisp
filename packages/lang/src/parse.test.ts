@@ -521,3 +521,10 @@ describe('parse — special forms (parser is permissive)', () => {
 		expect(roundTrip(src)).toBe(src)
 	})
 })
+
+describe('a slash with nothing after it', () => {
+	it('is division, as a name on its own', () => {
+		expect(print(parse('/'))).toBe('/')
+		expect(print(parse('(/ 4 /)'))).toBe('(/ 4 /)')
+	})
+})

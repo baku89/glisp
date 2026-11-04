@@ -225,7 +225,7 @@ const NON_ASCII_IDENT_START = /^[\p{L}\p{No}\p{Nl}\p{S}\p{Pc}]$/u
 
 /** The whole character at `pos`, which may be two UTF-16 units. */
 function charAt(src: string, pos: number): string {
-	return String.fromCodePoint(src.codePointAt(pos)!)
+	return pos < src.length ? String.fromCodePoint(src.codePointAt(pos)!) : ''
 }
 
 function isIdentifierChar(ch: string): boolean {

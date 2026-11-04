@@ -11,15 +11,21 @@ import {
 	type Env,
 	evaluate,
 	freeRefs,
+	isGlispClosure,
 	isTypedHostFn,
 	LetAST,
+	makeType,
+	makeTypedFn,
 	MetaAST,
 	parse,
+	pushLetFrame,
+	resolveTypeSlot,
 	SymAST,
 	toAst,
 	type TypedHostFn,
 	type TypeValue,
 	VecAST,
+	withOptional,
 	withPathsInto,
 } from '@glisp/lang'
 
@@ -81,7 +87,7 @@ const titled = (name: string, fn: TypedHostFn): string =>
 	(fn as { label?: string }).label ?? name.split('.').at(-1)!
 
 /** What is bound in `env` that can be called, members of a type included, nearest first. */
-function functionsIn(env: Env): Filter[] {
+export function functionsIn(env: Env): Filter[] {
 	const found = new Map<string, Filter>()
 	const add = (name: string, value: unknown): void => {
 		if (!found.has(name) && isTypedHostFn(value)) {
@@ -101,9 +107,44 @@ function functionsIn(env: Env): Filter[] {
 	return [...found.values()]
 }
 
-/** What takes `values`, one to a parameter from the first. */
-export const filtersFor = (values: readonly unknown[], env: Env): Filter[] =>
-	functionsIn(env).flatMap(filter => {
+/** What says nothing of what it is, for what does not say. */
+const anything: TypeValue = makeType('_', () => true, null)
+
+/**
+ * The functions that `root` says itself, as what they would be if a host gave them: taking
+ * and giving what they say, for them to be gone about in the same way.
+ */
+export function functionsOfProgram(root: LetAST, env: Env): Filter[] {
+	const frame = pushLetFrame(root, env)
+	return [...(frame?.bindings ?? [])].flatMap(([name, { ast, env: bound }]): Filter[] => {
+		const { value } = evaluate(ast, bound)
+		if (!isGlispClosure(value)) return []
+		const { params, returnType } = value.ast
+		const typeOf = (type: AST): TypeValue => resolveTypeSlot(type, value.capturedEnv) ?? anything
+		const plain = params.filter(({ variadic }) => !variadic)
+		const tail = params.find(({ variadic }) => variadic)
+		const fn = withOptional(
+			makeTypedFn(
+				plain.map(({ type }) => typeOf(type)),
+				typeOf(returnType),
+				() => undefined,
+				plain.map(param => param.name),
+				tail && typeOf(tail.type),
+				tail?.name
+			),
+			plain.filter(({ optional }) => optional).map(param => param.name)
+		)
+		return [{ name, label: name, fn, more: [] }]
+	})
+}
+
+/** What takes `values`, one to a parameter from the first, of what `env` has and of `also`. */
+export const filtersFor = (
+	values: readonly unknown[],
+	env: Env,
+	also: readonly Filter[] = []
+): Filter[] =>
+	[...also, ...functionsIn(env).filter(({ name }) => !also.some(other => other.name === name))].flatMap(filter => {
 		const { fn } = filter
 		const more = wanted(fn, values)
 		if (more === null) return []
@@ -120,9 +161,10 @@ export const filtersFor = (values: readonly unknown[], env: Env): Filter[] =>
 	})
 
 /** A call of `filter` with `given`, the rest of what it needs being what it would be at first. */
-function callOf({ name, fn }: Filter, given: readonly AST[], env: Env): CallAST {
+export function callOf({ name, fn }: Filter, given: readonly AST[], env: Env): CallAST {
 	const names = fn.paramNames ?? []
-	const initial = initialOf(fn, given.map(ast => evaluate(ast, env).value))
+	// What it starts as goes by what it is given, so there is nothing to go by with nothing.
+	const initial = given.length === 0 ? [] : initialOf(fn, given.map(ast => evaluate(ast, env).value))
 	const rest = fn.paramTypes.slice(given.length).flatMap((type, i) => {
 		const param = names[given.length + i]
 		if (i < initial.length) return [toAst(initial[i], env)]

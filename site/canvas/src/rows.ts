@@ -96,7 +96,7 @@ const errorsIn = (root: AST, env: Env): number =>
 	}, 0)
 
 /** A name that `root` does not have yet. */
-function freeName(root: LetAST, stem: string): string {
+export function freeName(root: LetAST, stem: string): string {
 	const taken = new Set(root.bindings.map(([name]) => name))
 	let n = 1
 	while (taken.has(`${stem}${n}`)) n++

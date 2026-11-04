@@ -7,7 +7,7 @@ import {
 	inspectionOf,
 	useGlispDocument,
 } from '@glisp/tweeq'
-import { combined, type Filter, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
+import { combined, type Filter, filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
@@ -29,7 +29,9 @@ import CanvasView from './CanvasView.vue'
 import { exportSvg, openFile, saveFile } from './files'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
-import { iconOfPath, inkOn, withGraphics, isRect, type RectValue } from './graphics'
+import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
+import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
+import { iconOfPath, inkOn, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
 import {
@@ -55,6 +57,7 @@ import {
 	copyableType,
 	exportableType,
 	groupType,
+	drawingType,
 	numberType,
 	pathType,
 	rowType,
@@ -391,6 +394,7 @@ const $editor = useTemplateRef<{
 	duplicate(text: string): void
 }>('$editor')
 const $canvas = useTemplateRef<{
+	placeAt(clientX: number, clientY: number): Vec
 	glideTo(next: mat2d): void
 	zoomBy(factor: number): void
 	zoomTo(zoom: number): void
@@ -517,7 +521,7 @@ const wraps = computed(() => {
 		)
 	// What they became goes by the first of them.
 	const firstOf = (of: readonly string[]): string[] => of.slice(0, 1)
-	return filtersFor(chosen.map(({ value }) => value), env)
+	return filtersFor(chosen.map(({ value }) => value), env, functionsOfProgram(root, env))
 		.filter(({ name }) => !NOT_FILTERS.has(name))
 		.flatMap(filter => {
 			const item = {
@@ -623,6 +627,94 @@ function slotAction(command: SlotCommand) {
 		},
 	}
 }
+
+/** What was last known of where the pointer is, for what comes up there. */
+let pointerAt: [number, number] | null = null
+useEventListener(window, 'pointermove', (event: PointerEvent) => {
+	pointerAt = [event.clientX, event.clientY]
+}, { passive: true, capture: true })
+
+/** Where what is searched for by Tab comes up, while it is up. */
+const quickAddAt = ref<readonly [number, number] | null>(null)
+/** The parameter picked out in the inspector, which is what a Tab is about, if there is one. */
+const inspectorRow = ref<string | null>(null)
+/** Where what is searched for goes, if it goes in a value, and is not added to what is drawn. */
+const quickFillAt = ref<string | null>(null)
+// Going to the canvas is leaving what was picked out there.
+useEventListener(window, 'pointerdown', (event: PointerEvent) => {
+	if ((event.target as HTMLElement | null)?.closest?.('.canvas')) inspectorRow.value = null
+}, { capture: true })
+/** Where that was asked for in what is drawn, which is where a shape goes. */
+let quickAddPlace: Vec = [0, 0]
+
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+	if (event.key !== 'Tab' || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return
+	if (event.defaultPrevented || quickAddAt.value !== null) return
+	const target = event.target as HTMLElement | null
+	if (target?.closest?.('input, textarea, select, [contenteditable]')) return
+	event.preventDefault()
+	const at: [number, number] = pointerAt ?? [window.innerWidth / 2, window.innerHeight / 2]
+	quickAddPlace = $canvas.value?.placeAt(at[0], at[1]) ?? [0, 0]
+	// What is drawn is added to. A value on its own, however it is selected, wants another.
+	const [only, other] = selection.value
+	quickFillAt.value =
+		inspectorRow.value ?? (only !== undefined && other === undefined && !drawingType.fits(only.value) ? only.row : null)
+	quickAddAt.value = at
+})
+
+/** What takes what is selected, and then all there is to add, as what can be searched for. */
+const quickAddItems = computed<readonly QuickAddItem[]>(() => {
+	if (quickAddAt.value === null) return []
+	const filling = quickFillAt.value
+	const program = programOf(document.root.value)
+	if (filling !== null) {
+		return program === null
+			? []
+			: fillersAt(program, document.env.value, filling).map(filler => ({
+					id: `fill_${filler.value ? 'value_' : ''}${filler.name}`,
+					name: filler.name,
+					label: filler.label,
+					group: filler.group,
+					icon: filler.value ? 'mdi:at' : (iconOfFunction(filler.name) ?? 'mdi:function-variant'),
+					perform() {
+						const next = withFilled(program, document.env.value, filling, filler, quickAddPlace)
+						if (next instanceof LetAST) setProgram(next)
+					},
+				}))
+	}
+	const env = document.env.value
+	const root = program
+	const addable = root === null ? [] : addablesIn(root, env)
+	const drawn = new Set(addable.map(({ name }) => name))
+	const taken = wraps.value.filter(({ id }) => drawn.has(id.slice('wrap_'.length))).map(item => ({
+		id: item.id,
+		name: item.id.slice('wrap_'.length),
+		label: item.label,
+		group: 'Selected',
+		icon: item.icon,
+		perform: 'params' in item ? () => void actions.perform(item.id) : (item.perform as () => void),
+	}))
+	const already = new Set(taken.map(({ name }) => name))
+	return [
+		...taken,
+		...addable
+			.filter(({ name }) => !already.has(name))
+			.map(({ name, label, group, quiet }) => ({
+				id: `add_${name}`,
+				name,
+				label,
+				group,
+				...(quiet ? { quiet } : {}),
+				icon: iconOfFunction(name) ?? 'mdi:function-variant',
+				perform() {
+					const added = root && withAdded(root, env, name, quickAddPlace)
+					if (!added) return
+					tool.value = 'select'
+					setProgram(added.ast, [added.row])
+				},
+			})),
+	]
+})
 
 // What a handle picked out of a row is what a key is about, rather than all of the row.
 useEventListener(
@@ -872,6 +964,13 @@ function selectInTree(row: string | null): void {
 					@select="selectOnCanvas"
 					@menu="openCanvasMenu"
 				/>
+				<QuickAdd
+					v-if="quickAddAt !== null"
+					:items="quickAddItems"
+					:at="quickAddAt"
+					:placeholder="quickFillAt === null ? 'Add…' : 'Replace with…'"
+					@close="quickAddAt = null"
+				/>
 				<Popover
 					v-if="canvasMenu && canvasMenuItems.length > 0"
 					:reference="null"
@@ -989,6 +1088,7 @@ function selectInTree(row: string | null): void {
 						:inspect="inspected"
 						:alsoSelected="pickedOut"
 						:iconOfValue="iconOfPath"
+						@select="inspectorRow = $event"
 						:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 						:pasteAs="bindingsOfSvg"
 						:iconOfFunction="iconOfFunction"

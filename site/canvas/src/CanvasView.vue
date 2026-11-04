@@ -438,6 +438,11 @@ defineExpose({
 		const box = canvas.getBoundingClientRect()
 		return shapeAt(clientX - box.left, clientY - box.top)?.row ?? null
 	},
+	/** Where a place on the screen is in what is drawn. */
+	placeAt(clientX: number, clientY: number): Vec {
+		const box = $canvas.value?.getBoundingClientRect()
+		return roundedPlace(clientX - (box?.left ?? 0), clientY - (box?.top ?? 0))
+	},
 	/** Go over to this as the view. */
 	glideTo,
 	/** Zoom by this much, around the middle of what can be seen. */
