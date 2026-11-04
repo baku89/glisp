@@ -83,6 +83,7 @@ const pairOf = (slots: readonly Slot[]) => {
 }
 
 const revealer = inject(REVEALER, null)
+const returns = computed(() => props.slots.some(slot => slot.key === 'body'))
 
 function revealNew(): void {
 	const key = props.append?.key
@@ -105,9 +106,10 @@ function addOneMore(): void {
 function inserterOf(slot: Slot): (() => void) | undefined {
 	const { append } = props
 	if (!append) return undefined
-	const at = slot.key.startsWith('binding:')
-		? props.slots.findIndex(other => other.key === slot.key)
-		: slot.sort?.index
+	const at =
+		slot.key.startsWith('binding:') || slot.key === 'body'
+			? props.slots.findIndex(other => other.key === slot.key)
+			: slot.sort?.index
 	if (at === undefined) return undefined
 	return () => {
 		// A new row has a place of its own, so that the others keep theirs.
@@ -170,6 +172,9 @@ const pathOf = (slot: Slot): string =>
 		:show="show"
 		@change="emit('change', $event)"
 	/>
+	<div v-if="append && noAddRow && !returns" class="end">
+		<AstGapAdd @add="addOneMore" />
+	</div>
 	<ParameterTreeItem
 		v-for="argument in missing"
 		:key="`missing:${argument.name}`"
@@ -187,9 +192,6 @@ const pathOf = (slot: Slot): string =>
 			<AstGapAdd @add="addOneMore" />
 		</template>
 	</ParameterTreeItem>
-	<div v-if="append && noAddRow" class="end">
-		<AstGapAdd @add="addOneMore" />
-	</div>
 </template>
 
 <style scoped>

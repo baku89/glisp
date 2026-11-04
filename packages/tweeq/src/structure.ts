@@ -702,6 +702,9 @@ function viewOfRecord(ast: RecordAST, env: Env): NodeView {
 	return { ...LEAF, slots }
 }
 
+/** What a block comes to, which it may have or not. */
+const RETURN = 'Return'
+
 function viewOfLet(ast: LetAST, env: Env): NodeView {
 	const inside = pushLetFrame(ast, env)
 	const slots: Slot[] = ast.bindings.map(([name, value], i) => ({
@@ -721,16 +724,27 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 	if (ast.body !== null) {
 		slots.push({
 			key: 'body',
-			label: '=',
+			label: RETURN,
 			ast: ast.body,
 			env: inside,
 			expected: null,
 			replace: child => new LetAST(ast.bindings, child),
+			remove: () => new LetAST(ast.bindings, null),
 		})
 	}
 	return {
 		...LEAF,
 		slots,
+		missing:
+			ast.body === null
+				? [
+						{
+							name: RETURN,
+							expected: null,
+							add: () => new LetAST(ast.bindings, new LitAST(0)),
+						},
+					]
+				: [],
 		append: {
 			label: 'Binding',
 			key: `${BINDING}${freshName(ast)}`,

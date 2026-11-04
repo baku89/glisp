@@ -11,6 +11,7 @@ import { ParameterTreeContextKey } from 'tweeq/ParameterGrid'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
+import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import { SOLVER } from './selection'
 import {
@@ -66,9 +67,6 @@ const problem = computed(() =>
 /** What the field shows while it is not being edited. */
 const shown = computed(() => {
 	if (props.entry.display !== undefined) return props.entry.display
-	// A block of only bindings comes to nothing. They are there to open.
-	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
-	if (bare.kind === 'let' && bare.body === null) return '()'
 	const value = result.value?.value
 	if (result.value === null || typeof value === 'function') {
 		return sourceOf(ast.value)
@@ -91,6 +89,17 @@ const upToNow = computed(() => {
 	return typeof value === 'number'
 		? String(Number(value.toFixed(4)))
 		: props.show(value, env)
+})
+
+// What comes to nothing looks like it, as does a block of only bindings.
+const isUnit = computed(() => {
+	if (props.entry.display !== undefined) return false
+	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
+	return (
+		view.value.editor?.kind === 'unit' ||
+		(bare.kind === 'let' && bare.body === null) ||
+		result.value?.value === UNIT
+	)
 })
 
 // What comes to a number or a string looks like one, as a literal does.
@@ -267,6 +276,12 @@ const label = (value: unknown): string =>
 			:options="[...view.editor.options]"
 			:labelizer="label"
 			@update:modelValue="update(withLiteral(ast, $event as never))"
+		/>
+		<InputUnit
+			v-else-if="isUnit"
+			:menuItems="fieldMenu"
+			:inlinePosition="inlinePosition"
+			@edit="editExpression"
 		/>
 		<InputTextBase
 			v-else

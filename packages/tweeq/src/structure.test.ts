@@ -54,7 +54,7 @@ describe('viewOf', () => {
 	it('shows vectors, records and let-blocks by their children', () => {
 		expect(labels('[1 2]')).toEqual(['0', '1'])
 		expect(labels('{x: 1 y: 2}')).toEqual(['x', 'y'])
-		expect(labels('{a = 1 b = 2 (+ a b)}')).toEqual(['a', 'b', '='])
+		expect(labels('{a = 1 b = 2 (+ a b)}')).toEqual(['a', 'b', 'Return'])
 	})
 
 	it('sees through metadata', () => {
@@ -107,7 +107,6 @@ describe('editing', () => {
 		expect(removed('(+ 1 2 3)', 1)).toBe('(+ 1 3)')
 		expect(removed('(take [1] n=1)', 1)).toBe('(take [1])')
 		expect(view('(take [1] 1)').slots[0]!.remove).toBeUndefined()
-		expect(view('{a = 1 a}').slots[1]!.remove).toBeUndefined()
 	})
 
 	it('grows a variadic call and a vector', () => {
@@ -1038,6 +1037,24 @@ describe('referenceAt', () => {
 	it('wants both to be there', () => {
 		expect(linked('{a = 1}', 'binding:a', 'binding:z')).toBeNull()
 		expect(linked('{a = 1}', 'binding:z', 'binding:a')).toBeNull()
+	})
+})
+
+describe('what a block returns', () => {
+	it('can be added, and goes last', () => {
+		const block = view('{a = 1}')
+		expect(block.missing.map(m => m.name)).toEqual(['Return'])
+		expect(print(block.missing[0]!.add())).toBe('{a = 1 0}')
+	})
+
+	it('can be deleted, and bindings go ahead of it', () => {
+		const block = view('{a = 1 a}')
+		expect(block.missing).toEqual([])
+		const returned = block.slots.find(s => s.key === 'body')!
+		expect(returned.label).toBe('Return')
+		expect(print(returned.remove!())).toBe('{a = 1}')
+		expect(print(block.append!.insert(1))).toBe('{a = 1 x = 0 a}')
+		expect(print(block.append!.add())).toBe('{a = 1 x = 0 a}')
 	})
 })
 

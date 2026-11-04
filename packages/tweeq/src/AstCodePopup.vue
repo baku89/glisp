@@ -16,6 +16,8 @@ const props = defineProps<{
 	ast: AST
 	/** What to start with, if not what is being edited. */
 	start?: string
+	/** What is written, as what it is short for, if it is short for anything. */
+	expand?: (written: string) => string
 	/** Why what is written cannot go here, if it cannot. */
 	refuse?: (next: AST) => string | null
 }>()
@@ -33,11 +35,14 @@ const draft = ref(initial)
 const problem = ref<string | null>(null)
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 
+const parsed = (): AST | null =>
+	parseSource(props.expand?.(draft.value) ?? draft.value)
+
 function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
 	editor = instance
 	editOneExpression(instance, {
 		// With nothing written, there is nothing to go on with.
-		isFinished: () => draft.value.trim() === '' || parseSource(draft.value) !== null,
+		isFinished: () => draft.value.trim() === '' || parsed() !== null,
 		cancel: () => emit('close'),
 		confirm: finish,
 	})
@@ -46,7 +51,7 @@ function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
 /** Take what is written, and if it cannot be read, stay, rather than lose it. */
 function finish(): void {
 	if (draft.value.trim() !== '' && draft.value !== initial) {
-		const next = parseSource(draft.value)
+		const next = parsed()
 		problem.value =
 			next === null
 				? 'This cannot be read yet. Esc leaves it as it was.'

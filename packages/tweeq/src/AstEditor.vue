@@ -129,17 +129,18 @@ function replaceRoot(next: AST): void {
 	}
 }
 
-// The whole program as code, a binding to a line, which is how it is easiest to read.
+// The whole program as code, a binding to a line. It can only be a block of them, so
+// that goes unsaid.
 const editingEnv = ref(false)
 const $envButton = useTemplateRef<HTMLElement>('$envButton')
-const envSource = computed(() => {
-	const lines = props.document.root.value.bindings.map(
-		([name, value]) => `\t${name} = ${print(value)}\n`
-	)
-	return lines.length === 0 ? '{}' : `{\n${lines.join('')}}`
-})
+const envSource = computed(() =>
+	props.document.root.value.bindings
+		.map(([name, value]) => `${name} = ${print(value)}`)
+		.join('\n')
+)
+const asEnv = (written: string): string => `{\n${written}\n}`
 const refuseAsEnv = (next: AST): string | null =>
-	next.kind === 'let' ? null : 'This has to be a block of bindings.'
+	next.kind === 'let' && next.body === null ? null : 'This can only have bindings.'
 
 const selection = shallowRef<Selection | null>(null)
 provide(SELECTION, selection)
@@ -243,6 +244,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				:reference="$envButton"
 				:ast="document.root.value"
 				:start="envSource"
+				:expand="asEnv"
 				:refuse="refuseAsEnv"
 				@change="replaceRoot"
 				@close="editingEnv = false"
