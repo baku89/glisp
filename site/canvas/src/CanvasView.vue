@@ -88,6 +88,7 @@ const emit = defineEmits<{
 
 const FRAME_ALPHA = 0.4
 const SOURCE_ALPHA = 0.5
+const UNPAINTED_ALPHA = 0.25
 const GRID_DOT = 2
 const GRID_DOT_ALPHA = 0.18
 const GRID_LINE_ALPHA = 0.06
@@ -754,9 +755,13 @@ function draw(): void {
 				}
 			}
 			if (paint === undefined && !isMarked(shape)) {
+				// With no style it has no look of its own, and is only there to be found and worked on.
+				context.save()
+				context.globalAlpha = UNPAINTED_ALPHA
 				context.strokeStyle = ink
-				context.lineWidth = 1.5
+				context.lineWidth = 1
 				context.stroke(onScreenPath)
+				context.restore()
 			}
 		} else if (shape.draw === 'point' && !isMarked(shape)) {
 			context.fillStyle = guide
