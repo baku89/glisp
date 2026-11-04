@@ -437,6 +437,51 @@ export function gripAt(
 	return grip === null ? null : { ...grip, transform: found.transform }
 }
 
+const shown = (n: number): string => String(Math.round(n * 1000) / 1000)
+
+const isNumbers = (value: unknown): value is number[] =>
+	Array.isArray(value) && value.every(element => typeof element === 'number')
+
+/**
+ * What `changes` have made of the row at `row`, a line to each thing that changed: what
+ * it is called, and what it is now. What cannot be told as numbers is left out.
+ */
+export function readoutOf(
+	root: AST,
+	env: Env,
+	row: string,
+	changes: readonly Change[],
+	before?: AST
+): string[] {
+	const lines = linesOf(root, env, row, changes)
+	if (before === undefined) return lines
+	// What is not any different goes unsaid, unless nothing is yet.
+	const was = new Set(linesOf(before, env, row, changes))
+	const different = lines.filter(line => !was.has(line))
+	return different.length > 0 ? different : lines
+}
+
+function linesOf(root: AST, env: Env, row: string, changes: readonly Change[]): string[] {
+	const found = rowAt(root, env, row)
+	if (found === null) return []
+	const lines = changes.flatMap(({ route }) => {
+		let label = row.split('/').at(-1)!.replace(/^binding:/, '')
+		let at = follow(found.node, found.env)
+		for (const arg of route) {
+			if (at === null) return []
+			const slot = viewOf(bare(at.node), at.env).slots.find(s => s.key === `arg${arg}`)
+			if (slot === undefined) return []
+			label = slot.label
+			at = route.at(-1) === arg ? { node: slot.ast, env: slot.env } : follow(slot.ast, slot.env)
+		}
+		if (at === null) return []
+		const { value } = evaluate(readByName(at.node), at.env)
+		if (typeof value === 'number') return [`${label} ${shown(value)}`]
+		return isNumbers(value) ? [`${label} ${value.map(shown).join(', ')}`] : []
+	})
+	return [...new Set(lines)]
+}
+
 /** What `route` goes down to from `start`, through the calls on the way. */
 function nodeAt(start: AST, startEnv: Env, route: readonly number[]): AST | null {
 	let node = start

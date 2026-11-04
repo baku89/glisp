@@ -30,6 +30,7 @@ import {
 	nameFor,
 	nearestSnap,
 	penned,
+	readoutOf,
 	roundedChanges,
 	roundedTo,
 	rowsWithin,
@@ -452,6 +453,55 @@ describe('snapping', () => {
 		expect(print(drawnFrom(root, env, 'x', 'rect', { at: [10, 10], target: null, label: '' }, [20, 20], false).bindings.at(-1)![1])).toBe(
 			'(path.rect [10 10] [10 10])'
 		)
+	})
+})
+
+describe('what a handle has changed', () => {
+	const readout = (src: string, index: number, to: Vec, row = 'binding:c') => {
+		const root = parse(src)
+		const changes = gripAt(root, env, row)!.handles[index]!.to(to, to)
+		return readoutOf(changed(root, env, row, changes).ast!, env, row, changes, root)
+	}
+
+	it('is what it is called, and what it is now', () => {
+		expect(readout('{c = (path.circle [0 0] 10)}', 0, [30, 0])).toEqual(['radius 30'])
+		expect(readout('{c = (path.circle [0 0] 10)}', 1, [5, 6])).toEqual(['center 5, 6'])
+	})
+
+	it('has each thing, once', () => {
+		expect(readout('{c = (path.rect [0 0] [10 10])}', 0, [-5, 0])).toEqual([
+			'topLeft -5, 0',
+			'size 15, 10',
+		])
+	})
+
+	it('leaves out what is not any different', () => {
+		expect(readout('{c = (path.rect [0 0] [10 10])}', 7, [20, 30])).toEqual(['size 20, 30'])
+	})
+
+	it('has what it is, until anything is different', () => {
+		expect(readout('{c = (path.circle [0 0] 10)}', 0, [10, 0])).toEqual(['radius 10'])
+	})
+
+	it('comes to what it refers to, as well', () => {
+		expect(readout('{r = 10 c = (path.circle [0 0] r)}', 0, [30, 0])).toEqual(['radius 30'])
+	})
+
+	it('goes down to the call that makes a matrix', () => {
+		expect(readout('{c = (path.transform (path.circle [0 0] 1) (mat2d.rotate 0))}', 0, [0, 80])).toEqual([
+			'angle 90',
+		])
+	})
+
+	it('leaves out what is not numbers', () => {
+		expect(readout('{c = (path.d "M 0,0 L 10,0")}', 1, [5, 5])).toEqual([])
+	})
+
+	it('is rounded to read', () => {
+		const root = parse('{c = (path.circle [0 0] 1)}')
+		const next = parse('{c = (path.circle [0 0] 1.23456)}')
+		const changes = gripAt(root, env, 'binding:c')!.handles[0]!.to([9, 0], [9, 0])
+		expect(readoutOf(next, env, 'binding:c', changes)).toEqual(['radius 1.235'])
 	})
 })
 

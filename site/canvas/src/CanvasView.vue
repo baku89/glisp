@@ -19,6 +19,7 @@ import {
 	nameFor,
 	nearestSnap,
 	penned,
+	readoutOf,
 	roundedChanges,
 	roundedTo,
 	rowsWithin,
@@ -117,6 +118,13 @@ let pen: { base: LetAST; name: string; anchors: readonly Anchor[] } | null = nul
 /** From the last place to the pointer, on screen. */
 const penLine = shallowRef<[Vec, Vec] | null>(null)
 
+/** What a handle being dragged has made of what it changes, beside the pointer. */
+const readout = shallowRef<{
+	at: Vec
+	lines: readonly string[]
+	fallback: string
+	place: Vec
+} | null>(null)
 /** What the pointer has snapped to, and where that is, to say so. */
 const snapMark = shallowRef<SnapPoint | null>(null)
 const cursor = ref('default')
@@ -221,7 +229,7 @@ const SNAP_LABEL_FONT = `11px ${getComputedStyle(window.document.documentElement
 
 /**
  * What has been snapped to, as Illustrator says it: a mark there, the line if it was
- * one, and its name. Filled, if it will be referred to, rather than only being the same.
+ * one, and its name.
  */
 function drawSnap(
 	context: CanvasRenderingContext2D,
@@ -245,18 +253,48 @@ function drawSnap(
 		context.arc(x, y, HANDLE_RADIUS + 2, 0, Math.PI * 2)
 		context.stroke()
 	}
+	// Bare, with an edge of the paper to stay readable over what is under it, and bold
+	// if it will be referred to, rather than only being the same.
+	context.font = target === null ? SNAP_LABEL_FONT : `bold ${SNAP_LABEL_FONT}`
+	context.textBaseline = 'middle'
+	const [left, top] = [x + 11, y - 13]
+	context.lineJoin = 'round'
+	context.lineWidth = 3
+	context.strokeStyle = paper
+	context.strokeText(label, left, top)
+	context.fillStyle = accent
+	context.fillText(label, left, top)
+	context.restore()
+}
+
+/** What is being changed, beside the pointer, to read as it goes. */
+function drawReadout(
+	context: CanvasRenderingContext2D,
+	ink: string,
+	border: string,
+	paper: string
+): void {
+	if (readout.value === null) return
+	const { at, lines, fallback, place } = readout.value
+	// A path's data says nothing to read, so it is where it has got to.
+	const said =
+		lines.length > 0
+			? lines
+			: [`${fallback} ${place.map(n => Math.round(n * 1000) / 1000).join(', ')}`.trim()]
+	context.save()
 	context.font = SNAP_LABEL_FONT
 	context.textBaseline = 'middle'
-	const width = context.measureText(label).width + 10
-	const [left, top] = [x + 10, y - 22]
+	const width = Math.max(...said.map(line => context.measureText(line).width)) + 12
+	const [left, top] = [at[0] + 14, at[1] + 14]
 	context.beginPath()
-	context.roundRect(left, top, width, 16, 3)
-	context.fillStyle = target === null ? paper : accent
-	context.fill()
+	context.roundRect(left, top, width, said.length * 15 + 5, 4)
+	context.fillStyle = paper
+	context.strokeStyle = border
 	context.lineWidth = 1
+	context.fill()
 	context.stroke()
-	context.fillStyle = target === null ? accent : paper
-	context.fillText(label, left + 5, top + 8.5)
+	context.fillStyle = ink
+	said.forEach((line, i) => context.fillText(line, left + 6, top + 10.5 + i * 15))
 	context.restore()
 }
 
@@ -304,6 +342,8 @@ function draw(): void {
 		drawSnap(context, snapMark.value, accent, paper)
 	}
 
+	drawReadout(context, ink, color('--tq-color-border'), paper)
+
 	if (penLine.value !== null) {
 		const [[ax, ay], [bx, by]] = penLine.value
 		context.lineWidth = 1
@@ -340,6 +380,7 @@ watchEffect(() => {
 		range.value,
 		penLine.value,
 		snapMark.value,
+		readout.value,
 	]
 	draw()
 })
@@ -652,13 +693,23 @@ function dragHandle(symmetric: boolean, valueOnly: boolean): void {
 
 	const changes = handle.to(snap?.at ?? wanted, from, { symmetric })
 	const finest = handle.fine ? pointerStep() / FINE_BY : pointerStep()
-	const next = apply(row, roundedChanges(changes, finest), base)
+	const rounded = roundedChanges(changes, finest)
+	const next = apply(row, rounded, base)
 	const { place } = handle
 	if (next.ast !== null && snap !== null && !valueOnly && !symmetric && typeof place === 'number') {
 		const referring = linked(next.ast, props.document.env.value, row, place, snap)
 		if (referring !== null) next.ast = referring
 	}
 	commit(next)
+	readout.value =
+		next.ast === null
+			? null
+			: {
+					at,
+					lines: readoutOf(next.ast, props.document.env.value, row, rounded, base),
+					fallback: handle.name ?? '',
+					place: snap?.at ?? wanted,
+				}
 }
 
 /** The shape being drawn, as far as the pointer has got, and as even as asked. */
@@ -786,6 +837,7 @@ useEventListener(window, 'pointerup', () => {
 	pressed = null
 	range.value = null
 	snapMark.value = null
+	readout.value = null
 })
 </script>
 
