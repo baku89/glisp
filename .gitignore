@@ -20,3 +20,6 @@ yarn-debug.log*
 .idea
 .vscode
 *.sw?
+
+# Browser testing
+.playwright-mcp/
