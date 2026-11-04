@@ -1113,7 +1113,7 @@ function callTypedHostFn(
 		for (const d of bubbled) diagnostics.push(d)
 		return { value: fn.written?.(value, positional) ?? value, diagnostics }
 	} catch (e) {
-		if (isStackOverflow(e)) throw e
+		if (mustUnwind(e)) throw e
 		const message = e instanceof Error ? e.message : String(e)
 		diagnostics.push(diag(site, env, `host function threw: ${message}`))
 		return { value: UNIT, diagnostics }
@@ -1188,6 +1188,8 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 		return cached.result
 	}
 	storeMemo(desugared, env, { kind: 'in-progress' })
+	if (evaluationDepth === 0) workDone = 0
+	if (++workDone > MAX_WORK) throw new TooMuchWork()
 	evaluationDepth++
 	try {
 		const result =
@@ -1202,6 +1204,12 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 		// Unwinding: this evaluation did not finish, so it must not look like a
 		// cycle later. Only the outermost call has the stack left to report it.
 		memo.get(desugared)?.delete(env ?? ROOT_ENV_KEY)
+		if (evaluationDepth === 1 && e instanceof TooMuchWork) {
+			// Worth keeping, as finding this out again is what took so long.
+			const result = fail(desugared, env, 'too much to work out')
+			storeMemo(desugared, env, { kind: 'computed', result })
+			return result
+		}
 		if (evaluationDepth === 1 && isStackOverflow(e)) {
 			return fail(desugared, env, 'recursion too deep')
 		}
@@ -1221,6 +1229,19 @@ let evaluationDepth = 0
 function isStackOverflow(e: unknown): boolean {
 	return e instanceof Error && /call stack|too much recursion/i.test(e.message)
 }
+
+/**
+ * What one outermost evaluation may work out. A recursion that branches can go on for
+ * longer than anyone can wait without ever getting deep, and evaluation is what a host
+ * is waiting on. It is counted, and not timed, so that a program always comes to the same.
+ */
+const MAX_WORK = 2_000_000
+let workDone = 0
+
+class TooMuchWork extends Error {}
+
+/** What says nothing about the code it happened in, so has to get all the way out. */
+const mustUnwind = (e: unknown): boolean => e instanceof TooMuchWork || isStackOverflow(e)
 
 /**
  * A cache that outlives env frames, supplied by `Runtime`. `evaluate` memoizes
@@ -1687,7 +1708,7 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 			for (const d of bubbled) diagnostics.push(d)
 			return { value, diagnostics }
 		} catch (e) {
-			if (isStackOverflow(e)) throw e
+			if (mustUnwind(e)) throw e
 			const message = e instanceof Error ? e.message : String(e)
 			diagnostics.push(diag(ast, inside, `host function threw: ${message}`))
 			return { value: UNIT, diagnostics }
@@ -2310,7 +2331,7 @@ function evalPipe(ast: CallAST, env: Env): EvalResult {
 			try {
 				value = (fnValue as (v: unknown) => unknown)(value)
 			} catch (e) {
-				if (isStackOverflow(e)) throw e
+				if (mustUnwind(e)) throw e
 				const message = e instanceof Error ? e.message : String(e)
 				diagnostics.push(diag(stepAst, env, `pipe step threw: ${message}`))
 				value = UNIT

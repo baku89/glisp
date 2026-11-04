@@ -358,6 +358,7 @@ A path inside an argument is not adjusted for its new depth, so such a rung may 
 - Path navigating above top-level or addressing a non-existent child.
 - Out-of-bounds access (`[].1`, `(rec "missing-key")`).
 - Cycle detected during forcing.
+- Recursion too deep, or too much to work out in one evaluation, so that a program that would never finish comes to `()` instead of hanging its host. Recursion among functions is otherwise ordinary.
 - Sub-expression that cannot be reduced to a value for any reason.
 
 `()` is polymorphic in the sense that it is accepted at any typed slot (function parameter, record field declared with `:`, cast). When `()` arrives at a typed slot of type `T`, it is coerced to `T`'s `default` metadata value (see [types.md](./types.md)).
