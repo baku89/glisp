@@ -1,7 +1,7 @@
-import { type LetAST, parse, print } from '@glisp/lang'
+import { buildPrelude, type Env, type LetAST, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { readProgram, sourceOfProgram } from './programSource'
+import { readProgram, rowWritten, sourceOfProgram, writtenAt } from './programSource'
 
 describe('a program as code', () => {
 	it('is a binding to a line', () => {
@@ -30,5 +30,63 @@ describe('a program as code', () => {
 
 	it('has nothing but bindings', () => {
 		expect(readProgram('a = 1\n(+ a 1)')).toMatchObject({ message: 'This can only have bindings.' })
+	})
+})
+
+describe('what a row is, in what is written', () => {
+	const env: Env = buildPrelude()
+	const WRITTEN = 'a = 1\n\nb = (+ a [2 3])\nc = (+ b kw=4)'
+	const reading = readProgram(WRITTEN)
+	const program = (reading as { ast: LetAST }).ast
+	const textAt = (row: string): string | null => {
+		const at = writtenAt(program, env, row)
+		return at && WRITTEN.slice(at.from, at.to)
+	}
+	const rowAt = (text: string, within = 0): string | null => {
+		const from = WRITTEN.indexOf(text) + within
+		return rowWritten(program, env, from, from)
+	}
+
+	it('is a binding along with its name', () => {
+		expect(textAt('binding:a')).toBe('a = 1')
+		expect(textAt('binding:b')).toBe('b = (+ a [2 3])')
+	})
+
+	it('is what it is, further in', () => {
+		expect(textAt('binding:b/arg1')).toBe('[2 3]')
+	})
+
+	it('is as near as there is to it, for a part that is not written', () => {
+		expect(textAt('binding:b/arg1/nothing')).toBe('[2 3]')
+	})
+
+	it('is nothing for what is not there', () => {
+		expect(textAt('binding:z')).toBeNull()
+	})
+
+	it('goes the other way, to the least that has it', () => {
+		expect(rowAt('a = 1')).toBe('binding:a')
+		expect(rowAt('[2 3]')).toBe('binding:b/arg1')
+		expect(rowAt('(+ a')).toBe('binding:b')
+	})
+
+	it('takes the end of something as being in it, for a cursor just after it', () => {
+		expect(rowAt('[2 3]', 5)).toBe('binding:b/arg1')
+	})
+
+	it('is the least that has all of a range', () => {
+		const from = WRITTEN.indexOf('a [2')
+		expect(rowWritten(program, env, from, from + 4)).toBe('binding:b')
+	})
+
+	it('is nothing between the rows', () => {
+		expect(rowAt('\n\nb', 1)).toBeNull()
+	})
+
+	it('comes back to the same row', () => {
+		for (const row of ['binding:a', 'binding:b', 'binding:b/arg1']) {
+			const { from, to } = writtenAt(program, env, row)!
+			expect(rowWritten(program, env, from, to)).toBe(row)
+		}
 	})
 })

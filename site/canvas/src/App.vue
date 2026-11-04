@@ -44,7 +44,7 @@ import {
 	ungrouped,
 	viewToFit,
 } from './rows'
-import { backgroundOf, isBackgroundAt, paintedRow, withPaintOfRows } from './scene'
+import { backgroundOf, isBackgroundAt, paintedRow, pathOfRow, withPaintOfRows } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -295,7 +295,12 @@ function showCode(): void {
 
 const selected = ref<readonly string[]>([])
 const paintable = computed(() =>
-	selected.value.filter(row => !isBackgroundAt(document.root.value, document.env.value, row))
+	selected.value.filter(row => {
+		const [root, env] = [document.root.value, document.env.value]
+		// A part of what a row is written as, such as a number, has no fill or line unless it is a path.
+		const isPart = !row.split('/').every(key => key.startsWith('binding:'))
+		return !isBackgroundAt(root, env, row) && (!isPart || pathOfRow(root, env, row) !== null)
+	})
 )
 
 // A background goes up through the title bar, and the window's own where it has one.
@@ -772,7 +777,12 @@ function selectInTree(row: string | null): void {
 						/>
 					</div>
 					<div v-if="codeOpened" v-show="projectTab === 'code'" class="tab-content">
-						<AstProgramCode :document="document" @problem="codeHasProblem = $event" />
+						<AstProgramCode
+							:document="document"
+							:selected="selected"
+							@problem="codeHasProblem = $event"
+							@select="selectOnCanvas"
+						/>
 					</div>
 				</FloatPanel>
 				<FloatPanel

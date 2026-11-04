@@ -3,16 +3,24 @@ import { print } from '@glisp/lang'
 import * as monaco from 'monaco-editor'
 import { InputButton } from 'tweeq/InputButton'
 import { InputCode } from 'tweeq/InputCode'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { type GlispDocument } from './document'
 import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
-import { readProgram, sourceOfProgram } from './programSource'
+import { readProgram, rowWritten, sourceOfProgram, writtenAt } from './programSource'
 
-const props = defineProps<{ document: GlispDocument }>()
+const props = defineProps<{
+	document: GlispDocument
+	/** The rows selected, whose code is what is selected here. */
+	selected?: readonly string[]
+}>()
 
-/** Whether what is written can be read, as what shows is the last that could. */
-const emit = defineEmits<{ problem: [isThere: boolean] }>()
+const emit = defineEmits<{
+	/** Whether what is written can be read, as what shows is the last that could. */
+	problem: [isThere: boolean]
+	/** What a cursor or a selection here is in: a row to each of them. */
+	select: [rows: readonly string[]]
+}>()
 
 registerGlisp()
 
@@ -23,6 +31,8 @@ const OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
 	folding: false,
 	minimap: { enabled: false },
 	scrollBeyondLastLine: false,
+	// Selected is what rows are, as much as anything being edited, with nothing to see in the gaps.
+	renderWhitespace: 'none',
 }
 
 const draft = ref(sourceOfProgram(props.document.root.value))
@@ -55,10 +65,77 @@ function showProblem(): void {
 	])
 }
 
+/** What came from here, which has nothing to go back to, being where it came from. */
+let rowsFromHere: readonly string[] | null = null
+const isSame = (a: readonly string[], b: readonly string[]): boolean => a.join() === b.join()
+
+function onCursorMoved(): void {
+	const model = editor?.getModel()
+	const current = reading.value
+	if (!model || !('ast' in current)) return
+	const { ast } = current
+	const env = props.document.env.value
+	const rows = (editor?.getSelections() ?? []).flatMap(selection => {
+		const from = model.getOffsetAt(selection.getStartPosition())
+		const to = model.getOffsetAt(selection.getEndPosition())
+		return rowWritten(ast, env, from, to) ?? []
+	})
+	rowsFromHere = [...new Set(rows)]
+	if (!isSame(rowsFromHere, props.selected ?? [])) emit('select', rowsFromHere)
+}
+
+/** Has the code of the rows be what is selected here, or where the cursor is if there are none. */
+function showRows(rows: readonly string[]): void {
+	const model = editor?.getModel()
+	const current = reading.value
+	if (!editor || !model || !('ast' in current)) return
+	const { ast } = current
+	const env = props.document.env.value
+	const ranges = rows.flatMap(row => {
+		const written = writtenAt(ast, env, row)
+		if (written === null) return []
+		const start = model.getPositionAt(written.from)
+		const end = model.getPositionAt(written.to)
+		return [new monaco.Selection(start.lineNumber, start.column, end.lineNumber, end.column)]
+	})
+	const [first] = ranges
+	if (first === undefined) {
+		const at = editor.getPosition()
+		if (at) editor.setPosition(at)
+		return
+	}
+	editor.setSelections(ranges)
+	editor.revealRangeInCenterIfOutsideViewport(first)
+}
+
 function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
 	editor = instance
 	showProblem()
+	showRows(props.selected ?? [])
+	// What is only being shown here moves it too, as what is written anew does, and neither
+	// is anything being pointed at. The first click comes before there is any focus to go by.
+	instance.onDidChangeCursorSelection(({ source, reason }) => {
+		const isShown = source === 'api' || reason === monaco.editor.CursorChangeReason.ContentFlush
+		if (!isShown) onCursorMoved()
+	})
 }
+
+watch(
+	() => props.selected ?? [],
+	rows => {
+		if (rowsFromHere === null || !isSame(rows, rowsFromHere)) showRows(rows)
+		rowsFromHere = null
+	}
+)
+
+// What is written anew has what was selected in it somewhere else.
+watch(
+	draft,
+	() => {
+		if (!editor?.hasTextFocus()) void nextTick(() => showRows(props.selected ?? []))
+	},
+	{ flush: 'post' }
+)
 
 // Whatever can be read shows as it is written, for its result to be watched.
 watch(draft, () => {
