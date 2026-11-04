@@ -73,6 +73,11 @@ const SHAPES: Readonly<Record<string, (x: number, y: number) => string>> = {
 	'path.clothoid': (x, y) => `[${x} ${y}] 0 100 0 0.03`,
 }
 
+/** What is not itself a shape, but starts around the place it is added at, to be seen there. */
+const STARTS_AROUND: Readonly<Record<string, (x: number, y: number) => string>> = {
+	'path.repeatAlong': (x, y) => `(path.circle [${x} ${y}] 100) (path.circle [0 0] 10)`,
+}
+
 const groupOf = ({ name, fn }: Filter): string => {
 	if (name in SHAPES) return 'Shapes'
 	const module = name.includes('.') ? name.slice(0, name.indexOf('.')) : null
@@ -207,7 +212,7 @@ export function withAdded(
 	const closure = closuresIn(root, env).find(([other]) => other === name)?.[1]
 	const filter = closure === undefined ? functionsIn(env).find(other => other.name === name) : undefined
 	if (closure === undefined && filter === undefined) return null
-	const shape = SHAPES[name]
+	const shape = SHAPES[name] ?? STARTS_AROUND[name]
 	const call: AST =
 		closure !== undefined
 			? callOfClosure(name, closure, env, [x, y])

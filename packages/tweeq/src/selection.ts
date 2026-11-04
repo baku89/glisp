@@ -1,3 +1,4 @@
+import type { TypeValue } from '@glisp/lang'
 import type { AST } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import type { MenuItem } from 'tweeq/Menu'
@@ -92,6 +93,9 @@ export interface Linker {
 	pasted(text: string): string | null
 	/** Give the call at `at` what it is not yet given of `parameter`, as `text` on the clipboard. */
 	pasteMissing(at: string, parameter: string, text: string): boolean
+	/** Gives what is written out at `path` a name in the program, if it can have one. */
+	canExtract(path: string): boolean
+	extract(path: string): void
 	/** Puts what `text` binds where it belongs at `path`, if it reads so and has a place. */
 	pasteInto(path: string, text: string): boolean
 }
@@ -110,6 +114,16 @@ export const VALUE_ICON: InjectionKey<(value: unknown) => string | null> =
 	Symbol('glisp-value-icon')
 
 /** Whether this is a list of what there is, where only a group opens. */
+/** How a host has a value chosen by pointing at something, for what can be pointed at. */
+export interface ValuePicker {
+	wants(expected: TypeValue | null): boolean
+	/** Whether the value at `path` is what is being chosen for now. */
+	isFor(path: string): boolean
+	/** Start choosing for it, from what is pressed, or stop. */
+	toggle(path: string, from: Element): void
+}
+export const VALUE_PICKER: InjectionKey<ValuePicker> = Symbol('glisp-value-picker')
+
 /** Whether what is around a row is locked, and what is in it with it. */
 export const LOCKED: InjectionKey<() => boolean> = Symbol('glisp-locked')
 export const LAYERS: InjectionKey<boolean> = Symbol('glisp-layers')

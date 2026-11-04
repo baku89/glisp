@@ -17,7 +17,7 @@ import { iconOf } from './icons'
 import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
-	HOST_KEY, ALSO_SELECTED, ISOLATED, LAYER_LABEL, LAYER_ROWS, LAYERS, LINKER, LOCKED, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
+	HOST_KEY, ALSO_SELECTED, ISOLATED, LAYER_LABEL, LAYER_ROWS, LAYERS, LINKER, LOCKED, VALUE_PICKER, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	slotAlong,
@@ -145,6 +145,11 @@ const turnable = computed(
 	() => !props.entry.absent && isAngleInput(props.entry.expected) && typeof placeValue.value === 'number'
 )
 const PAD_WIDTH = 26
+const valuePicker = inject(VALUE_PICKER, null)
+/** What can be chosen by pointing at it has a way to start doing that. */
+const pointable = computed(
+	() => !isFunction.value && !props.entry.absent && !locked.value && (valuePicker?.wants(props.entry.expected) ?? false)
+)
 const solver = inject(SOLVER, null)
 const titled = inject(TITLED, false)
 const roomFor = (count: number): NumbersFit =>
@@ -481,6 +486,8 @@ watch(
 			class="value-row"
 			:class="{ stacked: inline && fit === 'stacked', locked, isolated: isIsolated }"
 			:data-row-path="entry.absent || isFunction ? undefined : path"
+			:data-takes-drop="pointable ? path : undefined"
+			:data-tq-takes-drag="pointable ? '' : undefined"
 		>
 			<InputTranslate
 				v-if="translatable"
@@ -517,6 +524,18 @@ watch(
 				@change="emit('change', $event)"
 			/>
 			<div v-else ref="$anchor" />
+			<button
+				v-if="pointable"
+				v-tooltip="'Pick from the Canvas'"
+				class="point-at"
+				:class="{ active: valuePicker?.isFor(path) }"
+				type="button"
+				aria-label="Pick from the Canvas"
+				@click.stop="valuePicker?.toggle(path, $event.currentTarget as Element)"
+				@dblclick.stop
+			>
+				<Icon icon="ph:eyedropper" />
+			</button>
 			<button
 				v-if="sized"
 				class="chain"
@@ -692,13 +711,41 @@ watch(
 .value-row:has(> .chain) :deep(.value + .value .icon.left) {
 	left: calc(var(--tq-input-height) * 0.3);
 }
-.value-row > :not(.TqInputTranslate, .TqInputRotary) {
+.value-row > :not(.TqInputTranslate, .TqInputRotary, .point-at) {
 	flex: 1;
 	min-width: 0;
 }
 .value-row > :deep(.TqInputTranslate),
 .value-row > :deep(.TqInputRotary) {
 	flex: none;
+}
+/* What a row being dragged would go into, if it were let go of here. */
+.value-row[data-drop-here] {
+	border-radius: var(--tq-radius-input);
+	outline: 2px solid var(--tq-color-accent);
+	outline-offset: 1px;
+}
+.point-at {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: var(--tq-input-height);
+	height: var(--tq-input-height);
+	border-radius: var(--tq-radius-input);
+	background: var(--tq-color-input);
+	color: var(--tq-color-text-mute);
+	cursor: pointer;
+}
+.point-at:hover {
+	background: var(--tq-color-input-hover);
+}
+.point-at.active {
+	background: var(--tq-color-accent);
+	color: var(--tq-color-on-accent, white);
+}
+.point-at > * {
+	width: 14px;
+	height: 14px;
 }
 .inline-anchor {
 	display: grid;

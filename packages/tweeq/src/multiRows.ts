@@ -18,6 +18,7 @@ import {
 	typeFits,
 	UNSET,
 	unwrapLazy,
+	isPinned,
 } from '@glisp/lang'
 
 import { reach, withParent } from './rowsClipboard'
@@ -298,7 +299,7 @@ export function extractedAt(
 	root: AST,
 	env: Env,
 	places: readonly Place[],
-	value: number | string | boolean,
+	value: number | string | boolean | AST,
 	name: string
 ): { ast: AST; name: string } | null {
 	if (root.kind !== 'let' || !canExtractAt(root, env, places)) return null
@@ -327,10 +328,28 @@ export function extractedAt(
 	const first = Math.min(...at)
 	const bindings = [
 		...next.bindings.slice(0, first),
-		[free, lit(value)] as const,
+		[free, typeof value === 'object' ? value : lit(value)] as const,
 		...next.bindings.slice(first),
 	]
 	return { ast: new LetAST(bindings, next.body), name: free }
+}
+
+/** Whether all there is to something is what is written, with nothing to work out. */
+const isWrittenOut = (ast: AST): boolean => {
+	const it = bare(ast)
+	return it.kind === 'lit' || (it.kind === 'vec' && it.elements.every(isWrittenOut))
+}
+
+/**
+ * `root` with what is written out at `path` given a name of its own in the program, which is
+ * what is there from then on. Null if there is something other than that there, or it has one.
+ */
+export function extractedLiteralAt(root: AST, env: Env, path: string): { ast: AST; name: string } | null {
+	if (!path.includes('/')) return null
+	const place: Place = { path, element: null }
+	const slot = slotAt(root, env, place)
+	if (slot === undefined || !isWrittenOut(slot.ast) || isPinned(slot.ast)) return null
+	return extractedAt(root, env, [place], bare(slot.ast), nameFor(root, env, [place]))
 }
 
 /** Why `value` cannot be what is at the places, if there is a reason. */

@@ -1025,6 +1025,8 @@ const makeChamfer = makeTypedFn(
 	(path, distance) => new PathValue(chamfer(pathOf(path), distance as number)),
 	['path', 'distance']
 )
+/** Only a bar, from edge to edge, with no ends to say that it stops anywhere. */
+export const STRAIGHT_LINE_ICON = 'stroke:M1 23L23 1'
 /**
  * A straight line, going on for ever: a place on it, and which way it goes. Which way it goes
  * is the side of it that a mirror keeps, and how it comes about has handles of its own.
@@ -1035,7 +1037,7 @@ const lineType = withTypeMeta(
 		withTypeMeta(vec2, new RecordAST([['title', lit('Direction')]])),
 	]),
 	new RecordAST([
-		['icon', lit('ph:line-segment')],
+		['icon', lit(STRAIGHT_LINE_ICON)],
 		['name', lit('line')],
 		['summary', lit('Line')],
 	])
@@ -1210,41 +1212,52 @@ const repeatAlignType = enumOf({
 	center: 'mdi:align-horizontal-center',
 	end: 'mdi:align-horizontal-right',
 })
-const makeRepeatAlong = makeTypedFn(
-	[
+/** A path to start from, where there is none yet, written as what it is rather than its data. */
+const startingAs = (written: string, path: Path): TypeValue => {
+	const plain = Object.create(pathType.plain ?? pathType, {
+		default: { value: new PathValue(path) },
+		defaultAst: { value: parse(written) },
+	}) as TypeValue
+	return pathType.meta ? withTypeMeta(plain, pathType.meta) : plain
+}
+const makeRepeatAlong = withOptional(
+	makeTypedFn(
+		[
+			startingAs('(path.circle [0 0] 100)', circle([0, 0], 100)),
+			startingAs('(path.circle [0 0] 10)', circle([0, 0], 10)),
+			withTypeMeta(
+				withDefault(number, 10),
+				new RecordAST([
+					['min', lit(0)],
+					['step', lit(1)],
+				])
+			),
+			withDefault(number, 0),
+			withDefault(evaluate(parse('boolean'), buildPrelude()).value as TypeValue, true),
+			repeatAlignType,
+		],
 		pathType,
-		pathType,
-		withTypeMeta(
-			withDefault(number, 10),
-			new RecordAST([
-				['min', lit(0)],
-				['step', lit(1)],
-			])
-		),
-		withDefault(number, 0),
-		withDefault(evaluate(parse('boolean'), buildPrelude()).value as TypeValue, true),
-		repeatAlignType,
-	],
-	pathType,
-	(along, stamp, count, offset, rotate, align) => {
-		const path = pathOf(along)
-		const shape = pathOf(stamp)
-		const [[left, top], [right, bottom]] = bounds(shape)
-		// A shape is drawn somewhere, and it is its middle that goes on the path.
-		const centered = Number.isFinite(left)
-			? transform(shape, Mat2d.fromTranslation([-(left + right) / 2, -(top + bottom) / 2]))
-			: shape
-		const closes = path.curves.length === 1 && path.curves[0]!.closed
-		return new PathValue(
-			repeatAlong(path, centered, {
-				count: Math.min(Math.round(count as number), MOST_TIMES),
-				offset: offset as number,
-				rotate: rotate as boolean,
-				align: (align === 'auto' ? (closes ? 'start' : 'uniform') : align) as RepeatAlongOptions['align'],
-			})
-		)
-	},
-	['path', 'stamp', 'count', 'offset', 'rotate', 'align']
+		(along, stamp, count, offset, rotate, align) => {
+			const path = pathOf(along)
+			const shape = pathOf(stamp)
+			const [[left, top], [right, bottom]] = bounds(shape)
+			// A shape is drawn somewhere, and it is its middle that goes on the path.
+			const centered = Number.isFinite(left)
+				? transform(shape, Mat2d.fromTranslation([-(left + right) / 2, -(top + bottom) / 2]))
+				: shape
+			const closes = path.curves.length === 1 && path.curves[0]!.closed
+			return new PathValue(
+				repeatAlong(path, centered, {
+					count: Math.min(Math.round((count ?? 10) as number), MOST_TIMES),
+					offset: (offset ?? 0) as number,
+					rotate: (rotate ?? true) as boolean,
+					align: ((align ?? 'auto') === 'auto' ? (closes ? 'start' : 'uniform') : align) as RepeatAlongOptions['align'],
+				})
+			)
+		},
+		['path', 'stamp', 'count', 'offset', 'rotate', 'align']
+	),
+	['count', 'offset', 'rotate', 'align']
 )
 const makeShadow = makeTypedFn(
 	[pathType, withDefault(translationType, [40, 40])],

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, buildPrelude, LetAST, parse, print } from '@glisp/lang'
+import { type AST, buildPrelude, LetAST, parse, print, type TypeValue } from '@glisp/lang'
 import {
 	AstEditor,
 	AstMultiInspector,
@@ -34,7 +34,7 @@ import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
 import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
-import { iconOfPath, inkOn, withGraphics, isRect, type RectValue, type Vec } from './graphics'
+import { iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
 import { loadedSource, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
@@ -57,7 +57,7 @@ import {
 	withBackground,
 	withGridToggled,
 } from './rows'
-import { backgroundOf, canIsolate, diveAt, labelOfRow, rowsListedIn, gridCall, gridOf, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder } from './scene'
+import { backgroundOf, canIsolate, diveAt, labelOfRow, rowsListedIn, gridCall, gridOf, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, isOutlined, sceneOf } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -822,7 +822,8 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 		group: 'Selected',
 		icon: item.icon,
 		action: 'wrap' as const,
-		perform: 'params' in item ? () => void actions.perform(item.id) : (item.perform as () => void),
+		// Whatever it would want more of goes by what it starts as, with nothing asked for here.
+		perform: item.perform as () => void,
 	}))
 	const already = new Set(taken.map(({ name }) => name))
 	return [
@@ -1038,9 +1039,95 @@ actions.register([
 ])
 
 /** A click on a row, with what the keys held mean, as they do on a canvas and in a list. */
+const $inspector = useTemplateRef<InstanceType<typeof AstEditor>>('$inspector')
+/** The value being chosen for, by pointing at a shape on the canvas or in the tree. */
+const pickingFor = ref<string | null>(null)
+/** Where the list of what can be chosen is, if it is up. */
+const pickListAt = ref<readonly [number, number] | null>(null)
+const PICK_LIST_WIDTH = 280
+const valuePicker = {
+	wants: (expected: TypeValue | null) => expected?.typeName === 'path',
+	isFor: (path: string) => pickingFor.value === path,
+	toggle(path: string, from: Element) {
+		const isOff = pickingFor.value === path
+		pickingFor.value = isOff ? null : path
+		const { left, top } = from.getBoundingClientRect()
+		pickListAt.value = isOff ? null : [left - PICK_LIST_WIDTH - 8, top]
+	},
+}
+/** What there is to choose from by name, which it can refer to. */
+const pickItems = computed<readonly QuickAddItem[]>(() => {
+	const source = pickingFor.value
+	if (source === null || pickListAt.value === null) return []
+	return sceneOf(document.root.value, document.env.value)
+		.filter(({ row, draw }) => isOutlined(draw) && $inspector.value?.canLink(source, row))
+		.map(({ row, value }) => ({
+			id: row,
+			name: '',
+			label: nameOfRow(row) ?? row,
+			group: 'Shapes',
+			icon: iconOfPath(new PathValue(value as Path)) ?? 'ph:path',
+			perform: () => picked(row),
+		}))
+})
+
+/** A row of the project pulled onto what takes one, which is the same as choosing it. */
+let dragged: { row: string; x: number; y: number } | null = null
+let dropOn: Element | null = null
+function setDropOn(target: Element | null): void {
+	dropOn?.removeAttribute('data-drop-here')
+	dropOn = target
+	dropOn?.setAttribute('data-drop-here', '')
+}
+useEventListener(
+	window,
+	'pointerdown',
+	(event: PointerEvent) => {
+		const item = (event.target as Element | null)?.closest?.('.FloatPanel.left .TqParameterTreeItem')
+		const row = item?.querySelector('.row-path')?.getAttribute('data-path')
+		dragged = row == null ? null : { row, x: event.clientX, y: event.clientY }
+	},
+	{ capture: true }
+)
+useEventListener(window, 'pointermove', (event: PointerEvent) => {
+	if (dragged === null) return
+	if (Math.hypot(event.clientX - dragged.x, event.clientY - dragged.y) < 4) return
+	setDropOn(window.document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-takes-drop]') ?? null)
+})
+useEventListener(
+	window,
+	'pointerup',
+	() => {
+		const source = dropOn?.getAttribute('data-takes-drop')
+		if (source != null && dragged !== null) $inspector.value?.link(source, dragged.row)
+		setDropOn(null)
+		dragged = null
+	},
+	{ capture: true }
+)
+/** It goes on being asked, if that is what it cannot refer to, as what it is in cannot be. */
+function picked(row: string): void {
+	const source = pickingFor.value
+	if (source !== null && $inspector.value?.link(source, row)) {
+		pickingFor.value = null
+		pickListAt.value = null
+	}
+}
+watch(selected, () => {
+	pickingFor.value = null
+	pickListAt.value = null
+})
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+	if (event.key === 'Escape') pickingFor.value = null
+})
+
 function pickInTree(row: string, event: MouseEvent): boolean {
 	// A menu is about what is selected, or else about this.
 	if (event.type === 'contextmenu') return true
+	if (pickingFor.value !== null) {
+		picked(row)
+		return false
+	}
 	const how = event.metaKey || event.ctrlKey ? 'toggle' : event.shiftKey ? 'range' : 'only'
 	const next = pickedRows(document.root.value, document.env.value, selected.value, row, how)
 	selected.value = next
@@ -1093,8 +1180,10 @@ function selectInTree(row: string | null): void {
 				<CanvasView
 					ref="$canvas"
 					class="canvas"
+					@pick="picked"
 					:document="document"
 					:selected="selected"
+					:picking="pickingFor !== null"
 					:origin="origin"
 					:drawing="drawing"
 					:attributes="toolAttributes"
@@ -1107,6 +1196,13 @@ function selectInTree(row: string | null): void {
 					@menu="openCanvasMenu"
 				/>
 				<IsolationBar v-if="crumbs.length > 0" :crumbs="crumbs" @back="backOneLevel" @go="goToCrumb" />
+				<QuickAdd
+					v-if="pickListAt !== null && pickingFor !== null"
+					:items="pickItems"
+					:at="pickListAt"
+					placeholder="Find a shape, or point at one"
+					@close="pickListAt = null"
+				/>
 				<QuickAdd
 					v-if="quickAddAt !== null"
 					:items="quickAddItems"
@@ -1233,6 +1329,8 @@ function selectInTree(row: string | null): void {
 						v-else
 						:document="document"
 						:inspect="inspected"
+						ref="$inspector"
+						:valuePicker="valuePicker"
 						:alsoSelected="pickedOut"
 						:iconOfValue="iconOfPath"
 						@select="inspectorRow = $event"

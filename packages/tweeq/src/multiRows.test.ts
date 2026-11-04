@@ -6,6 +6,7 @@ import { commandsAt } from './multiInputs'
 import {
 	canExtractAt,
 	extractedAt,
+	extractedLiteralAt,
 	misfitAt,
 	nameFor,
 	type Place,
@@ -138,5 +139,28 @@ describe('a document in a batch', () => {
 		expect(print(document.root.value)).toBe('{a = 1}')
 		expect(document.canUndo.value).toBe(false)
 		now.mockRestore()
+	})
+})
+
+describe('pulling out what is written, on its own', () => {
+	const env = buildPrelude()
+	const of = (src: string, path: string) => {
+		const result = extractedLiteralAt(parse(src), env, path)
+		return result === null ? null : print(result.ast)
+	}
+
+	it('gives a number a name of its own, which is what is there from then on', () => {
+		const next = of('{a = (+ 1 2)}', 'binding:a/arg1')
+		expect(next).toMatch(/= 2 a = \(\+ 1 \w+\)/)
+	})
+
+	it('goes for a vector of what is written, as a whole', () => {
+		expect(of('{a = (first [1 2])}', 'binding:a/arg0')).toMatch(/= \[1 2\] a = \(first \w+\)/)
+	})
+
+	it('has nothing to pull out of what is worked out, is locked, or has a name', () => {
+		expect(of('{a = (+ (+ 1 1) 2)}', 'binding:a/arg0')).toBeNull()
+		expect(of('{a = (+ 1 @2)}', 'binding:a/arg1')).toBeNull()
+		expect(of('{a = 1}', 'binding:a')).toBeNull()
 	})
 })

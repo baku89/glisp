@@ -1,3 +1,5 @@
+import { STRAIGHT_LINE_ICON } from './graphics'
+
 /** What a shape looks like as a tool, and as the function that makes it. */
 export const SHAPE_ICONS = {
 	circle: 'ph:circle',
@@ -24,8 +26,8 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.ray': 'ph:arrow-up-right',
 	'path.convexHull': 'ph:polygon',
 	'path.blendSteps': 'ph:stack-simple',
-	'line.fromPoints': 'ph:line-segment',
-	'line.at': 'ph:line-segment',
+	'line.fromPoints': STRAIGHT_LINE_ICON,
+	'line.at': STRAIGHT_LINE_ICON,
 	'path.reflect': 'mdi:flip-horizontal',
 	'path.dash': 'mdi:vector-polyline-minus',
 	'path.subtract': 'mdi:vector-difference-ba',

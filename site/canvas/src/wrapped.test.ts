@@ -968,6 +968,22 @@ describe('repeating along a path', () => {
 		expect(new Set(middles).size).toBe(4)
 	})
 
+	it('says nothing is wrong, with only what it has to be given', () => {
+		for (const src of [`(path.repeatAlong ${LINE} ${STAMP})`, `(path.repeatAlong ${LINE} ${STAMP} 3)`]) {
+			expect(evaluate(parse(src), env).diagnostics.filter(({ level }) => level === 'error')).toEqual([])
+		}
+		expect(of(`(path.repeatAlong ${LINE} ${STAMP})`).curves).toHaveLength(10)
+	})
+
+	it('starts from what can be seen, for what it is not given', () => {
+		expect(of('(path.repeatAlong)').curves).toHaveLength(10)
+		const filter = filtersFor([evaluate(parse(LINE), env).value], env).find(f => f.name === 'path.repeatAlong')!
+		expect(filter.more).toEqual([])
+		const next = print(wrappedAt(parse(`{c = ${LINE}}`), env, 'binding:c', filter)!)
+		expect(next).toContain('(path.repeatAlong (path.line [0 0] [100 0]) (path.circle [0 0] 10))')
+		expect(check(parse(next), env).filter(({ level }) => level === 'error')).toEqual([])
+	})
+
 	it('goes by no copies for fewer than none', () => {
 		expect(of(`(path.repeatAlong ${LINE} ${STAMP} 0)`).curves).toHaveLength(0)
 	})

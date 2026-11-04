@@ -88,6 +88,8 @@ const props = defineProps<{
 	document: GlispDocument
 	/** The rows selected, as the tree has them too. */
 	selected: readonly string[]
+	/** What is pressed is to be chosen, and nothing else comes of the press. */
+	picking?: boolean
 	/** Where the program's origin is on screen, until the view has been moved. */
 	origin: readonly [number, number]
 	/** What a press does, if it draws. */
@@ -104,6 +106,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	select: [rows: readonly string[]]
+	/** Something has been pressed on, while choosing. */
+	pick: [row: string]
 	/** A right click, and the row of what it was on, if anything. */
 	menu: [x: number, y: number, row: string | null]
 }>()
@@ -1415,6 +1419,11 @@ function onPointerDown(event: PointerEvent): void {
 	if (event.timeStamp - lastPress > CLICKS_WITHIN_MS) beforeClicks = props.selected
 	lastPress = event.timeStamp
 	const { offsetX: x, offsetY: y } = event
+	if (props.picking) {
+		const shape = shapeAt(x, y, true)
+		if (shape !== null) emit('pick', shape.row)
+		return
+	}
 	$canvas.value?.setPointerCapture(event.pointerId)
 
 	if (spaceDown) {
@@ -2005,7 +2014,9 @@ function onPointerMove(event: PointerEvent): void {
 		const shape = index === null ? rowHeldAt(x, y) : null
 		hoveredHandle.value = index
 		hovered.value = shape
-		cursor.value = spaceDown
+		cursor.value = props.picking
+			? 'crosshair'
+			: spaceDown
 			? 'grab'
 			: index !== null
 				? cursorOf(grip.value!.handles[index]!)

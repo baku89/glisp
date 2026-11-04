@@ -25,6 +25,7 @@ import {
 	withParent,
 	withSlotCommand,
 } from './rowsClipboard'
+import { extractedLiteralAt } from './multiRows'
 import type { MenuItem } from 'tweeq/Menu'
 import {
 	ALSO_SELECTED,
@@ -36,6 +37,8 @@ import {
 	COMMANDS_FOR,
 	HOST_KEY,
 	LINKER,
+	VALUE_PICKER,
+	type ValuePicker,
 	OPEN_ROW,
 	RENAMER,
 	REVEALER,
@@ -71,6 +74,8 @@ const props = defineProps<{
 	/** A key that the app around it has for something else, before what it means to a row. */
 	hostKey?: (event: KeyboardEvent) => boolean
 	/** What the app has to offer for the slot at a path, over what is offered here. */
+	/** How a value is chosen by pointing at something, if it can be. */
+	valuePicker?: ValuePicker
 	commandsFor?: (path: string) => MenuItem[]
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
@@ -196,12 +201,18 @@ function copyReference(path: string): boolean {
 
 provide(VALUE_ICON, value => props.iconOfValue?.(value) ?? null)
 provide(HOST_KEY, event => props.hostKey?.(event) ?? false)
+if (props.valuePicker) provide(VALUE_PICKER, props.valuePicker)
 if (props.commandsFor) provide(COMMANDS_FOR, path => props.commandsFor!(path))
 
 provide(LINKER, {
 	can: (source, target) => linked(source, target) !== null,
 	link: linkReference,
 	canCopy: path => writtenOf(path) !== null,
+	canExtract: path => extractedLiteralAt(props.document.root.value, props.document.env.value, path) !== null,
+	extract(path) {
+		const result = extractedLiteralAt(props.document.root.value, props.document.env.value, path)
+		if (result?.ast.kind === 'let') props.document.setRoot(result.ast)
+	},
 	copy: copyReference,
 	pasted: pastedReference,
 	pasteMissing(at, parameter, text) {
@@ -428,6 +439,9 @@ const rowExists = (path: string): boolean => {
 }
 
 defineExpose({
+	/** Have the value at `source` refer to `target`. False if it cannot, from there. */
+	link: linkReference,
+	canLink: (source: string, target: string): boolean => linked(source, target) !== null,
 	/** Open the rows down to one, and select it. */
 	reveal(path: string): void {
 		revealTarget.value = { path }

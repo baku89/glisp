@@ -96,6 +96,15 @@ export function referenceMenuItems(
 					},
 				]
 			: []),
+		...(linker.canExtract(path)
+			? [
+					{
+						label: 'Extract Parameter',
+						icon: 'mdi:variable',
+						perform: () => linker.extract(path),
+					},
+				]
+			: []),
 	]
 }
 
