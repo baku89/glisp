@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetA
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, isAllOnItsRow, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, isAllOnItsRow, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -1534,5 +1534,23 @@ describe('what a type is called, and what there is to open', () => {
 		expect(isAllOnItsRow(parse('[1 (+ 1 1)]'), typed('input: "translate"'))).toBe(false)
 		expect(isAllOnItsRow(parse('(+ 1 1)'), typed('input: "translate"'))).toBe(false)
 		expect(isAllOnItsRow(parse('[1 2]'), makeTupleType([numberType, numberType]))).toBe(false)
+	})
+})
+
+describe('slotCommandOfKey', () => {
+	const key = (key: string, held: { shiftKey?: boolean; metaKey?: boolean } = {}) =>
+		slotCommandOfKey({ key, shiftKey: false, metaKey: false, ctrlKey: false, altKey: false, ...held })
+
+	it('says which command a key is', () => {
+		expect(key('e')).toBe('step')
+		expect(key('E', { shiftKey: true })).toBe('all')
+		expect(key('h')).toBe('hide')
+		expect(key('P', { shiftKey: true })).toBe('pin')
+	})
+
+	it('is none of them, for what is something else', () => {
+		expect(key('p')).toBeNull()
+		expect(key('e', { metaKey: true })).toBeNull()
+		expect(key('a')).toBeNull()
 	})
 })

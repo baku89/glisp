@@ -51,6 +51,7 @@ import {
 	renameBindingAt,
 	type Slot,
 	viewOf,
+	slotCommandOfKey,
 } from './structure'
 
 const props = defineProps<{
@@ -582,6 +583,23 @@ useEventListener(
 		event.preventDefault()
 		if (!copyRows()) selected.evaluate?.('copy')
 		else if (key === 'x') removeRows()
+	},
+	{ capture: true }
+)
+
+// The same goes for what a key says about it, as a parameter can be pinned on its own.
+useEventListener(
+	window,
+	'keydown',
+	(event: KeyboardEvent) => {
+		const selected = selection.value
+		const command = slotCommandOfKey(event)
+		if (!isInspector.value || selected === null || command === null || event.defaultPrevented) return
+		const target = event.target as HTMLElement | null
+		if (target?.closest?.('input, textarea, [contenteditable]')) return
+		event.stopPropagation()
+		event.preventDefault()
+		selected.evaluate?.(command)
 	},
 	{ capture: true }
 )

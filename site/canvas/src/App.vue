@@ -9,8 +9,8 @@ import {
 } from '@glisp/tweeq'
 import { combined, type Filter, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
-import { renameBindingAt, SLOT_COMMANDS, type SlotCommand } from '@glisp/tweeq/structure'
-import { useMediaQuery } from '@vueuse/core'
+import { renameBindingAt, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
@@ -581,6 +581,23 @@ function slotAction(command: SlotCommand) {
 		},
 	}
 }
+
+// What a handle picked out of a row is what a key is about, rather than all of the row.
+useEventListener(
+	window,
+	'keydown',
+	(event: KeyboardEvent) => {
+		const command = slotCommandOfKey(event)
+		if (command === null || pickedOut.value.length === 0 || event.defaultPrevented) return
+		const target = event.target as HTMLElement | null
+		if (target?.closest?.('input, textarea, [contenteditable]')) return
+		event.stopPropagation()
+		event.preventDefault()
+		const next = withSlotCommand(document.root.value, document.env.value, pickedOut.value, command)
+		if (next instanceof LetAST) setProgram(next)
+	},
+	{ capture: true }
+)
 
 /** What can be done to the slot at `path`, or to all that is selected, if it is among that. */
 function commandsFor(path: string): MenuItem[] {

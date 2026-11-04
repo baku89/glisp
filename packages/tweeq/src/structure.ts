@@ -1607,6 +1607,21 @@ export const SLOT_COMMANDS = {
 
 export type SlotCommand = keyof typeof SLOT_COMMANDS
 
+/** Which of those a key is that says something about a slot, with nothing else being typed. */
+export function slotCommandOfKey(event: {
+	readonly key: string
+	readonly shiftKey: boolean
+	readonly metaKey: boolean
+	readonly ctrlKey: boolean
+	readonly altKey: boolean
+}): 'step' | 'all' | 'pin' | 'hide' | null {
+	if (event.metaKey || event.ctrlKey || event.altKey) return null
+	const key = event.key.toLowerCase()
+	if (key === 'e') return event.shiftKey ? 'all' : 'step'
+	if (key === 'h') return 'hide'
+	return key === 'p' && event.shiftKey ? 'pin' : null
+}
+
 /** A value as it is outside of a program: a string is its text, and not how it is written. */
 export const plainTextOf = (value: unknown, env: Env): string =>
 	typeof value === 'string' ? value : print(toAst(value, env))
