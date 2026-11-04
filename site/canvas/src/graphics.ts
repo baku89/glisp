@@ -1662,10 +1662,34 @@ const evenEnds = (handles: readonly Handle[], a: Vec, b: Vec): Handle[] =>
 		}
 	})
 
+/**
+ * What a place around `c` comes to, being how far out and which way, of which only one can
+ * change: what cannot turn goes straight out along the way it faces, and what cannot go
+ * out goes around. If neither can, it is left to say so.
+ */
+const polarTo = (
+	radiusArg: number,
+	angleArg: number,
+	free: (arg: number) => boolean,
+	c: Vec,
+	at: Vec,
+	angle: number,
+	radius: number,
+	to: Vec
+): readonly Change[] | null => {
+	const [out, turns] = [free(radiusArg), free(angleArg)]
+	if (out === turns) return null
+	if (turns) return [change(angleArg, angleNear(c, angle, to))]
+	const [x, y] = toward(angle, 1)
+	const moved = sub(to, at)
+	return [change(radiusArg, Math.max(0, radius + moved[0] * x + moved[1] * y))]
+}
+
 /** The first vertex of what goes around `c`, pulled out as far, and turned as far, as it is. */
 const vertexHandle = (
 	radiusArg: number,
 	angleArg: number,
+	free: (arg: number) => boolean,
 	c: Vec,
 	angle: number,
 	radius: number,
@@ -1681,6 +1705,8 @@ const vertexHandle = (
 		at,
 		pivot: c,
 		to: (to, _, how) => {
+			const only = polarTo(radiusArg, angleArg, free, c, at, angle, radius, to)
+			if (only !== null) return only
 			const out = change(radiusArg, Math.max(0, radius + dist(c, to) - dist(c, at)))
 			const turned = angleHeld(c, angle, to, how)
 			// What is pulled straight out need not come to say which way it faces.
@@ -1784,7 +1810,9 @@ function matrixGrip(m: Mat, arg: number): Grip {
 type Maker = (
 	args: readonly unknown[],
 	inner: (arg: number) => Grip | null,
-	proportional: (arg: number) => boolean
+	proportional: (arg: number) => boolean,
+	/** Whether the argument at `arg` can come to be something else, not being pinned, for one. */
+	free: (arg: number) => boolean
 ) => Grip
 
 const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
@@ -2149,7 +2177,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	],
 	[
 		makeNgon,
-		([center, radius, sides, turned]) => {
+		([center, radius, sides, turned], _inner, _proportional, free) => {
 			const c = center as Vec
 			const r = radius as number
 			const first = finiteAngle(turned)
@@ -2172,7 +2200,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{ route: [3], at: add(c, toward(first, r)), side: 'below' },
 				],
 				handles: [
-					vertexHandle(1, 3, c, first, r, vertexCode(0)),
+					vertexHandle(1, 3, free, c, first, r, vertexCode(0)),
 					countDial(2, c, ring, count, first),
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
@@ -2235,7 +2263,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	],
 	[
 		makeStar,
-		([center, outer, inner, tips, turned]) => {
+		([center, outer, inner, tips, turned], _inner, _proportional, free) => {
 			const c = center as Vec
 			const out = outward(outer)
 			const within = outward(inner)
@@ -2262,7 +2290,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{ route: [4], at: add(c, toward(first, out)), side: 'below' },
 				],
 				handles: [
-					vertexHandle(1, 4, c, first, out, vertexCode(0)),
+					vertexHandle(1, 4, free, c, first, out, vertexCode(0)),
 					{
 						...radiusHandle(2, c, first + 180 / count, within),
 						name: 'vertex',
@@ -2316,10 +2344,10 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	],
 	[
 		makeRoundRect,
-		([origin, extent, radius], inner, proportional) => {
+		([origin, extent, radius], inner, proportional, free) => {
 			const s = origin as Vec
 			const [width, height] = extent as Vec
-			const box = makers.get(makeRect)!([s, extent], inner, proportional)
+			const box = makers.get(makeRect)!([s, extent], inner, proportional, free)
 			const most = Math.min(Math.abs(width), Math.abs(height)) / 2
 			const r = Math.min(outward(radius), most)
 			const x = Math.sign(width) || 1
@@ -2349,13 +2377,14 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	],
 	[
 		makeSuperellipse,
-		([center, radius, shape], inner, proportional) => {
+		([center, radius, shape], inner, proportional, free) => {
 			const c = center as Vec
 			const [rx, ry] = radius as Vec
 			const { handles: all, marks: said, guides: _turning, ...box } = makers.get(makeEllipse)!(
 				[c, radius],
 				inner,
-				proportional
+				proportional,
+				free
 			)
 			// It does not turn, and what would be its angle is its shape.
 			const handles = all.filter(({ kind }) => kind !== 'direction')
@@ -2426,7 +2455,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	],
 	[
 		makeSpiral,
-		([center, start, end, turns]) => {
+		([center, start, end, turns], _inner, _proportional, free) => {
 			const c = center as Vec
 			const startRadius = outward(start)
 			const endRadius = outward(end)
@@ -2448,7 +2477,14 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						parts: [[2], [3]],
 						code: polarCode(p => p('arg2'), p => `(* ${p('arg3')} 360)`),
 						at: endAt,
-						to: to => [change(2, dist(c, to)), change(3, angleNear(c, angle, to) / 360)],
+						to: to => {
+							const only = polarTo(2, 3, free, c, endAt, angle, endRadius, to)
+							return (
+								only?.map(({ route, value }) =>
+									route[0] === 3 ? { route, value: (value as number) / 360 } : { route, value }
+								) ?? [change(2, dist(c, to)), change(3, angleNear(c, angle, to) / 360)]
+							)
+						},
 					},
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
@@ -2742,8 +2778,8 @@ makers.set(makeBlend, ([a, b, ratio], inner) => {
 
 // What is around a path shows that path, however else it is taken hold of.
 const transformed = makers.get(makeTransformed)!
-makers.set(makeTransformed, (args, inner, proportional) => ({
-	...transformed(args, inner, proportional),
+makers.set(makeTransformed, (args, inner, proportional, free) => ({
+	...transformed(args, inner, proportional, free),
 	sources: [(args[0] as PathValue).path],
 }))
 
@@ -2907,8 +2943,9 @@ export const gripOf = (
 	fn: unknown,
 	args: readonly unknown[],
 	inner: (arg: number) => Grip | null,
-	proportional: (arg: number) => boolean = () => false
-): Grip | null => makers.get(fn)?.(args, inner, proportional) ?? null
+	proportional: (arg: number) => boolean = () => false,
+	free: (arg: number) => boolean = () => true
+): Grip | null => makers.get(fn)?.(args, inner, proportional, free) ?? null
 
 /** Where the program's coordinates are for the argument at `arg` of a call of `fn`. */
 export function withinArg(fn: unknown, arg: number, args: readonly unknown[]): Mat | null {

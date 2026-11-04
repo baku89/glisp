@@ -1088,3 +1088,62 @@ describe('what refers to a place on something else', () => {
 		expect(moved('(path.circle [@100 100] 50)')).toBe('(path.circle [@100 120] 70)')
 	})
 })
+
+describe('what goes out and around, of which only one can change', () => {
+	const vertex = (root: AST) => gripAt(root, env, ROW)!.handles.find(h => h.name === 'vertex')!
+	const dragged = (src: string, to: readonly [number, number]) => {
+		const root = parse(src)
+		const handle = vertex(root)
+		const { ast, problem } = changed(root, env, ROW, handle.to(to as Vec, handle.at!))
+		return { problem, source: ast && print(ast) }
+	}
+
+	it('goes straight out, where it cannot turn', () => {
+		// Facing +X, from 50 out. Across does nothing, and along is as far as it goes.
+		const { problem, source } = dragged('{c = (path.ngon [0 0] 50 5 @0)}', [70, 40])
+		expect(problem).toBeNull()
+		expect(source).toBe('{c = (path.ngon [0 0] 70 5 @0)}')
+	})
+
+	it('goes straight out at the angle it is pinned at', () => {
+		const { source } = dragged('{c = (path.ngon [0 0] 50 5 @90)}', [30, 80])
+		expect(source).toBe('{c = (path.ngon [0 0] 80 5 @90)}')
+	})
+
+	it('goes by what it refers to being pinned, as well', () => {
+		const { source } = dragged('{a = @0 c = (path.ngon [0 0] 50 5 a)}', [70, 40])
+		expect(source).toBe('{a = @0 c = (path.ngon [0 0] 70 5 a)}')
+	})
+
+	it('only turns, where it cannot go out', () => {
+		const { source } = dragged('{c = (path.ngon [0 0] @50 5 0)}', [0, 50])
+		expect(source).toBe('{c = (path.ngon [0 0] @50 5 90)}')
+	})
+
+	it('does not go in past nothing', () => {
+		const { source } = dragged('{c = (path.ngon [0 0] 50 5 @0)}', [-20, 0])
+		expect(source).toBe('{c = (path.ngon [0 0] 0 5 @0)}')
+	})
+
+	it('is the same for a star', () => {
+		const { source } = dragged('{c = (path.star [0 0] 50 20 5 @0)}', [70, 40])
+		expect(source).toBe('{c = (path.star [0 0] 70 20 5 @0)}')
+	})
+
+	it('does both where it can, and says so where it can do neither', () => {
+		expect(dragged('{c = (path.ngon [0 0] 50 5 0)}', [0, 70]).source).toBe('{c = (path.ngon [0 0] 70 5 90)}')
+		expect(dragged('{c = (path.ngon [0 0] 50 5)}', [0, 70]).source).toBe('{c = (path.ngon [0 0] 70 5 90)}')
+		expect(dragged('{c = (path.ngon [0 0] @50 5 @0)}', [0, 70]).problem).toBe('pinned')
+	})
+
+	it('is the same for the end of a spiral', () => {
+		const end = (src: string, to: Vec) => {
+			const root = parse(src)
+			const handle = gripAt(root, env, ROW)!.handles.find(h => h.name === 'end')!
+			const { ast } = changed(root, env, ROW, handle.to(to, handle.at!))
+			return ast && print(ast)
+		}
+		expect(end('{c = (path.spiral [0 0] 0 50 @1)}', [70, 40])).toBe('{c = (path.spiral [0 0] 0 70 @1)}')
+		expect(end('{c = (path.spiral [0 0] 0 @50 1)}', [0, 50])).toBe('{c = (path.spiral [0 0] 0 @50 1.25)}')
+	})
+})

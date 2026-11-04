@@ -896,7 +896,7 @@ const argsOf = (call: CallAST, env: Env) => {
 }
 
 /** How `start` can be taken hold of, or null if it is nothing of the kind. */
-function gripAtNode(start: AST, startEnv: Env): Grip | null {
+function gripAtNode(start: AST, startEnv: Env, root: AST, rootEnv: Env): Grip | null {
 	const found = follow(start, startEnv)
 	if (found === null) return null
 	const { node, env } = found
@@ -908,12 +908,18 @@ function gripAtNode(start: AST, startEnv: Env): Grip | null {
 			args,
 			i => {
 				const arg = call.args[i]
-				const inner = arg === undefined ? null : gripAtNode(arg, inside)
+				const inner = arg === undefined ? null : gripAtNode(arg, inside, root, rootEnv)
 				return inner === null ? null : under(i, inner)
 			},
 			i => {
 				const arg = call.args[i]
 				return arg !== undefined && isProportional(arg, inside)
+			},
+			i => {
+				// What is not said yet can be said. Otherwise, only working it out can tell.
+				const arg = call.args[i]
+				const value = arg === undefined ? null : evaluate(arg, inside).value
+				return typeof value !== 'number' || solve(root, rootEnv, arg!, value + 1).ast !== null
 			}
 		)
 		if (grip !== null) return grip
@@ -983,7 +989,7 @@ export function gripAt(
 ): (Grip & { readonly transform: Mat }) | null {
 	const found = rowAt(root, env, row)
 	if (found === null) return null
-	const grip = gripAtNode(found.node, found.env)
+	const grip = gripAtNode(found.node, found.env, root, env)
 	return grip === null ? null : { ...grip, transform: found.transform }
 }
 
