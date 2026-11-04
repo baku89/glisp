@@ -53,6 +53,7 @@ import {
 	rowsChanged,
 	rowsWithin,
 	hiddenShapesOf,
+	paintAt,
 	sceneOf,
 	snapPointsOf,
 	withPaint,
@@ -129,6 +130,23 @@ describe('sceneOf', () => {
 
 	it('leaves out what is bypassed, which can still be referred to', () => {
 		expect(scene('{c = #_(path.circle [0 0] 1) d = c}')).toEqual(['binding:d path'])
+	})
+})
+
+describe('the paint of what is hidden', () => {
+	const hidden = parse('{s = #_(style (path.rect [0 0] [1 1]) "#ff0000" "#000000" 2)}')
+
+	it('is what it says, as it is if it is not hidden', () => {
+		expect(paintAt(hidden, env, 'binding:s')).toMatchObject({
+			fill: '#ff0000',
+			stroke: '#000000',
+			width: 2,
+		})
+	})
+
+	it('keeps the line and stays hidden, when its fill goes', () => {
+		const next = withPaint(hidden, env, 'binding:s', { fill: 'none' })
+		expect(print(next)).toBe('{s = #_(style (path.rect [0 0] [1 1]) stroke="#000000" width=2)}')
 	})
 })
 

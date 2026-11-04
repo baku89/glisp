@@ -178,9 +178,10 @@ const STYLE = 'style'
 const isStyle = (ast: AST): ast is CallAST =>
 	ast.kind === 'call' && print(ast.head) === STYLE
 
-/** How the row at `row` is drawn, if it draws anything. */
+/** How the row at `row` is drawn, if it draws anything, or would if it were not hidden. */
 export function paintAt(root: AST, env: Env, row: string): Paint | null {
-	const shape = sceneOf(root, env).find(s => s.row === row)
+	const atRow = (s: Shape): boolean => s.row === row
+	const shape = sceneOf(root, env).find(atRow) ?? hiddenShapesOf(root, env, [row]).find(atRow)
 	return shape === undefined ? null : (shape.paint ?? NO_PAINT)
 }
 
