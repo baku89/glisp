@@ -183,23 +183,22 @@ provide(RATIO_KEEPER, (path, value) => {
 	return true
 })
 
-// What kind of expression it is goes at the end of the label, so that the values
-// line up, whatever comes to them.
 const referenceTarget = computed(() => {
 	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
 	return bare.kind === 'sym' ? (revealer?.targetOf(props.path) ?? null) : null
 })
-const kindIcon = computed(() =>
-	isFunction.value || props.entry.display !== undefined
-		? null
-		: (view.value.head?.icon ?? kindIconOf(ast.value))
-)
-const kindHint = computed(() => {
+const referred = computed(() => {
 	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
-	return bare.kind === 'sym' || bare.kind === 'path'
-		? sourceOf(bare)
-		: (view.value.title ?? undefined)
+	return bare.kind === 'sym' || bare.kind === 'path' ? bare : null
 })
+// Only a reference, which goes to what it refers to and can be pulled to another. That anything
+// else is an expression is for its field to show.
+const kindIcon = computed(() =>
+	isFunction.value || props.entry.display !== undefined || referred.value === null
+		? null
+		: kindIconOf(ast.value)
+)
+const kindHint = computed(() => (referred.value === null ? undefined : sourceOf(referred.value)))
 const expandable = computed(
 	() =>
 		children.value.length > 0 ||
@@ -478,10 +477,13 @@ watch(
 		@select="pick"
 		@nameClick="isFunction && (editingCode = true)"
 	>
-		<div class="value-row" :class="{ stacked: inline && fit === 'stacked', locked, isolated: isIsolated }">
+		<div
+			class="value-row"
+			:class="{ stacked: inline && fit === 'stacked', locked, isolated: isIsolated }"
+			:data-row-path="entry.absent || isFunction ? undefined : path"
+		>
 			<InputTranslate
 				v-if="translatable"
-				:inert="locked"
 				:modelValue="placeValue as [number, number]"
 				:showOverlayLabel="!numbersInView"
 				@update:modelValue="solver?.solve(ast, $event)"
@@ -489,7 +491,6 @@ watch(
 			<!-- 0 is along X, as it is on a canvas, rather than up. -->
 			<InputRotary
 				v-if="turnable"
-				:inert="locked"
 				:modelValue="placeValue as number"
 				:angleOffset="0"
 				@update:modelValue="solver?.solve(ast, $event)"
@@ -539,8 +540,9 @@ watch(
 		/>
 
 		<template #labelEnd>
-			<span ref="$labelEnd" />
+			<span ref="$labelEnd" class="label-end" />
 			<span v-if="entry.absent" class="row-absent" hidden />
+			<span v-if="hidden" class="row-hidden" hidden />
 			<span v-else class="row-path" :data-path="path" hidden />
 			<span v-if="problem !== null" class="row-problem" hidden />
 			<AstGapAdd v-if="insertBefore" @add="insertBefore" />
@@ -582,6 +584,7 @@ watch(
 			>
 				<Icon :icon="kindIcon" />
 			</button>
+			<span v-else class="end kept" />
 		</template>
 
 		<Teleport v-if="whip" to=".TqViewport">
@@ -607,6 +610,11 @@ watch(
 </template>
 
 <style scoped>
+/* Not drawn, and still there to be found. What says so stays as it is, to be pressed. */
+:global(.TqParameterTreeItem:has(.row-hidden) > .label .row > :not(.end, .AstGapAdd)),
+:global(.TqParameterTreeItem:has(.row-hidden) > .input .value-row > :not(.value)) {
+	opacity: 0.5;
+}
 /* Not written: what it comes to anyway, until it is edited. */
 :global(.TqParameterTreeItem:has(.row-absent):not(:hover, :focus-within)) {
 	opacity: 0.5;
@@ -626,9 +634,18 @@ watch(
 .TqParameterTreeItem.selected .end.reveals {
 	display: block;
 }
+/* The last column is kept for a reference, so long as there is anything else to line up. */
+.end.kept {
+	display: none;
+}
+.row:hover .end.kept,
+.TqParameterTreeItem.selected .end.kept,
+.pin:not(.reveals) ~ .end.kept {
+	display: block;
+}
 /* A lock stays in its own column, whether what comes after it is showing or not. */
 .end.locked:has(+ .end.reveals) {
-	margin-right: var(--tq-icon-size);
+	margin-right: var(--end-width);
 }
 .row:hover .end.locked:has(+ .end.reveals),
 .TqParameterTreeItem.selected .end.locked:has(+ .end.reveals) {
@@ -702,18 +719,18 @@ watch(
 .whip circle {
 	fill: var(--tq-color-info);
 }
+/* What comes after it is together, at the end of the label column, whatever the label's length. */
+.label-end {
+	margin-right: auto;
+}
 .end {
+	--end-width: 15px;
 	display: block;
 	flex-shrink: 0;
-	width: var(--tq-icon-size);
+	width: var(--end-width);
 	height: var(--tq-icon-size);
 	margin-top: calc((var(--tq-input-height) - var(--tq-icon-size)) / 2);
-	/* Together, at the end of the label column, whatever the label's length. */
-	margin-left: auto;
 	border-radius: var(--tq-radius-input);
-}
-.end + .end {
-	margin-left: 0;
 }
 .end > * {
 	display: block;
@@ -738,6 +755,8 @@ watch(
 }
 /* A name for something else, and not what this row does: a filled mark. */
 .kind.reference {
+	height: var(--end-width);
+	margin-top: calc((var(--tq-input-height) - var(--end-width)) / 2);
 	border-radius: 50%;
 	color: var(--tq-color-background);
 	background: var(--tq-color-info);
@@ -745,6 +764,11 @@ watch(
 }
 .pin.locked {
 	color: var(--tq-color-warning);
+}
+/* Not taken hold of, but still with the focus, for what unlocks it to be of the same thing. */
+.value-row.locked > :deep(.TqInputTranslate),
+.value-row.locked > :deep(.TqInputRotary) {
+	pointer-events: none;
 }
 /* What takes hold of it says as well that it cannot be taken hold of. */
 .value-row.locked {
@@ -754,9 +778,6 @@ watch(
 	--tq-color-input-hover: var(--tq-color-warning-soft);
 }
 .pin:hover,
-.kind.pressable:not(.reference):hover {
-	background: var(--tq-color-input-hover);
-}
 .kind.reference:hover {
 	opacity: 0.8;
 }

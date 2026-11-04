@@ -111,3 +111,39 @@ describe('what is held', () => {
 		document.release()
 	})
 })
+
+describe('going over to something else', () => {
+	it('keeps the undo of each, and is not itself an edit', () => {
+		const document = useGlispDocument('{a = 1}')
+		const first = document.root.value
+		document.setRoot(program('{a = 2}'))
+		const second = document.root.value
+		const left = document.state()
+
+		const other = program('{b = 1}')
+		document.resume({ root: other, past: [], future: [] })
+		expect(document.root.value).toBe(other)
+		expect(document.canUndo.value).toBe(false)
+		document.setRoot(program('{b = 2}'))
+		const otherLeft = document.state()
+
+		document.resume(left)
+		expect(document.root.value).toBe(second)
+		document.undo()
+		expect(document.root.value).toBe(first)
+		document.resume(otherLeft)
+		document.undo()
+		expect(document.root.value).toBe(other)
+	})
+
+	it('has no edit held over from before', () => {
+		const document = useGlispDocument('{a = 1}')
+		document.hold()
+		document.setRoot(program('{a = 2}'))
+		const other = program('{b = 1}')
+		document.resume({ root: other, past: [], future: [] })
+		document.setRoot(program('{b = 2}'))
+		document.undo()
+		expect(document.root.value).toBe(other)
+	})
+})

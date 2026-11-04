@@ -23,6 +23,7 @@ import {
 	withoutNearest,
 	withoutRows,
 	withParent,
+	withSlotCommand,
 } from './rowsClipboard'
 import type { MenuItem } from 'tweeq/Menu'
 import {
@@ -489,12 +490,18 @@ function referencePlace(target: Element | null): NonNullable<Selection['referenc
 		if (!isInspector.value) return null
 	} else {
 		if (target?.closest?.('.AstCodePopup, [contenteditable]')) return null
-		const field = target?.closest?.('.value[data-path]')?.getAttribute('data-path')
-		if (field != null) return rowReference(field)
+		const field = target === null ? null : fieldPathOf(target)
+		if (field !== null) return rowReference(field)
 		if (target?.closest?.('input, textarea')) return null
 	}
 	const selected = selection.value
 	return selected === null ? null : (selected.reference ?? rowReference(selected.path))
+}
+
+/** What a field is of, or anything else that takes hold of a value, as a pad or a dial does. */
+function fieldPathOf(target: Element): string | null {
+	const field = target.closest?.('.value[data-path]')?.getAttribute('data-path')
+	return field ?? target.closest?.('[data-row-path]')?.getAttribute('data-row-path') ?? null
 }
 
 const rowReference = (path: string): NonNullable<Selection['reference']> => ({
@@ -609,8 +616,21 @@ useEventListener(
 		const selected = selection.value
 		const command = slotCommandOfKey(event)
 		const writes = event.key === '=' && !event.metaKey && !event.ctrlKey && !event.altKey
-		if (!isInspector.value || selected === null || (command === null && !writes) || event.defaultPrevented) return
+		if (!isInspector.value || (command === null && !writes) || event.defaultPrevented) return
 		const target = event.target as HTMLElement | null
+		// A lock has nothing to do with what is being typed, and is of whatever has the focus.
+		const field = command !== null && command !== 'hide' && target !== null && !target.closest?.('.AstCodePopup, .monaco-editor')
+			? fieldPathOf(target)
+			: null
+		if (field !== null) {
+			event.stopPropagation()
+			event.preventDefault()
+			const { root, env } = props.document
+			const next = withSlotCommand(root.value, env.value, [field], command!)
+			if (next !== null) props.document.setRoot(next as LetAST)
+			return
+		}
+		if (selected === null) return
 		if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
 		event.stopPropagation()
 		event.preventDefault()
@@ -645,7 +665,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			selection.value.evaluate?.('copy')
 			selection.value.remove()
 		}
-	} else if (event.key.toLowerCase() === 'e' && !isMod && !event.altKey) {
+	} else if (event.key.toLowerCase() === 'e' && isMod && !event.altKey) {
 		if (selection.value?.evaluate === undefined) return
 		event.preventDefault()
 		selection.value.evaluate(event.shiftKey ? 'all' : 'step')

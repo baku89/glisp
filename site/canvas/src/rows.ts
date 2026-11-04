@@ -340,6 +340,17 @@ export const allPaintedRows = (root: AST, env: Env): string[] => [
 	...new Set(paintedIn(root, env).map(({ row }) => row)),
 ]
 
+/**
+ * What an export of `drawings` has in it, with what is in front first as in a vector: them, and
+ * what is behind everything, as it is on the canvas. With no drawings, it is all there is.
+ */
+export function exportedRows(root: AST, env: Env, drawings: readonly string[]): string[] {
+	const painted = [...paintedIn(root, env)].reverse()
+	const asked = drawings.length > 0 ? drawings : painted.filter(({ draw }) => draw === 'path').map(({ row }) => row)
+	const behind = painted.filter(({ draw }) => draw !== 'path').map(({ row }) => row)
+	return [...new Set([...asked, ...behind])]
+}
+
 /** The corners around what `rows` draw, or all there is. Null if that is nothing. */
 export function boundsOfRows(
 	root: AST,

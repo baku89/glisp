@@ -444,8 +444,8 @@ export class FnAST extends ASTNode {
  *   ./               → segments: []
  *   /foo/bar         → segments: ['/', 'foo', 'bar']
  *
- * Distinguishing path from spread (`...`): a path always begins with `./` or
- * `../` and contains a `/`. `...xs` (no slash) is a spread.
+ * Distinguishing path from spread (`...`): a path always begins with `./`,
+ * `../` or `/` and contains a `/`. `...xs` (no slash) is a spread.
  */
 export class PathAST extends ASTNode {
 	readonly kind = 'path' as const

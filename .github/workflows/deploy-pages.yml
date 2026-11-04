@@ -3,7 +3,6 @@ name: Deploy site to GitHub Pages
 on:
   push:
     branches:
-      - main
       - lang-2026
   workflow_dispatch:
 
@@ -49,7 +48,7 @@ jobs:
           mkdir _site
           cp -R site/lang/.vuepress/dist _site/lang
           cp -R site/canvas/dist _site/canvas
-          printf '<!doctype html><meta http-equiv="refresh" content="0; url=canvas/"><a href="canvas/">Glisp / Canvas</a>\n' > _site/index.html
+          printf '<!doctype html><meta http-equiv="refresh" content="0; url=canvas/"><a href="canvas/">Glisp Canvas</a>\n' > _site/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:

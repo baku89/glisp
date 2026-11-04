@@ -55,6 +55,9 @@ import {
 	rowsChanged,
 	rowsWithin,
 	type Anchor,
+	boundsOfRows,
+	cornersOfBox,
+	withBoxHandles,
 	hiddenShapesOf,
 	pathOfRow,
 	sceneOf,
@@ -396,6 +399,7 @@ const HANDLE_RADIUS = 5
 const PEN_CONTROL_RADIUS = 3
 /** How far out from a handle the paper goes, each way, to be seen over the color of a shape. */
 const HANDLE_EDGE = 1.5
+const HANDLE_EDGE_ALPHA = 0.5
 /** How far past the ends of a line that goes. */
 const HANDLE_EDGE_PAST = 1
 /** As much to be seen of a square as of a round handle. */
@@ -404,6 +408,7 @@ const HIT_WIDTH = 10
 const HOVER_WIDTH = 3
 const DASH = [3, 2]
 const RANGE_OPACITY = 0.1
+const BOX_ALPHA = 0.6
 
 const scene = computed(() => sceneOf(props.document.root.value, props.document.env.value))
 const hiddenSelected = computed(() =>
@@ -426,9 +431,19 @@ const insideIsolated = computed(() => {
 
 /** The handles of all that is selected, and whose each of them is. */
 const gripped = computed(() =>
-	gripOfRows(props.document.root.value, props.document.env.value, taken.value)
+	withBoxHandles(
+		gripOfRows(props.document.root.value, props.document.env.value, taken.value),
+		[...scene.value, ...hiddenSelected.value],
+		taken.value
+	)
 )
 const grip = computed(() => gripped.value?.grip ?? null)
+/** The corners of the box around what is selected, which goes with one that has a way it is turned. */
+const selectedBox = computed(() => {
+	const angle = taken.value.length === 1 ? (grip.value?.box?.angle ?? 0) : 0
+	const box = boundsOfRows([...scene.value, ...hiddenSelected.value], taken.value, angle)
+	return box === null ? null : cornersOfBox(box, angle)
+})
 
 /** From where a grip's coordinates are to the screen's. */
 const gripView = (mat: Mat): mat2d => mat2d.mul(view.value, mat as unknown as mat2d)
@@ -507,6 +522,13 @@ defineExpose({
 		view.value = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
 	},
 	size: () => size.value,
+	/** The view as it is, to come back to. */
+	view: () => view.value,
+	/** Be at this view, at once. */
+	jumpTo(next: mat2d): void {
+		stopGliding()
+		view.value = next
+	},
 	/** How far in the view is, where 1 is actual size. */
 	zoom: () => view.value[0],
 })
@@ -533,6 +555,8 @@ const CROSS = new Path2D('M 12 0 H -12 M 0 12 V -12')
 const DIAMOND = new Path2D('M 7 0 L 0 7 L -7 0 L 0 -7 Z')
 /** What only says which way: the head of an arrow, at the end of its line. */
 const POINTER = new Path2D('M -8 -6 L 0 0 L -8 6')
+/** Which way something goes, for a button that has a way to go. */
+const BUTTON_ARROW = new Path2D('M -4 0 H 4 M 1 -3 L 4 0 L 1 3')
 /** How far either side of an outline the marks of what moves it are, and how far they bend. */
 const OFFSET_GAP = 4
 const OFFSET_REACH = HANDLE_RADIUS * 1.25
@@ -566,10 +590,14 @@ function drawHandle(
 	// Under what is about to be drawn, for it to be told from what is the same color as it.
 	const edged = (path?: Path2D): void => {
 		const width = context.lineWidth
-		context.strokeStyle = paper
+		const alpha = context.globalAlpha
+		// Of what it is seen over: what the program says is behind everything, or else the window.
+		context.strokeStyle = background.value ?? paper
 		context.lineWidth = width + HANDLE_EDGE * 2
+		context.globalAlpha = alpha * HANDLE_EDGE_ALPHA
 		if (path) context.stroke(path)
 		else context.stroke()
+		context.globalAlpha = alpha
 		context.strokeStyle = accent
 		context.lineWidth = width
 	}
@@ -617,6 +645,18 @@ function drawHandle(
 		}
 		edged(lines(HANDLE_EDGE_PAST))
 		context.stroke(lines(0))
+	} else if (handle.kind === 'button') {
+		context.lineWidth = 1
+		context.beginPath()
+		context.arc(0, 0, HANDLE_RADIUS + 3, 0, Math.PI * 2)
+		edged()
+		context.fill()
+		context.stroke()
+		context.strokeStyle = active ? paper : accent
+		context.rotate(facing(handle.angle ?? 0))
+		context.lineCap = 'round'
+		context.lineJoin = 'round'
+		context.stroke(BUTTON_ARROW)
 	} else if (handle.kind === 'direction') {
 		context.rotate(facing(handle.angle ?? 0))
 		context.lineJoin = 'round'
@@ -917,6 +957,21 @@ function draw(): void {
 	}
 	context.setLineDash([])
 
+	// Around all of what is selected, as much as any one of it, which is nothing to take hold of yet.
+	if (selectedBox.value !== null) {
+		context.save()
+		context.globalAlpha = BOX_ALPHA
+		context.lineWidth = 1
+		context.beginPath()
+		for (const at of selectedBox.value) {
+			const [x, y] = toScreen(at, view.value)
+			context.lineTo(x, y)
+		}
+		context.closePath()
+		context.stroke()
+		context.restore()
+	}
+
 	for (const [i, handle] of grip.value?.handles.entries() ?? []) {
 		const dragged = draggedHandle.value
 		drawHandle(
@@ -944,8 +999,6 @@ function draw(): void {
 	if (brushPointer.value !== null && reachOfBrush !== undefined) {
 		const [x, y] = toScreen(brushPointer.value, view.value)
 		context.lineWidth = 1
-		context.lineJoin = 'round'
-		context.lineCap = 'round'
 		context.strokeStyle = accent
 		context.beginPath()
 		context.arc(x, y, reachOfBrush * view.value[0], 0, Math.PI * 2)
@@ -1192,7 +1245,7 @@ function shapeAt(x: number, y: number, outsideToo = false): Shape | null {
 			const path = pathOnScreen(shape.value as Path, view.value)
 			if (
 				context.isPointInStroke(path, x, y) ||
-				(hasInside(shape) && context.isPointInPath(path, x, y))
+				(shape.draw === 'path' && hasInside(shape) && context.isPointInPath(path, x, y))
 			) {
 				found = shape
 				break
@@ -1245,6 +1298,7 @@ function shapingHandleAt(x: number, y: number): number | null {
 }
 
 function cursorOf(handle: Handle): string {
+	if (handle.kind === 'button') return 'pointer'
 	if (handle.kind === 'direction') return 'grab'
 	if (handle.angle === undefined) return 'move'
 	const quarter = Math.round((facing(handle.angle) / Math.PI) * 4 + 4) % 4
@@ -1394,6 +1448,7 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	} else if (props.drawing) {
 		const base = props.document.root.value
+		const snap = snapAt(snapPoints(), x, y)
 		pressed = {
 			kind: 'draw',
 			tool: props.drawing,
@@ -1402,7 +1457,7 @@ function onPointerDown(event: PointerEvent): void {
 			at: [x, y],
 			to: [x, y],
 			points: snapPoints(),
-			snap: snapAt(snapPoints(), x, y),
+			snap,
 			drawing: false,
 		}
 		return
@@ -1412,6 +1467,10 @@ function onPointerDown(event: PointerEvent): void {
 	if (index !== null && grip.value !== null) {
 		const handle = grip.value.handles[index]!
 		const owner = gripped.value!.rowOf[index]!
+		if (handle.kind === 'button') {
+			commit(apply(owner, handle.to(handle.at!, handle.at!)))
+			return
+		}
 		const mat = onScreen.value
 		const from = fromScreen(x, y, mat)
 		const at = handle.at ?? from

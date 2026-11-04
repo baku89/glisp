@@ -1,11 +1,12 @@
-import { buildPrelude, type Env, evaluate, print } from '@glisp/lang'
+import { buildPrelude, type Env, evaluate, LetAST, print } from '@glisp/lang'
 import { parse } from './program.testing'
 import { copiedRows, pastedArguments, pastedRows } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
 import { isPath, RectValue, withGraphics } from './graphics'
-import { sceneOf } from './scene'
-import { bindingsOfSvg, svgOfRows } from './svg'
+import { exportedRows } from './rows'
+import { sceneOf, withLayersFromOrder } from './scene'
+import { bindingsOfSvg, programInFile, svgOfProgram, svgOfRows } from './svg'
 
 const env: Env = withGraphics(buildPrelude())
 
@@ -314,3 +315,87 @@ describe('how what comes from an SVG is drawn', () => {
 	})
 })
 
+
+describe('a program as a file', () => {
+	const opened = (text: string) => {
+		const reading = programInFile(text)!
+		return { ...reading, root: parse(reading.source) as LetAST }
+	}
+
+	it('is a drawing, and comes back as the program it was, with all that is not drawn', () => {
+		const root = parse('{r = (* 2 5) note = "a < b & c" [c = (path.circle [0 0] r) b = (path.rect [0 0] [r r])]}') as LetAST
+		const file = svgOfProgram(root, env)
+		expect(file).toContain('<path id="c"')
+		expect(file).toContain('<path id="b"')
+		const { root: back, whole } = opened(file)
+		expect(whole).toBe(true)
+		expect(print(back)).toBe(print(root))
+	})
+
+	it('is kept, as an SVG with nothing to see, if nothing is drawn', () => {
+		for (const source of ['{r = 10 []}', '{r = 10 [q = r]}']) {
+			const root = parse(source) as LetAST
+			const file = svgOfProgram(root, env)
+			expect(file).toMatch(/^<svg /)
+			expect(file).not.toContain('<path')
+			const { root: back, whole } = opened(file)
+			expect(whole).toBe(true)
+			expect(print(back)).toBe(print(root))
+		}
+	})
+
+	it('can be pasted, as any SVG from a canvas can', () => {
+		const file = svgOfProgram(parse('{r = 10 [c = (path.circle [0 0] r)]}') as LetAST, env)
+		const { ast, paths } = pastedRows(parse('[a = 1]'), env, null, bindingsOfSvg(file)!)!
+		expect(paths).toContain('binding:c')
+		expect(print(ast)).toContain('r = 10')
+	})
+
+	it('is not what some rows are, or an SVG from elsewhere, or source from before', () => {
+		const rows = svgOfRows(parse('{r = 10 [c = (path.circle [0 0] r)]}'), env, ['binding:c'])!
+		expect(programInFile(rows)?.whole).toBe(false)
+		expect(programInFile('<svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/></svg>')?.whole).toBe(false)
+		expect(programInFile('{r = 10 [r]}')).toEqual({ source: '{r = 10 [r]}', whole: false })
+	})
+
+	it('draws what an SVG from elsewhere does, once it has been read', () => {
+		const { root } = opened('<svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/><rect width="1" height="1"/></svg>')
+		const rows = sceneOf(withLayersFromOrder(root, env), env).map(({ row }) => row)
+		expect(rows).toEqual(['binding:circle1', 'binding:rect1'])
+	})
+
+	it('keeps what is in front, from all of a program exported', () => {
+		const root = parse('[a = (path.circle [0 0] 1) b = (path.rect [0 0] [1 1])]')
+		const { root: back } = opened(svgOfRows(root, env, exportedRows(root, env, []))!)
+		expect(sceneOf(back, env).map(({ row }) => row)).toEqual(sceneOf(root, env).map(({ row }) => row))
+	})
+
+	it('has the grid and the background behind what is exported, and fits only that', () => {
+		const root = parse('[a = (path.circle [0 0] 1) b = (path.rect [100 100] [1 1]) g = (grid "dots") bg = (background "#ff0000")]')
+		const file = svgOfRows(root, env, exportedRows(root, env, ['binding:a']))!
+		expect(file).toContain('viewBox="-3 -3 6 6"')
+		expect(file).toContain('id="a"')
+		expect(file).not.toContain('id="b"')
+		expect(file).toContain('fill="#ff0000"')
+		expect(file).toContain('url(#g)')
+		const { root: back } = opened(file)
+		expect(back.bindings.map(([name]) => name)).toEqual(['a', 'g', 'bg'])
+	})
+
+	it('has no grid or background of its own on the clipboard, or if only those are asked for', () => {
+		const root = parse('[a = (path.circle [0 0] 1) g = (grid "dots") bg = (background "#ff0000")]')
+		expect(svgOfRows(root, env, ['binding:a'])).not.toContain('url(#g)')
+		expect(svgOfRows(root, env, exportedRows(root, env, ['binding:g']))).toBeNull()
+	})
+
+	it('can have nothing in it at all', () => {
+		const { root: back, whole } = opened(svgOfProgram(new LetAST([], null), env))
+		expect(back.bindings).toEqual([])
+		expect(whole).toBe(false)
+	})
+
+	it('is nothing if it is an SVG with nothing to read', () => {
+		expect(programInFile('<svg xmlns="http://www.w3.org/2000/svg"></svg>')).toBeNull()
+		expect(programInFile('<svg><metadata><glisp>a = (</glisp></metadata></svg>')).toBeNull()
+	})
+})

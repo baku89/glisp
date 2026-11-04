@@ -56,6 +56,7 @@ import { mat2d } from 'linearly'
 import { fit } from 'pave/path/fitting'
 import { toD } from 'pave/path/svg'
 import { bounds } from 'pave/path/metrics'
+import { transform } from 'pave/path/modifiers'
 
 import type { GridKind } from './grid'
 
@@ -66,6 +67,7 @@ import {
 	type Handle,
 	type HandleDrag,
 	gripOf,
+	type BoxAnswer,
 	gripOfPoint,
 	isPath,
 	isStyled,
@@ -261,17 +263,13 @@ export function withPaint(root: AST, env: Env, row: string, part: Partial<Paint>
 	const styled = isStyle(node)
 	const path = styled ? node.args[0]! : node
 	const old = paintAt(root, env, row) ?? NO_PAINT
-	const arg = (key: keyof Paint, i: number): AST | undefined =>
-		part[key] !== undefined
-			? toAst(part[key], null)
-			: styled
-				? (node.kwargs?.get(key) ?? node.args[i + 1])
-				: undefined
+	const arg = (key: keyof Paint): AST | undefined =>
+		part[key] !== undefined ? toAst(part[key], null) : styled ? saidIn(node, key) : undefined
 	const nothing = { ...old, ...part }
 	if (nothing.fill === 'none' && nothing.stroke === 'none') {
 		return styled ? (withoutCall(root, env, node) ?? root) : root
 	}
-	const next = styleOf(path, Object.fromEntries(PAINT_KEYS.map((key, i) => [key, arg(key, i)])))
+	const next = styleOf(path, Object.fromEntries(PAINT_KEYS.map(key => [key, arg(key)])))
 	const kept = last.ast.kind === 'meta' ? new MetaAST(last.ast.metadata, next) : next
 	const edited = withParent(reached.chain, last.replace(kept))
 	// What is in a style already stays where it is, with or without being said more of.
@@ -927,6 +925,114 @@ function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] 
 				: null
 	// What comes first in a vector is in front, so it is drawn last.
 	return [...value.entries()].reverse().flatMap(([i, element]) => shapesIn(elementType(i), element, row))
+}
+
+/** Turned by `angle` in degrees, around where everything is measured from. */
+const turnedBy = ([x, y]: Vec, angle: number): Vec => {
+	const [cos, sin] = [Math.cos((angle * Math.PI) / 180), Math.sin((angle * Math.PI) / 180)]
+	return [x * cos - y * sin, x * sin + y * cos]
+}
+
+/**
+ * The box around all of what is at `rows` or in them, along axes turned by `angle`, in those
+ * axes. Null if there is nothing there with a size to go around.
+ */
+export function boundsOfRows(
+	shapes: readonly Shape[],
+	rows: readonly string[],
+	angle = 0
+): readonly [Vec, Vec] | null {
+	const [cos, sin] = [Math.cos((angle * Math.PI) / 180), Math.sin((angle * Math.PI) / 180)]
+	const intoBox: Mat = [cos, -sin, sin, cos, 0, 0]
+	let box: [Vec, Vec] | null = null
+	for (const { row, draw, value } of shapes) {
+		if (!isOutlined(draw)) continue
+		if (!rows.some(of => row === of || row.startsWith(`${of}/`))) continue
+		const [[left, top], [right, bottom]] = bounds(angle === 0 ? (value as Path) : transform(value as Path, intoBox))
+		if (!Number.isFinite(left) || !Number.isFinite(top)) continue
+		box =
+			box === null
+				? [[left, top], [right, bottom]]
+				: [
+						[Math.min(box[0][0], left), Math.min(box[0][1], top)],
+						[Math.max(box[1][0], right), Math.max(box[1][1], bottom)],
+					]
+	}
+	return box
+}
+
+/** The corners of a box along axes turned by `angle`, on the canvas. */
+export const cornersOfBox = ([[left, top], [right, bottom]]: readonly [Vec, Vec], angle = 0): Vec[] =>
+	([[left, top], [right, top], [right, bottom], [left, bottom]] as Vec[]).map(at => turnedBy(at, angle))
+
+/** As small as a box can be scaled, as what has gone to nothing has no way back. */
+const LEAST_SCALE = 1e-3
+const WAYS = [-1, 0, 1] as const
+
+/**
+ * The handles of the box around something, which is the same for everything, with what is on the
+ * sides only for what can go by a different scale each way, as `box` has said.
+ */
+export function boxHandlesOf([[left, top], [right, bottom]]: readonly [Vec, Vec], box: BoxAnswer): Handle[] {
+	const angle = box.angle ?? 0
+	const middle: Vec = [(left + right) / 2, (top + bottom) / 2]
+	const placeOf = (way: -1 | 0 | 1, low: number, mid: number, high: number): number =>
+		way < 0 ? low : way > 0 ? high : mid
+	return WAYS.flatMap(wx =>
+		WAYS.flatMap((wy): Handle[] => {
+			if ((wx === 0 && wy === 0) || (box.even && (wx === 0 || wy === 0))) return []
+			const at: Vec = [placeOf(wx, left, middle[0], right), placeOf(wy, top, middle[1], bottom)]
+			const opposite: Vec = [placeOf(wx, right, middle[0], left), placeOf(wy, bottom, middle[1], top)]
+			const isCorner = wx !== 0 && wy !== 0
+			return [
+				{
+					kind: isCorner ? 'point' : 'arrow',
+					name: 'box',
+					corner: isCorner,
+					at: turnedBy(at, angle),
+					angle: (Math.atan2(wy, wx) * 180) / Math.PI + angle,
+					to(toOnCanvas, _, how) {
+						const to = turnedBy(toOnCanvas, -angle)
+						const about = how?.symmetric ? middle : opposite
+						const along = (i: 0 | 1, way: number): number => {
+							const across = at[i] - about[i]
+							return way === 0 || across === 0
+								? 1
+								: Math.max((to[i] - about[i]) / across, LEAST_SCALE)
+						}
+						const [x, y] = [along(0, wx), along(1, wy)]
+						const even = isCorner && (box.even || how?.even)
+						const most = Math.max(x, y)
+						return box.scaled(even ? most : x, even ? most : y, turnedBy(about, angle))
+					},
+				},
+			]
+		})
+	)
+}
+
+/** The same grip, with the box around one row that it has for it, under what is its own. */
+export function withBoxHandles<G extends { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] }>(
+	held: G | null,
+	shapes: readonly Shape[],
+	rows: readonly string[]
+): G | null {
+	const [row, other] = rows
+	const answer = held?.grip.box
+	if (held === null || row === undefined || other !== undefined || answer === undefined) return held
+	if (held.grip.transform.join() !== IDENTITY.join()) return held
+	const around = boundsOfRows(shapes, rows, answer.angle ?? 0)
+	if (around === null) return held
+	const own = held.grip.handles.flatMap(({ at }) => (at === undefined ? [] : [at]))
+	// Where it has one of its own already, that says more than a box can.
+	const handles = boxHandlesOf(around, answer).filter(
+		({ at }) => !own.some(place => Math.hypot(place[0] - at![0], place[1] - at![1]) < SAME_PLACE)
+	)
+	return {
+		...held,
+		grip: { ...held.grip, handles: [...handles, ...held.grip.handles] },
+		rowOf: [...handles.map(() => row), ...held.rowOf],
+	}
 }
 
 /** What a project says of the canvas it is on, with nothing to take hold of. */

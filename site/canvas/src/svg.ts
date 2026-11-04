@@ -1,10 +1,12 @@
 /**
- * What goes between a canvas and everything else: SVG. A selection is written as what
- * it comes to, with the code it comes from in its metadata, so that anywhere else gets a
- * drawing and a canvas gets the program back. An SVG from elsewhere becomes bindings.
+ * What goes between a canvas and everything else: SVG. A selection, or a whole program as a
+ * file, is written as what it comes to, with the code it comes from in its metadata, so that
+ * anywhere else gets a drawing and a canvas gets the program back. An SVG from elsewhere
+ * becomes bindings.
  */
 
-import { type AST, type Env, lit, parse, print, toAst } from '@glisp/lang'
+import { type AST, type Env, LetAST, lit, parse, print, SymAST, toAst, VecAST } from '@glisp/lang'
+import { readProgram, sourceOfProgram } from '@glisp/tweeq/programSource'
 import { copiedRows } from '@glisp/tweeq/rowsClipboard'
 import Color from 'colorjs.io'
 import { bounds } from 'pave/path/metrics'
@@ -67,11 +69,55 @@ function gridIn(id: string, kind: GridKind, x: number, y: number, width: number,
 	]
 }
 
+const metadataOf = (code: string): string =>
+	`  <metadata><glisp xmlns="${NAMESPACE}">${escaped(code)}</glisp></metadata>`
+
 /**
  * The rows at `paths` as an SVG, or null if nothing in them is drawn. With an `area`, it is that
  * much of them: what is at all within it, and it is what the SVG shows, whatever goes past it.
  */
 export function svgOfRows(
+	root: AST,
+	env: Env,
+	paths: readonly string[],
+	area?: RectValue
+): string | null {
+	return svgWith(copiedRows(root, env, paths), root, env, paths, area)
+}
+
+/**
+ * A program as a file: all it draws, with all of its code in it, drawn or not. A program
+ * that draws nothing still has to be kept, so it is an SVG with nothing to see.
+ */
+export function svgOfProgram(root: LetAST, env: Env): string {
+	const code = sourceOfProgram(root)
+	const rows = paintedIn(root, env).map(({ row }) => row)
+	return (
+		svgWith(code, root, env, rows) ??
+		['<svg xmlns="http://www.w3.org/2000/svg">', metadataOf(code), '</svg>'].join('\n')
+	)
+}
+
+/**
+ * What is in a file, as source. It is `whole` if the file is a program as `svgOfProgram` wrote it,
+ * which saving can go back to: its code has a vector of what is drawn. Only some rows of one, an
+ * SVG from elsewhere, or source from before, are read but are not that, as what they are would
+ * be lost. Null if nothing in it can be read.
+ */
+export function programInFile(text: string): { readonly source: string; readonly whole: boolean } | null {
+	if (!/<svg[\s>]/i.test(text)) return { source: text, whole: false }
+	const code = bindingsOfSvg(text)
+	if (code === null) return null
+	const reading = readProgram(code)
+	if (!('ast' in reading)) return null
+	const { bindings, body } = reading.ast
+	// Bindings on their own are in the order of what is in front, as a program's vector is.
+	const held = body ?? new VecAST(bindings.map(([name]) => new SymAST(name)))
+	return { source: print(new LetAST(bindings, held)), whole: body !== null }
+}
+
+function svgWith(
+	code: string,
 	root: AST,
 	env: Env,
 	paths: readonly string[],
@@ -110,7 +156,7 @@ export function svgOfRows(
 		const id = row.split('/').at(-1)!.replace(/^binding:/, '')
 		// As far as what is drawn goes, which is all it has to be behind.
 		if (draw === 'background') {
-			return value === 'none' ? [] : [`  <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${escaped(String(value))}"/>`]
+			return value === 'none' ? [] : [`  <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${escaped(String(value))}" stroke="none"/>`]
 		}
 		if (draw === 'grid') return gridIn(escaped(id), value as GridKind, x, y, width, height)
 		if (!shown.has(shape)) return []
@@ -121,7 +167,7 @@ export function svgOfRows(
 	})
 	return [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${width} ${height}" width="${width}" height="${height}" fill="none" stroke="black" stroke-width="${STROKE_WIDTH}">`,
-		`  <metadata><glisp xmlns="${NAMESPACE}">${escaped(copiedRows(root, env, paths))}</glisp></metadata>`,
+		metadataOf(code),
 		...drawn,
 		'</svg>',
 	].join('\n')

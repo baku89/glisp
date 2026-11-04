@@ -160,6 +160,9 @@ export const filtersFor = (
 		]
 	})
 
+const isWritten = (value: unknown): boolean =>
+	typeof value === 'object' && value !== null && typeof (value as { print?: unknown }).print === 'function'
+
 /** A call of `filter` with `given`, the rest of what it needs being what it would be at first. */
 export function callOf({ name, fn }: Filter, given: readonly AST[], env: Env): CallAST {
 	const names = fn.paramNames ?? []
@@ -167,7 +170,8 @@ export function callOf({ name, fn }: Filter, given: readonly AST[], env: Env): C
 	const initial = given.length === 0 ? [] : initialOf(fn, given.map(ast => evaluate(ast, env).value))
 	const rest = fn.paramTypes.slice(given.length).flatMap((type, i) => {
 		const param = names[given.length + i]
-		if (i < initial.length) return [toAst(initial[i], env)]
+		// What it starts as can be how it comes about, and not only what it comes to.
+		if (i < initial.length) return [isWritten(initial[i]) ? (initial[i] as AST) : toAst(initial[i], env)]
 		return param !== undefined && fn.optional?.has(param) ? [] : [defaultFor(type, env)]
 	})
 	return new CallAST(parse(name), [...given, ...rest])

@@ -26,7 +26,10 @@ import { initTweeq } from 'tweeq/useTweeq'
 import { computed, nextTick, ref, useTemplateRef, watch, watchEffect } from 'vue'
 
 import CanvasView from './CanvasView.vue'
-import { exportSvg, openFile, saveFile } from './files'
+import { exportSvg } from './files'
+import { sourceOfProgram } from '@glisp/tweeq/programSource'
+import FileTabs from './FileTabs.vue'
+import { useFileTabs } from './useFileTabs'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
@@ -44,7 +47,7 @@ import {
 	type Area,
 	crumbsOf,
 	boundsOfRows,
-	allPaintedRows,
+	exportedRows,
 	grouped,
 	nameOfRow,
 	rowCalled,
@@ -69,7 +72,7 @@ import {
 	slotTypes,
 	valueTextOf,
 } from './selection'
-import { bindingsOfSvg, svgOfRows } from './svg'
+import { bindingsOfSvg, programInFile, svgOfProgram, svgOfRows } from './svg'
 import ToolBar from './ToolBar.vue'
 import { type Arrangement, arranged as arrangedTools } from './toolbar'
 
@@ -297,30 +300,35 @@ const inspectorOpen = useAppConfigStore().ref('glisp.canvas.inspector.open', tru
 const programOf = (root: { kind: string }): LetAST | null =>
 	root instanceof LetAST ? root : null
 
-/** The file it is kept in, once it is in one. */
-let fileHandle: FileSystemFileHandle | null = null
-
-function readProgramText(text: string): void {
+/** What is in a file as a program, and whether saving could go back to it. */
+function readFile(text: string): { readonly root: LetAST; readonly whole: boolean } | null {
 	try {
-		const next = programOf(parse(fromBefore(text)))
-		if (next !== null) document.setRoot(next)
+		const reading = programInFile(text)
+		const root = reading && programOf(parse(fromBefore(reading.source)))
+		return reading && root ? { root, whole: reading.whole } : null
 	} catch {
-		// What cannot be read leaves what is there.
+		return null
 	}
 }
 
-async function open(): Promise<void> {
-	const opened = await openFile()
-	if (opened === null) return
-	fileHandle = opened.handle
-	readProgramText(opened.text)
-	selectOnCanvas([])
-}
+const blankProgram = (): LetAST => withLayerAdded(new LetAST([], null), 'grid1', gridCall('dots')) as LetAST
 
-async function save(asNew: boolean): Promise<void> {
-	const handle = await saveFile(print(document.root.value), asNew ? null : fileHandle)
-	if (handle !== null) fileHandle = handle
-}
+const files = useFileTabs({
+	document,
+	readFile,
+	writeFile: root => svgOfProgram(root, document.env.value),
+	sourceOf: sourceOfProgram,
+	blank: blankProgram,
+	view: {
+		get: () => $canvas.value?.view(),
+		set: view => $canvas.value?.jumpTo(view),
+	},
+	// A file is seen all of, the first time, and it has nothing selected in it either way.
+	onSwitched(firstTime) {
+		selectOnCanvas([])
+		if (firstTime) fit()
+	},
+})
 
 // A file opened with this app, from outside of it.
 const launching = window as unknown as {
@@ -330,8 +338,8 @@ const launching = window as unknown as {
 }
 launching.launchQueue?.setConsumer(async ({ files: [handle] }) => {
 	if (!handle) return
-	fileHandle = handle
-	readProgramText(await (await handle.getFile()).text())
+	const file = await handle.getFile()
+	await files.openFrom({ text: await file.text(), name: file.name, handle })
 })
 
 function setProgram(next: LetAST | null, rows?: readonly string[]): void {
@@ -448,6 +456,8 @@ const $canvas = useTemplateRef<{
 	zoomBy(factor: number): void
 	zoomTo(zoom: number): void
 	zoom(): number
+	view(): mat2d
+	jumpTo(next: mat2d): void
 	rowAtPoint(x: number, y: number): string | null
 	leaveIsolated(): void
 	size(): readonly [number, number]
@@ -686,6 +696,31 @@ const onRows =
 		act()
 	}
 
+// In the code, what the cursor is in is what is selected, and these are not anything being typed.
+useEventListener(
+	window,
+	'keydown',
+	(event: KeyboardEvent) => {
+		const command = slotCommandOfKey(event)
+		if (command !== 'step' && command !== 'all') return
+		if (!(event.target as Element | null)?.closest?.('.AstProgramCode')) return
+		event.preventDefault()
+		event.stopPropagation()
+		// A cursor in a number has nothing to step, and is in what does.
+		const before = document.root.value
+		for (const row of selected.value) {
+			const parts = row.split('/')
+			for (let upTo = parts.length; upTo > 0; upTo--) {
+				const next = withSlotCommand(before, document.env.value, [parts.slice(0, upTo).join('/')], command)
+				if (next === null || print(next) === print(before)) continue
+				document.setRoot(next as LetAST)
+				return
+			}
+		}
+	},
+	{ capture: true }
+)
+
 /** What takes all that is selected, whatever it is. */
 const rowsParam = { name: 'rows', type: rowType, many: true }
 
@@ -859,9 +894,7 @@ actions.register([
 				label: 'New',
 				icon: 'mdi:file-plus-outline',
 				perform() {
-					fileHandle = null
-					document.setRoot(withLayerAdded(new LetAST([], null), 'grid1', gridCall('dots')))
-					selectOnCanvas([])
+					void files.add()
 				},
 			},
 			{
@@ -869,26 +902,25 @@ actions.register([
 				label: 'New Sketch',
 				icon: 'mdi:file-document-edit-outline',
 				perform() {
-					fileHandle = null
-					document.setRoot(parse(NEW_SKETCH) as LetAST)
-					selectOnCanvas([])
+					void files.add(parse(NEW_SKETCH) as LetAST, 'sketch')
 				},
 			},
-			{ id: 'file_open', label: 'Open...', icon: 'mdi:folder-open-outline', bind: 'command+o', perform: open },
-			{ id: 'file_save', label: 'Save', icon: 'mdi:content-save-outline', bind: 'command+s', perform: () => save(false) },
-			{ id: 'file_save_as', label: 'Save As...', icon: 'mdi:content-save-edit-outline', bind: 'command+shift+s', perform: () => save(true) },
+			{ id: 'file_open', label: 'Open...', icon: 'mdi:folder-open-outline', bind: 'command+o', perform: () => files.open() },
+			{ id: 'file_save', label: 'Save', icon: 'mdi:content-save-outline', bind: 'command+s', perform: () => files.save(false) },
+			{ id: 'file_save_as', label: 'Save As...', icon: 'mdi:content-save-edit-outline', bind: 'command+shift+s', perform: () => files.save(true) },
 			{
 				id: 'file_export_svg',
-				label: 'Export SVG...',
+				label: 'Export Selection...',
 				icon: 'mdi:export-variant',
-				// What is drawn, or an area, or both: that much of those. With neither, it is all there is.
-				params: [{ name: 'what', type: exportableType, many: true, optional: true }],
-				perform(chosen: readonly Selected[] = []) {
+				// All of a program is what saving it writes. This is what is drawn, or an area, or
+				// both: that much of those, and an area on its own is that much of everything.
+				params: [{ name: 'what', type: exportableType, many: true }],
+				perform(chosen: readonly Selected[]) {
 					const root = document.root.value
 					const env = document.env.value
 					const area = chosen.find(({ value }) => isRect(value))?.value as RectValue | undefined
 					const drawings = chosen.filter(({ value }) => !isRect(value)).map(({ row }) => row)
-					const svg = svgOfRows(root, env, drawings.length > 0 ? drawings : allPaintedRows(root, env), area)
+					const svg = svgOfRows(root, env, exportedRows(root, env, drawings), area)
 					if (svg !== null) void exportSvg(svg)
 				},
 			},
@@ -1029,7 +1061,17 @@ function selectInTree(row: string | null): void {
 <template>
 	<TqApp>
 		<template #title>
-			<TitleBar name="Glisp / Canvas" icon="favicon.svg" :style="titleBarStyle">
+			<TitleBar class="title-bar" name="Glisp Canvas" icon="favicon.svg" :style="titleBarStyle">
+				<template #left>
+					<FileTabs
+						:tabs="files.tabs.value"
+						:active="files.active.value"
+						@select="files.switchTo"
+						@close="files.close"
+						@rename="files.rename"
+						@add="files.add()"
+					/>
+				</template>
 				<template #right>
 					<InputNumber
 						class="zoom"
@@ -1087,9 +1129,9 @@ function selectInTree(row: string | null): void {
 					name="glisp.canvas.project"
 					side="left"
 					:style="belowProject"
+					:width="PROJECT_WIDTH"
 					label="Project"
 					icon="ph:tree-view"
-					:width="PROJECT_WIDTH"
 				>
 					<template #header>
 						<div class="tabs" role="tablist">
@@ -1145,11 +1187,11 @@ function selectInTree(row: string | null): void {
 				<FloatPanel
 					v-model:open="inspectorOpen"
 					name="glisp.canvas.inspector"
-					data-selects-rows
 					side="right"
+					:width="320"
+					data-selects-rows
 					label="Inspector"
 					icon="ph:sliders-horizontal"
-					:width="320"
 				>
 					<template #header>
 						<button
@@ -1246,6 +1288,13 @@ function selectInTree(row: string | null): void {
 </template>
 
 <style scoped>
+/* The tabs go from the name of the app up to the zoom, so there is no middle to keep clear. */
+.title-bar.title-bar {
+	grid-template-columns: minmax(0, 1fr) 0 min-content;
+}
+.title-bar.title-bar :deep(.left) {
+	min-width: 0;
+}
 .zoom {
 	width: 4.5em;
 }

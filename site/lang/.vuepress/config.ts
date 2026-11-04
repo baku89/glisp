@@ -31,7 +31,7 @@ export default defineUserConfig({
 	],
 	theme: defaultTheme({
 		docsDir: 'site/lang',
-		docsBranch: 'lang-2026',
+		docsBranch: 'main',
 		logo: '/logo.svg',
 		repo,
 		locales: {

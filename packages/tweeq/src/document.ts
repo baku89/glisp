@@ -22,6 +22,13 @@ import { computed, type ComputedRef, type ShallowRef, shallowRef } from 'vue'
 /** Edits this close together undo as one, like a drag on a slider. */
 const COALESCE_MS = 500
 
+/** All there is to a program being edited, undo included, to come back to. */
+export interface DocumentState {
+	readonly root: LetAST
+	readonly past: ReadonlyArray<LetAST>
+	readonly future: ReadonlyArray<LetAST>
+}
+
 export interface GlispDocument {
 	readonly root: ShallowRef<LetAST>
 	readonly diagnostics: ComputedRef<ReadonlyArray<Diagnostic>>
@@ -46,6 +53,10 @@ export interface GlispDocument {
 	redo(): void
 	/** Go back to `to`, a program it has been, as if nothing since had happened. */
 	rewind(to: LetAST): void
+	/** What is being edited as it is, for `resume` to come back to. */
+	state(): DocumentState
+	/** Go over to editing something else, as it was left, which is not an edit of what this was. */
+	resume(state: DocumentState): void
 }
 
 export function useGlispDocument(
@@ -65,6 +76,7 @@ export function useGlispDocument(
 	let batching = false
 	let recorded = false
 	let held = false
+	const copiedReference: GlispDocument['copiedReference'] = shallowRef(null)
 
 	const install = (next: LetAST): void => {
 		session.setAst(next)
@@ -85,7 +97,7 @@ export function useGlispDocument(
 	return {
 		root,
 		session,
-		copiedReference: shallowRef(null),
+		copiedReference,
 		env: computed(() => {
 			void root.value
 			return session.hostEnv
@@ -139,6 +151,15 @@ export function useGlispDocument(
 			lastEditAt = -Infinity
 			recorded = false
 			install(previous)
+		},
+		state: () => ({ root: root.value, past: past.value, future: future.value }),
+		resume(state) {
+			past.value = state.past
+			future.value = state.future
+			lastEditAt = -Infinity
+			batching = held = recorded = false
+			copiedReference.value = null
+			install(state.root)
 		},
 		rewind(to) {
 			if (root.value === to) return

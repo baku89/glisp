@@ -7,7 +7,6 @@ This guide walks through Glisp's core forms with examples you can try in the [br
 ```sh
 git clone https://github.com/baku89/glisp
 cd glisp
-git checkout lang-2026
 npm install
 npm run repl
 ```
@@ -198,4 +197,4 @@ This is what makes editing in a GUI viable. The editor always has a value to dis
 
 - [Playground](./playground.md): try it live in the browser.
 - [Specification](./spec/README.md): the full design rationale and grammar.
-- [Source](https://github.com/baku89/glisp): the `lang-2026` branch is the active rewrite.
+- [Source](https://github.com/baku89/glisp).

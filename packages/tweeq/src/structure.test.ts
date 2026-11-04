@@ -1569,8 +1569,9 @@ describe('slotCommandOfKey', () => {
 		slotCommandOfKey({ key, shiftKey: false, metaKey: false, ctrlKey: false, altKey: false, ...held })
 
 	it('says which command a key is', () => {
-		expect(key('e')).toBe('step')
-		expect(key('E', { shiftKey: true })).toBe('all')
+		expect(key('e', { metaKey: true })).toBe('step')
+		expect(key('E', { metaKey: true, shiftKey: true })).toBe('all')
+		expect(key('e')).toBeNull()
 		expect(key('h')).toBe('hide')
 		expect(key('l', { metaKey: true })).toBe('pin')
 		expect(key('l', { ctrlKey: true })).toBe('pin')
@@ -1579,7 +1580,7 @@ describe('slotCommandOfKey', () => {
 
 	it('is none of them, for what is something else', () => {
 		expect(key('p')).toBeNull()
-		expect(key('e', { metaKey: true })).toBeNull()
+		expect(key('e', { altKey: true })).toBeNull()
 		expect(key('a')).toBeNull()
 	})
 })

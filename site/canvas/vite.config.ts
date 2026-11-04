@@ -12,8 +12,8 @@ const source = (name: string) =>
 	fileURLToPath(new URL(`../../dev_modules/${name}/src$1`, import.meta.url))
 
 const manifest = {
-	name: 'Glisp / Canvas',
-	short_name: 'Canvas',
+	name: 'Glisp Canvas',
+	short_name: 'Glisp Canvas',
 	description: 'A vector drawing app, whose drawing is a program',
 	display: 'standalone',
 	display_override: ['window-controls-overlay', 'standalone'],
@@ -27,7 +27,10 @@ const manifest = {
 	file_handlers: [
 		{
 			action: base,
-			accept: { 'application/x-glisp-canvas': ['.canvas.glisp'] },
+			accept: {
+				'image/svg+xml': ['.glisp.svg'],
+				'application/x-glisp-canvas': ['.canvas.glisp'],
+			},
 		},
 	],
 } satisfies Partial<ManifestOptions>
@@ -48,7 +51,7 @@ function installableInDev(): Plugin {
 				res.end(
 					JSON.stringify({
 						...manifest,
-						name: 'Glisp / Canvas (dev)',
+						name: 'Glisp Canvas (dev)',
 						short_name: 'Canvas dev',
 						start_url: base,
 						scope: base,

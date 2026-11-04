@@ -56,6 +56,17 @@ describe('slot commands on rows', () => {
 		expect(next).toContain('b = 3')
 	})
 
+	it('works on an argument as well as on a row', () => {
+		const next = print(withSlotCommand(root, env, ['binding:a/arg0'], 'pin')!)
+		expect(next).toContain('(sq ')
+		expect(next).not.toBe(print(root))
+	})
+
+	it('deletes what holds it, if it cannot go itself', () => {
+		const next = print(withSlotCommand(root, env, ['binding:b'], 'delete')!)
+		expect(next).not.toContain('b =')
+	})
+
 	it('is nothing, if nothing comes of it', () => {
 		expect(withSlotCommand(root, env, ['binding:n'], 'step')).toBeNull()
 		expect(withSlotCommand(root, env, ['binding:nowhere'], 'all')).toBeNull()

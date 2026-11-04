@@ -1727,8 +1727,8 @@ export function kindIconOf(ast: AST): string | null {
  * all go by this, so that one of them is written once. `actionsOf` says when each applies.
  */
 export const SLOT_COMMANDS = {
-	step: { id: 'step', label: 'Evaluate One Step', icon: 'mdi:debug-step-into', keys: ['E'], group: 'edit' },
-	all: { id: 'all', label: 'Evaluate All', icon: 'mdi:debug-step-over', keys: ['⇧', 'E'], group: 'edit' },
+	step: { id: 'step', label: 'Evaluate One Step', icon: 'mdi:debug-step-into', keys: ['⌘', 'E'], group: 'edit' },
+	all: { id: 'all', label: 'Evaluate All', icon: 'mdi:debug-step-over', keys: ['⌘', '⇧', 'E'], group: 'edit' },
 	pin: { id: 'pin', label: 'Lock', icon: 'mdi:lock', keys: ['⌘', 'L'], group: 'edit' },
 	hide: { id: 'hide', label: 'Hide', icon: 'mdi:eye-off-outline', keys: ['H'], group: 'edit' },
 	value: { id: 'value', label: 'Copy Value', icon: 'mdi:content-copy', group: 'copy' },
@@ -1748,9 +1748,11 @@ export function slotCommandOfKey(event: {
 }): 'step' | 'all' | 'pin' | 'hide' | null {
 	if (event.altKey) return null
 	const key = event.key.toLowerCase()
-	if (event.metaKey || event.ctrlKey) return key === 'l' && !event.shiftKey ? 'pin' : null
-	if (key === 'e') return event.shiftKey ? 'all' : 'step'
-	return key === 'h' ? 'hide' : null
+	if (event.metaKey || event.ctrlKey) {
+		if (key === 'e') return event.shiftKey ? 'all' : 'step'
+		return key === 'l' && !event.shiftKey ? 'pin' : null
+	}
+	return key === 'h' && !event.shiftKey ? 'hide' : null
 }
 
 /** A value as it is outside of a program: a string is its text, and not how it is written. */
@@ -1794,6 +1796,44 @@ function revertOf(slot: Slot): (() => AST) | null {
 	return print(slot.ast) === print(fallback) ? null : () => slot.replace(fallback)
 }
 
+/** Whether all a call has left to come to is itself, as what makes a path from its data does. */
+function isSettled(ast: AST, env: Env): boolean {
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	if (bare.kind !== 'call' || expand(ast, env) !== ast) return false
+	const inside = enterNode(bare, env)
+	const isCall = (arg: AST): boolean => (arg.kind === 'meta' ? arg.expr : arg).kind === 'call'
+	if (bare.args.some(arg => isCall(arg) && !isPinned(arg) && !isSettled(arg, inside))) return false
+	const { value, diagnostics } = evaluate(ast, env)
+	if (diagnostics.some(d => d.level === 'error')) return true
+	const written = toAst(value, env)
+	return written.kind === 'call' && print(written.head) === print(bare.head)
+}
+
+/**
+ * `ast` one step on. What a host function has no next rung for goes by what it is given first, so
+ * that what is in a modifier comes down its own ladder before the modifier is worked out. After
+ * that, all that remains is the value, unless it failed. A name in it stays one until then.
+ */
+function steppedOnce(ast: AST, env: Env): AST {
+	const next = expand(ast, env)
+	if (next !== ast) return next
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	if (bare.kind === 'call' && !bare.args.some(arg => arg.kind === 'spread')) {
+		const inside = enterNode(bare, env)
+		for (const [i, arg] of bare.args.entries()) {
+			if ((arg.kind === 'meta' ? arg.expr : arg).kind !== 'call' || isPinned(arg)) continue
+			if (isSettled(arg, inside)) continue
+			const stepped = steppedOnce(arg, inside)
+			const args = bare.args.slice()
+			args[i] = stepped
+			const call = new CallAST(bare.head, args, bare.kwargs)
+			return ast.kind === 'meta' ? new MetaAST(ast.metadata, call) : call
+		}
+	}
+	const { value, diagnostics } = evaluate(ast, env)
+	return diagnostics.some(d => d.level === 'error') ? ast : toAst(value, env)
+}
+
 /**
  * What can be done to a slot. Nothing is worked out until an action is chosen,
  * so a menu costs nothing to offer.
@@ -1817,17 +1857,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	if (canStep) {
 		actions.push({
 			...SLOT_COMMANDS.step,
-			apply: () => {
-				const next = expand(slot.ast, slot.env)
-				if (next !== slot.ast) return slot.replace(next)
-				// With no next rung, all that remains is the value, unless it failed.
-				const { value, diagnostics } = evaluate(slot.ast, slot.env)
-				return slot.replace(
-					diagnostics.some(d => d.level === 'error')
-						? slot.ast
-						: toAst(value, slot.env)
-				)
-			},
+			apply: () => slot.replace(steppedOnce(slot.ast, slot.env)),
 		})
 	}
 	if (isExpression(slot.ast) && hasValue(slot.ast) && slot.role !== 'function') {

@@ -151,7 +151,7 @@ Accessor `.` is syntactic sugar that has the same evaluation semantics as the ca
 
 ### Path — `./`, `../` and `/`
 
-A path atom references an AST position relative to the current expression by walking the container structure (the AST tree).
+A path atom references an AST position by walking the container structure (the AST tree): relative to the current expression, or, beginning with `/`, from the root of the program.
 
 A path is a sequence of segments separated by `/`. Each segment is one of:
 
