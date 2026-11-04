@@ -6,10 +6,11 @@
 
 import { type AST, type Env, lit, parse, print, toAst } from '@glisp/lang'
 import { copiedRows } from '@glisp/tweeq/rowsClipboard'
+import Color from 'colorjs.io'
 import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 
-import { cornersOf, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf } from './graphics'
+import { cornersOf, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf, toHex } from './graphics'
 import { sceneOf } from './scene'
 
 const NAMESPACE = 'https://glisp.app/canvas'
@@ -18,6 +19,27 @@ const MARGIN = 2
 
 const escaped = (text: string): string =>
 	text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** A color, or null for what is not one to CSS, as `none` is not. */
+const colorIn = (text: string): Color | null => {
+	try {
+		return new Color(text)
+	} catch {
+		return null
+	}
+}
+
+/**
+ * The attribute of a color, and of how see-through it is, where there is that to say. Not
+ * everything that reads an SVG reads a color with its alpha in it, but they all read these.
+ */
+function colorAttributes(name: string, text: string): string {
+	const color = colorIn(text)
+	const alpha = color?.alpha ?? 1
+	if (color === null || alpha >= 1) return ` ${name}="${escaped(text)}"`
+	color.alpha = 1
+	return ` ${name}="${toHex(color)}" ${name}-opacity="${Number(alpha.toFixed(3))}"`
+}
 
 const unescaped = (text: string): string =>
 	text
@@ -67,7 +89,7 @@ export function svgOfRows(
 	const drawn = shapes.map(({ row, value, paint }) => {
 		const id = row.split('/').at(-1)!.replace(/^binding:/, '')
 		const painted = paint
-			? ` fill="${escaped(paint.fill)}" stroke="${escaped(paint.stroke)}" stroke-width="${paint.width}"${lineAttributes(paint)}`
+			? `${colorAttributes('fill', paint.fill)}${colorAttributes('stroke', paint.stroke)} stroke-width="${paint.width}"${lineAttributes(paint)}`
 			: ''
 		return `  <path id="${escaped(id)}" d="${toD(value as Path)}"${painted}/>`
 	})
@@ -133,11 +155,22 @@ function paintOf(attributes: Record<string, string>): Record<string, string> {
 	return { ...attributes, ...declared }
 }
 
+/** A color with its alpha in it, being as see-through as `opacity` says on top of what it is. */
+function withOpacity(text: string, opacity: string | undefined): string {
+	const color = colorIn(text)
+	const by = Number.parseFloat(opacity ?? '') / (opacity?.trim().endsWith('%') ? 100 : 1)
+	if (color === null || !Number.isFinite(by) || by >= 1) return text
+	color.alpha = (color.alpha ?? 1) * Math.max(by, 0)
+	return toHex(color)
+}
+
 /** An expression, in a style if the element says how it is drawn. */
 function painted(expression: string, attributes: Record<string, string>): string {
 	const {
 		fill,
 		stroke,
+		'fill-opacity': fillOpacity,
+		'stroke-opacity': strokeOpacity,
 		'stroke-width': width,
 		'stroke-linecap': cap,
 		'stroke-linejoin': join,
@@ -154,8 +187,8 @@ function painted(expression: string, attributes: Record<string, string>): string
 	return print(
 		styleOf(parse(expression), {
 			// As an SVG has it: filled in black unless it says, and with no line.
-			fill: lit(fill ?? '#000000'),
-			stroke: lit(stroke ?? 'none'),
+			fill: lit(withOpacity(fill ?? '#000000', fillOpacity)),
+			stroke: lit(withOpacity(stroke ?? 'none', strokeOpacity)),
 			width: lit(Number.parseFloat(width ?? '1') || 0),
 			...(cap !== undefined && (LINE_CAPS as readonly string[]).includes(cap) ? { cap: lit(cap) } : {}),
 			...(join !== undefined && (LINE_JOINS as readonly string[]).includes(join) ? { join: lit(join) } : {}),

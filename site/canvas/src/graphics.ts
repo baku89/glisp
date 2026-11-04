@@ -641,7 +641,7 @@ const colorType = colorOf('#000000')
 /** A color to draw with, which can be no color at all. */
 const paintColor = colorOf('none')
 
-const toHex = (color: Color): string =>
+export const toHex = (color: Color): string =>
 	color.to('srgb').toGamut({ space: 'srgb' }).toString({ format: 'hex', collapse: false })
 
 const parsed = (value: unknown): Color => {

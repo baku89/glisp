@@ -201,3 +201,39 @@ describe('exporting an area', () => {
 		expect(svg).toContain('id="a"')
 	})
 })
+
+describe('a color that can be seen through', () => {
+	const svgOf = (source: string) => svgOfRows(parse(source), env, ['binding:c'])!
+
+	it('is written apart from how see-through it is', () => {
+		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill="#ff000040" stroke="#00000080")}')
+		expect(svg).toContain('fill="#ff0000" fill-opacity="0.251"')
+		expect(svg).toContain('stroke="#000000" stroke-opacity="0.502"')
+	})
+
+	it('is that however it is written', () => {
+		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill="rgb(255 0 0 / 0.5)")}')
+		expect(svg).toContain('fill="#ff0000" fill-opacity="0.5"')
+	})
+
+	it('says nothing more of one that cannot', () => {
+		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill="red" stroke="none")}')
+		expect(svg).toContain('fill="red" stroke="none"')
+		expect(svg).not.toContain('opacity')
+	})
+
+	it('comes back from elsewhere with its alpha in it', () => {
+		expect(
+			bindingsOfSvg('<svg><circle r="1" fill="#ff0000" fill-opacity="0.5" stroke="#000000" stroke-opacity="25%"/></svg>')
+		).toBe('circle1 = (style (path.circle [0 0] 1) fill="#ff000080" stroke="#00000040")')
+	})
+
+	it('is the same color after going out and back', () => {
+		const out = svgOf('{c = (style (path.line [0 0] [1 1]) fill="#ff000040")}').replace(/<metadata>.*<\/metadata>/, '')
+		expect(bindingsOfSvg(out)).toContain('fill="#ff000040"')
+	})
+
+	it('leaves what is not a color alone', () => {
+		expect(bindingsOfSvg('<svg><circle r="1" fill="url(#a)" fill-opacity="0.5"/></svg>')).toContain('fill="url(#a)"')
+	})
+})

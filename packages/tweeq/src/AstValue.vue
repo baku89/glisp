@@ -323,6 +323,7 @@ const label = (value: unknown): string =>
 		/>
 		<InputColor
 			v-else-if="solvedEditor?.kind === 'color'"
+			alpha
 			:modelValue="solvedEditor.value"
 			:inlinePosition="inlinePosition"
 			@update:modelValue="solver?.solve(ast, $event, path)"
@@ -392,6 +393,7 @@ const label = (value: unknown): string =>
 		/>
 		<InputColor
 			v-else-if="view.editor?.kind === 'color'"
+			alpha
 			:modelValue="view.editor.value"
 			:inlinePosition="inlinePosition"
 			@update:modelValue="update(withLiteral(ast, $event))"

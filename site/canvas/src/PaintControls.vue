@@ -301,7 +301,7 @@ useEventListener(
 				@select="select('fill')"
 			>
 				<div class="color" :class="{ mixed: mixed('fill') }" data-takes-reference @focusin="select('fill')">
-					<InputColor :modelValue="paint.fill" @update:modelValue="set({ fill: $event })" />
+					<InputColor alpha :modelValue="paint.fill" @update:modelValue="set({ fill: $event })" />
 					<span v-if="mixed('fill')" class="multiple">Mixed</span>
 				</div>
 			</ParameterTreeItem>
@@ -328,6 +328,7 @@ useEventListener(
 				<div class="field">
 					<div class="color" :class="{ mixed: mixed('stroke') }" data-takes-reference @focusin="select('stroke')">
 						<InputColor
+							alpha
 							:modelValue="paint.stroke"
 							@update:modelValue="set({ stroke: $event })"
 						/>
