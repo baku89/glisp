@@ -200,6 +200,7 @@ The builders are functions, also collected as `g`:
 | `unquote(a)`, `spread(a)`        | `~a`, `...a`                 |
 | `meta({ label: 'x' }, a)`        | `^{label: "x"} a`            |
 | `pin(a)`, `unpin(a)`             | `@a`, and `a` from it. `isPinned(a)` asks |
+| `hide(a)`, `unhide(a)`           | `#_a`, and `a` from it. `isHidden(a)` asks |
 
 `g.number`, `g.string`, `g.boolean`, `g.unit`, `g.top`, `g.bottom`, `g.vector(T)` and `g.enum('a', 'b')` build **ASTs** of type expressions: they are what you would write in source, not `TypeValue`s.
 

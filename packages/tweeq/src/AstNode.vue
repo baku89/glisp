@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, isPinned, MetaAST } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
@@ -241,8 +241,9 @@ function onKind(): void {
 }
 
 const pinned = computed(() => isPinned(ast.value))
-function togglePin(): void {
-	const action = actionsOf(props.entry).find(a => a.id === 'pin')
+const hidden = computed(() => isHidden(ast.value))
+function toggle(id: 'pin' | 'hide'): void {
+	const action = actionsOf(props.entry).find(a => a.id === id)
 	if (action !== undefined && 'apply' in action) emit('change', action.apply())
 }
 
@@ -420,10 +421,21 @@ watch(
 				class="end pin"
 				type="button"
 				aria-label="Unpin"
-				@click.stop="togglePin"
+				@click.stop="toggle('pin')"
 				@dblclick.stop
 			>
 				<Icon icon="mdi:pin" />
+			</button>
+			<button
+				v-if="hidden"
+				v-tooltip="'Show'"
+				class="end pin"
+				type="button"
+				aria-label="Show"
+				@click.stop="toggle('hide')"
+				@dblclick.stop
+			>
+				<Icon icon="mdi:eye-off-outline" />
 			</button>
 			<button
 				v-if="kindIcon !== null"

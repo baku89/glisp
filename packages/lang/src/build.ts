@@ -25,6 +25,7 @@ import {
 	type MetaContent,
 	MetaAST,
 	PathAST,
+	HIDDEN,
 	PIN,
 	RecordAST,
 	type RecordEntry,
@@ -194,27 +195,37 @@ export function meta(content: MetaContent, expr: AST): MetaAST {
 	return expr.meta(content)
 }
 
-/** `@expr`: metadata that says to leave this where it is. */
-export function pin(expr: AST): MetaAST {
-	if (expr.kind !== 'meta') return new MetaAST(new RecordAST([[PIN, lit(true)]]), expr)
-	if (isPinned(expr)) return expr
+/** `expr` with a mark of metadata, which has no value but itself. */
+function marked(expr: AST, key: string): MetaAST {
+	if (expr.kind !== 'meta') return new MetaAST(new RecordAST([[key, lit(true)]]), expr)
+	if (expr.metadata.get(key) !== undefined) return expr
 	const { fields, optional } = expr.metadata
-	return new MetaAST(new RecordAST([...fields, [PIN, lit(true)]], optional), expr.expr)
+	return new MetaAST(new RecordAST([...fields, [key, lit(true)]], optional), expr.expr)
 }
 
-export function isPinned(ast: AST): boolean {
-	return ast.kind === 'meta' && ast.metadata.get(PIN) !== undefined
-}
-
-/** `ast` without its `@`, keeping any other metadata. */
-export function unpin(ast: AST): AST {
-	if (ast.kind !== 'meta' || !isPinned(ast)) return ast
+/** `ast` without that mark, keeping any other metadata. */
+function unmarked(ast: AST, key: string): AST {
+	if (ast.kind !== 'meta' || ast.metadata.get(key) === undefined) return ast
 	const { fields, optional } = ast.metadata
-	const others = fields.filter(field => 'kind' in field || field[0] !== PIN)
+	const others = fields.filter(field => 'kind' in field || field[0] !== key)
 	return others.length === 0
 		? ast.expr
 		: new MetaAST(new RecordAST(others, optional), ast.expr)
 }
+
+/** `@expr`: metadata that says to leave this where it is. */
+export const pin = (expr: AST): MetaAST => marked(expr, PIN)
+export const isPinned = (ast: AST): boolean =>
+	ast.kind === 'meta' && ast.metadata.get(PIN) !== undefined
+/** `ast` without its `@`, keeping any other metadata. */
+export const unpin = (ast: AST): AST => unmarked(ast, PIN)
+
+/** `#_expr`: metadata that says this is not output, for a host to go by. */
+export const hide = (expr: AST): MetaAST => marked(expr, HIDDEN)
+export const isHidden = (ast: AST): boolean =>
+	ast.kind === 'meta' && ast.metadata.get(HIDDEN) !== undefined
+/** `ast` without its `#_`, keeping any other metadata. */
+export const unhide = (ast: AST): AST => unmarked(ast, HIDDEN)
 
 // -----------------------------------------------------------------------------
 // Value builders — Glisp type values

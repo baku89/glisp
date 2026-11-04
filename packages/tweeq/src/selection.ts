@@ -7,7 +7,7 @@ export interface Selection {
 	readonly remove?: () => void
 	readonly rename?: () => void
 	/** Run one of the actions that have a key. */
-	readonly evaluate?: (id: 'step' | 'all' | 'pin' | 'copy') => void
+	readonly evaluate?: (id: 'step' | 'all' | 'pin' | 'hide' | 'copy') => void
 	/** Go into what it comes to, if that is a number, or into what it is written as. */
 	readonly editValue?: () => void
 	readonly editExpression?: () => void

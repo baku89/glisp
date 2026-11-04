@@ -483,6 +483,18 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 
 `@` joins other metadata, as in `^{label: "Width"} @100`. `@@a` is a syntax error, and so is `@` as a key of `^{...}`.
 
+### Hiding — `#_`
+
+`#_expr` says that an expression is not output. It is metadata, as `@` is, so it changes no value, and what refers to it still gets its value. What not being output means is up to a host: a canvas does not draw it, and since nothing then asks for what nobody else refers to, that is not even worked out.
+
+<!-- test -->
+```glisp
+{a = #_10 (+ a 1)}                       ;; → 11
+{a = ^{label: "A"} #_@10 (+ a 1)}        ;; → 11
+```
+
+`#_` goes before `@` when printed, and joins other metadata. `#_#_a` is a syntax error. It stays where it is written, and does not go along with a type. `#` followed by anything else is kept for what may come, such as colors.
+
 ### Metadata semantics
 
 - Equality: metadata does not affect type equality. `^{default: 1} number` and `^{default: 0} number` are the same type.
@@ -577,6 +589,7 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `=>`          | function literal                                       |
 | `^{...}`      | metadata attachment                                    |
 | `~`           | work out within one expansion step                     |
+| `#_`          | hide: this is not output, for a host to go by          |
 | `@`           | pin: leave as it is when working backward from a value |
 | `...`         | spread / variadic                                      |
 | `_`           | top type                                               |

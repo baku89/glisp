@@ -17,7 +17,9 @@ import {
 	type Env,
 	evaluate,
 	expand,
+	hide,
 	infer,
+	isHidden,
 	isPinned,
 	isTypeValue,
 	LetAST,
@@ -38,6 +40,7 @@ import {
 	typeFits,
 	type TypeValue,
 	UNIT,
+	unhide,
 	unpin,
 	unwrapLazy,
 	VecAST,
@@ -1204,7 +1207,7 @@ export type SlotAction = {
 	readonly label: string
 	readonly icon: string
 	/** Which one it is, for what runs it by a key. */
-	readonly id?: 'step' | 'all' | 'pin' | 'copy'
+	readonly id?: 'step' | 'all' | 'pin' | 'hide' | 'copy'
 	/** The keys that run it, as a menu shows them. */
 	readonly keys?: readonly string[]
 	/** It adds to what is inside, which then ought to be showing. */
@@ -1302,6 +1305,15 @@ export function actionsOf(slot: Slot): SlotAction[] {
 			keys: ['P'],
 			group: 'edit',
 			apply: () => slot.replace(pinned ? unpin(slot.ast) : pin(slot.ast)),
+		})
+		const hidden = isHidden(slot.ast)
+		actions.push({
+			id: 'hide',
+			label: hidden ? 'Show' : 'Hide',
+			icon: hidden ? 'mdi:eye-outline' : 'mdi:eye-off-outline',
+			keys: ['H'],
+			group: 'edit',
+			apply: () => slot.replace(hidden ? unhide(slot.ast) : hide(slot.ast)),
 		})
 	}
 

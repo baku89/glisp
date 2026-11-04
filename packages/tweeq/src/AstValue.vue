@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, UNIT, UNSET } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isHidden, UNIT, UNSET } from '@glisp/lang'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
@@ -220,6 +220,7 @@ const label = (value: unknown): string =>
 		:class="{
 			expression: !isCallee && isExpression(ast),
 			callee: isCallee,
+			hidden: isHidden(ast),
 			error: problem !== null,
 		}"
 		:title="problem ?? sourceOf(ast)"
@@ -328,6 +329,9 @@ const label = (value: unknown): string =>
 	--tq-color-input-hover: var(--tq-color-info-soft);
 	--tq-color-accent: var(--tq-color-info);
 	--tq-color-accent-hover: var(--tq-color-info);
+}
+.hidden {
+	opacity: 0.5;
 }
 .callee :deep(.TqInputTextBase) {
 	background: transparent;

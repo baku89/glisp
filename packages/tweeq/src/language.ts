@@ -92,6 +92,7 @@ export function registerGlisp(): void {
 				[/;.*$/, 'comment'],
 				[/"/, 'string', '@string'],
 				[/\.\.\.(?=\S)/, 'keyword'],
+				[/#_/, 'keyword'],
 				[/[\^~@`:]/, 'keyword'],
 			],
 			string: [

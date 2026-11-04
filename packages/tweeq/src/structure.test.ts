@@ -848,6 +848,7 @@ describe('actionsOf', () => {
 			'Evaluate All',
 			'Add Values',
 			'Pin',
+			'Hide',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
@@ -857,13 +858,14 @@ describe('actionsOf', () => {
 			'Evaluate All',
 			'Add Count',
 			'Pin',
+			'Hide',
 			'Copy Value',
 			'Copy Expression',
 			'Delete',
 		])
-		expect(menu('[[1]]')).toEqual(['Add Element', 'Pin', 'Copy Value', 'Delete'])
-		expect(menu('[1]')).toEqual(['Pin', 'Copy Value', 'Delete'])
-		expect(menu('(take [1] 1)', 1)).toEqual(['Pin', 'Copy Value'])
+		expect(menu('[[1]]')).toEqual(['Add Element', 'Pin', 'Hide', 'Copy Value', 'Delete'])
+		expect(menu('[1]')).toEqual(['Pin', 'Hide', 'Copy Value', 'Delete'])
+		expect(menu('(take [1] 1)', 1)).toEqual(['Pin', 'Hide', 'Copy Value'])
 	})
 
 	it('gives every action an icon', () => {
@@ -917,6 +919,20 @@ describe('actionsOf', () => {
 		const labels = actionsOf({ ...slotOf('[1]'), ast: parse('%') }).map(a => a.label)
 		expect(labels).not.toContain('Copy Value')
 		expect(labels).toContain('Copy Expression')
+	})
+})
+
+describe('hiding from a menu', () => {
+	const toggled = (src: string) => {
+		const action = actionsOf(view(src).slots[0]!).find(a => a.id === 'hide')!
+		return 'apply' in action ? print(action.apply()) : null
+	}
+
+	it('hides and shows, keeping other metadata', () => {
+		expect(toggled('{a = 1}')).toBe('{a = #_1}')
+		expect(toggled('{a = #_1}')).toBe('{a = 1}')
+		expect(toggled('{a = @1}')).toBe('{a = #_@1}')
+		expect(toggled('{a = ^{label: "L"} 1}')).toBe('{a = ^{label: "L"} #_1}')
 	})
 })
 

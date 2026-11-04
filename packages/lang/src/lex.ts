@@ -38,6 +38,7 @@ export type TokenKind =
 	| '?'
 	| '~'
 	| '@'
+	| '#_'
 	| '...'      // spread
 	| '...~'     // unquote-splice
 	| '.'        // accessor
@@ -102,10 +103,14 @@ export function lex(src: string): Token[] {
 		}
 
 		// single-character punctuation
-		const single = singleCharToken(ch, pos)
+		// `#` alone is kept for what may come, such as colors.
+		const single =
+			ch === '#' && src[pos + 1] === '_'
+				? ({ kind: '#_', text: '#_', start: pos, end: pos + 2 } as const)
+				: singleCharToken(ch, pos)
 		if (single !== null) {
 			tokens.push(single)
-			pos++
+			pos = single.end
 			continue
 		}
 

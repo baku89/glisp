@@ -17,6 +17,8 @@ import {
 	fn,
 	letBlock,
 	lit,
+	hide,
+	isHidden,
 	isPinned,
 	meta,
 	pin,
@@ -30,6 +32,7 @@ import { lex, type Token, type TokenKind } from './lex.js'
 import {
 	type AST,
 	type FnParam,
+	MetaAST,
 	RecordAST,
 	type RecordEntry,
 	UNIT,
@@ -63,7 +66,7 @@ const ELEMENT_END: ReadonlySet<TokenKind> = new Set<TokenKind>([
 const ELEMENT_START: ReadonlySet<TokenKind> = new Set<TokenKind>([
 	'(', '[', '{', '()', '_', '!',
 	'number', 'string', 'boolean', 'identifier', 'pathSegments',
-	'~', '@', '...', '...~', '^', '=>',
+	'~', '@', '#_', '...', '...~', '^', '=>',
 ])
 
 /**
@@ -243,6 +246,12 @@ class Parser {
 				const expr = this.atom()
 				if (isPinned(expr)) throw this.error(at, 'already pinned')
 				return this.stamp(start, pin(expr))
+			}
+			case '#_': {
+				const at = this.advance()
+				const expr = this.atom()
+				if (isHidden(expr)) throw this.error(at, 'already hidden')
+				return this.stamp(start, hide(expr))
 			}
 			case '...':
 				this.advance()
@@ -542,9 +551,12 @@ class Parser {
 			)
 		}
 		const expr = this.expression()
-		// `@` is metadata too, so it joins these fields.
-		return expr.kind === 'meta'
-			? pin(meta(content, expr.expr))
-			: meta(content, expr)
+		// `@` and `#_` are metadata too, so they join these fields.
+		if (expr.kind !== 'meta') return meta(content, expr)
+		const { fields } = meta(content, expr.expr).metadata
+		return new MetaAST(
+			new RecordAST([...fields, ...expr.metadata.fields]),
+			expr.expr
+		)
 	}
 }

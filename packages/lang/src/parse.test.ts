@@ -1,5 +1,8 @@
-import { type LetAST, MetaAST } from './types.js'
+import { type AST, type LetAST, MetaAST } from './types.js'
 import { describe, expect, it } from 'vitest'
+
+import { hide, isHidden, isPinned, unhide } from './build.js'
+import { print } from './print.js'
 
 import {
 	access,
@@ -27,6 +30,35 @@ import { RecordAST, UNIT } from './types.js'
 function roundTrip(src: string): string {
 	return print(parse(src))
 }
+
+describe('#_', () => {
+	const structural = (ast: AST) => ast.printStructural()
+	const again = (src: string) => print(parse(src))
+
+	it('is metadata, and prints back', () => {
+		expect(again('#_a')).toBe('#_a')
+		expect(isHidden(parse('#_a'))).toBe(true)
+		expect(isHidden(parse('a'))).toBe(false)
+		expect(again('{a = #_(+ 1 2)}')).toBe('{a = #_(+ 1 2)}')
+	})
+
+	it('joins other metadata, and @', () => {
+		for (const src of ['#_@a', '^{label: "L"} #_a', '^{label: "L"} @a', '^{label: "L"} #_@a']) {
+			expect(structural(parse(src))).toBe(src)
+		}
+		expect(isPinned(parse('@#_a')) && isHidden(parse('@#_a'))).toBe(true)
+		expect(structural(unhide(parse('^{label: "L"} #_@a')))).toBe('^{label: "L"} @a')
+		expect(print(unhide(parse('#_a')))).toBe('a')
+		expect(print(hide(parse('@a')))).toBe('#_@a')
+	})
+
+	it('is not for writing twice, or as a key, and # is kept', () => {
+		expect(() => parse('#_#_a')).toThrow()
+		expect(() => parse('^{#_: true} a')).toThrow()
+		expect(() => parse('#f00')).toThrow()
+		expect(() => parse('#a')).toThrow()
+	})
+})
 
 describe('@', () => {
 	const roundTrip = (src: string) => {

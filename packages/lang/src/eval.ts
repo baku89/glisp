@@ -303,7 +303,7 @@ export function unwrapLazy(type: TypeValue): TypeValue {
 }
 
 /** What is said about the name or the place it is written at, and not about values. */
-const STAYS_BEHIND: ReadonlySet<string> = new Set(['doc', 'label', 'params', PIN])
+const STAYS_BEHIND: ReadonlySet<string> = new Set(['doc', 'label', 'params', PIN, HIDDEN])
 
 /**
  * `type`, with `metadata` said about it as well, which goes over what it already
@@ -2355,6 +2355,7 @@ import {
 	HostAST as HostASTClass,
 	LitAST as LitASTClass,
 	MetaAST as MetaASTClass,
+	HIDDEN,
 	PIN,
 	RecordAST as RecordASTClass,
 	SymAST as SymASTClass,
