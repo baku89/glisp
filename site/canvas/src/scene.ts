@@ -96,6 +96,22 @@ function roundedValue(value: unknown, step: number): unknown {
 export const roundedChanges = (changes: readonly Change[], step: number): Change[] =>
 	changes.map(({ route, value }) => ({ route, value: roundedValue(value, step) }))
 
+/**
+ * The rows of what comes out differently in `after`, whatever it is that does it: what
+ * refers to what changed goes with it, so that where it was is no longer anywhere.
+ */
+export function rowsChanged(before: AST, after: AST, env: Env): Set<string> {
+	const drawnBy = (root: AST): Map<string, string> => {
+		const drawn = new Map<string, string>()
+		for (const { row, value } of sceneOf(root, env)) {
+			drawn.set(row, (drawn.get(row) ?? '') + JSON.stringify(value))
+		}
+		return drawn
+	}
+	const was = drawnBy(before)
+	return new Set([...drawnBy(after)].flatMap(([row, now]) => (was.get(row) === now ? [] : [row])))
+}
+
 /** A place on a canvas to snap to, and the row that says where it is, if one does. */
 export interface SnapPoint {
 	readonly at: Vec
@@ -115,10 +131,10 @@ export function snapPointsOf(
 	root: AST,
 	env: Env,
 	shapes: readonly Shape[],
-	except?: string
+	except: ReadonlySet<string> = new Set()
 ): SnapPoint[] {
 	return [...new Set(shapes.map(({ row }) => row))].flatMap(row => {
-		if (row === except) return []
+		if (except.has(row)) return []
 		const grip = gripAt(root, env, row)
 		// In the coordinates of what is drawn, as a row inside a matrix is not.
 		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []

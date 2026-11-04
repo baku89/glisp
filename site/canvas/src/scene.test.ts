@@ -33,6 +33,7 @@ import {
 	readoutOf,
 	roundedChanges,
 	roundedTo,
+	rowsChanged,
 	rowsWithin,
 	sceneOf,
 	snapPointsOf,
@@ -511,9 +512,37 @@ describe('snapping', () => {
 		})
 
 		it('has nothing of its own row to snap to', () => {
-			const others = snapPointsOf(root, env, sceneOf(root, env), 'binding:c')
+			const others = snapPointsOf(root, env, sceneOf(root, env), new Set(['binding:c']))
 			expect(others.every(p => p.target !== 'binding:c/arg0')).toBe(true)
 			expect(others.length).toBeGreaterThan(0)
+		})
+	})
+
+	describe('what is moving', () => {
+		const moved = (src: string, row: string) => {
+			const before = parse(src)
+			const { ast } = changed(before, env, row, gripAt(before, env, row)!.move!([5, 5]))
+			return [...rowsChanged(before, ast!, env)]
+		}
+
+		it('is the row itself', () => {
+			expect(moved('{a = (path.circle [0 0] 1) b = (path.circle [9 9] 1)}', 'binding:a')).toEqual(['binding:a'])
+		})
+
+		it('is what refers to it, as well', () => {
+			expect(
+				moved('{a = (path.circle [0 0] 1) b = (path.rect ../a/center [1 1]) c = (path.circle [9 9] 1)}', 'binding:a')
+			).toEqual(['binding:a', 'binding:b'])
+		})
+
+		it('is what has another name, and what it is another name of', () => {
+			expect(moved('{a = (path.circle [0 0] 1) b = a}', 'binding:b')).toEqual(['binding:a', 'binding:b'])
+		})
+
+		it('is the row that holds what was taken hold of', () => {
+			const before = parse('{a = (path.circle [0 0] 1)}')
+			const { ast } = changed(before, env, 'binding:a/arg0', [{ route: [], value: [5, 5] }])
+			expect([...rowsChanged(before, ast!, env)]).toEqual(['binding:a'])
 		})
 	})
 

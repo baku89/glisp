@@ -22,6 +22,7 @@ import {
 	readoutOf,
 	roundedChanges,
 	roundedTo,
+	rowsChanged,
 	rowsWithin,
 	type Anchor,
 	sceneOf,
@@ -62,18 +63,36 @@ const roundedPlace = (x: number, y: number): Vec => {
 	return [roundedTo(wx, step), roundedTo(wy, step)]
 }
 
-/** What moving `rows` can line up, and with what, none of which is in them. */
-function snapsFor(rows: readonly string[]): {
+/** A way to take something, to see what it takes with it. */
+const TRIAL: Vec = [37.3, 41.9]
+const add = (a: Vec, b: Vec): Vec => [a[0] + b[0], a[1] + b[1]]
+
+/** The rows that would come out differently, for what is at `row` to change like this. */
+function changedBy(row: string, changes: readonly Change[], root?: AST): Set<string> {
+	const { env, root: current } = props.document
+	const from = root ?? current.value
+	const { ast } = apply(row, changes, from)
+	return new Set([row, ...(ast === null ? [] : rowsChanged(from, ast, env.value))])
+}
+
+/** What moving `rows` can line up, and with what, none of which is moving too. */
+function snapsFor(rows: readonly Moving[]): {
 	own: SnapPoint[]
 	others: SnapPoint[]
 } {
 	const { env, root } = props.document
 	const shapes = sceneOf(root.value, env.value)
-	const mine = shapes.filter(shape => rows.includes(shape.row))
-	const rest = shapes.filter(shape => !rows.includes(shape.row))
+	const moving = new Set<string>()
+	for (const { row, grip: held } of rows) {
+		for (const changed of changedBy(row, held.move?.(TRIAL) ?? [])) moving.add(changed)
+	}
 	return {
-		own: snapPointsOf(root.value, env.value, mine).filter(point => point.to === undefined),
-		others: snapPointsOf(root.value, env.value, rest),
+		own: snapPointsOf(
+			root.value,
+			env.value,
+			shapes.filter(shape => moving.has(shape.row))
+		).filter(point => point.to === undefined),
+		others: snapPointsOf(root.value, env.value, shapes, moving),
 	}
 }
 
@@ -105,7 +124,10 @@ function snappedMove(
 const SNAP_REACH = 8
 
 /** Everywhere there is to snap to, on what `root` draws. */
-function snapPoints(root: AST = props.document.root.value, except?: string): SnapPoint[] {
+function snapPoints(
+	root: AST = props.document.root.value,
+	except?: ReadonlySet<string>
+): SnapPoint[] {
 	const { env } = props.document
 	return snapPointsOf(root, env.value, sceneOf(root, env.value), except)
 }
@@ -599,7 +621,10 @@ function onPointerDown(event: PointerEvent): void {
 			base: props.document.root.value,
 			points:
 				grip.value.transform.join() === '1,0,0,1,0,0' && handle.at !== undefined
-					? snapPoints(props.document.root.value, props.selected[0]!)
+					? snapPoints(
+							props.document.root.value,
+							changedBy(props.selected[0]!, handle.to(add(at, TRIAL), from))
+						)
 					: [],
 		}
 		return
@@ -626,7 +651,7 @@ function onPointerDown(event: PointerEvent): void {
 			row: shape.row,
 			rows: moving,
 			from: [x, y],
-			...snapsFor(rows),
+			...snapsFor(moving),
 			moving: false,
 			collapse: already && !event.shiftKey && rows.length > 1,
 		}
