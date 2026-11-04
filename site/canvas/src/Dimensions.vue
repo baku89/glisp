@@ -2,6 +2,7 @@
 import { nextTick, useTemplateRef, watch } from 'vue'
 
 import DimensionField from './DimensionField.vue'
+import { isForElsewhere } from './dimensionKeys'
 import type { Vec } from './graphics'
 import type { Dimension, PlacedDimension } from './scene'
 
@@ -43,6 +44,16 @@ function nextInput(event: KeyboardEvent): void {
 	all[(here + by + all.length) % all.length]?.focus()
 }
 
+/** Before an input hears of it, or it would be typed. */
+function onKeydownFirst(event: KeyboardEvent): void {
+	if (!isForElsewhere(event, event.target as HTMLInputElement)) return
+	event.preventDefault()
+	event.stopPropagation()
+	emit('done', true)
+	// Shortcuts had already passed it over as being typed, so it goes round again.
+	window.document.body.dispatchEvent(new KeyboardEvent('keydown', event))
+}
+
 function onKeydown(event: KeyboardEvent): void {
 	if (!['Tab', 'Enter', 'Escape'].includes(event.key)) return
 	event.preventDefault()
@@ -69,7 +80,7 @@ const set = (dimension: Dimension, value: number): void => {
 </script>
 
 <template>
-	<div ref="$root" class="Dimensions" @keydown="onKeydown" @focusout="onFocusout">
+	<div ref="$root" class="Dimensions" @keydown.capture="onKeydownFirst" @keydown="onKeydown" @focusout="onFocusout">
 		<DimensionField
 			v-for="placed in dimensions"
 			:key="`${placed.dimensions[0]!.route}/${placed.dimensions[0]!.index}`"
