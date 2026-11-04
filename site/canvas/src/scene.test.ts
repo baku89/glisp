@@ -2,7 +2,7 @@ import { buildPrelude, type Env, evaluate, type LetAST, parse, print, solve } fr
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, withGraphics } from './graphics'
-import { handlesAt, sceneOf } from './scene'
+import { followersAt, handlesAt, moved, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const scene = (src: string) =>
@@ -98,5 +98,37 @@ describe('handles', () => {
 		const root = parse('{r = @10 c = (path.circle [100 100] r)}') as LetAST
 		const [, radius] = handlesAt(root, env, 'binding:c')
 		expect(solve(root, env, radius!.node, 30).ast).toBeNull()
+	})
+})
+
+describe('moved', () => {
+	const move = (src: string, row = 'binding:c') => {
+		const root = parse(src)
+		const { ast, problem } = moved(root, env, row, followersAt(root, env, row), [10, 20])
+		return ast === null ? problem : print(ast)
+	}
+
+	it('moves what goes along, and not what is the shape\'s size', () => {
+		expect(move('{r = 10 c = (path.circle [100 100] r)}')).toBe('{r = 10 c = (path.circle [110 120] r)}')
+	})
+
+	it('moves every point that makes a shape', () => {
+		expect(move('{c = (path.rect [0 0] [10 10])}')).toBe('{c = (path.rect [10 20] [20 30])}')
+	})
+
+	it('goes back through what it refers to', () => {
+		expect(move('{p = [1 2] c = (path.circle p 5)}')).toBe('{p = [11 22] c = (path.circle p 5)}')
+		expect(move('{a = (path.circle [0 0] 1) c = a}')).toBe('{a = (path.circle [10 20] 1) c = a}')
+	})
+
+	it('says why it cannot, at a pin', () => {
+		expect(move('{p = @[1 2] c = (path.circle p 5)}')).toBe('pinned')
+	})
+
+	it('starts from where it began, not from where it has got to', () => {
+		const root = parse('{c = (path.circle [0 0] 1)}')
+		const from = followersAt(root, env, 'binding:c')
+		const once = moved(root, env, 'binding:c', from, [5, 5]).ast!
+		expect(print(moved(once, env, 'binding:c', from, [7, 7]).ast!)).toBe('{c = (path.circle [7 7] 1)}')
 	})
 })

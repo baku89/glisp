@@ -111,7 +111,7 @@ function selectOnCanvas(row: string | null): void {
 								<AstEditor
 									ref="$editor"
 									:document="document"
-									noReset
+									compact
 									:iconOfValue="iconOfPath"
 									@select="selected = $event ?? selected"
 								/>
@@ -122,6 +122,7 @@ function selectOnCanvas(row: string | null): void {
 								<Repl
 									:session="document.session"
 									historyKey="glisp.canvas.history"
+									noClear
 									@change="document.sync()"
 								/>
 							</section>

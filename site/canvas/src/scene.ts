@@ -6,11 +6,14 @@
 
 import {
 	type AST,
+	enterNode,
 	type Env,
 	evaluate,
 	infer,
 	isHidden,
+	lookupBareName,
 	readByName,
+	solve,
 	type TypeValue,
 	unwrapLazy,
 } from '@glisp/lang'
@@ -24,6 +27,8 @@ export interface Shape {
 	readonly draw: string
 	readonly value: unknown
 }
+
+type Vec = readonly [number, number]
 
 const bare = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
 
@@ -62,7 +67,10 @@ export function sceneOf(root: AST, env: Env): Shape[] {
 	return visit(viewOf(root, env).slots, '')
 }
 
-/** The handles of the row at `row`, with what each one moves. */
+/**
+ * The handles of the row at `row`, with what each one moves. A row that only refers
+ * to another has the handles of that one, as moving it can only mean moving that.
+ */
 export function handlesAt(
 	root: AST,
 	env: Env,
@@ -76,12 +84,55 @@ export function handlesAt(
 		node = slot.ast
 		nodeEnv = slot.env
 	}
+	for (let reached = bare(node); reached.kind === 'sym'; reached = bare(node)) {
+		const target = lookupBareName(reached.name, nodeEnv)
+		if (target === null || target.ast === node) return []
+		node = target.ast
+		nodeEnv = target.env
+	}
 	const call = bare(node)
 	if (call.kind !== 'call') return []
-	const head = evaluate(call.head, nodeEnv).value
-	const args = call.args.map(arg => evaluate(arg, nodeEnv).value)
+	const inside = enterNode(call, nodeEnv)
+	const head = evaluate(call.head, inside).value
+	const args = call.args.map(arg => evaluate(arg, inside).value)
 	return handlesOf(head, args).flatMap(handle => {
 		const arg = call.args[handle.arg]
 		return arg === undefined ? [] : [{ ...handle, node: arg }]
 	})
+}
+
+/** Where what moves with a shape is, to move it from. */
+export function followersAt(root: AST, env: Env, row: string): (Vec | null)[] {
+	return handlesAt(root, env, row).map(handle => (handle.follows ? handle.at : null))
+}
+
+/**
+ * `root` with the shape at `row` moved by `delta` from where `from` says, each
+ * handle in turn, as each edit makes a new program for the next. Null, with why, if
+ * nothing moves.
+ */
+export function moved(
+	root: AST,
+	env: Env,
+	row: string,
+	from: readonly (Vec | null)[],
+	delta: Vec
+): { ast: AST | null; problem: string | null } {
+	let next = root
+	for (const [i, start] of from.entries()) {
+		if (start === null) continue
+		const handle = handlesAt(next, env, row)[i]
+		if (handle === undefined) continue
+		const { ast, diagnostics } = solve(
+			next,
+			env,
+			handle.node,
+			handle.wanted([start[0] + delta[0], start[1] + delta[1]])
+		)
+		if (ast === null) {
+			return { ast: null, problem: diagnostics[0]?.message ?? 'cannot be moved' }
+		}
+		next = ast
+	}
+	return { ast: next, problem: null }
 }

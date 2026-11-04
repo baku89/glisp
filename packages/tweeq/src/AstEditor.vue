@@ -29,8 +29,8 @@ import {
 
 const props = defineProps<{
 	document: GlispDocument
-	/** No button to start over with, where a document is worth more than a try. */
-	noReset?: boolean
+	/** Only what adds, where the app around it has the rest, by key and from a menu. */
+	compact?: boolean
 	/** An icon for what a row comes to, over the one its type has. */
 	iconOfValue?: (value: unknown) => string | null
 }>()
@@ -250,6 +250,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	<div class="AstEditor">
 		<div class="toolbar">
 			<InputButton
+				v-if="!compact"
 				icon="mdi:undo"
 				tooltip="Undo"
 				subtle
@@ -257,6 +258,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				@click="document.undo()"
 			/>
 			<InputButton
+				v-if="!compact"
 				icon="mdi:redo"
 				tooltip="Redo"
 				subtle
@@ -283,7 +285,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				@close="editingEnv = false"
 			/>
 			<InputButton
-				v-if="!noReset"
+				v-if="!compact"
 				class="reset"
 				icon="mdi:restore"
 				label="Reset"

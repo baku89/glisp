@@ -21,6 +21,8 @@ const props = defineProps<{
 	session: Session
 	/** Where what was entered is kept across reloads, if anywhere. */
 	historyKey?: string
+	/** No button to clear with, as `:clear` and Ctrl+L still do. */
+	noClear?: boolean
 }>()
 
 /** The session has changed, by what was run here. */
@@ -224,7 +226,7 @@ const caret = (span: number): string => '^' + '~'.repeat(Math.max(0, span - 1))
 
 <template>
 	<div class="GlispRepl">
-		<div class="toolbar">
+		<div v-if="!noClear" class="toolbar">
 			<InputButton subtle label="Clear" @click="clear" />
 		</div>
 

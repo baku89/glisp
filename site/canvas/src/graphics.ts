@@ -108,6 +108,8 @@ export interface Handle {
 	readonly at: Vec
 	/** What the argument would be, for the handle to be at `to`. */
 	wanted(to: Vec): unknown
+	/** It goes along when the whole shape is moved. */
+	readonly follows?: boolean
 }
 
 const handleMakers = new Map<unknown, (args: readonly unknown[]) => Handle[]>([
@@ -117,7 +119,7 @@ const handleMakers = new Map<unknown, (args: readonly unknown[]) => Handle[]>([
 			const c = center as Vec
 			const r = radius as number
 			return [
-				{ arg: 0, at: c, wanted: to => to },
+				{ arg: 0, at: c, wanted: to => to, follows: true },
 				{
 					arg: 1,
 					at: [c[0] + r, c[1]],
@@ -129,8 +131,8 @@ const handleMakers = new Map<unknown, (args: readonly unknown[]) => Handle[]>([
 	[
 		makeRect,
 		([start, end]) => [
-			{ arg: 0, at: start as Vec, wanted: to => to },
-			{ arg: 1, at: end as Vec, wanted: to => to },
+			{ arg: 0, at: start as Vec, wanted: to => to, follows: true },
+			{ arg: 1, at: end as Vec, wanted: to => to, follows: true },
 		],
 	],
 ])

@@ -2,10 +2,12 @@
 import { type GlispDocument } from '@glisp/tweeq'
 import { type AST, solve } from '@glisp/lang'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
+import { mat2d, vec2 } from 'linearly'
 import { toPath2D } from 'pave/path/canvas'
-import { computed, onMounted, ref, useTemplateRef, watchEffect } from 'vue'
+import { useZUI } from 'tweeq/use/useZUI'
+import { computed, ref, shallowRef, useTemplateRef, watchEffect } from 'vue'
 
-import { handlesAt, sceneOf, type Shape } from './scene'
+import { followersAt, handlesAt, moved, sceneOf, type Shape } from './scene'
 
 const props = defineProps<{
 	document: GlispDocument
@@ -17,7 +19,13 @@ const emit = defineEmits<{ select: [row: string | null] }>()
 
 const $canvas = useTemplateRef<HTMLCanvasElement>('$canvas')
 const size = ref<[number, number]>([0, 0])
-const view = ref({ x: 0, y: 0, zoom: 1 })
+/** From the program's coordinates to the screen's. */
+const view = shallowRef<mat2d>(mat2d.I)
+const zoom = computed(() => view.value[0])
+/** The row of what the pointer is over, which is about to be selected. */
+const hovered = ref<string | null>(null)
+const hoveredHandle = ref<number | null>(null)
+const cursor = ref('default')
 /** Why what was asked for could not be, until the next press. */
 const problem = ref<string | null>(null)
 
@@ -31,14 +39,18 @@ const handles = computed(() =>
 		: handlesAt(props.document.root.value, props.document.env.value, props.selected)
 )
 
-const toWorld = (x: number, y: number): [number, number] => [
-	(x - view.value.x) / view.value.zoom,
-	(y - view.value.y) / view.value.zoom,
-]
-const toScreen = ([x, y]: readonly [number, number]): [number, number] => [
-	x * view.value.zoom + view.value.x,
-	y * view.value.zoom + view.value.y,
-]
+const toWorld = (x: number, y: number): [number, number] => {
+	const [wx, wy] = vec2.transformMat2d([x, y], mat2d.inv(view.value) ?? mat2d.I)
+	return [wx, wy]
+}
+const toScreen = (at: readonly [number, number]): [number, number] => {
+	const [x, y] = vec2.transformMat2d(at, view.value)
+	return [x, y]
+}
+
+useZUI($canvas, delta => {
+	view.value = mat2d.mul(delta, view.value)
+})
 
 function color(name: string): string {
 	return getComputedStyle(window.document.body).getPropertyValue(name).trim()
@@ -57,16 +69,16 @@ function draw(): void {
 	const ink = color('--tq-color-text')
 	const guide = color('--tq-color-text-subtle')
 	const accent = color('--tq-color-accent')
-	const { x, y, zoom } = view.value
+	const [a, b, c, d, tx, ty] = view.value
 
 	for (const shape of scene.value) {
-		const isSelected = shape.row === props.selected
-		context.strokeStyle = isSelected ? accent : shape.draw === 'path' ? ink : guide
+		const isMarked = shape.row === props.selected || shape.row === hovered.value
+		context.strokeStyle = isMarked ? accent : shape.draw === 'path' ? ink : guide
 		context.fillStyle = context.strokeStyle
 		if (shape.draw === 'path') {
 			context.save()
-			context.setTransform(ratio * zoom, 0, 0, ratio * zoom, ratio * x, ratio * y)
-			context.lineWidth = 1.5 / zoom
+			context.setTransform(ratio * a, ratio * b, ratio * c, ratio * d, ratio * tx, ratio * ty)
+			context.lineWidth = (shape.row === hovered.value ? 2 : 1.5) / zoom.value
 			context.stroke(toPath2D(shape.value as never))
 			context.restore()
 		} else if (shape.draw === 'point') {
@@ -79,9 +91,10 @@ function draw(): void {
 
 	context.lineWidth = 1.5
 	context.strokeStyle = accent
-	context.fillStyle = color('--tq-color-background')
-	for (const handle of handles.value) {
+	const paper = color('--tq-color-background')
+	for (const [i, handle] of handles.value.entries()) {
 		const [hx, hy] = toScreen(handle.at)
+		context.fillStyle = i === hoveredHandle.value ? accent : paper
 		context.beginPath()
 		context.arc(hx, hy, HANDLE_RADIUS, 0, Math.PI * 2)
 		context.fill()
@@ -90,16 +103,20 @@ function draw(): void {
 }
 
 watchEffect(() => {
-	void [scene.value, handles.value, view.value, size.value, props.selected]
+	void [
+		scene.value,
+		handles.value,
+		view.value,
+		size.value,
+		props.selected,
+		hovered.value,
+		hoveredHandle.value,
+	]
 	draw()
 })
 
 useResizeObserver($canvas, ([entry]) => {
 	if (entry) size.value = [entry.contentRect.width, entry.contentRect.height]
-})
-
-onMounted(() => {
-	view.value = { x: 0, y: 0, zoom: 1 }
 })
 
 /** The shape at a place on screen, the last drawn first. */
@@ -109,7 +126,7 @@ function shapeAt(x: number, y: number): Shape | null {
 	const [wx, wy] = toWorld(x, y)
 	context.save()
 	context.setTransform(1, 0, 0, 1, 0, 0)
-	context.lineWidth = HIT_WIDTH / view.value.zoom
+	context.lineWidth = HIT_WIDTH / zoom.value
 	let found: Shape | null = null
 	for (const shape of [...scene.value].reverse()) {
 		if (shape.draw === 'path') {
@@ -120,7 +137,7 @@ function shapeAt(x: number, y: number): Shape | null {
 			}
 		} else if (shape.draw === 'point') {
 			const [px, py] = shape.value as [number, number]
-			if (Math.hypot(px - wx, py - wy) * view.value.zoom < HIT_WIDTH) {
+			if (Math.hypot(px - wx, py - wy) * zoom.value < HIT_WIDTH) {
 				found = shape
 				break
 			}
@@ -151,7 +168,20 @@ function apply(node: AST, value: unknown): void {
 	if (ast?.kind === 'let' && ast !== root.value) props.document.setRoot(ast)
 }
 
-let pressed: { handle: number } | { panFrom: [number, number] } | null = null
+/** How far a press has to go to be a move, so that a click does not nudge anything. */
+const MOVE_THRESHOLD = 3
+
+let pressed:
+	| { handle: number }
+	| { panFrom: [number, number] }
+	| {
+			row: string
+			fromScreen: [number, number]
+			fromWorld: [number, number]
+			starts: ReturnType<typeof followersAt>
+			moving: boolean
+	  }
+	| null = null
 
 function onPointerDown(event: PointerEvent): void {
 	problem.value = null
@@ -165,8 +195,22 @@ function onPointerDown(event: PointerEvent): void {
 	}
 	const shape = shapeAt(x, y)
 	if (shape) {
+		// What is already selected can be taken by anywhere on it.
+		pressed =
+			shape.row === props.selected
+				? {
+						row: shape.row,
+						fromScreen: [x, y],
+						fromWorld: toWorld(x, y),
+						starts: followersAt(
+							props.document.root.value,
+							props.document.env.value,
+							shape.row
+						),
+						moving: false,
+					}
+				: null
 		emit('select', shape.row)
-		pressed = null
 		return
 	}
 	emit('select', null)
@@ -174,16 +218,41 @@ function onPointerDown(event: PointerEvent): void {
 }
 
 function onPointerMove(event: PointerEvent): void {
-	if (pressed === null) return
+	if (pressed === null) {
+		const { offsetX: x, offsetY: y } = event
+		const handle = handleAt(x, y)
+		const overHandle = handle !== undefined
+		const shape = overHandle ? null : shapeAt(x, y)
+		hoveredHandle.value = overHandle ? handles.value.indexOf(handle) : null
+		hovered.value = shape?.row ?? null
+		cursor.value = overHandle
+			? 'grab'
+			: shape !== null && shape.row === props.selected
+				? 'move'
+				: 'default'
+		return
+	}
 	if ('handle' in pressed) {
 		moveHandle(pressed.handle, toWorld(event.offsetX, event.offsetY))
+	} else if ('row' in pressed) {
+		const { offsetX: x, offsetY: y } = event
+		const [fromX, fromY] = pressed.fromScreen
+		if (!pressed.moving && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
+		pressed.moving = true
+		const [wx, wy] = toWorld(x, y)
+		const { root, env } = props.document
+		const { ast, problem: why } = moved(root.value, env.value, pressed.row, pressed.starts, [
+			wx - pressed.fromWorld[0],
+			wy - pressed.fromWorld[1],
+		])
+		problem.value = why
+		if (ast?.kind === 'let' && ast !== root.value) props.document.setRoot(ast)
 	} else {
 		const [fromX, fromY] = pressed.panFrom
-		view.value = {
-			...view.value,
-			x: view.value.x + event.clientX - fromX,
-			y: view.value.y + event.clientY - fromY,
-		}
+		view.value = mat2d.mul(
+			mat2d.fromTranslation([event.clientX - fromX, event.clientY - fromY]),
+			view.value
+		)
 		pressed.panFrom = [event.clientX, event.clientY]
 	}
 }
@@ -191,25 +260,6 @@ function onPointerMove(event: PointerEvent): void {
 useEventListener(window, 'pointerup', () => {
 	pressed = null
 })
-
-function onWheel(event: WheelEvent): void {
-	event.preventDefault()
-	if (event.ctrlKey || event.metaKey) {
-		const zoom = Math.min(64, Math.max(1 / 64, view.value.zoom * Math.exp(-event.deltaY * 0.01)))
-		const [wx, wy] = toWorld(event.offsetX, event.offsetY)
-		view.value = {
-			zoom,
-			x: event.offsetX - wx * zoom,
-			y: event.offsetY - wy * zoom,
-		}
-	} else {
-		view.value = {
-			...view.value,
-			x: view.value.x - event.deltaX,
-			y: view.value.y - event.deltaY,
-		}
-	}
-}
 </script>
 
 <template>
@@ -217,8 +267,9 @@ function onWheel(event: WheelEvent): void {
 		<canvas
 			ref="$canvas"
 			@pointerdown="onPointerDown"
+			:style="{ cursor }"
 			@pointermove="onPointerMove"
-			@wheel="onWheel"
+			@pointerleave="(hovered = null), (hoveredHandle = null)"
 		/>
 		<p v-if="problem !== null" class="problem">Cannot do that: {{ problem }}</p>
 	</div>
