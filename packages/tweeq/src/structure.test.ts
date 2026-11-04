@@ -1,8 +1,8 @@
-import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetAST, makeTupleType, meta, parse, print, type RecordAST, Session, solve, type TypeValue, unpin, withTypeMeta } from '@glisp/lang'
+import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetAST, makeTupleType, makeTypedFn, meta, parse, print, type RecordAST, Session, solve, type TypeValue, unpin, withTypeMeta } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, isAllOnItsRow, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, isAllOnItsRow, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -83,6 +83,50 @@ describe('viewOf', () => {
 		expect(missing.map(m => m.name)).toEqual(['Count'])
 		expect(print(missing[0]!.add())).toBe('(take [1 2] n=0)')
 		expect(view('(take [1 2] n=1)').missing).toEqual([])
+	})
+
+	it('shows that parameter as what it comes to, which editing writes', () => {
+		const { slot } = view('(take [1 2])').missing[0]!
+		expect(print(slot!.ast)).toBe('0')
+		expect(print(slot!.replace(parse('3')))).toBe('(take [1 2] n=3)')
+		const hidden = view('^{label: "L"} (take [1 2])').missing[0]!.slot!
+		expect(print(hidden.replace(parse('3')))).toContain('n=3')
+	})
+
+	it('keeps it where its parameter is, written or not, with the same key', () => {
+		const number = evaluate(parse('number'), env).value as TypeValue
+		const clamp = host(makeTypedFn([number, number, number], number, a => a, ['a', 'b', 'c']))
+		const scoped: Env = { ast: new LetAST([], null), parent: env, bindings: new Map([['f', { ast: clamp, env: null }]]) }
+		const keysOf = (src: string) => {
+			const v = viewOf(parse(src), scoped)
+			return rowsWithAbsent(v.slots, v.missing).map(({ key, absent }) => `${key}${absent ? '?' : ''}`)
+		}
+		expect(keysOf('(f 1)')).toEqual(['arg0', 'kw:b?', 'kw:c?'])
+		expect(keysOf('(f 1 c=3)')).toEqual(['arg0', 'kw:b?', 'kw:c'])
+		expect(keysOf('(f 1 c=3 b=2)')).toEqual(['arg0', 'kw:b', 'kw:c'])
+	})
+
+	it('reverts one written by name by leaving it out, and one by its place to the default', () => {
+		const reverted = (src: string, key: string) => {
+			const { slots } = view(src)
+			const slot = slots.find(s => s.key === key) ?? slots[0]!
+			const action = actionsOf(slot).find(({ label }) => label === 'Revert to Default')
+			return action !== undefined && 'apply' in action ? print(action.apply()) : null
+		}
+		expect(reverted('(take [1 2] n=3)', 'kw:n')).toBe('(take [1 2])')
+		expect(reverted('(take [1 2] 3)', 'arg1')).toBe('(take [1 2] 0)')
+		expect(reverted('(take [1 2] 0)', 'arg1')).toBeNull()
+		expect(reverted('{a: 1}', 'a')).toBeNull()
+	})
+
+	it('has nothing to do with it but write it', () => {
+		const { slot } = view('(take [1 2])').missing[0]!
+		expect(actionsOf(slot!)).toEqual([])
+		expect(canSolve(slot!, 0)).toBe(false)
+	})
+
+	it('has no such thing to show for what a block could return', () => {
+		expect(view('{a = 1}').missing[0]!.slot).toBeUndefined()
 	})
 
 	it('shows vectors, records and let-blocks by their children', () => {
@@ -1033,7 +1077,8 @@ describe('actionsOf', () => {
 		])
 		expect(menu('[[1]]')).toEqual(['Add Element', 'Pin', 'Hide', 'Copy Value', 'Delete'])
 		expect(menu('[1]')).toEqual(['Pin', 'Hide', 'Copy Value', 'Delete'])
-		expect(menu('(take [1] 1)', 1)).toEqual(['Pin', 'Hide', 'Copy Value'])
+		expect(menu('(take [1] 1)', 1)).toEqual(['Revert to Default', 'Pin', 'Hide', 'Copy Value'])
+		expect(menu('(take [1] 0)', 1)).toEqual(['Pin', 'Hide', 'Copy Value'])
 	})
 
 	it('gives every action an icon', () => {

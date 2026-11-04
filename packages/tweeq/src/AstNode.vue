@@ -14,7 +14,7 @@ import AstInline from './AstInline.vue'
 import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
-import { editMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
+import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
 	HOST_KEY, ALSO_SELECTED, LINKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
@@ -127,14 +127,14 @@ const open = ref(inject(OPEN_ROW, null)?.() === props.path)
 const tree = inject(ParameterTreeContextKey, null)
 /** A point's pad, to take it by, and what is left beside it for its numbers. */
 const translatable = computed(
-	() => isTranslatable(props.entry.expected) && Array.isArray(placeValue.value)
+	() => !props.entry.absent && isTranslatable(props.entry.expected) && Array.isArray(placeValue.value)
 )
 const placeValue = computed(
 	() => props.read(readByName(ast.value), props.entry.env).value
 )
 /** An angle's dial, to turn it by, with its number beside it. */
 const turnable = computed(
-	() => isAngleInput(props.entry.expected) && typeof placeValue.value === 'number'
+	() => !props.entry.absent && isAngleInput(props.entry.expected) && typeof placeValue.value === 'number'
 )
 const PAD_WIDTH = 26
 const solver = inject(SOLVER, null)
@@ -368,7 +368,11 @@ const hostKey = inject(HOST_KEY, undefined)
 const commandsFor = inject(COMMANDS_FOR, undefined)
 
 const referenceItems = computed<MenuItem[]>(() =>
-	linker === null || isFunction.value ? [] : referenceMenuItems(linker, props.path, paste)
+	linker === null || isFunction.value
+		? []
+		: props.entry.absent
+			? missingMenuItems(linker, props.path.slice(0, Math.max(0, props.path.lastIndexOf('/'))), props.entry.parameter!)
+			: referenceMenuItems(linker, props.path, paste)
 )
 
 const slotMenu = computed(() =>
@@ -504,7 +508,8 @@ watch(
 		/>
 
 		<template #labelEnd>
-			<span class="row-path" :data-path="path" hidden />
+			<span v-if="entry.absent" class="row-absent" hidden />
+			<span v-else class="row-path" :data-path="path" hidden />
 			<span v-if="problem !== null" class="row-problem" hidden />
 			<AstGapAdd v-if="insertBefore" @add="insertBefore" />
 			<button
@@ -569,6 +574,10 @@ watch(
 </template>
 
 <style scoped>
+/* Not written: what it comes to anyway, until it is edited. */
+:global(.TqParameterTreeItem:has(.row-absent):not(:hover, :focus-within)) {
+	opacity: 0.5;
+}
 /* There when reached for, or when it is what the row being selected would do. */
 .end.reveals {
 	opacity: 0;

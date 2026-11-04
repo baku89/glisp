@@ -72,6 +72,10 @@ export type Editor =
 
 /** A position inside a node holding a child. */
 export interface Slot {
+	/** Not written yet: what it holds is what it comes to anyway, until it is edited. */
+	readonly absent?: boolean
+	/** Where its parameter is among a call's, if it is written by name or not at all. */
+	readonly order?: number
 	/** Stable among siblings, and what the slot is called on screen. */
 	readonly key: string
 	readonly label: string
@@ -153,12 +157,27 @@ export function moveBetween<T>(
 
 const BINDING = 'binding:'
 
+/**
+ * The rows of `slots`, with the parameters not written among those written by name, each
+ * where its parameter is: writing one leaves it where it is, the same row as before.
+ */
+export function rowsWithAbsent(slots: readonly Slot[], missing: readonly MissingArgument[]): Slot[] {
+	const absent = missing.flatMap(({ slot }) => (slot === undefined ? [] : [slot]))
+	const named = slots.filter(({ order }) => order !== undefined)
+	return [
+		...slots.filter(({ order }) => order === undefined),
+		...[...named, ...absent].sort((a, b) => a.order! - b.order!),
+	]
+}
+
 /** A parameter that a call could have, but does not. */
 export interface MissingArgument {
 	readonly name: string
 	/** What the parameter is called in code, where `name` is what it is called on screen. */
 	readonly parameter: string
 	readonly expected: TypeValue | null
+	/** It as a slot, if it comes to something as it is, which is written by being edited. */
+	readonly slot?: Slot
 	/** The new call, with this argument given its type's default. */
 	add(): AST
 	/** The new call, with this argument being `child`. */
@@ -751,6 +770,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 			parameter: name,
 			numberOptions: numberOptionsOfParameter(name),
 			...docOf(name),
+			order: positional.indexOf(name),
 			ast: arg,
 			env: inside,
 			expected: signature?.(positional.indexOf(name)) ?? null,
@@ -773,6 +793,19 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 			name: labelOf(name),
 			parameter: name,
 			expected,
+			slot: {
+				absent: true,
+				order: i,
+				key: `kw:${name}`,
+				label: labelOf(name),
+				parameter: name,
+				numberOptions: numberOptionsOfParameter(name),
+				...docOf(name),
+				ast: defaultFor(expected, inside),
+				env: inside,
+				expected,
+				replace: give,
+			},
 			add: () => give(defaultFor(expected, inside)),
 			give,
 		})
@@ -1031,6 +1064,9 @@ function viewOfMeta(
 		})),
 		missing: inner.missing.map(m => ({
 			...m,
+			...(m.slot === undefined
+				? {}
+				: { slot: { ...m.slot, replace: (child: AST) => wrap(m.slot!.replace(child)) } }),
 			add: () => wrap(m.add()),
 			give: child => wrap(m.give(child)),
 		})),
@@ -1428,6 +1464,7 @@ const isReference = (ast: AST): boolean => {
 
 export function canSolve(slot: Slot, value: unknown): boolean {
 	return (
+		!slot.absent &&
 		(typeof value === 'boolean' ||
 			isFiniteNumber(value) ||
 			// Any other way of coming to a string is as good as code, and not undone by typing.
@@ -1555,13 +1592,31 @@ export type SlotAction = {
 )
 
 /**
+ * What puts an argument back to what it would be anyway, if it is not that already: one
+ * written by name goes, and one written by its place, which has to be there, becomes the default.
+ */
+function revertOf(slot: Slot): (() => AST) | null {
+	if (slot.parameter === undefined || slot.expected === null) return null
+	if (slot.key.startsWith('kw:')) return slot.remove ?? null
+	if (!/^arg\d+$/.test(slot.key)) return null
+	const fallback = defaultFor(slot.expected, slot.env)
+	return print(slot.ast) === print(fallback) ? null : () => slot.replace(fallback)
+}
+
+/**
  * What can be done to a slot. Nothing is worked out until an action is chosen,
  * so a menu costs nothing to offer.
  */
 export function actionsOf(slot: Slot): SlotAction[] {
+	if (slot.absent) return []
 	const inner = viewOf(slot.ast, slot.env, slot.expected)
 	const bare = slot.ast.kind === 'meta' ? slot.ast.expr : slot.ast
 	const actions: SlotAction[] = []
+
+	const revert = revertOf(slot)
+	if (revert !== null) {
+		actions.push({ label: 'Revert to Default', icon: 'mdi:restore', group: 'edit', apply: revert })
+	}
 
 	const canStep =
 		bare.kind === 'call' ||

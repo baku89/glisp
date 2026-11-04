@@ -9,7 +9,7 @@ import AstGapAdd from './AstGapAdd.vue'
 import AstNode from './AstNode.vue'
 import { missingMenuItems } from './menu'
 import { LINKER, REVEALER } from './selection'
-import { fitsInline, type MissingArgument, moveBetween, type NodeView, type Slot } from './structure'
+import { fitsInline, type MissingArgument, moveBetween, type NodeView, rowsWithAbsent, type Slot } from './structure'
 
 const props = defineProps<{
 	slots: readonly Slot[]
@@ -29,17 +29,20 @@ const props = defineProps<{
 /** A new parent: what an edit of one of these makes of the node holding them. */
 const emit = defineEmits<{ change: [parent: AST] }>()
 
-const sortable = computed(() => props.slots.filter(slot => slot.sort !== undefined))
+const rows = computed(() => rowsWithAbsent(props.slots, props.missing ?? []))
+/** What has no value to show until it is added. */
+const addable = computed(() => props.missing?.filter(({ slot }) => slot === undefined) ?? [])
+const sortable = computed(() => rows.value.filter(slot => slot.sort !== undefined))
 const firstSortable = computed(() =>
-	props.slots.findIndex(slot => slot.sort !== undefined)
+	rows.value.findIndex(slot => slot.sort !== undefined)
 )
 const before = computed(() =>
-	firstSortable.value < 0 ? props.slots : props.slots.slice(0, firstSortable.value)
+	firstSortable.value < 0 ? rows.value : rows.value.slice(0, firstSortable.value)
 )
 const after = computed(() =>
 	firstSortable.value < 0
 		? []
-		: props.slots.slice(firstSortable.value + sortable.value.length)
+		: rows.value.slice(firstSortable.value + sortable.value.length)
 )
 
 // A slot's key is its position, which does not follow it around. These do, so
@@ -184,7 +187,7 @@ const pathOf = (slot: Slot): string =>
 		<AstGapAdd @add="addOneMore" />
 	</div>
 	<ParameterTreeItem
-		v-for="argument in missing"
+		v-for="argument in addable"
 		:key="`missing:${argument.name}`"
 		:label="argument.name"
 		icon="mdi:plus"

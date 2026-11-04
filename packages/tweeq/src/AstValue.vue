@@ -289,7 +289,9 @@ defineExpose({
 })
 
 // What each input stands for, so that what is selected can be edited as one.
-const place = computed<Place>(() => ({ path: props.path, element: null }))
+const place = computed<Place | undefined>(() =>
+	props.entry.absent ? undefined : { path: props.path, element: null }
+)
 
 const label = (value: unknown): string =>
 	typeof value === 'string' ? value : String(value)
@@ -299,7 +301,7 @@ const label = (value: unknown): string =>
 	<div
 		ref="$root"
 		class="value"
-		:data-path="path"
+		:data-path="entry.absent ? undefined : path"
 		:class="{
 			expression: !isCallee && isExpression(ast),
 			callee: isCallee,
