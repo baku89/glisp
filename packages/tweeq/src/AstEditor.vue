@@ -4,11 +4,13 @@ import { useEventListener } from '@vueuse/core'
 import { InputButton } from 'tweeq/InputButton'
 import { ParameterTree } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
+import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
 import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
+import { multiSelectHostOf } from './multiInputs'
 import { copiedRows, pastedRows, reach, withoutRows, withParent } from './rowsClipboard'
 import {
 	ALSO_SELECTED,
@@ -96,6 +98,8 @@ function addBinding(): void {
 		revealTarget.value = { path: append.key, rename: true }
 	}
 }
+
+provide(MULTI_SELECT_HOST, multiSelectHostOf(props.document))
 
 provide(REVEALER, {
 	target: revealTarget,

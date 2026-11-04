@@ -10,11 +10,11 @@ import {
 	toAst,
 } from '@glisp/lang'
 import {
-	extractedField,
+	extractedAt,
 	inspectRows,
 	isMixed,
 	merged,
-	withFieldValues,
+	withValuesAt,
 } from '@glisp/tweeq/multiRows'
 import { capitalCase, inspectionOf, isTranslatable, titleOf, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
@@ -402,19 +402,19 @@ describe('several rows at once', () => {
 	})
 
 	it('go back to what each of them is written as', () => {
-		const { ast } = withFieldValues(root, env, rows, field(1, 0), [7, 8])
+		const { ast } = withValuesAt(root, env, field(1, 0).places, [7, 8])
 		expect(print(ast!)).toBe('{a = (path.rect [0 0] [7 20]) b = (path.rect [5 5] [8 20])}')
 	})
 
 	it('say why they cannot, at a pin', () => {
 		const pinned = parse('{w = @10 a = (path.rect [0 0] [w 20]) b = (path.rect [5 5] [30 20])}')
-		const { ast, problem } = withFieldValues(pinned, env, rows, field(1, 0), [7, 8])
+		const { ast, problem } = withValuesAt(pinned, env, field(1, 0).places, [7, 8])
 		expect(ast).toBeNull()
 		expect(problem).toBe('pinned')
 	})
 
 	it('can have a number pulled out, that they all refer to', () => {
-		const result = extractedField(root, env, rows, field(1, 0), 20)!
+		const result = extractedAt(root, env, field(1, 0).places, 20, field(1, 0).name)!
 		expect(print(result.ast)).toBe(
 			'{width = 20 a = (path.rect [0 0] [width 20]) b = (path.rect [5 5] [width 20])}'
 		)
@@ -423,15 +423,15 @@ describe('several rows at once', () => {
 	})
 
 	it('can go on being edited as one, through what was pulled out', () => {
-		const { ast: pulled } = extractedField(root, env, rows, field(1, 0), 20)!
+		const { ast: pulled } = extractedAt(root, env, field(1, 0).places, 20, field(1, 0).name)!
 		const again = inspectRows(pulled, env, rows)!.args[1]!.fields[0]!
-		const { ast } = withFieldValues(pulled, env, rows, again, [50, 50])
+		const { ast } = withValuesAt(pulled, env, again.places, [50, 50])
 		expect(print(ast!)).toContain('width = 50')
 	})
 
 	it('give what is pulled out a name of its own, ahead of the first of them', () => {
 		const taken = parse('{width = 1 a = (path.rect [0 0] [10 20]) b = (path.rect [5 5] [30 20])}')
-		const result = extractedField(taken, env, rows, inspectRows(taken, env, rows)!.args[1]!.fields[0]!, 20)!
+		const result = extractedAt(taken, env, inspectRows(taken, env, rows)!.args[1]!.fields[0]!.places, 20, 'width')!
 		expect(result.name).toBe('width2')
 		expect(print(result.ast)).toMatch(/^\{width = 1 width2 = 20 a =/)
 	})

@@ -31,6 +31,8 @@ export interface GlispDocument {
 	readonly env: ComputedRef<Env>
 	/** Replace the whole program. */
 	setRoot(next: LetAST): void
+	/** Have every `setRoot` that `write` makes undo as one. */
+	batch(write: () => void): void
 	/** Evaluate a node in its env, sharing the cache with everything else. */
 	read(ast: AST, env: Env): EvalResult
 	/** Pick up a change the session made by itself, as a REPL does. */
@@ -53,6 +55,8 @@ export function useGlispDocument(
 	const past = shallowRef<ReadonlyArray<LetAST>>([])
 	const future = shallowRef<ReadonlyArray<LetAST>>([])
 	let lastEditAt = 0
+	let batching = false
+	let recorded = false
 
 	const install = (next: LetAST): void => {
 		session.setAst(next)
@@ -60,6 +64,8 @@ export function useGlispDocument(
 	}
 
 	const record = (): void => {
+		if (recorded) return
+		recorded = batching
 		const now = performance.now()
 		if (now - lastEditAt > COALESCE_MS) {
 			past.value = [...past.value, root.value]
@@ -86,6 +92,15 @@ export function useGlispDocument(
 		setRoot(next) {
 			record()
 			install(next)
+		},
+		batch(write) {
+			if (batching) return write()
+			batching = true
+			try {
+				write()
+			} finally {
+				batching = recorded = false
+			}
 		},
 		read: (ast, env) => session.evalAstIn(ast, env),
 		sync() {

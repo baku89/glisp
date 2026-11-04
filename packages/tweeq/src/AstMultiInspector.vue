@@ -5,25 +5,29 @@ import { type MenuItem, Menu } from 'tweeq/Menu'
 import { Parameter, ParameterTree } from 'tweeq/ParameterGrid'
 import { Popover } from 'tweeq/Popover'
 import { ScrollArea } from 'tweeq/ScrollArea'
+import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
 import { vTooltip } from 'tweeq/Tooltip'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, provide, ref, shallowRef } from 'vue'
 
 import { type GlispDocument } from './document'
+import { MERGE_LABELS, multiSelectHostOf } from './multiInputs'
 import {
-	extractedField,
+	extractedAt,
 	inspectRows,
 	isMixed,
 	type Merge,
 	merged,
 	MERGES,
 	type MultiField,
-	withFieldValues,
+	withValuesAt,
 } from './multiRows'
 
 const props = defineProps<{
 	document: GlispDocument
 	rows: readonly string[]
 }>()
+
+provide(MULTI_SELECT_HOST, multiSelectHostOf(props.document))
 
 const inspection = computed(() =>
 	inspectRows(props.document.root.value, props.document.env.value, props.rows)
@@ -32,11 +36,10 @@ const inspection = computed(() =>
 const problem = ref<string | null>(null)
 
 function setValues(field: MultiField, values: readonly number[]): void {
-	const { ast, problem: why } = withFieldValues(
+	const { ast, problem: why } = withValuesAt(
 		props.document.root.value,
 		props.document.env.value,
-		props.rows,
-		field,
+		field.places,
 		values
 	)
 	problem.value = why
@@ -63,29 +66,23 @@ function merge(field: MultiField, how: Merge): void {
 }
 
 function extract(field: MultiField, how: Merge): void {
-	const result = extractedField(
-		props.document.root.value,
-		props.document.env.value,
-		props.rows,
-		field,
-		merged(field.values, how)
-	)
+	const result = field.canExtract
+		? extractedAt(
+				props.document.root.value,
+				props.document.env.value,
+				field.places,
+				merged(field.values, how),
+				field.name
+			)
+		: null
 	problem.value = result === null ? 'that cannot be pulled out from here' : null
 	if (result?.ast.kind === 'let') props.document.setRoot(result.ast)
-}
-
-const LABELS: Readonly<Record<Merge, string>> = {
-	first: 'First',
-	last: 'Last',
-	ave: 'Average',
-	min: 'Min',
-	max: 'Max',
 }
 
 const menuOf = (field: MultiField): MenuItem[] => {
 	const mixed = isMixed(field.values)
 	const each = (perform: (how: Merge) => void): MenuItem[] =>
-		MERGES.map(how => ({ label: LABELS[how], perform: () => perform(how) }))
+		MERGES.map(how => ({ label: MERGE_LABELS[how], perform: () => perform(how) }))
 	return [
 		...(mixed
 			? [
@@ -152,6 +149,7 @@ function range(values: readonly number[]): string {
 					>
 						<InputNumber
 							v-bind="field.options"
+							:multiSelectData="field.places"
 							:modelValue="shown(field)"
 							@update:modelValue="shift(field, $event)"
 						/>

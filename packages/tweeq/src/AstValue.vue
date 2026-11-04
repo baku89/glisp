@@ -14,6 +14,7 @@ import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 import AstCodePopup from './AstCodePopup.vue'
 import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
+import type { Place } from './multiRows'
 import { SOLVER } from './selection'
 import {
 	canSolve,
@@ -218,6 +219,9 @@ defineExpose({
 	editExpression,
 })
 
+// What each input stands for, so that what is selected can be edited as one.
+const place = computed<Place>(() => ({ path: props.path, element: null }))
+
 const label = (value: unknown): string =>
 	typeof value === 'string' ? value : String(value)
 </script>
@@ -243,6 +247,7 @@ const label = (value: unknown): string =>
 			:modelValue="view.editor.value"
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
+			:multiSelectData="place"
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
 		<InputNumber
@@ -251,6 +256,7 @@ const label = (value: unknown): string =>
 			:modelValue="result?.value as number"
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
+			:multiSelectData="place"
 			@update:modelValue="solver?.solve(ast, $event, path)"
 		/>
 		<InputGroup v-else-if="solvableNumbers !== null">
@@ -260,12 +266,14 @@ const label = (value: unknown): string =>
 				v-bind="elementOptionsOf(entry.expected, i)"
 				:modelValue="number"
 				:menuItems="fieldMenu"
+				:multiSelectData="{ path, element: i }"
 				@update:modelValue="solveElement(i, $event)"
 			/>
 		</InputGroup>
 		<InputSwitch
 			v-else-if="solvableBoolean"
 			:modelValue="result?.value as boolean"
+			:multiSelectData="place"
 			@update:modelValue="solver?.solve(ast, $event, path)"
 		/>
 		<InputString
@@ -273,11 +281,13 @@ const label = (value: unknown): string =>
 			:modelValue="view.editor.value"
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
+			:multiSelectData="place"
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
 		<InputSwitch
 			v-else-if="view.editor?.kind === 'boolean'"
 			:modelValue="view.editor.value"
+			:multiSelectData="place"
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
 		<InputDropdown

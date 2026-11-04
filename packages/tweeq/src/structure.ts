@@ -897,7 +897,7 @@ export function isExpression(ast: AST): boolean {
 }
 
 /** Whether a type has a type variable anywhere in it, such as `[...T]`. */
-function mentionsTypeVar(type: TypeValue): boolean {
+export function mentionsTypeVar(type: TypeValue): boolean {
 	const seen = new Set<unknown>()
 	const visit = (part: unknown): boolean => {
 		if (typeof part !== 'object' || part === null || seen.has(part)) return false
