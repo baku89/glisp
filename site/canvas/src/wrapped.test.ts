@@ -596,3 +596,42 @@ describe('what a matrix goes around', () => {
 		expect(copies.at(-1)!.at).toEqual([140, 110])
 	})
 })
+
+describe('what is moved, where it refers to a place on something else', () => {
+	const at = (source: string, move: readonly [number, number]) => {
+		const root = parse(`{a = ${source} b = (path.circle [0 0] 20)}`)
+		const snap = snapPointsOf(root, env, sceneOf(root, env)).find(({ code }) => code?.of === 'binding:a')!
+		const next = linked(root, env, 'binding:b', 0, snap)!
+		return { snap, ...changed(next, env, 'binding:b', gripAt(next, env, 'binding:b')!.move!(move as [number, number])) }
+	}
+
+	it.each([
+		['(path.circle [100 100] 50)', '(path.circle [110 105] 50)'],
+		['(path.ellipse [100 100] [50 50] 30)', '(path.ellipse [110 105] [50 50] 30)'],
+		['(path.ngon [100 100] 50 5)', '(path.ngon [110 105] 50 5)'],
+	])('moves %s with it, and leaves the rest of it as it is', (source, moved) => {
+		const { ast, problem } = at(source, [10, 5])
+		expect(problem).toBe(null)
+		expect(print(ast!)).toContain(`a = ${moved} `)
+	})
+
+	it('leaves half as what the middle of a line is', () => {
+		const root = parse('{a = (path.line [50 60] [150 90]) b = (path.circle [0 0] 20)}')
+		const middle = snapPointsOf(root, env, sceneOf(root, env)).find(({ label, code }) => label === 'middle' && code?.of === 'binding:a')!
+		const next = linked(root, env, 'binding:b', 0, middle)!
+		const moved = changed(next, env, 'binding:b', gripAt(next, env, 'binding:b')!.move!([10, 5]))
+		expect(moved.problem).toBe(null)
+		expect(print(moved.ast!)).toContain('@2) (/ (+')
+		expect(print(moved.ast!)).toContain('(path.line [50 60] [170 100])')
+	})
+
+	it('can refer to the top of a circle, where going round is not exact', () => {
+		const root = parse('{a = (path.circle [100 100] 50) b = (path.circle [0 0] 20)}')
+		const top = snapPointsOf(root, env, sceneOf(root, env)).find(({ label, code }) => label === 'top' && code?.of === 'binding:a')!
+		expect(print(linked(root, env, 'binding:b', 0, top)!)).toContain('(- /a/center/1 /a/radius)')
+	})
+
+	it.each([[10, 0], [0, 5], [-7.5, 3.25]] as const)('moves it by %s, %s just as well', (x, y) => {
+		expect(at('(path.ellipse [100 100] [50 50] 30)', [x, y]).problem).toBe(null)
+	})
+})
