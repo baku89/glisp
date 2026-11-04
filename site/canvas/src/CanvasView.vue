@@ -361,6 +361,8 @@ const problem = ref<string | null>(null)
 
 const HANDLE_RADIUS = 5
 const PEN_CONTROL_RADIUS = 3
+/** How far out from a handle the paper goes, each way, to be seen over the color of a shape. */
+const HANDLE_EDGE = 1.5
 /** As much to be seen of a square as of a round handle. */
 const CORNER_HALF = 4.5
 const HIT_WIDTH = 10
@@ -515,9 +517,21 @@ function drawHandle(
 ): void {
 	context.strokeStyle = accent
 	context.lineWidth = active ? HOVER_WIDTH : 1
+	// Under what is about to be drawn, for it to be told from what is the same color as it.
+	const edged = (path?: Path2D): void => {
+		const width = context.lineWidth
+		context.strokeStyle = paper
+		context.lineWidth = width + HANDLE_EDGE * 2
+		if (path) context.stroke(path)
+		else context.stroke()
+		context.strokeStyle = accent
+		context.lineWidth = width
+	}
 	if (handle.path !== undefined) {
+		const path = pathOnScreen(handle.path)
+		edged(path)
 		context.setLineDash(handle.dashed && !active ? DASH : [])
-		context.stroke(pathOnScreen(handle.path))
+		context.stroke(path)
 		context.setLineDash([])
 		return
 	}
@@ -527,8 +541,9 @@ function drawHandle(
 	if (dragged) context.scale(HELD_SCALE, HELD_SCALE)
 	context.fillStyle = active ? accent : paper
 	if (handle.kind === 'dia') {
-		context.fill(DIAMOND)
 		context.lineWidth = 1
+		edged(DIAMOND)
+		context.fill(DIAMOND)
 		context.stroke(DIAMOND)
 	} else if (handle.kind === 'offset') {
 		// Along the outline, either side of it: reached for, they point the two ways it can go.
@@ -545,11 +560,13 @@ function drawHandle(
 			context.lineTo(side * out, 0)
 			context.lineTo(side * OFFSET_GAP, reach)
 		}
+		edged()
 		context.stroke()
 	} else if (handle.kind === 'direction') {
 		context.rotate(facing(handle.angle ?? 0))
 		context.lineJoin = 'round'
 		context.lineCap = 'round'
+		edged(POINTER)
 		context.stroke(POINTER)
 	} else {
 		// Which way an arrow pulls is for when it is reached for, along with the cursor.
@@ -557,6 +574,7 @@ function drawHandle(
 			context.save()
 			context.rotate(facing(handle.angle ?? 0))
 			context.lineWidth = 1
+			edged(handle.kind === 'arrow' ? ARROW : CROSS)
 			context.stroke(handle.kind === 'arrow' ? ARROW : CROSS)
 			context.restore()
 		}
@@ -568,6 +586,7 @@ function drawHandle(
 		} else {
 			context.arc(0, 0, HANDLE_RADIUS, 0, Math.PI * 2)
 		}
+		edged()
 		context.fill()
 		context.stroke()
 	}
