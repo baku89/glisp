@@ -778,6 +778,8 @@ export interface Handle {
 	readonly fine?: boolean
 	/** It is drawn with a broken line, being there only to take hold of. */
 	readonly dashed?: boolean
+	/** It pulls in toward what it is measured from, with outside being the other way. */
+	readonly inward?: boolean
 	/** What it turns around, when it goes by even angles, for the line that it is then on. */
 	readonly pivot?: Vec
 	/** It pulls what goes through somewhere else, and is not on it, as a curve's controls are. */
@@ -1694,6 +1696,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						kind: 'arrow',
 						at,
 						angle: degrees([x, y]),
+						inward: true,
 						to: to => {
 							const by = ((to[0] - at[0]) * x + (to[1] - at[1]) * y) / 2
 							return [change(2, Math.min(most, Math.max(0, r + by)))]

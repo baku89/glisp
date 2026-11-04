@@ -308,6 +308,23 @@ describe('where each number goes', () => {
 			expect(pulled(ellipse, 'arrow', [0, 30], [{ route: [1], index: 1 }])).toEqual(['below'])
 		})
 
+		it('is ahead of the end of a clothoid, however far it has come round', () => {
+			const clothoid = '{c = (path.clothoid [0 0] 0 100 0 0.06)}'
+			expect(pulled(clothoid, 'arrow', [0, 0], [{ route: [2] }])).toEqual(['left'])
+		})
+
+		it('is the way it faces, for a direction', () => {
+			const facing = (angle: number) => `{c = (path.clothoid [0 0] ${angle} 100 0 0)}`
+			const side = (angle: number) =>
+				placedDimensions(parse(facing(angle)), env, ROW, [{ route: [1] }], [0, 0], at => at, 'direction').map(
+					({ side }) => side
+				)
+			expect(side(0)).toEqual(['right'])
+			expect(side(90)).toEqual(['below'])
+			expect(side(180)).toEqual(['left'])
+			expect(side(-90)).toEqual(['above'])
+		})
+
 		it('is off the corner, for what rounds it', () => {
 			const round = '{c = (path.roundRect [0 0] [100 50] 10)}'
 			expect(pulled(round, 'arrow', [12, 12], [{ route: [2] }])).toEqual(['left'])

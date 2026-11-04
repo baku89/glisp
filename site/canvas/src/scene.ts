@@ -1048,15 +1048,18 @@ export interface PlacedDimension {
 const POINTER_OFFSET = 14
 const STACKED_BY = 26
 
-/** Whether what a handle says goes outside of it: it moves an outline, or pulls a length. */
+/** Whether what a handle says goes outside of it: all but a place, and the whole of it. */
 export const saysOutside = ({ kind, name }: Handle): boolean =>
-	kind === 'offset' || kind === 'arrow' || (kind === 'point' && name === 'vertex')
+	kind === 'offset' ||
+	kind === 'arrow' ||
+	kind === 'direction' ||
+	(kind === 'point' && name === 'vertex')
 
 /**
  * Where the numbers of a handle being dragged go: by the one of its `kind` nearest the
- * pointer, which is the one taken hold of, on the side of it that is away from the shape.
- * The rest of an outline is what an offset is away from, as a ring has a side toward the
- * center that is just as much outside of it, and otherwise it is the center, if it has one.
+ * pointer, which is the one taken hold of, on the side of it that it goes out toward. An
+ * offset has an outline on either side, and goes away from the rest of them, as a ring
+ * has a side toward the center that is just as much outside of it.
  */
 function outsideOfHandle(
 	grip: Grip & { readonly transform: Mat },
@@ -1064,32 +1067,33 @@ function outsideOfHandle(
 	[pointerX, pointerY]: Vec,
 	onScreen: (at: Vec, transform: Mat) => Vec
 ): { at: Vec; side: DimensionSide } | null {
-	const placed = (handles: readonly Handle[]) =>
-		handles.flatMap(handle =>
-			handle.at === undefined ? [] : [{ handle, at: onScreen(handle.at, grip.transform) }]
-		)
-	const saying = placed(grip.handles.filter(saysOutside))
-	const ofKind = saying.filter(({ handle }) => handle.kind === kind)
+	const screen = (at: Vec): Vec => onScreen(at, grip.transform)
+	const ofKind = grip.handles.flatMap(handle =>
+		handle.kind === kind && handle.at !== undefined && saysOutside(handle)
+			? [{ handle, at: screen(handle.at) }]
+			: []
+	)
 	const [first] = ofKind
 	if (first === undefined) return null
 	const distance = ([x, y]: Vec) => Math.hypot(x - pointerX, y - pointerY)
 	const { handle, at } = ofKind.reduce((a, b) => (distance(b.at) < distance(a.at) ? b : a), first)
-	const around = kind === 'offset' ? ofKind : saying
-	const center = kind === 'offset' ? undefined : placed(grip.handles.filter(h => h.kind === 'translate'))[0]?.at
-	const from: Vec = center ?? [
-		around.reduce((sum, o) => sum + o.at[0], 0) / around.length,
-		around.reduce((sum, o) => sum + o.at[1], 0) / around.length,
-	]
-	const away: Vec = [at[0] - from[0], at[1] - from[1]]
-	let along = away
-	if (handle.angle !== undefined) {
+	const between = (from: Vec, to: Vec): Vec => [to[0] - from[0], to[1] - from[1]]
+
+	let out: Vec
+	if (handle.angle === undefined) {
+		out = handle.pivot === undefined ? [1, 0] : between(screen(handle.pivot), at)
+	} else {
 		const radians = (handle.angle * Math.PI) / 180
 		const [localX, localY] = handle.at!
-		const [tipX, tipY] = onScreen([localX + Math.cos(radians), localY + Math.sin(radians)], grip.transform)
-		along = [tipX - at[0], tipY - at[1]]
+		out = between(at, screen([localX + Math.cos(radians), localY + Math.sin(radians)]))
 	}
-	const way = away[0] * along[0] + away[1] * along[1] < 0 ? -1 : 1
-	const [x, y] = [along[0] * way, along[1] * way]
+	const middle: Vec = [
+		ofKind.reduce((sum, o) => sum + o.at[0], 0) / ofKind.length,
+		ofKind.reduce((sum, o) => sum + o.at[1], 0) / ofKind.length,
+	]
+	const away = between(middle, at)
+	const back = handle.kind === 'offset' ? away[0] * out[0] + away[1] * out[1] < 0 : handle.inward === true
+	const [x, y] = back ? [-out[0], -out[1]] : out
 	const side = Math.abs(x) >= Math.abs(y) ? (x < 0 ? 'left' : 'right') : y < 0 ? 'above' : 'below'
 	return { at, side }
 }
