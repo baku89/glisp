@@ -38,6 +38,7 @@ import {
 	hasInside,
 	placedDimensions,
 	saysOutside,
+	withExpressionAt,
 	readoutOf,
 	roundedChanges,
 	roundedTo,
@@ -242,6 +243,9 @@ const heldDimensions = computed(() => {
 	)
 })
 
+/** What each keystroke of an expression starts over from, and whose number it is. */
+let beforeExpression: { place: string; ast: AST } | null = null
+
 function hold(
 	row: string,
 	places: readonly Dimension[],
@@ -249,6 +253,7 @@ function hold(
 	first = 0,
 	outsideOf: Handle['kind'] | null = null
 ): void {
+	beforeExpression = null
 	held.value =
 		places.length === 0
 			? null
@@ -257,11 +262,28 @@ function hold(
 
 function typeDimension(dimension: Dimension, value: number): void {
 	if (held.value === null) return
+	// A number in place of what it was worked out from is that gone, not that changed.
+	if (dimension.expression) {
+		typeExpression(dimension, String(value))
+		return
+	}
 	const { root, env } = props.document
 	const { row, base } = held.value
 	const next = apply(row, dimensionChanges(root.value, env.value, row, dimension, value, base))
 	typed = next.ast
 	commit(next)
+}
+
+function typeExpression(dimension: Dimension, text: string): string | null {
+	if (held.value === null) return null
+	const { root, env } = props.document
+	const place = `${dimension.route}/${dimension.index}`
+	if (beforeExpression?.place !== place) beforeExpression = { place, ast: root.value }
+	const result = withExpressionAt(beforeExpression.ast, env.value, held.value.row, dimension, text)
+	const ast = 'ast' in result ? result.ast : beforeExpression.ast
+	typed = ast
+	commit({ ast, problem: null })
+	return 'problem' in result ? result.problem : null
 }
 
 function doneTyping(keep: boolean): void {
@@ -1254,8 +1276,9 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 				})
 			: []
 	hold(row, numbers, at, 0, saysOutside(handle) ? handle.kind : null)
+	// Exact numbers are for when they have been asked for.
 	readout.value =
-		next.ast === null || numbers.length > 0
+		!props.dimensions || next.ast === null || numbers.length > 0
 			? null
 			: {
 					at,
@@ -1476,6 +1499,7 @@ useEventListener(window, 'pointerup', event => {
 			:room="size"
 			:editing="held.editing"
 			:first="held.first"
+			:expression="typeExpression"
 			@set="typeDimension"
 			@done="doneTyping"
 		/>

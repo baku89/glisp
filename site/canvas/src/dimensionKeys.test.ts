@@ -13,7 +13,7 @@ describe('a key on a number just offered to type over', () => {
 	})
 
 	it('is typed, if a number or an expression could begin with it', () => {
-		for (const key of ['1', '.', '-', '(', 'x', 'i']) {
+		for (const key of ['1', '.', '-', '(', '=']) {
 			expect(isForElsewhere({ ...plain, key }, offered)).toBe(false)
 		}
 		expect(isForElsewhere({ ...plain, key: 'M', shiftKey: true }, offered)).toBe(false)

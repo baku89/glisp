@@ -13,6 +13,7 @@ import {
 	dimensionsOf,
 	drawn,
 	drawnFrom,
+	withExpressionAt,
 	gripAt,
 	placedBeside,
 	placedDimensions,
@@ -162,6 +163,53 @@ describe('the numbers of a shape just drawn', () => {
 		expect(print(root)).toContain('../o/center')
 		expect(said(dimensions)).toEqual(['Width 30', 'Height 40'])
 		expect(first).toBe(0)
+	})
+})
+
+describe('typing an expression for a number', () => {
+	const source = '{radius = 40 c = (path.rect [10 20] [100 50])}'
+	const width = { route: [1], index: 0 }
+	const typed = (text: string, place: { route: number[]; index?: number } = width) =>
+		withExpressionAt(parse(source), env, ROW, place, text)
+	const written = (text: string, place?: { route: number[]; index?: number }) => {
+		const result = typed(text, place)
+		return 'ast' in result ? print(result.ast) : result.problem
+	}
+
+	it('writes what it says, where the number was', () => {
+		expect(written('radius')).toBe('{radius = 40 c = (path.rect [10 20] [radius 50])}')
+		expect(written('(* radius 2)')).toBe('{radius = 40 c = (path.rect [10 20] [(* radius 2) 50])}')
+	})
+
+	it('can begin with a =, which is only a way to begin', () => {
+		expect(written('=radius')).toBe('{radius = 40 c = (path.rect [10 20] [radius 50])}')
+	})
+
+	it('can be a number, in place of an expression', () => {
+		expect(written('12')).toBe('{radius = 40 c = (path.rect [10 20] [12 50])}')
+	})
+
+	it('says what is wrong, leaving out what cannot be read or worked out', () => {
+		for (const text of ['(* radius', 'nothing', 'x*2', '"text"', '[1 2]', '']) {
+			expect(typed(text), text).toHaveProperty('problem')
+		}
+	})
+
+	it('does not refer to itself', () => {
+		const result = withExpressionAt(
+			parse('{a = (path.rect [0 0] [10 10]) c = 1}'),
+			env,
+			'binding:a',
+			width,
+			'../a/size/0'
+		)
+		expect(result).toHaveProperty('problem')
+	})
+
+	it('says so of a number that is worked out', () => {
+		const at = (src: string) => dimensionAt(parse(src), env, ROW, width)
+		expect(at('{radius = 40 c = (path.rect [0 0] [radius 50])}')).toMatchObject({ value: 40, expression: true })
+		expect(at('{c = (path.rect [0 0] [10 50])}')).not.toHaveProperty('expression')
 	})
 })
 

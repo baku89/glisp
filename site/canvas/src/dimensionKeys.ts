@@ -1,6 +1,7 @@
 /**
- * What a key means to a number that has only just been offered to type over. A number or
- * an expression begins with what a shortcut does not, so one can follow a drawing at once.
+ * What a key means to a number that has only just been offered to type over. A number
+ * begins with what a shortcut does not, so one can follow a drawing at once, and so does an
+ * expression, as `(`, or `=` for one that begins with a name.
  */
 
 export interface KeyPressed {
@@ -17,16 +18,13 @@ export interface InputState {
 	readonly selectionEnd: number | null
 }
 
-/** What an expression can begin with: what it is given. `Math` has a capital, and so a Shift. */
-const BEGINS_EXPRESSION = new Set(['x', 'i'])
-
 /** Whether a key is not being typed, but is for whatever it means elsewhere. */
 export function isForElsewhere(
 	{ key, metaKey, ctrlKey, altKey, shiftKey }: KeyPressed,
 	{ value, selectionStart, selectionEnd }: InputState
 ): boolean {
 	if (metaKey || ctrlKey || altKey || shiftKey) return false
-	if (!/^[a-z]$/.test(key) || BEGINS_EXPRESSION.has(key)) return false
+	if (!/^[a-z]$/.test(key)) return false
 	// Anything else about the selection is someone in the middle of typing.
 	return value !== '' && selectionStart === 0 && selectionEnd === value.length
 }

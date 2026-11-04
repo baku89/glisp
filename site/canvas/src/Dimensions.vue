@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useEventListener } from '@vueuse/core'
 import { nextTick, useTemplateRef, watch } from 'vue'
 
 import DimensionField from './DimensionField.vue'
@@ -14,6 +15,8 @@ const props = defineProps<{
 	editing: boolean
 	/** Which of them to go to first. */
 	first: number
+	/** What comes of typing something other than a number, and what is wrong with it. */
+	expression: (dimension: Dimension, text: string) => string | null
 }>()
 
 const emit = defineEmits<{
@@ -67,9 +70,27 @@ function onKeydown(event: KeyboardEvent): void {
 	emit('done', event.key === 'Enter')
 }
 
+/**
+ * A press on one of them lets go of the one that had focus before it has any itself, so
+ * it would look like going elsewhere.
+ */
+let pressedHere = false
+useEventListener(window, 'pointerup', () => (pressedHere = false), { capture: true })
+useEventListener(window, 'pointercancel', () => (pressedHere = false), { capture: true })
+
+// Having been dragged by, one has no focus to let go of when something else is pressed.
+useEventListener(
+	window,
+	'pointerdown',
+	(event: PointerEvent) => {
+		if (props.editing && !$root.value?.contains(event.target as Node)) emit('done', true)
+	},
+	{ capture: true }
+)
+
 /** Being let go of is the same as being done with, unless it is only another window. */
 function onFocusout(event: FocusEvent): void {
-	if (!props.editing || !window.document.hasFocus()) return
+	if (pressedHere || !props.editing || !window.document.hasFocus()) return
 	const to = event.relatedTarget as Node | null
 	if (to === null || !$root.value?.contains(to)) emit('done', true)
 }
@@ -80,13 +101,14 @@ const set = (dimension: Dimension, value: number): void => {
 </script>
 
 <template>
-	<div ref="$root" class="Dimensions" @keydown.capture="onKeydownFirst" @keydown="onKeydown" @focusout="onFocusout">
+	<div ref="$root" class="Dimensions" @keydown.capture="onKeydownFirst" @keydown="onKeydown" @focusout="onFocusout" @pointerdown.capture="pressedHere = true">
 		<DimensionField
 			v-for="placed in dimensions"
 			:key="`${placed.dimensions[0]!.route}/${placed.dimensions[0]!.index}`"
 			:placed="placed"
 			:room="room"
 			:editing="editing"
+			:expression="expression"
 			@set="set"
 		/>
 	</div>

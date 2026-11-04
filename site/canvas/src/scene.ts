@@ -936,9 +936,74 @@ export interface DimensionPlace {
 export interface Dimension extends DimensionPlace {
 	readonly label: string
 	readonly value: number
+	/** It is worked out from something, rather than being written as a number. */
+	readonly expression?: boolean
 	readonly options: NumberOptions
 	/** How many numbers the vector it is one of has. */
 	readonly length: number
+}
+
+const pathOfPlace = (row: string, { route, index }: DimensionPlace): string =>
+	[row, ...route.map(arg => `arg${arg}`), ...(index === undefined ? [] : [index])].join('/')
+
+/**
+ * `root`, with the number at a place being what `text` says, as code, or what is wrong with
+ * that: it has to come to a number, without anything else coming to nothing. A `=` in front
+ * of it is only a way to begin.
+ */
+export function withExpressionAt(
+	root: AST,
+	env: Env,
+	row: string,
+	place: DimensionPlace,
+	text: string
+): { ast: AST } | { problem: string } {
+	let written: AST
+	try {
+		written = parse(text.replace(/^\s*=/, ''))
+	} catch (error) {
+		return { problem: (error as Error).message }
+	}
+	const reached = reach(root, env, pathOfPlace(row, place))
+	const last = reached?.chain.at(-1)
+	if (!reached || !last) return { problem: 'this is not written anywhere it can be replaced' }
+	const ast = withParent(reached.chain, last.replace(written))
+	if (errorsIn(ast, env) > errorsIn(root, env)) return { problem: 'that cannot be worked out' }
+	const { value } = evaluate(written, last.env)
+	return typeof value === 'number' && Number.isFinite(value)
+		? { ast }
+		: { problem: 'that does not come to a number' }
+}
+
+/** Whether the number at a place is worked out from something else. */
+function isExpressionAt(root: AST, env: Env, row: string, place: DimensionPlace): boolean {
+	const last = reach(root, env, pathOfPlace(row, place))?.chain.at(-1)
+	return last !== undefined && bare(last.ast).kind !== 'lit'
+}
+
+/**
+ * The part of the row at `row` that a handle is exactly, to select by clicking it: the place
+ * it is of, or the one number that it is about, or the one thing that dragging it changes.
+ */
+export function rowOfHandle(root: AST, env: Env, row: string, handle: Handle): string | null {
+	const within = gripAt(root, env, row)?.within
+	if (typeof handle.place === 'number') {
+		return `${row}${within === undefined ? '' : `/${within}`}/arg${handle.place}`
+	}
+	const part = ((): { route: readonly number[]; index?: number } | null => {
+		const { means, at } = handle
+		if (means !== undefined) return means.length === 1 ? means[0]! : null
+		if (at === undefined || handle.place === 'self') return null
+		const changes = handle.to([at[0] + 1.37, at[1] + 2.11], at)
+		if (changes.length !== 1) return null
+		const { route, value } = changes[0]!
+		if (!Array.isArray(value) || !value.includes(UNSET)) return { route }
+		const said = value.flatMap((element, i) => (element === UNSET ? [] : [i]))
+		return said.length === 1 ? { route, index: said[0]! } : null
+	})()
+	if (part === null || part.route.length === 0 || readAt(root, env, row, part.route) === null) return null
+	const path = part.route.map(arg => `/arg${arg}`).join('')
+	return `${row}${path}${part.index === undefined ? '' : `/${part.index}`}`
 }
 
 /** The number at a place in the row at `row`, as it is in `root`. */
@@ -951,10 +1016,11 @@ export function dimensionAt(
 	const read = readAt(root, env, row, route)
 	if (read === null) return null
 	const { label, expected, options, value } = read
+	const own = { route, ...(index === undefined ? {} : { index }) }
 	const place = {
-		route,
-		...(index === undefined ? {} : { index }),
+		...own,
 		...(set === undefined ? {} : { set }),
+		...(isExpressionAt(root, env, row, own) ? { expression: true } : {}),
 	}
 	if (index === undefined) {
 		if (typeof value !== 'number') return null
