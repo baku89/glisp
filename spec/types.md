@@ -247,7 +247,7 @@ d = (+ b 1)                    ;; : number, since `+` says it returns a number
 f = (=> (p: Percent): number p)  ;; `p` is a Percent, and so is what is passed to it, for an editor
 ```
 
-A value takes its metadata from where it is written, and through names, parameters' and return types, and generics. Metadata stays out of type names in diagnostics. Apart from `default`, it is not evaluated: only what is written as a literal can be read back, as `^{max: a}` cannot be without running `a`.
+A value takes its metadata from where it is written, and through names, parameters' and return types, and generics. Metadata stays out of type names in diagnostics. Apart from `default`, it is not evaluated: only what is written as a literal can be read back, as `^{max: a}` cannot be without running `a`. A `default` can be any expression whose value is of the type, and one that is not is a diagnostic and has no effect. A host that writes a default into a program, such as for an argument being added, writes that expression, so that `^{default: (mat2d.trs [50 0])} mat2d` starts as something that can be read, or what it comes to if it would not come to the same there.
 
 `doc`, `label`, `params` and `@` stay where they are written, since they are about a name or a place: `(opacity: Percent)` is still called `opacity`. Everything else goes along with the type, including `icon`.
 

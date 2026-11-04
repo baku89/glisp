@@ -29,6 +29,7 @@ import {
 	withExpansion,
 	withInverse,
 	withMembers,
+	withDefaultFrom,
 	withOptional,
 	withTypeMeta,
 } from '@glisp/lang'
@@ -36,6 +37,7 @@ import { withInitial } from '@glisp/tweeq/filters'
 import Color from 'colorjs.io'
 import { mat2d as Mat2d, vec2 as Vec2 } from 'linearly'
 import { bounds } from 'pave/path/metrics'
+import { merge } from 'pave/path/compound'
 import { transform } from 'pave/path/modifiers'
 import {
 	arc,
@@ -84,7 +86,13 @@ const numberShownBy = (icon: string): TypeValue =>
 	withTypeMeta(number, new RecordAST([['icon', lit(icon)]]))
 /** How far round, in degrees, which is said wherever one is written or typed. */
 const degreesType = withTypeMeta(number, new RecordAST([['suffix', lit('°')]]))
-const angleType = withTypeMeta(degreesType, new RecordAST([['icon', lit('ph:angle')]]))
+const angleType = withTypeMeta(
+	degreesType,
+	new RecordAST([
+		['icon', lit('ph:angle')],
+		['input', lit('angle')],
+	])
+)
 const cornerType = numberShownBy('tabler:border-radius')
 
 export type Path = Parameters<typeof transform>[0]
@@ -149,7 +157,11 @@ const point = withTypeMeta(
 		'point',
 		'fill:M11.25 3h1.5v6h-1.5zM11.25 15h1.5v6h-1.5zM3 11.25h6v1.5H3zM15 11.25h6v1.5h-6z'
 	),
-	new RecordAST([['input', lit('translate')]])
+	new RecordAST([
+		['input', lit('translate')],
+		['name', lit('point')],
+		// Where something is can change without what it is changing.
+	])
 )
 
 /** How far something goes each way. */
@@ -169,6 +181,7 @@ const size = withTypeMeta(
 	new RecordAST([
 		['input', lit('size')],
 		['icon', lit('ph:frame-corners')],
+		['name', lit('size')],
 	])
 )
 
@@ -180,9 +193,60 @@ const withDefault = (type: TypeValue, value: unknown): TypeValue => {
 	const plain = Object.create(type.plain ?? type, { default: { value } }) as TypeValue
 	return type.meta ? withTypeMeta(plain, type.meta) : plain
 }
-const mat2d = makeTupleType([number, number, number, number, number, number])
+/** How far a matrix moves things, which a pad can take hold of, though it is nowhere to be drawn. */
+const translationType = withTypeMeta(
+	makeTupleType([
+		part([
+			['title', 'X'],
+			['fieldIcon', 'char:X'],
+		]),
+		part([
+			['title', 'Y'],
+			['fieldIcon', 'char:Y'],
+		]),
+	]),
+	new RecordAST([
+		['input', lit('translate')],
+		['icon', lit('ph:arrows-out-cardinal')],
+		['name', lit('translation')],
+	])
+)
+/** How many times as large each way, shown as a percentage, and going by a ratio as a size does. */
+const scaleType = withTypeMeta(
+	withDefault(
+		makeTupleType([
+			part([
+				['title', 'Width'],
+				['fieldIcon', 'ph:arrows-horizontal'],
+				['scale', 100],
+				['suffix', '%'],
+			]),
+			part([
+				['title', 'Height'],
+				['fieldIcon', 'ph:arrows-vertical'],
+				['scale', 100],
+				['suffix', '%'],
+			]),
+		]),
+		[1, 1]
+	),
+	new RecordAST([
+		['input', lit('size')],
+		['icon', lit('ph:arrows-out')],
+		['name', lit('scale')],
+	])
+)
+/** Six numbers that are not much to read in a row, so it goes by what it is, as a path's data does. */
+const mat2d = withTypeMeta(
+	makeTupleType([number, number, number, number, number, number]),
+	new RecordAST([
+		['icon', lit('tabler:matrix')],
+		['name', lit('matrix')],
+		['summary', lit('Transform')],
+	])
+)
 const makeTranslation = makeTypedFn(
-	[vec2],
+	[translationType],
 	mat2d,
 	by => Mat2d.fromTranslation(by as Vec),
 	['by']
@@ -193,7 +257,18 @@ const makeRotation = makeTypedFn(
 	angle => Mat2d.fromRotation(angle as number),
 	['angle']
 )
-const makeScaling = makeTypedFn([vec2], mat2d, by => Mat2d.fromScaling(by as Vec), ['by'])
+const makeScaling = makeTypedFn([scaleType], mat2d, by => Mat2d.fromScaling(by as Vec), ['by'])
+const makeTRS = withOptional(
+	makeTypedFn(
+		[translationType, angleType, scaleType, point],
+		mat2d,
+		(translation, rotation, scale, pivot) =>
+			// Adding 0 is for the -0 that turning by nothing comes to, which is not anything to write.
+			Mat2d.pivot(Mat2d.trs(translation as Vec, rotation as number, scale as Vec), pivot as Vec).map(n => n + 0),
+		['translation', 'rotation', 'scale', 'pivot']
+	),
+	['rotation', 'scale', 'pivot']
+)
 const multiply = makeTypedFn(
 	[],
 	mat2d,
@@ -206,6 +281,7 @@ withMembers(mat2d, {
 	translate: withDoc(makeTranslation, 'A matrix that moves `by` this much.', 'Translation'),
 	rotate: withDoc(makeRotation, 'A matrix that turns by `angle`, in degrees, around the origin.', 'Rotation'),
 	scale: withDoc(makeScaling, 'A matrix that scales `by` this much each way, from the origin.', 'Scaling'),
+	trs: withDoc(makeTRS, 'A matrix that scales by `scale` and turns by `rotation` in degrees, both around `pivot`, then moves by `translation`.', 'Translate, Rotate, Scale'),
 	mul: withDoc(multiply, 'One matrix after another, the last applied first.', 'Multiply'),
 })
 
@@ -341,6 +417,7 @@ const pathData = withTypeMeta(
 	new RecordAST([
 		['input', lit('long-text')],
 		['icon', lit('ph:path')],
+		['name', lit('path data')],
 		['summary', lit('SVG Path')],
 	])
 )
@@ -628,6 +705,7 @@ const stringType = evaluate(parse('string'), buildPrelude()).value as TypeValue
 const colorMeta = new RecordAST([
 	['input', lit('color')],
 	['icon', lit('ph:palette')],
+	['name', lit('color')],
 ])
 /**
  * A color is a string, that CSS and SVG would read as one: which it can be told from
@@ -1004,6 +1082,47 @@ const makeDash = makeTypedFn(
 	(path, pattern) => new PathValue(dash(pathOf(path), pattern as number[])),
 	['path', 'pattern']
 )
+/** As many times as a matrix can be applied and still be drawn, either way. */
+const MOST_TIMES = 1000
+const timesType = (times: number): TypeValue =>
+	withTypeMeta(withDefault(number, times), new RecordAST([['step', lit(1)]]))
+/** `path` with `m` applied each whole number of times from `from` to `to`, going back by its inverse. */
+function replicated(path: Path, m: Mat, from: number, to: number): Path {
+	const times = (n: number): number => Math.max(-MOST_TIMES, Math.min(Math.round(n), MOST_TIMES))
+	const first = Math.min(times(from), times(to))
+	const last = Math.max(times(from), times(to))
+	const inverse = first < 0 ? (Mat2d.invert(m) as unknown as Mat | null) : null
+	const after = (a: Mat, b: Mat): Mat => Mat2d.mul(a, b) as unknown as Mat
+	const I = Mat2d.I as unknown as Mat
+	const copies: Path[] = []
+	// Outward from the path itself, each from the one before it.
+	for (let n = 0, at = I; n <= last; n++, at = after(at, m)) {
+		if (n >= first) copies.push(transform(path, at))
+	}
+	if (inverse !== null) {
+		for (let n = 1, at = inverse; n <= -first; n++, at = after(at, inverse)) {
+			if (-n <= last) copies.unshift(transform(path, at))
+		}
+	}
+	return merge(copies)
+}
+/** The same matrix, starting as what is easiest to read of one: moving a little to the right. */
+const nextCopyType = withDefaultFrom(
+	mat2d,
+	new RecordAST([['default', parse('(mat2d.trs [50 0])')]]),
+	{
+		ast: new LetAST([], null),
+		parent: buildPrelude(),
+		bindings: new Map([['mat2d', { ast: host(mat2d), env: null }]]),
+	}
+).type
+const makeReplicate = makeTypedFn(
+	[pathType, nextCopyType, timesType(0), timesType(3)],
+	pathType,
+	(path, by, from, to) =>
+		new PathValue(replicated(pathOf(path), by as Mat, from as number, to as number)),
+	['path', 'by', 'from', 'to']
+)
 const makeSubdivide = makeTypedFn(
 	[
 		pathType,
@@ -1074,6 +1193,7 @@ withMembers(pathType, {
 	clothoid: withDoc(makeClothoid, 'A line from `start`, going at `angle` in degrees, that bends steadily more along its `length`, from `startCurvature` to `endCurvature`. One over a curvature is the radius of the bend.', 'Clothoid'),
 	cubic: withDoc(makeCubic, 'A curve from `start` to `end`, drawn toward `control1` and `control2`.', 'Cubic Curve'),
 	transform: withDoc(makeTransformed, 'The same `path`, moved, turned and scaled `by` a matrix.', 'Transform'),
+	replicate: withDoc(makeReplicate, 'Copies of `path`, with the matrix `by` applied each number of times `from` this `to` this. 0 is the `path` itself, and below 0 goes the other way.', 'Replicate'),
 })
 
 /** What an argument would have to be, `route` going down through calls to it. */
@@ -1159,6 +1279,8 @@ export interface Handle {
 	readonly pivot?: Vec
 	/** What it turns around instead, when the other side goes the other way. */
 	readonly middle?: Vec
+	/** It stays where it is, when the rest of a grip is shown somewhere else. */
+	readonly stays?: boolean
 	/** It is about a corner, and is drawn square to say so. */
 	readonly corner?: boolean
 	/** It is drawn just past where it is, as there is already a corner to be seen there. */
@@ -2394,6 +2516,62 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 		},
 	],
 	[
+		makeTRS,
+		([translation, rotation, scale, pivot]) => {
+			const moved = translation as Vec
+			// What a call leaves unsaid is not among what it is given here.
+			const r = (rotation ?? 0) as number
+			const [sx, sy] = (scale ?? [1, 1]) as Vec
+			const p = (pivot ?? [0, 0]) as Vec
+			// Where the pivot goes, which is what all of the rest is around.
+			const t = add(p, moved)
+			const turned = toward(r, GIZMO_SIZE)
+			const across = toward(r + 90, GIZMO_SIZE)
+			const corner: Vec = [
+				t[0] + turned[0] * sx + across[0] * sy,
+				t[1] + turned[1] * sx + across[1] * sy,
+			]
+			return {
+				handles: [
+					{
+						kind: 'direction',
+						at: add(t, turned),
+						pivot: t,
+						angle: r,
+						to: (to, _, how) => [change(1, angleHeld(t, r, to, how))],
+					},
+					{
+						kind: 'point',
+						fine: true,
+						at: corner,
+						// What is said of it goes in order, so a scale needs a rotation to come after.
+						to: to => {
+							const [x, y] = sub(to, t)
+							return [
+								change(1, r),
+								change(2, [
+									(x * turned[0] + y * turned[1]) / GIZMO_SIZE ** 2,
+									(x * across[0] + y * across[1]) / GIZMO_SIZE ** 2,
+								]),
+							]
+						},
+					},
+					{
+						kind: 'translate',
+						name: 'pivot',
+						at: p,
+						stays: true,
+						// What is said of it goes in order, so a pivot needs all that comes before.
+						to: to => [change(1, r), change(2, [sx, sy]), change(3, to)],
+					},
+					{ kind: 'translate', at: t, to: to => [change(0, sub(to, p))] },
+				],
+				guides: [line(p, t), line(t, add(t, turned)), line(t, corner)],
+				move: delta => [change(0, add(moved, delta))],
+			}
+		},
+	],
+	[
 		makeRotation,
 		([angle]) => {
 			const turned = angle as number
@@ -2642,6 +2820,73 @@ makers.set(makeBulge, aroundCenter)
 for (const fn of [makeZigzag, makeWave, makeDash, makeSubdivide, makeFlatten, makeReverse, makeConvexHull]) {
 	makers.set(fn, showingPath())
 }
+
+/**
+ * A matrix taken hold of where it takes `from`, rather than where it takes the origin, which may
+ * be nowhere near what it is applied to. It is the same matrix, however it is held.
+ */
+function matrixGripAt(m: Mat, from: Vec, arg: number): Grip {
+	const [a, b, c, d, tx, ty] = m
+	const there: Mat = [a, b, c, d, a * from[0] + c * from[1] + tx, b * from[0] + d * from[1] + ty]
+	const back = Mat2d.fromTranslation([-from[0], -from[1]])
+	const grip = matrixGrip(there, arg)
+	return {
+		...grip,
+		handles: grip.handles.map(handle => ({
+			...handle,
+			to: (to: Vec, start: Vec, how?: HandleDrag) =>
+				handle
+					.to(to, start, how)
+					.map(({ route, value }) => ({ route, value: Mat2d.mul(value as Mat, back) })),
+		})),
+	}
+}
+
+/** A grip the same, shown `by` this much away from where what it says is. */
+function gripMovedBy(grip: Grip, by: Vec): Grip {
+	const moved = Mat2d.fromTranslation(by)
+	const here = (at: Vec): Vec => add(at, by)
+	const there = (at: Vec): Vec => sub(at, by)
+	return {
+		...grip,
+		guides: grip.guides.map(guide => transform(guide, moved)),
+		handles: grip.handles.map(handle => handle.stays ? handle : ({
+			...handle,
+			...(handle.at === undefined ? {} : { at: here(handle.at) }),
+			...(handle.path === undefined ? {} : { path: transform(handle.path, moved) }),
+			...(handle.pivot === undefined ? {} : { pivot: here(handle.pivot) }),
+			...(handle.middle === undefined ? {} : { middle: here(handle.middle) }),
+			to: (to: Vec, from: Vec, how?: HandleDrag) => handle.to(there(to), there(from), how),
+		})),
+	}
+}
+
+// What is copied shows what it is a copy of, which is what moves. Its matrix is held at the next
+// copy, as what it says is where that one goes.
+makers.set(makeReplicate, ([path, by], inner) => {
+	const m = by as Mat
+	const middle = middleOf(pathOf(path))
+	const written = inner(1)
+	// What it goes around, if it says: what it is written as is held from there.
+	const pivot = written?.handles.find(({ stays }) => stays)?.at
+	const [x, y] = sub(middle, pivot ?? [0, 0])
+	const own =
+		written === null
+			? matrixGripAt(m, middle, 1)
+			: gripMovedBy(written, [m[0] * x + m[2] * y, m[1] * x + m[3] * y])
+	const next: Vec = [
+		m[0] * middle[0] + m[2] * middle[1] + m[4],
+		m[1] * middle[0] + m[3] * middle[1] + m[5],
+	]
+	const move = inner(0)?.move
+	return {
+		handles: own.handles,
+		// From what everything goes around, to the path and to its next copy.
+		guides: pivot === undefined ? own.guides : [...own.guides, line(pivot, middle), line(pivot, next)],
+		sources: [pathOf(path)],
+		...(move === undefined ? {} : { move }),
+	}
+})
 
 // What is combined shows all that goes into it, and moves as one.
 for (const fn of [makeUnite, makeSubtract, makeIntersect, makeExclude]) {

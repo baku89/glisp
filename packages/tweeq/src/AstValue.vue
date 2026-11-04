@@ -32,6 +32,7 @@ import {
 	problemOf,
 	type Slot,
 	sourceOf,
+	summaryOf,
 	viewOf,
 	withLiteral,
 } from './structure'
@@ -83,9 +84,17 @@ const problem = computed(() =>
 	problemOf(ast.value, props.entry.env, props.entry.expected, props.read)
 )
 
+// A row with nothing expected of it goes by what it comes to.
+const summary = computed(
+	() =>
+		summaryOf(props.entry.expected) ??
+		summaryOf(infer(readByName(ast.value), props.entry.env))
+)
+
 /** What the field shows while it is not being edited. */
 const shown = computed(() => {
 	if (props.entry.display !== undefined) return props.entry.display
+	if (summary.value !== null) return summary.value
 	const value = result.value?.value
 	if (result.value === null || typeof value === 'function') {
 		return sourceOf(ast.value)
@@ -298,7 +307,7 @@ const label = (value: unknown): string =>
 			error: problem !== null,
 		}"
 		v-tooltip="problem ?? undefined"
-		:title="problem === null ? sourceOf(ast) : undefined"
+		:title="problem === null && (summary === null || isExpression(ast)) ? sourceOf(ast) : undefined"
 		@keydown.capture="onFieldKey"
 	>
 		<InputNumber
@@ -421,7 +430,7 @@ const label = (value: unknown): string =>
 		<InputTextBase
 			v-else
 			:modelValue="sourceOf(ast)"
-			:font="isNumber ? 'numeric' : isString ? undefined : 'monospace'"
+			:font="isNumber ? 'numeric' : isString || summary !== null ? undefined : 'monospace'"
 			:align="isNumber ? 'center' : undefined"
 			:inlinePosition="inlinePosition"
 			ignoreInput

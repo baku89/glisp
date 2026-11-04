@@ -171,6 +171,8 @@ A parameter's type can say what its values are for, with an `icon` of its own, w
 
 Metadata on the element types of a tuple is for showing one of its elements: `title` names it, and `prefix` or `fieldIcon` go in its field. A `fieldIcon` can be letters, as `char:X`.
 
+A `name` on a type is what a host calls it to someone reading it, in place of its `typeName`, which spells out what it is made of. A `summary` is what a host shows in place of a value that is not much to read.
+
 ### What it does
 
 A function that comes with a type, as a member, has no binding to write `^{doc}` or `^{label}` on. `withDoc` says what it does, and what to call it, for a host to show.

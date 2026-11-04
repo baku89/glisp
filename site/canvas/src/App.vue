@@ -336,8 +336,6 @@ const $canvas = useTemplateRef<{
 	size(): readonly [number, number]
 }>('$canvas')
 const zoom = computed(() => $canvas.value?.zoom() ?? 1)
-/** Once it has been said, the keys are for the canvas again. */
-const leaveZoomField = (): void => (window.document.activeElement as HTMLElement | null)?.blur()
 const asPercent = scaledBy(100)
 const MIN_ZOOM = 0.01
 const zoomPresets = computed<MenuItem[]>(() => [
@@ -740,7 +738,6 @@ function selectInTree(row: string | null): void {
 						suffix="%"
 						:presets="zoomPresets"
 						@update:modelValue="$canvas?.zoomTo($event)"
-						@confirm="leaveZoomField"
 					/>
 				</template>
 			</TitleBar>

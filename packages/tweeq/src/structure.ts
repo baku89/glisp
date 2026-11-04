@@ -242,9 +242,27 @@ export function elementOptionsOf(expected: TypeValue | null, index: number): Num
 export const isTranslatable = (expected: TypeValue | null): boolean =>
 	textOf(expected?.meta?.get('input')) === 'translate'
 
+/** Whether what `expected` is can also be turned, by a dial. */
+export const isAngleInput = (expected: TypeValue | null): boolean =>
+	textOf(expected?.meta?.get('input')) === 'angle'
+
 /** Whether what `expected` is goes by a width and a height, which can be kept in ratio. */
 export const isSizeInput = (expected: TypeValue | null): boolean =>
 	textOf(expected?.meta?.get('input')) === 'size'
+
+/**
+ * Whether a place or a size has nothing more to it than the numbers on its row, so that
+ * there is nothing to open it for. One with an expression in it still has that to show.
+ */
+export function isAllOnItsRow(ast: AST, expected: TypeValue | null): boolean {
+	if (!isTranslatable(expected) && !isSizeInput(expected)) return false
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	return (
+		bare.kind === 'vec' &&
+		bare.elements.length <= MOST_STACKED &&
+		bare.elements.every(element => element.kind === 'lit' && typeof element.value === 'number')
+	)
+}
 
 const PROPORTIONAL = 'proportional'
 
@@ -403,7 +421,12 @@ export function viewOf(
 /** The value a type accepts as its default, as source. */
 export function defaultFor(type: TypeValue | null, env: Env): AST {
 	if (type === null) return new LitAST(0)
-	return toAst(unwrapLazy(type).default, env)
+	const { default: value, defaultAst } = unwrapLazy(type)
+	const literal = toAst(value, env)
+	// As it was written, if it comes to the same here, where it may not mean what it did there.
+	if (defaultAst === undefined) return literal
+	const comesTo = toAst(evaluate(defaultAst, env).value, env)
+	return print(comesTo) === print(literal) ? (parseSource(print(defaultAst)) ?? literal) : literal
 }
 
 /** Source text for a node, for the fallback of editing it as code. */
@@ -429,6 +452,22 @@ export function enumIconsOf(type: TypeValue | null): readonly string[] | null {
 	if (shape?.kind !== 'enum') return null
 	const said = [...shape.values].map(value => textOf(shape.about?.get(value)?.get('icon')))
 	return said.includes(null) ? null : (said as string[])
+}
+
+/** What a type says to show in place of a value that is not much to read, if it does. */
+export const summaryOf = (expected: TypeValue | null): string | null =>
+	textOf(expected?.meta?.get('summary'))
+
+/**
+ * What to call a type to someone hovering over it: what it says it goes by, or else what
+ * sort of thing it is, rather than all that it is made of.
+ */
+export function typeHintOf(expected: TypeValue | null): string | null {
+	if (expected === null) return null
+	const said = textOf(expected.meta?.get('name'))
+	if (said !== null) return said
+	const { kind } = unwrapLazy(expected).shape
+	return kind === 'tuple' || kind === 'vector' ? 'vector' : expected.typeName
 }
 
 /** The widget for a value of what is `expected`, whether it is written so or comes to it. */

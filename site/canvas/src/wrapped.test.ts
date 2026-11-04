@@ -1,12 +1,12 @@
-import { buildPrelude, type Env, evaluate, parse, print } from '@glisp/lang'
+import { buildPrelude, check, type Env, evaluate, parse, print, type TypedHostFn } from '@glisp/lang'
 import { filtersFor, wrappedAt } from '@glisp/tweeq/filters'
-import { numberOptionsAt, viewOf } from '@glisp/tweeq/structure'
+import { isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 import { describe, expect, it } from 'vitest'
 
 import { type PathValue, withGraphics } from './graphics'
-import { gripAt, gripOfRows, innerPathsOf, pathOfRow, rowsInside } from './scene'
+import { changed, gripAt, gripOfRows, innerPathsOf, pathOfRow, rowsInside } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const grip = (src: string) => gripAt(parse(`{c = ${src}}`), env, 'binding:c')!
@@ -324,5 +324,138 @@ describe('what else goes around a path', () => {
 		const [handle] = grip(`(path.roundCorners ${Q} 5)`).handles
 		expect(handle!.at).toEqual([35, 0])
 		expect(handle!.to([30, 0], [35, 0])).toEqual([{ route: [1], value: 10 }])
+	})
+})
+
+describe('what is copied by a matrix', () => {
+	const pieces = (src: string): number =>
+		(evaluate(parse(src), env).value as PathValue).path.curves.length
+	const span = (src: string): readonly [number, number] => {
+		const [[left], [right]] = bounds((evaluate(parse(src), env).value as PathValue).path)
+		return [left, right]
+	}
+	const BY = '[1 0 0 1 20 0]'
+
+	it('has one for each number of times in the range, the ends included', () => {
+		expect(pieces(`(path.replicate ${RECT} ${BY} 0 3)`)).toBe(4)
+		expect(pieces(`(path.replicate ${RECT} ${BY} 2 2)`)).toBe(1)
+	})
+
+	it('starts where it says, and leaves the path out if 0 is not in the range', () => {
+		expect(span(`(path.replicate ${RECT} ${BY} 0 3)`)).toEqual([0, 70])
+		expect(span(`(path.replicate ${RECT} ${BY} 1 3)`)).toEqual([20, 70])
+	})
+
+	it('goes back by the inverse below 0', () => {
+		expect(span(`(path.replicate ${RECT} ${BY} -2 1)`)).toEqual([-40, 30])
+		expect(span(`(path.replicate ${RECT} ${BY} -2 -1)`)).toEqual([-40, -10])
+	})
+
+	it('is the same range whichever end comes first', () => {
+		expect(span(`(path.replicate ${RECT} ${BY} 3 1)`)).toEqual([20, 70])
+	})
+
+	it('applies the matrix to what it has come to, each time', () => {
+		expect(span(`(path.replicate ${RECT} [2 0 0 2 0 0] 2 2)`)).toEqual([0, 40])
+	})
+
+	it('leaves out going back by what cannot be undone', () => {
+		expect(pieces(`(path.replicate ${RECT} [0 0 0 0 0 0] -2 1)`)).toBe(2)
+	})
+
+	it('stops somewhere', () => {
+		expect(pieces(`(path.replicate ${RECT} ${BY} 0 1000000)`)).toBe(1001)
+	})
+
+	it('starts as a matrix that can be read, a little to the right', () => {
+		const filter = filtersFor([evaluate(parse(RECT), env).value], env).find(({ name }) => name === 'path.replicate')!
+		const next = wrappedAt(parse(`{c = ${RECT}}`), env, 'binding:c', filter)!
+		expect(print(next)).toContain('(mat2d.trs [50 0]) 0 3')
+		expect(check(next, env).filter(({ level }) => level === 'error')).toEqual([])
+	})
+
+	it('has what it starts as be what it would fall back to', () => {
+		const { value } = evaluate(parse('(mat2d.trs [50 0])'), env)
+		expect(value).toEqual([1, 0, 0, 1, 50, 0])
+		expect(span(`(path.replicate ${RECT} () 0 1)`)).toEqual([0, 60])
+	})
+
+	it('is held at the next copy when it is written as a call, too', () => {
+		const held = grip(`(path.replicate ${RECT} (mat2d.trs [20 0]) 0 3)`)
+		const center = held.handles.find(({ kind, stays }) => kind === 'translate' && !stays)!
+		expect(center.at).toEqual([25, 5])
+		expect(center.to([35, 15], [25, 5])).toEqual([{ route: [1, 0], value: [30, 10] }])
+	})
+
+	it('says what is left unsaid of the call, in order', () => {
+		const { value } = evaluate(parse('(mat2d.trs [10 20] 90 [2 2])'), env)
+		const [a, b, c, d, tx, ty] = value as number[]
+		expect([a, d, tx, ty].map(n => Math.round(n * 1e6) / 1e6)).toEqual([0, 0, 10, 20])
+		expect([b, c].map(n => Math.round(n * 1e6) / 1e6)).toEqual([2, -2])
+		const held = grip(`(path.replicate ${RECT} (mat2d.trs [0 0]) 0 3)`)
+		const corner = held.handles.find(({ kind }) => kind === 'point')!
+		expect(corner.to(corner.at!, corner.at!).map(({ route }) => route)).toEqual([[1, 1], [1, 2]])
+	})
+
+	it('is held at the next copy, and pulling that says where it goes', () => {
+		const held = grip(`(path.replicate ${RECT} ${BY} 0 3)`)
+		const center = held.handles.find(({ kind }) => kind === 'translate')!
+		expect(center.at).toEqual([25, 5])
+		expect(center.to([35, 15], [25, 5])).toEqual([{ route: [1], value: [1, 0, 0, 1, 30, 10] }])
+	})
+
+	it('goes by what a matrix is, rather than its six numbers', () => {
+		const by = filtersFor([evaluate(parse(RECT), env).value], env)
+			.find(({ name }) => name === 'path.replicate')!.fn.paramTypes[1]!
+		expect(summaryOf(by)).toBe('Transform')
+		expect(by.meta?.get('icon')).toBeDefined()
+	})
+
+	it('has each part of a matrix taken hold of as what it is', () => {
+		const { paramTypes } = evaluate(parse('mat2d.trs'), env).value as TypedHostFn
+		expect(isTranslatable(paramTypes[0]!)).toBe(true)
+		expect(isAngleInput(paramTypes[1]!)).toBe(true)
+		expect(isSizeInput(paramTypes[2]!)).toBe(true)
+		expect(paramTypes[2]!.default).toEqual([1, 1])
+	})
+
+	it('shows what it copies, and moves that rather than the matrix', () => {
+		const held = grip(`(path.replicate ${RECT} ${BY} 0 3)`)
+		expect(held.sources).toHaveLength(1)
+		expect(held.handles.length).toBeGreaterThan(0)
+		expect(held.move?.([5, 5])?.[0]?.route[0]).toBe(0)
+	})
+})
+
+describe('what a matrix goes around', () => {
+	const applied = (src: string, [x, y]: readonly [number, number]) => {
+		const m = evaluate(parse(src), env).value as number[]
+		return [m[0]! * x + m[2]! * y + m[4]!, m[1]! * x + m[3]! * y + m[5]!].map(n => Number(n.toFixed(6)) + 0)
+	}
+	const handles = (src: string) => grip(src).handles
+
+	it('leaves its pivot where it is, but for how far it moves', () => {
+		expect(applied('(mat2d.trs [10 0] 90 [2 2] [100 100])', [100, 100])).toEqual([110, 100])
+		expect(applied('(mat2d.trs [0 0] 90 [1 1] [100 100])', [110, 100])).toEqual([100, 110])
+	})
+
+	it('is the origin until it is said', () => {
+		expect(evaluate(parse('(mat2d.trs [10 0] 90 [2 2] [0 0])'), env).value).toEqual(
+			evaluate(parse('(mat2d.trs [10 0] 90 [2 2])'), env).value
+		)
+		expect(handles('(mat2d.trs [10 0])').find(h => h.name === 'pivot')!.at).toEqual([0, 0])
+	})
+
+	it('can be taken hold of, saying what comes before it', () => {
+		const root = parse('{c = (mat2d.trs [10 0])}')
+		const pivot = gripAt(root, env, 'binding:c')!.handles.find(h => h.name === 'pivot')!
+		const { ast: next } = changed(root, env, 'binding:c', pivot.to([30, 40], [0, 0]))
+		expect(print(next!)).toContain('(mat2d.trs [10 0] 0 [1 1] [30 40])')
+	})
+
+	it('stays where it is while the rest is at the next copy', () => {
+		const copies = handles('(path.replicate (path.rect [100 100] [20 20]) (mat2d.trs [30 0] 0 [1 1] [50 50]) 0 3)')
+		expect(copies.find(h => h.name === 'pivot')!.at).toEqual([50, 50])
+		expect(copies.at(-1)!.at).toEqual([140, 110])
 	})
 })

@@ -1,8 +1,8 @@
-import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, makeTupleType, meta, parse, print, type RecordAST, Session, solve, type TypeValue, unpin, withTypeMeta } from '@glisp/lang'
+import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetAST, makeTupleType, meta, parse, print, type RecordAST, Session, solve, type TypeValue, unpin, withTypeMeta } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, isAllOnItsRow, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -1410,5 +1410,56 @@ describe('what a type brings to a number field', () => {
 		expect(arg.numberOptions).toEqual(OPTIONS)
 		expect(arg.label).toBe('p')
 		expect(numberOptionsAt(arg)).toEqual(OPTIONS)
+	})
+})
+
+describe('what a default is written as', () => {
+	const env = buildPrelude()
+	const typeOf = (src: string, within: Env = env) => evaluate(parse(src), within).value as TypeValue
+
+	it('is the expression it was written as', () => {
+		expect(print(defaultFor(typeOf('^{default: (+ 1 2)} number'), env))).toBe('(+ 1 2)')
+		expect(typeOf('^{default: (+ 1 2)} number').default).toBe(3)
+	})
+
+	it('is a new one each time, as a node is where it is', () => {
+		const type = typeOf('^{default: (+ 1 2)} number')
+		expect(defaultFor(type, env)).not.toBe(defaultFor(type, env))
+	})
+
+	it('is what it comes to where it would not mean the same', () => {
+		const here: Env = { ast: new LetAST([], null), parent: env, bindings: new Map([['x', { ast: parse('3'), env }]]) }
+		expect(print(defaultFor(typeOf('^{default: x} number', here), env))).toBe('3')
+	})
+
+	it('has to be of the type', () => {
+		const type = typeOf('^{default: "no"} number')
+		expect(type.default).toBe(0)
+		expect(print(defaultFor(type, env))).toBe('0')
+		expect(check(parse('^{default: "no"} number'), env).some(({ level }) => level === 'error')).toBe(true)
+	})
+})
+
+describe('what a type is called, and what there is to open', () => {
+	const typed = (fields: string) =>
+		withTypeMeta(makeTupleType([numberType, numberType]), parse(`{${fields}}`) as RecordAST)
+	const numberType = evaluate(parse('number'), env).value as TypeValue
+
+	it('goes by what it says, or what sort of thing it is, rather than what it is made of', () => {
+		expect(typeHintOf(typed('name: "point"'))).toBe('point')
+		expect(typeHintOf(makeTupleType([numberType, numberType]))).toBe('vector')
+		expect(typeHintOf(numberType)).toBe('number')
+		expect(typeHintOf(null)).toBe(null)
+	})
+
+	it('has nothing to open a place or a size for when its row has all of it', () => {
+		expect(isAllOnItsRow(parse('[1 -2]'), typed('input: "translate"'))).toBe(true)
+		expect(isAllOnItsRow(parse('[1 2]'), typed('input: "size"'))).toBe(true)
+	})
+
+	it('still opens for an expression in it, or what is not a place or a size', () => {
+		expect(isAllOnItsRow(parse('[1 (+ 1 1)]'), typed('input: "translate"'))).toBe(false)
+		expect(isAllOnItsRow(parse('(+ 1 1)'), typed('input: "translate"'))).toBe(false)
+		expect(isAllOnItsRow(parse('[1 2]'), makeTupleType([numberType, numberType]))).toBe(false)
 	})
 })

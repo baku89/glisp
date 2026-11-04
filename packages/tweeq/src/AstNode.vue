@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, readByName } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
+import { InputRotary } from 'tweeq/InputRotary'
 import { InputTranslate } from 'tweeq/InputTranslate'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
@@ -25,11 +26,14 @@ import {
 	numbersFit,
 	type NumbersFit,
 	isProportional,
+	isAllOnItsRow,
 	isSizeInput,
+	typeHintOf,
 	keepingRatio,
 	type KeptRatio,
 	problemOf,
 	titleOf,
+	isAngleInput,
 	isTranslatable,
 	kindIconOf,
 	type Slot,
@@ -83,7 +87,7 @@ const problem = computed(() =>
 		: problemOf(ast.value, props.entry.env, props.entry.expected, props.read)
 )
 const hint = computed(
-	() => problem.value ?? props.entry.doc ?? props.entry.expected?.typeName
+	() => problem.value ?? props.entry.doc ?? typeHintOf(props.entry.expected) ?? undefined
 )
 
 // A binding's name is edited on its label. What a call calls is an expression, so its
@@ -128,6 +132,10 @@ const translatable = computed(
 const placeValue = computed(
 	() => props.read(readByName(ast.value), props.entry.env).value
 )
+/** An angle's dial, to turn it by, with its number beside it. */
+const turnable = computed(
+	() => isAngleInput(props.entry.expected) && typeof placeValue.value === 'number'
+)
 const PAD_WIDTH = 26
 const solver = inject(SOLVER, null)
 const titled = inject(TITLED, false)
@@ -137,10 +145,11 @@ const fit = computed(() => roomFor(view.value.slots.length))
 /** Whether its numbers are there to read as they change, on its row or the rows of them. */
 const numbersInView = computed(() => inline.value || open.value || roomFor(2) !== 'stacked')
 // Numbers have ways of making room, where anything else goes by how much it needs.
+const allOnItsRow = computed(() => isAllOnItsRow(ast.value, props.entry.expected))
 const inline = computed(
 	() =>
 		bareKind.value === 'vec' &&
-		!open.value &&
+		(!open.value || allOnItsRow.value) &&
 		(fit.value === 'side' || canStack(placeValue.value))
 )
 
@@ -186,9 +195,10 @@ const kindHint = computed(() => {
 })
 const expandable = computed(
 	() =>
-		children.value.length > 0 ||
-		view.value.append !== null ||
-		view.value.missing.length > 0
+		!allOnItsRow.value &&
+		(children.value.length > 0 ||
+			view.value.append !== null ||
+			view.value.missing.length > 0)
 )
 const kindPressable = computed(() => referenceTarget.value !== null || expandable.value)
 
@@ -437,6 +447,13 @@ watch(
 				:showOverlayLabel="!numbersInView"
 				@update:modelValue="solver?.solve(ast, $event)"
 			/>
+			<!-- 0 is along X, as it is on a canvas, rather than up. -->
+			<InputRotary
+				v-if="turnable"
+				:modelValue="placeValue as number"
+				:angleOffset="0"
+				@update:modelValue="solver?.solve(ast, $event)"
+			/>
 			<div v-if="inline" ref="$anchor" class="inline-anchor">
 				<AstInline
 					:slots="view.slots"
@@ -596,11 +613,12 @@ watch(
 .value-row:has(> .chain) :deep(.value + .value .icon.left) {
 	left: calc(var(--tq-input-height) * 0.3);
 }
-.value-row > :not(.TqInputTranslate) {
+.value-row > :not(.TqInputTranslate, .TqInputRotary) {
 	flex: 1;
 	min-width: 0;
 }
-.value-row > :deep(.TqInputTranslate) {
+.value-row > :deep(.TqInputTranslate),
+.value-row > :deep(.TqInputRotary) {
 	flex: none;
 }
 .inline-anchor {

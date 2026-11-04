@@ -204,6 +204,8 @@ export interface TypeValue {
 	readonly typeName: string
 	readonly fits: (v: unknown) => boolean
 	readonly default: unknown
+	/** The expression `default` is what comes of, for what is written where it is wanted. */
+	readonly defaultAst?: AST
 	readonly shape: TypeShape
 	/**
 	 * What is said about the values of this type, as written. It takes no part in
@@ -358,6 +360,7 @@ export function withDefaultFrom(
 	}
 	const base = Object.create(type.plain ?? type, {
 		default: { value },
+		defaultAst: { value: field },
 	}) as TypeValue
 	return {
 		type: type.meta === undefined ? base : withTypeMeta(base, type.meta),
