@@ -20,6 +20,7 @@ import { HOST_KEY, RATIO_KEEPER, SOLVER } from './selection'
 import {
 	canSolve,
 	editorOfValue,
+	expressionForNumber,
 	expressionFromField,
 	numbersFit,
 	hasValue,
@@ -137,9 +138,32 @@ const numberOptions = computed(() => iconless(numberOptionsAt(props.entry), prop
 const editing = ref(false)
 const editingStart = ref<string | undefined>(undefined)
 
+// What is typed that is not a number is an expression, once it is let go of: with it in
+// place, this would be another field, which would have lost what is being typed.
+let typedExpression: AST | null = null
+
+function typeExpression(text: string): string | null {
+	const result = expressionForNumber(text, props.entry.env, props.read)
+	typedExpression = 'ast' in result ? result.ast : null
+	return 'problem' in result ? result.problem : null
+}
+
+/** A number after all, and not what was being typed before it. */
+function onNumberTyped(apply: () => unknown): void {
+	typedExpression = null
+	apply()
+}
+
+function confirmExpression(): void {
+	const typed = typedExpression
+	typedExpression = null
+	if (typed !== null) update(typed)
+}
+
 // Typing `=` first in a number or the like turns it into an expression, as in a
 // spreadsheet. A string can begin with `=`, so it stays a string.
 function onFieldKey(event: KeyboardEvent): void {
+	if (event.key === 'Escape') typedExpression = null
 	const { kind } = view.value.editor ?? {}
 	// A string can begin with `=`, whatever it comes from.
 	const takesCode = solvable.value && solvedEditor.value?.kind !== 'string'
@@ -281,7 +305,9 @@ const label = (value: unknown): string =>
 			:inlinePosition="inlinePosition"
 			:blockPosition="blockPosition"
 			:multiSelectData="place"
-			@update:modelValue="keepRatio?.(path, $event) || update(withLiteral(ast, $event))"
+			:expression="typeExpression"
+			@confirm="confirmExpression"
+			@update:modelValue="onNumberTyped(() => keepRatio?.(path, $event) || update(withLiteral(ast, $event)))"
 		/>
 		<InputEnum
 			v-else-if="solvedEditor?.kind === 'enum'"
@@ -313,7 +339,9 @@ const label = (value: unknown): string =>
 			:inlinePosition="inlinePosition"
 			:blockPosition="blockPosition"
 			:multiSelectData="place"
-			@update:modelValue="keepRatio?.(path, $event) || solver?.solve(ast, $event, path)"
+			:expression="typeExpression"
+			@confirm="confirmExpression"
+			@update:modelValue="onNumberTyped(() => keepRatio?.(path, $event) || solver?.solve(ast, $event, path))"
 		/>
 		<InputGroup v-else-if="solvableNumbers !== null">
 			<InputNumber

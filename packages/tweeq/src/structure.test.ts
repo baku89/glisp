@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, make
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionFromField, canStack, fitsInline, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -451,6 +451,30 @@ describe('adding a binding', () => {
 	it('is in the menu', () => {
 		const slot = view('{z = {a = 1}}').slots[0]!
 		expect(actionsOf(slot).map(a => a.label)).toContain('Add Binding')
+	})
+})
+
+describe('expressionForNumber', () => {
+	const inside = view('{radius = 40 c = 1}').slots.at(-1)!.env
+	const read = (ast: AST, at: Env) => evaluate(ast, at)
+	const typed = (text: string) => {
+		const result = expressionForNumber(text, inside, read)
+		return 'ast' in result ? print(result.ast) : 'problem'
+	}
+
+	it('is code that comes to a number', () => {
+		expect(typed('(* radius 2)')).toBe('(* radius 2)')
+		expect(typed('radius')).toBe('radius')
+	})
+
+	it('can begin with a =', () => {
+		expect(typed('=radius')).toBe('radius')
+	})
+
+	it('has a problem if it cannot be read, or worked out, or is not a number', () => {
+		for (const text of ['(* radius', 'nothing', 'x*2', '"text"', '[1 2]', '']) {
+			expect(typed(text), text).toBe('problem')
+		}
 	})
 })
 

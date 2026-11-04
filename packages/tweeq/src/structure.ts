@@ -308,6 +308,29 @@ export function numberOptionsAt(slot: Slot): NumberOptions {
 	}
 }
 
+/**
+ * What is typed in a number's field, as code in its place: it has to read, and to come to a
+ * number without a problem. A `=` in front of it is only a way to begin.
+ */
+export function expressionForNumber(
+	text: string,
+	env: Env,
+	read: (ast: AST, env: Env) => { value: unknown; diagnostics: readonly Diagnostic[] }
+): { ast: AST } | { problem: string } {
+	let ast: AST
+	try {
+		ast = parse(text.replace(/^\s*=/, ''))
+	} catch (error) {
+		return { problem: (error as Error).message }
+	}
+	const { value, diagnostics } = read(ast, env)
+	const failed = diagnostics.find(({ level }) => level === 'error')
+	if (failed !== undefined) return { problem: failed.message }
+	return typeof value === 'number' && Number.isFinite(value)
+		? { ast }
+		: { problem: 'that does not come to a number' }
+}
+
 /** A name in code as words: `topLeft` as `Top Left`, and `control1` as `Control 1`. */
 export function capitalCase(name: string): string {
 	return name
