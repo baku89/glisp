@@ -29,6 +29,8 @@ import {
 	PathValue,
 	type Vec,
 	withGraphics,
+	NO_PAINT,
+	type Paint,
 } from './graphics'
 import {
 	type Anchor,
@@ -38,6 +40,8 @@ import {
 	drawn,
 	drawnFrom,
 	gripAt,
+	hasInside,
+	type Shape,
 	linked,
 	nameFor,
 	nearestSnap,
@@ -1190,5 +1194,24 @@ describe('moving the whole', () => {
 		const { move: by } = gripAt(root, env, 'binding:c')!
 		const once = changed(root, env, 'binding:c', by!([5, 5])).ast!
 		expect(print(changed(once, env, 'binding:c', by!([7, 7])).ast!)).toBe('{c = (path.circle [7 7] 1)}')
+	})
+})
+
+describe('whether a shape has an inside to take hold of', () => {
+	const shape = (paint?: Paint): Shape => ({
+		row: 'binding:a',
+		draw: 'path',
+		value: null,
+		...(paint === undefined ? {} : { paint }),
+	})
+
+	it('has none, with nothing to paint it', () => {
+		expect(hasInside(shape())).toBe(false)
+		expect(hasInside(shape(NO_PAINT))).toBe(false)
+	})
+
+	it('has one, with a fill or a line', () => {
+		expect(hasInside(shape({ ...NO_PAINT, fill: '#000000' }))).toBe(true)
+		expect(hasInside(shape({ ...NO_PAINT, stroke: '#000000' }))).toBe(true)
 	})
 })

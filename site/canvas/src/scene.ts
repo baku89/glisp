@@ -78,6 +78,14 @@ export interface Shape {
 	readonly paint?: Paint
 }
 
+/**
+ * Whether taking hold of a shape can be anywhere inside of it. What has no fill or line of
+ * its own is only its outline, and has no inside to speak of: an open path would be closed
+ * from its end back to its start.
+ */
+export const hasInside = ({ paint }: Shape): boolean =>
+	paint !== undefined && (paint.fill !== 'none' || paint.stroke !== 'none')
+
 /** The rows of what is at all within the corners `a` and `b`, once each. */
 export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 	const [left, right] = a[0] < b[0] ? [a[0], b[0]] : [b[0], a[0]]

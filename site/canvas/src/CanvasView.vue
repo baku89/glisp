@@ -33,6 +33,7 @@ import {
 	nameFor,
 	nearestSnap,
 	penned,
+	hasInside,
 	placedDimensions,
 	saysOutside,
 	readoutOf,
@@ -721,7 +722,10 @@ function shapeAt(x: number, y: number): Shape | null {
 	for (const shape of [...scene.value].reverse()) {
 		if (shape.draw === 'path') {
 			const path = pathOnScreen(shape.value as Path, view.value)
-			if (context.isPointInStroke(path, x, y) || context.isPointInPath(path, x, y)) {
+			if (
+				context.isPointInStroke(path, x, y) ||
+				(hasInside(shape) && context.isPointInPath(path, x, y))
+			) {
 				found = shape
 				break
 			}
