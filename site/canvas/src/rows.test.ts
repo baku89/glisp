@@ -8,6 +8,7 @@ import {
 	drawnRows,
 	grouped,
 	nameOfRow,
+	pickedRows,
 	rowCalled,
 	rowsAbout,
 	ungrouped,
@@ -148,6 +149,42 @@ describe('the name of a row', () => {
 	})
 })
 
+describe('picking rows', () => {
+	const env: Env = withGraphics(buildPrelude())
+	const root = parse('{a = 1 b = 2 c = 3 d = 4 g = {x = 1 y = 2 z = 3}}')
+	const [a, b, c, d] = ['binding:a', 'binding:b', 'binding:c', 'binding:d']
+	const picked = (selected: readonly string[], row: string, how: 'only' | 'toggle' | 'range') =>
+		pickedRows(root, env, selected, row, how)
+
+	it('picks one alone, even of several', () => {
+		expect(picked([a, b], b, 'only')).toEqual([b])
+	})
+
+	it('adds one, or leaves it out', () => {
+		expect(picked([a], c, 'toggle')).toEqual([a, c])
+		expect(picked([a, c], a, 'toggle')).toEqual([c])
+		expect(picked([a], a, 'toggle')).toEqual([])
+	})
+
+	it('goes from the last one to this, either way, along with what is selected', () => {
+		expect(picked([a], c, 'range')).toEqual([a, b, c])
+		expect(picked([d], b, 'range')).toEqual([d, c, b])
+		expect(new Set(picked([d, a], c, 'range'))).toEqual(new Set([d, a, b, c]))
+	})
+
+	it('goes along what is beside it, inside of a group too', () => {
+		expect(picked(['binding:g/binding:x'], 'binding:g/binding:z', 'range')).toEqual([
+			'binding:g/binding:x',
+			'binding:g/binding:y',
+			'binding:g/binding:z',
+		])
+	})
+
+	it('has nothing between what is not side by side, or with nothing selected', () => {
+		expect(picked([a], 'binding:g/binding:x', 'range')).toEqual([a, 'binding:g/binding:x'])
+		expect(picked([], c, 'range')).toEqual([c])
+	})
+})
 describe('rowsAbout', () => {
 	const part = 'binding:l/arg0'
 	it('is the row kept hold of, while only parts of it are selected', () => {

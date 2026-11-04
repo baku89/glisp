@@ -17,7 +17,7 @@ import { iconOf } from './icons'
 import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
-	HOST_KEY, ALSO_SELECTED, LINKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
+	HOST_KEY, ALSO_SELECTED, LINKER, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	canSolve,
@@ -337,6 +337,11 @@ const selected = computed(() => {
 	)
 })
 
+const picker = inject(ROW_PICKER, null)
+function pick(event: MouseEvent): void {
+	if (picker?.(props.path, event) !== false) select()
+}
+
 function select(): void {
 	const remove = props.entry.remove
 	selection.value = {
@@ -447,7 +452,7 @@ watch(
 		:selected="selected"
 		:closedGuide="bareKind === 'call'"
 		:menuItems="menuItems"
-		@select="select"
+		@select="pick"
 		@nameClick="isFunction && (editingCode = true)"
 	>
 		<div class="value-row" :class="{ stacked: inline && fit === 'stacked' }">

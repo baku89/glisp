@@ -16,6 +16,47 @@ const BINDING = 'binding:'
 const namesOf = (rows: readonly string[]): Set<string> =>
 	new Set(rows.filter(row => !row.includes('/')).map(row => row.slice(BINDING.length)))
 
+/** How a click picks a row: it alone, one more or one less, or all the way from the last one. */
+export type Pick = 'only' | 'toggle' | 'range'
+
+/** The rows beside `row` in what holds it, in order, itself among them. */
+function siblingsOf(root: AST, env: Env, row: string): readonly string[] {
+	const keys = row.split('/')
+	const last = keys.pop()!
+	let node = root
+	let at = env
+	for (const key of keys) {
+		const slot = viewOf(node, at).slots.find(({ key: other }) => other === key)
+		if (slot === undefined) return [row]
+		node = slot.ast
+		at = slot.env
+	}
+	const inside = viewOf(node, at).slots.map(({ key }) => key)
+	const prefix = keys.length > 0 ? `${keys.join('/')}/` : ''
+	return inside.includes(last) ? inside.map(key => `${prefix}${key}`) : [row]
+}
+
+/** What is selected, once `row` is picked. Only rows side by side have any range between them. */
+export function pickedRows(
+	root: AST,
+	env: Env,
+	selected: readonly string[],
+	row: string,
+	how: Pick
+): readonly string[] {
+	if (how === 'only') return [row]
+	if (how === 'toggle') {
+		return selected.includes(row) ? selected.filter(other => other !== row) : [...selected, row]
+	}
+	const others = selected.filter(other => other !== row)
+	const from = selected.at(-1)
+	const siblings = siblingsOf(root, env, row)
+	const [start, end] = [from === undefined ? -1 : siblings.indexOf(from), siblings.indexOf(row)]
+	if (start < 0) return [...others, row]
+	const between = siblings.slice(Math.min(start, end), Math.max(start, end) + 1)
+	return [...new Set([...others, ...between.filter(other => other !== row), row])]
+}
+
 export type Arrange = 'forward' | 'backward' | 'front' | 'back'
 
 /** `root`, with the rows at its top in another order, the last being drawn last. */

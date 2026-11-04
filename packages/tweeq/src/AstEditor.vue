@@ -30,6 +30,7 @@ import {
 	HOST_KEY,
 	LINKER,
 	OPEN_ROW,
+	ROW_PICKER,
 	RENAMER,
 	REVEALER,
 	SELECTION,
@@ -66,6 +67,8 @@ const props = defineProps<{
 	commandsFor?: (path: string) => MenuItem[]
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
+	/** What a click on a row means to the app, with the keys held. False if it is not to be selected. */
+	pickRow?: (path: string, event: MouseEvent) => boolean
 	/** What rows are on a clipboard, if not their code, for what is outside of this. */
 	copyAs?: (rows: readonly string[]) => string | null
 	/** What is on a clipboard from outside of this, as code, if it can be. */
@@ -384,6 +387,7 @@ watch(
 	}
 )
 provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
+provide(ROW_PICKER, (path, event) => props.pickRow?.(path, event) ?? true)
 useDeleteInInspector(selection, () => isInspector.value, removeNearest)
 /** What was selected has just gone, so there is nothing to select again. */
 let reselectNothing = false

@@ -32,6 +32,7 @@ import {
 	drawn,
 	drawnFrom,
 	gripAt,
+	gripOfRows,
 	rowsInside,
 	linked,
 	nameFor,
@@ -372,11 +373,11 @@ const background = computed(() => backgroundOf(props.document.root.value, props.
 const gripOfRow = (row: string) =>
 	gripAt(props.document.root.value, props.document.env.value, row)
 
-/** Handles are of one thing: several can only be moved. */
-const grip = computed(() => {
-	const [row, other] = taken.value
-	return row === undefined || other !== undefined ? null : gripOfRow(row)
-})
+/** The handles of all that is selected, and whose each of them is. */
+const gripped = computed(() =>
+	gripOfRows(props.document.root.value, props.document.env.value, taken.value)
+)
+const grip = computed(() => gripped.value?.grip ?? null)
 
 /** From where a grip's coordinates are to the screen's. */
 const gripView = (mat: Mat): mat2d => mat2d.mul(view.value, mat as unknown as mat2d)
@@ -1219,13 +1220,14 @@ function onPointerDown(event: PointerEvent): void {
 	const index = shaping ?? handleAt(x, y)
 	if (index !== null && grip.value !== null) {
 		const handle = grip.value.handles[index]!
+		const owner = gripped.value!.rowOf[index]!
 		const mat = onScreen.value
 		const from = fromScreen(x, y, mat)
 		const at = handle.at ?? from
 		draggedHandle.value = index
 		pressed = {
 			kind: 'handle',
-			row: taken.value[0]!,
+			row: owner,
 			handle,
 			mat,
 			from,
@@ -1237,7 +1239,7 @@ function onPointerDown(event: PointerEvent): void {
 				grip.value.transform.join() === '1,0,0,1,0,0' && handle.at !== undefined
 					? snapPoints(
 							props.document.root.value,
-							changedBy(taken.value[0]!, handle.to(add(at, TRIAL), from))
+							changedBy(owner, handle.to(add(at, TRIAL), from))
 						)
 					: [],
 		}
@@ -1467,12 +1469,12 @@ useEventListener(
 	{ capture: true }
 )
 
-/** Of those of `kind`, the handle that is nearest to `to`, or as it was if there are none. */
-function nearestHandleOf(kind: Handle['kind'], to: Vec): number | null {
+/** Of those of `kind` that are of `row`, the handle nearest to `to`, or as it was if there are none. */
+function nearestHandleOf(row: string, kind: Handle['kind'], to: Vec): number | null {
 	let nearest = draggedHandle.value
 	let distance = Infinity
 	for (const [i, { kind: other, at }] of grip.value?.handles.entries() ?? []) {
-		if (other !== kind || at === undefined) continue
+		if (gripped.value?.rowOf[i] !== row || other !== kind || at === undefined) continue
 		const away = Math.hypot(at[0] - to[0], at[1] - to[1])
 		if (away < distance) [nearest, distance] = [i, away]
 	}
@@ -1502,7 +1504,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	linking.value = link
 	commit(next)
 	// A side taken past the other is the other one now, wherever it has been let go.
-	draggedHandle.value = nearestHandleOf(handle.kind, snap?.at ?? wanted)
+	draggedHandle.value = nearestHandleOf(row, handle.kind, snap?.at ?? wanted)
 	const now = draggedHandle.value === null ? undefined : grip.value?.handles[draggedHandle.value]?.at
 	const pivot = symmetric ? (handle.middle ?? handle.pivot) : handle.pivot
 	evenLine.value = even && pivot !== undefined && now !== undefined ? [toScreen(pivot), toScreen(now)] : null

@@ -33,6 +33,7 @@ import { iconOfPath, inkOn, withGraphics, isRect, type RectValue } from './graph
 import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
 import {
+	pickedRows,
 	type Arrange,
 	arranged,
 	type Area,
@@ -734,6 +735,20 @@ actions.register([
 	},
 ])
 
+/** A click on a row, with what the keys held mean, as they do on a canvas and in a list. */
+function pickInTree(row: string, event: MouseEvent): boolean {
+	// A menu is about what is selected, or else about this.
+	if (event.type === 'contextmenu') return true
+	const how = event.metaKey || event.ctrlKey ? 'toggle' : event.shiftKey ? 'range' : 'only'
+	const next = pickedRows(document.root.value, document.env.value, selected.value, row, how)
+	selected.value = next
+	if (next.includes(row)) return true
+	const last = next.at(-1)
+	if (last === undefined) $editor.value?.deselect()
+	else $editor.value?.reveal(last)
+	return false
+}
+
 // A row that is one of several stays one of several, as the tree only has the one.
 function selectInTree(row: string | null): void {
 	if (row === null) selected.value = []
@@ -826,6 +841,7 @@ function selectInTree(row: string | null): void {
 							:commandsFor="commandsFor"
 							:iconOfValue="iconOfPath"
 							:alsoSelected="about"
+							:pickRow="pickInTree"
 							:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 							:pasteAs="bindingsOfSvg"
 							@select="selectInTree"
