@@ -6,7 +6,7 @@
   <p><strong>A language made to be drawn with.</strong><br />
   The same program is edited as code, as blocks, and by hand on a canvas.</p>
 
-  <img src="assets/canvas.png" alt="Glisp Canvas: on the left the program as code, in the middle a ring of orange dots and white rays that it draws, and on the right the dots' parameters" />
+  <img src="assets/canvas-window.png" alt="Glisp Canvas: on the left the program as code, in the middle shapes in yellow, blue and navy with one selected, and on the right what is selected, a circle mirrored across lines." />
 </div>
 
 ## Why
@@ -16,6 +16,10 @@ Glisp, for **G**raphical **LISP**, asks what happens when a design tool meets cr
 Most design tools are tuned for one kind of work, and most programming environments stop at the code. Here, the file you are drawing in *is* a program: a tree of shapes you can drag on a canvas, and an expression you can abstract, reuse and rewrite. Dragging a dot edits a number. Writing a function gives you a new kind of dot. What the tool is for is left up to you: graphic design, illustration, generative art, or something it was never thought of for. I call that being **purpose-agnostic**, and I believe a tool gets stronger for not deciding how it should be used.
 
 ## What it looks like
+
+<div align="center">
+  <img src="assets/canvas.png" alt="Glisp Canvas: on the left the program as code, in the middle a ring of orange dots and white rays that it draws, and on the right the dots' parameters" />
+</div>
 
 This is the program in the picture above, all of it.
 
