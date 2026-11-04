@@ -1016,10 +1016,11 @@ describe('what moves an outline out from a path', () => {
 })
 
 describe('the tip of a polygon or a star', () => {
-	it.each(['(path.ngon [0 0] 20 5 30)', '(path.star [0 0] 20 10 5 30)'])('points the way it goes out, on %s', src => {
+	it.each(['(path.ngon [0 0] 20 5 30)', '(path.star [0 0] 20 10 5 30)'])('goes anywhere on the plane, so is round, on %s', src => {
 		const tip = gripAt(parse(`{c = ${src}}`), env, ROW)!.handles[0]!
-		expect(tip.kind).toBe('direction')
-		expect(tip.angle).toBe(30)
+		expect(tip.kind).toBe('point')
+		expect(tip.corner).toBeUndefined()
+		expect(tip.angle).toBeUndefined()
 	})
 
 	it('is still somewhere to start from, with a tool in hand', () => {

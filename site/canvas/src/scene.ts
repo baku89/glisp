@@ -491,6 +491,9 @@ function referred(root: AST, env: Env, source: string, snap: SnapPoint): AST | n
 	}
 }
 
+/** How far apart two places can be, and be the same one but for arithmetic. */
+const SAME_PLACE = 1e-9
+
 /**
  * `root`, with the argument at `place` of the row at `row` referring to what `snap` is
  * the place of. Null if it cannot, or if that would not come to where it is: something
@@ -510,7 +513,8 @@ export function linked(
 	// Going round in a circle comes to the default, which can be just where it was.
 	if (errorsIn(next, env) > errorsIn(root, env)) return null
 	const reached = gripAt(next, env, row)?.handles.find(handle => handle.place === place)?.at
-	return reached?.[0] === snap.at[0] && reached[1] === snap.at[1] ? next : null
+	// As near as arithmetic comes: what goes round by a circle is not exact at its top.
+	return reached !== undefined && Math.hypot(reached[0] - snap.at[0], reached[1] - snap.at[1]) < SAME_PLACE ? next : null
 }
 
 /** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */

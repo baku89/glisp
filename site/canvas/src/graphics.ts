@@ -1283,8 +1283,6 @@ export interface Handle {
 	readonly stays?: boolean
 	/** It is about a corner, and is drawn square to say so. */
 	readonly corner?: boolean
-	/** It is drawn just past where it is, as there is already a corner to be seen there. */
-	readonly past?: boolean
 	/** What it is exactly, more than one thing, as a vertex is how far out and which way. */
 	readonly parts?: readonly (readonly number[])[]
 	/** It pulls what goes through somewhere else, and is not on it, as a curve's controls are. */
@@ -1673,10 +1671,8 @@ const vertexHandle = (
 ): Handle => {
 	const at = add(c, toward(angle, Math.max(radius, HANDLE_CLEAR)))
 	return {
-		kind: 'direction',
+		kind: 'point',
 		name: 'vertex',
-		angle,
-		past: true,
 		parts: [[radiusArg], [angleArg]],
 		// Held clear of what it is measured from, it is not then quite at the vertex.
 		...(code === undefined || radius < HANDLE_CLEAR ? {} : { code }),
@@ -2119,7 +2115,8 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{
 						at: [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2],
 						name: 'middle',
-						code: p => `[(/ (+ ${p('arg0/0')} ${p('arg1/0')}) 2) (/ (+ ${p('arg0/1')} ${p('arg1/1')}) 2)]`,
+						// Half is what the middle is, and not what moving it would change.
+						code: p => `[(/ (+ ${p('arg0/0')} ${p('arg1/0')}) @2) (/ (+ ${p('arg0/1')} ${p('arg1/1')}) @2)]`,
 					},
 				],
 				lines: [{ from: start, to: end, name: 'line' }],

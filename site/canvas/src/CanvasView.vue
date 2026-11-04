@@ -480,8 +480,6 @@ const CROSS = new Path2D('M 12 0 H -12 M 0 12 V -12')
 const DIAMOND = new Path2D('M 7 0 L 0 7 L -7 0 L 0 -7 Z')
 /** What only says which way: the head of an arrow, at the end of its line. */
 const POINTER = new Path2D('M -8 -6 L 0 0 L -8 6')
-/** How far past a corner it goes, as far as it is long, to be seen apart from that. */
-const POINTER_PAST = 9
 /** How far either side of an outline the marks of what moves it are, and how far they bend. */
 const OFFSET_GAP = 4
 const OFFSET_REACH = HANDLE_RADIUS * 1.25
@@ -545,7 +543,6 @@ function drawHandle(
 		context.stroke()
 	} else if (handle.kind === 'direction') {
 		context.rotate(facing(handle.angle ?? 0))
-		if (handle.past) context.translate(POINTER_PAST, 0)
 		context.lineJoin = 'round'
 		context.lineCap = 'round'
 		context.stroke(POINTER)
