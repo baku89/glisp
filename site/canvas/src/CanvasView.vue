@@ -8,6 +8,7 @@ import { transform } from 'pave/path/modifiers'
 import { useZUI } from 'tweeq/use/useZUI'
 import { computed, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
+import Dimensions from './Dimensions.vue'
 import {
 	type Modulation,
 	modulationAt,
@@ -18,6 +19,11 @@ import {
 import { type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec } from './graphics'
 import {
 	changed,
+	type Dimension,
+	dimensionChanges,
+	dimensionsHeld,
+	dimensionsDrawn,
+	dimensionsOf,
 	dragStep,
 	drawn,
 	drawnFrom,
@@ -26,6 +32,7 @@ import {
 	nameFor,
 	nearestSnap,
 	penned,
+	placedDimensions,
 	readoutOf,
 	roundedChanges,
 	roundedTo,
@@ -47,6 +54,8 @@ const props = defineProps<{
 	origin: readonly [number, number]
 	/** What a press does, if it draws. */
 	drawing?: ShapeTool | 'pen' | null
+	/** A drag says its numbers exactly, and they can be typed once it is let go of. */
+	dimensions?: boolean
 }>()
 
 const emit = defineEmits<{ select: [rows: readonly string[]] }>()
@@ -173,6 +182,75 @@ const readout = shallowRef<{
 	fallback: string
 	place: Vec
 } | null>(null)
+/**
+ * The numbers a drag has got hold of, whichever kind of drag it was: to read as it goes,
+ * and to type in once it is let go of, which is all it takes to be at them.
+ */
+const held = shallowRef<{
+	row: string
+	places: readonly Dimension[]
+	/** Where it is beside, in the program's coordinates, to stay there as the view moves. */
+	at: Vec
+	first: number
+	editing: boolean
+	/** The program as the drag left it, to go back to. */
+	base: AST
+} | null>(null)
+/** What was last typed came to this, which is not someone else having changed it. */
+let typed: AST | null = null
+
+const heldDimensions = computed(() => {
+	const { root, env } = props.document
+	if (held.value === null) return []
+	const { row, places, at } = held.value
+	return placedDimensions(
+		root.value,
+		env.value,
+		row,
+		places,
+		toScreen(at, view.value),
+		(place, mat) => toScreen(place, gripView(mat))
+	)
+})
+
+function hold(row: string, places: readonly Dimension[], [x, y]: Vec, first = 0): void {
+	held.value =
+		places.length === 0
+			? null
+			: { row, places, at: fromScreen(x, y), first, editing: false, base: props.document.root.value }
+}
+
+function typeDimension(dimension: Dimension, value: number): void {
+	if (held.value === null) return
+	const { root, env } = props.document
+	const { row } = held.value
+	const next = apply(row, dimensionChanges(root.value, env.value, row, dimension, value))
+	typed = next.ast
+	commit(next)
+}
+
+function doneTyping(keep: boolean): void {
+	const base = held.value?.base
+	held.value = null
+	if (!keep && base?.kind === 'let' && base !== props.document.root.value) {
+		props.document.setRoot(base)
+	}
+}
+
+// Whatever else changes the program, or the option, these are no longer what they were.
+watch(
+	() => props.document.root.value,
+	root => {
+		if (held.value?.editing && root !== typed && root !== held.value.base) held.value = null
+	}
+)
+watch(
+	() => props.dimensions,
+	() => {
+		held.value = null
+	}
+)
+
 /** What the pointer has snapped to, and where that is, to say so. */
 const snapMark = shallowRef<SnapPoint | null>(null)
 const cursor = ref('default')
@@ -685,6 +763,7 @@ useEventListener(window, 'keyup', (event: KeyboardEvent) => {
 
 function onPointerDown(event: PointerEvent): void {
 	problem.value = null
+	held.value = null
 	// The middle button is the ZUI's.
 	if (event.button !== 0) return
 	const { offsetX: x, offsetY: y } = event
@@ -931,8 +1010,15 @@ function dragHandle(symmetric: boolean, valueOnly: boolean): void {
 		if (referring !== null) next.ast = referring
 	}
 	commit(next)
+	const numbers =
+		props.dimensions && next.ast !== null
+			? dimensionsHeld(next.ast, props.document.env.value, row, handle, rounded, base, snap?.at ?? wanted, {
+					symmetric,
+				})
+			: []
+	hold(row, numbers, at)
 	readout.value =
-		next.ast === null
+		next.ast === null || numbers.length > 0
 			? null
 			: {
 					at,
@@ -963,6 +1049,11 @@ function drawPressed(even: boolean, valueOnly: boolean): void {
 	if (name !== pressed.name) emit('select', [`binding:${name}`])
 	pressed.name = name
 	pressed.drawing = true
+	if (props.dimensions) {
+		const row = `binding:${name}`
+		const { dimensions, first } = dimensionsDrawn(props.document.root.value, env.value, row)
+		hold(row, dimensions, [x, y], first)
+	}
 }
 
 function onPointerMove(event: PointerEvent): void {
@@ -1026,14 +1117,21 @@ function onPointerMove(event: PointerEvent): void {
 				ast: props.document.root.value,
 				problem: null,
 			}
-			for (const { row, grip: held } of pressed.rows) {
-				if (next.ast === null || held.move === undefined) continue
-				const mat = gripView(held.transform)
+			let moved: { row: string; numbers: Dimension[] } | null = null
+			for (const { row, grip: taken } of pressed.rows) {
+				if (next.ast === null || taken.move === undefined) continue
+				const mat = gripView(taken.transform)
 				const [ax, ay] = fromScreen(fromX, fromY, mat)
 				const [bx, by] = fromScreen(toX, toY, mat)
-				next = apply(row, roundedChanges(held.move([bx - ax, by - ay]), pointerStep()), next.ast)
+				const changes = roundedChanges(taken.move([bx - ax, by - ay]), pointerStep())
+				next = apply(row, changes, next.ast)
+				// Of several, each has numbers of its own, which are not any one thing to type.
+				if (props.dimensions && pressed.rows.length === 1 && next.ast !== null) {
+					moved = { row, numbers: dimensionsOf(next.ast, props.document.env.value, row, changes) }
+				}
 			}
 			commit(next)
+			if (moved !== null) hold(moved.row, moved.numbers, [x, y])
 			break
 		}
 		case 'range': {
@@ -1068,6 +1166,12 @@ useEventListener(window, 'pointerup', () => {
 		emit('select', [pressed.row])
 	}
 	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : 'default'
+	// Letting go of a drag is being at what it got hold of.
+	if (pressed !== null && held.value !== null) {
+		const base = props.document.root.value
+		typed = base
+		held.value = { ...held.value, editing: true, base }
+	}
 	pressed = null
 	range.value = null
 	snapMark.value = null
@@ -1084,6 +1188,15 @@ useEventListener(window, 'pointerup', () => {
 			@pointermove="onPointerMove"
 			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null)"
 			@auxclick.prevent
+		/>
+		<Dimensions
+			v-if="held !== null && heldDimensions.length > 0"
+			:dimensions="heldDimensions"
+			:room="size"
+			:editing="held.editing"
+			:first="held.first"
+			@set="typeDimension"
+			@done="doneTyping"
 		/>
 		<p v-if="problem !== null" class="problem">Cannot do that: {{ problem }}</p>
 	</div>

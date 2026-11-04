@@ -110,6 +110,9 @@ const TOOLS = [
 const tool = ref<(typeof TOOLS)[number]['name']>('select')
 const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
 
+/** A drag says its numbers exactly, and they can be typed once it is let go of. */
+const dimensionsOn = useAppConfigStore().ref('glisp.canvas.dimensions', false)
+
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	const target = event.target as HTMLElement | null
 	if (target?.closest?.('input, textarea, [contenteditable]')) return
@@ -122,6 +125,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	} else if (key === 'r') tool.value = 'rect'
 	else if (key === 'o') tool.value = 'ellipse'
 	else if (key === 'n') tool.value = 'ngon'
+	else if (key === 'd') dimensionsOn.value = !dimensionsOn.value
 	else if (key === 'escape') tool.value = 'select'
 }, { capture: true })
 
@@ -392,6 +396,7 @@ useActionsStore().register([
 			{ id: 'view_zoom_out', label: 'Zoom Out', icon: 'mdi:magnify-minus-outline', bind: 'command+-', perform: () => $canvas.value?.zoomBy(1 / ZOOM_STEP) },
 			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => (projectOpen.value = !projectOpen.value) },
 			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => (inspectorOpen.value = !inspectorOpen.value) },
+			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
 		],
 	},
 	{
@@ -429,6 +434,7 @@ function selectInTree(row: string | null): void {
 					:selected="selected"
 					:origin="origin"
 					:drawing="drawing"
+					:dimensions="dimensionsOn"
 					@select="selectOnCanvas"
 				/>
 				<FloatPanel
@@ -546,6 +552,17 @@ function selectInTree(row: string | null): void {
 						@click="tool = name"
 					>
 						<Icon :icon="icon" />
+					</button>
+					<span class="tools-divider" />
+					<button
+						v-tooltip="{ content: 'Dimensions', shortcut: ['D'] }"
+						class="tool"
+						:class="{ active: dimensionsOn }"
+						aria-label="Dimensions"
+						:aria-pressed="dimensionsOn"
+						@click="dimensionsOn = !dimensionsOn"
+					>
+						<Icon icon="ph:ruler" />
 					</button>
 				</div>
 			</div>
@@ -665,6 +682,13 @@ function selectInTree(row: string | null): void {
 .tool.active {
 	background: var(--tq-color-accent);
 	color: var(--tq-color-on-accent, white);
+}
+.tools-divider {
+	align-self: center;
+	width: 1px;
+	height: 20px;
+	margin-inline: 4px;
+	background: var(--tq-color-border);
 }
 .pane {
 	box-sizing: border-box;

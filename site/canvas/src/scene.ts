@@ -45,7 +45,10 @@ import { bounds } from 'pave/path/metrics'
 
 import {
 	type Change,
+	type DimensionSide,
 	type Grip,
+	type Handle,
+	type HandleDrag,
 	gripOf,
 	gripOfPoint,
 	isPath,
@@ -731,6 +734,8 @@ function readAt(
 export interface DimensionPlace {
 	readonly route: readonly number[]
 	readonly index?: number
+	/** What it takes for it to be `value`, if that is more than only the number itself. */
+	readonly set?: (value: number) => readonly Change[]
 }
 
 /** A number a program says, to read and to type, wherever it is that says it. */
@@ -738,6 +743,8 @@ export interface Dimension extends DimensionPlace {
 	readonly label: string
 	readonly value: number
 	readonly options: NumberOptions
+	/** How many numbers the vector it is one of has. */
+	readonly length: number
 }
 
 /** The number at a place in the row at `row`, as it is in `root`. */
@@ -745,17 +752,21 @@ export function dimensionAt(
 	root: AST,
 	env: Env,
 	row: string,
-	{ route, index }: DimensionPlace
+	{ route, index, set }: DimensionPlace
 ): Dimension | null {
 	const read = readAt(root, env, row, route)
 	if (read === null) return null
 	const { label, expected, options, value } = read
-	const place = { route, ...(index === undefined ? {} : { index }) }
+	const place = {
+		route,
+		...(index === undefined ? {} : { index }),
+		...(set === undefined ? {} : { set }),
+	}
 	if (index === undefined) {
-		return typeof value === 'number' ? { ...place, label, value, options } : null
+		return typeof value === 'number' ? { ...place, label, value, options, length: 1 } : null
 	}
 	const element = isNumbers(value) ? value[index] : undefined
-	if (element === undefined) return null
+	if (element === undefined || !isNumbers(value)) return null
 	const shape = expected === null ? null : unwrapLazy(expected).shape
 	const title = shape?.kind === 'tuple' ? textOf(shape.elements[index]?.meta?.get('title')) : null
 	return {
@@ -763,6 +774,7 @@ export function dimensionAt(
 		label: title ?? `${label} ${index}`,
 		value: element,
 		options: elementOptionsOf(expected, index),
+		length: value.length,
 	}
 }
 
@@ -837,13 +849,154 @@ export function dimensionsDrawn(
 	return { dimensions, first: Math.max(0, dimensions.findIndex(({ route }) => route[0] === 1)) }
 }
 
-/** What has to change, for the number at a place to be `value`. */
-export function dimensionChange({ route, index }: DimensionPlace, value: number): Change {
-	if (index === undefined) return { route, value }
-	return {
-		route,
-		value: Array.from({ length: index + 1 }, (_, i) => (i === index ? value : UNSET)),
+/** Whether what `wanted` asks of `node` is written right there, rather than somewhere else. */
+function isWritten(node: AST, wanted: unknown): boolean {
+	const written = bare(node)
+	if (written.kind === 'lit') return true
+	if (written.kind !== 'vec' || !Array.isArray(wanted)) return false
+	return written.elements.every((element, i) => wanted[i] === UNSET || bare(element).kind === 'lit')
+}
+
+/**
+ * What has to change for a number to be `value`, however much that comes to. What it
+ * would have to take along is left where it is, if that refers to something else: what a
+ * shape was put on stays what it is on, and it is only this number that is any different.
+ */
+export function dimensionChanges(
+	root: AST,
+	env: Env,
+	row: string,
+	dimension: Dimension,
+	value: number
+): readonly Change[] {
+	const changes = dimension.set?.(value)
+	if (changes === undefined) return [dimensionChange(dimension, value)]
+	const found = rowAt(root, env, row)
+	const own = dimension.route.join()
+	const onlyWritten = changes.every(({ route, value: wanted }) => {
+		if (route.join() === own) return true
+		const node = found && nodeAt(found.node, found.env, route)
+		return node !== null && isWritten(node, wanted)
+	})
+	return onlyWritten ? changes : [dimensionChange(dimension, value)]
+}
+
+/**
+ * The numbers a drag of `handle` is about: what it says it is about, or else what
+ * `changes` have got hold of. What is typed in them goes on from where it was let go of.
+ */
+export function dimensionsHeld(
+	root: AST,
+	env: Env,
+	row: string,
+	handle: Handle,
+	changes: readonly Change[],
+	before: AST,
+	to: Vec,
+	how?: HandleDrag
+): Dimension[] {
+	if (handle.means === undefined) return dimensionsOf(root, env, row, changes, before)
+	return handle.means.flatMap(
+		({ route, index, set }) =>
+			dimensionAt(root, env, row, {
+				route,
+				...(index === undefined ? {} : { index }),
+				set: value => set(value, to, how),
+			}) ?? []
+	)
+}
+
+/**
+ * What goes in one place on screen: the numbers of a place go together, as one thing.
+ * `corner` is down and across from there.
+ */
+export interface PlacedDimension {
+	readonly dimensions: readonly Dimension[]
+	readonly at: Vec
+	readonly side: DimensionSide | 'corner'
+}
+
+const POINTER_OFFSET = 14
+const STACKED_BY = 26
+
+/**
+ * The numbers at `places`, each by the part of the shape it belongs to, as it is in
+ * `root`, so that it goes along with what it says. What has no such part, as a matrix
+ * written out has not, is stacked by the pointer.
+ */
+export function placedDimensions(
+	root: AST,
+	env: Env,
+	row: string,
+	places: readonly DimensionPlace[],
+	[pointerX, pointerY]: Vec,
+	onScreen: (at: Vec, transform: Mat) => Vec
+): PlacedDimension[] {
+	const grip = gripAt(root, env, row)
+	let stacked = 0
+	const placed: PlacedDimension[] = []
+	for (const place of places) {
+		const dimension = dimensionAt(root, env, row, place)
+		if (dimension === null) continue
+		const mark = grip?.marks?.find(
+			({ route, index }) => route.join() === place.route.join() && index === place.index
+		)
+		if (!mark || !grip) {
+			const at: Vec = [pointerX + POINTER_OFFSET, pointerY + POINTER_OFFSET + STACKED_BY * stacked++]
+			placed.push({ dimensions: [dimension], at, side: 'corner' })
+			continue
+		}
+		const at = onScreen(mark.at, grip.transform)
+		const { side } = mark
+		const last = placed.at(-1)
+		const together =
+			last !== undefined &&
+			last.side === side &&
+			last.at[0] === at[0] &&
+			last.at[1] === at[1] &&
+			last.dimensions[0]!.route.join() === place.route.join()
+		if (together) placed[placed.length - 1] = { ...last, dimensions: [...last.dimensions, dimension] }
+		else placed.push({ dimensions: [dimension], at, side })
 	}
+	return placed
+}
+
+const DIMENSION_GAP = 14
+const ROOM_MARGIN = 8
+
+/** The top left of something of `size`, to the `side` of `at`, inside of `room`. */
+export function placedBeside(
+	[x, y]: Vec,
+	side: PlacedDimension['side'],
+	[width, height]: Vec,
+	[roomWidth, roomHeight]: Vec
+): Vec {
+	const left =
+		side === 'left'
+			? x - width - DIMENSION_GAP
+			: side === 'right'
+				? x + DIMENSION_GAP
+				: side === 'corner' || side === 'above-start'
+					? x
+					: x - width / 2
+	const top =
+		side === 'above' || side === 'above-start'
+			? y - height - DIMENSION_GAP
+			: side === 'below'
+				? y + DIMENSION_GAP
+				: side === 'corner'
+					? y
+					: y - height / 2
+	return [
+		Math.max(ROOM_MARGIN, Math.min(left, roomWidth - width - ROOM_MARGIN)),
+		Math.max(ROOM_MARGIN, Math.min(top, roomHeight - height - ROOM_MARGIN)),
+	]
+}
+
+/** What has to change, for the number at a place to be `value`. */
+export function dimensionChange({ route, index, length }: Dimension, value: number): Change {
+	if (index === undefined) return { route, value }
+	return { route, value: Array.from({ length }, (_, i) => (i === index ? value : UNSET)) }
 }
 
 function linesOf(root: AST, env: Env, row: string, changes: readonly Change[]): string[] {

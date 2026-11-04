@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import { useElementSize } from '@vueuse/core'
-import { InputNumber } from 'tweeq/InputNumber'
-import { computed, nextTick, useTemplateRef, watch } from 'vue'
+import { nextTick, useTemplateRef, watch } from 'vue'
 
+import DimensionField from './DimensionField.vue'
 import type { Vec } from './graphics'
-import type { Dimension } from './scene'
+import type { Dimension, PlacedDimension } from './scene'
 
 const props = defineProps<{
-	dimensions: readonly Dimension[]
-	/** Where the pointer is, on screen, to be beside. */
-	at: Vec
+	dimensions: readonly PlacedDimension[]
 	/** How much room there is to be in. */
-	room: readonly [number, number]
+	room: Vec
 	/** They are there to type in, rather than only to read as they go. */
 	editing: boolean
 	/** Which of them to go to first. */
@@ -24,16 +21,7 @@ const emit = defineEmits<{
 	done: [keep: boolean]
 }>()
 
-const OFFSET = 14
-const MARGIN = 8
-
 const $root = useTemplateRef<HTMLElement>('$root')
-const { width, height } = useElementSize($root)
-
-const place = computed(() => ({
-	left: `${Math.max(MARGIN, Math.min(props.at[0] + OFFSET, props.room[0] - width.value - MARGIN))}px`,
-	top: `${Math.max(MARGIN, Math.min(props.at[1] + OFFSET, props.room[1] - height.value - MARGIN))}px`,
-}))
 
 const inputs = (): HTMLInputElement[] => [...($root.value?.querySelectorAll('input') ?? [])]
 
@@ -47,7 +35,7 @@ watch(
 	{ immediate: true }
 )
 
-/** Round and round among them, as this is all that a press of Tab is about here. */
+/** Round and round among them, wherever on the shape each one is. */
 function nextInput(event: KeyboardEvent): void {
 	const all = inputs()
 	const here = all.indexOf(event.target as HTMLInputElement)
@@ -58,9 +46,14 @@ function nextInput(event: KeyboardEvent): void {
 function onKeydown(event: KeyboardEvent): void {
 	if (!['Tab', 'Enter', 'Escape'].includes(event.key)) return
 	event.preventDefault()
+	if (event.key === 'Tab') {
+		// Tab lets go of the selected inputs once it gets to the window, as it has to before
+		// focus moves, or going back with Shift would select all that are on the way.
+		setTimeout(() => nextInput(event))
+		return
+	}
 	event.stopPropagation()
-	if (event.key === 'Tab') nextInput(event)
-	else emit('done', event.key === 'Enter')
+	emit('done', event.key === 'Enter')
 }
 
 /** Being let go of is the same as being done with, unless it is only another window. */
@@ -76,44 +69,24 @@ const set = (dimension: Dimension, value: number): void => {
 </script>
 
 <template>
-	<div
-		ref="$root"
-		class="Dimensions"
-		:class="{ editing }"
-		:style="place"
-		@keydown="onKeydown"
-		@focusout="onFocusout"
-	>
-		<template v-for="dimension in dimensions" :key="`${dimension.route}/${dimension.index}`">
-			<label class="label">{{ dimension.label }}</label>
-			<InputNumber
-				v-bind="dimension.options"
-				:modelValue="dimension.value"
-				@update:modelValue="set(dimension, $event)"
-			/>
-		</template>
+	<div ref="$root" class="Dimensions" @keydown="onKeydown" @focusout="onFocusout">
+		<DimensionField
+			v-for="placed in dimensions"
+			:key="`${placed.dimensions[0]!.route}/${placed.dimensions[0]!.index}`"
+			:placed="placed"
+			:room="room"
+			:editing="editing"
+			@set="set"
+		/>
 	</div>
 </template>
 
 <style scoped>
+/* All over the canvas, for each to go where it goes, and over the panels as well. */
 .Dimensions {
 	position: absolute;
-	display: grid;
-	grid-template-columns: auto 72px;
-	gap: 2px 6px;
-	align-items: center;
-	padding: 4px 6px;
-	border: 1px solid var(--tq-color-border);
-	border-radius: var(--tq-radius-input);
-	background: var(--tq-color-background);
-	font-size: 11px;
+	inset: 0;
+	z-index: 100;
 	pointer-events: none;
-}
-.Dimensions.editing {
-	pointer-events: auto;
-}
-.label {
-	color: var(--tq-color-text-mute);
-	white-space: nowrap;
 }
 </style>

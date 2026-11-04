@@ -649,6 +649,19 @@ export interface Handle {
 	readonly dashed?: boolean
 	/** What has to change, for it to be at `to`, having been taken at `from`. */
 	to(to: Vec, from: Vec, how?: HandleDrag): readonly Change[]
+	/**
+	 * What taking hold of it is about, to someone doing that, whatever else has to change
+	 * to bring it about: the top of a rect is its height, though its Y changes as well.
+	 */
+	readonly means?: readonly HandleMeaning[]
+}
+
+/** A number that a handle is about, and what it takes for that to be something else. */
+export interface HandleMeaning {
+	readonly route: readonly number[]
+	readonly index?: number
+	/** What has to change for it to be `value`, having been let go of at `to`. */
+	set(value: number, to: Vec, how?: HandleDrag): readonly Change[]
 }
 
 /** All that can be done to a call on a canvas. */
@@ -662,7 +675,33 @@ export interface Grip {
 	readonly within?: string
 	/** Where else on it matters, to line something else up with, besides its handles. */
 	readonly snaps?: Snaps
+	/** Where on it each number it is made of belongs, to be shown and typed there. */
+	readonly marks?: readonly DimensionMark[]
 }
+
+/**
+ * Which way from a place on a shape a number goes, so as to be clear of the shape.
+ * `above-start` is above and along from there, as over the top of a corner.
+ */
+export type DimensionSide = 'above' | 'above-start' | 'below' | 'left' | 'right'
+
+/** Where on a shape a number belongs: an edge for how long it is, a corner for where. */
+export interface DimensionMark {
+	readonly route: readonly number[]
+	readonly index?: number
+	readonly at: Vec
+	readonly side: DimensionSide
+}
+
+/** The numbers of a place, together, at `at`, which is clear of the shape they are of. */
+const pointMarks = (
+	route: readonly number[],
+	at: Vec,
+	side: DimensionSide = 'above'
+): DimensionMark[] => [
+	{ route, index: 0, at, side },
+	{ route, index: 1, at, side },
+]
 
 /**
  * How a place that no argument says is worked out from them, as code, for something to
@@ -698,9 +737,21 @@ export const under = (arg: number, grip: Grip): Grip => {
 		guides: grip.guides,
 		within: grip.within === undefined ? `arg${arg}` : `arg${arg}/${grip.within}`,
 		...(grip.snaps === undefined ? {} : { snaps: grip.snaps }),
+		...(grip.marks === undefined
+			? {}
+			: { marks: grip.marks.map(mark => ({ ...mark, route: [arg, ...mark.route] })) }),
 		handles: grip.handles.map(handle => ({
 			...handle,
 			to: (to, from, how) => lower(handle.to(to, from, how)),
+			...(handle.means === undefined
+				? {}
+				: {
+						means: handle.means.map(meaning => ({
+							...meaning,
+							route: [arg, ...meaning.route],
+							set: (value: number, to: Vec, how?: HandleDrag) => lower(meaning.set(value, to, how)),
+						})),
+					}),
 		})),
 		...(move === undefined ? {} : { move: (delta: Vec) => lower(move(delta)) }),
 	}
@@ -708,6 +759,7 @@ export const under = (arg: number, grip: Grip): Grip => {
 
 /** A place that is all there is to something: the point itself. */
 export const gripOfPoint = (at: Vec): Grip => ({
+	marks: pointMarks([], at),
 	handles: [{ kind: 'translate', place: 'self', at, to: to => [{ route: [], value: to }] }],
 	guides: [],
 	move: delta => [{ route: [], value: add(at, delta) }],
@@ -871,6 +923,7 @@ const pointsGrip = (
 	order: readonly number[] = points.map((_, i) => i)
 ): Grip => ({
 	...(snaps === undefined ? {} : { snaps }),
+	marks: points.flatMap((at, i) => pointMarks([i], at)),
 	handles: order.map(i => ({
 		kind: 'point',
 		place: i,
@@ -965,6 +1018,7 @@ const makers = new Map<unknown, Maker>([
 			const c = center as Vec
 			const r = radius as number
 			return {
+				marks: [...pointMarks([0], [c[0], c[1] - r]), { route: [1], at: [c[0] + r, c[1]], side: 'right' }],
 				handles: [
 					{
 						kind: 'arrow',
@@ -992,6 +1046,11 @@ const makers = new Map<unknown, Maker>([
 			const c = center as Vec
 			const [rx, ry] = radius as Vec
 			return {
+				marks: [
+					...pointMarks([0], [c[0], c[1] - ry]),
+					{ route: [1], index: 0, at: [c[0] + rx, c[1]], side: 'right' },
+					{ route: [1], index: 1, at: [c[0], c[1] + ry], side: 'below' },
+				],
 				handles: [
 					{
 						kind: 'arrow',
@@ -1041,16 +1100,38 @@ const makers = new Map<unknown, Maker>([
 			const right = (x: number, how?: HandleDrag) => across(0, opposite(0, x, s[0], how), x)
 			const top = (y: number, how?: HandleDrag) => across(1, y, opposite(1, y, e[1], how))
 			const bottom = (y: number, how?: HandleDrag) => across(1, opposite(1, y, s[1], how), y)
+			// A length, from the side that stays, out the way it was let go of: or either way
+			// from the middle, if that is what stayed.
+			const length = (
+				axis: 0 | 1,
+				far: number,
+				side: (at: number, how?: HandleDrag) => Change[]
+			): HandleMeaning => ({
+				route: [1],
+				index: axis,
+				set(value, to, how) {
+					const way = Math.sign(to[axis] - far) || 1
+					return side(how?.symmetric ? middle[axis] + (way * value) / 2 : far + way * value, how)
+				},
+			})
+			const widthBy = { left: length(0, e[0], left), right: length(0, s[0], right) }
+			const heightBy = { top: length(1, e[1], top), bottom: length(1, s[1], bottom) }
 			return {
+				// Whichever way it was drawn, a length goes by the edge that is clear of the rest.
+				marks: [
+					...pointMarks([0], s, 'above-start'),
+					{ route: [1], index: 0, at: [middle[0], Math.max(s[1], e[1])], side: 'below' },
+					{ route: [1], index: 1, at: [Math.max(s[0], e[0]), middle[1]], side: 'right' },
+				],
 				handles: [
-					{ kind: 'arrow', name: 'left', code: rectPlace(0, 2), angle: 0, at: [s[0], middle[1]], to: (to, _, how) => left(to[0], how) },
-					{ kind: 'arrow', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], to: (to, _, how) => top(to[1], how) },
-					{ kind: 'arrow', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], to: (to, _, how) => right(to[0], how) },
-					{ kind: 'arrow', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], to: (to, _, how) => bottom(to[1], how) },
-					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, to: (to, _, how) => [...left(to[0], how), ...top(to[1], how)] },
-					{ kind: 'point', name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], to: (to, _, how) => [...right(to[0], how), ...top(to[1], how)] },
-					{ kind: 'point', name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], to: (to, _, how) => [...left(to[0], how), ...bottom(to[1], how)] },
-					{ kind: 'point', name: 'bottom right', code: rectPlace(1, 1), angle: 45, at: e, to: (to, _, how) => [...right(to[0], how), ...bottom(to[1], how)] },
+					{ kind: 'arrow', name: 'left', code: rectPlace(0, 2), angle: 0, at: [s[0], middle[1]], means: [widthBy.left], to: (to, _, how) => left(to[0], how) },
+					{ kind: 'arrow', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], means: [heightBy.top], to: (to, _, how) => top(to[1], how) },
+					{ kind: 'arrow', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], means: [widthBy.right], to: (to, _, how) => right(to[0], how) },
+					{ kind: 'arrow', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], means: [heightBy.bottom], to: (to, _, how) => bottom(to[1], how) },
+					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, means: [widthBy.left, heightBy.top], to: (to, _, how) => [...left(to[0], how), ...top(to[1], how)] },
+					{ kind: 'point', name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], means: [widthBy.right, heightBy.top], to: (to, _, how) => [...right(to[0], how), ...top(to[1], how)] },
+					{ kind: 'point', name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], means: [widthBy.left, heightBy.bottom], to: (to, _, how) => [...left(to[0], how), ...bottom(to[1], how)] },
+					{ kind: 'point', name: 'bottom right', code: rectPlace(1, 1), angle: 45, at: e, means: [widthBy.right, heightBy.bottom], to: (to, _, how) => [...right(to[0], how), ...bottom(to[1], how)] },
 				],
 				guides: [],
 				snaps: {
@@ -1081,10 +1162,22 @@ const makers = new Map<unknown, Maker>([
 				return [change(0, [e[0] - next, e[1] - next]), sized(next)]
 			}
 			return {
+				marks: [
+					...pointMarks([0], s, 'above-start'),
+					{ route: [1], at: [middle[0], Math.max(s[1], e[1])], side: 'below' },
+				],
 				handles: [
 					{ kind: 'arrow', name: 'right', code: squarePlace(1, 2), angle: 0, at: [e[0], middle[1]], to: to => [sized(to[0] - s[0])] },
 					{ kind: 'arrow', name: 'bottom', code: squarePlace(2, 1), angle: 90, at: [middle[0], e[1]], to: to => [sized(to[1] - s[1])] },
-					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, to: to => fromFar(to[0], to[1]) },
+					{
+						kind: 'point',
+						name: 'top left',
+						place: 0,
+						angle: 45,
+						at: s,
+						means: [{ route: [1], set: value => [change(0, [e[0] - value, e[1] - value]), sized(value)] }],
+						to: to => fromFar(to[0], to[1]),
+					},
 					{ kind: 'point', name: 'bottom right', code: squarePlace(1, 1), angle: 45, at: e, to: to => [sized(Math.max(to[0] - s[0], to[1] - s[1]))] },
 				],
 				guides: [],
@@ -1138,6 +1231,11 @@ const makers = new Map<unknown, Maker>([
 			const ring = r + NGON_RING
 			const count = Math.max(3, Math.round(sides as number))
 			return {
+				marks: [
+					...pointMarks([0], [c[0], c[1] - r]),
+					{ route: [1], at: [c[0] + r, c[1]], side: 'right' },
+					{ route: [2], at: add(c, toward(360 / count, ring)), side: 'right' },
+				],
 				handles: [
 					{
 						kind: 'arrow',
@@ -1180,6 +1278,12 @@ const makers = new Map<unknown, Maker>([
 			const angleFor = (angle: number, to: Vec): number =>
 				angle + shortest(degrees(sub(to, c)) - angle)
 			return {
+				marks: [
+					...pointMarks([0], c),
+					{ route: [1], at: add(c, toward(middle, r)), side: 'right' },
+					{ route: [2], at: add(c, toward(from, r)), side: 'right' },
+					{ route: [3], at: add(c, toward(until, r)), side: 'right' },
+				],
 				handles: [
 					{
 						kind: 'arrow',
