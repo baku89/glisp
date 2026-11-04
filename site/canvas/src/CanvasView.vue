@@ -18,7 +18,7 @@ import {
 } from './modulate'
 import { otherControl, type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec, inkOn, onlyShapes } from './graphics'
 import { type GridKind, gridPositions, offAxis } from './grid'
-import { viewBetween } from './rows'
+import { rowsAbout, viewBetween } from './rows'
 import {
 	changed,
 	type Dimension,
@@ -125,13 +125,8 @@ const draggedHandle = ref<number | null>(null)
  * The row whose handles these still are, a part of it having been selected by clicking
  * one. To the canvas it is that row that is selected, or there would be nothing to go on with.
  */
-const keptRow = ref<string | null>(null)
-const taken = computed<readonly string[]>(() => {
-	const kept = keptRow.value
-	return kept !== null && props.selected.length > 0 && props.selected.every(row => row.startsWith(`${kept}/`))
-		? [kept]
-		: props.selected
-})
+const keptRow = defineModel<string | null>('keptRow', { default: null })
+const taken = computed(() => rowsAbout(props.selected, keptRow.value))
 watch(taken, rows => {
 	if (rows[0] !== keptRow.value) keptRow.value = null
 })

@@ -41,6 +41,7 @@ import {
 	grouped,
 	nameOfRow,
 	rowCalled,
+	rowsAbout,
 	ungrouped,
 	viewToFit,
 	withGridToggled,
@@ -298,8 +299,14 @@ function showCode(): void {
 }
 
 const selected = ref<readonly string[]>([])
+/** The row that a handle was clicked on, whose part that is what is selected. */
+const keptRow = ref<string | null>(null)
+/** What the inspector is about: the whole of a shape, with a part picked out of it. */
+const about = computed(() => rowsAbout(selected.value, keptRow.value))
+/** What is picked out in the inspector of what it is about. */
+const pickedOut = computed(() => (about.value === selected.value ? [] : selected.value))
 const paintable = computed(() =>
-	selected.value.filter(row => {
+	about.value.filter(row => {
 		const [root, env] = [document.root.value, document.env.value]
 		// A part of what a row is written as, such as a number, has no fill or line unless it is a path.
 		const isPart = !row.split('/').every(key => key.startsWith('binding:'))
@@ -371,15 +378,15 @@ function selectOnCanvas(rows: readonly string[]): void {
 
 /** What the inspector shows: one row, as several have nothing in common to show. */
 const inspected = computed(() =>
-	selected.value.length === 1 ? insideOf(selected.value[0]!) : null
+	about.value.length === 1 ? insideOf(about.value[0]!) : null
 )
 /** What is there to inspect of a row, past the style it is only given. */
 const insideOf = (row: string): string =>
 	paintedRow(document.root.value, document.env.value, row)
-const insideRows = computed(() => selected.value.map(insideOf))
+const insideRows = computed(() => about.value.map(insideOf))
 /** What the row selected is called, as what it is called is the row, not what is in it. */
 const selectedName = computed(() => {
-	const [row] = selected.value
+	const [row] = about.value
 	return row === undefined
 		? null
 		: (inspectionOf(document.root.value, document.env.value, row)?.name ?? null)
@@ -392,8 +399,14 @@ function renameRow(row: string, name: string): void {
 	const next = renamed(row, name)
 	if (!(next instanceof LetAST)) return
 	document.setRoot(next)
-	if (selected.value.includes(row)) {
-		selectOnCanvas(selected.value.map(it => (it === row ? rowCalled(row, name) : it)))
+	if (about.value.includes(row)) {
+		const called = rowCalled(row, name)
+		if (keptRow.value === row) keptRow.value = called
+		selectOnCanvas(
+			selected.value.map(it =>
+				it === row || it.startsWith(`${row}/`) ? `${called}${it.slice(row.length)}` : it
+			)
+		)
 	}
 }
 
@@ -760,6 +773,7 @@ function selectInTree(row: string | null): void {
 					:dimensions="dimensionsOn"
 					:snapping="snappingOn"
 					:grid="grid"
+					v-model:keptRow="keptRow"
 					@select="selectOnCanvas"
 					@menu="openCanvasMenu"
 				/>
@@ -811,7 +825,7 @@ function selectInTree(row: string | null): void {
 							:hostKey="isToolKey"
 							:commandsFor="commandsFor"
 							:iconOfValue="iconOfPath"
-							:alsoSelected="selected"
+							:alsoSelected="about"
 							:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 							:pasteAs="bindingsOfSvg"
 							@select="selectInTree"
@@ -839,7 +853,7 @@ function selectInTree(row: string | null): void {
 				>
 					<template #header>
 						<button
-							v-if="inspection?.outer && inspected === selected[0]"
+							v-if="inspection?.outer && inspected === about[0]"
 							v-tooltip="'What holds this'"
 							class="outer"
 							aria-label="What holds this"
@@ -851,22 +865,22 @@ function selectInTree(row: string | null): void {
 							<Icon class="panel-icon" icon="ph:sliders-horizontal" />
 							<template v-if="inspection">
 								<RowName
-									:key="selected[0]"
-									:row="selected[0]!"
+									:key="about[0]"
+									:row="about[0]!"
 									:label="selectedName ?? ''"
-									:source="nameOfRow(selected[0]!)"
+									:source="nameOfRow(about[0]!)"
 									:can="(row, name) => renamed(row, name) !== null"
 									@rename="renameRow"
 								/>
 							</template>
-							<template v-else-if="selected.length > 1">
-								<span class="name">{{ selected.length }} selected</span>
+							<template v-else-if="about.length > 1">
+								<span class="name">{{ about.length }} selected</span>
 							</template>
 							<span v-else class="name">Inspector</span>
 						</span>
 					</template>
 					<AstMultiInspector
-						v-if="selected.length > 1"
+						v-if="about.length > 1"
 						:document="document"
 						:rows="insideRows"
 						:iconOfFunction="iconOfFunction"
@@ -877,6 +891,7 @@ function selectInTree(row: string | null): void {
 						v-else
 						:document="document"
 						:inspect="inspected"
+						:alsoSelected="pickedOut"
 						:iconOfValue="iconOfPath"
 						:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 						:pasteAs="bindingsOfSvg"

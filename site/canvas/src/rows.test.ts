@@ -9,6 +9,7 @@ import {
 	grouped,
 	nameOfRow,
 	rowCalled,
+	rowsAbout,
 	ungrouped,
 	viewBetween,
 	viewToFit,
@@ -144,5 +145,20 @@ describe('the name of a row', () => {
 
 	it('changes only the last part of the row', () => {
 		expect(rowCalled('binding:g/binding:c', 'd')).toBe('binding:g/binding:d')
+	})
+})
+
+describe('rowsAbout', () => {
+	const part = 'binding:l/arg0'
+	it('is the row kept hold of, while only parts of it are selected', () => {
+		expect(rowsAbout([part, 'binding:l/arg1'], 'binding:l')).toEqual(['binding:l'])
+	})
+	it('is what is selected, otherwise', () => {
+		const other = [part, 'binding:m/arg0']
+		expect(rowsAbout(other, 'binding:l')).toBe(other)
+		expect(rowsAbout(['binding:l'], 'binding:l')).toEqual(['binding:l'])
+		expect(rowsAbout(['binding:line/arg0'], 'binding:l')).toEqual(['binding:line/arg0'])
+		expect(rowsAbout([part], null)).toEqual([part])
+		expect(rowsAbout([], 'binding:l')).toEqual([])
 	})
 })

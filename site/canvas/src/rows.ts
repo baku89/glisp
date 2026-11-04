@@ -219,6 +219,15 @@ export function viewBetween(
 	return [zoom, 0, 0, zoom, ax + (bx - ax) * along, ay + (by - ay) * along]
 }
 
+/**
+ * What `selected` is about: the row kept hold of, with only parts of that selected, which are
+ * then what is picked out of it.
+ */
+export const rowsAbout = (selected: readonly string[], kept: string | null): readonly string[] =>
+	kept !== null && selected.length > 0 && selected.every(row => row.startsWith(`${kept}/`))
+		? [kept]
+		: selected
+
 /** The name of the binding that a row is, if it is one. */
 export function nameOfRow(row: string): string | null {
 	const key = row.split('/').at(-1)!

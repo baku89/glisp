@@ -327,9 +327,15 @@ const children = computed(() =>
 )
 
 const alsoSelected = inject(ALSO_SELECTED, null)
-const selected = computed(
-	() => selection.value?.path === props.path || (alsoSelected?.().includes(props.path) ?? false)
-)
+// What is selected inside of a row that is closed has nowhere else to be seen.
+const selected = computed(() => {
+	const also = alsoSelected?.() ?? []
+	return (
+		selection.value?.path === props.path ||
+		also.includes(props.path) ||
+		(!open.value && also.some(row => row.startsWith(`${props.path}/`)))
+	)
+})
 
 function select(): void {
 	const remove = props.entry.remove
