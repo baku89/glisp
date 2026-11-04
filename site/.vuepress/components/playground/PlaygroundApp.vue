@@ -1,15 +1,17 @@
 <script setup lang="ts">
+import { parse, print } from '@glisp/lang'
 import { AstEditor, Repl, useGlispDocument } from '@glisp/tweeq'
 import { useMediaQuery, useMutationObserver } from '@vueuse/core'
 import { PaneSplit } from 'tweeq/PaneSplit'
 import { useThemeStore } from 'tweeq/stores/theme'
 import { TweeqProvider } from 'tweeq/TweeqProvider'
 import { Viewport } from 'tweeq/Viewport'
+import { watch } from 'vue'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 
 self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
 
-const document = useGlispDocument(`{
+const EXAMPLE = `{
   radius = 40
   scale = 1.5
   label = "circle"
@@ -17,7 +19,40 @@ const document = useGlispDocument(`{
   area = (* pi (** radius 2))
   sizes = (map [radius (* radius scale)] (* % 2))
   biggest = (reduce sizes 0 max)
-}`)
+}`
+
+// The program stays across reloads, as source, in this browser.
+const STORAGE_KEY = 'glisp.playground.source'
+
+const readsBack = (source: string): boolean => {
+	try {
+		return parse(source).kind === 'let'
+	} catch {
+		return false
+	}
+}
+
+function stored(): string | null {
+	try {
+		const source = localStorage.getItem(STORAGE_KEY)
+		return source !== null && readsBack(source) ? source : null
+	} catch {
+		return null
+	}
+}
+
+const document = useGlispDocument(stored() ?? EXAMPLE)
+
+watch(document.root, root => {
+	// What has no source form, as a host function evaluated in place, cannot come back.
+	const source = print(root)
+	if (!readsBack(source)) return
+	try {
+		localStorage.setItem(STORAGE_KEY, source)
+	} catch {
+		// With nowhere to keep it, it lasts as long as the page.
+	}
+})
 
 const isNarrow = useMediaQuery('(max-width: 760px)')
 
