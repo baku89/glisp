@@ -15,7 +15,7 @@ import {
 	merged,
 	withFieldValues,
 } from '@glisp/tweeq/multiRows'
-import { inspectionOf, isTranslatable, viewOf } from '@glisp/tweeq/structure'
+import { capitalCase, inspectionOf, isTranslatable, titleOf, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
@@ -252,6 +252,36 @@ describe('what a vector is made of', () => {
 	})
 })
 
+describe('what a row is called, to read', () => {
+	const slots = (src: string) => viewOf(parse(src), env).slots
+
+	it('is a name as words', () => {
+		expect(capitalCase('topLeft')).toBe('Top Left')
+		expect(capitalCase('control1')).toBe('Control 1')
+		expect(capitalCase('d')).toBe('D')
+		expect(capitalCase('top-left')).toBe('Top Left')
+		expect(capitalCase('X')).toBe('X')
+	})
+
+	it('is a parameter as words, keeping what code calls it', () => {
+		const [topLeft] = slots('(path.rect [0 0] [1 1])')
+		expect(titleOf(topLeft!)).toBe('Top Left')
+		expect(topLeft!.label).toBe('topLeft')
+	})
+
+	it('is the label, if it was given one', () => {
+		const inner = (src: string) => {
+			const [, call] = slots(src)
+			return viewOf(call!.ast, call!.env).slots.map(titleOf)
+		}
+		expect(inner('{f = (=> (r: ^{label: "dB level"} number): number r) y = (f 1)}')).toEqual(['dB level'])
+	})
+
+	it('is what is bound, as it is', () => {
+		expect(slots('{topLeft = 1}').map(titleOf)).toEqual(['topLeft'])
+	})
+})
+
 describe('what heads an inspector', () => {
 	const root = parse('{r = (path.rect [0 0] [1 1]) n = 1}')
 
@@ -261,7 +291,7 @@ describe('what heads an inspector', () => {
 	})
 
 	it('goes out to what holds it', () => {
-		expect(inspectionOf(root, env, 'binding:r/arg1')).toMatchObject({ name: 'size', outer: 'binding:r' })
+		expect(inspectionOf(root, env, 'binding:r/arg1')).toMatchObject({ name: 'Size', outer: 'binding:r' })
 	})
 
 	it('is nothing for a row no longer there', () => {
@@ -277,7 +307,7 @@ describe('several rows at once', () => {
 
 	it('have what they say to each argument', () => {
 		expect(inspected.fn).toBe('path.rect')
-		expect(inspected.args.map(a => a.label)).toEqual(['topLeft', 'size'])
+		expect(inspected.args.map(a => a.label)).toEqual(['Top Left', 'Size'])
 		expect(field(1, 0).values).toEqual([10, 30])
 		expect(field(1, 0).label).toBe('Width')
 		expect(field(1, 0).options).toEqual({ leftIcon: 'ph:arrows-horizontal' })
@@ -502,8 +532,8 @@ describe('what a handle has changed', () => {
 	}
 
 	it('is what it is called, and what it is now', () => {
-		expect(readout('{c = (path.circle [0 0] 10)}', 0, [30, 0])).toEqual(['radius 30'])
-		expect(readout('{c = (path.circle [0 0] 10)}', 1, [5, 6])).toEqual(['center 5, 6'])
+		expect(readout('{c = (path.circle [0 0] 10)}', 0, [30, 0])).toEqual(['Radius 30'])
+		expect(readout('{c = (path.circle [0 0] 10)}', 1, [5, 6])).toEqual(['Center 5, 6'])
 	})
 
 	it('has each thing, once', () => {
@@ -527,16 +557,16 @@ describe('what a handle has changed', () => {
 	})
 
 	it('has what it is, until anything is different', () => {
-		expect(readout('{c = (path.circle [0 0] 10)}', 0, [10, 0])).toEqual(['radius 10'])
+		expect(readout('{c = (path.circle [0 0] 10)}', 0, [10, 0])).toEqual(['Radius 10'])
 	})
 
 	it('comes to what it refers to, as well', () => {
-		expect(readout('{r = 10 c = (path.circle [0 0] r)}', 0, [30, 0])).toEqual(['radius 30'])
+		expect(readout('{r = 10 c = (path.circle [0 0] r)}', 0, [30, 0])).toEqual(['Radius 30'])
 	})
 
 	it('goes down to the call that makes a matrix', () => {
 		expect(readout('{c = (path.transform (path.circle [0 0] 1) (mat2d.rotate 0))}', 0, [0, 80])).toEqual([
-			'angle 90',
+			'Angle 90',
 		])
 	})
 
@@ -548,7 +578,7 @@ describe('what a handle has changed', () => {
 		const root = parse('{c = (path.circle [0 0] 1)}')
 		const next = parse('{c = (path.circle [0 0] 1.23456)}')
 		const changes = gripAt(root, env, 'binding:c')!.handles[0]!.to([9, 0], [9, 0])
-		expect(readoutOf(next, env, 'binding:c', changes)).toEqual(['radius 1.235'])
+		expect(readoutOf(next, env, 'binding:c', changes)).toEqual(['Radius 1.235'])
 	})
 })
 

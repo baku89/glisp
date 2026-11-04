@@ -14,10 +14,11 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
-import { ALSO_SELECTED, LINKER, OPEN_ROW, RENAMER, REVEALER, SELECTION, SOLVER, VALUE_ICON } from './selection'
+import { ALSO_SELECTED, LINKER, OPEN_ROW, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	fitsInline,
+	titleOf,
 	isTranslatable,
 	kindIconOf,
 	parseSource,
@@ -110,6 +111,7 @@ const placeValue = computed(
 )
 const PAD_WIDTH = 26
 const solver = inject(SOLVER, null)
+const titled = inject(TITLED, false)
 const fits = (count: number): boolean =>
 	fitsInline(count, Math.max(0, (tree?.valueWidth.value ?? 0) - (translatable.value ? PAD_WIDTH : 0)))
 const inline = computed(
@@ -383,7 +385,7 @@ watch(
 	<ParameterTreeItem
 		ref="$item"
 		v-model:open="open"
-		:label="view.label ?? entry.label"
+		:label="view.label ?? (titled ? titleOf(entry) : entry.label)"
 		:icon="icon"
 		:hint="hint"
 		:expandable="expandable"

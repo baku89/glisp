@@ -9,7 +9,7 @@ import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
-import { copiedRows, pastedRows, withoutRows } from './rowsClipboard'
+import { copiedRows, pastedRows, reach, withoutRows, withParent } from './rowsClipboard'
 import {
 	ALSO_SELECTED,
 	LINKER,
@@ -19,6 +19,7 @@ import {
 	SELECTION,
 	type Selection,
 	SOLVER,
+	TITLED,
 	VALUE_ICON,
 } from './selection'
 import {
@@ -139,13 +140,18 @@ provide(LINKER, {
 const unsolved = shallowRef<string | null>(null)
 
 provide(SOLVER, {
-	solve(node, value) {
-		const { ast, diagnostics } = solve(
-			props.document.root.value,
-			props.document.env.value,
-			node,
-			value
-		)
+	replaceAt(path, next) {
+		const reached = reach(props.document.root.value, props.document.env.value, path)
+		const last = reached?.chain.at(-1)
+		if (!reached || !last) return false
+		replaceRoot(withParent(reached.chain, last.replace(next)))
+		return true
+	},
+	solve(node, value, path) {
+		const root = props.document.root.value
+		const env = props.document.env.value
+		const current = path === undefined ? null : reach(root, env, path)?.chain.at(-1)?.ast
+		const { ast, diagnostics } = solve(root, env, current ?? node, value)
 		unsolved.value = diagnostics[0]?.message ?? null
 		if (ast !== null && ast !== props.document.root.value) replaceRoot(ast)
 	},
@@ -190,6 +196,7 @@ const refuseAsEnv = (next: AST): string | null =>
 
 const isInspector = computed(() => props.inspect !== undefined)
 provide(OPEN_ROW, () => props.inspect ?? null)
+provide(TITLED, isInspector.value)
 
 /** The row being inspected, and the slots down to it, to go back up through. */
 const inspected = computed(() => {

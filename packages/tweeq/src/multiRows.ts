@@ -13,6 +13,7 @@ import {
 	type NumberOptions,
 	type Slot,
 	textOf,
+	titleOf,
 	viewOf,
 } from './structure'
 
@@ -100,7 +101,7 @@ export function inspectRows(
 		if (results.every(value => typeof value === 'number')) {
 			return [
 				{
-					label: slot.label,
+					label: titleOf(slot),
 					fields: [
 						{
 							arg,
@@ -121,7 +122,7 @@ export function inspectRows(
 		const shape = slot.expected
 		return [
 			{
-				label: slot.label,
+				label: titleOf(slot),
 				fields: Array.from({ length }, (_, element): MultiField => {
 					const titled = elementTitle(slot, element)
 					return {

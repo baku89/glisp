@@ -25,8 +25,13 @@ export const RENAMER: InjectionKey<BindingRenamer> = Symbol('glisp-renamer')
 
 /** How a row asks for what it shows to come to a value, which takes the whole program. */
 export interface BackwardSolver {
-	/** Edit the program so that `node` gives `value`, or else say why it cannot be. */
-	solve(node: AST, value: unknown): void
+	/**
+	 * Edit the program so that `node` gives `value`, or else say why it cannot be. With
+	 * `path`, it is what is there now, for several to be asked of at once.
+	 */
+	solve(node: AST, value: unknown, path?: string): void
+	/** Put `next` at `path` in the program as it is now, for the same reason. */
+	replaceAt(path: string, next: AST): boolean
 }
 
 export const SOLVER: InjectionKey<BackwardSolver> = Symbol('glisp-solver')
@@ -63,3 +68,6 @@ export const ALSO_SELECTED: InjectionKey<() => readonly string[]> = Symbol('also
 
 /** The row that starts out open, as what is being looked at. */
 export const OPEN_ROW: InjectionKey<() => string | null> = Symbol('open-row')
+
+/** Rows are for reading, so that what they show is a title rather than a name. */
+export const TITLED: InjectionKey<boolean> = Symbol('titled')

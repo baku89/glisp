@@ -23,7 +23,7 @@ import {
 	unwrapLazy,
 } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
-import { referenceAt, type Slot, textOf, viewOf } from '@glisp/tweeq/structure'
+import { referenceAt, type Slot, textOf, titleOf, viewOf } from '@glisp/tweeq/structure'
 
 import { mat2d } from 'linearly'
 import { bounds } from 'pave/path/metrics'
@@ -528,7 +528,7 @@ function linesOf(root: AST, env: Env, row: string, changes: readonly Change[]): 
 			if (at === null) return []
 			const slot = viewOf(bare(at.node), at.env).slots.find(s => s.key === `arg${arg}`)
 			if (slot === undefined) return []
-			label = slot.label
+			label = titleOf(slot)
 			expected = slot.expected
 			at = route.at(-1) === arg ? { node: slot.ast, env: slot.env } : follow(slot.ast, slot.env)
 		}

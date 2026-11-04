@@ -74,6 +74,8 @@ export interface Slot {
 	remove?(): AST
 	/** What its parameter's type says of a number, if anything. */
 	readonly numberOptions?: NumberOptions
+	/** Whether `label` was written to be read, rather than being a parameter's name. */
+	readonly labelled?: boolean
 	/** What `^{doc}` on what it stands for says about it. */
 	readonly doc?: string
 	/** An icon of its own, rather than that of what it comes to. */
@@ -230,6 +232,22 @@ export function numberOptionsAt(slot: Slot): NumberOptions {
 		...numberOptionsOf(infer(slot.ast, slot.env)?.meta),
 	}
 }
+
+/** A name in code as words: `topLeft` as `Top Left`, and `control1` as `Control 1`. */
+export function capitalCase(name: string): string {
+	return name
+		.replace(/([a-z\d])([A-Z])/g, '$1 $2')
+		.replace(/([a-zA-Z])(\d)/g, '$1 $2')
+		.replace(/[-_]+/g, ' ')
+		.replace(/(^|\s)([a-z])/g, (_, space: string, letter: string) => space + letter.toUpperCase())
+}
+
+/**
+ * What a slot is to someone reading rather than writing: the label it was given, or else
+ * its name as words. What is bound keeps its name, as that is what it is called.
+ */
+export const titleOf = (slot: Pick<Slot, 'key' | 'label' | 'labelled'>): string =>
+	slot.labelled || slot.key.startsWith(BINDING) ? slot.label : capitalCase(slot.label)
 
 export function textOf(ast: AST | undefined): string | null {
 	return ast?.kind === 'lit' && typeof ast.value === 'string' ? ast.value : null
@@ -514,6 +532,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		slots.push({
 			key: `arg${i}`,
 			label,
+			...(!isVariadic && labelOf(name!) !== name ? { labelled: true } : {}),
 			ast: arg,
 			env: inside,
 			expected: signature?.(i) ?? null,
@@ -1410,7 +1429,7 @@ export function inspectionOf(root: AST, env: Env, path: string): Inspection | nu
 		nodeEnv = own.env
 	}
 	return {
-		name: own!.label,
+		name: titleOf(own!),
 		fn: viewOf(node, nodeEnv).head?.label ?? null,
 		outer: parts.length > 1 ? parts.slice(0, -1).join('/') : null,
 	}

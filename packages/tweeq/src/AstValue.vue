@@ -50,7 +50,11 @@ const emit = defineEmits<{
 }>()
 
 const ast = computed(() => props.entry.ast)
-const update = (next: AST): void => emit('change', props.entry.replace(next))
+// By where it is, in the program as it is now, as several can change at once: another
+// of them may have changed it since this was drawn.
+const update = (next: AST): void => {
+	if (!solver?.replaceAt(props.path, next)) emit('change', props.entry.replace(next))
+}
 
 const view = computed(() =>
 	viewOf(ast.value, props.entry.env, props.entry.expected)
@@ -183,7 +187,7 @@ function solveElement(index: number, next: number): void {
 	const numbers = solvableNumbers.value
 	if (numbers !== null) {
 		// The others can follow along, as what they come from may be the same.
-		solver?.solve(ast.value, numbers.map((_, i) => (i === index ? next : UNSET)))
+		solver?.solve(ast.value, numbers.map((_, i) => (i === index ? next : UNSET)), props.path)
 	}
 }
 const hasNumber = computed(
@@ -245,7 +249,7 @@ const label = (value: unknown): string =>
 			:modelValue="result?.value as number"
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
-			@update:modelValue="solver?.solve(ast, $event)"
+			@update:modelValue="solver?.solve(ast, $event, path)"
 		/>
 		<InputGroup v-else-if="solvableNumbers !== null">
 			<InputNumber
@@ -260,7 +264,7 @@ const label = (value: unknown): string =>
 		<InputSwitch
 			v-else-if="solvableBoolean"
 			:modelValue="result?.value as boolean"
-			@update:modelValue="solver?.solve(ast, $event)"
+			@update:modelValue="solver?.solve(ast, $event, path)"
 		/>
 		<InputString
 			v-else-if="view.editor?.kind === 'string'"
