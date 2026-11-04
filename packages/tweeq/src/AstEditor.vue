@@ -9,7 +9,15 @@ import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
-import { LINKER, RENAMER, REVEALER, SELECTION, type Selection, SOLVER } from './selection'
+import {
+	LINKER,
+	RENAMER,
+	REVEALER,
+	SELECTION,
+	type Selection,
+	SOLVER,
+	VALUE_ICON,
+} from './selection'
 import {
 	moveBinding,
 	parseSource,
@@ -23,6 +31,8 @@ const props = defineProps<{
 	document: GlispDocument
 	/** No button to start over with, where a document is worth more than a try. */
 	noReset?: boolean
+	/** An icon for what a row comes to, over the one its type has. */
+	iconOfValue?: (value: unknown) => string | null
 }>()
 
 const emit = defineEmits<{
@@ -88,6 +98,8 @@ provide(RENAMER, {
 
 const linked = (source: string, target: string): AST | null =>
 	referenceAt(props.document.root.value, props.document.env.value, source, target)
+
+provide(VALUE_ICON, value => props.iconOfValue?.(value) ?? null)
 
 provide(LINKER, {
 	copied: shallowRef<string | null>(null),

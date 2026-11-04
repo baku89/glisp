@@ -41,6 +41,10 @@ export interface Linker {
 
 export const LINKER: InjectionKey<Linker> = Symbol('glisp-linker')
 
+/** An icon for what a row comes to, if a host has one, such as the shape itself. */
+export const VALUE_ICON: InjectionKey<(value: unknown) => string | null> =
+	Symbol('glisp-value-icon')
+
 /** Opening the rows down to one, and selecting it. */
 export interface RowRevealer {
 	/** The row to get to, until it has been reached, and whether to rename it there. */

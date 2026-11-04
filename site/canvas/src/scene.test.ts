@@ -1,7 +1,7 @@
 import { buildPrelude, type Env, evaluate, type LetAST, parse, print, solve } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { isPath, withGraphics } from './graphics'
+import { iconOfPath, isPath, withGraphics } from './graphics'
 import { handlesAt, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
@@ -20,6 +20,27 @@ describe('path', () => {
 			env
 		)
 		expect(isPath(value)).toBe(true)
+	})
+})
+
+describe('iconOfPath', () => {
+	const icon = (src: string) => iconOfPath(evaluate(parse(src), env).value)
+
+	it('is the shape itself, centered, whatever its size', () => {
+		const small = icon('(path.rect [0 0] [10 10])')
+		expect(small).toMatch(/^stroke:M/)
+		expect(icon('(path.rect [100 100] [900 900])')).toBe(small)
+	})
+
+	it('keeps the proportions', () => {
+		const coords = icon('(path.rect [0 0] [100 50])')!.match(/-?[\d.]+/g)!.map(Number)
+		const ys = coords.filter((_, i) => i % 2 === 1)
+		expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(9)
+	})
+
+	it('is nothing for what is not a path, or has no size', () => {
+		expect(iconOfPath(1)).toBeNull()
+		expect(icon('(: 1 path)')).toBeNull()
 	})
 })
 

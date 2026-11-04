@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, readByName } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
@@ -13,7 +13,7 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
-import { LINKER, RENAMER, REVEALER, SELECTION } from './selection'
+import { LINKER, RENAMER, REVEALER, SELECTION, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	fitsInline,
@@ -48,10 +48,12 @@ const view = computed(() =>
 	viewOf(ast.value, props.entry.env, props.entry.expected)
 )
 
+const iconOfValue = inject(VALUE_ICON, null)
 const icon = computed(() =>
 	props.entry.role === 'step'
 		? 'mdi:arrow-down-thin'
 		: (props.entry.icon ??
+			iconOfValue?.(props.read(readByName(ast.value), props.entry.env).value) ??
 			iconOf(ast.value, props.entry.env, props.entry.expected) ??
 			undefined)
 )

@@ -11,7 +11,7 @@ import { initTweeq } from 'tweeq/useTweeq'
 import { ref, useTemplateRef, watch, watchEffect } from 'vue'
 
 import CanvasView from './CanvasView.vue'
-import { withGraphics } from './graphics'
+import { iconOfPath, withGraphics } from './graphics'
 
 initTweeq('app.glisp.canvas', { accentColor: '#0000ff' })
 
@@ -112,6 +112,7 @@ function selectOnCanvas(row: string | null): void {
 									ref="$editor"
 									:document="document"
 									noReset
+									:iconOfValue="iconOfPath"
 									@select="selected = $event ?? selected"
 								/>
 							</section>

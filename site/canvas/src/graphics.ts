@@ -22,7 +22,10 @@ import {
 	withTypeMeta,
 } from '@glisp/lang'
 import { vec2 as Vec2 } from 'linearly'
+import { bounds } from 'pave/path/metrics'
+import { transform } from 'pave/path/modifiers'
 import { circle, rectangle } from 'pave/path/primitives'
+import { toD } from 'pave/path/svg'
 
 const said = (type: TypeValue, draw: string, icon: string): TypeValue =>
 	withTypeMeta(
@@ -58,6 +61,28 @@ export function isPath(value: unknown): boolean {
 		value !== null &&
 		Array.isArray((value as { curves?: unknown }).curves)
 	)
+}
+
+/** How much of an icon's 24 a shape takes up, leaving room for its line. */
+const ICON_EXTENT = 18
+
+/** A path's own shape, fit into an icon, or null if it is not a path with a size. */
+export function iconOfPath(value: unknown): string | null {
+	if (!isPath(value)) return null
+	const path = value as Parameters<typeof bounds>[0]
+	const [[left, top], [right, bottom]] = bounds(path)
+	const size = Math.max(right - left, bottom - top)
+	if (!Number.isFinite(size) || size === 0) return null
+	const scale = ICON_EXTENT / size
+	const fit: [number, number, number, number, number, number] = [
+		scale,
+		0,
+		0,
+		scale,
+		12 - (scale * (left + right)) / 2,
+		12 - (scale * (top + bottom)) / 2,
+	]
+	return `stroke:${toD(transform(path, fit))}`
 }
 
 const pathType = said(makeType('path', isPath, { curves: [] }), 'path', 'mdi:vector-curve')
