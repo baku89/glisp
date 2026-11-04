@@ -61,27 +61,27 @@ watch(document.root, root => {
 
 const tool = ref('select')
 
-const selected = ref<string | null>(null)
-const $editor = useTemplateRef<{ reveal(path: string): void }>('$editor')
+const selected = ref<readonly string[]>([])
+const $editor = useTemplateRef<{ reveal(path: string): void; deselect(): void }>('$editor')
 
-function selectOnCanvas(row: string | null): void {
-	selected.value = row
-	if (row !== null) $editor.value?.reveal(row)
+function selectOnCanvas(rows: readonly string[]): void {
+	selected.value = rows
+	const [first] = rows
+	if (first === undefined) $editor.value?.deselect()
+	else $editor.value?.reveal(first)
+}
+
+// A row that is one of several stays one of several, as the tree only has the one.
+function selectInTree(row: string | null): void {
+	if (row === null) selected.value = []
+	else if (!selected.value.includes(row)) selected.value = [row]
 }
 </script>
 
 <template>
 	<TqApp>
 		<template #title>
-			<TitleBar name="Glisp / Canvas" icon="favicon.svg">
-				<template #center>
-					<InputRadio
-						v-model="tool"
-						:options="['select']"
-						:icons="['ph:cursor-fill']"
-					/>
-				</template>
-			</TitleBar>
+			<TitleBar name="Glisp / Canvas" icon="favicon.svg" />
 		</template>
 		<template #default>
 			<PaneSplit
@@ -92,11 +92,21 @@ function selectOnCanvas(row: string | null): void {
 				:scroll="[false, false]"
 			>
 				<template #first>
-					<CanvasView
-						:document="document"
-						:selected="selected"
-						@select="selectOnCanvas"
-					/>
+					<div class="stage">
+						<CanvasView
+							:document="document"
+							:selected="selected"
+							@select="selectOnCanvas"
+						/>
+						<div class="tools" data-selects-rows>
+							<InputRadio
+								v-model="tool"
+								:options="['select']"
+								:icons="['ph:cursor-fill']"
+								:tooltips="['Select']"
+							/>
+						</div>
+					</div>
 				</template>
 				<template #second>
 					<PaneSplit
@@ -113,7 +123,8 @@ function selectOnCanvas(row: string | null): void {
 									:document="document"
 									compact
 									:iconOfValue="iconOfPath"
-									@select="selected = $event ?? selected"
+									:alsoSelected="selected"
+									@select="selectInTree"
 								/>
 							</section>
 						</template>
@@ -135,6 +146,21 @@ function selectOnCanvas(row: string | null): void {
 </template>
 
 <style scoped>
+.stage {
+	position: relative;
+	height: 100%;
+}
+.tools {
+	position: absolute;
+	bottom: calc(var(--tq-pane-padding) * 2);
+	left: 50%;
+	translate: -50% 0;
+	padding: var(--tq-gap-related);
+	border: 1px solid var(--tq-color-border);
+	border-radius: calc(var(--tq-radius-input) + var(--tq-gap-related));
+	background: var(--tq-color-surface);
+	backdrop-filter: blur(var(--tq-popup-blur));
+}
 .pane {
 	box-sizing: border-box;
 	height: 100%;

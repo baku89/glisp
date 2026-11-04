@@ -6,6 +6,7 @@
 
 import {
 	type AST,
+	type CallAST,
 	enterNode,
 	type Env,
 	evaluate,
@@ -19,7 +20,21 @@ import {
 } from '@glisp/lang'
 import { type Slot, textOf, viewOf } from '@glisp/tweeq/structure'
 
-import { type Handle, handlesOf } from './graphics'
+import { mat2d } from 'linearly'
+import { bounds } from 'pave/path/metrics'
+
+import {
+	type Change,
+	type Grip,
+	gripOf,
+	gripOfPoint,
+	type Mat,
+	NO_GRIP,
+	type Path,
+	under,
+	type Vec,
+	withinArg,
+} from './graphics'
 
 export interface Shape {
 	/** The row it comes from. */
@@ -28,7 +43,19 @@ export interface Shape {
 	readonly value: unknown
 }
 
-type Vec = readonly [number, number]
+/** The rows of what is at all within the corners `a` and `b`, once each. */
+export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
+	const [left, right] = a[0] < b[0] ? [a[0], b[0]] : [b[0], a[0]]
+	const [top, bottom] = a[1] < b[1] ? [a[1], b[1]] : [b[1], a[1]]
+	const rows = scene.flatMap(({ row, draw, value }) => {
+		const [[l, t], [r, d]] =
+			draw === 'path' ? bounds(value as Path) : [value as Vec, value as Vec]
+		return l <= right && r >= left && t <= bottom && d >= top ? [row] : []
+	})
+	return [...new Set(rows)]
+}
+
+const IDENTITY: Mat = [1, 0, 0, 1, 0, 0]
 
 const bare = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
 
@@ -67,68 +94,122 @@ export function sceneOf(root: AST, env: Env): Shape[] {
 	return visit(viewOf(root, env).slots, '')
 }
 
-/**
- * The handles of the row at `row`, with what each one moves. A row that only refers
- * to another has the handles of that one, as moving it can only mean moving that.
- */
-export function handlesAt(
+/** What a name comes to, in the program, however many names away. */
+function follow(start: AST, startEnv: Env): { node: AST; env: Env } | null {
+	let node = start
+	let env = startEnv
+	for (let reached = bare(node); reached.kind === 'sym'; reached = bare(node)) {
+		const target = lookupBareName(reached.name, env)
+		if (target === null || target.ast === node) return null
+		node = target.ast
+		env = target.env
+	}
+	return { node, env }
+}
+
+const argsOf = (call: CallAST, env: Env) => {
+	const inside = enterNode(call, env)
+	return {
+		inside,
+		head: evaluate(call.head, inside).value,
+		args: call.args.map(arg => evaluate(arg, inside).value),
+	}
+}
+
+/** How `start` can be taken hold of, or null if it is nothing of the kind. */
+function gripAtNode(start: AST, startEnv: Env): Grip | null {
+	const found = follow(start, startEnv)
+	if (found === null) return null
+	const { node, env } = found
+	const call = bare(node)
+	if (call.kind === 'call') {
+		const { inside, head, args } = argsOf(call, env)
+		const grip = gripOf(head, args, i => {
+			const arg = call.args[i]
+			const inner = arg === undefined ? null : gripAtNode(arg, inside)
+			return inner === null ? null : under(i, inner)
+		})
+		if (grip !== null) return grip
+	}
+	if (drawOf(infer(readByName(node), env)) === 'point') {
+		return gripOfPoint(evaluate(readByName(node), env).value as Vec)
+	}
+	return call.kind === 'call' ? NO_GRIP : null
+}
+
+/** The node of a row, and where the program's coordinates are for it. */
+function rowAt(
 	root: AST,
 	env: Env,
 	row: string
-): (Handle & { readonly node: AST })[] {
+): { node: AST; env: Env; transform: Mat } | null {
 	let node = root
 	let nodeEnv = env
+	let transform: Mat = IDENTITY
 	for (const key of row.split('/').filter(part => part !== '')) {
+		const call = bare(node)
+		const arg = /^arg(\d+)$/.exec(key)?.[1]
+		if (call.kind === 'call' && arg !== undefined) {
+			const { head, args } = argsOf(call, nodeEnv)
+			const within = withinArg(head, Number(arg), args)
+			if (within !== null) transform = mat2d.mul(transform, within) as unknown as Mat
+		}
 		const slot = viewOf(node, nodeEnv).slots.find(s => s.key === key)
-		if (slot === undefined) return []
+		if (slot === undefined) return null
 		node = slot.ast
 		nodeEnv = slot.env
 	}
-	for (let reached = bare(node); reached.kind === 'sym'; reached = bare(node)) {
-		const target = lookupBareName(reached.name, nodeEnv)
-		if (target === null || target.ast === node) return []
-		node = target.ast
-		nodeEnv = target.env
-	}
-	const call = bare(node)
-	if (call.kind !== 'call') return []
-	const inside = enterNode(call, nodeEnv)
-	const head = evaluate(call.head, inside).value
-	const args = call.args.map(arg => evaluate(arg, inside).value)
-	return handlesOf(head, args).flatMap(handle => {
-		const arg = call.args[handle.arg]
-		return arg === undefined ? [] : [{ ...handle, node: arg }]
-	})
-}
-
-/** Where what moves with a shape is, to move it from. */
-export function followersAt(root: AST, env: Env, row: string): (Vec | null)[] {
-	return handlesAt(root, env, row).map(handle => (handle.follows ? handle.at : null))
+	return { node, env: nodeEnv, transform }
 }
 
 /**
- * `root` with the shape at `row` moved by `delta` from where `from` says, each
- * handle in turn, as each edit makes a new program for the next. Null, with why, if
- * nothing moves.
+ * How the row at `row` can be taken hold of. A row that only refers to another has
+ * the handles of that one, as moving it can only mean moving that.
  */
-export function moved(
+export function gripAt(
+	root: AST,
+	env: Env,
+	row: string
+): (Grip & { readonly transform: Mat }) | null {
+	const found = rowAt(root, env, row)
+	if (found === null) return null
+	const grip = gripAtNode(found.node, found.env)
+	return grip === null ? null : { ...grip, transform: found.transform }
+}
+
+/** What `route` goes down to from `start`, through the calls on the way. */
+function nodeAt(start: AST, startEnv: Env, route: readonly number[]): AST | null {
+	let node = start
+	let env = startEnv
+	for (const arg of route) {
+		const found = follow(node, env)
+		if (found === null) return null
+		const call = bare(found.node)
+		if (call.kind !== 'call') return null
+		const next = call.args[arg]
+		if (next === undefined) return null
+		env = enterNode(call, found.env)
+		node = next
+	}
+	return node
+}
+
+/**
+ * `root` with `changes` made to the row at `row`, each in turn, as each edit makes a
+ * new program for the next. Null, with why, if one of them cannot be.
+ */
+export function changed(
 	root: AST,
 	env: Env,
 	row: string,
-	from: readonly (Vec | null)[],
-	delta: Vec
+	changes: readonly Change[]
 ): { ast: AST | null; problem: string | null } {
 	let next = root
-	for (const [i, start] of from.entries()) {
-		if (start === null) continue
-		const handle = handlesAt(next, env, row)[i]
-		if (handle === undefined) continue
-		const { ast, diagnostics } = solve(
-			next,
-			env,
-			handle.node,
-			handle.wanted([start[0] + delta[0], start[1] + delta[1]])
-		)
+	for (const { route, value } of changes) {
+		const found = rowAt(next, env, row)
+		const node = found && nodeAt(found.node, found.env, route)
+		if (!node) return { ast: null, problem: 'that is no longer there' }
+		const { ast, diagnostics } = solve(next, env, node, value)
 		if (ast === null) {
 			return { ast: null, problem: diagnostics[0]?.message ?? 'cannot be moved' }
 		}

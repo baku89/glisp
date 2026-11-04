@@ -13,7 +13,7 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
-import { LINKER, RENAMER, REVEALER, SELECTION, VALUE_ICON } from './selection'
+import { ALSO_SELECTED, LINKER, RENAMER, REVEALER, SELECTION, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	fitsInline,
@@ -253,7 +253,10 @@ const children = computed(() =>
 	view.value.head === null ? view.value.slots : [view.value.head, ...view.value.slots]
 )
 
-const selected = computed(() => selection.value?.path === props.path)
+const alsoSelected = inject(ALSO_SELECTED, null)
+const selected = computed(
+	() => selection.value?.path === props.path || (alsoSelected?.().includes(props.path) ?? false)
+)
 
 function select(): void {
 	const remove = props.entry.remove
@@ -358,7 +361,7 @@ watch(
 		select()
 		if (target.rename) renaming.value = true
 		revealer!.target.value = null
-		void nextTick(() => $item.value?.scrollIntoView())
+		if (!target.quiet) void nextTick(() => $item.value?.scrollIntoView())
 	},
 	{ immediate: true }
 )

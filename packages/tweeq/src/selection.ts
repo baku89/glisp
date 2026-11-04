@@ -48,7 +48,7 @@ export const VALUE_ICON: InjectionKey<(value: unknown) => string | null> =
 /** Opening the rows down to one, and selecting it. */
 export interface RowRevealer {
 	/** The row to get to, until it has been reached, and whether to rename it there. */
-	readonly target: ShallowRef<{ path: string; rename?: boolean } | null>
+	readonly target: ShallowRef<{ path: string; rename?: boolean; quiet?: boolean } | null>
 	/** Where the name at `path` is bound, among the rows. */
 	targetOf(path: string): string | null
 }
@@ -57,3 +57,6 @@ export const REVEALER: InjectionKey<RowRevealer> = Symbol('glisp-revealer')
 
 export const SELECTION: InjectionKey<ShallowRef<Selection | null>> =
 	Symbol('glisp-selection')
+
+/** The rows selected along with the one that is, from elsewhere, such as a canvas. */
+export const ALSO_SELECTED: InjectionKey<() => readonly string[]> = Symbol('also-selected')

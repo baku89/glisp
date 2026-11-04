@@ -133,8 +133,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			/>
 			<div class="footer">
 				<p class="problem">{{ problem }}</p>
-				<InputButton icon="mdi:close" subtle tooltip="Dismiss (Esc)" @click="dismiss" />
-				<InputButton icon="mdi:check" subtle tooltip="Confirm (⌘↵)" @click="finish" />
+				<InputButton icon="mdi:close" subtle :tooltip="{ content: 'Dismiss', shortcut: ['Esc'] }" @click="dismiss" />
+				<InputButton icon="mdi:check" subtle :tooltip="{ content: 'Confirm', shortcut: ['⌘', '↵'] }" @click="finish" />
 			</div>
 		</div>
 	</Popover>

@@ -10,6 +10,7 @@ import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
 import {
+	ALSO_SELECTED,
 	LINKER,
 	RENAMER,
 	REVEALER,
@@ -24,6 +25,7 @@ import {
 	referenceAt,
 	referenceTargetOf,
 	renameBindingAt,
+	type Slot,
 	viewOf,
 } from './structure'
 
@@ -33,6 +35,8 @@ const props = defineProps<{
 	compact?: boolean
 	/** An icon for what a row comes to, over the one its type has. */
 	iconOfValue?: (value: unknown) => string | null
+	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
+	alsoSelected?: readonly string[]
 }>()
 
 const emit = defineEmits<{
@@ -56,7 +60,11 @@ const rootAppend = computed(
 	() => viewOf(props.document.root.value, props.document.env.value).append
 )
 
-const revealTarget = shallowRef<{ path: string; rename?: boolean } | null>(null)
+const revealTarget = shallowRef<{
+	path: string
+	rename?: boolean
+	quiet?: boolean
+} | null>(null)
 
 function reset(): void {
 	replaceRoot(new LetAST([], null))
@@ -165,26 +173,54 @@ const refuseAsEnv = (next: AST): string | null =>
 
 const selection = shallowRef<Selection | null>(null)
 provide(SELECTION, selection)
-watch(selection, next => emit('select', next?.path ?? null))
+provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
+/** A row on its way to being selected again, having been edited. */
+let reselecting: string | null = null
+watch(selection, next => {
+	if (next !== null) reselecting = null
+	emit('select', next?.path ?? reselecting)
+})
+
+const rowExists = (path: string): boolean => {
+	let node: AST = props.document.root.value
+	let env: Env = props.document.env.value
+	for (const key of path.split('/')) {
+		const slots: readonly Slot[] = viewOf(node, env).slots
+		const slot = slots.find(s => s.key === key)
+		if (slot === undefined) return false
+		node = slot.ast
+		env = slot.env
+	}
+	return true
+}
 
 defineExpose({
 	/** Open the rows down to one, and select it. */
 	reveal(path: string): void {
 		revealTarget.value = { path }
 	},
+	/** Select no row. */
+	deselect(): void {
+		selection.value = null
+	},
 })
 
-// A selection deletes through the tree as it was, so an edit ends it.
+// A selection deletes through the tree as it was, so an edit makes it again, from the
+// row as it is now, if it is still there.
 watch(props.document.root, () => {
+	const path = selection.value?.path ?? null
+	reselecting = path !== null && rowExists(path) ? path : null
 	selection.value = null
 	unsolved.value = null
+	if (reselecting !== null) revealTarget.value = { path: reselecting, quiet: true }
 })
 
-// A press anywhere but on a row's label, or the menu it opened, ends a selection.
+// A press anywhere but on a row's label, or the menu it opened, ends a selection, unless
+// where it was pressed has its own say in what is selected.
 useEventListener(window, 'pointerdown', (event: PointerEvent) => {
 	unsolved.value = null
 	const target = event.target as Element | null
-	if (target?.closest('.TqParameterTreeItem .row, [popover]')) return
+	if (target?.closest('.TqParameterTreeItem .row, [popover], [data-selects-rows]')) return
 	selection.value = null
 })
 
@@ -269,7 +305,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			<span ref="$envButton" class="env-button">
 				<InputButton
 					icon="mdi:code-braces"
-					tooltip="Edit Expression"
+					:tooltip="{ content: 'Edit Expression', shortcut: ['='] }"
 					subtle
 					@click="editingEnv = true"
 				/>
