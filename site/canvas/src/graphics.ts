@@ -628,6 +628,7 @@ const makers = new Map<unknown, Maker>([
 		([topLeft, size]) => {
 			const s = topLeft as Vec
 			const e = add(s, size as Vec)
+			const middle: Vec = [(s[0] + e[0]) / 2, (s[1] + e[1]) / 2]
 			const moved = (delta: Vec): Change[] => [change(0, add(s, delta))]
 			// An edge on the near side moves the corner, and the size makes up for it, so
 			// that the other side stays where it is.
@@ -637,14 +638,10 @@ const makers = new Map<unknown, Maker>([
 			const bottom = (y: number): Change[] => [change(1, [UNSET, y - s[1]])]
 			return {
 				handles: [
-					{ kind: 'path', angle: 0, path: line(s, [s[0], e[1]]), to: to => left(to[0]) },
-					{ kind: 'path', angle: 90, path: line(s, [e[0], s[1]]), to: to => top(to[1]) },
-					{ kind: 'path', angle: 0, path: line([e[0], s[1]], e), to: to => right(to[0]) },
-					{ kind: 'path', angle: 90, path: line([s[0], e[1]], e), to: to => bottom(to[1]) },
-					{ kind: 'point', at: s, to: to => [...left(to[0]), ...top(to[1])] },
-					{ kind: 'point', at: [e[0], s[1]], to: to => [...right(to[0]), ...top(to[1])] },
-					{ kind: 'point', at: [s[0], e[1]], to: to => [...left(to[0]), ...bottom(to[1])] },
-					{ kind: 'point', at: e, to: to => [...right(to[0]), ...bottom(to[1])] },
+					{ kind: 'arrow', angle: 0, at: [s[0], middle[1]], to: to => left(to[0]) },
+					{ kind: 'arrow', angle: 90, at: [middle[0], s[1]], to: to => top(to[1]) },
+					{ kind: 'arrow', angle: 0, at: [e[0], middle[1]], to: to => right(to[0]) },
+					{ kind: 'arrow', angle: 90, at: [middle[0], e[1]], to: to => bottom(to[1]) },
 				],
 				guides: [],
 				move: moved,

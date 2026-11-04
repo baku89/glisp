@@ -290,13 +290,18 @@ describe('grips', () => {
 		expect(pulled(source, 1, [99, 40])).toBe('{c = (path.ellipse [0 0] [10 40])}')
 	})
 
-	it('take a rect by its corners and edges', () => {
+	it('take a rect by the middle of each side, the far side staying where it is', () => {
 		const source = '{c = (path.rect [0 0] [10 10])}'
-		// The far side stays where it is, whichever side is taken.
+		expect(gripAt(parse(source), env, row)!.handles.map(h => [h.kind, h.at])).toEqual([
+			['arrow', [0, 5]],
+			['arrow', [5, 0]],
+			['arrow', [10, 5]],
+			['arrow', [5, 10]],
+		])
 		expect(pulled(source, 0, [-5, 99])).toBe('{c = (path.rect [-5 0] [15 10])}')
+		expect(pulled(source, 1, [99, -5])).toBe('{c = (path.rect [0 -5] [10 15])}')
+		expect(pulled(source, 2, [20, 99])).toBe('{c = (path.rect [0 0] [20 10])}')
 		expect(pulled(source, 3, [99, 20])).toBe('{c = (path.rect [0 0] [10 20])}')
-		expect(pulled(source, 5, [20, -5])).toBe('{c = (path.rect [0 -5] [20 15])}')
-		expect(pulled(source, 6, [-5, 20])).toBe('{c = (path.rect [-5 0] [15 20])}')
 	})
 
 	it('take a point of as many as there are', () => {
