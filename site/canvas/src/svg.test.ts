@@ -1,5 +1,5 @@
 import { buildPrelude, type Env, evaluate, parse, print } from '@glisp/lang'
-import { pastedRows } from '@glisp/tweeq/rowsClipboard'
+import { copiedRows, pastedArguments, pastedRows, reach } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
 import { isPath, withGraphics } from './graphics'
@@ -49,6 +49,43 @@ describe('svgOfRows', () => {
 	it('goes into a group', () => {
 		const svg = svgOfRows(parse('{g = {c = (path.circle [0 0] 1)}}'), env, ['binding:g'])!
 		expect(svg).toContain('id="c"')
+	})
+})
+
+describe('a parameter on the clipboard', () => {
+	const root = parse(
+		'{a = (path.rect [0 0] [10 20]) b = (path.superellipse [5 5] [1 1] 2) c = (style (path.roundRect [0 0] [1 1] 2) "#ff0000") d = (path.circle [0 0] 3)}'
+	)
+	const typeOf = (path: string) => reach(root, env, path)!.chain.at(-1)!.expected
+
+	it('is not an SVG', () => {
+		expect(svgOfRows(root, env, ['binding:a/arg1'])).toBeNull()
+		expect(copiedRows(root, env, ['binding:a/arg1'])).toBe('size = [10 20]')
+	})
+
+	it('goes to the parameter of the same name, through what holds it', () => {
+		expect(print(pastedArguments(root, env, ['binding:c'], 'size = [10 20]')!)).toContain(
+			'c = (style (path.roundRect [0 0] [10 20] 2) "#ff0000")'
+		)
+	})
+
+	it('goes to the only one of the same kind, if none has the name', () => {
+		const next = pastedArguments(root, env, ['binding:b'], 'size = [10 20]', typeOf('binding:a/arg1'))
+		expect(print(next!)).toContain('b = (path.superellipse [5 5] [10 20] 2)')
+	})
+
+	it('does not go by a vector being a vector, without knowing what it was', () => {
+		expect(pastedArguments(root, env, ['binding:b'], 'size = [10 20]')).toBeNull()
+	})
+
+	it('does not go to a number for being a number', () => {
+		const radius = typeOf('binding:d/arg1')
+		expect(pastedArguments(root, env, ['binding:b'], 'radius = 40', radius)).toBeNull()
+	})
+
+	it('is a binding of its own where there is no place for it', () => {
+		const { ast } = pastedRows(root, env, 'binding:a', 'radius = 40')!
+		expect(print(ast)).toContain('radius = 40')
 	})
 })
 

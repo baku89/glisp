@@ -268,6 +268,7 @@ const $editor = useTemplateRef<{
 	cut(): void
 	remove(): void
 	paste(written: string): void
+	duplicate(text: string): void
 }>('$editor')
 const $canvas = useTemplateRef<{
 	setView(next: mat2d): void
@@ -375,7 +376,7 @@ useActionsStore().register([
 				bind: 'command+d',
 				perform() {
 					const text = copiedRows(document.root.value, document.env.value, selected.value)
-					if (text !== '') $editor.value?.paste(text)
+					if (text !== '') $editor.value?.duplicate(text)
 				},
 			},
 			{ id: 'edit_delete', label: 'Delete', icon: 'mdi:trash-can-outline', perform: () => $editor.value?.remove() },
@@ -552,6 +553,8 @@ function selectInTree(row: string | null): void {
 						:document="document"
 						:inspect="inspected"
 						:iconOfValue="iconOfPath"
+						:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
+						:pasteAs="bindingsOfSvg"
 						:iconOfFunction="iconOfFunction"
 					>
 						<PaintControls v-if="selected.length > 0" :document="document" :rows="selected" />
