@@ -28,7 +28,16 @@ import {
 	unwrapLazy,
 } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
-import { referenceAt, type Slot, textOf, titleOf, viewOf } from '@glisp/tweeq/structure'
+import {
+	elementOptionsOf,
+	type NumberOptions,
+	numberOptionsAt,
+	referenceAt,
+	type Slot,
+	textOf,
+	titleOf,
+	viewOf,
+} from '@glisp/tweeq/structure'
 
 import { mat2d } from 'linearly'
 import { bounds } from 'pave/path/metrics'
@@ -361,12 +370,8 @@ export function linked(
 }
 
 /** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */
-export function nameFor(root: LetAST, tool: ShapeTool | 'pen', even: boolean): string {
-	const taken = new Set(root.bindings.map(([name]) => name))
-	const kind = tool === 'pen' ? 'path' : tool === 'ellipse' && even ? 'circle' : tool
-	let n = 1
-	while (taken.has(`${kind}${n}`)) n++
-	return `${kind}${n}`
+export function nameFor(root: LetAST, tool: ShapeTool, even: boolean): string {
+	return nameOfKind(root, tool === 'ellipse' && even ? 'circle' : tool)
 }
 
 /**
@@ -416,6 +421,8 @@ export function drawn(
 export interface Anchor {
 	readonly at: Vec
 	readonly out?: Vec
+	/** What it was put down on, to refer to if it can. */
+	readonly snap?: SnapPoint
 }
 
 /** What a curve comes into `anchor` by: the other way from what it goes out by. */
@@ -444,15 +451,77 @@ export function dOfAnchors(anchors: readonly Anchor[], closed: boolean): string 
 	return parts.join(' ')
 }
 
-/** `root` with a path through `anchors`, under `name`. */
+/**
+ * What a pen has drawn comes to, as the most it can be said to be: the fewer things
+ * were done, the more it is one of the shapes that has a name.
+ */
+export type PenKind = 'line' | 'polyline' | 'polygon' | 'cubic' | 'path'
+
+export function penKind(anchors: readonly Anchor[], closed: boolean): PenKind {
+	const curved = anchors.some(anchor => anchor.out !== undefined)
+	if (curved) return anchors.length === 2 && !closed ? 'cubic' : 'path'
+	if (closed) return anchors.length >= 3 ? 'polygon' : 'path'
+	if (anchors.length === 2) return 'line'
+	return anchors.length > 2 ? 'polyline' : 'path'
+}
+
+/** `kind` with the first number that `root` has not got yet. */
+function nameOfKind(root: LetAST, kind: string): string {
+	const taken = new Set(root.bindings.map(([name]) => name))
+	let n = 1
+	while (taken.has(`${kind}${n}`)) n++
+	return `${kind}${n}`
+}
+
+const asPoint = ([x, y]: Vec): string => `[${roundedTo(x, FINEST)} ${roundedTo(y, FINEST)}]`
+
+/** The code for what a pen has drawn, and which argument each place on it is, if any. */
+function penSource(anchors: readonly Anchor[], closed: boolean, kind: PenKind): string {
+	const points = anchors.map(({ at }) => asPoint(at))
+	switch (kind) {
+		case 'line':
+		case 'polyline':
+		case 'polygon':
+			return `(path.${kind} ${points.join(' ')})`
+		case 'cubic': {
+			const [from, to] = anchors as [Anchor, Anchor]
+			const out = asPoint(from.out ?? from.at)
+			const into = asPoint(inOf(to) ?? to.at)
+			return `(path.cubic ${points[0]} ${out} ${into} ${points[1]})`
+		}
+		case 'path':
+			return `(path.d "${dOfAnchors(anchors, closed)}")`
+	}
+}
+
+/** Which argument of what a pen has drawn the anchor at `index` is, if it is one. */
+function argOfAnchor(kind: PenKind, index: number): number | null {
+	if (kind === 'path') return null
+	return kind === 'cubic' ? index * 3 : index
+}
+
+/**
+ * `root` with what a pen has drawn through `anchors`, as what it comes to, and each place
+ * that snapped to something referring to that, where it is an argument.
+ */
 export function penned(
 	root: LetAST,
-	name: string,
+	env: Env,
 	anchors: readonly Anchor[],
 	closed: boolean
-): LetAST {
-	const source = `(path.d "${dOfAnchors(anchors, closed)}")`
-	return new LetAST([...root.bindings, [name, parse(source)]], root.body)
+): { ast: LetAST; name: string } {
+	const kind = penKind(anchors, closed)
+	const name = nameOfKind(root, kind)
+	let ast: AST = new LetAST(
+		[...root.bindings, [name, parse(penSource(anchors, closed, kind))]],
+		root.body
+	)
+	anchors.forEach(({ snap }, i) => {
+		const arg = argOfAnchor(kind, i)
+		if (snap === undefined || arg === null) return
+		ast = referred(ast, env, `binding:${name}/arg${arg}`, snap) ?? ast
+	})
+	return { ast: ast as LetAST, name }
 }
 
 const IDENTITY: Mat = [1, 0, 0, 1, 0, 0]
@@ -619,23 +688,156 @@ export function readoutOf(
 	return different.length > 0 ? different : lines
 }
 
-function linesOf(root: AST, env: Env, row: string, changes: readonly Change[]): string[] {
+/** What `route` comes to in the row at `row`: what it is called, wants, and is now. */
+function readAt(
+	root: AST,
+	env: Env,
+	row: string,
+	route: readonly number[]
+): { label: string; expected: TypeValue | null; options: NumberOptions; value: unknown } | null {
 	const found = rowAt(root, env, row)
-	if (found === null) return []
+	if (found === null) return null
+	let label = row.split('/').at(-1)!.replace(/^binding:/, '')
+	let expected: TypeValue | null = null
+	let options: NumberOptions = {}
+	let at = follow(found.node, found.env)
+	for (const [i, arg] of route.entries()) {
+		if (at === null) return null
+		const slot = viewOf(bare(at.node), at.env).slots.find(s => s.key === `arg${arg}`)
+		if (slot === undefined) return null
+		label = titleOf(slot)
+		expected = slot.expected
+		options = numberOptionsAt(slot)
+		at = i === route.length - 1 ? { node: slot.ast, env: slot.env } : follow(slot.ast, slot.env)
+	}
+	if (at === null) return null
+	return { label, expected, options, value: evaluate(readByName(at.node), at.env).value }
+}
+
+/** Where one number is in a row: an argument, and which of it, if it is a vector. */
+export interface DimensionPlace {
+	readonly route: readonly number[]
+	readonly index?: number
+}
+
+/** A number a program says, to read and to type, wherever it is that says it. */
+export interface Dimension extends DimensionPlace {
+	readonly label: string
+	readonly value: number
+	readonly options: NumberOptions
+}
+
+/** The number at a place in the row at `row`, as it is in `root`. */
+export function dimensionAt(
+	root: AST,
+	env: Env,
+	row: string,
+	{ route, index }: DimensionPlace
+): Dimension | null {
+	const read = readAt(root, env, row, route)
+	if (read === null) return null
+	const { label, expected, options, value } = read
+	const place = { route, ...(index === undefined ? {} : { index }) }
+	if (index === undefined) {
+		return typeof value === 'number' ? { ...place, label, value, options } : null
+	}
+	const element = isNumbers(value) ? value[index] : undefined
+	if (element === undefined) return null
+	const shape = expected === null ? null : unwrapLazy(expected).shape
+	const title = shape?.kind === 'tuple' ? textOf(shape.elements[index]?.meta?.get('title')) : null
+	return {
+		...place,
+		label: title ?? `${label} ${index}`,
+		value: element,
+		options: elementOptionsOf(expected, index),
+	}
+}
+
+/** Where the numbers are in what is at `route`, leaving out what `wanted` leaves alone. */
+function placesAt(
+	root: AST,
+	env: Env,
+	row: string,
+	route: readonly number[],
+	wanted?: unknown
+): DimensionPlace[] {
+	const value = readAt(root, env, row, route)?.value
+	if (typeof value === 'number') return [{ route }]
+	if (!isNumbers(value)) return []
+	return value.flatMap((_, index) =>
+		Array.isArray(wanted) && wanted[index] === UNSET ? [] : [{ route, index }]
+	)
+}
+
+const inOrder = (a: DimensionPlace, b: DimensionPlace): number =>
+	a.route.join() === b.route.join()
+		? (a.index ?? 0) - (b.index ?? 0)
+		: a.route.join().localeCompare(b.route.join(), undefined, { numeric: true })
+
+/**
+ * The numbers that `changes` have got hold of, in the order the call has them, each
+ * once. What is no different from `before` is left out, unless nothing is yet.
+ */
+export function dimensionsOf(
+	root: AST,
+	env: Env,
+	row: string,
+	changes: readonly Change[],
+	before?: AST
+): Dimension[] {
+	const seen = new Set<string>()
+	const all = changes
+		.flatMap(({ route, value }) => placesAt(root, env, row, route, value))
+		.filter(({ route, index }) => {
+			const key = `${route.join()}/${index}`
+			if (seen.has(key)) return false
+			seen.add(key)
+			return true
+		})
+		.sort(inOrder)
+		.flatMap(place => dimensionAt(root, env, row, place) ?? [])
+	if (before === undefined) return all
+	const different = all.filter(
+		dimension => dimensionAt(before, env, row, dimension)?.value !== dimension.value
+	)
+	return different.length > 0 ? different : all
+}
+
+/**
+ * The numbers of a shape just drawn: what is written as numbers, as what it starts from
+ * may be something else's, which is not for typing over here. Which to go to first is
+ * what the drag said, which is the argument after where it started.
+ */
+export function dimensionsDrawn(
+	root: AST,
+	env: Env,
+	row: string
+): { dimensions: Dimension[]; first: number } {
+	const found = rowAt(root, env, row)
+	const call = found && bare(found.node)
+	if (call?.kind !== 'call') return { dimensions: [], first: 0 }
+	const dimensions = call.args
+		.flatMap((arg, i) =>
+			arg.kind === 'vec' || arg.kind === 'lit' ? placesAt(root, env, row, [i]) : []
+		)
+		.flatMap(place => dimensionAt(root, env, row, place) ?? [])
+	return { dimensions, first: Math.max(0, dimensions.findIndex(({ route }) => route[0] === 1)) }
+}
+
+/** What has to change, for the number at a place to be `value`. */
+export function dimensionChange({ route, index }: DimensionPlace, value: number): Change {
+	if (index === undefined) return { route, value }
+	return {
+		route,
+		value: Array.from({ length: index + 1 }, (_, i) => (i === index ? value : UNSET)),
+	}
+}
+
+function linesOf(root: AST, env: Env, row: string, changes: readonly Change[]): string[] {
 	const lines = changes.flatMap(({ route, value: wanted }) => {
-		let label = row.split('/').at(-1)!.replace(/^binding:/, '')
-		let expected: TypeValue | null = null
-		let at = follow(found.node, found.env)
-		for (const arg of route) {
-			if (at === null) return []
-			const slot = viewOf(bare(at.node), at.env).slots.find(s => s.key === `arg${arg}`)
-			if (slot === undefined) return []
-			label = titleOf(slot)
-			expected = slot.expected
-			at = route.at(-1) === arg ? { node: slot.ast, env: slot.env } : follow(slot.ast, slot.env)
-		}
-		if (at === null) return []
-		const { value } = evaluate(readByName(at.node), at.env)
+		const read = readAt(root, env, row, route)
+		if (read === null) return []
+		const { label, expected, value } = read
 		if (typeof value === 'number') return [`${label} ${shown(value)}`]
 		if (!isNumbers(value)) return []
 		// Of a vector, only what was asked of it, as what it is called on its own.

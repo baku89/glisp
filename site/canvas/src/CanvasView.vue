@@ -662,7 +662,7 @@ function onPointerDown(event: PointerEvent): void {
 	}
 
 	if (props.drawing === 'pen') {
-		penDown(x, y)
+		penDown(x, y, event.metaKey || event.ctrlKey)
 		return
 	}
 
@@ -743,8 +743,13 @@ function onPointerDown(event: PointerEvent): void {
 	range.value = { from: [x, y], to: [x, y] }
 }
 
+/** What it comes to, as far as it has got, and it is what is selected, whatever that is. */
 function writePen(closed: boolean): void {
-	if (pen !== null) props.document.setRoot(penned(pen.base, pen.name, pen.anchors, closed))
+	if (pen === null) return
+	const { ast, name } = penned(pen.base, props.document.env.value, pen.anchors, closed)
+	props.document.setRoot(ast)
+	if (name !== pen.name) emit('select', [`binding:${name}`])
+	pen.name = name
 }
 
 const closesPen = (x: number, y: number): boolean => {
@@ -754,7 +759,7 @@ const closesPen = (x: number, y: number): boolean => {
 	return Math.hypot(hx - x, hy - y) <= HANDLE_RADIUS + 3
 }
 
-function penDown(x: number, y: number): void {
+function penDown(x: number, y: number, valueOnly: boolean): void {
 	if (closesPen(x, y)) {
 		writePen(true)
 		pen = null
@@ -763,12 +768,17 @@ function penDown(x: number, y: number): void {
 	}
 	if (pen === null) {
 		const base = props.document.root.value
-		pen = { base, name: nameFor(base, 'pen', false), anchors: [] }
+		pen = { base, name: '', anchors: [] }
 	}
-	const isFirst = pen.anchors.length === 0
-	pen.anchors = [...pen.anchors, { at: snapAt(snapPoints(pen.base), x, y)?.at ?? roundedPlace(x, y) }]
+	const snap = snapAt(snapPoints(pen.base), x, y)
+	pen.anchors = [
+		...pen.anchors,
+		{
+			at: snap?.at ?? roundedPlace(x, y),
+			...(snap !== null && !valueOnly ? { snap } : {}),
+		},
+	]
 	writePen(false)
-	if (isFirst) emit('select', [`binding:${pen.name}`])
 	// From here on it is the curve, until the pointer is let go of.
 	penLine.value = null
 	pressed = { kind: 'pen', from: [x, y] }
@@ -883,7 +893,7 @@ function onPointerMove(event: PointerEvent): void {
 		case 'pen': {
 			const [fromX, fromY] = pressed.from
 			if (pen === null || Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) break
-			pen.anchors = [...pen.anchors.slice(0, -1), { at: pen.anchors.at(-1)!.at, out: roundedPlace(x, y) }]
+			pen.anchors = [...pen.anchors.slice(0, -1), { ...pen.anchors.at(-1)!, out: roundedPlace(x, y) }]
 			writePen(false)
 			break
 		}

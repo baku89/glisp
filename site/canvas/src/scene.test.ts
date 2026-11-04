@@ -21,6 +21,7 @@ import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
 import {
+	type Anchor,
 	changed,
 	dOfAnchors,
 	dragStep,
@@ -215,13 +216,73 @@ describe('the pen', () => {
 		)
 	})
 
-	it('adds a path, named as one, to draw and to take hold of', () => {
+	describe('comes to what it can be said to be', () => {
 		const root = parse('{a = 1}') as LetAST
-		expect(nameFor(root, 'pen', false)).toBe('path1')
-		const next = penned(root, 'path1', [{ at: [0, 0] }, { at: [10, 0] }], false)
-		expect(print(next)).toBe('{a = 1 path1 = (path.d "M 0,0 L 10,0")}')
-		expect(sceneOf(next, env).map(s => s.row)).toEqual(['binding:path1'])
-		expect(gripAt(next, env, 'binding:path1')!.handles).toHaveLength(2)
+		const clicks = (...points: Vec[]): Anchor[] => points.map(at => ({ at }))
+		const drawn_ = (anchors: Anchor[], closed = false) => {
+			const { ast, name } = penned(root, env, anchors, closed)
+			return `${name} = ${print(ast.bindings.at(-1)![1])}`
+		}
+
+		it('two clicks are a line', () => {
+			expect(drawn_(clicks([0, 0], [1, 1]))).toBe('line1 = (path.line [0 0] [1 1])')
+		})
+
+		it('more are a polyline', () => {
+			expect(drawn_(clicks([0, 0], [1, 1], [2, 0]))).toBe('polyline1 = (path.polyline [0 0] [1 1] [2 0])')
+		})
+
+		it('closed, a polygon', () => {
+			expect(drawn_(clicks([0, 0], [1, 1], [2, 0]), true)).toBe('polygon1 = (path.polygon [0 0] [1 1] [2 0])')
+		})
+
+		it('one pull, between two places, a curve', () => {
+			expect(drawn_([{ at: [0, 0], out: [5, 0] }, { at: [10, 10] }])).toBe(
+				'cubic1 = (path.cubic [0 0] [5 0] [10 10] [10 10])'
+			)
+			expect(drawn_([{ at: [0, 0] }, { at: [10, 10], out: [15, 10] }])).toBe(
+				'cubic1 = (path.cubic [0 0] [0 0] [5 10] [10 10])'
+			)
+		})
+
+		it('anything more, a path', () => {
+			expect(drawn_([{ at: [0, 0], out: [5, 0] }, { at: [10, 10] }, { at: [20, 0] }])).toBe(
+				'path1 = (path.d "M 0,0 C 5,0 10,10 10,10 L 20,0")'
+			)
+			expect(drawn_(clicks([0, 0], [1, 1]), true)).toBe('path1 = (path.d "M 0,0 L 1,1 L 0,0 Z")')
+		})
+
+		it('counts each kind on its own', () => {
+			const taken = parse('{line1 = 1 polyline1 = 2}') as LetAST
+			expect(penned(taken, env, clicks([0, 0], [1, 1]), false).name).toBe('line2')
+		})
+
+		it('can be taken hold of as what it is', () => {
+			const { ast, name } = penned(root, env, clicks([0, 0], [1, 1], [2, 0]), false)
+			expect(sceneOf(ast, env).map(s => s.row)).toEqual([`binding:${name}`])
+			expect(gripAt(ast, env, `binding:${name}`)!.handles).toHaveLength(3)
+		})
+
+		it('refers to what a place was put down on', () => {
+			const circle = parse('{c = (path.circle [100 100] 10)}') as LetAST
+			const center = nearestSnap(snapPointsOf(circle, env, sceneOf(circle, env)), [100, 100], 1)!
+			const { ast } = penned(circle, env, [{ at: [100, 100], snap: center }, { at: [0, 0] }], false)
+			expect(print(ast.bindings.at(-1)![1])).toBe('(path.line ../c/center [0 0])')
+			const curve = penned(
+				circle,
+				env,
+				[{ at: [0, 0], out: [1, 0] }, { at: [100, 100], snap: center }],
+				false
+			)
+			expect(print(curve.ast.bindings.at(-1)![1])).toContain('[100 100] ../c/center)')
+		})
+
+		it('has only the value, as a path has no place to refer from', () => {
+			const circle = parse('{c = (path.circle [100 100] 10)}') as LetAST
+			const center = nearestSnap(snapPointsOf(circle, env, sceneOf(circle, env)), [100, 100], 1)!
+			const { ast } = penned(circle, env, [{ at: [100, 100], snap: center, out: [1, 1] }, { at: [0, 0] }, { at: [5, 5] }], false)
+			expect(print(ast.bindings.at(-1)![1])).toMatch(/^\(path\.d "M 100,100/)
+		})
 	})
 })
 
