@@ -45,7 +45,7 @@ const place = computed(() => {
 				v-bind="dimension.options"
 				:title="dimension.label"
 				:leftIcon="iconOf(dimension)"
-				:rightIcon="dimension.expression ? 'mdi:function-variant' : undefined"
+				:class="{ expression: dimension.expression }"
 				:expression="text => expression(dimension, text)"
 				:modelValue="dimension.value"
 				@update:modelValue="emit('set', dimension, $event)"
@@ -69,6 +69,14 @@ const place = computed(() => {
 }
 .DimensionField.editing {
 	pointer-events: auto;
+}
+/* As it is in the inspector, as a parameter driven by an expression is in After Effects. */
+.DimensionField :deep(.expression) {
+	--tq-color-text: var(--tq-color-info);
+	--tq-color-input: var(--tq-color-info-soft);
+	--tq-color-input-hover: var(--tq-color-info-soft);
+	--tq-color-accent: var(--tq-color-info);
+	--tq-color-accent-hover: var(--tq-color-info);
 }
 /* One bar, as a gap between them would show the paper as a line of its own. */
 .DimensionField :deep(.TqInputGroup) {

@@ -24,7 +24,8 @@ defineProps<{
 	display: flex;
 	gap: 8px;
 	align-items: flex-start;
-	margin-block: var(--tq-gap-control);
+	/* It goes with the name above it, more than with the arguments below it. */
+	margin-block: 0 14px;
 	padding-inline: 3px;
 }
 .FunctionAbout > :deep(.TqIcon) {

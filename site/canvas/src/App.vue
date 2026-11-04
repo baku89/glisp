@@ -876,6 +876,7 @@ function selectInTree(row: string | null): void {
 						:pasteAs="bindingsOfSvg"
 						:iconOfFunction="iconOfFunction"
 					>
+						<p v-if="selected.length === 0" class="nothing-selected">Nothing selected</p>
 						<PaintControls v-if="paintable.length > 0" :document="document" :rows="paintable" />
 					</AstEditor>
 				</FloatPanel>
@@ -1014,5 +1015,10 @@ function selectInTree(row: string | null): void {
 	box-sizing: border-box;
 	height: 100%;
 	padding: var(--tq-pane-padding);
+}
+.nothing-selected {
+	padding-block: 12px;
+	color: var(--tq-color-text-mute);
+	text-align: center;
 }
 </style>
