@@ -1451,9 +1451,9 @@ function penDown(x: number, y: number, valueOnly: boolean, even: boolean): void 
 }
 
 /** How a path comes back to where it started, pulled to a place, and it is closed as that. */
-function pullClosing(x: number, y: number, both: boolean, smooth: boolean, even: boolean): void {
+function pullClosing(x: number, y: number, broken: boolean, uneven: boolean, even: boolean): void {
 	if (pen === null || pressed?.kind !== 'closing') return
-	const first = closingPulled(pressed.first, roundedPlace(x, y), { symmetric: both, smooth, even })
+	const first = closingPulled(pressed.first, roundedPlace(x, y), { broken, uneven, even })
 	pen.anchors = [first, ...pen.anchors.slice(1)]
 	writePen(true)
 	const { at, out = at, into = at } = first

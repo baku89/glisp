@@ -715,15 +715,20 @@ export function penGuided(
 
 /**
  * The first of what a pen drew, as it comes to be pulled in closing, by a pointer going on
- * the way the path does. That is only how the path comes back to it: both ways, if
- * `symmetric`, or still in line with how it leaves, if `smooth`.
+ * the way the path does. As anywhere a pen is pulled, it goes through the same both ways,
+ * unless that is `broken`, and only how it comes back changes, or `uneven`, and how it
+ * leaves stays as long as it was.
  */
-export function closingPulled(first: Anchor, pointer: Vec, how?: HandleDrag): Anchor {
+export function closingPulled(
+	first: Anchor,
+	pointer: Vec,
+	how?: { readonly broken?: boolean; readonly uneven?: boolean; readonly even?: boolean }
+): Anchor {
 	const { at } = first
 	const going = how?.even ? evenlyFrom(at, pointer) : pointer
 	const into: Vec = [at[0] * 2 - going[0], at[1] * 2 - going[1]]
-	if (how?.symmetric) return { ...first, out: going, into }
-	if (!how?.smooth || first.out === undefined) return { ...first, into }
+	if (how?.broken) return { ...first, into }
+	if (!how?.uneven || first.out === undefined) return { ...first, out: going, into }
 	return { ...first, out: otherControl(at, into, first.out, inOf(first)!, { smooth: true }), into }
 }
 

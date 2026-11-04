@@ -1397,16 +1397,16 @@ describe('where a pen goes next', () => {
 describe('how a pen closes', () => {
 	const first = { at: [0, 0] as [number, number], out: [10, 0] as [number, number] }
 
-	it('only says how it comes back, leaving how it goes out', () => {
-		expect(closingPulled(first, [0, 20])).toEqual({ at: [0, 0], out: [10, 0], into: [0, -20] })
+	it('goes through the same both ways, as anywhere a pen is pulled', () => {
+		expect(closingPulled(first, [0, 20])).toEqual({ at: [0, 0], out: [0, 20], into: [0, -20] })
 	})
 
-	it('can go both ways', () => {
-		expect(closingPulled(first, [0, 20], { symmetric: true })).toEqual({ at: [0, 0], out: [0, 20], into: [0, -20] })
+	it('can be broken, only saying how it comes back', () => {
+		expect(closingPulled(first, [0, 20], { broken: true })).toEqual({ at: [0, 0], out: [10, 0], into: [0, -20] })
 	})
 
 	it('can stay in line with how it goes out, however long that is', () => {
-		const { out } = closingPulled(first, [0, 20], { smooth: true })
+		const { out } = closingPulled(first, [0, 20], { uneven: true })
 		expect(out![0]).toBeCloseTo(0)
 		expect(out![1]).toBeCloseTo(10)
 	})
@@ -1417,7 +1417,7 @@ describe('how a pen closes', () => {
 	})
 
 	it('is written as a curve that comes back as it says', () => {
-		const anchors = [closingPulled(first, [0, 20]), { at: [50, 0] as [number, number] }, { at: [50, 50] as [number, number] }]
+		const anchors = [closingPulled(first, [0, 20], { broken: true }), { at: [50, 0] as [number, number] }, { at: [50, 50] as [number, number] }]
 		expect(dOfAnchors(anchors, true)).toBe('M 0,0 C 10,0 50,0 50,0 L 50,50 C 50,50 0,-20 0,0 Z')
 	})
 })
