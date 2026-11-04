@@ -482,12 +482,11 @@ describe('kindIconOf', () => {
 		expect(kind('(|> 1 f)')).toBe('mdi:pipe')
 	})
 
-	it('tells a name that can be gone to from one that cannot', () => {
-		expect(kindIconOf(parse('x'), true)).toBe('mdi:arrow-top-right')
-		expect(kindIconOf(parse('pi'), false)).toBe('mdi:book-open-variant-outline')
-		expect(kindIconOf(parse('^{label: "L"} pi'), false)).toBe('mdi:book-open-variant-outline')
-		expect(kindIconOf(parse('(+ 1 2)'), false)).toBe('mdi:function-variant')
-		expect(kindIconOf(parse('../x'), false)).toBe('mdi:arrow-top-right')
+	it('is the same for a name, whether or not it can be gone to', () => {
+		expect(kindIconOf(parse('x'))).toBe('mdi:arrow-top-right')
+		expect(kindIconOf(parse('pi'))).toBe('mdi:arrow-top-right')
+		expect(kindIconOf(parse('^{label: "L"} pi'))).toBe('mdi:arrow-top-right')
+		expect(kindIconOf(parse('../x'))).toBe('mdi:arrow-top-right')
 	})
 
 	it('has nothing for what is written down', () => {

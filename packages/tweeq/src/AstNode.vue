@@ -112,7 +112,7 @@ const referenceTarget = computed(() => {
 const kindIcon = computed(() =>
 	isFunction.value || props.entry.display !== undefined
 		? null
-		: (view.value.head?.icon ?? kindIconOf(ast.value, referenceTarget.value !== null))
+		: (view.value.head?.icon ?? kindIconOf(ast.value))
 )
 const kindHint = computed(() => {
 	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
@@ -237,7 +237,7 @@ function onKind(): void {
 	}
 	const target = referenceTarget.value
 	if (target !== null && revealer) revealer.target.value = { path: target }
-	else open.value = !open.value
+	else if (expandable.value) open.value = !open.value
 }
 
 const pinned = computed(() => isPinned(ast.value))
