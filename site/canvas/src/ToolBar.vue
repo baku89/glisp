@@ -5,6 +5,7 @@ import { Popover } from 'tweeq/Popover'
 import { vTooltip } from 'tweeq/Tooltip'
 import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef } from 'vue'
 
+import EdgeSurface from './EdgeSurface.vue'
 import {
 	type Arrangement,
 	distanceFrom,
@@ -238,6 +239,7 @@ const ghost = computed(() => {
 		@pointerup="release"
 		@pointercancel="cancel"
 	>
+		<EdgeSurface edge="bottom" />
 		<div ref="$tools" class="sortable">
 			<TransitionGroup name="tool">
 				<button
@@ -308,17 +310,18 @@ const ghost = computed(() => {
 	--padding: 6px;
 	--radius: 6px;
 	position: absolute;
-	bottom: 16px;
+	bottom: 0;
 	left: 50%;
 	translate: -50% 0;
 	display: flex;
 	gap: 2px;
 	padding: var(--padding);
-	border: 1px solid var(--tq-color-border);
-	border-radius: calc(var(--radius) + var(--padding));
-	background: var(--tq-color-surface);
-	backdrop-filter: blur(var(--tq-popup-blur));
-	box-shadow: var(--tq-shadow-popup);
+	border: 1px solid transparent;
+	border-bottom: none;
+	/* Around the same centers as the corners of the buttons in it. */
+	--corner: calc(var(--radius) + var(--padding) + 1px);
+	border-radius: var(--corner) var(--corner) 0 0;
+	isolation: isolate;
 	touch-action: none;
 	user-select: none;
 }

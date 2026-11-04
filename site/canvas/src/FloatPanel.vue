@@ -3,6 +3,7 @@ import { Icon } from 'tweeq/Icon'
 import { useAppConfigStore } from 'tweeq/stores/appConfig'
 import { computed, ref, useTemplateRef } from 'vue'
 
+import EdgeSurface from './EdgeSurface.vue'
 import { draggedHeight, type Height } from './floatHeight'
 
 /**
@@ -24,7 +25,8 @@ const open = defineModel<boolean>('open', { required: true })
 
 const MIN_WIDTH = 200
 const MIN_HEIGHT = 64
-const MARGIN = 16
+const TOP = 8
+const MARGIN = 24
 
 const config = useAppConfigStore()
 const width = config.ref(`${props.name}.width`, props.width)
@@ -67,7 +69,7 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 		}
 		if (axes.y) {
 			const wanted = Math.round(start.height + move.clientY - clientY)
-			const dragged = draggedHeight(wanted, parent.height - MARGIN * 2, fit, MIN_HEIGHT)
+			const dragged = draggedHeight(wanted, parent.height - TOP - MARGIN, fit, MIN_HEIGHT)
 			height.value = dragged.height
 			snapped.value = dragged.snapped
 		}
@@ -92,25 +94,28 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 		:class="[side, { open, resizing, fitting: height === null }]"
 		:style="style"
 	>
-		<button
-			class="tab"
-			:inert="open"
-			:aria-label="`Show ${label}`"
-			data-selects-rows
-			@click="open = true"
-		>
-			<Icon class="tab-icon" :icon="icon" />
-			<span class="tab-label">{{ label }}</span>
-		</button>
-		<div class="body" :inert="!open">
-			<header class="header" data-selects-rows>
-				<slot name="header" />
-				<button class="toggle" :aria-label="`Minimize ${label}`" @click="open = false">
-					<Icon :icon="side === 'left' ? 'ph:caret-left' : 'ph:caret-right'" />
-				</button>
-			</header>
-			<div class="content">
-				<slot />
+		<EdgeSurface :edge="side" />
+		<div class="clip">
+			<button
+				class="tab"
+				:inert="open"
+				:aria-label="`Show ${label}`"
+				data-selects-rows
+				@click="open = true"
+			>
+				<Icon class="tab-icon" :icon="icon" />
+				<span class="tab-label">{{ label }}</span>
+			</button>
+			<div class="body" :inert="!open">
+				<header class="header" data-selects-rows>
+					<slot name="header" />
+					<button class="toggle" :aria-label="`Minimize ${label}`" @click="open = false">
+						<Icon :icon="side === 'left' ? 'ph:caret-left' : 'ph:caret-right'" />
+					</button>
+				</header>
+				<div class="content">
+					<slot />
+				</div>
 			</div>
 		</div>
 		<template v-if="open">
@@ -136,17 +141,15 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	--tab-width: 32px;
 	--tab-height: 112px;
 	position: absolute;
-	top: 16px;
+	/* As far down as the curve into the edge takes, so that it starts from the title bar. */
+	top: var(--edge-fillet);
+	isolation: isolate;
 	display: flex;
 	flex-direction: column;
-	overflow: hidden;
 	box-sizing: border-box;
 	width: var(--tab-width);
 	height: var(--tab-height);
-	border: 1px solid var(--tq-color-border);
-	background: var(--tq-color-surface);
-	backdrop-filter: blur(var(--tq-popup-blur));
-	box-shadow: var(--tq-shadow-popup);
+	border: 1px solid transparent;
 	interpolate-size: allow-keywords;
 	transition:
 		width var(--ease),
@@ -154,20 +157,37 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 }
 .FloatPanel.left {
 	left: 0;
-	align-items: flex-start;
 	border-left: none;
 	border-radius: 0 var(--tq-radius-pane) var(--tq-radius-pane) 0;
 }
 .FloatPanel.right {
 	right: 0;
-	align-items: flex-end;
 	border-right: none;
 	border-radius: var(--tq-radius-pane) 0 0 var(--tq-radius-pane);
 }
 .FloatPanel.open {
-	max-height: calc(100% - 32px);
+	max-height: calc(100% - var(--edge-fillet) - 24px);
 	width: var(--panel-width);
 	height: var(--panel-height);
+}
+/* What is in it stays in it, where the curves into the edge go outside of it. */
+.clip {
+	position: relative;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	overflow: hidden;
+	min-height: 0;
+	border-radius: inherit;
+}
+.left .clip {
+	align-items: flex-start;
+}
+.right .clip {
+	align-items: flex-end;
+}
+.fitting .clip {
+	flex: 0 1 auto;
 }
 /* What it would come to, with nothing holding it. */
 .FloatPanel.open.measuring {
@@ -175,6 +195,7 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	height: auto;
 	transition: none;
 }
+.FloatPanel.measuring .clip,
 .FloatPanel.measuring .body,
 .FloatPanel.measuring .content {
 	flex: none;

@@ -878,6 +878,9 @@ function selectInTree(row: string | null): void {
 
 <style scoped>
 .stage {
+	/* How round the curves are by which what comes out of an edge of the window goes into it.
+	Its own corners are its own, going around what is in it. */
+	--edge-fillet: 8px;
 	position: relative;
 	height: 100%;
 }
