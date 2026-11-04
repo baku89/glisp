@@ -454,6 +454,8 @@ defineExpose({
 		view.value = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
 	},
 	size: () => size.value,
+	/** How far in the view is, where 1 is actual size. */
+	zoom: () => view.value[0],
 })
 
 let savingView: ReturnType<typeof setTimeout> | undefined

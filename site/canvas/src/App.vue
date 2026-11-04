@@ -19,6 +19,7 @@ import { useActionsStore } from 'tweeq/stores/actions'
 import { useThemeStore } from 'tweeq/stores/theme'
 import { Menu, type MenuItem } from 'tweeq/Menu'
 import { Popover } from 'tweeq/Popover'
+import { InputNumber, scaledBy } from 'tweeq/InputNumber'
 import { TitleBar } from 'tweeq/TitleBar'
 import { vTooltip } from 'tweeq/Tooltip'
 import { initTweeq } from 'tweeq/useTweeq'
@@ -330,9 +331,31 @@ const $canvas = useTemplateRef<{
 	glideTo(next: mat2d): void
 	zoomBy(factor: number): void
 	zoomTo(zoom: number): void
+	zoom(): number
 	rowAtPoint(x: number, y: number): string | null
 	size(): readonly [number, number]
 }>('$canvas')
+const zoom = computed(() => $canvas.value?.zoom() ?? 1)
+const asPercent = scaledBy(100)
+const MIN_ZOOM = 0.01
+const zoomPresets = computed<MenuItem[]>(() => [
+	...[0.5, 1, 2].map(zoom => ({
+		label: `${zoom * 100}%`,
+		perform: () => $canvas.value?.zoomTo(zoom),
+	})),
+	{ separator: true },
+	{ label: 'Fit All', icon: 'mdi:fit-to-screen-outline', bindIcon: ['⇧', '1'], perform: () => fit() },
+	...(selected.value.length === 0
+		? []
+		: [
+				{
+					label: 'Fit Selection',
+					icon: 'mdi:selection-search',
+					bindIcon: ['⇧', '2'],
+					perform: () => fit(selected.value),
+				},
+			]),
+])
 
 function selectOnCanvas(rows: readonly string[]): void {
 	selected.value = rows
@@ -703,7 +726,21 @@ function selectInTree(row: string | null): void {
 <template>
 	<TqApp>
 		<template #title>
-			<TitleBar name="Glisp / Canvas" icon="favicon.svg" :style="titleBarStyle" />
+			<TitleBar name="Glisp / Canvas" icon="favicon.svg" :style="titleBarStyle">
+				<template #right>
+					<InputNumber
+						class="zoom"
+						:modelValue="zoom"
+						:display="asPercent"
+						:min="MIN_ZOOM"
+						:clampMax="false"
+						:precision="0"
+						suffix="%"
+						:presets="zoomPresets"
+						@update:modelValue="$canvas?.zoomTo($event)"
+					/>
+				</template>
+			</TitleBar>
 		</template>
 		<template #default>
 			<div class="stage">
@@ -877,6 +914,10 @@ function selectInTree(row: string | null): void {
 </template>
 
 <style scoped>
+.zoom {
+	width: 4.5em;
+}
+
 .stage {
 	/* How round the curves are by which what comes out of an edge of the window goes into it.
 	Its own corners are its own, going around what is in it. */
