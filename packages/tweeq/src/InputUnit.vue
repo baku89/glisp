@@ -33,11 +33,7 @@ defineEmits<{ edit: [] }>()
 <style scoped>
 .InputUnit {
 	color: var(--tq-color-text-mute);
-	background: repeating-linear-gradient(
-		-45deg,
-		transparent 0 3px,
-		color-mix(in srgb, currentColor 14%, transparent) 3px 4px
-	);
+	background: none;
 	box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent);
 	cursor: text;
 }
