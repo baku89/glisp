@@ -3510,6 +3510,11 @@ const centerAnd = (...lengths: readonly number[]) => (args: readonly unknown[]):
 		...lengths.map(i => change(i, (args[i] as number) * x)),
 	],
 })
+/** The same, of what says how far round it is, which the box goes with. */
+const centerAndTurned = (angleAt: number, ...lengths: readonly number[]) => (args: readonly unknown[]): BoxAnswer => {
+	const angle = finite(args[angleAt])
+	return { ...centerAnd(...lengths)(args), ...(angle === 0 ? {} : { angle }) }
+}
 /** A center and a radius each way, along axes turned by `angle`, which the box goes with. */
 const alongAxes = (args: readonly unknown[], angle: number): BoxAnswer => {
 	const c = args[0] as Vec
@@ -3544,8 +3549,8 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => Box
 	[makeCircle, centerAnd(1)],
 	[makeEllipse, args => alongAxes(args, (args[2] as number | undefined) ?? 0)],
 	[makeSuperellipse, args => alongAxes(args, 0)],
-	[makeNgon, centerAnd(1)],
-	[makeStar, centerAnd(1, 2)],
+	[makeNgon, centerAndTurned(3, 1)],
+	[makeStar, centerAndTurned(4, 1, 2)],
 	[makeArc, centerAnd(1)],
 	[makeFan, centerAnd(1, 2)],
 	[makeSpiral, centerAnd(1, 2)],

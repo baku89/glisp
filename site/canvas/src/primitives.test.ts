@@ -1190,6 +1190,27 @@ describe('what pulls one side of a box', () => {
 	})
 })
 
+describe('the box around what says how far round it is', () => {
+	const boxOf = (source: string) => gripAt(parse(`{c = ${source}}`), env, ROW)!.box!
+
+	it('goes round with it', () => {
+		expect(boxOf('(path.ngon [0 0] 20 5 30)').angle).toBe(30)
+		expect(boxOf('(path.star [0 0] 20 10 5 30)').angle).toBe(30)
+		expect(boxOf('(path.ellipse [0 0] [20 10] 30)').angle).toBe(30)
+	})
+
+	it('is straight if it is not round at all, or does not say', () => {
+		expect(boxOf('(path.ngon [0 0] 20 5)').angle).toBeUndefined()
+		expect(boxOf('(path.ngon [0 0] 20 5 0)').angle).toBeUndefined()
+	})
+
+	it('still only goes by one scale, around where it is held', () => {
+		const { even, scaled } = boxOf('(path.ngon [10 0] 20 5 30)')
+		expect(even).toBe(true)
+		expect(scaled(2, 2, [0, 0]).map(({ value }) => value)).toEqual([[20, 0], 40])
+	})
+})
+
 describe('what turns something by the corners of its box', () => {
 	const box: readonly [Vec, Vec] = [[-10, -10], [10, 10]]
 	const turning = gripAt(parse('{c = (path.ngon [0 0] 10 5 0)}'), env, ROW)!.handles.find(({ rotates }) => rotates)!
