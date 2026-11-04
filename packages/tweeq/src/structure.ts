@@ -39,7 +39,7 @@ import {
 	SymAST,
 	resolveTypeSlot,
 	toAst,
-	typeFits,
+	argFits,
 	type TypeValue,
 	UNIT,
 	unhide,
@@ -57,6 +57,8 @@ export type Editor =
 			readonly kind: 'enum'
 			readonly value: unknown
 			readonly options: ReadonlyArray<unknown>
+			/** One for each of the options, if its type says. */
+			readonly icons?: readonly string[]
 	  }
 	| { readonly kind: 'unit' }
 
@@ -378,11 +380,23 @@ export function parseSource(source: string): AST | null {
 	}
 }
 
+/**
+ * What an enum's values are shown as, each saying so with `^{icon: ...}`, in the order they
+ * are in. `null` unless all of them do, since a row of icons with a gap in it says nothing.
+ */
+export function enumIconsOf(type: TypeValue | null): readonly string[] | null {
+	const shape = type === null ? null : unwrapLazy(type).shape
+	if (shape?.kind !== 'enum') return null
+	const said = [...shape.values].map(value => textOf(shape.about?.get(value)?.get('icon')))
+	return said.includes(null) ? null : (said as string[])
+}
+
 function editorOf(ast: LitAST, expected: TypeValue | null): Editor | null {
 	const value = ast.value
 	const shape = expected === null ? null : unwrapLazy(expected).shape
 	if (shape?.kind === 'enum') {
-		return { kind: 'enum', value, options: [...shape.values] }
+		const icons = enumIconsOf(expected)
+		return { kind: 'enum', value, options: [...shape.values], ...(icons ? { icons } : {}) }
 	}
 	if (typeof value === 'number') return { kind: 'number', value }
 	if (typeof value === 'string') return { kind: 'string', value }
@@ -998,7 +1012,7 @@ export function problemOf(
 	// and the call reports what does not fit it.
 	if (expected === null || mentionsTypeVar(expected)) return null
 	const type = infer(ast, env)
-	return type !== null && !typeFits(type, expected)
+	return type !== null && !argFits(ast, type, expected)
 		? `type mismatch: expected ${expected.typeName}, got ${type.typeName}`
 		: null
 }

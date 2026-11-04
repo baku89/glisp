@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, infer, isHidden, readByName, UNIT, unwrapLazy, UNSET } from '@glisp/lang'
-import { InputDropdown } from 'tweeq/InputDropdown'
+import { InputEnum } from 'tweeq/InputEnum'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
 import { vTooltip } from 'tweeq/Tooltip'
@@ -292,10 +292,11 @@ const label = (value: unknown): string =>
 			:multiSelectData="place"
 			@update:modelValue="update(withLiteral(ast, $event))"
 		/>
-		<InputDropdown
+		<InputEnum
 			v-else-if="view.editor?.kind === 'enum'"
 			:modelValue="view.editor.value"
 			:options="[...view.editor.options]"
+			:icons="view.editor.icons"
 			:labelizer="label"
 			@update:modelValue="update(withLiteral(ast, $event as never))"
 		/>

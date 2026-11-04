@@ -4,12 +4,12 @@
  * drawing and a canvas gets the program back. An SVG from elsewhere becomes bindings.
  */
 
-import { type AST, type Env } from '@glisp/lang'
+import { type AST, type Env, lit, parse, print, toAst } from '@glisp/lang'
 import { copiedRows } from '@glisp/tweeq/rowsClipboard'
 import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 
-import { type Path } from './graphics'
+import { LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, styleOf } from './graphics'
 import { sceneOf } from './scene'
 
 const NAMESPACE = 'https://glisp.app/canvas'
@@ -49,7 +49,7 @@ export function svgOfRows(root: AST, env: Env, paths: readonly string[]): string
 	const drawn = shapes.map(({ row, value, paint }) => {
 		const id = row.split('/').at(-1)!.replace(/^binding:/, '')
 		const painted = paint
-			? ` fill="${escaped(paint.fill)}" stroke="${escaped(paint.stroke)}" stroke-width="${paint.width}"`
+			? ` fill="${escaped(paint.fill)}" stroke="${escaped(paint.stroke)}" stroke-width="${paint.width}"${lineAttributes(paint)}`
 			: ''
 		return `  <path id="${escaped(id)}" d="${toD(value as Path)}"${painted}/>`
 	})
@@ -117,10 +117,47 @@ function paintOf(attributes: Record<string, string>): Record<string, string> {
 
 /** An expression, in a style if the element says how it is drawn. */
 function painted(expression: string, attributes: Record<string, string>): string {
-	const { fill, stroke, 'stroke-width': width } = paintOf(attributes)
+	const {
+		fill,
+		stroke,
+		'stroke-width': width,
+		'stroke-linecap': cap,
+		'stroke-linejoin': join,
+		'stroke-dasharray': dash,
+		'stroke-dashoffset': dashOffset,
+		'stroke-miterlimit': miterLimit,
+	} = paintOf(attributes)
 	if (fill === undefined && stroke === undefined) return expression
-	// As an SVG has it: filled in black unless it says, and with no line.
-	return `(style ${expression} "${fill ?? '#000000'}" "${stroke ?? 'none'}" ${Number.parseFloat(width ?? '1') || 0})`
+	const number = (value: string | undefined): AST | undefined => {
+		const parsed = Number.parseFloat(value ?? '')
+		return Number.isFinite(parsed) ? lit(parsed) : undefined
+	}
+	const dashes = dash?.split(/[\s,]+/).map(Number.parseFloat)
+	return print(
+		styleOf(parse(expression), {
+			// As an SVG has it: filled in black unless it says, and with no line.
+			fill: lit(fill ?? '#000000'),
+			stroke: lit(stroke ?? 'none'),
+			width: lit(Number.parseFloat(width ?? '1') || 0),
+			...(cap !== undefined && (LINE_CAPS as readonly string[]).includes(cap) ? { cap: lit(cap) } : {}),
+			...(join !== undefined && (LINE_JOINS as readonly string[]).includes(join) ? { join: lit(join) } : {}),
+			...(dashes?.every(Number.isFinite) ? { dash: toAst(dashes, null) } : {}),
+			dashOffset: number(dashOffset),
+			miterLimit: number(miterLimit),
+		})
+	)
+}
+
+/** What an SVG would have to be told of a line, past what it takes for granted. */
+function lineAttributes({ cap, join, dash, dashOffset, miterLimit }: Paint): string {
+	const said: Array<[string, unknown, unknown]> = [
+		['stroke-linecap', cap, NO_PAINT.cap],
+		['stroke-linejoin', join, NO_PAINT.join],
+		['stroke-dasharray', dash.join(' '), ''],
+		['stroke-dashoffset', dashOffset, NO_PAINT.dashOffset],
+		['stroke-miterlimit', miterLimit, NO_PAINT.miterLimit],
+	]
+	return said.map(([name, value, fallback]) => (value === fallback ? '' : ` ${name}="${value}"`)).join('')
 }
 
 const isIdentifier = (name: string): boolean => /^[A-Za-z_][\w-]*$/.test(name)

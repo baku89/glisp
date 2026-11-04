@@ -22,6 +22,7 @@ import {
 	print,
 	readByName,
 	solve,
+	toAst,
 	type TypedHostFn,
 	type TypeValue,
 	UNSET,
@@ -53,8 +54,10 @@ import {
 	type PlaceCode,
 	NO_GRIP,
 	NO_PAINT,
+	PAINT_KEYS,
 	type Paint,
 	type Path,
+	styleOf,
 	under,
 	type Vec,
 	withinArg,
@@ -144,13 +147,17 @@ export function withPaint(root: AST, env: Env, row: string, part: Partial<Paint>
 	const styled = isStyle(node)
 	const path = styled ? node.args[0]! : node
 	const old = paintAt(root, env, row) ?? NO_PAINT
-	const arg = (i: number, key: keyof Paint): AST =>
-		part[key] !== undefined ? lit(part[key]!) : styled && node.args[i] ? node.args[i]! : lit(old[key])
+	const arg = (key: keyof Paint, i: number): AST | undefined =>
+		part[key] !== undefined
+			? toAst(part[key], null)
+			: styled
+				? (node.kwargs?.get(key) ?? node.args[i + 1])
+				: undefined
 	const nothing = { ...old, ...part }
 	const next =
 		nothing.fill === 'none' && nothing.stroke === 'none'
 			? path
-			: new CallAST(parse(STYLE), [path, arg(1, 'fill'), arg(2, 'stroke'), arg(3, 'width')])
+			: styleOf(path, Object.fromEntries(PAINT_KEYS.map((key, i) => [key, arg(key, i)])))
 	const kept = last.ast.kind === 'meta' ? new MetaAST(last.ast.metadata, next) : next
 	return withParent(reached.chain, last.replace(kept))
 }

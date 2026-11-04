@@ -36,6 +36,16 @@ describe('svgOfRows', () => {
 		expect(svg).toContain('fill="#ff0000" stroke="#000000" stroke-width="2"')
 	})
 
+	it('says how its line is drawn, if it is not as an SVG takes it to be', () => {
+		const svg = svgOfRows(
+			parse('{c = (style (path.line [0 0] [1 1]) stroke="#000000" cap="round" dash=[4 2])}'),
+			env,
+			['binding:c']
+		)!
+		expect(svg).toContain('stroke-linecap="round" stroke-dasharray="4 2"')
+		expect(svg).not.toContain('stroke-linejoin')
+	})
+
 	it('goes into a group', () => {
 		const svg = svgOfRows(parse('{g = {c = (path.circle [0 0] 1)}}'), env, ['binding:g'])!
 		expect(svg).toContain('id="c"')
@@ -86,15 +96,23 @@ describe('bindingsOfSvg', () => {
 		).toBe('logo = (path.rect [0 0] [1 1])\nrect1 = (path.rect [0 0] [1 1])')
 	})
 
+	it('has how a line is drawn, and leaves what it cannot', () => {
+		expect(
+			bindingsOfSvg(
+				`<svg><circle r="1" stroke="black" stroke-linecap="round" stroke-linejoin="arcs" stroke-dasharray="4,2"/></svg>`
+			)
+		).toBe('circle1 = (style (path.circle [0 0] 1) fill="#000000" stroke="black" cap="round" dash=[4 2])')
+	})
+
 	it('has how it is drawn, either way it is said', () => {
 		expect(bindingsOfSvg(`<svg><circle r="1" fill="#ff0000"/></svg>`)).toBe(
-			'circle1 = (style (path.circle [0 0] 1) "#ff0000" "none" 1)'
+			'circle1 = (style (path.circle [0 0] 1) fill="#ff0000")'
 		)
 		expect(bindingsOfSvg(`<svg><circle r="1" style="fill: none; stroke: #00f; stroke-width: 3"/></svg>`)).toBe(
-			'circle1 = (style (path.circle [0 0] 1) "none" "#00f" 3)'
+			'circle1 = (style (path.circle [0 0] 1) stroke="#00f" width=3)'
 		)
 		expect(bindingsOfSvg(`<svg><circle r="1" stroke="black"/></svg>`)).toBe(
-			'circle1 = (style (path.circle [0 0] 1) "#000000" "black" 1)'
+			'circle1 = (style (path.circle [0 0] 1) fill="#000000" stroke="black")'
 		)
 	})
 

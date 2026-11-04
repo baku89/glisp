@@ -15,7 +15,7 @@ import {
 	withPointRemoved,
 	withPointsClosed,
 } from './modulate'
-import { type Change, type Grip, type Handle, type Mat, type Path, type Vec } from './graphics'
+import { type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec } from './graphics'
 import {
 	changed,
 	dragStep,
@@ -424,8 +424,19 @@ function draw(): void {
 				}
 				if (paint.stroke !== 'none' && paint.width > 0) {
 					context.strokeStyle = paint.stroke
-					context.lineWidth = paint.width * view.value[0]
+					const zoom = view.value[0]
+					context.lineWidth = paint.width * zoom
+					context.lineCap = paint.cap
+					context.lineJoin = paint.join
+					context.miterLimit = paint.miterLimit
+					context.setLineDash(paint.dash.map(length => length * zoom))
+					context.lineDashOffset = paint.dashOffset * zoom
 					context.stroke(onScreenPath)
+					context.lineCap = 'butt'
+					context.lineJoin = 'miter'
+					context.miterLimit = NO_PAINT.miterLimit
+					context.setLineDash([])
+					context.lineDashOffset = 0
 				}
 			}
 			if (paint === undefined || isMarked) {

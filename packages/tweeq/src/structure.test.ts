@@ -1,4 +1,4 @@
-import { buildPrelude, check, evaluate, host, isPinned, meta, parse, print, Session, solve, unpin } from '@glisp/lang'
+import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, makeTupleType, meta, parse, print, type RecordAST, Session, solve, type TypeValue, unpin, withTypeMeta } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
@@ -27,6 +27,32 @@ describe('viewOf', () => {
 			value: 'butt',
 			options: ['round', 'butt'],
 		})
+	})
+
+	it('gives an enum widget the icons its type says, one for each value', () => {
+		const session = new Session(env)
+		session.exec('Join = (enum ^{icon: "a"} "round" ^{icon: "b"} "butt")')
+		session.exec('f = (=> (j: Join): Join j)')
+		const slot = viewOf(parse('(f "butt")'), session.env).slots[0]!
+		expect(viewOf(slot.ast, slot.env, slot.expected).editor).toMatchObject({
+			kind: 'enum',
+			icons: ['a', 'b'],
+		})
+
+		session.exec('Short = (enum ^{icon: "a"} "round" "butt")')
+		session.exec('g = (=> (j: Short): Short j)')
+		const short = viewOf(parse('(g "butt")'), session.env).slots[0]!
+		expect(viewOf(short.ast, short.env, short.expected).editor).not.toHaveProperty('icons')
+	})
+
+	it('finds no problem with a literal that is one of an enum, and does with one that is not', () => {
+		const session = new Session(env)
+		session.exec('J = (enum "a" "b")')
+		const read = (ast: AST, at: Env) => evaluate(ast, at)
+		const [fine] = viewOf(parse('(: "a" J)'), session.env).slots
+		expect(problemOf(fine!.ast, fine!.env, fine!.expected, read)).toBeNull()
+		const [wrong] = viewOf(parse('(: "z" J)'), session.env).slots
+		expect(problemOf(wrong!.ast, wrong!.env, wrong!.expected, read)).toContain('type mismatch')
 	})
 
 	it('shows call arguments by parameter name', () => {

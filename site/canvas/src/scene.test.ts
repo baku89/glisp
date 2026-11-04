@@ -16,10 +16,20 @@ import {
 	merged,
 	withValuesAt,
 } from '@glisp/tweeq/multiRows'
-import { capitalCase, inspectionOf, isSizeInput, isTranslatable, titleOf, viewOf } from '@glisp/tweeq/structure'
+import { capitalCase, enumIconsOf, inspectionOf, isSizeInput, isTranslatable, titleOf, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
-import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
+import {
+	iconOfPath,
+	isPath,
+	LINE_CAPS,
+	LINE_JOINS,
+	lineCapType,
+	lineJoinType,
+	PathValue,
+	type Vec,
+	withGraphics,
+} from './graphics'
 import {
 	type Anchor,
 	changed,
@@ -781,15 +791,44 @@ describe('painting', () => {
 
 	it('is drawn as it says', () => {
 		const painted = parse('{c = (style (path.circle [0 0] 10) "#ff0000" "none" 2)}')
-		expect(sceneOf(painted, env)[0]!.paint).toEqual({ fill: '#ff0000', stroke: 'none', width: 2 })
+		expect(sceneOf(painted, env)[0]!.paint).toMatchObject({ fill: '#ff0000', stroke: 'none', width: 2 })
 		expect(sceneOf(root, env)[0]!.paint).toBeUndefined()
 	})
 
 	it('wraps what has none, and goes on in it', () => {
 		const once = withPaint(root, env, row, { fill: '#ff0000' })
-		expect(print(once)).toBe('{c = (style (path.circle [0 0] 10) "#ff0000" "none" 0)}')
+		expect(print(once)).toBe('{c = (style (path.circle [0 0] 10) fill="#ff0000")}')
 		const twice = withPaint(once, env, row, { stroke: '#000000', width: 2 })
-		expect(print(twice)).toBe('{c = (style (path.circle [0 0] 10) "#ff0000" "#000000" 2)}')
+		expect(print(twice)).toBe('{c = (style (path.circle [0 0] 10) fill="#ff0000" stroke="#000000" width=2)}')
+	})
+
+	it('says how its line ends, turns and breaks', () => {
+		const line = withPaint(root, env, row, { stroke: '#000000', cap: 'round', dash: [4, 2] })
+		expect(print(line)).toBe('{c = (style (path.circle [0 0] 10) stroke="#000000" cap="round" dash=[4 2])}')
+		expect(sceneOf(line, env)[0]!.paint).toMatchObject({ cap: 'round', join: 'miter', dash: [4, 2] })
+		expect(evaluate(line, env).diagnostics).toEqual([])
+		expect(print(withPaint(line, env, row, { cap: 'butt', join: 'bevel' }))).toBe(
+			'{c = (style (path.circle [0 0] 10) stroke="#000000" join="bevel" dash=[4 2])}'
+		)
+	})
+
+	it('has an icon for each way a line ends and turns, where an editor can read it', () => {
+		expect(enumIconsOf(lineCapType)).toHaveLength(LINE_CAPS.length)
+		expect(enumIconsOf(lineJoinType)).toHaveLength(LINE_JOINS.length)
+		const call = parse('(style (path.line [0 0] [1 1]) cap="round")')
+		const slot = viewOf(call, env).slots.find(s => s.key === 'kw:cap')!
+		expect(viewOf(slot.ast, slot.env, slot.expected).editor).toMatchObject({
+			kind: 'enum',
+			value: 'round',
+			icons: enumIconsOf(lineCapType),
+		})
+	})
+
+	it('has what is passed by name, and takes what it was given in order', () => {
+		const given = parse('{c = (style (path.circle [0 0] 10) "#ff0000" "#000000" 2 "round")}')
+		expect(print(withPaint(given, env, row, { width: 3 }))).toBe(
+			'{c = (style (path.circle [0 0] 10) fill="#ff0000" stroke="#000000" width=3 cap="round")}'
+		)
 	})
 
 	it('is let go of, once there is nothing to it', () => {
@@ -799,7 +838,7 @@ describe('painting', () => {
 
 	it('keeps what a color refers to, that is not being changed', () => {
 		const refers = parse('{k = "#00ff00" c = (style (path.circle [0 0] 1) k "none" 0)}')
-		expect(print(withPaint(refers, env, row, { width: 3 }))).toContain('(style (path.circle [0 0] 1) k "none" 3)')
+		expect(print(withPaint(refers, env, row, { width: 3 }))).toContain('(style (path.circle [0 0] 1) fill=k width=3)')
 	})
 
 	it('has handles as what it is the style of has', () => {
@@ -834,7 +873,7 @@ describe('painting', () => {
 	it('comes along when it is evaluated', () => {
 		const painted = '(style (path.rect [0 0] [1 1]) "#ff0000" "none" 0)'
 		expect(print(toAst(evaluate(parse(painted), env).value, env))).toBe(
-			'(style (path.d "M 0,0 L 1,0 L 1,1 L 0,1 Z") "#ff0000" "none" 0)'
+			'(style (path.d "M 0,0 L 1,0 L 1,1 L 0,1 Z") fill="#ff0000" width=0)'
 		)
 	})
 })

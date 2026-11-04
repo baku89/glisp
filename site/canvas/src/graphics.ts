@@ -18,6 +18,7 @@ import {
 	makeType,
 	makeTypedFn,
 	parse,
+	print,
 	RecordAST,
 	type TypeValue,
 	UNSET,
@@ -27,6 +28,7 @@ import {
 	withExpansion,
 	withInverse,
 	withMembers,
+	withOptional,
 	withTypeMeta,
 } from '@glisp/lang'
 import Color from 'colorjs.io'
@@ -171,21 +173,53 @@ export class StyledValue {
 	) {}
 
 	[AS_SOURCE](): AST {
-		const { fill, stroke, width } = this.paint
-		return new CallAST(parse('style'), [this.path[AS_SOURCE](), lit(fill), lit(stroke), lit(width)])
+		return styleOf(
+			this.path[AS_SOURCE](),
+			Object.fromEntries(PAINT_KEYS.map(key => [key, toAst(this.paint[key], null)]))
+		)
 	}
 }
 
 export const isStyled = (value: unknown): value is StyledValue => value instanceof StyledValue
 
-/** How a path is drawn. A color of `none` is not drawn. */
+export const LINE_CAPS = ['butt', 'round', 'square'] as const
+export const LINE_JOINS = ['miter', 'round', 'bevel'] as const
+
+/** How a path is drawn. A color of `none` is not drawn, and a `dash` of nothing is solid. */
 export interface Paint {
 	readonly fill: string
 	readonly stroke: string
 	readonly width: number
+	readonly cap: (typeof LINE_CAPS)[number]
+	readonly join: (typeof LINE_JOINS)[number]
+	readonly dash: readonly number[]
+	readonly dashOffset: number
+	readonly miterLimit: number
 }
 
-export const NO_PAINT: Paint = { fill: 'none', stroke: 'none', width: 0 }
+/** What a style is for whatever it does not say. */
+export const NO_PAINT: Paint = {
+	fill: 'none',
+	stroke: 'none',
+	width: 1,
+	cap: 'butt',
+	join: 'miter',
+	dash: [],
+	dashOffset: 0,
+	miterLimit: 4,
+}
+
+/** In the order `style` takes them, after the path. */
+export const PAINT_KEYS = Object.keys(NO_PAINT) as ReadonlyArray<keyof Paint>
+
+/** A call to `style`, saying only what is not as it would be anyway. */
+export function styleOf(path: AST, paint: Partial<Record<keyof Paint, AST>>): CallAST {
+	const said = PAINT_KEYS.flatMap((key): Array<[string, AST]> => {
+		const value = paint[key]
+		return value === undefined || print(value) === print(toAst(NO_PAINT[key], null)) ? [] : [[key, value]]
+	})
+	return new CallAST(parse('style'), [path], said.length > 0 ? new Map(said) : undefined)
+}
 
 export const isPath = (value: unknown): value is PathValue => value instanceof PathValue
 
@@ -492,19 +526,61 @@ const styledType = said(
 	'path',
 	'mdi:vector-curve'
 )
+/** An enum of how a line is drawn, each value saying what its icon is. */
+const enumOf = (icons: Readonly<Record<string, string>>): TypeValue => {
+	const values = Object.entries(icons).map(
+		([value, icon]) => `^{icon: ${JSON.stringify(icon)}} ${JSON.stringify(value)}`
+	)
+	return evaluate(parse(`(enum ${values.join(' ')})`), buildPrelude()).value as TypeValue
+}
+
+/** Where a line stops is the upright, which each goes up to or past. */
+const LINE_END = 'M12 5h1v14h-1z'
+export const lineCapType = enumOf({
+	butt: `fill:M3 8h9v8H3z${LINE_END}`,
+	round: `fill:M3 8h9a4 4 0 0 1 0 8H3z${LINE_END}`,
+	square: `fill:M3 8h13v8H3z${LINE_END}`,
+})
+export const lineJoinType = enumOf({
+	miter: 'fill:M3 6h15v15h-6v-9H3z',
+	round: 'fill:M3 6h9a6 6 0 0 1 6 6v9h-6v-9H3z',
+	bevel: 'fill:M3 6h9l6 6v9h-6v-9H3z',
+})
+
+const numberOf = (fallback: number): TypeValue =>
+	Object.create(number, { default: { value: fallback } }) as TypeValue
+
 const makeStyled = withDoc(
-	makeTypedFn(
-		[pathType, paintColor, paintColor, number],
-		styledType,
-		(path, fill, stroke, width) =>
-			new StyledValue(path as PathValue, {
-				fill: fill as string,
-				stroke: stroke as string,
-				width: width as number,
-			}),
-		['path', 'fill', 'stroke', 'width']
+	withOptional(
+		makeTypedFn(
+			[
+				pathType,
+				paintColor,
+				paintColor,
+				numberOf(NO_PAINT.width),
+				lineCapType,
+				lineJoinType,
+				makeTupleType([], number),
+				numberOf(NO_PAINT.dashOffset),
+				numberOf(NO_PAINT.miterLimit),
+			],
+			styledType,
+			(path, fill, stroke, width, cap, join, dash, dashOffset, miterLimit) =>
+				new StyledValue(path as PathValue, {
+					fill,
+					stroke,
+					width,
+					cap,
+					join,
+					dash,
+					dashOffset,
+					miterLimit,
+				} as Paint),
+			['path', ...PAINT_KEYS]
+		),
+		PAINT_KEYS
 	),
-	'A `path`, with what it is filled with, and the color and width of its line.'
+	'A `path`, with what it is filled with, and how its line is drawn: its color and `width`, its ends (`cap`), its corners (`join`, as far as `miterLimit`), and its `dash`, begun `dashOffset` along.',
 )
 
 withMembers(pathType, {
