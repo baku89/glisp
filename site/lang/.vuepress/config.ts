@@ -7,11 +7,14 @@ import { defineUserConfig } from 'vuepress'
 
 const repo = 'baku89/glisp'
 
+// Pages serves this repository under a path of its own, which the deploy says.
+const base = `${process.env.SITE_BASE ?? ''}/lang/` as `/${string}/`
+
 export default defineUserConfig({
 	title: 'Glisp',
-	base: '/lang/',
+	base,
 	head: [
-		['link', { rel: 'icon', href: '/lang/logo.svg' }],
+		['link', { rel: 'icon', href: `${base}logo.svg` }],
 		['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
 		[
 			'link',

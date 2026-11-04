@@ -5,6 +5,9 @@ import { defineConfig, type Plugin } from 'vite'
 import glsl from 'vite-plugin-glsl'
 import { type ManifestOptions, VitePWA } from 'vite-plugin-pwa'
 
+// Pages serves this repository under a path of its own, which the deploy says.
+const base = `${process.env.SITE_BASE ?? ''}/canvas/`
+
 const source = (name: string) =>
 	fileURLToPath(new URL(`../../dev_modules/${name}/src$1`, import.meta.url))
 
@@ -23,7 +26,7 @@ const manifest = {
 	],
 	file_handlers: [
 		{
-			action: '/canvas/',
+			action: base,
 			accept: { 'application/x-glisp-canvas': ['.canvas.glisp'] },
 		},
 	],
@@ -35,7 +38,7 @@ const manifest = {
  * being edited is always what runs.
  */
 function installableInDev(): Plugin {
-	const url = '/canvas/manifest.webmanifest'
+	const url = `${base}manifest.webmanifest`
 	return {
 		name: 'canvas:installable-in-dev',
 		apply: 'serve',
@@ -47,8 +50,8 @@ function installableInDev(): Plugin {
 						...manifest,
 						name: 'Glisp / Canvas (dev)',
 						short_name: 'Canvas dev',
-						start_url: '/canvas/',
-						scope: '/canvas/',
+						start_url: base,
+						scope: base,
 					})
 				)
 			})
@@ -60,7 +63,7 @@ function installableInDev(): Plugin {
 }
 
 export default defineConfig({
-	base: '/canvas/',
+	base,
 	// Paused for now: an edit shows only after reloading the page by hand.
 	server: { hmr: false },
 	plugins: [
