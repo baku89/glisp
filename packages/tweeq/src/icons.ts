@@ -4,7 +4,8 @@
  *   ^{icon: "mdi:ruler"} number
  *
  * A row shows the icon of its value's type, so a call shows that of what it
- * returns.
+ * returns. A parameter whose type says what it is for goes first: `[0 0]` is only a
+ * vector, but where a point is wanted, that is what it is.
  *
  * An icon is what Tweeq's `Icon` takes: an Iconify name such as `mdi:ruler`, or
  * `fill:` and the `d` of a path in a 24×24 box.
@@ -147,6 +148,8 @@ export function iconOf(
 ): string | null {
 	const view = viewOf(ast, env, expected)
 	if (view.icon !== null) return view.icon
+	const wanted = textOf(expected?.meta?.get('icon'))
+	if (wanted !== null) return wanted
 	if (view.editor?.kind === 'enum') return iconBoundTo('enum', env)
 	const type = infer(ast, env)
 	return type === null ? null : iconOfType(type, env)

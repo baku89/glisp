@@ -824,6 +824,15 @@ describe('icons', () => {
 		expect(icon('{a: 1}')).toBe('mdi:code-braces')
 	})
 
+	it('goes by what a parameter is for, over what the value happens to be', () => {
+		const number = evaluate(parse('number'), env).value as TypeValue
+		const plain = makeTupleType([number, number])
+		const wanted = withTypeMeta(plain, parse('{icon: "ph:crosshair"}') as RecordAST)
+		expect(iconOf(parse('[1 2]'), env, wanted)).toBe('ph:crosshair')
+		expect(iconOf(parse('^{icon: "own"} [1 2]'), env, wanted)).toBe('own')
+		expect(iconOf(parse('[1 2]'), env, plain)).toBe('mdi:code-brackets')
+	})
+
 	it('leaves a node without a known type alone', () => {
 		expect(icon('nothing-bound-here')).toBeNull()
 	})

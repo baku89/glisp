@@ -167,6 +167,8 @@ It changes the type it is given, so make one of your own rather than giving memb
 
 ### What a part of it is called
 
+A parameter's type can say what its values are for, with an `icon` of its own, which goes over that of the value in it: `[0 0]` is only a vector, but where a point is wanted it shows as a point.
+
 Metadata on the element types of a tuple is for showing one of its elements: `title` names it, and `prefix` or `fieldIcon` go in its field. A `fieldIcon` can be letters, as `char:X`.
 
 ### What it does

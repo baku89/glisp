@@ -104,7 +104,7 @@ const point = withTypeMeta(
 			]),
 		]),
 		'point',
-		'mdi:circle-small'
+		'fill:M11.25 3h1.5v6h-1.5zM11.25 15h1.5v6h-1.5zM3 11.25h6v1.5H3zM15 11.25h6v1.5h-6z'
 	),
 	new RecordAST([['input', lit('translate')]])
 )
@@ -121,7 +121,10 @@ const size = withTypeMeta(
 			['fieldIcon', 'ph:arrows-vertical'],
 		]),
 	]),
-	new RecordAST([['input', lit('size')]])
+	new RecordAST([
+		['input', lit('size')],
+		['icon', lit('ph:frame-corners')],
+	])
 )
 
 const mat2d = makeTupleType([number, number, number, number, number, number])
