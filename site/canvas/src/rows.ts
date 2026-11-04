@@ -178,6 +178,26 @@ export function withGridToggled(root: LetAST, env: Env, kind: 'dots' | 'lines'):
 }
 
 /**
+ * `root` with a grid that can be seen, and the row that says it: the row that says so
+ * already, as there is only the one to see, and a new one at the top if there is none.
+ */
+export function withGrid(root: LetAST, env: Env, kind: 'dots' | 'lines' = 'dots'): { ast: LetAST; row: string } {
+	const row = rowSaying(root, env, gridRowsIn)
+	const reached = row === undefined ? null : reach(root, env, row)
+	const last = reached?.chain.at(-1)
+	if (row === undefined || !reached || !last) {
+		const name = freeName(root, 'grid')
+		return {
+			ast: withLayerAdded(root, name, gridCall(kind), inFrontOfBackground(root, env)),
+			row: `${BINDING}${name}`,
+		}
+	}
+	const shown = unhide(last.ast)
+	const next = gridOf(withParent(reached.chain, last.replace(shown)), env) === 'none' ? gridCall(kind) : shown
+	return { ast: withParent(reached.chain, last.replace(next)) as LetAST, row }
+}
+
+/**
  * `root`, with the rows in a group of their own, where the last of them was. Null with
  * nothing to group, or if that would leave anything not coming to what it did: a path
  * counts how far it goes, so one that goes in or out of the group no longer gets there.
@@ -359,6 +379,8 @@ export function boundsOfRows(
 ): readonly [Vec, Vec] | null {
 	let [left, top, right, bottom] = [Infinity, Infinity, -Infinity, -Infinity]
 	for (const { row, draw, value } of sceneOf(root, env)) {
+		// A line goes on for ever, so it has no size to go by.
+		if (draw === 'line') continue
 		if (rows && !rows.some(path => row === path || row.startsWith(`${path}/`))) continue
 		const [[l, t], [r, b]] =
 			isOutlined(draw) ? bounds(value as Path) : [value as Vec, value as Vec]

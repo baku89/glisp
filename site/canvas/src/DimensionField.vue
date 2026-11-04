@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { displayedAs } from '@glisp/tweeq/numberField'
 import { useElementSize } from '@vueuse/core'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
@@ -42,7 +43,7 @@ const place = computed(() => {
 			<InputNumber
 				v-for="dimension in placed.dimensions"
 				:key="dimension.index"
-				v-bind="dimension.options"
+				v-bind="displayedAs(dimension.options)"
 				:title="dimension.label"
 				:leftIcon="iconOf(dimension)"
 				:class="{ expression: dimension.expression }"

@@ -1242,7 +1242,7 @@ describe('what turns something around', () => {
 		expect(rotating('(mat2d.rotate 30)')).toEqual([true])
 		expect(rotating('(path.ngon [0 0] 20 5)')).toEqual([true])
 		expect(rotating('(path.star [0 0] 20 10 5 30)')).toEqual([true])
-		expect(rotating('(line.at [10 0] 90)')).toEqual([false])
+		expect(rotating('(line.at [10 0] 90)')).toEqual([true])
 		expect(rotating('(path.clothoid [0 0] 30 100 0 0.01)')).toEqual([false])
 	})
 

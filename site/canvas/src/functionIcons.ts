@@ -1,4 +1,4 @@
-import { STRAIGHT_LINE_ICON } from './graphics'
+import { POINT_ICON, STRAIGHT_LINE_ICON } from './graphics'
 
 /** What a shape looks like as a tool, and as the function that makes it. */
 export const SHAPE_ICONS = {
@@ -49,6 +49,10 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.transform': 'ph:bounding-box',
 	'path.replicate': 'ph:copy-simple',
 	style: 'ph:paint-brush',
+	point: POINT_ICON,
+	'vec2.lerp': POINT_ICON,
+	'vec2.nudge': 'ph:arrow-right',
+	'rect.new': 'mdi:crop-free',
 	background: 'ph:paint-bucket',
 	grid: 'ph:grid-four',
 	'mat2d.translate': 'ph:arrows-out-cardinal',

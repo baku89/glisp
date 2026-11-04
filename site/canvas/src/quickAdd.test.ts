@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { type PathValue, withGraphics } from './graphics'
 import { filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { addablesIn, fillersAt, matching, withAdded, withFilled } from './quickAdd'
+import { boundsOfRows } from './rows'
+import { boundsOfRows as boxOfRows, drawsAt, gridOf, rowsWithin, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const EMPTY = parse('{a = 1}') as LetAST
@@ -14,7 +16,7 @@ const names = (query: string) => matching(all, query).map(({ name }) => name)
 describe('what can be added', () => {
 	it('is all that can be seen, by group, with shapes first', () => {
 		expect(all[0]!.group).toBe('Shapes')
-		expect(matching(all, '').every(({ group }) => group === 'Shapes')).toBe(true)
+		expect(new Set(matching(all, '').map(({ group }) => group))).toEqual(new Set(['Shapes', 'Guides', 'Canvas']))
 		const groups = all.map(({ group }) => group)
 		// Each is together, not coming back to one it has left.
 		expect(groups.filter((group, i) => group !== groups[i - 1]).length).toBe(new Set(groups).size)
@@ -24,7 +26,7 @@ describe('what can be added', () => {
 	})
 
 	it('is only what gives something drawn', () => {
-		for (const name of ['sin', 'color.rgb', 'mat2d.rotate', 'map', 'path.bounds', 'background', 'grid']) {
+		for (const name of ['sin', 'color.rgb', 'mat2d.rotate', 'map', 'path.bounds']) {
 			expect(all.map(item => item.name)).not.toContain(name)
 		}
 	})
@@ -114,8 +116,133 @@ describe('adding it', () => {
 		expect(print(added('path.offset').ast)).toContain('offset1 = (path.offset (path.d "") 10)')
 	})
 
+	it.each([
+		['point', 'point1 = (: [200 300] point)', 'point'],
+		['vec2.lerp', 'lerp1 = (vec2.lerp [150 300] [250 300] 0.5)', 'point'],
+		['vec2.nudge', 'nudge1 = (vec2.nudge [200 300] [50 0])', 'point'],
+		['line.fromPoints', 'line1 = (line.fromPoints [200 250] [200 350])', 'line'],
+		['line.at', 'line1 = (line.at [200 300] 90)', 'line'],
+		['rect.new', 'rect1 = (rect.new [150 250] [100 100])', 'frame'],
+	])('adds %s as a guide where it is asked for', (name, written, draw) => {
+		const { ast, row } = added(name)
+		expect(print(ast)).toContain(written)
+		expect(sceneOf(ast, env).filter(shape => shape.row === row).map(shape => shape.draw)).toEqual([draw])
+	})
+
+	it('has guides and the canvas be rows of their own, not taking what is selected', () => {
+		const alone = all.filter(item => item.alone).map(({ name }) => name)
+		expect(alone).toEqual(expect.arrayContaining(['point', 'line.fromPoints', 'line.at', 'rect.new', 'background', 'grid']))
+		expect(alone).not.toContain('path.circle')
+	})
+
+	describe('from what is selected', () => {
+		const points = parse('[a = (: [0 0] point) b = (: [10 20] point) c = (path.circle [0 0] 5)]') as LetAST
+		const from = (name: string, selected: readonly string[]) =>
+			print(withAdded(points, env, name, [200, 300], selected)!.ast)
+
+		it('goes through two points, by referring to them', () => {
+			expect(from('line.fromPoints', ['binding:a', 'binding:b'])).toContain('line1 = (line.fromPoints a b)')
+			expect(from('line.fromPoints', ['binding:b', 'binding:a'])).toContain('line1 = (line.fromPoints b a)')
+		})
+
+		it('goes between two points, by referring to them', () => {
+			expect(from('vec2.lerp', ['binding:a', 'binding:b'])).toContain('lerp1 = (vec2.lerp a b 0.5)')
+			expect(from('vec2.lerp', ['binding:a'])).toContain('lerp1 = (vec2.lerp a [200 300] 0.5)')
+			const { ast, row } = withAdded(points, env, 'vec2.lerp', [200, 300], ['binding:a', 'binding:b'])!
+			expect(sceneOf(ast, env).find(shape => shape.row === row)).toMatchObject({ draw: 'point', value: [5, 10] })
+		})
+
+		it('nudges a point, by referring to it', () => {
+			expect(from('vec2.nudge', ['binding:b'])).toContain('nudge1 = (vec2.nudge b [50 0])')
+			const { ast, row } = withAdded(points, env, 'vec2.nudge', [200, 300], ['binding:b'])!
+			expect(sceneOf(ast, env).find(shape => shape.row === row)).toMatchObject({ draw: 'point', value: [60, 20] })
+		})
+
+		it('keeps the points as they are', () => {
+			const written = from('line.fromPoints', ['binding:a', 'binding:b'])
+			expect(written).toContain('a = (: [0 0] point)')
+			expect(written).toContain('b = (: [10 20] point)')
+		})
+
+		it('goes on from one point to where it is asked for', () => {
+			expect(from('line.fromPoints', ['binding:a'])).toContain('line1 = (line.fromPoints a [200 300])')
+			expect(from('line.at', ['binding:a'])).toContain('line1 = (line.at a 90)')
+			expect(from('rect.new', ['binding:a'])).toContain('rect1 = (rect.new a [100 100])')
+		})
+
+		it('has no more of them than there is a place for', () => {
+			expect(from('line.at', ['binding:b', 'binding:a'])).toContain('line1 = (line.at b 90)')
+			expect(from('point', ['binding:a'])).toContain('point1 = (: [200 300] point)')
+		})
+
+		it('leaves out what is not a point', () => {
+			expect(from('line.fromPoints', ['binding:c'])).toContain('(line.fromPoints [200 250] [200 350])')
+			expect(from('line.fromPoints', ['binding:c', 'binding:a'])).toContain('(line.fromPoints a [200 300])')
+		})
+
+		it('comes to the line through them, and follows when one moves', () => {
+			const { ast } = withAdded(points, env, 'line.fromPoints', [200, 300], ['binding:a', 'binding:b'])!
+			expect(sceneOf(ast, env).find(({ row }) => row === 'binding:line1')!.value).toEqual([[0, 0], [10, 20]])
+			const moved = parse(print(ast).replace('[10 20]', '[30 0]'))
+			expect(sceneOf(moved, env).find(({ row }) => row === 'binding:line1')!.value).toEqual([[0, 0], [30, 0]])
+		})
+	})
+
+	it('lists the guides and the canvas with nothing asked', () => {
+		const listed = matching(all, '').map(({ name }) => name)
+		for (const name of ['point', 'vec2.lerp', 'line.fromPoints', 'line.at', 'rect.new', 'background', 'grid']) expect(listed).toContain(name)
+	})
+
+	it('has a background go behind everything, and a grid in front of it', () => {
+		const start = parse('[a = (path.circle [0 0] 5)]') as LetAST
+		const behind = withAdded(start, env, 'background', [0, 0])!
+		expect(print(behind.ast)).toMatch(/^\[a = .*background1 = \(background /)
+		expect(behind.row).toBe('binding:background1')
+		const both = withAdded(behind.ast, env, 'grid', [0, 0])!
+		expect(print(both.ast)).toMatch(/^\[a = .*grid1 = \(grid "dots"\) background1 = /)
+		expect(both.row).toBe('binding:grid1')
+	})
+
+	it('goes to the background or grid there is, rather than another', () => {
+		const start = parse('[g = (grid "lines") b = (background "#000")]') as LetAST
+		expect(withAdded(start, env, 'grid', [0, 0])).toMatchObject({ row: 'binding:g' })
+		expect(print(withAdded(start, env, 'grid', [0, 0])!.ast)).toBe(print(start))
+		expect(print(withAdded(start, env, 'background', [0, 0])!.ast)).toBe(print(start))
+	})
+
+	it('has a grid that says there is none come to say there is one', () => {
+		const start = parse('[g = (grid "none")]') as LetAST
+		expect(gridOf(withAdded(start, env, 'grid', [0, 0])!.ast, env)).toBe('dots')
+	})
+
+	it('has a program say something else by that name, which goes first', () => {
+		const own = parse('{grid = (=> (at: point): path (path.circle at 5))}') as LetAST
+		expect(print(withAdded(own, env, 'grid', [1, 2])!.ast)).toContain('(grid [1 2])')
+	})
+
 	it('is nothing for what is not there', () => {
 		expect(withAdded(EMPTY, env, 'path.nope', [0, 0])).toBeNull()
+	})
+})
+
+describe('a line as a guide', () => {
+	const root = parse('[l = (line.fromPoints [0 0] [0 10]) c = (path.circle [100 0] 10)]') as LetAST
+	const scene = sceneOf(root, env)
+
+	it('is what is drawn of it, and nothing of its parts', () => {
+		expect(scene.filter(({ row }) => row === 'binding:l').map(({ draw }) => draw)).toEqual(['line'])
+		expect(drawsAt(root, env, 'binding:l')).toBe(true)
+		expect(drawsAt(root, env, 'binding:l/arg0')).toBe(false)
+	})
+
+	it('is within what it goes through, and no other', () => {
+		expect(rowsWithin(scene, [-5, 50], [5, 60])).toEqual(['binding:l'])
+		expect(rowsWithin(scene, [5, 50], [15, 60])).toEqual([])
+	})
+
+	it('has no size for anything to fit around', () => {
+		expect(boundsOfRows(root, env)).toEqual([[90, -10], [110, 10]])
+		expect(boxOfRows(scene, ['binding:l'])).toBeNull()
 	})
 })
 

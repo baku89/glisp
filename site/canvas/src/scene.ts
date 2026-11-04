@@ -77,7 +77,9 @@ import {
 	NO_PAINT,
 	PAINT_KEYS,
 	type Paint,
+	lineGuide,
 	type Path,
+	type StraightLine,
 	styleOf,
 	under,
 	type Vec,
@@ -108,10 +110,26 @@ export const hasInside = ({ paint }: Shape): boolean =>
 /** It has an outline, as a path, and not only a place. A frame is drawn differently. */
 export const isOutlined = (draw: string): boolean => draw === 'path' || draw === 'frame'
 
+/** What can be seen of a shape as a line, if it is not only a place. */
+export const lineOfShape = ({ draw, value }: Pick<Shape, 'draw' | 'value'>): Path | null => {
+	if (isOutlined(draw)) return value as Path
+	if (draw !== 'line') return null
+	const [through, direction] = value as StraightLine
+	return lineGuide(through, direction)
+}
+
 export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 	const [left, right] = a[0] < b[0] ? [a[0], b[0]] : [b[0], a[0]]
 	const [top, bottom] = a[1] < b[1] ? [a[1], b[1]] : [b[1], a[1]]
 	const rows = scene.flatMap(({ row, draw, value }) => {
+		// A line goes on for ever, so what counts is whether it goes through.
+		if (draw === 'line') {
+			const [[x, y], [dx, dy]] = value as StraightLine
+			const sides = [[left, top], [right, top], [left, bottom], [right, bottom]].map(
+				([cx, cy]) => Math.sign((cx! - x) * dy - (cy! - y) * dx)
+			)
+			return Math.min(...sides) <= 0 && Math.max(...sides) >= 0 ? [row] : []
+		}
 		const [[l, t], [r, d]] =
 			isOutlined(draw) ? bounds(value as Path) : [value as Vec, value as Vec]
 		return l <= right && r >= left && t <= bottom && d >= top ? [row] : []
@@ -355,6 +373,15 @@ export function snapPointsOf(
 		]
 	})
 }
+
+/**
+ * What `at` can line up by, with a place: straight across from it, and straight down. Each goes
+ * as far as `at` does, to be shown going from that place to where it has got.
+ */
+export const axesThrough = (place: Vec, at: Vec): SnapPoint[] => [
+	{ at: place, to: [at[0], place[1]], label: 'horizontal', target: null },
+	{ at: place, to: [place[0], at[1]], label: 'vertical', target: null },
+]
 
 /** The nearest place to `at` along a line, from `from` to `to`. */
 function along(from: Vec, to: Vec, at: Vec): { at: Vec; beyond: boolean } {
@@ -1173,6 +1200,10 @@ export function isVecOfDrawn(ast: AST, env: Env): boolean {
 /** All that is drawn in the end, in that order: what is on the canvas, and what it is on. */
 export const paintedIn = (root: AST, env: Env): Shape[] => drawnIn(root, env)
 
+/** Whether the row at `row` draws something of its own, or would if it were not hidden. */
+export const drawsAt = (root: AST, env: Env, row: string): boolean =>
+	[...drawnIn(root, env), ...drawnIn(root, env, true)].some(shape => shape.row === row)
+
 /**
  * A program as it is written now, from when what it drew went by the order of its bindings: its
  * blocks with nothing to return come to hold what draws anything, in that order, and whatever
@@ -1348,6 +1379,40 @@ export function gripAt(
 	if (found === null) return null
 	const grip = gripAtNode(found.node, found.env, root, env)
 	return grip === null ? null : { ...grip, transform: found.transform }
+}
+
+/** What is only there to see by and to refer to, whose handles are all there is to see of it. */
+export const isGuide = (draw: string): boolean => draw === 'point' || draw === 'line' || draw === 'frame'
+
+/**
+ * `gripped`, with the handles of the guides among `shapes` after its own, as they can be taken
+ * hold of whatever is selected. Those of `rows` are in it already, and only those that can be
+ * reached and are in the same coordinates can be with it. A button is for when it is selected.
+ */
+export function withGuideHandles(
+	gripped: { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] } | null,
+	root: AST,
+	env: Env,
+	shapes: readonly Shape[],
+	rows: readonly string[],
+	isReachable: (row: string) => boolean
+): { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] } | null {
+	const transform = gripped?.grip.transform ?? IDENTITY
+	const guides = [...new Set(shapes.filter(({ draw }) => isGuide(draw)).map(({ row }) => row))]
+		.filter(row => !rows.includes(row) && isReachable(row))
+		.flatMap(row => {
+			const grip = gripAt(root, env, row)
+			if (grip === null || grip.transform.join() !== transform.join()) return []
+			return grip.handles.filter(({ kind }) => kind !== 'button').map(handle => ({ row, handle }))
+		})
+	if (guides.length === 0) return gripped
+	return {
+		grip: {
+			...(gripped?.grip ?? { guides: [], transform }),
+			handles: [...(gripped?.grip.handles ?? []), ...guides.map(({ handle }) => handle)],
+		},
+		rowOf: [...(gripped?.rowOf ?? []), ...guides.map(({ row }) => row)],
+	}
 }
 
 /**
@@ -1995,8 +2060,12 @@ function linesOf(root: AST, env: Env, row: string, changes: readonly Change[]): 
 	const lines = changes.flatMap(({ route, value: wanted }) => {
 		const read = readAt(root, env, row, route)
 		if (read === null) return []
-		const { label, expected, value } = read
-		if (typeof value === 'number') return [`${label} ${shown(value)}`]
+		const { label, expected, options, value } = read
+		// A percentage as a percentage, as it is in a field, and it would mean nothing without saying so.
+		if (typeof value === 'number') {
+			const { scale, suffix = '' } = options
+			return [scale === undefined ? `${label} ${shown(value)}` : `${label} ${shown(value * scale)}${suffix}`]
+		}
 		if (!isNumbers(value)) return []
 		// Of a vector, only what was asked of it, as what it is called on its own.
 		if (Array.isArray(wanted) && wanted.includes(UNSET)) {

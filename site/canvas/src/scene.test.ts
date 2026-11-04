@@ -45,11 +45,15 @@ import {
 	type Shape,
 	linked,
 	nameFor,
+	axesThrough,
+	gripOfRows,
+	withGuideHandles,
 	nearestSnap,
 	paintedRow,
 	closingPulled,
 	penGuided,
 	penned,
+	dimensionAt,
 	readoutOf,
 	roundedChanges,
 	roundedTo,
@@ -1419,5 +1423,124 @@ describe('how a pen closes', () => {
 	it('is written as a curve that comes back as it says', () => {
 		const anchors = [closingPulled(first, [0, 20], { broken: true }), { at: [50, 0] as [number, number] }, { at: [50, 50] as [number, number] }]
 		expect(dOfAnchors(anchors, true)).toBe('M 0,0 C 10,0 50,0 50,0 L 50,50 C 50,50 0,-20 0,0 Z')
+	})
+})
+
+describe('lining up with a place', () => {
+	const near = (at: Vec) => nearestSnap(axesThrough([10, 20], at), at, 5)
+
+	it('goes straight across, or straight down, within reach', () => {
+		expect(near([100, 23])).toMatchObject({ at: [100, 20], label: 'horizontal', line: [[10, 20], [100, 20]] })
+		expect(near([8, 200])).toMatchObject({ at: [10, 200], label: 'vertical', line: [[10, 20], [10, 200]] })
+	})
+
+	it('is nothing out of reach of either', () => {
+		expect(near([100, 100])).toBeNull()
+	})
+})
+
+describe('the handles of a guide', () => {
+	const root = parse('[p = (: [1 2] point) l = (line.fromPoints [0 0] [0 10]) f = (rect.new [0 0] [10 10]) c = (path.circle [0 0] 5)]')
+	const rowsOf = (rows: readonly string[], isReachable = (_: string) => true) =>
+		withGuideHandles(null, root, env, sceneOf(root, env), rows, isReachable)?.rowOf ?? []
+
+	it('are there with nothing selected, and of no other shape', () => {
+		const rows = new Set(rowsOf([]))
+		expect(rows).toEqual(new Set(['binding:p', 'binding:l', 'binding:f']))
+	})
+
+	it('leave out what is selected, which has its own, and what cannot be reached', () => {
+		expect(rowsOf(['binding:p'])).not.toContain('binding:p')
+		expect(rowsOf([], row => row !== 'binding:l')).not.toContain('binding:l')
+	})
+
+	it('have no button, which is for when it is selected', () => {
+		const held = withGuideHandles(null, root, env, sceneOf(root, env), [], () => true)!
+		expect(held.grip.handles.some(({ kind }) => kind === 'button')).toBe(false)
+		expect(held.rowOf.filter(row => row === 'binding:l')).toHaveLength(2)
+	})
+
+	it('go after those of what is selected, which stay where they are', () => {
+		const own = gripOfRows(root, env, ['binding:c'])!
+		const both = withGuideHandles(own, root, env, sceneOf(root, env), ['binding:c'], () => true)!
+		expect(both.rowOf.slice(0, own.rowOf.length)).toEqual(own.rowOf)
+		expect(both.grip.handles.length).toBeGreaterThan(own.grip.handles.length)
+	})
+})
+
+describe('what is between two points', () => {
+	const root = parse('[l = (vec2.lerp a b 0.25) a = (: [0 0] point) b = (: [100 0] point)]')
+	const grip = gripAt(root, env, 'binding:l')!
+
+	it('has a handle where it is, that says how far along', () => {
+		expect(grip.handles[0]!.at).toEqual([25, 0])
+		const [{ value }] = grip.handles[0]!.to([60, 40], [25, 0]) as [{ value: number }]
+		expect(value).toBeCloseTo(0.6)
+	})
+
+	it('stays between the two, however far it is taken', () => {
+		const ratioAt = (x: number) => (grip.handles[0]!.to([x, 0], [25, 0])[0] as { value: number }).value
+		expect(ratioAt(-50)).toBe(0)
+		expect(ratioAt(500)).toBe(1)
+	})
+
+	it('moves as both of them do, wherever they are written', () => {
+		const moved = changed(root, env, 'binding:l', grip.move!([10, 5])).ast!
+		expect(print(moved)).toContain('a = (: [10 5] point)')
+		expect(print(moved)).toContain('b = (: [110 5] point)')
+		expect(print(moved)).toContain('(vec2.lerp a b 0.25)')
+	})
+})
+
+describe('what is nudged from a point', () => {
+	const root = parse('[n = (vec2.nudge p [10 0]) p = (: [100 100] point)]')
+	const grip = gripAt(root, env, 'binding:n')!
+
+	it('has a handle where it has got to, that says how far', () => {
+		expect(grip.handles[0]!.at).toEqual([110, 100])
+		const next = changed(root, env, 'binding:n', grip.handles[0]!.to([130, 140], [110, 100])).ast!
+		expect(print(next)).toContain('(vec2.nudge p [30 40])')
+	})
+
+	it('lines up with where it is from', () => {
+		expect(grip.handles[0]!.linesUpWith).toEqual([100, 100])
+	})
+
+	it('moves as where it is from does, and goes as far from it', () => {
+		const next = changed(root, env, 'binding:n', grip.move!([5, 5])).ast!
+		expect(print(next)).toContain('p = (: [105 105] point)')
+		expect(print(next)).toContain('(vec2.nudge p [10 0])')
+	})
+})
+
+describe('what comes to a point', () => {
+	it.each(['(: [5 0] point)', '(vec2.lerp [0 0] [10 0] 0.5)', '(vec2.nudge [0 0] [5 0])'])(
+		'looks like one where it is, as %s',
+		code => {
+			const root = parse(`[p = ${code}]`)
+			expect(sceneOf(root, env)).toMatchObject([{ draw: 'point', value: [5, 0] }])
+			expect(gripAt(root, env, 'binding:p')!.handles).toMatchObject([{ kind: 'translate', at: [5, 0] }])
+		}
+	)
+})
+
+describe('a percentage, where it is read', () => {
+	const root = parse('[l = (vec2.lerp [0 0] [10 0] 0.25)]')
+
+	it('says what it is shown as, and goes on being what it is', () => {
+		expect(readoutOf(root, env, 'binding:l', [{ route: [2], value: 0.25 }])).toEqual(['Ratio 25%'])
+		expect(dimensionAt(root, env, 'binding:l', { route: [2] })).toMatchObject({
+			value: 0.25,
+			options: { scale: 100, suffix: '%' },
+		})
+	})
+})
+
+describe('what turns a line at an angle', () => {
+	it('turns, and is not an arrow along the line', () => {
+		const root = parse('[l = (line.at [0 0] 30)]')
+		const handle = gripAt(root, env, 'binding:l')!.handles.find(({ kind }) => kind === 'direction')!
+		expect(handle.rotates).toBe(true)
+		expect(print(changed(root, env, 'binding:l', handle.to([0, 100], [0, 0])).ast!)).toContain('(line.at [0 0] 90)')
 	})
 })

@@ -23,7 +23,7 @@ import { InputNumber, scaledBy } from 'tweeq/InputNumber'
 import { TitleBar } from 'tweeq/TitleBar'
 import { vTooltip } from 'tweeq/Tooltip'
 import { initTweeq } from 'tweeq/useTweeq'
-import { computed, nextTick, ref, useTemplateRef, watch, watchEffect } from 'vue'
+import { computed, nextTick, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
 import CanvasView from './CanvasView.vue'
 import { exportSvg } from './files'
@@ -57,7 +57,7 @@ import {
 	withBackground,
 	withGridToggled,
 } from './rows'
-import { backgroundOf, canIsolate, diveAt, labelOfRow, rowsListedIn, gridCall, gridOf, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, isOutlined, sceneOf } from './scene'
+import { backgroundOf, canIsolate, diveAt, drawsAt, labelOfRow, rowsListedIn, gridCall, gridOf, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, isOutlined, sceneOf } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -773,7 +773,7 @@ useEventListener(window, 'pointerdown', (event: PointerEvent) => {
 	if ((event.target as HTMLElement | null)?.closest?.('.canvas')) inspectorRow.value = null
 }, { capture: true })
 /** Where that was asked for in what is drawn, which is where a shape goes. */
-let quickAddPlace: Vec = [0, 0]
+const quickAddPlace = shallowRef<Vec>([0, 0])
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (event.key !== 'Tab' || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return
@@ -782,11 +782,15 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (target?.closest?.('input, textarea, select, [contenteditable]')) return
 	event.preventDefault()
 	const at: [number, number] = pointerAt ?? [window.innerWidth / 2, window.innerHeight / 2]
-	quickAddPlace = $canvas.value?.placeAt(at[0], at[1]) ?? [0, 0]
-	// What is drawn is added to. A value on its own, however it is selected, wants another.
+	quickAddPlace.value = $canvas.value?.placeAt(at[0], at[1]) ?? [0, 0]
+	// What is drawn is added to, a guide too. A value on its own, however it is selected, wants another.
 	const [only, other] = selection.value
-	quickFillAt.value =
-		inspectorRow.value ?? (only !== undefined && other === undefined && !drawingType.fits(only.value) ? only.row : null)
+	const isValue =
+		only !== undefined &&
+		other === undefined &&
+		!drawingType.fits(only.value) &&
+		!drawsAt(document.root.value, document.env.value, only.row)
+	quickFillAt.value = inspectorRow.value ?? (isValue ? only.row : null)
 	quickAddAt.value = at
 })
 
@@ -806,7 +810,7 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 					icon: filler.value ? 'mdi:at' : (iconOfFunction(filler.name) ?? 'mdi:function-variant'),
 					action: filler.group === 'Wrap' ? ('wrap' as const) : ('replace' as const),
 					perform() {
-						const next = withFilled(program, document.env.value, filling, filler, quickAddPlace)
+						const next = withFilled(program, document.env.value, filling, filler, quickAddPlace.value)
 						if (next instanceof LetAST) setProgram(next)
 					},
 				}))
@@ -814,7 +818,7 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 	const env = document.env.value
 	const root = program
 	const addable = root === null ? [] : addablesIn(root, env)
-	const drawn = new Set(addable.map(({ name }) => name))
+	const drawn = new Set(addable.filter(({ alone }) => !alone).map(({ name }) => name))
 	const taken = wraps.value.filter(({ id }) => drawn.has(id.slice('wrap_'.length))).map(item => ({
 		id: item.id,
 		name: item.id.slice('wrap_'.length),
@@ -838,7 +842,7 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 				...(quiet ? { quiet } : {}),
 				icon: iconOfFunction(name) ?? 'mdi:function-variant',
 				perform() {
-					const added = root && withAdded(root, env, name, quickAddPlace)
+					const added = root && withAdded(root, env, name, quickAddPlace.value, selected.value)
 					if (!added) return
 					tool.value = 'select'
 					setProgram(added.ast, [added.row])
@@ -1190,6 +1194,7 @@ function selectInTree(row: string | null): void {
 					:dimensions="dimensionsOn"
 					:snapping="snappingOn"
 					:grid="grid"
+					:addingAt="quickAddAt !== null && quickFillAt === null ? quickAddPlace : null"
 					v-model:keptRow="keptRow"
 					v-model:isolation="isolation"
 					@select="selectOnCanvas"

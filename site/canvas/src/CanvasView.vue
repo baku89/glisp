@@ -41,6 +41,7 @@ import {
 	rowTakenAt,
 	linked,
 	nameFor,
+	axesThrough,
 	nearestSnap,
 	closingPulled,
 	penGuided,
@@ -76,7 +77,10 @@ import {
 	pencilled,
 	pencilledAs,
 	rowsOfHandle,
+	isGuide,
 	isOutlined,
+	lineOfShape,
+	withGuideHandles,
 	canRefer,
 	penKind,
 } from './scene'
@@ -102,6 +106,8 @@ const props = defineProps<{
 	grid?: GridKind
 	/** A drag or a drawing goes to what it comes near. */
 	snapping?: boolean
+	/** Where something is about to be added, to say so while it is being chosen. */
+	addingAt?: Vec | null
 }>()
 
 const emit = defineEmits<{
@@ -112,8 +118,11 @@ const emit = defineEmits<{
 	menu: [x: number, y: number, row: string | null]
 }>()
 
-const FRAME_ALPHA = 0.4
 const SOURCE_ALPHA = 0.5
+/** How a guide that is selected is told from one that is not, being always in the same color. */
+const GUIDE_HIGHLIGHT_ALPHA = 0.25
+const GUIDE_HIGHLIGHT_WIDTH = 7
+const POINT_HIGHLIGHT_RADIUS = 14
 /** How much there is to see of what is outside of what is isolated. */
 const OUTSIDE_ALPHA = 0.25
 const UNPAINTED_ALPHA = 0.25
@@ -435,10 +444,17 @@ const insideIsolated = computed(() => {
 
 /** The handles of all that is selected, and whose each of them is. */
 const gripped = computed(() =>
-	withBoxHandles(
-		gripOfRows(props.document.root.value, props.document.env.value, taken.value),
-		[...scene.value, ...hiddenSelected.value],
-		taken.value
+	withGuideHandles(
+		withBoxHandles(
+			gripOfRows(props.document.root.value, props.document.env.value, taken.value),
+			[...scene.value, ...hiddenSelected.value],
+			taken.value
+		),
+		props.document.root.value,
+		props.document.env.value,
+		scene.value,
+		taken.value,
+		row => !isOutside(row, isolation.value)
 	)
 )
 const grip = computed(() => gripped.value?.grip ?? null)
@@ -838,7 +854,6 @@ function draw(): void {
 
 	// The theme's text is for the theme's background, not for the one the program says.
 	const ink = background.value === null ? color('--tq-color-text') : inkOn(background.value)
-	const guide = background.value === null ? color('--tq-color-text-subtle') : ink
 	const accent = color('--tq-color-accent')
 	const expression = color('--tq-color-info')
 	const paper = color('--tq-color-background')
@@ -894,14 +909,7 @@ function draw(): void {
 
 	for (const shape of scene.value) {
 		context.globalAlpha = isOutside(shape.row, isolation.value) ? OUTSIDE_ALPHA : 1
-		if (shape.draw === 'frame') {
-			// An area is not part of the drawing, and is only outlined, faintly, to see where it is.
-			context.save()
-			context.globalAlpha *= FRAME_ALPHA
-			context.lineWidth = 1
-			context.stroke(pathOnScreen(shape.value as Path, view.value))
-			context.restore()
-		} else if (shape.draw === 'path') {
+		if (shape.draw === 'path') {
 			const onScreenPath = pathOnScreen(shape.value as Path, view.value)
 			const { paint } = shape
 			if (paint !== undefined) {
@@ -935,9 +943,6 @@ function draw(): void {
 				context.stroke(onScreenPath)
 				context.restore()
 			}
-		} else if (shape.draw === 'point' && !isMarked(shape)) {
-			context.fillStyle = guide
-			drawPoint(shape)
 		}
 	}
 	context.globalAlpha = 1
@@ -945,15 +950,35 @@ function draw(): void {
 	// What is selected or about to be shows over everything drawn, whatever order that is in.
 	context.strokeStyle = accent
 	context.fillStyle = accent
+	// A guide always does, as it is not part of what is drawn, and its handles are what there is of it.
+	const handled = new Set(gripped.value?.rowOf ?? [])
 	for (const shape of scene.value) {
-		if (!isMarked(shape)) continue
-		if (isOutlined(shape.draw)) {
-			context.lineWidth = isHovered(shape.row) ? 2 : 1.5
-			context.stroke(pathOnScreen(shape.value as Path, view.value))
-		} else if (shape.draw === 'point') {
+		const marked = isMarked(shape)
+		if (!marked && !isGuide(shape.draw)) continue
+		const alpha = isOutside(shape.row, isolation.value) ? OUTSIDE_ALPHA : 1
+		context.globalAlpha = alpha
+		const outline = lineOfShape(shape)
+		if (isGuide(shape.draw) && taken.value.some(of => isWithin(shape.row, of))) {
+			context.globalAlpha = alpha * GUIDE_HIGHLIGHT_ALPHA
+			if (outline !== null) {
+				context.lineWidth = GUIDE_HIGHLIGHT_WIDTH
+				context.stroke(pathOnScreen(outline, view.value))
+			} else {
+				const [px, py] = toScreen(shape.value as Vec, view.value)
+				context.beginPath()
+				context.arc(px, py, POINT_HIGHLIGHT_RADIUS, 0, Math.PI * 2)
+				context.fill()
+			}
+			context.globalAlpha = alpha
+		}
+		if (outline !== null) {
+			context.lineWidth = isHovered(shape.row) ? 2 : marked ? 1.5 : 1
+			context.stroke(pathOnScreen(outline, view.value))
+		} else if (shape.draw === 'point' && !handled.has(shape.row)) {
 			drawPoint(shape)
 		}
 	}
+	context.globalAlpha = 1
 
 	// What it is made from is what there is to take hold of, having gone into it.
 	for (const { row, path, transform } of insideIsolated.value) {
@@ -974,7 +999,8 @@ function draw(): void {
 	}
 	// What is selected but hidden has only this to it, as it is not drawn.
 	for (const shape of hiddenSelected.value) {
-		if (isOutlined(shape.draw)) context.stroke(pathOnScreen(shape.value as Path, view.value))
+		const outline = lineOfShape(shape)
+		if (outline !== null) context.stroke(pathOnScreen(outline, view.value))
 		else if (shape.draw === 'point') drawPoint(shape)
 	}
 	context.setLineDash([])
@@ -1013,6 +1039,22 @@ function draw(): void {
 
 	if (snapMark.value !== null) {
 		drawSnap(context, snapMark.value, snapMark.value === linking.value ? expression : accent, paper)
+	}
+
+	if (props.addingAt != null) {
+		// All the way across, on the pixel, as it goes by the place and not by what is there.
+		const [x, y] = toScreen(props.addingAt, view.value).map(at => Math.round(at) + 0.5) as [number, number]
+		context.save()
+		context.strokeStyle = accent
+		context.lineWidth = 1
+		context.setLineDash(DASH)
+		context.beginPath()
+		context.moveTo(x, 0)
+		context.lineTo(x, height)
+		context.moveTo(0, y)
+		context.lineTo(width, y)
+		context.stroke()
+		context.restore()
 	}
 
 	drawReadout(context, ink, color('--tq-color-text-mute'), color('--tq-color-border'), paper)
@@ -1147,6 +1189,7 @@ watchEffect(() => {
 		penLine.value,
 		snapMark.value,
 		readout.value,
+		props.addingAt,
 	]
 	// Once a frame, however many things changed in it.
 	if (drawing === null) {
@@ -1263,8 +1306,9 @@ function shapeAt(x: number, y: number, outsideToo = false): Shape | null {
 			const isWithinIsolated = isWithin(shape.row, isolated.value) && insideIsolated.value.length === 0
 			if (!isWithinIsolated) continue
 		}
-		if (isOutlined(shape.draw)) {
-			const path = pathOnScreen(shape.value as Path, view.value)
+		const outline = lineOfShape(shape)
+		if (outline !== null) {
+			const path = pathOnScreen(outline, view.value)
 			if (
 				context.isPointInStroke(path, x, y) ||
 				(shape.draw === 'path' && hasInside(shape) && context.isPointInPath(path, x, y))
@@ -1499,7 +1543,15 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
-	const index = shaping ?? handleAt(x, y)
+	const hit = shaping ?? handleAt(x, y)
+	// SHIFT on what is a guide is selecting one more or one less, as it is on anything drawn,
+	// and only goes on being about the handle where that means something of its own.
+	const isChoosing =
+		event.shiftKey &&
+		hit !== null &&
+		shaping === null &&
+		(!taken.value.includes(gripped.value!.rowOf[hit]!) || grip.value!.handles[hit]!.place === 'self')
+	const index = isChoosing ? null : hit
 	if (index !== null && grip.value !== null) {
 		const handle = grip.value.handles[index]!
 		const owner = gripped.value!.rowOf[index]!
@@ -1507,6 +1559,8 @@ function onPointerDown(event: PointerEvent): void {
 			commit(apply(owner, handle.to(handle.at!, handle.at!)))
 			return
 		}
+		// A guide's are there whatever is selected, and taking one is selecting what it is of.
+		if (!taken.value.includes(owner)) emit('select', [owner])
 		const mat = onScreen.value
 		const from = fromScreen(x, y, mat)
 		const at = handle.at ?? from
@@ -1532,7 +1586,8 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
-	const heldRow = rowHeldAt(x, y)
+	// What was pressed is what the handle is of, whatever else goes through the same place.
+	const heldRow = isChoosing ? gripped.value!.rowOf[hit]! : rowHeldAt(x, y)
 	const shape = heldRow === null ? null : { row: heldRow }
 	if (shape !== null) {
 		const already = taken.value.includes(shape.row)
@@ -1919,7 +1974,10 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	const { row, handle, mat, from, offset, at, base, points } = pressed
 	const [px, py] = fromScreen(at[0], at[1], mat)
 	const wanted: Vec = [px + offset[0], py + offset[1]]
-	const snap = snapNear(points, wanted)
+	const snap = snapNear(
+		handle.linesUpWith === undefined ? points : [...points, ...axesThrough(handle.linesUpWith, wanted)],
+		wanted
+	)
 	snapMark.value = snap
 
 	const changes = handle.to(snap?.at ?? wanted, from, { symmetric, even, smooth: valueOnly })

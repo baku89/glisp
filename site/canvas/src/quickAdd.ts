@@ -15,7 +15,7 @@ import {
 	isGlispClosure,
 	isTypeValue,
 	isTypedHostFn,
-	type LetAST,
+	LetAST,
 	MetaAST,
 	parse,
 	pushLetFrame,
@@ -28,10 +28,11 @@ import {
 } from '@glisp/lang'
 import { callOf, type Filter, filtersFor, functionsIn, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
-import { defaultFor, withLayerAdded } from '@glisp/tweeq/structure'
+import { defaultFor, referenceAt, withLayerAdded } from '@glisp/tweeq/structure'
 
 import { isPath, isStyled, type Vec } from './graphics'
-import { freeName } from './rows'
+import { freeName, withBackground, withGrid } from './rows'
+import { paintedIn } from './scene'
 
 export interface Addable {
 	/** As it is written, like `path.circle`. */
@@ -40,10 +41,12 @@ export interface Addable {
 	readonly group: string
 	/** It is there to be asked for, and is not listed with nothing asked. */
 	readonly quiet?: boolean
+	/** It is a row of its own, and does not take what is selected, whatever that is. */
+	readonly alone?: boolean
 }
 
 /** In the order they are listed, with what is more to do with drawing first. */
-const GROUPS = ['Wrap', 'Project', 'Shapes', 'Path', 'Color', 'Vector', 'Matrix', 'Math', 'List', 'Text', 'Other'] as const
+const GROUPS = ['Wrap', 'Project', 'Shapes', 'Guides', 'Canvas', 'Path', 'Color', 'Vector', 'Matrix', 'Math', 'List', 'Text', 'Other'] as const
 
 const MODULES: Readonly<Record<string, (typeof GROUPS)[number]>> = {
 	color: 'Color',
@@ -77,6 +80,74 @@ const SHAPES: Readonly<Record<string, (x: number, y: number) => string>> = {
 const STARTS_AROUND: Readonly<Record<string, (x: number, y: number) => string>> = {
 	'path.repeatAlong': (x, y) => `(path.circle [${x} ${y}] 100) (path.circle [0 0] 10)`,
 }
+
+/**
+ * What is not part of what is drawn, but is there to see by and to refer to, as it is
+ * written around a place, and what a row of it is called.
+ */
+const GUIDES: Readonly<
+	Record<
+		string,
+		{
+			readonly label: string
+			readonly stem: string
+			/** How many of its first arguments are places, which a selected point can be. */
+			readonly places?: number
+			code(x: number, y: number, given: number): string
+		}
+	>
+> = {
+	point: { label: 'Point', stem: 'point', code: (x, y) => `(: [${x} ${y}] point)` },
+	'vec2.lerp': {
+		label: 'Lerp',
+		stem: 'lerp',
+		places: 2,
+		// From a point, it goes on toward where it is asked for.
+		code: (x, y, given) =>
+			given === 0 ? `(vec2.lerp [${x - 50} ${y}] [${x + 50} ${y}] 0.5)` : `(vec2.lerp [${x} ${y}] [${x} ${y}] 0.5)`,
+	},
+	'vec2.nudge': {
+		label: 'Nudge',
+		stem: 'nudge',
+		places: 1,
+		code: (x, y) => `(vec2.nudge [${x} ${y}] [50 0])`,
+	},
+	'line.fromPoints': {
+		label: 'Line Through Points',
+		stem: 'line',
+		places: 2,
+		// From a point, it goes on through where it is asked for.
+		code: (x, y, given) =>
+			given === 0
+				? `(line.fromPoints [${x} ${y - 50}] [${x} ${y + 50}])`
+				: `(line.fromPoints [${x} ${y}] [${x} ${y}])`,
+	},
+	'line.at': { label: 'Line at an Angle', stem: 'line', places: 1, code: (x, y) => `(line.at [${x} ${y}] 90)` },
+	'rect.new': {
+		label: 'Rect',
+		stem: 'rect',
+		places: 1,
+		code: (x, y) => `(rect.new [${x - 50} ${y - 50}] [100 100])`,
+	},
+}
+
+/** `root` with the row called `name` saying `code`, referring to the points at `rows` first. */
+function withGuide(root: LetAST, env: Env, name: string, code: string, rows: readonly string[]): LetAST {
+	const row = `binding:${name}`
+	const added = withLayerAdded(root, name, parse(code)) as LetAST
+	return rows.reduce<LetAST>((ast, of, i) => {
+		const next = referenceAt(ast, env, `${row}/arg${i}`, of)
+		return next instanceof LetAST ? next : ast
+	}, added)
+}
+
+/** What says something of the canvas, of which there is one to see, wherever it is asked for. */
+const OF_CANVAS: readonly Addable[] = [
+	{ name: 'background', label: 'Background', group: 'Canvas', alone: true },
+	{ name: 'grid', label: 'Grid', group: 'Canvas', alone: true },
+]
+/** What a background is at first, until it is chosen. */
+const BACKGROUND = '#ffffff'
 
 const groupOf = ({ name, fn }: Filter): string => {
 	if (name in SHAPES) return 'Shapes'
@@ -159,7 +230,11 @@ export function addablesIn(root: LetAST, env: Env): readonly Addable[] {
 			const group = groupOf(filter)
 			return { name: filter.name, label: filter.label, group, ...(group === 'Shapes' ? {} : { quiet: true }) }
 		})
-	return [...mine, ...given]
+	const guides = Object.entries(GUIDES)
+		.filter(([name]) => !seen.has(name))
+		.map(([name, { label }]): Addable => ({ name, label, group: 'Guides', alone: true }))
+	const ofCanvas = OF_CANVAS.filter(({ name }) => !seen.has(name))
+	return [...mine, ...given, ...guides, ...ofCanvas]
 		.map((item, i) => [item, i] as const)
 		.sort(([a, i], [b, j]) => rankOfGroup(a.group) - rankOfGroup(b.group) || i - j)
 		.map(([item]) => item)
@@ -202,14 +277,30 @@ export function matching<T extends Pick<Addable, 'label' | 'name' | 'quiet'>>(
 const stemOf = (name: string): string =>
 	name.slice(name.lastIndexOf('.') + 1).replace(/[^a-zA-Z0-9]/g, '') || 'value'
 
-/** `root` with `name` added in front of all that is there, around `at` if it is a shape. */
+/**
+ * `root` with `name` added in front of all that is there, around `at` if it is a shape. A guide
+ * that goes through places goes through the points at `selected`, which it refers to, as far as
+ * there are any.
+ */
 export function withAdded(
 	root: LetAST,
 	env: Env,
 	name: string,
-	[x, y]: Vec
+	[x, y]: Vec,
+	selected: readonly string[] = []
 ): { ast: LetAST; row: string } | null {
 	const closure = closuresIn(root, env).find(([other]) => other === name)?.[1]
+	if (closure === undefined) {
+		const guide = GUIDES[name]
+		if (guide !== undefined) {
+			const called = freeName(root, guide.stem)
+			const points = new Set(paintedIn(root, env).filter(({ draw }) => draw === 'point').map(({ row }) => row))
+			const rows = selected.filter(row => points.has(row)).slice(0, guide.places ?? 0)
+			return { ast: withGuide(root, env, called, guide.code(x, y, rows.length), rows), row: `binding:${called}` }
+		}
+		if (name === 'background') return withBackground(root, env, BACKGROUND)
+		if (name === 'grid') return withGrid(root, env)
+	}
 	const filter = closure === undefined ? functionsIn(env).find(other => other.name === name) : undefined
 	if (closure === undefined && filter === undefined) return null
 	const shape = SHAPES[name] ?? STARTS_AROUND[name]

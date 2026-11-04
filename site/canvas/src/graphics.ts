@@ -117,17 +117,6 @@ const toward = (angle: number, length: number): Vec => {
 const shortest = (angle: number): number => ((((angle + 180) % 360) + 360) % 360) - 180
 
 const vec2 = makeTupleType([number, number])
-withMembers(vec2, {
-	add: makeTypedFn([vec2, vec2], vec2, (a, b) => Vec2.add(a as Vec, b as Vec), ['a', 'b']),
-	sub: makeTypedFn([vec2, vec2], vec2, (a, b) => Vec2.sub(a as Vec, b as Vec), ['a', 'b']),
-	scale: makeTypedFn(
-		[vec2, number],
-		vec2,
-		(a, s) => Vec2.scale(a as Vec, s as number),
-		['a', 'by']
-	),
-})
-
 /** A number that has a part to play in a vector, which says so where it is shown. */
 const part = (fields: readonly (readonly [string, string | number])[]): TypeValue =>
 	withTypeMeta(number, new RecordAST(fields.map(([key, text]) => [key, lit(text)] as const)))
@@ -147,6 +136,8 @@ const percentType = withTypeMeta(
 	])
 )
 
+export const POINT_ICON = 'fill:M11.25 3h1.5v6h-1.5zM11.25 15h1.5v6h-1.5zM3 11.25h6v1.5H3zM15 11.25h6v1.5h-6z'
+
 /** Not every vec2 is a point: a size is not to be drawn. */
 const point = withTypeMeta(
 	said(
@@ -161,7 +152,7 @@ const point = withTypeMeta(
 			]),
 		]),
 		'point',
-		'fill:M11.25 3h1.5v6h-1.5zM11.25 15h1.5v6h-1.5zM3 11.25h6v1.5H3zM15 11.25h6v1.5h-6z'
+		POINT_ICON
 	),
 	new RecordAST([
 		['input', lit('translate')],
@@ -170,6 +161,38 @@ const point = withTypeMeta(
 		['changesFirst', lit(true)],
 	])
 )
+
+/** The place `ratio` of the way from `a` to `b`, which comes to a point, to be drawn as one. */
+const makeLerp = makeTypedFn(
+	[point, point, percentType],
+	point,
+	(a, b, ratio) => {
+		const [[ax, ay], [bx, by], t] = [a as Vec, b as Vec, ratio as number]
+		return [ax + (bx - ax) * t, ay + (by - ay) * t]
+	},
+	['a', 'b', 'ratio']
+)
+
+/** A place moved `by` this much, which comes to a point as well. */
+const makeNudge = makeTypedFn(
+	[point, vec2],
+	point,
+	(at, by) => add(at as Vec, by as Vec),
+	['point', 'by']
+)
+
+withMembers(vec2, {
+	add: makeTypedFn([vec2, vec2], vec2, (a, b) => Vec2.add(a as Vec, b as Vec), ['a', 'b']),
+	sub: makeTypedFn([vec2, vec2], vec2, (a, b) => Vec2.sub(a as Vec, b as Vec), ['a', 'b']),
+	scale: makeTypedFn(
+		[vec2, number],
+		vec2,
+		(a, s) => Vec2.scale(a as Vec, s as number),
+		['a', 'by']
+	),
+	lerp: withDoc(makeLerp, 'The place `ratio` of the way from `a` to `b`.', 'Lerp'),
+	nudge: withDoc(makeNudge, 'A `point` moved `by` this much, as a place of its own.', 'Nudge'),
+})
 
 /** How far something goes each way. */
 const size = withTypeMeta(
@@ -1037,12 +1060,13 @@ const lineType = withTypeMeta(
 		withTypeMeta(vec2, new RecordAST([['title', lit('Direction')]])),
 	]),
 	new RecordAST([
+		['draw', lit('line')],
 		['icon', lit(STRAIGHT_LINE_ICON)],
 		['name', lit('line')],
 		['summary', lit('Line')],
 	])
 )
-type StraightLine = readonly [Vec, Vec]
+export type StraightLine = readonly [Vec, Vec]
 const makeLineFromPoints = makeTypedFn(
 	[point, point],
 	lineType,
@@ -1568,6 +1592,8 @@ export interface Handle {
 	readonly code?: PlaceCode
 	/** What it changes is much smaller than where it is on a canvas, as a scale is. */
 	readonly fine?: boolean
+	/** A place it snaps to being straight across or down from, as one end of a line does with the other. */
+	readonly linesUpWith?: Vec
 	/**
 	 * It goes along a line, as an `offset` does when reached for, and has nothing it is an
 	 * outline of to lie along until then, so it always points the two ways it can go.
@@ -3280,7 +3306,7 @@ const pointHandle = (arg: number, at: Vec): Handle => ({
 /** How far a line is drawn each way, as it goes on past anywhere to look. */
 const LINE_REACH = 20000
 /** A line, as far as it can be seen, and which side of it a mirror keeps. */
-const lineGuide = (through: Vec, direction: Vec): Path => {
+export const lineGuide = (through: Vec, direction: Vec): Path => {
 	const [x, y] = direction
 	const by = LINE_REACH / (Math.hypot(x, y) || 1)
 	return line([through[0] - x * by, through[1] - y * by], [through[0] + x * by, through[1] + y * by])
@@ -3293,13 +3319,48 @@ const flipHandle = (at: Vec, direction: Vec, flipped: () => Change[]): Handle =>
 	angle: degrees([direction[1], 0 - direction[0]]),
 	to: flipped,
 })
+// It stays between its two, and is taken along the way from one to the other.
+makers.set(makeLerp, ([from, to, ratio]) => {
+	const [a, b, t] = [from as Vec, to as Vec, ratio as number]
+	const along = sub(b, a)
+	const length = along[0] * along[0] + along[1] * along[1]
+	return {
+		guides: [line(a, b)],
+		handles: [
+			{
+				// It comes to a point, and looks like one, whatever taking it does.
+				kind: 'translate',
+				name: 'ratio',
+				at: [a[0] + along[0] * t, a[1] + along[1] * t],
+				// It goes from 0 to 1, which what is fine enough for a place is not fine enough for.
+				fine: true,
+				to: at => {
+					if (length === 0) return []
+					const [x, y] = sub(at, a)
+					return [change(2, Math.max(0, Math.min(1, (x * along[0] + y * along[1]) / length)))]
+				},
+			},
+		],
+		move: delta => [change(0, add(a, delta)), change(1, add(b, delta))],
+	}
+})
+// Where it has got to is what says how far, and it goes along with where it is from.
+makers.set(makeNudge, ([from, by]) => {
+	const [at, moved] = [from as Vec, by as Vec]
+	const tip = add(at, moved)
+	return {
+		guides: [line(at, tip)],
+		handles: [{ kind: 'translate', name: 'by', at: tip, linesUpWith: at, to: to => [change(1, sub(to, at))] }],
+		move: delta => [change(0, add(at, delta))],
+	}
+})
 makers.set(makeLineFromPoints, ([from, to]) => {
 	const [start, end] = [from as Vec, to as Vec]
 	return {
 		guides: [lineGuide(start, sub(end, start))],
 		handles: [
-			pointHandle(0, start),
-			pointHandle(1, end),
+			{ ...pointHandle(0, start), linesUpWith: end },
+			{ ...pointHandle(1, end), linesUpWith: start },
 			flipHandle([(start[0] + end[0]) / 2, (start[1] + end[1]) / 2], sub(end, start), () => [
 				change(0, end),
 				change(1, start),
@@ -3316,7 +3377,9 @@ makers.set(makeLineAt, ([through, angle]) => {
 		handles: [
 			pointHandle(0, p),
 			{
+				// It turns the line, as anything else that turns does, and does not pull along it.
 				kind: 'direction',
+				rotates: true,
 				at: add(p, direction),
 				pivot: p,
 				angle: turned,
