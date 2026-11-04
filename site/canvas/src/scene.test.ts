@@ -303,6 +303,18 @@ describe('grips', () => {
 		expect(pulled(source, 7, [20, 30])).toBe('{c = (path.rect [0 0] [20 30])}')
 	})
 
+	it('resize a rect about its center, when asked to', () => {
+		const root = parse('{c = (path.rect [0 0] [10 10])}')
+		const symmetric = (index: number, to: Vec) => {
+			const handle = gripAt(root, env, row)!.handles[index]!
+			return print(changed(root, env, row, handle.to(to, to, { symmetric: true })).ast!)
+		}
+		expect(symmetric(2, [12, 99])).toBe('{c = (path.rect [-2 0] [14 10])}')
+		expect(symmetric(0, [-2, 99])).toBe('{c = (path.rect [-2 0] [14 10])}')
+		expect(symmetric(3, [99, 15])).toBe('{c = (path.rect [0 -5] [10 20])}')
+		expect(symmetric(7, [12, 15])).toBe('{c = (path.rect [-2 -5] [14 20])}')
+	})
+
 	it('take a rect by the middle of each side, the far side staying where it is', () => {
 		const source = '{c = (path.rect [0 0] [10 10])}'
 		expect(gripAt(parse(source), env, row)!.handles.slice(0, 4).map(h => [h.kind, h.at])).toEqual([

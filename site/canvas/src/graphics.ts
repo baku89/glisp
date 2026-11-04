@@ -341,6 +341,12 @@ export interface Change {
 
 const change = (arg: number, value: unknown): Change => ({ route: [arg], value })
 
+/** How a handle is being dragged, by what is held down. */
+export interface HandleDrag {
+	/** The opposite side goes the other way, so that the center stays where it is. */
+	readonly symmetric?: boolean
+}
+
 /** A place on a canvas to take hold of a call by. */
 export interface Handle {
 	/**
@@ -357,7 +363,7 @@ export interface Handle {
 	/** It is drawn with a broken line, being there only to take hold of. */
 	readonly dashed?: boolean
 	/** What has to change, for it to be at `to`, having been taken at `from`. */
-	to(to: Vec, from: Vec): readonly Change[]
+	to(to: Vec, from: Vec, how?: HandleDrag): readonly Change[]
 }
 
 /** All that can be done to a call on a canvas. */
@@ -380,7 +386,7 @@ export const under = (arg: number, grip: Grip): Grip => {
 		guides: grip.guides,
 		handles: grip.handles.map(handle => ({
 			...handle,
-			to: (to, from) => lower(handle.to(to, from)),
+			to: (to, from, how) => lower(handle.to(to, from, how)),
 		})),
 		...(move === undefined ? {} : { move: (delta: Vec) => lower(move(delta)) }),
 	}
@@ -639,22 +645,30 @@ const makers = new Map<unknown, Maker>([
 			const e = add(s, size as Vec)
 			const middle: Vec = [(s[0] + e[0]) / 2, (s[1] + e[1]) / 2]
 			const moved = (delta: Vec): Change[] => [change(0, add(s, delta))]
-			// An edge on the near side moves the corner, and the size makes up for it, so
-			// that the other side stays where it is.
-			const left = (x: number): Change[] => [change(0, [x, UNSET]), change(1, [e[0] - x, UNSET])]
-			const top = (y: number): Change[] => [change(0, [UNSET, y]), change(1, [UNSET, e[1] - y])]
-			const right = (x: number): Change[] => [change(1, [x - s[0], UNSET])]
-			const bottom = (y: number): Change[] => [change(1, [UNSET, y - s[1]])]
+			// From one side to the other, on each axis: the far side stays where it is,
+			// or goes the other way, for the center to stay where it is.
+			const across = (axis: 0 | 1, near: number, far: number): Change[] => {
+				const [from, to] = near < far ? [near, far] : [far, near]
+				const start = axis === 0 ? [from, UNSET] : [UNSET, from]
+				const extent = axis === 0 ? [to - from, UNSET] : [UNSET, to - from]
+				return [change(0, start), change(1, extent)]
+			}
+			const opposite = (axis: 0 | 1, at: number, far: number, how?: HandleDrag): number =>
+				how?.symmetric ? middle[axis] * 2 - at : far
+			const left = (x: number, how?: HandleDrag) => across(0, x, opposite(0, x, e[0], how))
+			const right = (x: number, how?: HandleDrag) => across(0, opposite(0, x, s[0], how), x)
+			const top = (y: number, how?: HandleDrag) => across(1, y, opposite(1, y, e[1], how))
+			const bottom = (y: number, how?: HandleDrag) => across(1, opposite(1, y, s[1], how), y)
 			return {
 				handles: [
-					{ kind: 'arrow', angle: 0, at: [s[0], middle[1]], to: to => left(to[0]) },
-					{ kind: 'arrow', angle: 90, at: [middle[0], s[1]], to: to => top(to[1]) },
-					{ kind: 'arrow', angle: 0, at: [e[0], middle[1]], to: to => right(to[0]) },
-					{ kind: 'arrow', angle: 90, at: [middle[0], e[1]], to: to => bottom(to[1]) },
-					{ kind: 'point', angle: 45, at: s, to: to => [...left(to[0]), ...top(to[1])] },
-					{ kind: 'point', angle: -45, at: [e[0], s[1]], to: to => [...right(to[0]), ...top(to[1])] },
-					{ kind: 'point', angle: -45, at: [s[0], e[1]], to: to => [...left(to[0]), ...bottom(to[1])] },
-					{ kind: 'point', angle: 45, at: e, to: to => [...right(to[0]), ...bottom(to[1])] },
+					{ kind: 'arrow', angle: 0, at: [s[0], middle[1]], to: (to, _, how) => left(to[0], how) },
+					{ kind: 'arrow', angle: 90, at: [middle[0], s[1]], to: (to, _, how) => top(to[1], how) },
+					{ kind: 'arrow', angle: 0, at: [e[0], middle[1]], to: (to, _, how) => right(to[0], how) },
+					{ kind: 'arrow', angle: 90, at: [middle[0], e[1]], to: (to, _, how) => bottom(to[1], how) },
+					{ kind: 'point', angle: 45, at: s, to: (to, _, how) => [...left(to[0], how), ...top(to[1], how)] },
+					{ kind: 'point', angle: -45, at: [e[0], s[1]], to: (to, _, how) => [...right(to[0], how), ...top(to[1], how)] },
+					{ kind: 'point', angle: -45, at: [s[0], e[1]], to: (to, _, how) => [...left(to[0], how), ...bottom(to[1], how)] },
+					{ kind: 'point', angle: 45, at: e, to: (to, _, how) => [...right(to[0], how), ...bottom(to[1], how)] },
 				],
 				guides: [],
 				move: moved,

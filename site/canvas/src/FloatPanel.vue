@@ -17,6 +17,8 @@ const props = defineProps<{
 	width: number
 	/** As tall as what is in it, until it has been made otherwise. */
 	fit?: boolean
+	/** Comes up from the bottom corner, as tall as this until made otherwise. */
+	bottomHeight?: number
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -28,7 +30,8 @@ const MARGIN = 16
 const config = useAppConfigStore()
 const width = config.ref(`${props.name}.width`, props.width)
 /** As tall as there is room for, until it has been made otherwise. */
-const height = config.ref<number | null>(`${props.name}.height`, null)
+const height = config.ref<number | null>(`${props.name}.height`, props.bottomHeight ?? null)
+const fromBottom = computed(() => props.bottomHeight !== undefined)
 
 const $root = useTemplateRef<HTMLElement>('$root')
 const resizing = ref(false)
@@ -59,7 +62,7 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 			width.value = Math.round(Math.min(Math.max(wanted, MIN_WIDTH), parent.width - MARGIN))
 		}
 		if (axes.y) {
-			const wanted = start.height + move.clientY - clientY
+			const wanted = start.height + (move.clientY - clientY) * (fromBottom.value ? -1 : 1)
 			height.value = Math.round(
 				Math.min(Math.max(wanted, MIN_HEIGHT), parent.height - MARGIN * 2)
 			)
@@ -81,7 +84,7 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	<aside
 		ref="$root"
 		class="FloatPanel"
-		:class="[side, { open, resizing, fitting: fit && height === null }]"
+		:class="[side, { open, resizing, 'from-bottom': fromBottom, fitting: fit && height === null }]"
 		:style="style"
 	>
 		<button
@@ -148,6 +151,29 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 .FloatPanel.open {
 	width: var(--panel-width);
 	height: var(--panel-height);
+}
+.FloatPanel.from-bottom {
+	top: auto;
+	bottom: 16px;
+}
+.from-bottom .tab,
+.from-bottom .body {
+	top: auto;
+	bottom: 0;
+}
+.from-bottom .edge.bottom {
+	top: 0;
+	bottom: auto;
+}
+.from-bottom .edge.corner {
+	top: 0;
+	bottom: auto;
+}
+.from-bottom.right .edge.corner {
+	cursor: nwse-resize;
+}
+.from-bottom.left .edge.corner {
+	cursor: nesw-resize;
 }
 /* It takes as much as it has in it, as far as there is room. */
 .FloatPanel.open.fitting {

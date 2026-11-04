@@ -92,12 +92,11 @@ const projectOpen = useAppConfigStore().ref('glisp.canvas.project.open', true)
 const PROJECT_TABS = [
 	{ name: 'layers', label: 'Project', icon: 'ph:tree-view' },
 	{ name: 'code', label: 'Code', icon: 'ph:code' },
-	{ name: 'repl', label: 'REPL', icon: 'ph:terminal' },
 ] as const
-const projectTab = useAppConfigStore().ref<'layers' | 'code' | 'repl'>(
-	'glisp.canvas.project.tab',
-	'layers'
-)
+const projectTab = useAppConfigStore().ref<'layers' | 'code'>('glisp.canvas.project.tab', 'layers')
+// What was kept before the REPL had a panel of its own.
+if (!PROJECT_TABS.some(({ name }) => name === projectTab.value)) projectTab.value = 'layers'
+const replOpen = useAppConfigStore().ref('glisp.canvas.repl.open', true)
 const inspectorOpen = useAppConfigStore().ref('glisp.canvas.inspector.open', true)
 /** The editor is there once it has been asked for, and stays, with what is written in it. */
 const codeOpened = ref(projectTab.value === 'code')
@@ -195,15 +194,6 @@ function selectInTree(row: string | null): void {
 					<div v-if="codeOpened" v-show="projectTab === 'code'" class="tab-content">
 						<AstProgramCode :document="document" @problem="codeHasProblem = $event" />
 					</div>
-					<div v-show="projectTab === 'repl'" class="tab-content" data-selects-rows>
-						<Repl
-							:session="document.session"
-							historyKey="glisp.canvas.history"
-							noClear
-							noFocus
-							@change="document.sync()"
-						/>
-					</div>
 				</FloatPanel>
 				<FloatPanel
 					v-model:open="inspectorOpen"
@@ -239,6 +229,30 @@ function selectInTree(row: string | null): void {
 						:inspect="inspected"
 						:iconOfValue="iconOfPath"
 					/>
+				</FloatPanel>
+				<FloatPanel
+					v-model:open="replOpen"
+					name="glisp.canvas.repl"
+					side="right"
+					label="REPL"
+					icon="ph:terminal"
+					:width="320"
+					:bottomHeight="240"
+				>
+					<template #header>
+						<span class="panel-title">
+							<span class="name">REPL</span>
+						</span>
+					</template>
+					<div class="tab-content" data-selects-rows>
+						<Repl
+							:session="document.session"
+							historyKey="glisp.canvas.history"
+							noClear
+							noFocus
+							@change="document.sync()"
+						/>
+					</div>
 				</FloatPanel>
 				<div class="tools" data-selects-rows>
 					<button

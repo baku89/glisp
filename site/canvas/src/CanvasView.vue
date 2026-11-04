@@ -303,7 +303,16 @@ interface Moving {
 }
 
 let pressed:
-	| { kind: 'handle'; row: string; handle: Handle; mat: mat2d; from: Vec; offset: Vec }
+	| {
+			kind: 'handle'
+			row: string
+			handle: Handle
+			mat: mat2d
+			from: Vec
+			offset: Vec
+			/** Where the pointer has got to, on screen. */
+			at: Vec | null
+	  }
 	| { kind: 'pan'; from: [number, number] }
 	| { kind: 'pen'; from: Vec }
 	| {
@@ -330,11 +339,12 @@ let spaceDown = false
 const typing = (event: Event): boolean =>
 	(event.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]') != null
 
-// Shift says at once, without having to move, how even a shape being drawn is.
+// What is held down says at once, without having to move, how a shape goes.
 useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {
 	if (event.key === 'Shift' && pressed?.kind === 'draw' && pressed.drawing) {
 		drawPressed(event.shiftKey)
 	}
+	if (event.key === 'Alt' && pressed?.kind === 'handle') dragHandle(event.altKey)
 })
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
@@ -395,6 +405,7 @@ function onPointerDown(event: PointerEvent): void {
 			from,
 			// It stays where it was taken, wherever on it that was.
 			offset: [at[0] - from[0], at[1] - from[1]],
+			at: null,
 		}
 		return
 	}
@@ -486,6 +497,14 @@ useEventListener(
 	{ capture: true }
 )
 
+/** The handle being dragged, to where the pointer has got. */
+function dragHandle(symmetric: boolean): void {
+	if (pressed?.kind !== 'handle' || pressed.at === null) return
+	const { row, handle, mat, from, offset, at } = pressed
+	const [px, py] = fromScreen(at[0], at[1], mat)
+	commit(apply(row, handle.to([px + offset[0], py + offset[1]], from, { symmetric })))
+}
+
 /** The shape being drawn, as far as the pointer has got, and as even as asked. */
 function drawPressed(even: boolean): void {
 	if (pressed?.kind !== 'draw') return
@@ -549,9 +568,8 @@ function onPointerMove(event: PointerEvent): void {
 			break
 		}
 		case 'handle': {
-			const { row, handle, mat, from, offset } = pressed
-			const [px, py] = fromScreen(x, y, mat)
-			commit(apply(row, handle.to([px + offset[0], py + offset[1]], from)))
+			pressed.at = [x, y]
+			dragHandle(event.altKey)
 			break
 		}
 		case 'move': {
