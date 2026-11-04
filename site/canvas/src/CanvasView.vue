@@ -61,6 +61,45 @@ const roundedPlace = (x: number, y: number): Vec => {
 	return [roundedTo(wx, step), roundedTo(wy, step)]
 }
 
+/** What moving `rows` can line up, and with what, none of which is in them. */
+function snapsFor(rows: readonly string[]): {
+	own: SnapPoint[]
+	others: SnapPoint[]
+} {
+	const { env, root } = props.document
+	const shapes = sceneOf(root.value, env.value)
+	const mine = shapes.filter(shape => rows.includes(shape.row))
+	const rest = shapes.filter(shape => !rows.includes(shape.row))
+	return {
+		own: snapPointsOf(root.value, env.value, mine).filter(point => point.to === undefined),
+		others: snapPointsOf(root.value, env.value, rest),
+	}
+}
+
+/** Where to take the pointer to, for the nearest of `own` to be on one of `others`. */
+function snappedMove(
+	own: readonly SnapPoint[],
+	others: readonly SnapPoint[],
+	[fromX, fromY]: Vec,
+	[x, y]: Vec
+): Vec {
+	const [ax, ay] = fromScreen(fromX, fromY)
+	const [bx, by] = fromScreen(x, y)
+	const [dx, dy] = [bx - ax, by - ay]
+	let best: { snap: SnapPoint; distance: number; delta: Vec } | null = null
+	for (const { at } of own) {
+		const moved: Vec = [at[0] + dx, at[1] + dy]
+		const snap = nearestSnap(others, moved, SNAP_REACH / view.value[0])
+		if (snap === null) continue
+		const distance = Math.hypot(snap.at[0] - moved[0], snap.at[1] - moved[1])
+		if (best === null || distance < best.distance) {
+			best = { snap, distance, delta: [snap.at[0] - at[0], snap.at[1] - at[1]] }
+		}
+	}
+	snapMark.value = best?.snap ?? null
+	return best === null ? [x, y] : toScreen([ax + best.delta[0], ay + best.delta[1]], view.value)
+}
+
 /** How near, on screen, a place has to be to be snapped to. */
 const SNAP_REACH = 8
 
@@ -78,8 +117,8 @@ let pen: { base: LetAST; name: string; anchors: readonly Anchor[] } | null = nul
 /** From the last place to the pointer, on screen. */
 const penLine = shallowRef<[Vec, Vec] | null>(null)
 
-/** Where the pointer has snapped to, on screen. */
-const snapMark = shallowRef<Vec | null>(null)
+/** What the pointer has snapped to, and where that is, to say so. */
+const snapMark = shallowRef<SnapPoint | null>(null)
 const cursor = ref('default')
 /** Why what was asked for could not be, until the next press. */
 const problem = ref<string | null>(null)
@@ -178,6 +217,49 @@ function drawHandle(
 	context.restore()
 }
 
+const SNAP_LABEL_FONT = `11px ${getComputedStyle(window.document.documentElement).getPropertyValue('--tq-font-numeric') || 'sans-serif'}`
+
+/**
+ * What has been snapped to, as Illustrator says it: a mark there, the line if it was
+ * one, and its name. Filled, if it will be referred to, rather than only being the same.
+ */
+function drawSnap(
+	context: CanvasRenderingContext2D,
+	{ at, label, line, target }: SnapPoint,
+	accent: string,
+	paper: string
+): void {
+	const [x, y] = toScreen(at, view.value)
+	context.save()
+	context.strokeStyle = accent
+	if (line) {
+		const [[ax, ay], [bx, by]] = [toScreen(line[0], view.value), toScreen(line[1], view.value)]
+		context.lineWidth = 2
+		context.beginPath()
+		context.moveTo(ax, ay)
+		context.lineTo(bx, by)
+		context.stroke()
+	} else {
+		context.lineWidth = 2
+		context.beginPath()
+		context.arc(x, y, HANDLE_RADIUS + 2, 0, Math.PI * 2)
+		context.stroke()
+	}
+	context.font = SNAP_LABEL_FONT
+	context.textBaseline = 'middle'
+	const width = context.measureText(label).width + 10
+	const [left, top] = [x + 10, y - 22]
+	context.beginPath()
+	context.roundRect(left, top, width, 16, 3)
+	context.fillStyle = target === null ? paper : accent
+	context.fill()
+	context.lineWidth = 1
+	context.stroke()
+	context.fillStyle = target === null ? accent : paper
+	context.fillText(label, left + 5, top + 8.5)
+	context.restore()
+}
+
 function draw(): void {
 	const canvas = $canvas.value
 	const context = canvas?.getContext('2d')
@@ -219,12 +301,7 @@ function draw(): void {
 	}
 
 	if (snapMark.value !== null) {
-		const [sx, sy] = snapMark.value
-		context.lineWidth = 2
-		context.strokeStyle = accent
-		context.beginPath()
-		context.arc(sx, sy, HANDLE_RADIUS + 2, 0, Math.PI * 2)
-		context.stroke()
+		drawSnap(context, snapMark.value, accent, paper)
 	}
 
 	if (penLine.value !== null) {
@@ -382,6 +459,9 @@ let pressed:
 			row: string
 			rows: readonly Moving[]
 			from: Vec
+			/** Where on what is moved can line up, and what it can line up with. */
+			own: readonly SnapPoint[]
+			others: readonly SnapPoint[]
 			moving: boolean
 			collapse: boolean
 	  }
@@ -492,6 +572,7 @@ function onPointerDown(event: PointerEvent): void {
 			row: shape.row,
 			rows: moving,
 			from: [x, y],
+			...snapsFor(rows),
 			moving: false,
 			collapse: already && !event.shiftKey && rows.length > 1,
 		}
@@ -530,6 +611,8 @@ function penDown(x: number, y: number): void {
 	pen.anchors = [...pen.anchors, { at: snapAt(snapPoints(pen.base), x, y)?.at ?? roundedPlace(x, y) }]
 	writePen(false)
 	if (isFirst) emit('select', [`binding:${pen.name}`])
+	// From here on it is the curve, until the pointer is let go of.
+	penLine.value = null
 	pressed = { kind: 'pen', from: [x, y] }
 }
 
@@ -565,7 +648,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean): void {
 	const [px, py] = fromScreen(at[0], at[1], mat)
 	const wanted: Vec = [px + offset[0], py + offset[1]]
 	const snap = nearestSnap(points, wanted, SNAP_REACH / view.value[0])
-	snapMark.value = snap ? toScreen(snap.at, view.value) : null
+	snapMark.value = snap
 
 	const changes = handle.to(snap?.at ?? wanted, from, { symmetric })
 	const finest = handle.fine ? pointerStep() / FINE_BY : pointerStep()
@@ -586,7 +669,7 @@ function drawPressed(even: boolean, valueOnly: boolean): void {
 	// It is named for what it is, which can change as it is drawn.
 	const name = nameFor(pressed.base, pressed.tool, even)
 	const end = snapAt(pressed.points, x, y)
-	snapMark.value = end ? toScreen(end.at, view.value) : null
+	snapMark.value = end
 	const to = end?.at ?? fromScreen(x, y)
 	const { base, tool, snap } = pressed
 	const { env } = props.document
@@ -610,7 +693,7 @@ function onPointerMove(event: PointerEvent): void {
 			const closes = props.drawing === 'pen' && closesPen(x, y)
 			cursor.value = closes ? 'pointer' : 'crosshair'
 			const near = closes ? null : snapAt(snapPoints(), x, y)
-			snapMark.value = near ? toScreen(near.at, view.value) : null
+			snapMark.value = near
 			const last = pen?.anchors.at(-1)
 			penLine.value = last ? [toScreen(last.at, view.value), [x, y]] : null
 			return
@@ -653,6 +736,7 @@ function onPointerMove(event: PointerEvent): void {
 			if (!pressed.moving && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
 			pressed.moving = true
 			hovered.value = null
+			const [toX, toY] = snappedMove(pressed.own, pressed.others, pressed.from, [x, y])
 			let next: ReturnType<typeof apply> = {
 				ast: props.document.root.value,
 				problem: null,
@@ -661,7 +745,7 @@ function onPointerMove(event: PointerEvent): void {
 				if (next.ast === null || held.move === undefined) continue
 				const mat = gripView(held.transform)
 				const [ax, ay] = fromScreen(fromX, fromY, mat)
-				const [bx, by] = fromScreen(x, y, mat)
+				const [bx, by] = fromScreen(toX, toY, mat)
 				next = apply(row, roundedChanges(held.move([bx - ax, by - ay]), pointerStep()), next.ast)
 			}
 			commit(next)

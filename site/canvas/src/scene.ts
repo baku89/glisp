@@ -96,8 +96,12 @@ export const roundedChanges = (changes: readonly Change[], step: number): Change
 export interface SnapPoint {
 	readonly at: Vec
 	readonly target: string | null
+	/** What it is, to say so: whose it is, and what on it. */
+	readonly label: string
 	/** It is a line, from `at` to here, that snaps anywhere along it. */
 	readonly to?: Vec
+	/** What was snapped to along, with `at` being where on it. */
+	readonly line?: readonly [Vec, Vec]
 }
 
 /** Everywhere on what is drawn that something can snap to. */
@@ -112,12 +116,15 @@ export function snapPointsOf(
 		const grip = gripAt(root, env, row)
 		// In the coordinates of what is drawn, as a row inside a matrix is not.
 		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []
-		const handles = grip.handles.flatMap(({ at, place }) =>
+		const whose = row.split('/').at(-1)!.replace(/^binding:/, '')
+		const called = (name: string) => `${whose} ${name}`
+		const handles = grip.handles.flatMap(({ at, place, name }) =>
 			at === undefined
 				? []
 				: [
 						{
 							at,
+							label: name === undefined ? whose : called(name),
 							target:
 								place === 'self' ? row : place === undefined ? null : `${row}/arg${place}`,
 						},
@@ -125,8 +132,17 @@ export function snapPointsOf(
 		)
 		return [
 			...handles,
-			...(grip.snaps?.points ?? []).map(at => ({ at, target: null })),
-			...(grip.snaps?.lines ?? []).map(([at, to]) => ({ at, to, target: null })),
+			...(grip.snaps?.points ?? []).map(({ at, name }) => ({
+				at,
+				label: called(name),
+				target: null,
+			})),
+			...(grip.snaps?.lines ?? []).map(({ from, to, name }) => ({
+				at: from,
+				to,
+				label: called(name),
+				target: null,
+			})),
 		]
 	})
 }
@@ -160,12 +176,12 @@ export function nearestSnap(
 	}
 	if (best !== null) return best
 	// Only with no place in reach, as a place is more of a place than a line is.
-	for (const { at: from, to } of points) {
+	for (const { at: from, to, label } of points) {
 		if (to === undefined) continue
 		const on = along(from, to, at)
 		const distance = Math.hypot(on[0] - at[0], on[1] - at[1])
 		if (distance < bestDistance) {
-			best = { at: on, target: null, to }
+			best = { at: on, target: null, label, line: [from, to] }
 			bestDistance = distance
 		}
 	}

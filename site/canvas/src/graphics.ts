@@ -360,6 +360,8 @@ export interface Handle {
 	readonly path?: Path
 	/** Which way it pulls, in degrees. */
 	readonly angle?: number
+	/** What this place on it is called, to say what something has snapped to. */
+	readonly name?: string
 	/**
 	 * What it is the place of, for something else to refer to: the argument at this
 	 * index, or the whole of what is taken hold of. Otherwise it is only a place.
@@ -386,15 +388,19 @@ export interface Grip {
 
 /** Places, and straight lines, that something can snap to. */
 export interface Snaps {
-	readonly points?: readonly Vec[]
-	readonly lines?: readonly (readonly [Vec, Vec])[]
+	readonly points?: readonly { readonly at: Vec; readonly name: string }[]
+	readonly lines?: readonly {
+		readonly from: Vec
+		readonly to: Vec
+		readonly name: string
+	}[]
 }
 
 /** The lines through `points`, in turn, and back to the first if it is closed. */
-const linesThrough = (points: readonly Vec[], closed: boolean): (readonly [Vec, Vec])[] =>
-	points.flatMap((at, i): (readonly [Vec, Vec])[] => {
-		const next = points[i + 1] ?? (closed ? points[0] : undefined)
-		return next === undefined || points.length < 2 ? [] : [[at, next]]
+const linesThrough = (points: readonly Vec[], closed: boolean): NonNullable<Snaps['lines']>[number][] =>
+	points.flatMap((from, i) => {
+		const to = points[i + 1] ?? (closed ? points[0] : undefined)
+		return to === undefined || points.length < 2 ? [] : [{ from, to, name: 'edge' }]
 	})
 
 export const NO_GRIP: Grip = { handles: [], guides: [] }
@@ -473,6 +479,7 @@ function gripOfD(path: Path): Grip {
 				args.forEach((control, a) => {
 					handles.push({
 						kind: 'point',
+						name: 'control',
 						at: control,
 						to: to =>
 							whole(
@@ -492,6 +499,7 @@ function gripOfD(path: Path): Grip {
 			}
 			handles.push({
 				kind: 'point',
+				name: 'anchor',
 				at,
 				to: to =>
 					whole(
@@ -532,6 +540,13 @@ function gripOfD(path: Path): Grip {
 			),
 	}
 }
+
+const QUADRANTS = [
+	['right', 0],
+	['bottom', 90],
+	['left', 180],
+	['top', 270],
+] as const
 
 const GIZMO_SIZE = 80
 const NGON_RING = 40
@@ -637,10 +652,12 @@ const makers = new Map<unknown, Maker>([
 						angle: 0,
 						to: to => [change(1, dist(c, to))],
 					},
-					{ kind: 'translate', place: 0, at: c, to: to => [change(0, to)] },
+					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
 				guides: [],
-				snaps: { points: [0, 90, 180, 270].map(angle => add(c, toward(angle, r))) },
+				snaps: {
+					points: QUADRANTS.map(([name, angle]) => ({ at: add(c, toward(angle, r)), name })),
+				},
 				move: delta => [change(0, add(c, delta))],
 			}
 		},
@@ -664,15 +681,15 @@ const makers = new Map<unknown, Maker>([
 						angle: 90,
 						to: to => [change(1, [UNSET, Math.abs(to[1] - c[1])])],
 					},
-					{ kind: 'translate', place: 0, at: c, to: to => [change(0, to)] },
+					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
 				guides: [],
 				snaps: {
 					points: [
-						[c[0] + rx, c[1]],
-						[c[0], c[1] + ry],
-						[c[0] - rx, c[1]],
-						[c[0], c[1] - ry],
+						{ at: [c[0] + rx, c[1]], name: 'right' },
+						{ at: [c[0], c[1] + ry], name: 'bottom' },
+						{ at: [c[0] - rx, c[1]], name: 'left' },
+						{ at: [c[0], c[1] - ry], name: 'top' },
 					],
 				},
 				move: delta => [change(0, add(c, delta))],
@@ -702,23 +719,23 @@ const makers = new Map<unknown, Maker>([
 			const bottom = (y: number, how?: HandleDrag) => across(1, opposite(1, y, s[1], how), y)
 			return {
 				handles: [
-					{ kind: 'arrow', angle: 0, at: [s[0], middle[1]], to: (to, _, how) => left(to[0], how) },
-					{ kind: 'arrow', angle: 90, at: [middle[0], s[1]], to: (to, _, how) => top(to[1], how) },
-					{ kind: 'arrow', angle: 0, at: [e[0], middle[1]], to: (to, _, how) => right(to[0], how) },
-					{ kind: 'arrow', angle: 90, at: [middle[0], e[1]], to: (to, _, how) => bottom(to[1], how) },
-					{ kind: 'point', place: 0, angle: 45, at: s, to: (to, _, how) => [...left(to[0], how), ...top(to[1], how)] },
-					{ kind: 'point', angle: -45, at: [e[0], s[1]], to: (to, _, how) => [...right(to[0], how), ...top(to[1], how)] },
-					{ kind: 'point', angle: -45, at: [s[0], e[1]], to: (to, _, how) => [...left(to[0], how), ...bottom(to[1], how)] },
-					{ kind: 'point', angle: 45, at: e, to: (to, _, how) => [...right(to[0], how), ...bottom(to[1], how)] },
+					{ kind: 'arrow', name: 'left', angle: 0, at: [s[0], middle[1]], to: (to, _, how) => left(to[0], how) },
+					{ kind: 'arrow', name: 'top', angle: 90, at: [middle[0], s[1]], to: (to, _, how) => top(to[1], how) },
+					{ kind: 'arrow', name: 'right', angle: 0, at: [e[0], middle[1]], to: (to, _, how) => right(to[0], how) },
+					{ kind: 'arrow', name: 'bottom', angle: 90, at: [middle[0], e[1]], to: (to, _, how) => bottom(to[1], how) },
+					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, to: (to, _, how) => [...left(to[0], how), ...top(to[1], how)] },
+					{ kind: 'point', name: 'top right', angle: -45, at: [e[0], s[1]], to: (to, _, how) => [...right(to[0], how), ...top(to[1], how)] },
+					{ kind: 'point', name: 'bottom left', angle: -45, at: [s[0], e[1]], to: (to, _, how) => [...left(to[0], how), ...bottom(to[1], how)] },
+					{ kind: 'point', name: 'bottom right', angle: 45, at: e, to: (to, _, how) => [...right(to[0], how), ...bottom(to[1], how)] },
 				],
 				guides: [],
 				snaps: {
-					points: [middle],
+					points: [{ at: middle, name: 'center' }],
 					lines: [
-						[s, [e[0], s[1]]],
-						[[e[0], s[1]], e],
-						[e, [s[0], e[1]]],
-						[[s[0], e[1]], s],
+						{ from: s, to: [e[0], s[1]], name: 'top' },
+						{ from: [e[0], s[1]], to: e, name: 'right' },
+						{ from: e, to: [s[0], e[1]], name: 'bottom' },
+						{ from: [s[0], e[1]], to: s, name: 'left' },
 					],
 				},
 				move: moved,
@@ -730,8 +747,8 @@ const makers = new Map<unknown, Maker>([
 		args => {
 			const [start, end] = args as [Vec, Vec]
 			return pointsGrip(args as Vec[], [], {
-				points: [[(start[0] + end[0]) / 2, (start[1] + end[1]) / 2]],
-				lines: [[start, end]],
+				points: [{ at: [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2], name: 'middle' }],
+				lines: [{ from: start, to: end, name: 'line' }],
 			})
 		},
 	],
@@ -767,14 +784,17 @@ const makers = new Map<unknown, Maker>([
 							return [change(2, Math.round(360 / angle))]
 						},
 					},
-					{ kind: 'translate', place: 0, at: c, to: to => [change(0, to)] },
+					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
 				guides: [arc(c, ring, 3.6, 120)],
 				snaps: (() => {
 					const vertices = Array.from({ length: count }, (_, i) =>
 						add(c, toward((360 / count) * i, r))
 					)
-					return { points: vertices, lines: linesThrough(vertices, true) }
+					return {
+						points: vertices.map(at => ({ at, name: 'vertex' })),
+						lines: linesThrough(vertices, true),
+					}
 				})(),
 				move: delta => [change(0, add(c, delta))],
 			}
@@ -808,7 +828,7 @@ const makers = new Map<unknown, Maker>([
 						at: add(c, toward(until, r)),
 						to: to => [change(3, angleFor(until, to))],
 					},
-					{ kind: 'translate', place: 0, at: c, to: to => [change(0, to)] },
+					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
 				guides: [],
 				move: delta => [change(0, add(c, delta))],

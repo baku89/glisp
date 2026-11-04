@@ -345,17 +345,19 @@ describe('snapping', () => {
 	const points = snapPointsOf(root, env, sceneOf(root, env))
 
 	it('has the places of what is drawn, and what says where they are', () => {
-		expect(points).toContainEqual({ at: [100, 100], target: 'binding:c/arg0' })
-		expect(points).toContainEqual({ at: [110, 100], target: null })
-		expect(points).toContainEqual({ at: [0, 0], target: 'binding:r/arg0' })
-		expect(points).toContainEqual({ at: [10, 10], target: null })
+		const has = (point: object) => expect(points).toContainEqual(expect.objectContaining(point))
+		has({ at: [100, 100], target: 'binding:c/arg0' })
+		has({ at: [110, 100], target: null })
+		has({ at: [0, 0], target: 'binding:r/arg0' })
+		has({ at: [10, 10], target: null })
 	})
 
 	it('has what each kind of thing has to line up with', () => {
-		expect(points).toContainEqual({ at: [90, 100], target: null })
-		expect(points).toContainEqual({ at: [100, 110], target: null })
-		expect(points).toContainEqual({ at: [5, 5], target: null })
-		expect(points).toContainEqual({ at: [10, 0], to: [10, 10], target: null })
+		const has = (point: object) => expect(points).toContainEqual(expect.objectContaining(point))
+		has({ at: [90, 100], target: null })
+		has({ at: [100, 110], target: null })
+		has({ at: [5, 5], target: null })
+		has({ at: [10, 0], to: [10, 10], target: null })
 		const gon = parse('{g = (path.ngon [0 0] 10 4)}')
 		const around = snapPointsOf(gon, env, sceneOf(gon, env))
 		expect(around.filter(p => p.to !== undefined)).toHaveLength(4)
@@ -371,8 +373,26 @@ describe('snapping', () => {
 		expect(nearestSnap(points, [10.5, 8], 4)!.at).toEqual([10, 10])
 	})
 
+	it('says what it is', () => {
+		const label = (at: Vec, reach = 2) => nearestSnap(points, at, reach)?.label
+		expect(label([100, 100])).toBe('c center')
+		expect(label([100, 90])).toBe('c top')
+		expect(label([0, 0])).toBe('r top left')
+		expect(label([5, 5])).toBe('r center')
+		expect(label([10, 3], 1.5)).toBe('r right')
+	})
+
+	it('says what line it went along', () => {
+		expect(nearestSnap(points, [11, 3], 1.5)).toMatchObject({
+			at: [10, 3],
+			target: null,
+			label: 'r right',
+			line: [[10, 0], [10, 10]],
+		})
+	})
+
 	it('finds the nearest, within reach', () => {
-		expect(nearestSnap(points, [102, 101], 8)).toEqual({ at: [100, 100], target: 'binding:c/arg0' })
+		expect(nearestSnap(points, [102, 101], 8)).toMatchObject({ at: [100, 100], target: 'binding:c/arg0' })
 		expect(nearestSnap(points, [50, 50], 8)).toBeNull()
 	})
 
@@ -405,7 +425,7 @@ describe('snapping', () => {
 	})
 
 	describe('a handle', () => {
-		const center = { at: [100, 100], target: 'binding:c/arg0' } as const
+		const center = { at: [100, 100], target: 'binding:c/arg0', label: 'c center' } as const
 
 		it('has what it was dragged to refer to it', () => {
 			const next = linked(root, env, 'binding:r', 0, center)!
@@ -413,12 +433,12 @@ describe('snapping', () => {
 		})
 
 		it('does not, for a place that no row says', () => {
-			expect(linked(root, env, 'binding:r', 0, { at: [110, 100], target: null })).toBeNull()
+			expect(linked(root, env, 'binding:r', 0, { at: [110, 100], target: null, label: '' })).toBeNull()
 		})
 
 		it('does not, for what already refers to it', () => {
 			const around = parse('{c = (path.circle ../r/topLeft 10) r = (path.rect [0 0] [10 10])}')
-			expect(linked(around, env, 'binding:r', 0, { at: [0, 0], target: 'binding:c/arg0' })).toBeNull()
+			expect(linked(around, env, 'binding:r', 0, { at: [0, 0], target: 'binding:c/arg0', label: '' })).toBeNull()
 		})
 
 		it('has nothing of its own row to snap to', () => {
@@ -429,7 +449,7 @@ describe('snapping', () => {
 	})
 
 	it('has only the value, for a place that no row says', () => {
-		expect(print(drawnFrom(root, env, 'x', 'rect', { at: [10, 10], target: null }, [20, 20], false).bindings.at(-1)![1])).toBe(
+		expect(print(drawnFrom(root, env, 'x', 'rect', { at: [10, 10], target: null, label: '' }, [20, 20], false).bindings.at(-1)![1])).toBe(
 			'(path.rect [10 10] [10 10])'
 		)
 	})
