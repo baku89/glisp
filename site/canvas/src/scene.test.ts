@@ -562,18 +562,18 @@ describe('snapping', () => {
 
 	it('says what it is', () => {
 		const label = (at: Vec, reach = 2) => nearestSnap(points, at, reach)?.label
-		expect(label([100, 100])).toBe('c center')
-		expect(label([100, 90])).toBe('c top')
-		expect(label([0, 0])).toBe('r top left')
-		expect(label([5, 5])).toBe('r center')
-		expect(label([10, 3], 1.5)).toBe('r right')
+		expect(label([100, 100])).toBe('center')
+		expect(label([100, 90])).toBe('top')
+		expect(label([0, 0])).toBe('top left')
+		expect(label([5, 5])).toBe('center')
+		expect(label([10, 3], 1.5)).toBe('right')
 	})
 
 	it('says what line it went along', () => {
 		expect(nearestSnap(points, [11, 3], 1.5)).toMatchObject({
 			at: [10, 3],
 			target: null,
-			label: 'r right',
+			label: 'right',
 			line: [[10, 0], [10, 10]],
 		})
 	})
@@ -606,10 +606,10 @@ describe('snapping', () => {
 		const drawnAs = (tool: 'rect' | 'roundRect' | 'ellipse', to: Vec, even = false) =>
 			print(drawnFrom(root, env, 'x', tool, start, to, even).bindings.at(-1)![1])
 		expect(drawnAs('rect', [130, 120])).toBe('(path.rect ../c/center [30 20])')
-		expect(drawnAs('rect', [90, 90])).toBe('(path.rect [90 90] [10 10])')
-		expect(drawnAs('rect', [130, 90])).toBe('(path.rect [100 90] [30 10])')
-		expect(drawnAs('rect', [90, 90], true)).toBe('(path.square [90 90] 10)')
-		expect(drawnAs('roundRect', [90, 90])).toMatch(/^\(path\.roundRect \[90 90\] \[10 10\] /)
+		expect(drawnAs('rect', [90, 90])).toMatch(/^\(path\.rect \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] \[10 10\]\)$/)
+		expect(drawnAs('rect', [130, 90])).toMatch(/^\(path\.rect \[\S*c\/center\/0 \(- \S*c\/center\/1 10\)\] \[30 10\]\)$/)
+		expect(drawnAs('rect', [90, 90], true)).toMatch(/^\(path\.square \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] 10\)$/)
+		expect(drawnAs('roundRect', [90, 90])).toMatch(/^\(path\.roundRect \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] \[10 10\] /)
 		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse ../c/center [20 30])')
 		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle ../c/center 30)')
 	})
@@ -784,13 +784,13 @@ describe('a square', () => {
 		expect(gripAt(next, env, 'binding:x')!.handles.at(-1)!.at).toEqual([30, 30])
 	})
 
-	it('refers from where it starts, out toward the bottom right, and not otherwise', () => {
+	it('refers from where it starts, as far short of that as it is drawn the other way', () => {
 		const root = parse('{c = (path.circle [100 100] 10)}') as LetAST
 		const center = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [100, 100], 1)!
 		const drawnAs = (to: Vec) => print(drawnFrom(root, env, 'x', 'rect', center, to, true).bindings.at(-1)![1])
 		expect(drawnAs([130, 120])).toBe('(path.square ../c/center 30)')
-		expect(drawnAs([70, 80])).toBe('(path.square [70 70] 30)')
-		expect(drawnAs([130, 80])).toBe('(path.square [100 70] 30)')
+		expect(drawnAs([70, 80])).toMatch(/^\(path\.square \[\(- \S*c\/center\/0 30\) \(- \S*c\/center\/1 30\)\] 30\)$/)
+		expect(drawnAs([130, 80])).toMatch(/^\(path\.square \[\S*c\/center\/0 \(- \S*c\/center\/1 30\)\] 30\)$/)
 	})
 })
 

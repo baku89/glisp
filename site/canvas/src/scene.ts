@@ -71,6 +71,7 @@ import {
 	withinArg,
 	isRect,
 	outlineOf,
+	otherControl,
 } from './graphics'
 
 export interface Shape {
@@ -238,7 +239,7 @@ export function rowsChanged(before: AST, after: AST, env: Env): Set<string> {
 export interface SnapPoint {
 	readonly at: Vec
 	readonly target: string | null
-	/** What it is, to say so: whose it is, and what on it. */
+	/** What it is on what it is on, to say so, if it is called anything. */
 	readonly label: string
 	/** How it is worked out from the row at `of`, if no one thing there says where it is. */
 	readonly code?: { readonly of: string; readonly make: PlaceCode }
@@ -262,9 +263,7 @@ export function snapPointsOf(
 		const grip = gripAt(root, env, row)
 		// In the coordinates of what is drawn, as a row inside a matrix is not.
 		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []
-		const whose = row.split('/').at(-1)!.replace(/^binding:/, '')
 		const inside = grip.within === undefined ? row : `${row}/${grip.within}`
-		const called = (name: string) => `${whose} ${name}`
 		const handles = grip.handles.flatMap(({ at, place, name, code }) =>
 			at === undefined
 				? []
@@ -272,7 +271,7 @@ export function snapPointsOf(
 						{
 							at,
 							...(code === undefined ? {} : { code: { of: inside, make: code } }),
-							label: name === undefined ? whose : called(name),
+							label: name ?? '',
 							target:
 								place === 'self'
 									? inside
@@ -287,13 +286,13 @@ export function snapPointsOf(
 			...(grip.snaps?.points ?? []).map(({ at, name, code }) => ({
 				at,
 				...(code === undefined ? {} : { code: { of: inside, make: code } }),
-				label: called(name),
+				label: name,
 				target: null,
 			})),
 			...(grip.snaps?.lines ?? []).map(({ from, to, name }) => ({
 				at: from,
 				to,
-				label: called(name),
+				label: name,
 				target: null,
 			})),
 		]
@@ -358,6 +357,35 @@ export const placesTakenBy = (
  * or its center. An ellipse goes out from there. A rect's origin is its top left, and its
  * size is never less than nothing, so one drawn up or left of there has no reference.
  */
+/** The two things that the code of a place is, between its brackets. */
+function elementsOfCode(code: string): [string, string] {
+	const inner = code.trim().slice(1, -1)
+	let depth = 0
+	for (let i = 0; i < inner.length; i++) {
+		const c = inner[i]
+		if (c === '(' || c === '[') depth++
+		else if (c === ')' || c === ']') depth--
+		else if (c === ' ' && depth === 0) return [inner.slice(0, i), inner.slice(i + 1)]
+	}
+	return [inner, inner]
+}
+
+/** How to say a place that is `by` short of what it snapped to, by referring to that. */
+function codeOffsetFrom(
+	snap: SnapPoint,
+	by: Vec,
+	step: number
+): NonNullable<SnapPoint['code']> {
+	const short = (element: string, i: number): string => {
+		const amount = roundedTo(by[i]!, step)
+		return amount === 0 ? element : `(- ${element} ${amount})`
+	}
+	const said = ([x, y]: readonly [string, string]): string => `[${short(x, 0)} ${short(y, 1)}]`
+	return snap.target !== null
+		? { of: snap.target, make: p => said([p('0'), p('1')]) }
+		: { of: snap.code!.of, make: p => said(elementsOfCode(snap.code!.make(p))) }
+}
+
 export function drawnFrom(
 	root: LetAST,
 	env: Env,
@@ -375,8 +403,18 @@ export function drawnFrom(
 	const elsewhere = fromCenter && (fromCorner || tool === 'capsule')
 	const anchored = canRefer(snap) && !elsewhere && !(fromCorner && (dx < 0 || dy < 0))
 	const next = drawn(root, name, tool, snap.at, to, even, step, anchored, fromCenter)
-	if (!anchored) return next
 	const source = `binding:${name}/arg0`
+	if (!anchored) {
+		// Its origin is not what it snapped to, but it is as far from that as it is big.
+		if (!canRefer(snap) || !fromCorner) return next
+		const reached = rowAt(next, env, `binding:${name}`)
+		const call = reached && bare(reached.node)
+		if (call?.kind !== 'call' || call.args[0] === undefined) return next
+		const origin = evaluate(call.args[0], reached!.env).value as Vec
+		const code = codeOffsetFrom(snap, [snap.at[0] - origin[0], snap.at[1] - origin[1]], step)
+		const offset = referred(next, env, source, { ...snap, target: null, code })
+		return offset?.kind === 'let' ? offset : next
+	}
 	const result = referred(next, env, source, snap)
 	return result?.kind === 'let' ? result : drawn(root, name, tool, snap.at, to, even, step, false, fromCenter)
 }
@@ -546,17 +584,28 @@ const inOf = ({ at, out, into }: Anchor): Vec | undefined =>
  * `anchors`, with the curve as `path` now has it, its controls having been taken hold of
  * in the middle of drawing it. Something else altogether leaves them as they are.
  */
-export function anchorsAlong(anchors: readonly Anchor[], path: Path): readonly Anchor[] {
+export function anchorsAlong(
+	anchors: readonly Anchor[],
+	path: Path,
+	how?: HandleDrag
+): readonly Anchor[] {
 	const vertices = (path as unknown as { curves: readonly { vertices: readonly { command: string; args?: readonly Vec[] }[] }[] }).curves[0]?.vertices
 	if (vertices?.length !== anchors.length) return anchors
 	const controls = (i: number): readonly Vec[] | null => {
 		const vertex = vertices[i]
 		return vertex?.command === 'C' && vertex.args?.length === 2 ? vertex.args : null
 	}
-	return anchors.map(({ out: last, into: _into, ...anchor }, i) => {
-		// The last has nothing to come out to yet, so it goes on as it was going to.
-		const out = i === anchors.length - 1 ? last : controls(i + 1)?.[0]
+	return anchors.map((was, i) => {
+		const { out: last, into: _into, ...anchor } = was
 		const into = controls(i)?.[1]
+		// The last has nothing to come out to yet, so it goes on from how it is come into.
+		const before = inOf(was)
+		const out =
+			i !== anchors.length - 1
+				? controls(i + 1)?.[0]
+				: last === undefined || into === undefined || before === undefined
+					? last
+					: otherControl(was.at, into, last, before, how)
 		return { ...anchor, ...(out === undefined ? {} : { out }), ...(into === undefined ? {} : { into }) }
 	})
 }
@@ -1006,28 +1055,30 @@ function isExpressionAt(root: AST, env: Env, row: string, place: DimensionPlace)
 }
 
 /**
- * The part of the row at `row` that a handle is exactly, to select by clicking it: the place
- * it is of, or the one number that it is about, or the one thing that dragging it changes.
+ * The parts of the row at `row` that a handle is exactly, to select by clicking it: the place
+ * it is of, or what it says it is, or the one number that it is about, or the one thing that
+ * dragging it changes. Only those that are written can be selected.
  */
-export function rowOfHandle(root: AST, env: Env, row: string, handle: Handle): string | null {
+export function rowsOfHandle(root: AST, env: Env, row: string, handle: Handle): string[] {
 	const within = gripAt(root, env, row)?.within
 	if (typeof handle.place === 'number') {
-		return `${row}${within === undefined ? '' : `/${within}`}/arg${handle.place}`
+		return [`${row}${within === undefined ? '' : `/${within}`}/arg${handle.place}`]
 	}
-	const part = ((): { route: readonly number[]; index?: number } | null => {
-		const { means, at } = handle
-		if (means !== undefined) return means.length === 1 ? means[0]! : null
-		if (at === undefined || handle.place === 'self') return null
-		const changes = handle.to([at[0] + 1.37, at[1] + 2.11], at)
-		if (changes.length !== 1) return null
-		const { route, value } = changes[0]!
-		if (!Array.isArray(value) || !value.includes(UNSET)) return { route }
-		const said = value.flatMap((element, i) => (element === UNSET ? [] : [i]))
-		return said.length === 1 ? { route, index: said[0]! } : null
-	})()
-	if (part === null || part.route.length === 0 || readAt(root, env, row, part.route) === null) return null
-	const path = part.route.map(arg => `/arg${arg}`).join('')
-	return `${row}${path}${part.index === undefined ? '' : `/${part.index}`}`
+	const rowOf = ({ route, index }: { route: readonly number[]; index?: number }): string[] => {
+		if (route.length === 0 || readAt(root, env, row, route) === null) return []
+		const path = route.map(arg => `/arg${arg}`).join('')
+		return [`${row}${path}${index === undefined ? '' : `/${index}`}`]
+	}
+	if (handle.parts !== undefined) return handle.parts.flatMap(route => rowOf({ route }))
+	const { means, at } = handle
+	if (means !== undefined) return means.length === 1 ? rowOf(means[0]!) : []
+	if (at === undefined || handle.place === 'self') return []
+	const changes = handle.to([at[0] + 1.37, at[1] + 2.11], at)
+	if (changes.length !== 1) return []
+	const { route, value } = changes[0]!
+	if (!Array.isArray(value) || !value.includes(UNSET)) return rowOf({ route })
+	const said = value.flatMap((element, i) => (element === UNSET ? [] : [i]))
+	return said.length === 1 ? rowOf({ route, index: said[0]! }) : []
 }
 
 /** The number at a place in the row at `row`, as it is in `root`. */

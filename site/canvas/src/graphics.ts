@@ -70,7 +70,9 @@ const number = evaluate(parse('number'), buildPrelude()).value as TypeValue
 /** A number that is shown by its icon, as what it means, in place of that of a number. */
 const numberShownBy = (icon: string): TypeValue =>
 	withTypeMeta(number, new RecordAST([['icon', lit(icon)]]))
-const angleType = numberShownBy('ph:angle')
+/** How far round, in degrees, which is said wherever one is written or typed. */
+const degreesType = withTypeMeta(number, new RecordAST([['suffix', lit('°')]]))
+const angleType = withTypeMeta(degreesType, new RecordAST([['icon', lit('ph:angle')]]))
 const cornerType = numberShownBy('tabler:border-radius')
 
 export type Path = Parameters<typeof transform>[0]
@@ -633,7 +635,7 @@ const makeRgb = makeTypedFn(
 	['red', 'green', 'blue']
 )
 const makeHsl = makeTypedFn(
-	[number, number, number],
+	[degreesType, number, number],
 	colorType,
 	(h, s, l) => toHex(new Color('hsl', [h as number, (s as number) * 100, (l as number) * 100])),
 	['hue', 'saturation', 'lightness']
@@ -841,12 +843,41 @@ export interface Change {
 
 const change = (arg: number, value: unknown): Change => ({ route: [arg], value })
 
+/** How nearly in line two directions have to be, for a curve to be going straight through. */
+const IN_LINE = 0.01
+
+/**
+ * Where the control across `at` from one that has gone from `was` to `moved` goes. With
+ * Option it stays, which is the way to break a curve. With Command it stays in line, as long
+ * as it was. Otherwise it is only if it was in line that it is kept so, the same length if
+ * it was, for a corner to go on being one.
+ */
+export function otherControl(
+	at: Vec,
+	moved: Vec,
+	other: Vec,
+	was: Vec,
+	how?: HandleDrag
+): Vec {
+	const [mx, my] = sub(moved, at)
+	const [ox, oy] = sub(other, at)
+	const [wx, wy] = sub(was, at)
+	const [movedBy, otherBy, wasBy] = [Math.hypot(mx, my), Math.hypot(ox, oy), Math.hypot(wx, wy)]
+	if (how?.symmetric || movedBy === 0) return other
+	const inLine = (ox * wx + oy * wy < 0 && Math.abs(ox * wy - oy * wx) <= IN_LINE * otherBy * wasBy) || otherBy === 0
+	if (!how?.smooth && !inLine) return other
+	const by = !how?.smooth && Math.abs(otherBy - wasBy) <= IN_LINE * wasBy ? 1 : otherBy / movedBy
+	return [at[0] - mx * by, at[1] - my * by]
+}
+
 /** How a handle is being dragged, by what is held down. */
 export interface HandleDrag {
 	/** The opposite side goes the other way, so that the center stays where it is. */
 	readonly symmetric?: boolean
 	/** An angle goes by steps, rather than wherever it is pulled. */
 	readonly even?: boolean
+	/** A control's other side stays in line with it, however long it was. */
+	readonly smooth?: boolean
 }
 
 /** A place on a canvas to take hold of a call by. */
@@ -882,6 +913,8 @@ export interface Handle {
 	readonly pivot?: Vec
 	/** What it turns around instead, when the other side goes the other way. */
 	readonly middle?: Vec
+	/** What it is exactly, more than one thing, as a vertex is how far out and which way. */
+	readonly parts?: readonly (readonly number[])[]
 	/** It pulls what goes through somewhere else, and is not on it, as a curve's controls are. */
 	readonly control?: boolean
 	/** It does not end up where it is taken to, so it is not to refer to what it snapped to. */
@@ -993,6 +1026,7 @@ export const under = (arg: number, grip: Grip): Grip => {
 		handles: grip.handles.map(handle => ({
 			...handle,
 			to: (to, from, how) => lower(handle.to(to, from, how)),
+			...(handle.parts === undefined ? {} : { parts: handle.parts.map(route => [arg, ...route]) }),
 			...(handle.means === undefined
 				? {}
 				: {
@@ -1064,24 +1098,37 @@ function gripOfD(path: Path): Grip {
 				const [control1, control2] = args as readonly [Vec, Vec]
 				guides.push(line(previous.point, control1), line(at, control2))
 				args.forEach((control, a) => {
+					// What it comes out of, and the control on the other side of that, if any.
+					const anchor = a === 0 ? previous.point : at
+					const across = a === 0 ? (v === 0 ? vertices.length - 1 : v - 1) : (v + 1) % vertices.length
+					const reaches = a === 0 ? v > 0 || closed : v + 1 < vertices.length || closed
 					handles.push({
 						kind: 'point',
 						name: 'control',
 						control: true,
 						at: control,
-						to: to =>
-							whole(
+						pivot: anchor,
+						to: (to, _, how) => {
+							const moved = how?.even ? evenFrom(anchor, to) : to
+							return whole(
 								withVertices(path, c, all =>
-									all.map((vertex, i) =>
-										i === v
-											? {
-													...vertex,
-													args: vertex.args!.map((arg, j) => (j === a ? to : arg)),
-												}
-											: vertex
-									)
+									all.map((vertex, i) => {
+										const args = vertex.args
+										if (args === undefined || vertex.command !== 'C') return vertex
+										const own = i === v ? args.map((arg, j) => (j === a ? moved : arg)) : args
+										return {
+											...vertex,
+											args:
+												reaches && i === across
+													? own.map((arg, j) =>
+															j === 1 - a ? otherControl(anchor, moved, arg, control, how) : arg
+														)
+													: own,
+										}
+									})
 								)
-							),
+							)
+						},
 					})
 				})
 			}
@@ -1162,8 +1209,19 @@ const placeIn =
 const rectPlace = placeIn('arg1/0', 'arg1/1')
 const squarePlace = placeIn('arg1', 'arg1')
 
+/** A place as far out as `radius` around the center, toward `angle` in degrees, as code. */
+const polarCode =
+	(
+		radius: (p: (path: string) => string) => string,
+		angle: (p: (path: string) => string) => string
+	): PlaceCode =>
+	p =>
+		`[(+ ${p('arg0/0')} (* ${radius(p)} (cos (to-rad ${angle(p)})))) (+ ${p('arg0/1')} (* ${radius(p)} (sin (to-rad ${angle(p)}))))]`
+
 const GIZMO_SIZE = 80
-const NGON_RING = 40
+const NGON_RING = 20
+/** How far past an ellipse its axis goes, to what turns it. */
+const ELLIPSE_FACING = 40
 /** How far out a handle stays from what it is measured from, so as to be taken apart from it. */
 const HANDLE_CLEAR = 12
 
@@ -1236,12 +1294,16 @@ const vertexHandle = (
 	angleArg: number,
 	c: Vec,
 	angle: number,
-	radius: number
+	radius: number,
+	code?: PlaceCode
 ): Handle => {
 	const at = add(c, toward(angle, Math.max(radius, HANDLE_CLEAR)))
 	return {
 		kind: 'point',
 		name: 'vertex',
+		parts: [[radiusArg], [angleArg]],
+		// Held clear of what it is measured from, it is not then quite at the vertex.
+		...(code === undefined || radius < HANDLE_CLEAR ? {} : { code }),
 		at,
 		pivot: c,
 		to: (to, _, how) => {
@@ -1400,10 +1462,30 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				const [x, y] = toward(first + axis, 1)
 				return Math.abs((to[0] - c[0]) * x + (to[1] - c[1]) * y)
 			}
-			const facing = on(rx + NGON_RING, 0)
+			const facing = on(rx + ELLIPSE_FACING, 0)
 			// Saying where a side is by its numbers goes only for one that is not turned.
-			const side = (name: string): { code?: PlaceCode } =>
-				first === 0 ? { code: ELLIPSE_SIDES[name]! } : {}
+			// Out along its own axes, which are then not along those of the canvas.
+			const turnedSides: Readonly<Record<string, PlaceCode>> = (() => {
+				const cos = (p: (path: string) => string) => `(cos (to-rad ${p('arg2')}))`
+				const sin = (p: (path: string) => string) => `(sin (to-rad ${p('arg2')}))`
+				const at =
+					(
+						by: string,
+						x: readonly [string, typeof cos],
+						y: readonly [string, typeof cos]
+					): PlaceCode =>
+					p =>
+						`[(${x[0]} ${p('arg0/0')} (* ${p(by)} ${x[1](p)})) (${y[0]} ${p('arg0/1')} (* ${p(by)} ${y[1](p)}))]`
+				return {
+					right: at('arg1/0', ['+', cos], ['+', sin]),
+					left: at('arg1/0', ['-', cos], ['-', sin]),
+					bottom: at('arg1/1', ['-', sin], ['+', cos]),
+					top: at('arg1/1', ['+', sin], ['-', cos]),
+				}
+			})()
+			const side = (name: string): { code: PlaceCode } => ({
+				code: first === 0 ? ELLIPSE_SIDES[name]! : turnedSides[name]!,
+			})
 			return {
 				marks: [
 					...pointMarks([0], on(0, -ry)),
@@ -1656,7 +1738,13 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 		args => {
 			const [start, end] = args as [Vec, Vec]
 			const grip = pointsGrip(args as Vec[], [], {
-				points: [{ at: [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2], name: 'middle' }],
+				points: [
+					{
+						at: [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2],
+						name: 'middle',
+						code: p => `[(/ (+ ${p('arg0/0')} ${p('arg1/0')}) 2) (/ (+ ${p('arg0/1')} ${p('arg1/1')}) 2)]`,
+					},
+				],
 				lines: [{ from: start, to: end, name: 'line' }],
 			})
 			return { ...grip, handles: evenEnds(grip.handles, start, end) }
@@ -1691,6 +1779,15 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			const first = finiteAngle(turned)
 			const ring = r + NGON_RING
 			const count = Math.max(3, Math.round(sides as number))
+			// Its angle can be left unsaid, and then there is nothing to refer to.
+			const vertexCode = (i: number): PlaceCode =>
+				polarCode(
+					p => p('arg1'),
+					p => {
+						const first = turned === undefined ? '0' : p('arg3')
+						return i === 0 ? first : turned === undefined ? `(* (/ 360 ${p('arg2')}) ${i})` : `(+ ${first} (* (/ 360 ${p('arg2')}) ${i}))`
+					}
+				)
 			return {
 				marks: [
 					...pointMarks([0], [c[0], c[1] - r]),
@@ -1699,7 +1796,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{ route: [3], at: add(c, toward(first, r)), side: 'below' },
 				],
 				handles: [
-					vertexHandle(1, 3, c, first, r),
+					vertexHandle(1, 3, c, first, r, vertexCode(0)),
 					countDial(2, c, ring, count, first),
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
@@ -1709,7 +1806,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						add(c, toward(first + (360 / count) * i, r))
 					)
 					return {
-						points: vertices.map(at => ({ at, name: 'vertex' })),
+						points: vertices.map((at, i) => ({ at, name: 'vertex', code: vertexCode(i) })),
 						lines: linesThrough(vertices, true),
 					}
 				})(),
@@ -1742,12 +1839,14 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{
 						kind: 'point',
 						name: 'start',
+						code: polarCode(p => p('arg1'), p => p('arg2')),
 						at: add(c, toward(from, r)),
 						to: to => [change(2, angleNear(c, from, to))],
 					},
 					{
 						kind: 'point',
 						name: 'end',
+						code: polarCode(p => p('arg1'), p => p('arg3')),
 						at: add(c, toward(until, r)),
 						to: to => [change(3, angleNear(c, until, to))],
 					},
@@ -1770,6 +1869,14 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			const vertices = Array.from({ length: count * 2 }, (_, i) =>
 				add(c, toward(first + (180 / count) * i, i % 2 === 0 ? out : within))
 			)
+			const vertexCode = (i: number): PlaceCode =>
+				polarCode(
+					p => p(i % 2 === 0 ? 'arg1' : 'arg2'),
+					p => {
+						const first = turned === undefined ? '0' : p('arg4')
+						return i === 0 ? first : turned === undefined ? `(* (/ 180 ${p('arg3')}) ${i})` : `(+ ${first} (* (/ 180 ${p('arg3')}) ${i}))`
+					}
+				)
 			return {
 				marks: [
 					...pointMarks([0], [c[0], c[1] - out]),
@@ -1779,14 +1886,18 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{ route: [4], at: add(c, toward(first, out)), side: 'below' },
 				],
 				handles: [
-					vertexHandle(1, 4, c, first, out),
-					{ ...radiusHandle(2, c, first + 180 / count, within), name: 'vertex' },
+					vertexHandle(1, 4, c, first, out, vertexCode(0)),
+					{
+						...radiusHandle(2, c, first + 180 / count, within),
+						name: 'vertex',
+						...(within < HANDLE_CLEAR ? {} : { code: vertexCode(1) }),
+					},
 					countDial(3, c, ring, count, first),
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
 				guides: [arc(c, ring, first + 3.6, first + 120)],
 				snaps: {
-					points: vertices.map(at => ({ at, name: 'vertex' })),
+					points: vertices.map((at, i) => ({ at, name: 'vertex', code: vertexCode(i) })),
 					lines: linesThrough(vertices, true),
 				},
 				move: delta => [change(0, add(c, delta))],
@@ -1920,15 +2031,15 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				handles: [
 					offsetHandle(1, c, middle, within),
 					offsetHandle(2, c, middle, out),
-					{ kind: 'point', name: 'start', at: fromAt, to: to => [change(3, angleNear(c, from, to))] },
-					{ kind: 'point', name: 'end', at: untilAt, to: to => [change(4, angleNear(c, until, to))] },
+					{ kind: 'point', name: 'start', code: polarCode(p => p('arg2'), p => p('arg3')), at: fromAt, to: to => [change(3, angleNear(c, from, to))] },
+					{ kind: 'point', name: 'end', code: polarCode(p => p('arg2'), p => p('arg4')), at: untilAt, to: to => [change(4, angleNear(c, until, to))] },
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
 				guides: [],
 				snaps: {
 					points: [
-						{ at: fromAt, name: 'start' },
-						{ at: untilAt, name: 'end' },
+						{ at: fromAt, name: 'start', code: polarCode(p => p('arg2'), p => p('arg3')) },
+						{ at: untilAt, name: 'end', code: polarCode(p => p('arg2'), p => p('arg4')) },
 					],
 				},
 				move: delta => [change(0, add(c, delta))],
@@ -1956,6 +2067,8 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						kind: 'point',
 						fine: true,
 						name: 'end',
+						parts: [[2], [3]],
+						code: polarCode(p => p('arg2'), p => `(* ${p('arg3')} 360)`),
 						at: endAt,
 						to: to => [change(2, dist(c, to)), change(3, angleNear(c, angle, to) / 360)],
 					},

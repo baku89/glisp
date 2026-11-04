@@ -2,8 +2,8 @@ import { type AST, buildPrelude, type Env, evaluate, expandLadder, LetAST, parse
 import { numberOptionsAt, textOf, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
-import { iconOfPath, onlyShapes, type Vec, withGraphics } from './graphics'
-import { anchorsAlong, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, drawnFrom, evenlyFrom, facesWhenDrawn, gripAt, nameFor, placesTakenBy, rowOfHandle, type ShapeTool, snapPointsOf, sceneOf } from './scene'
+import { iconOfPath, onlyShapes, otherControl, type Vec, withGraphics } from './graphics'
+import { anchorsAlong, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, drawnFrom, evenlyFrom, facesWhenDrawn, gripAt, linked, nameFor, placesTakenBy, rowsOfHandle, type ShapeTool, snapPointsOf, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const ROW = 'binding:c'
@@ -482,7 +482,7 @@ describe('what a pen is drawing, having had its controls taken hold of', () => {
 
 	it('keeps how the last is going to go on', () => {
 		const anchors = [{ at: [0, 0] as Vec, out: [1, 1] as Vec }, { at: [9, 0] as Vec, out: [12, 3] as Vec }]
-		const after = anchorsAlong(anchors, pathOf('(path.cubic [0 0] [2 5] [7 5] [9 0])'))
+		const after = anchorsAlong(anchors, pathOf('(path.cubic [0 0] [2 5] [7 5] [9 0])'), { symmetric: true })
 		expect(after[1]).toEqual({ at: [9, 0], into: [7, 5], out: [12, 3] })
 		expect(dOfAnchors([...after, { at: [20, 0] }], false)).toBe('M 0,0 C 2,5 7,5 9,0 C 12,3 20,0 20,0')
 	})
@@ -527,10 +527,10 @@ describe('an ellipse that is turned', () => {
 		expect(value).toBe(45)
 	})
 
-	it('can be said where its sides are by its numbers only if it is not turned', () => {
+	it('can be said where its sides are by its numbers, turned or not', () => {
 		const coded = (src: string) => gripOfSrc(src).snaps!.points!.filter(p => p.code !== undefined).length
 		expect(coded('(path.ellipse [0 0] [20 10])')).toBe(4)
-		expect(coded('(path.ellipse [0 0] [20 10] 30)')).toBe(0)
+		expect(coded('(path.ellipse [0 0] [20 10] 30)')).toBe(4)
 	})
 
 	it('leaves a superellipse, whose third is its shape, unturned', () => {
@@ -601,7 +601,7 @@ describe('drawn out from the center', () => {
 		const source = (tool: ShapeTool) =>
 			print(drawnFrom(from, env, 'x', tool, snap, [80, 70], false, 0.01, true).bindings.at(-1)![1])
 		expect(source('ellipse')).toMatch(/^\(path\.ellipse \.\.\/o\/center \[30 20\]\)$/)
-		expect(source('rect')).toBe('(path.rect [20 30] [60 40])')
+		expect(source('rect')).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 20\)\] \[60 40\]\)$/)
 	})
 })
 
@@ -648,7 +648,8 @@ describe('a handle, with the other side going the other way', () => {
 describe('the part of a row that a handle is', () => {
 	const of = (src: string, index: number) => {
 		const root = parse(`{c = ${src}}`)
-		return rowOfHandle(root, env, ROW, gripAt(root, env, ROW)!.handles[index]!)
+		const rows = rowsOfHandle(root, env, ROW, gripAt(root, env, ROW)!.handles[index]!)
+		return rows.length === 0 ? null : rows.length === 1 ? rows[0] : rows
 	}
 
 	it('is the place it is of', () => {
@@ -673,10 +674,20 @@ describe('the part of a row that a handle is', () => {
 		expect(of('(path.capsule [0 0] [50 0] 10)', 2)).toBe('binding:c/arg2')
 	})
 
-	it('is nothing, if it changes more than one', () => {
-		expect(of('(path.ngon [0 0] 20 5)', 0)).toBeNull()
+	it('is both of what a tip is, how far out and which way', () => {
+		expect(of('(path.ngon [0 0] 20 5 30)', 0)).toEqual(['binding:c/arg1', 'binding:c/arg3'])
+		expect(of('(path.star [0 0] 20 10 5 30)', 0)).toEqual(['binding:c/arg1', 'binding:c/arg4'])
+		expect(of('(path.spiral [0 0] 0 20 3)', 1)).toEqual(['binding:c/arg2', 'binding:c/arg3'])
+		expect(of('(style (path.ngon [0 0] 20 5 30) fill="red")', 0)).toEqual(['binding:c/arg0/arg1', 'binding:c/arg0/arg3'])
+	})
+
+	it('is only as far out, if which way is not written', () => {
+		expect(of('(path.ngon [0 0] 20 5)', 0)).toBe('binding:c/arg1')
+		expect(of('(path.star [0 0] 20 10 5)', 0)).toBe('binding:c/arg1')
+	})
+
+	it('is nothing, if what it changes is no one thing', () => {
 		expect(of('(path.rect [0 0] [10 20])', 5)).toBeNull()
-		expect(of('(path.spiral [0 0] 0 20 3)', 1)).toBeNull()
 	})
 
 	it('is nothing, if it is not written', () => {
@@ -688,5 +699,269 @@ describe('the part of a row that a handle is', () => {
 	it('goes inside what is around it', () => {
 		expect(of('(style (path.circle [0 0] 20) fill="red")', 0)).toBe('binding:c/arg0/arg1')
 		expect(of('(style (path.circle [0 0] 20) fill="red")', 1)).toBe('binding:c/arg0/arg0')
+	})
+})
+
+describe('the control across an anchor', () => {
+	const AT: Vec = [0, 0]
+
+	it('stays with Option', () => {
+		expect(otherControl(AT, [0, 10], [-10, 0], [10, 0], { symmetric: true })).toEqual([-10, 0])
+	})
+
+	it('stays in line and as long, with Command', () => {
+		const [x, y] = otherControl(AT, [0, 40], [-10, 0], [10, 0], { smooth: true })
+		expect(x).toBeCloseTo(0)
+		expect(y).toBeCloseTo(-10)
+	})
+
+	it('mirrors what mirrored it', () => {
+		const [x, y] = otherControl(AT, [0, 40], [-10, 0], [10, 0])
+		expect(x).toBeCloseTo(0)
+		expect(y).toBeCloseTo(-40)
+	})
+
+	it('stays in line, as long as it was, if it was not as long', () => {
+		const [x, y] = otherControl(AT, [0, 40], [-5, 0], [10, 0])
+		expect(x).toBeCloseTo(0)
+		expect(y).toBeCloseTo(-5)
+	})
+
+	it('stays where it is, if that was a corner', () => {
+		expect(otherControl(AT, [0, 40], [0, 10], [10, 0])).toEqual([0, 10])
+		expect(otherControl(AT, [0, 40], [10, 5], [10, 0])).toEqual([10, 5])
+	})
+
+	it('can make a corner smooth again, with Command', () => {
+		const [x, y] = otherControl(AT, [10, 0], [0, 10], [10, 0], { smooth: true })
+		expect(x).toBeCloseTo(-10)
+		expect(y).toBeCloseTo(0)
+	})
+})
+
+describe('a control of a path', () => {
+	const SMOOTH = '(path.d "M0,0 C10,0 20,0 30,0 C40,0 50,0 60,0")'
+	const CORNER = '(path.d "M0,0 C10,0 30,20 30,0 C45,10 50,0 60,0")'
+	const OPEN = '(path.d "M0,0 C10,0 20,0 30,0")'
+	const pull = (src: string, index: number, to: Vec, how = {}) => {
+		const root = parse(`{c = ${src}}`)
+		const handle = gripAt(root, env, ROW)!.handles[index]!
+		const [{ value }] = handle.to(to, handle.at!, how) as [{ value: string }]
+		return value.match(/-?[\d.]+(?:e-?\d+)?/g)!.map(n => Math.round(Number(n)))
+	}
+	const INTO = 2
+
+	it('takes the other with it', () => {
+		const numbers = pull(SMOOTH, INTO, [20, 10])
+		expect(numbers.slice(2, 6)).toEqual([10, 0, 20, 10])
+		expect(numbers.slice(8, 10)).toEqual([40, -10])
+	})
+
+	it('breaks with Option', () => {
+		const numbers = pull(SMOOTH, INTO, [20, 10], { symmetric: true })
+		expect(numbers.slice(4, 6)).toEqual([20, 10])
+		expect(numbers.slice(8, 10)).toEqual([40, 0])
+	})
+
+	it('stays in line and as long, with Command', () => {
+		const numbers = pull(SMOOTH, INTO, [0, 0], { smooth: true })
+		expect(numbers.slice(4, 6)).toEqual([0, 0])
+		expect(numbers.slice(8, 10)).toEqual([40, 0])
+	})
+
+	it('leaves a corner as it is', () => {
+		const numbers = pull(CORNER, INTO, [20, 10])
+		expect(numbers.slice(8, 10)).toEqual([45, 10])
+	})
+
+	it('has nothing to take at an end', () => {
+		expect(pull(OPEN, 1, [5, 5]).slice(2, 4)).toEqual([5, 5])
+	})
+
+	it('goes by even angles around its anchor, with Shift', () => {
+		const handle = gripAt(parse(`{c = ${SMOOTH}}`), env, ROW)!.handles[INTO]!
+		expect(handle.pivot).toEqual([30, 0])
+		const numbers = pull(SMOOTH, INTO, [20, 8], { even: true })
+		expect(Math.abs(numbers[4]! - 30)).toBe(Math.abs(numbers[5]!))
+	})
+})
+
+describe('what a pen is drawing, its last control pulled', () => {
+	const pathOf = (src: string) => (evaluate(parse(src), env).value as { path: Parameters<typeof anchorsAlong>[1] }).path
+	const anchors = [{ at: [0, 0] as Vec, out: [1, 1] as Vec }, { at: [10, 0] as Vec, out: [15, 0] as Vec }]
+	const moved = pathOf('(path.cubic [0 0] [1 1] [10 5] [10 0])')
+
+	it('takes how it goes on with it', () => {
+		const out = anchorsAlong(anchors, moved)[1]!.out!
+		expect(out[0]).toBeCloseTo(10)
+		expect(out[1]).toBeCloseTo(-5)
+	})
+
+	it('breaks with Option', () => {
+		expect(anchorsAlong(anchors, moved, { symmetric: true })[1]!.out).toEqual([15, 0])
+	})
+})
+
+describe('a place that no argument says', () => {
+	/** A circle drawn out from the place called `name`, with what it is on then changed by `after`. */
+	const follows = (src: string, name: string, after: string, nth = 0) => {
+		const root = parse(`{o = ${src}}`) as LetAST
+		const places = snapPointsOf(root, env, sceneOf(root, env)).filter(p => p.label === name && p.code !== undefined)
+		const snap = places[nth]
+		expect(snap, `${src} has a ${name} to refer to`).toBeDefined()
+		const next = drawnFrom(root, env, 'x', 'ellipse', snap!, [500, 500], false)
+		const written = print(next.bindings.at(-1)![1])
+		expect(written).toMatch(/\.\.\/o\//)
+		const centerOf = (ast: AST) => {
+			const grip = gripAt(ast, env, 'binding:x')!
+			return grip.handles.find(h => h.name === 'center')!.at!
+		}
+		const [x, y] = centerOf(next)
+		expect(evaluate(next, env).diagnostics).toEqual([])
+		expect(x).toBeCloseTo(snap!.at[0], 6)
+		expect(y).toBeCloseTo(snap!.at[1], 6)
+		const moved = parse(print(next).replace(src, after)) as LetAST
+		const others = snapPointsOf(moved, env, sceneOf(moved, env)).filter(p => p.label === name && p.code !== undefined)
+		const [mx, my] = centerOf(moved)
+		expect(mx).toBeCloseTo(others[nth]!.at[0], 6)
+		expect(my).toBeCloseTo(others[nth]!.at[1], 6)
+		expect([mx, my]).not.toEqual([x, y])
+	}
+
+	it('follows a vertex of a polygon', () => {
+		follows('(path.ngon [10 20] 50 5)', 'vertex', '(path.ngon [10 20] 80 5)', 2)
+		follows('(path.ngon [10 20] 50 5 30)', 'vertex', '(path.ngon [10 20] 50 5 60)', 2)
+		follows('(path.ngon [10 20] 50 5)', 'vertex', '(path.ngon [10 20] 50 7)', 3)
+	})
+
+	it('follows a vertex of a star, out or in', () => {
+		follows('(path.star [10 20] 50 25 5)', 'vertex', '(path.star [10 20] 80 25 5)', 2)
+		follows('(path.star [10 20] 50 25 5)', 'vertex', '(path.star [10 20] 50 30 5)', 3)
+		follows('(path.star [10 20] 50 25 5 30)', 'vertex', '(path.star [10 20] 50 25 5 60)', 3)
+	})
+
+	it('follows the corners, the sides and the middle of a rect', () => {
+		for (const name of ['top right', 'bottom left', 'bottom right', 'left', 'top', 'right', 'bottom', 'center']) {
+			follows('(path.rect [10 20] [100 50])', name, '(path.rect [10 20] [200 80])')
+			follows('(path.roundRect [10 20] [100 50] 5)', name, '(path.roundRect [10 20] [200 80] 5)')
+		}
+	})
+
+	it('follows the corners and the middle of a square', () => {
+		for (const name of ['top right', 'bottom left', 'bottom right', 'right', 'bottom', 'center']) {
+			follows('(path.square [10 20] 100)', name, '(path.square [10 20] 200)')
+		}
+	})
+
+	describe('with what is drawn on the far side of it', () => {
+		const drawnOn = (from: string, name: string, to: Vec, tool: ShapeTool = 'rect', center = false) => {
+			const root = parse(`{o = ${from}}`) as LetAST
+			const snap = snapPointsOf(root, env, sceneOf(root, env)).find(p => p.label === name)!
+			return { snap, next: drawnFrom(root, env, 'x', tool, snap, to, false, 0.01, center) }
+		}
+		const cornerOf = (ast: AST) => gripAt(ast, env, 'binding:x')!.handles.find(h => h.name === 'top left')!.at!
+
+		it('stays on the place it snapped to, drawn up from a corner', () => {
+			const { snap, next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [260, -30])
+			const written = print(next.bindings.at(-1)![1])
+			expect(written).toMatch(/\.\.\/o\//)
+			expect(evaluate(next, env).diagnostics).toEqual([])
+			expect(cornerOf(next)).toEqual([snap.at[0], snap.at[1] - 50])
+			const moved = parse(print(next).replace('[10 20] [200 60]', '[10 20] [300 90]')) as LetAST
+			expect(cornerOf(moved)).toEqual([310, 20 - 50])
+		})
+
+		it('stays on it, drawn left and up from what is its origin', () => {
+			const { next } = drawnOn('(path.rect [100 100] [50 50])', 'top left', [70, 60])
+			expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 40\)\] \[30 40\]\)$/)
+			const moved = parse(print(next).replace('[100 100] [50 50]', '[200 300] [50 50]')) as LetAST
+			expect(cornerOf(moved)).toEqual([170, 260])
+		})
+
+		it('stays around it, drawn out from the center', () => {
+			const { next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [240, 40], 'rect', true)
+			expect(cornerOf(next)).toEqual([180, 0])
+			const moved = parse(print(next).replace('[10 20] [200 60]', '[10 20] [300 90]')) as LetAST
+			expect(cornerOf(moved)).toEqual([280, 0])
+		})
+
+		it('stays on it when the top is dragged, and goes with what it is on', () => {
+			const { next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [260, -30])
+			const handle = gripAt(next, env, 'binding:x')!.handles.find(h => h.name === 'top')!
+			const dragged = changed(next, env, 'binding:x', handle.to([handle.at![0], handle.at![1] - 11], handle.at!)).ast as LetAST
+			expect(print(dragged.bindings[0]![1])).toBe('(path.rect [10 20] [200 60])')
+			const grip = gripAt(dragged, env, 'binding:x')!
+			const bottom = grip.handles.find(h => h.name === 'bottom right')!.at!
+			expect(bottom).toEqual([260, 20])
+		})
+
+		it('is the same for a rect with round corners', () => {
+			const { next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [260, -30], 'roundRect')
+			expect(print(next.bindings.at(-1)![1])).toMatch(/\.\.\/o\//)
+			expect(evaluate(next, env).diagnostics).toEqual([])
+		})
+	})
+
+	it('follows the middle of a line', () => {
+		follows('(path.line [0 0] [100 40])', 'middle', '(path.line [0 0] [200 40])')
+	})
+
+	it('follows the sides of a turned ellipse', () => {
+		for (const name of ['right', 'bottom', 'left', 'top']) {
+			follows('(path.ellipse [10 20] [40 20] 30)', name, '(path.ellipse [10 20] [40 20] 60)')
+		}
+	})
+
+	it('follows the ends of an arc and a fan, and of a spiral', () => {
+		follows('(path.arc [10 20] 50 10 100)', 'start', '(path.arc [10 20] 50 40 100)')
+		follows('(path.arc [10 20] 50 10 100)', 'end', '(path.arc [10 20] 80 10 100)')
+		follows('(path.fan [10 20] 20 50 10 100)', 'start', '(path.fan [10 20] 20 80 10 100)')
+		follows('(path.fan [10 20] 20 50 10 100)', 'end', '(path.fan [10 20] 20 50 10 130)')
+		follows('(path.spiral [10 20] 5 50 2.25)', 'end', '(path.spiral [10 20] 5 50 2.5)')
+	})
+
+	it('can have a handle linked to it, by coming exactly to it', () => {
+		const root = parse('{o = (path.ngon [10 20] 50 5 30) p = [0 0] c = (path.line p [300 300])}') as LetAST
+		const snap = snapPointsOf(root, env, sceneOf(root, env)).filter(p => p.label === 'vertex' && p.code !== undefined)[2]!
+		const handle = gripAt(root, env, ROW)!.handles.find(h => h.place === 1)!
+		const { ast } = changed(root, env, ROW, handle.to(snap.at, handle.at!))
+		expect(print(linked(ast!, env, ROW, 1, snap)!)).toMatch(/path\.line p \[.*\.\.\/o\//)
+	})
+
+	it('is only a value at the end of a clothoid, which no code can say', () => {
+		const grip = gripAt(parse('{c = (path.clothoid [0 0] 0 100 0 0.01)}'), env, ROW)!
+		expect(grip.snaps!.points![0]!.code).toBeUndefined()
+	})
+})
+
+describe('how far round something is', () => {
+	const optionsOf = (src: string, arg: number) => numberOptionsAt(viewOf(parse(src), env).slots[arg]!)
+
+	it.each([
+		['(path.ngon [0 0] 10 5 30)', 3],
+		['(path.star [0 0] 10 5 5 30)', 4],
+		['(path.ellipse [0 0] [10 10] 30)', 2],
+		['(path.arc [0 0] 10 0 90)', 2],
+		['(path.arc [0 0] 10 0 90)', 3],
+		['(path.fan [0 0] 5 10 0 90)', 3],
+		['(path.fan [0 0] 5 10 0 90)', 4],
+		['(path.clothoid [0 0] 30 10 0 0)', 1],
+		['(mat2d.rotate 30)', 0],
+		['(color.hsl 30 1 1)', 0],
+	])('is in degrees, in %s at %i', (src, arg) => {
+		expect(optionsOf(src, arg).suffix).toBe('°')
+	})
+
+	it('still has its icon', () => {
+		expect(textOf(viewOf(parse('(path.ngon [0 0] 10 5 30)'), env).slots[3]!.expected?.meta?.get('icon'))).toBe('ph:angle')
+	})
+
+	it('says so out on its own, along with that icon', () => {
+		const root = parse('{c = (path.ngon [0 0] 10 5 30)}')
+		expect(dimensionAt(root, env, ROW, { route: [3] })!.options).toMatchObject({ suffix: '°', leftIcon: 'ph:angle' })
+	})
+
+	it('is not what anything else is', () => {
+		expect(optionsOf('(path.ngon [0 0] 10 5 30)', 1).suffix).toBeUndefined()
 	})
 })
