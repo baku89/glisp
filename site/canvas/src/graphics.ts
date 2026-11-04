@@ -7,6 +7,7 @@
 import {
 	type AST,
 	buildPrelude,
+	CallAST,
 	type Env,
 	evaluate,
 	host,
@@ -19,6 +20,9 @@ import {
 	RecordAST,
 	type TypeValue,
 	UNSET,
+	toAst,
+	VecAST,
+	withExpansion,
 	withMembers,
 	withTypeMeta,
 } from '@glisp/lang'
@@ -140,29 +144,28 @@ export function iconOfPath(value: unknown): string | null {
 
 const pathType = said(makeType('path', isPath, { curves: [] }), 'path', 'mdi:vector-curve')
 
-const makeCircle = makeTypedFn(
-	[point, number],
-	pathType,
-	(center, radius) => circle(center as Vec, radius as number),
-	['center', 'radius']
-)
+/** A call to a member of `path`, as a next rung is written. */
+const callOf = (member: string, args: readonly AST[]): AST =>
+	new CallAST(parse(`path.${member}`), [...args])
+
+/** The rungs: each shape is said in terms of the more general one it is a case of. */
 const makeEllipse = makeTypedFn(
 	[point, vec2],
 	pathType,
 	(center, radius) => ellipse(center as Vec, radius as Vec),
 	['center', 'radius']
 )
-const makeRect = makeTypedFn(
-	[point, point],
-	pathType,
-	(start, end) => rectangle(start as Vec, end as Vec),
-	['start', 'end']
-)
-const makeLine = makeTypedFn(
-	[point, point],
-	pathType,
-	(start, end) => line(start as Vec, end as Vec),
-	['start', 'end']
+const makeCircle = withExpansion(
+	makeTypedFn(
+		[point, number],
+		pathType,
+		(center, radius) => circle(center as Vec, radius as number),
+		['center', 'radius']
+	),
+	([center, radius]) =>
+		center === undefined || radius === undefined
+			? null
+			: callOf('ellipse', [center, new VecAST([radius, radius])])
 )
 const makePolyline = makeTypedFn(
 	[],
@@ -178,12 +181,53 @@ const makePolygon = makeTypedFn(
 	[],
 	point
 )
-const makeNgon = makeTypedFn(
-	[point, number, number],
-	pathType,
-	(center, radius, sides) =>
-		regularPolygon(center as Vec, radius as number, Math.max(3, Math.round(sides as number))),
-	['center', 'radius', 'sides']
+const makeRect = withExpansion(
+	makeTypedFn(
+		[point, point],
+		pathType,
+		(start, end) => rectangle(start as Vec, end as Vec),
+		['start', 'end']
+	),
+	([start, end], { value }) => {
+		if (start === undefined || end === undefined) return null
+		const [left, top] = value(start) as Vec
+		const [right, bottom] = value(end) as Vec
+		return callOf('polygon', [
+			toAst([left, top], null),
+			toAst([right, top], null),
+			toAst([right, bottom], null),
+			toAst([left, bottom], null),
+		])
+	}
+)
+const makeLine = withExpansion(
+	makeTypedFn(
+		[point, point],
+		pathType,
+		(start, end) => line(start as Vec, end as Vec),
+		['start', 'end']
+	),
+	([start, end]) =>
+		start === undefined || end === undefined ? null : callOf('polyline', [start, end])
+)
+const makeNgon = withExpansion(
+	makeTypedFn(
+		[point, number, number],
+		pathType,
+		(center, radius, sides) =>
+			regularPolygon(center as Vec, radius as number, Math.max(3, Math.round(sides as number))),
+		['center', 'radius', 'sides']
+	),
+	([center, radius, sides], { value }) => {
+		if (center === undefined || radius === undefined || sides === undefined) return null
+		const c = value(center) as Vec
+		const r = value(radius) as number
+		const count = Math.max(3, Math.round(value(sides) as number))
+		const vertices = Array.from({ length: count }, (_, i) =>
+			toAst(add(c, toward((360 / count) * i, r)), null)
+		)
+		return callOf('polygon', vertices)
+	}
 )
 const makeArc = makeTypedFn(
 	[point, number, number, number],
@@ -277,6 +321,117 @@ export const gripOfPoint = (at: Vec): Grip => ({
 	guides: [],
 	move: delta => [{ route: [], value: add(at, delta) }],
 })
+
+interface Vertex {
+	readonly point: Vec
+	readonly command: string
+	readonly args?: readonly Vec[]
+}
+interface Curve {
+	readonly vertices: readonly Vertex[]
+	readonly closed: boolean
+}
+
+/** `path`, with its vertex at `v` of its curve at `c` made something else. */
+const withVertices = (
+	path: Path,
+	c: number,
+	change: (vertices: readonly Vertex[]) => readonly Vertex[]
+): Path => {
+	const curves = (path as unknown as { curves: readonly Curve[] }).curves
+	return {
+		curves: curves.map((curve, i) =>
+			i === c ? { ...curve, vertices: change(curve.vertices) } : curve
+		),
+	} as unknown as Path
+}
+
+/** Only a curve's controls are places, as an arc's are its radii and such. */
+const shiftVertex = (vertex: Vertex, delta: Vec): Vertex => ({
+	...vertex,
+	point: add(vertex.point, delta),
+	...(vertex.command === 'C' && vertex.args
+		? { args: vertex.args.map(arg => add(arg, delta)) }
+		: {}),
+})
+
+/**
+ * Take hold of a path written out, by its vertices and what controls its curves, as
+ * they are all there is to say about it. A vertex takes its controls along.
+ */
+export function gripOfPathValue(path: Path): Grip {
+	const curves = (path as unknown as { curves: readonly Curve[] }).curves
+	const handles: Handle[] = []
+	const guides: Path[] = []
+	const whole = (value: Path): Change[] => [{ route: [], value }]
+	curves.forEach(({ vertices, closed }, c) => {
+		vertices.forEach(({ point: at, command, args }, v) => {
+			const previous = vertices[v - 1] ?? (closed ? vertices.at(-1) : undefined)
+			if (command === 'C' && args?.length === 2 && previous !== undefined) {
+				const [control1, control2] = args as readonly [Vec, Vec]
+				guides.push(line(previous.point, control1), line(at, control2))
+				args.forEach((control, a) => {
+					handles.push({
+						kind: 'point',
+						at: control,
+						to: to =>
+							whole(
+								withVertices(path, c, all =>
+									all.map((vertex, i) =>
+										i === v
+											? {
+													...vertex,
+													args: vertex.args!.map((arg, j) => (j === a ? to : arg)),
+												}
+											: vertex
+									)
+								)
+							),
+					})
+				})
+			}
+			handles.push({
+				kind: 'point',
+				at,
+				to: to =>
+					whole(
+						withVertices(path, c, all => {
+							const delta = sub(to, at)
+							const next = (v + 1) % all.length
+							return all.map((vertex, i) => {
+								if (i === v) {
+									const own = vertex.args
+									return {
+										...vertex,
+										point: to,
+										...(vertex.command === 'C' && own
+											? { args: [own[0]!, add(own[1]!, delta)] }
+											: {}),
+									}
+								}
+								const follows = i === next && (closed || next > v)
+								return follows && vertex.command === 'C' && vertex.args
+									? { ...vertex, args: [add(vertex.args[0]!, delta), vertex.args[1]!] }
+									: vertex
+							})
+						})
+					),
+			})
+		})
+	})
+	return {
+		handles,
+		guides,
+		move: delta =>
+			whole(
+				curves.reduce<Path>(
+					(moved, _, c) =>
+						withVertices(moved, c, all => all.map(vertex => shiftVertex(vertex, delta))),
+					path
+				)
+			),
+	}
+}
 
 const GIZMO_SIZE = 80
 const NGON_RING = 40

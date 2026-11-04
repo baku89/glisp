@@ -1,8 +1,17 @@
-import { buildPrelude, type Env, evaluate, parse, print } from '@glisp/lang'
+import {
+	buildPrelude,
+	type Env,
+	evaluate,
+	expandLadder,
+	type LetAST,
+	parse,
+	print,
+	toAst,
+} from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, type Vec, withGraphics } from './graphics'
-import { changed, gripAt, rowsWithin, sceneOf } from './scene'
+import { changed, drawn, gripAt, nameFor, rowsWithin, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const scene = (src: string) =>
@@ -68,8 +77,79 @@ describe('sceneOf', () => {
 		])
 	})
 
+	it('has a path that has been written out, as evaluating one does', () => {
+		const value = evaluate(parse('(path.rect [0 0] [10 10])'), env).value
+		expect(scene(`{c = ${print(toAst(value, env))}}`)).toEqual(['binding:c path'])
+	})
+
 	it('leaves out what is bypassed, which can still be referred to', () => {
 		expect(scene('{c = #_(path.circle [0 0] 1) d = c}')).toEqual(['binding:d path'])
+	})
+})
+
+describe('the ladder', () => {
+	const ladder = (src: string) => expandLadder(parse(src), env).map(print)
+
+	it('goes from a circle to an ellipse', () => {
+		expect(ladder('(path.circle [0 0] 10)')).toEqual([
+			'(path.circle [0 0] 10)',
+			'(path.ellipse [0 0] [10 10])',
+		])
+	})
+
+	it('keeps what was written, on the way', () => {
+		expect(ladder('(path.circle [0 0] (+ 1 2))')[1]).toBe('(path.ellipse [0 0] [(+ 1 2) (+ 1 2)])')
+	})
+
+	it('goes from a rect to its corners', () => {
+		expect(ladder('(path.rect [0 0] [10 20])')).toEqual([
+			'(path.rect [0 0] [10 20])',
+			'(path.polygon [0 0] [10 0] [10 20] [0 20])',
+		])
+	})
+
+	it('goes from a line to a polyline', () => {
+		expect(ladder('(path.line [0 0] [1 1])')).toEqual([
+			'(path.line [0 0] [1 1])',
+			'(path.polyline [0 0] [1 1])',
+		])
+	})
+
+	it('goes from an ngon to its vertices', () => {
+		expect(ladder('(path.ngon [0 0] 10 4)')[1]).toMatch(/^\(path\.polygon \[10 0\]/)
+	})
+
+	it('comes to the same shape on every rung', () => {
+		for (const src of ['(path.rect [0 0] [10 20])', '(path.line [0 0] [1 1])']) {
+			const [first, second] = expandLadder(parse(src), env)
+			expect(iconOfPath(evaluate(second!, env).value)).toBe(iconOfPath(evaluate(first!, env).value))
+		}
+	})
+})
+
+describe('drawing a shape', () => {
+	const root = parse('{a = 1}') as LetAST
+	const shape = (tool: 'rect' | 'ellipse', to: Vec, even = false) =>
+		print(drawn(root, 'x', tool, [10, 10], to, even))
+
+	it('adds a rect from corner to corner', () => {
+		expect(shape('rect', [30.126, 50])).toBe('{a = 1 x = (path.rect [10 10] [30.13 50])}')
+	})
+
+	it('adds an ellipse within those corners', () => {
+		expect(shape('ellipse', [30, 50])).toBe('{a = 1 x = (path.ellipse [20 30] [10 20])}')
+		expect(shape('ellipse', [-10, -10])).toBe('{a = 1 x = (path.ellipse [0 0] [10 10])}')
+	})
+
+	it('is even when asked to, as far as the longer side goes', () => {
+		expect(shape('rect', [30, 50], true)).toBe('{a = 1 x = (path.rect [10 10] [50 50])}')
+		expect(shape('rect', [-30, 20], true)).toBe('{a = 1 x = (path.rect [10 10] [-30 50])}')
+		expect(shape('ellipse', [30, 50], true)).toBe('{a = 1 x = (path.circle [30 30] 20)}')
+	})
+
+	it('is named for what it is, and nothing already there', () => {
+		expect(nameFor(root, 'rect')).toBe('rect')
+		expect(nameFor(parse('{rect = 1 rect2 = 2}') as LetAST, 'rect')).toBe('rect3')
 	})
 })
 
@@ -158,6 +238,43 @@ describe('grips', () => {
 	it('take a point that is all there is', () => {
 		expect(pulled('{c = (: [1 2] point)}', 0, [5, 6])).toBe('{c = (: [5 6] point)}')
 		expect(pulled('{d = (: [1 2] point) c = d}', 0, [5, 6])).toBe('{d = (: [5 6] point) c = d}')
+	})
+
+	describe('a path written out', () => {
+		const written = (src: string) => `{c = ${print(toAst(evaluate(parse(src), env).value, env))}}`
+		const line = '{curves: [{vertices: [{point: [0 0] command: "L"} {point: [10 0] command: "L"}] closed: false}]}'
+
+		it('is taken by its vertices', () => {
+			expect(kinds(written('(path.rect [0 0] [10 10])'))).toEqual(['point', 'point', 'point', 'point'])
+			expect(pulled(`{c = ${line}}`, 1, [5, 5])).toBe(`{c = ${line.replace('[10 0]', '[5 5]')}}`)
+		})
+
+		it('is moved as a whole', () => {
+			const root = parse(`{c = ${line}}`)
+			const { ast } = changed(root, env, row, gripAt(root, env, row)!.move!([1, 2]))
+			expect(print(ast!)).toBe(`{c = ${line.replace('[0 0]', '[1 2]').replace('[10 0]', '[11 2]')}}`)
+		})
+
+		describe('with a curve', () => {
+			const source = written('(path.cubic [0 0] [1 0] [2 0] [3 0])')
+
+			it('is taken by what controls it too, with lines to them', () => {
+				const grip = gripAt(parse(source), env, row)!
+				expect(grip.handles.map(h => h.at)).toEqual([[0, 0], [1, 0], [2, 0], [3, 0]])
+				expect(grip.guides).toHaveLength(2)
+			})
+
+			it('takes the controls along with a vertex', () => {
+				expect(pulled(source, 3, [13, 0])).toContain('point: [13 0] command: "C" args: [[1 0] [12 0]]')
+				const first = pulled(source, 0, [10, 0])!
+				expect(first).toContain('point: [10 0]')
+				expect(first).toContain('args: [[11 0] [2 0]]')
+			})
+
+			it('moves a control on its own', () => {
+				expect(pulled(source, 1, [5, 5])).toContain('args: [[5 5] [2 0]]')
+			})
+		})
 	})
 
 	describe('a transformed path', () => {

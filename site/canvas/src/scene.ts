@@ -12,7 +12,9 @@ import {
 	evaluate,
 	infer,
 	isHidden,
+	LetAST,
 	lookupBareName,
+	parse,
 	readByName,
 	solve,
 	type TypeValue,
@@ -27,7 +29,9 @@ import {
 	type Change,
 	type Grip,
 	gripOf,
+	gripOfPathValue,
 	gripOfPoint,
+	isPath,
 	type Mat,
 	NO_GRIP,
 	type Path,
@@ -55,6 +59,47 @@ export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 	return [...new Set(rows)]
 }
 
+export type ShapeTool = 'rect' | 'ellipse'
+
+const rounded = (n: number): number => Math.round(n * 100) / 100
+const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
+
+/** The name a shape drawn with `tool` gets, that `root` does not have yet. */
+export function nameFor(root: LetAST, tool: ShapeTool): string {
+	const taken = new Set(root.bindings.map(([name]) => name))
+	if (!taken.has(tool)) return tool
+	let n = 2
+	while (taken.has(`${tool}${n}`)) n++
+	return `${tool}${n}`
+}
+
+/**
+ * `root` with a shape drawn from corner to corner, under `name`. As even as it can
+ * be, it is what that is called: a square is a rect, and an even ellipse a circle.
+ */
+export function drawn(
+	root: LetAST,
+	name: string,
+	tool: ShapeTool,
+	from: Vec,
+	to: Vec,
+	even: boolean
+): LetAST {
+	const [dx, dy] = [to[0] - from[0], to[1] - from[1]]
+	const side = Math.max(Math.abs(dx), Math.abs(dy))
+	const end: Vec = even
+		? [from[0] + Math.sign(dx || 1) * side, from[1] + Math.sign(dy || 1) * side]
+		: to
+	const center: Vec = [(from[0] + end[0]) / 2, (from[1] + end[1]) / 2]
+	const source =
+		tool === 'rect'
+			? `(path.rect ${written(from)} ${written(end)})`
+			: even
+				? `(path.circle ${written(center)} ${rounded(side / 2)})`
+				: `(path.ellipse ${written(center)} ${written([Math.abs(dx) / 2, Math.abs(dy) / 2])})`
+	return new LetAST([...root.bindings, [name, parse(source)]], root.body)
+}
+
 const IDENTITY: Mat = [1, 0, 0, 1, 0, 0]
 
 const bare = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
@@ -66,6 +111,8 @@ const drawOf = (type: TypeValue | null): string | null =>
 function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] {
 	const draw = drawOf(type)
 	if (draw !== null) return [{ row, draw, value }]
+	// Written out, it is a path as much as one that a function gave.
+	if (isPath(value)) return [{ row, draw: 'path', value }]
 	if (type === null || !Array.isArray(value)) return []
 	const { shape } = unwrapLazy(type)
 	const elementType = (i: number): TypeValue | null =>
@@ -131,9 +178,9 @@ function gripAtNode(start: AST, startEnv: Env): Grip | null {
 		})
 		if (grip !== null) return grip
 	}
-	if (drawOf(infer(readByName(node), env)) === 'point') {
-		return gripOfPoint(evaluate(readByName(node), env).value as Vec)
-	}
+	const value = evaluate(readByName(node), env).value
+	if (drawOf(infer(readByName(node), env)) === 'point') return gripOfPoint(value as Vec)
+	if (isPath(value)) return gripOfPathValue(value as Path)
 	return call.kind === 'call' ? NO_GRIP : null
 }
 

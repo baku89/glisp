@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { parse, print } from '@glisp/lang'
 import { AstEditor, Repl, useGlispDocument } from '@glisp/tweeq'
-import { useMediaQuery } from '@vueuse/core'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
 import { PaneSplit } from 'tweeq/PaneSplit'
@@ -9,7 +9,7 @@ import { useThemeStore } from 'tweeq/stores/theme'
 import { TitleBar } from 'tweeq/TitleBar'
 import { vTooltip } from 'tweeq/Tooltip'
 import { initTweeq } from 'tweeq/useTweeq'
-import { ref, useTemplateRef, watch, watchEffect } from 'vue'
+import { computed, ref, useTemplateRef, watch, watchEffect } from 'vue'
 
 import CanvasView from './CanvasView.vue'
 import { iconOfPath, withGraphics } from './graphics'
@@ -60,8 +60,23 @@ watch(document.root, root => {
 	}
 })
 
-const TOOLS = [{ name: 'select', label: 'Select', icon: 'ph:cursor-fill' }]
-const tool = ref('select')
+const TOOLS = [
+	{ name: 'select', tooltip: { content: 'Select' }, icon: 'ph:cursor-fill' },
+	{ name: 'rect', tooltip: { content: 'Rectangle', shortcut: ['R'] }, icon: 'ph:rectangle' },
+	{ name: 'ellipse', tooltip: { content: 'Ellipse', shortcut: ['O'] }, icon: 'ph:circle' },
+] as const
+const tool = ref<(typeof TOOLS)[number]['name']>('select')
+const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
+
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+	const target = event.target as HTMLElement | null
+	if (target?.closest?.('input, textarea, [contenteditable]')) return
+	if (event.metaKey || event.ctrlKey || event.altKey) return
+	const key = event.key.toLowerCase()
+	if (key === 'r') tool.value = 'rect'
+	else if (key === 'o') tool.value = 'ellipse'
+	else if (key === 'escape') tool.value = 'select'
+})
 
 const selected = ref<readonly string[]>([])
 const $editor = useTemplateRef<{ reveal(path: string): void; deselect(): void }>('$editor')
@@ -98,16 +113,18 @@ function selectInTree(row: string | null): void {
 						<CanvasView
 							:document="document"
 							:selected="selected"
+							:drawing="drawing"
 							@select="selectOnCanvas"
+							@drew="tool = 'select'"
 						/>
 						<div class="tools" data-selects-rows>
 							<button
-								v-for="{ name, label, icon } in TOOLS"
+								v-for="{ name, tooltip, icon } in TOOLS"
 								:key="name"
-								v-tooltip="label"
+								v-tooltip="{ ...tooltip, shortcut: [...('shortcut' in tooltip ? tooltip.shortcut : [])] }"
 								class="tool"
 								:class="{ active: tool === name }"
-								:aria-label="label"
+								:aria-label="tooltip.content"
 								:aria-pressed="tool === name"
 								@click="tool = name"
 							>

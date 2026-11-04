@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AST } from '@glisp/lang'
+import type { AST, LetAST } from '@glisp/lang'
 import { type GlispDocument } from '@glisp/tweeq'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
 import { mat2d, vec2 } from 'linearly'
@@ -9,15 +9,30 @@ import { useZUI } from 'tweeq/use/useZUI'
 import { computed, ref, shallowRef, useTemplateRef, watchEffect } from 'vue'
 
 import { type Change, type Grip, type Handle, type Mat, type Path, type Vec } from './graphics'
-import { changed, gripAt, rowsWithin, sceneOf, type Shape } from './scene'
+import {
+	changed,
+	drawn,
+	gripAt,
+	nameFor,
+	rowsWithin,
+	sceneOf,
+	type Shape,
+	type ShapeTool,
+} from './scene'
 
 const props = defineProps<{
 	document: GlispDocument
 	/** The rows selected, as the tree has them too. */
 	selected: readonly string[]
+	/** What a press does, if it draws. */
+	drawing?: ShapeTool | null
 }>()
 
-const emit = defineEmits<{ select: [rows: readonly string[]] }>()
+const emit = defineEmits<{
+	select: [rows: readonly string[]]
+	/** A shape has been drawn, or would have been: that is it for the tool. */
+	drew: []
+}>()
 
 const $canvas = useTemplateRef<HTMLCanvasElement>('$canvas')
 const size = ref<[number, number]>([0, 0])
@@ -275,6 +290,7 @@ interface Moving {
 let pressed:
 	| { kind: 'handle'; row: string; handle: Handle; mat: mat2d; from: Vec; offset: Vec }
 	| { kind: 'pan'; from: [number, number] }
+	| { kind: 'draw'; tool: ShapeTool; base: LetAST; name: string; at: Vec; drawing: boolean }
 	| { kind: 'range'; base: readonly string[]; last: readonly string[] }
 	| {
 			kind: 'move'
@@ -304,13 +320,27 @@ useEventListener(window, 'keyup', (event: KeyboardEvent) => {
 
 function onPointerDown(event: PointerEvent): void {
 	problem.value = null
-	if (event.button !== 0 && event.button !== 1) return
+	// The middle button is the ZUI's.
+	if (event.button !== 0) return
 	const { offsetX: x, offsetY: y } = event
 	$canvas.value?.setPointerCapture(event.pointerId)
 
-	if (event.button === 1 || spaceDown) {
+	if (spaceDown) {
 		pressed = { kind: 'pan', from: [event.clientX, event.clientY] }
 		cursor.value = 'grabbing'
+		return
+	}
+
+	if (props.drawing) {
+		const base = props.document.root.value
+		pressed = {
+			kind: 'draw',
+			tool: props.drawing,
+			base,
+			name: nameFor(base, props.drawing),
+			at: [x, y],
+			drawing: false,
+		}
 		return
 	}
 
@@ -368,6 +398,12 @@ function onPointerDown(event: PointerEvent): void {
 function onPointerMove(event: PointerEvent): void {
 	const { offsetX: x, offsetY: y } = event
 	if (pressed === null) {
+		if (props.drawing) {
+			hovered.value = null
+			hoveredHandle.value = null
+			cursor.value = 'crosshair'
+			return
+		}
 		const index = handleAt(x, y)
 		const shape = index === null ? shapeAt(x, y) : null
 		hoveredHandle.value = index
@@ -382,6 +418,24 @@ function onPointerMove(event: PointerEvent): void {
 		return
 	}
 	switch (pressed.kind) {
+		case 'draw': {
+			const [fromX, fromY] = pressed.at
+			if (!pressed.drawing && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
+			const row = `binding:${pressed.name}`
+			props.document.setRoot(
+				drawn(
+					pressed.base,
+					pressed.name,
+					pressed.tool,
+					fromScreen(fromX, fromY),
+					fromScreen(x, y),
+					event.shiftKey
+				)
+			)
+			if (!pressed.drawing) emit('select', [row])
+			pressed.drawing = true
+			break
+		}
 		case 'handle': {
 			const { row, handle, mat, from, offset } = pressed
 			const [px, py] = fromScreen(x, y, mat)
@@ -439,6 +493,10 @@ useEventListener(window, 'pointerup', () => {
 		emit('select', [pressed.row])
 	}
 	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : 'default'
+	if (pressed?.kind === 'draw') {
+		cursor.value = 'default'
+		emit('drew')
+	}
 	pressed = null
 	range.value = null
 })
