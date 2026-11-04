@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { parse, print } from '@glisp/lang'
-import { AstEditor, Repl, useGlispDocument } from '@glisp/tweeq'
+import { AstEditor, AstProgramCode, Repl, useGlispDocument } from '@glisp/tweeq'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
-import { PaneSplit } from 'tweeq/PaneSplit'
 import { useAppConfigStore } from 'tweeq/stores/appConfig'
 import { useThemeStore } from 'tweeq/stores/theme'
 import { TitleBar } from 'tweeq/TitleBar'
@@ -13,6 +12,7 @@ import { initTweeq } from 'tweeq/useTweeq'
 import { computed, ref, useTemplateRef, watch, watchEffect } from 'vue'
 
 import CanvasView from './CanvasView.vue'
+import FloatPanel from './FloatPanel.vue'
 import { iconOfPath, withGraphics } from './graphics'
 
 initTweeq('app.glisp.canvas', { accentColor: '#0000ff' })
@@ -26,7 +26,7 @@ watchEffect(() => {
 const EXAMPLE = `{
   radius = 60
   c = (path.circle [240 200] radius)
-  r = (path.rect [360 140] [520 260])
+  r = (path.rect [360 140] [160 120])
 }`
 
 // The program stays across reloads, as source, in this browser.
@@ -87,6 +87,28 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 /** The project floats over the canvas, or is out of the way as a tab, across reloads. */
 const projectOpen = useAppConfigStore().ref('glisp.canvas.project.open', true)
 
+const PROJECT_TABS = [
+	{ name: 'layers', label: 'Project', icon: 'ph:tree-view' },
+	{ name: 'code', label: 'Code', icon: 'ph:code' },
+	{ name: 'repl', label: 'REPL', icon: 'ph:terminal' },
+] as const
+const projectTab = useAppConfigStore().ref<'layers' | 'code' | 'repl'>(
+	'glisp.canvas.project.tab',
+	'layers'
+)
+const inspectorOpen = useAppConfigStore().ref('glisp.canvas.inspector.open', true)
+/** The editor is there once it has been asked for, and stays, with what is written in it. */
+const codeOpened = ref(projectTab.value === 'code')
+watch(projectTab, tab => {
+	if (tab === 'code') codeOpened.value = true
+})
+const codeHasProblem = ref(false)
+
+function showCode(): void {
+	projectOpen.value = true
+	projectTab.value = 'code'
+}
+
 const selected = ref<readonly string[]>([])
 const $editor = useTemplateRef<{ reveal(path: string): void; deselect(): void }>('$editor')
 
@@ -113,105 +135,104 @@ function selectInTree(row: string | null): void {
 			<TitleBar name="Glisp / Canvas" icon="favicon.svg" />
 		</template>
 		<template #default>
-			<PaneSplit
-				name="glisp.canvas.inspector"
-				direction="horizontal"
-				fixed="second"
-				:size="320"
-				:scroll="[false, false]"
-			>
-				<template #first>
-					<div class="stage">
-						<CanvasView
-							:document="document"
-							:selected="selected"
-							:drawing="drawing"
-							@select="selectOnCanvas"
-						/>
-						<aside v-show="projectOpen" class="project">
-							<header class="project-header" data-selects-rows>
-								<span class="project-title">
-									<Icon icon="ph:tree-view" />
-									Project
-								</span>
-								<button
-									v-tooltip="'Minimize'"
-									class="project-toggle"
-									aria-label="Minimize Project"
-									@click="projectOpen = false"
-								>
-									<Icon icon="ph:caret-left" />
-								</button>
-							</header>
-							<div class="project-tree">
-								<AstEditor
-									ref="$editor"
-									:document="document"
-									compact
-									layers
-									:iconOfValue="iconOfPath"
-									:alsoSelected="selected"
-									@select="selectInTree"
-								/>
-							</div>
-						</aside>
-						<button
-							v-show="!projectOpen"
-							v-tooltip="{ content: 'Project', placement: 'right' }"
-							class="project-tab"
-							aria-label="Show Project"
-							data-selects-rows
-							@click="projectOpen = true"
-						>
-							<Icon icon="ph:tree-view" />
-						</button>
-						<div class="tools" data-selects-rows>
+			<div class="stage">
+				<CanvasView
+					:document="document"
+					:selected="selected"
+					:drawing="drawing"
+					@select="selectOnCanvas"
+				/>
+				<FloatPanel
+					v-model:open="projectOpen"
+					name="glisp.canvas.project"
+					side="left"
+					label="Project"
+					icon="ph:tree-view"
+					:width="280"
+				>
+					<template #header>
+						<div class="tabs" role="tablist">
 							<button
-								v-for="{ name, tooltip, icon } in TOOLS"
+								v-for="{ name, label, icon } in PROJECT_TABS"
 								:key="name"
-								v-tooltip="{ ...tooltip, shortcut: [...tooltip.shortcut] }"
-								class="tool"
-								:class="{ active: tool === name }"
-								:aria-label="tooltip.content"
-								:aria-pressed="tool === name"
-								@click="tool = name"
+								class="tab"
+								:class="{ active: projectTab === name }"
+								role="tab"
+								:aria-selected="projectTab === name"
+								@click="projectTab = name"
 							>
 								<Icon :icon="icon" />
+								{{ label }}
+								<span
+									v-if="name === 'code' && codeHasProblem"
+									class="problem-dot"
+									aria-label="This cannot be read"
+								/>
 							</button>
 						</div>
+					</template>
+					<div v-show="projectTab === 'layers'" class="tab-content">
+						<AstEditor
+							ref="$editor"
+							:document="document"
+							compact
+							layers
+							:iconOfValue="iconOfPath"
+							:alsoSelected="selected"
+							@select="selectInTree"
+							@code="showCode"
+							@pasted="selectOnCanvas"
+						/>
 					</div>
-				</template>
-				<template #second>
-					<PaneSplit
-						name="glisp.canvas.side"
-						direction="vertical"
-						fixed="second"
-						:size="200"
-						:scroll="[false, false]"
+					<div v-if="codeOpened" v-show="projectTab === 'code'" class="tab-content">
+						<AstProgramCode :document="document" @problem="codeHasProblem = $event" />
+					</div>
+					<div v-show="projectTab === 'repl'" class="tab-content" data-selects-rows>
+						<Repl
+							:session="document.session"
+							historyKey="glisp.canvas.history"
+							noClear
+							noFocus
+							@change="document.sync()"
+						/>
+					</div>
+				</FloatPanel>
+				<FloatPanel
+					v-model:open="inspectorOpen"
+					name="glisp.canvas.inspector"
+					side="right"
+					label="Inspector"
+					icon="ph:sliders-horizontal"
+					:width="320"
+				>
+					<template #header>
+						<span class="panel-title">
+							<Icon icon="ph:sliders-horizontal" />
+							Inspector
+						</span>
+					</template>
+					<AstEditor
+						:document="document"
+						:inspect="inspected"
+						:iconOfValue="iconOfPath"
+						@outer="selectOnCanvas([$event])"
+					/>
+				</FloatPanel>
+				<div class="tools" data-selects-rows>
+					<button
+						v-for="{ name, tooltip, icon } in TOOLS"
+						:key="name"
+						v-tooltip="{ ...tooltip, shortcut: [...tooltip.shortcut] }"
+						class="tool"
+						:class="{ active: tool === name }"
+						:aria-label="tooltip.content"
+						:aria-pressed="tool === name"
+						@click="tool = name"
 					>
-						<template #first>
-							<section class="pane">
-								<AstEditor
-									:document="document"
-									:inspect="inspected"
-									:iconOfValue="iconOfPath"
-								/>
-							</section>
-						</template>
-						<template #second>
-							<section class="pane" data-selects-rows>
-								<Repl
-									:session="document.session"
-									historyKey="glisp.canvas.history"
-									noClear
-									noFocus
-									@change="document.sync()"
-								/>
-							</section>
-						</template>
-					</PaneSplit>
-				</template>
-			</PaneSplit>
+						<Icon :icon="icon" />
+					</button>
+				</div>
+			</div>
 		</template>
 	</TqApp>
 </template>
@@ -222,77 +243,44 @@ function selectInTree(row: string | null): void {
 	height: 100%;
 	overflow: hidden;
 }
-/* Coming out from the left edge, so with a border on the other three sides. */
-.project,
-.project-tab {
-	position: absolute;
-	left: 0;
-	border: 1px solid var(--tq-color-border);
-	border-left: none;
-	border-radius: 0 var(--tq-radius-pane) var(--tq-radius-pane) 0;
-	background: var(--tq-color-surface);
-	backdrop-filter: blur(var(--tq-popup-blur));
-	/* As a popup has, the same as a modal. */
-	box-shadow: 0 0 20px 0 var(--tq-color-shadow);
-}
-.project {
-	top: 16px;
-	bottom: 16px;
+.tabs {
 	display: flex;
-	flex-direction: column;
-	width: 240px;
+	gap: 2px;
 }
-.project-header {
-	display: flex;
-	flex-shrink: 0;
-	align-items: center;
-	justify-content: space-between;
-	padding: 6px 6px 0 var(--tq-pane-padding);
-}
-.project-title {
+.tab,
+.panel-title {
 	display: flex;
 	gap: var(--tq-gap-related);
 	align-items: center;
+	height: 24px;
+	padding-inline: 6px;
+}
+.panel-title {
 	font-weight: 600;
 }
-.project-title > :first-child {
-	flex: none;
-	font-size: 18px;
-}
-.project-toggle,
-.project-tab {
-	display: grid;
-	place-items: center;
+.tab {
 	border: none;
+	border-radius: var(--tq-radius-input);
 	background: none;
 	color: var(--tq-color-text-mute);
 	cursor: pointer;
 }
-.project-toggle {
-	width: 24px;
-	height: 24px;
-	border-radius: var(--tq-radius-input);
-}
-.project-toggle:hover {
-	background: var(--tq-color-input-hover);
+.tab:hover {
 	color: var(--tq-color-text);
 }
-.project-tab {
-	top: 16px;
-	width: 32px;
-	height: 40px;
-	border: 1px solid var(--tq-color-border);
-	border-left: none;
-	background: var(--tq-color-surface);
-	font-size: 18px;
-}
-.project-tab:hover {
+.tab.active {
+	background: var(--tq-color-input);
 	color: var(--tq-color-text);
+	font-weight: 600;
 }
-.project-tree {
-	flex: 1;
-	min-height: 0;
-	padding: var(--tq-pane-padding);
+.tab-content {
+	height: 100%;
+}
+.problem-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--tq-color-error);
 }
 .tools {
 	--padding: 6px;

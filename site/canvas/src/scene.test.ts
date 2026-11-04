@@ -38,7 +38,7 @@ describe('iconOfPath', () => {
 	it('is the shape itself, centered, whatever its size', () => {
 		const small = icon('(path.rect [0 0] [10 10])')
 		expect(small).toMatch(/^stroke:M/)
-		expect(icon('(path.rect [100 100] [900 900])')).toBe(small)
+		expect(icon('(path.rect [100 100] [800 800])')).toBe(small)
 	})
 
 	it('keeps the proportions', () => {
@@ -102,9 +102,9 @@ describe('the ladder', () => {
 	})
 
 	it('goes from a rect to its corners', () => {
-		expect(ladder('(path.rect [0 0] [10 20])')).toEqual([
-			'(path.rect [0 0] [10 20])',
-			'(path.polygon [0 0] [10 0] [10 20] [0 20])',
+		expect(ladder('(path.rect [5 5] [10 20])')).toEqual([
+			'(path.rect [5 5] [10 20])',
+			'(path.polygon [5 5] [15 5] [15 25] [5 25])',
 		])
 	})
 
@@ -133,7 +133,8 @@ describe('drawing a shape', () => {
 		print(drawn(root, 'x', tool, [10, 10], to, even))
 
 	it('adds a rect from corner to corner', () => {
-		expect(shape('rect', [30.126, 50])).toBe('{a = 1 x = (path.rect [10 10] [30.13 50])}')
+		expect(shape('rect', [30.126, 50])).toBe('{a = 1 x = (path.rect [10 10] [20.13 40])}')
+		expect(shape('rect', [0, 0])).toBe('{a = 1 x = (path.rect [0 0] [10 10])}')
 	})
 
 	it('adds an ellipse within those corners', () => {
@@ -142,8 +143,8 @@ describe('drawing a shape', () => {
 	})
 
 	it('is even when asked to, as far as the longer side goes', () => {
-		expect(shape('rect', [30, 50], true)).toBe('{a = 1 x = (path.rect [10 10] [50 50])}')
-		expect(shape('rect', [-30, 20], true)).toBe('{a = 1 x = (path.rect [10 10] [-30 50])}')
+		expect(shape('rect', [30, 50], true)).toBe('{a = 1 x = (path.rect [10 10] [40 40])}')
+		expect(shape('rect', [-30, 20], true)).toBe('{a = 1 x = (path.rect [-30 10] [40 40])}')
 		expect(shape('ellipse', [30, 50], true)).toBe('{a = 1 x = (path.circle [30 30] 20)}')
 	})
 
@@ -192,7 +193,7 @@ describe('the pen', () => {
 
 describe('rowsWithin', () => {
 	const scene = sceneOf(
-		parse('{a = (path.rect [0 0] [10 10]) b = (path.rect [20 20] [30 30]) p = (: [50 50] point)}'),
+		parse('{a = (path.rect [0 0] [10 10]) b = (path.rect [20 20] [10 10]) p = (: [50 50] point)}'),
 		env
 	)
 
@@ -240,13 +241,13 @@ describe('grips', () => {
 		expect(pulled(source, 1, [99, 40])).toBe('{c = (path.ellipse [0 0] [10 40])}')
 	})
 
-	it('take a rect by its corners, edges and center', () => {
+	it('take a rect by its corners and edges', () => {
 		const source = '{c = (path.rect [0 0] [10 10])}'
-		expect(pulled(source, 0, [-5, 99])).toBe('{c = (path.rect [-5 0] [10 10])}')
+		// The far side stays where it is, whichever side is taken.
+		expect(pulled(source, 0, [-5, 99])).toBe('{c = (path.rect [-5 0] [15 10])}')
 		expect(pulled(source, 3, [99, 20])).toBe('{c = (path.rect [0 0] [10 20])}')
-		expect(pulled(source, 4, [15, 15])).toBe('{c = (path.rect [10 10] [20 20])}')
-		expect(pulled(source, 6, [20, -5])).toBe('{c = (path.rect [0 -5] [20 10])}')
-		expect(pulled(source, 7, [-5, 20])).toBe('{c = (path.rect [-5 0] [10 20])}')
+		expect(pulled(source, 5, [20, -5])).toBe('{c = (path.rect [0 -5] [20 15])}')
+		expect(pulled(source, 6, [-5, 20])).toBe('{c = (path.rect [-5 0] [15 20])}')
 	})
 
 	it('take a point of as many as there are', () => {
@@ -384,7 +385,7 @@ describe('moving the whole', () => {
 	})
 
 	it('moves every point that makes a shape', () => {
-		expect(move('{c = (path.rect [0 0] [10 10])}')).toBe('{c = (path.rect [10 20] [20 30])}')
+		expect(move('{c = (path.rect [0 0] [10 10])}')).toBe('{c = (path.rect [10 20] [10 10])}')
 		expect(move('{c = (path.polygon [0 0] [1 1])}')).toBe('{c = (path.polygon [10 20] [11 21])}')
 	})
 

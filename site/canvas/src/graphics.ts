@@ -23,6 +23,7 @@ import {
 	UNSET,
 	toAst,
 	VecAST,
+	withDoc,
 	withExpansion,
 	withMembers,
 	withTypeMeta,
@@ -107,10 +108,10 @@ const multiply = makeTypedFn(
 	mat2d
 )
 withMembers(mat2d, {
-	translate: makeTranslation,
-	rotate: makeRotation,
-	scale: makeScaling,
-	mul: multiply,
+	translate: withDoc(makeTranslation, 'A matrix that moves `by` this much.'),
+	rotate: withDoc(makeRotation, 'A matrix that turns by `angle`, in degrees, around the origin.'),
+	scale: withDoc(makeScaling, 'A matrix that scales `by` this much each way, from the origin.'),
+	mul: withDoc(multiply, 'One matrix after another, the last applied first.'),
 })
 
 /**
@@ -207,15 +208,17 @@ const makePolygon = makeTypedFn(
 )
 const makeRect = withExpansion(
 	makeTypedFn(
-		[point, point],
+		[point, vec2],
 		pathType,
-		(start, end) => new PathValue(rectangle(start as Vec, end as Vec)),
-		['start', 'end']
+		(topLeft, size) =>
+			new PathValue(rectangle(topLeft as Vec, add(topLeft as Vec, size as Vec))),
+		['topLeft', 'size']
 	),
-	([start, end], { value }) => {
-		if (start === undefined || end === undefined) return null
-		const [left, top] = value(start) as Vec
-		const [right, bottom] = value(end) as Vec
+	([topLeft, size], { value }) => {
+		if (topLeft === undefined || size === undefined) return null
+		const [left, top] = value(topLeft) as Vec
+		const [width, height] = value(size) as Vec
+		const [right, bottom] = [left + width, top + height]
 		return callOf('polygon', [
 			toAst([left, top], null),
 			toAst([right, top], null),
@@ -276,17 +279,17 @@ const makeTransformed = makeTypedFn(
 	['path', 'by']
 )
 withMembers(pathType, {
-	d: makeD,
-	circle: makeCircle,
-	ellipse: makeEllipse,
-	rect: makeRect,
-	line: makeLine,
-	polyline: makePolyline,
-	polygon: makePolygon,
-	ngon: makeNgon,
-	arc: makeArc,
-	cubic: makeCubic,
-	transform: makeTransformed,
+	d: withDoc(makeD, 'A path from its data, as an SVG path has it.'),
+	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.'),
+	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` each way.'),
+	rect: withDoc(makeRect, 'A rectangle from its `topLeft`, of this `size`.'),
+	line: withDoc(makeLine, 'A straight line from `start` to `end`.'),
+	polyline: withDoc(makePolyline, 'Straight lines through each of the points, in turn.'),
+	polygon: withDoc(makePolygon, 'Straight lines through each of the points, and back.'),
+	ngon: withDoc(makeNgon, 'A regular polygon around `center`, with as many sides as `sides`.'),
+	arc: withDoc(makeArc, 'Part of a circle around `center`, from the angle `start` to `end`, in degrees.'),
+	cubic: withDoc(makeCubic, 'A curve from `start` to `end`, drawn toward `control1` and `control2`.'),
+	transform: withDoc(makeTransformed, 'The same `path`, moved, turned and scaled `by` a matrix.'),
 })
 
 /** What an argument would have to be, `route` going down through calls to it. */
@@ -590,26 +593,26 @@ const makers = new Map<unknown, Maker>([
 	],
 	[
 		makeRect,
-		([start, end]) => {
-			const s = start as Vec
-			const e = end as Vec
-			const centered: Vec = [(s[0] + e[0]) / 2, (s[1] + e[1]) / 2]
-			const moved = (delta: Vec): Change[] => [change(0, add(s, delta)), change(1, add(e, delta))]
-			const left = (x: number) => change(0, [x, UNSET])
-			const top = (y: number) => change(0, [UNSET, y])
-			const right = (x: number) => change(1, [x, UNSET])
-			const bottom = (y: number) => change(1, [UNSET, y])
+		([topLeft, size]) => {
+			const s = topLeft as Vec
+			const e = add(s, size as Vec)
+			const moved = (delta: Vec): Change[] => [change(0, add(s, delta))]
+			// An edge on the near side moves the corner, and the size makes up for it, so
+			// that the other side stays where it is.
+			const left = (x: number): Change[] => [change(0, [x, UNSET]), change(1, [e[0] - x, UNSET])]
+			const top = (y: number): Change[] => [change(0, [UNSET, y]), change(1, [UNSET, e[1] - y])]
+			const right = (x: number): Change[] => [change(1, [x - s[0], UNSET])]
+			const bottom = (y: number): Change[] => [change(1, [UNSET, y - s[1]])]
 			return {
 				handles: [
-					{ kind: 'path', angle: 0, path: line(s, [s[0], e[1]]), to: to => [left(to[0])] },
-					{ kind: 'path', angle: 90, path: line(s, [e[0], s[1]]), to: to => [top(to[1])] },
-					{ kind: 'path', angle: 0, path: line([e[0], s[1]], e), to: to => [right(to[0])] },
-					{ kind: 'path', angle: 90, path: line([s[0], e[1]], e), to: to => [bottom(to[1])] },
-					{ kind: 'translate', at: centered, to: to => moved(sub(to, centered)) },
-					{ kind: 'point', at: s, to: to => [left(to[0]), top(to[1])] },
-					{ kind: 'point', at: [e[0], s[1]], to: to => [right(to[0]), top(to[1])] },
-					{ kind: 'point', at: [s[0], e[1]], to: to => [left(to[0]), bottom(to[1])] },
-					{ kind: 'point', at: e, to: to => [right(to[0]), bottom(to[1])] },
+					{ kind: 'path', angle: 0, path: line(s, [s[0], e[1]]), to: to => left(to[0]) },
+					{ kind: 'path', angle: 90, path: line(s, [e[0], s[1]]), to: to => top(to[1]) },
+					{ kind: 'path', angle: 0, path: line([e[0], s[1]], e), to: to => right(to[0]) },
+					{ kind: 'path', angle: 90, path: line([s[0], e[1]], e), to: to => bottom(to[1]) },
+					{ kind: 'point', at: s, to: to => [...left(to[0]), ...top(to[1])] },
+					{ kind: 'point', at: [e[0], s[1]], to: to => [...right(to[0]), ...top(to[1])] },
+					{ kind: 'point', at: [s[0], e[1]], to: to => [...left(to[0]), ...bottom(to[1])] },
+					{ kind: 'point', at: e, to: to => [...right(to[0]), ...bottom(to[1])] },
 				],
 				guides: [],
 				move: moved,

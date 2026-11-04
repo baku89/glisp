@@ -90,9 +90,11 @@ export function drawn(
 		? [from[0] + Math.sign(dx || 1) * side, from[1] + Math.sign(dy || 1) * side]
 		: to
 	const center: Vec = [(from[0] + end[0]) / 2, (from[1] + end[1]) / 2]
+	const corner: Vec = [Math.min(from[0], end[0]), Math.min(from[1], end[1])]
+	const size: Vec = [Math.abs(end[0] - from[0]), Math.abs(end[1] - from[1])]
 	const source =
 		tool === 'rect'
-			? `(path.rect ${written(from)} ${written(end)})`
+			? `(path.rect ${written(corner)} ${written(size)})`
 			: even
 				? `(path.circle ${written(center)} ${rounded(side / 2)})`
 				: `(path.ellipse ${written(center)} ${written([Math.abs(dx) / 2, Math.abs(dy) / 2])})`

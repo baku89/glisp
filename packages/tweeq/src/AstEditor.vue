@@ -9,6 +9,7 @@ import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
+import { copiedRows, pastedRows, withoutRows } from './rowsClipboard'
 import {
 	ALSO_SELECTED,
 	LINKER,
@@ -50,6 +51,12 @@ const props = defineProps<{
 const emit = defineEmits<{
 	/** A row has been selected, or nothing is any more. */
 	select: [path: string | null]
+	/** The whole program is to be edited as code, which is elsewhere among layers. */
+	code: []
+	/** These rows have just been pasted. */
+	pasted: [paths: readonly string[]]
+	/** An inspector would go out to the row that holds what it shows. */
+	outer: [path: string]
 }>()
 
 const show = (value: unknown, env: Env): string => {
@@ -186,6 +193,7 @@ provide(OPEN_ROW, () => props.inspect ?? null)
 const inspected = computed(() => {
 	if (!props.inspect) return null
 	const parts = props.inspect.split('/')
+	const parent = parts.slice(0, -1).join('/')
 	const chain: Slot[] = []
 	let node: AST = props.document.root.value
 	let env: Env = props.document.env.value
@@ -197,15 +205,54 @@ const inspected = computed(() => {
 		node = slot.ast
 		env = slot.env
 	}
-	return { chain, parentPath: parts.slice(0, -1).join('/') }
+	const view = viewOf(node, env)
+	const own = chain.at(-1)!
+	return {
+		chain,
+		parentPath: parent,
+		view,
+		// With nothing inside it, what there is to see of it is itself.
+		alone: view.slots.length === 0 && view.missing.length === 0 && view.append === null,
+		title: view.head?.label ?? own.label,
+		doc: view.head?.doc ?? own.doc ?? null,
+	}
 })
 
-/** What holds the row inspected has changed, so everything around that does. */
+/** The row inspected, or what holds it if it is alone, has changed, and so what is around. */
 function replaceInspected(next: AST): void {
 	const chain = inspected.value?.chain ?? []
+	const from = inspected.value?.alone ? chain.length - 2 : chain.length - 1
 	let parent = next
-	for (let i = chain.length - 2; i >= 0; i--) parent = chain[i]!.replace(parent)
+	for (let i = from; i >= 0; i--) parent = chain[i]!.replace(parent)
 	replaceRoot(parent)
+}
+
+/** The rows a key is about: all that are selected, where something else selects them. */
+const selectedRows = (): readonly string[] => {
+	const also = props.alsoSelected ?? []
+	if (also.length > 1) return also
+	return selection.value === null ? [] : [selection.value.path]
+}
+
+function copyRows(): boolean {
+	const text = copiedRows(
+		props.document.root.value,
+		props.document.env.value,
+		selectedRows()
+	)
+	if (text === '') return false
+	void navigator.clipboard.writeText(text)
+	return true
+}
+
+function removeRows(): void {
+	const next = withoutRows(
+		props.document.root.value,
+		props.document.env.value,
+		selectedRows()
+	)
+	reselectNothing = true
+	replaceRoot(next)
 }
 
 const selection = shallowRef<Selection | null>(null)
@@ -217,6 +264,8 @@ watch(
 	}
 )
 provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
+/** What was selected has just gone, so there is nothing to select again. */
+let reselectNothing = false
 /** A row on its way to being selected again, having been edited. */
 let reselecting: string | null = null
 watch(selection, next => {
@@ -251,7 +300,8 @@ defineExpose({
 // A selection deletes through the tree as it was, so an edit makes it again, from the
 // row as it is now, if it is still there.
 watch(props.document.root, () => {
-	const path = selection.value?.path ?? null
+	const path = reselectNothing ? null : (selection.value?.path ?? null)
+	reselectNothing = false
 	// A row already on its way to being selected, such as one just added, goes first.
 	const coming = revealTarget.value?.path ?? null
 	reselecting = coming ?? (path !== null && rowExists(path) ? path : null)
@@ -276,9 +326,23 @@ useEventListener(window, 'paste', (event: ClipboardEvent) => {
 	if (isInspector.value) return
 	const target = event.target as HTMLElement | null
 	if (target?.closest?.('input, textarea, [contenteditable]')) return
+	const text = event.clipboardData?.getData('text') ?? ''
+	// Bindings are more of them, whatever is selected, which is where they go after.
+	const rows = pastedRows(
+		props.document.root.value,
+		props.document.env.value,
+		selectedRows().at(-1) ?? null,
+		text
+	)
+	if (rows !== null) {
+		event.preventDefault()
+		replaceRoot(rows.ast)
+		emit('pasted', rows.paths)
+		return
+	}
 	if (selection.value?.paste === undefined) return
 	event.preventDefault()
-	const next = parseSource(event.clipboardData?.getData('text') ?? '')
+	const next = parseSource(text)
 	if (next === null) unsolved.value = 'what is on the clipboard cannot be read as code'
 	else selection.value.paste(next)
 })
@@ -296,7 +360,16 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		// Text that is selected, as in a REPL, is what a copy means if there is any.
 		if (selection.value?.evaluate === undefined || !getSelection()?.isCollapsed) return
 		event.preventDefault()
-		selection.value.evaluate('copy')
+		if (!copyRows()) selection.value.evaluate('copy')
+	} else if (isMod && event.key.toLowerCase() === 'x') {
+		if (selection.value === null || !getSelection()?.isCollapsed) return
+		event.preventDefault()
+		if (copyRows()) {
+			removeRows()
+		} else if (selection.value.remove !== undefined) {
+			selection.value.evaluate?.('copy')
+			selection.value.remove()
+		}
 	} else if (event.key.toLowerCase() === 'e' && !isMod && !event.altKey) {
 		if (selection.value?.evaluate === undefined) return
 		event.preventDefault()
@@ -315,16 +388,22 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		selection.value.editValue()
 	} else if (event.key === '=' && !isMod && !event.altKey) {
 		event.preventDefault()
-		if (selection.value === null) editingEnv.value = true
-		else selection.value.editExpression?.()
+		if (selection.value !== null) selection.value.editExpression?.()
+		else if (props.layers) emit('code')
+		else editingEnv.value = true
 	} else if (event.key === 'Enter' || event.key === 'F2') {
 		if (selection.value?.rename === undefined) return
 		event.preventDefault()
 		selection.value.rename()
 	} else if (event.key === 'Delete' || event.key === 'Backspace') {
-		if (selection.value?.remove === undefined) return
-		event.preventDefault()
-		selection.value.remove()
+		if (selection.value === null) return
+		if ((props.alsoSelected?.length ?? 0) > 1) {
+			event.preventDefault()
+			removeRows()
+		} else if (selection.value.remove !== undefined) {
+			event.preventDefault()
+			selection.value.remove()
+		}
 	} else if (event.key === 'Escape') {
 		selection.value = null
 	}
@@ -334,22 +413,39 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 <template>
 	<div v-if="isInspector" class="AstEditor" data-selects-rows>
 		<ScrollArea class="tree">
-			<ParameterTree name="glisp.inspector">
-				<AstSlots
-					v-if="inspected !== null"
-					:key="inspect ?? ''"
-					:slots="[inspected.chain.at(-1)!]"
-					:parentPath="inspected.parentPath"
-					noAddRow
-					:read="document.read"
-					:show="show"
-					@change="replaceInspected"
-				/>
-			</ParameterTree>
+			<template v-if="inspected !== null">
+				<div class="inspector-header">
+					<h3 class="inspector-name">
+						{{ inspected.title }}
+						<InputButton
+							v-if="inspected.parentPath !== ''"
+							class="inspector-outer"
+							icon="mdi:arrow-up-left"
+							subtle
+							narrow
+							tooltip="What holds this"
+							@click="emit('outer', inspected!.parentPath)"
+						/>
+					</h3>
+					<p v-if="inspected.doc !== null" class="inspector-doc">{{ inspected.doc }}</p>
+				</div>
+				<ParameterTree name="glisp.inspector">
+					<AstSlots
+						:key="inspect ?? ''"
+						:slots="inspected.alone ? [inspected.chain.at(-1)!] : inspected.view.slots"
+						:parentPath="inspected.alone ? inspected.parentPath : (inspect ?? '')"
+						:missing="inspected.alone ? [] : inspected.view.missing"
+						:append="inspected.alone ? null : inspected.view.append"
+						:read="document.read"
+						:show="show"
+						@change="replaceInspected"
+					/>
+				</ParameterTree>
+			</template>
 		</ScrollArea>
 	</div>
 	<div v-else class="AstEditor" :class="{ layers }">
-		<div class="toolbar">
+		<div v-if="!layers" class="toolbar">
 			<InputButton
 				v-if="!compact"
 				icon="mdi:undo"
@@ -366,7 +462,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				:disabled="!document.canRedo.value"
 				@click="document.redo()"
 			/>
-			<InputButton v-if="!layers" icon="mdi:plus" label="Add" subtle @click="addBinding" />
+			<InputButton icon="mdi:plus" label="Add" subtle @click="addBinding" />
 			<span ref="$envButton" class="env-button">
 				<InputButton
 					icon="mdi:code-braces"
@@ -421,6 +517,25 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 </template>
 
 <style scoped>
+.inspector-header {
+	margin-bottom: var(--tq-gap-control);
+	padding-inline: 3px;
+}
+.inspector-name {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-height: var(--tq-input-height);
+	font-weight: 600;
+}
+.inspector-outer {
+	flex: none;
+	width: auto;
+}
+.inspector-doc {
+	line-height: 1.4;
+	color: var(--tq-color-text-mute);
+}
 /* Names alone: the value's column goes, with what resizes it. */
 .layers :deep(.TqParameterGrid.grid) {
 	grid-template-columns: minmax(0, 1fr) 0;

@@ -4,6 +4,7 @@
 
 export { default as AstEditor } from './AstEditor.vue'
 export { default as AstNode } from './AstNode.vue'
+export { default as AstProgramCode } from './AstProgramCode.vue'
 export { default as Repl } from './Repl.vue'
 export { type GlispDocument, useGlispDocument } from './document'
 export { iconOf, iconOfType, withIcons } from './icons'

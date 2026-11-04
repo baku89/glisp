@@ -8,6 +8,7 @@
  */
 
 import {
+	isTypedHostFn,
 	type AST,
 	CallAST,
 	callParameters,
@@ -475,7 +476,10 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 		...info.numberOptions(name),
 		...numberOptionsOf(signature?.(positional.indexOf(name))?.meta),
 	})
-	const doc = textOf(definition?.get('doc'))
+	const headValue = ast.head.kind === 'sym' ? null : evaluate(ast.head, inside).value
+	const doc =
+		textOf(definition?.get('doc')) ??
+		(isTypedHostFn(headValue) ? ((headValue as { doc?: string }).doc ?? null) : null)
 	const slots: Slot[] = []
 	const missing: MissingArgument[] = []
 

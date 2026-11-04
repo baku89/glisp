@@ -161,6 +161,16 @@ makeTopLevel({
 
 It changes the type it is given, so make one of your own rather than giving members to `number`. A host value that is a plain record of these reads the same way, as `geom.rect.center`, and static analysis can see through both.
 
+### What it does
+
+A function that comes with a type, as a member, has no binding to write `^{doc}` on. `withDoc` says what it does, for a host to show.
+
+```ts
+withMembers(path, { circle: withDoc(makeCircle, 'A circle, around `center`.') })
+```
+
+A word in backticks stands for a parameter, as it does in a `doc`.
+
 ### A value of your own
 
 A host value whose insides are its own, such as an object from WebAssembly, says how it is written with `AS_SOURCE`, for it to go back to being code when it is evaluated in place, shown in a REPL, or saved.
