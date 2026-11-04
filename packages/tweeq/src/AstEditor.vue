@@ -19,7 +19,11 @@ import {
 	viewOf,
 } from './structure'
 
-const props = defineProps<{ document: GlispDocument }>()
+const props = defineProps<{
+	document: GlispDocument
+	/** No button to start over with, where a document is worth more than a try. */
+	noReset?: boolean
+}>()
 
 const emit = defineEmits<{
 	/** A row has been selected, or nothing is any more. */
@@ -267,6 +271,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				@close="editingEnv = false"
 			/>
 			<InputButton
+				v-if="!noReset"
 				class="reset"
 				icon="mdi:restore"
 				label="Reset"

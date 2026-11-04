@@ -111,6 +111,7 @@ function selectOnCanvas(row: string | null): void {
 								<AstEditor
 									ref="$editor"
 									:document="document"
+									noReset
 									@select="selected = $event ?? selected"
 								/>
 							</section>
