@@ -462,8 +462,11 @@ This has the following consequences for a host:
 - An edit recomputes what depends on it. Everything else returns the same JS value, so an unchanged value is `===` across edits.
 - Restoring an earlier root is an undo served from the cache, as long as its entries have not been evicted.
 - Host functions must be pure, since a cached result outlives the root it was computed for. Values must not be mutated, since they may be shared between positions.
+- What is written alike, in the same scope, comes to one value, as metadata is no part of it. So `A = ^{icon: "x"} (refine number 1 p)` and `B = (refine number 1 p)` are `===`, and finding a name from such a value finds whichever is bound first.
 - A cached diagnostic's `source` is the node that produced it first, which may belong to an earlier root.
 - A cached closure keeps the frame it captured, and through it that root, for as long as the entry lives.
+
+**Whose cache.** `Runtime.adopt(frame)` has a plain `evaluate` in that frame, or in one on top of it, use the runtime's cache too. A `Session` does this for its let-frame, so a host reading a program through `session.env` gets values that are `===` across edits without keeping the runtime at hand.
 
 **Lifetime.** `Runtime` owns its cache. Each `setRoot` starts a generation, using an entry marks it and everything it was computed from, and entries beyond `maxEntries` are evicted oldest first and cheapest first. Frames inside a function call are short-lived, so a result computed there is kept only if it took at least `heavyMs`.
 

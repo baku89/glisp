@@ -1172,6 +1172,10 @@ function storeMemo(ast: AST, env: Env, state: MemoState): void {
  * diagnostics in a separate channel.
  */
 export function evaluate(ast: AST, env: Env): EvalResult {
+	if (activeStore === null && evaluationDepth === 0) {
+		const owner = ownerOf(env)
+		if (owner !== null) return withEvalStore(owner, () => evaluate(ast, env))
+	}
 	// `%` desugaring runs before any further work. The pass is cached
 	// per-AST so repeated evaluations of the same source pay only once.
 	const desugared = desugar(ast)
@@ -1230,6 +1234,25 @@ export interface EvalStore {
 }
 
 let activeStore: EvalStore | null = null
+
+const envOwners: WeakMap<object, EvalStore> = new WeakMap()
+
+/**
+ * Have `store` back whatever is evaluated in `frame`, or in a frame made on top
+ * of it, however it comes to be evaluated: a host reading a program should not
+ * have to say which cache it means.
+ */
+export function ownFrame(frame: object, store: EvalStore): void {
+	envOwners.set(frame, store)
+}
+
+function ownerOf(env: Env): EvalStore | null {
+	for (let frame = env; frame !== null; frame = frame.parent) {
+		const owner = envOwners.get(frame)
+		if (owner !== undefined) return owner
+	}
+	return null
+}
 
 /** Run `fn` with `store` backing every `evaluate` call it makes. */
 export function withEvalStore<T>(store: EvalStore, fn: () => T): T {

@@ -52,6 +52,7 @@ export class Session {
 	constructor(private readonly parent: Env) {
 		this.frame = pushLetFrame(this.letBlock, parent) as Frame
 		this.runtime = new Runtime(parent)
+		this.runtime.adopt(this.frame)
 		this.runtime.setRoot(this.letBlock)
 	}
 
@@ -72,6 +73,7 @@ export class Session {
 	setAst(ast: LetAST): void {
 		this.letBlock = ast
 		this.frame = pushLetFrame(ast, this.parent) as Frame
+		this.runtime.adopt(this.frame)
 		this.runtime.setRoot(ast)
 	}
 

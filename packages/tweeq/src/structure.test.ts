@@ -924,7 +924,7 @@ describe('icons', () => {
 		session.exec(
 			'Len = ^{icon: "mdi:ruler"} (refine number 1 (=> (x: number): boolean (> x 0)))'
 		)
-		session.exec('Plain = (refine number 1 (=> (x: number): boolean (> x 0)))')
+		session.exec('Plain = (refine number 1 (=> (x: number): boolean (>= x 0)))')
 		session.exec('f = (=> (x: number): Len x)')
 		session.exec('g = (=> (x: number): Plain x)')
 		expect(icon('(f 1)', session.env)).toBe('mdi:ruler')

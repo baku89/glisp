@@ -32,6 +32,7 @@ import {
 	type EvalStore,
 	type TypeValue,
 	lookupBareName,
+	ownFrame,
 	pathTarget,
 	withEvalStore,
 } from './eval.js'
@@ -117,6 +118,14 @@ export class Runtime {
 	evaluate(ast: AST | null = this.rootAst, env: Env = this.rootEnv): EvalResult {
 		if (ast === null) return { value: UNIT, diagnostics: [] }
 		return withEvalStore(this.store, () => evaluate(ast, env))
+	}
+
+	/**
+	 * Have a plain `evaluate` in `frame`, or on top of it, use this cache as well,
+	 * so that a host needs no runtime at hand to read what did not change.
+	 */
+	adopt(frame: NonNullable<Env>): void {
+		ownFrame(frame, this.store)
 	}
 
 	/**

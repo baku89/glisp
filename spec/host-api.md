@@ -24,7 +24,7 @@ runtime.setRoot(nextAst)  // what did not change is reused, and stays `===`
 
 See [Incremental evaluation](./eval.md#incremental-evaluation) for what `Runtime` guarantees and asks of host functions.
 
-`evaluate(ast, env)` is the same evaluation without a cache that outlives an edit. It returns `{ value, diagnostics }` and does not throw on errors in the program.
+`evaluate(ast, env)` is the same evaluation without a cache that outlives an edit, unless `env` is on top of a frame a `Runtime` has adopted, as a `Session`'s is. It returns `{ value, diagnostics }` and does not throw on errors in the program.
 
 The AST does not need to be a descendant of anything in `env`. The env is only the scope for names and paths, so a host can evaluate a sub-expression, or a synthesized AST, against any env.
 

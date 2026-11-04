@@ -4,6 +4,7 @@ import { evaluate, makeTypedFn, type TypeValue } from './eval.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { Runtime } from './runtime.js'
+import { Session } from './session.js'
 import { HostAST, type AST, LetAST } from './types.js'
 
 const prelude = buildPrelude()
@@ -514,5 +515,66 @@ describe('Runtime — metadata', () => {
 		expect(inside.computed).toBe(0)
 		const bound = (d: string) => `{b = ${d} a = (+ b 1)}`
 		expect(after(bound('1'), bound('#_1'), 'a').computed).toBe(0)
+	})
+})
+
+describe('a frame a runtime has adopted', () => {
+	const sessionWith = (heavy: AST) => {
+		const session = new Session(prelude)
+		const edit = (b: number) =>
+			session.setAst(
+				new LetAST(
+					[
+						['H', heavy],
+						...(parse(`{a = (H 1) b = ${b} c = [a b]}`) as LetAST).bindings,
+					],
+					null
+				)
+			)
+		return { session, edit, read: (name: string) => evaluate(session.bindingAst(name)!, session.env) }
+	}
+
+	it('has a plain evaluate reuse what an edit left as it was', () => {
+		const heavy = counter()
+		const { edit, read } = sessionWith(heavy.ast)
+		edit(1)
+		expect(read('c').value).toEqual([1, 1])
+		expect(heavy.runs).toBe(1)
+		edit(2)
+		expect(read('c').value).toEqual([1, 2])
+		expect(heavy.runs).toBe(1)
+	})
+
+	it('keeps an unchanged value === across an edit', () => {
+		const { session, edit } = sessionWith(counter().ast)
+		const vector = () => evaluate(parse('[a]'), session.env).value
+		edit(1)
+		const before = vector()
+		edit(2)
+		expect(vector()).toBe(before)
+	})
+
+	it('leaves a frame nothing has adopted alone', () => {
+		const heavy = counter()
+		const env = () => prelude
+		const ast = (n: number) =>
+			new LetAST([['H', heavy.ast], ['a', parse('(H 1)')], ['b', parse(`${n}`)]], parse('a'))
+		evaluate(ast(1), env())
+		evaluate(ast(2), env())
+		expect(heavy.runs).toBe(2)
+	})
+
+	it('recomputes what an edit did reach', () => {
+		const heavy = counter()
+		const session = new Session(prelude)
+		const edit = (n: number) =>
+			session.setAst(
+				new LetAST([['H', heavy.ast], ['a', parse(`(H ${n})`)]], null)
+			)
+		edit(1)
+		expect(evaluate(parse('a'), session.env).value).toBe(1)
+		edit(2)
+		expect(evaluate(parse('a'), session.env).value).toBe(2)
+		expect(heavy.runs).toBe(2)
 	})
 })
