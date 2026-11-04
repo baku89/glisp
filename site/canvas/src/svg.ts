@@ -9,7 +9,7 @@ import { copiedRows } from '@glisp/tweeq/rowsClipboard'
 import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 
-import { LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, styleOf } from './graphics'
+import { cornersOf, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf } from './graphics'
 import { sceneOf } from './scene'
 
 const NAMESPACE = 'https://glisp.app/canvas'
@@ -27,11 +27,29 @@ const unescaped = (text: string): string =>
 		.replace(/&#39;/g, "'")
 		.replace(/&amp;/g, '&')
 
-/** The rows at `paths` as an SVG, or null if nothing in them is drawn. */
-export function svgOfRows(root: AST, env: Env, paths: readonly string[]): string | null {
-	const shapes = sceneOf(root, env).filter(
-		({ row, draw }) => draw === 'path' && paths.some(path => row === path || row.startsWith(`${path}/`))
-	)
+/**
+ * The rows at `paths` as an SVG, or null if nothing in them is drawn. With an `area`, it is that
+ * much of them: what is at all within it, and it is what the SVG shows, whatever goes past it.
+ */
+export function svgOfRows(
+	root: AST,
+	env: Env,
+	paths: readonly string[],
+	area?: RectValue
+): string | null {
+	const [[fromX, fromY], [toX, toY]] = area
+		? cornersOf(area)
+		: [
+				[-Infinity, -Infinity],
+				[Infinity, Infinity],
+			]
+	const shapes = sceneOf(root, env).filter(({ row, draw, value }) => {
+		if (draw !== 'path' || !paths.some(path => row === path || row.startsWith(`${path}/`))) {
+			return false
+		}
+		const [[l, t], [r, b]] = bounds(value as Path)
+		return l <= toX && r >= fromX && t <= toY && b >= fromY
+	})
 	if (shapes.length === 0) return null
 
 	let [left, top, right, bottom] = [Infinity, Infinity, -Infinity, -Infinity]
@@ -43,8 +61,8 @@ export function svgOfRows(root: AST, env: Env, paths: readonly string[]): string
 		bottom = Math.max(bottom, b)
 	}
 	if (!Number.isFinite(left)) return null
-	const [x, y] = [left - MARGIN, top - MARGIN]
-	const [width, height] = [right - left + MARGIN * 2, bottom - top + MARGIN * 2]
+	const [x, y] = area ? area.origin : [left - MARGIN, top - MARGIN]
+	const [width, height] = area ? area.size : [right - left + MARGIN * 2, bottom - top + MARGIN * 2]
 
 	const drawn = shapes.map(({ row, value, paint }) => {
 		const id = row.split('/').at(-1)!.replace(/^binding:/, '')

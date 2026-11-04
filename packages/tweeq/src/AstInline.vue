@@ -6,7 +6,7 @@ import { inject } from 'vue'
 
 import AstValue from './AstValue.vue'
 import { referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
-import { LINKER } from './selection'
+import { COMMANDS_FOR, LINKER } from './selection'
 import type { Slot } from './structure'
 
 const props = defineProps<{
@@ -22,11 +22,16 @@ const props = defineProps<{
 const emit = defineEmits<{ change: [parent: AST] }>()
 
 const linker = inject(LINKER, null)
+const commandsFor = inject(COMMANDS_FOR, undefined)
 
 /** Each of them can be referred to, and made to refer, as a row of its own could. */
 const menuOf = (slot: Slot): MenuItem[] =>
 	withCopyItems(
-		slotMenuItems(slot, parent => emit('change', parent)),
+		slotMenuItems(
+			slot,
+			parent => emit('change', parent),
+			commandsFor?.(`${props.parentPath}/${slot.key}`)
+		),
 		linker === null
 			? []
 			: referenceMenuItems(linker, `${props.parentPath}/${slot.key}`, code =>

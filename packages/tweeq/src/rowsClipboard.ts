@@ -17,7 +17,7 @@ import {
 } from '@glisp/lang'
 
 import { readProgram } from './programSource'
-import { actionsOf, type Slot, textOf, viewOf } from './structure'
+import { actionsOf, type Slot, type SlotAction, type SlotCommand, textOf, viewOf } from './structure'
 
 const BINDING = 'binding:'
 
@@ -51,32 +51,56 @@ export function withParent(chain: readonly Slot[], next: AST): AST {
 	return node
 }
 
-/** Which of the ways to evaluate it can be done to the row at `path`. */
-export function evaluationsAt(root: AST, env: Env, path: string): ReadonlySet<Evaluation> {
+/** That one of `SLOT_COMMANDS` as it is for the row at `path`, if it applies there. */
+export function slotCommandAt(
+	root: AST,
+	env: Env,
+	path: string,
+	command: SlotCommand
+): SlotAction | null {
 	const slot = reach(root, env, path)?.chain.at(-1)
-	return new Set(
-		slot
-			? actionsOf(slot).flatMap(({ id }) => (id === 'step' || id === 'all' ? [id] : []))
-			: []
-	)
+	return (slot && actionsOf(slot).find(({ id }) => id === command)) ?? null
 }
 
-export type Evaluation = 'step' | 'all'
+/** Which of `SLOT_COMMANDS` apply to the row at `path`. */
+export function slotCommandsAt(root: AST, env: Env, path: string): ReadonlySet<SlotCommand> {
+	const slot = reach(root, env, path)?.chain.at(-1)
+	return new Set(slot ? actionsOf(slot).flatMap(({ id }) => id ?? []) : [])
+}
 
-/** The program with `rows` evaluated. Null if that makes no difference to any of them. */
-export function evaluatedRows(
+/** The program with that done to `rows`. Null if that makes no difference to any of them. */
+export function withSlotCommand(
 	root: AST,
 	env: Env,
 	rows: readonly string[],
-	how: Evaluation
+	command: SlotCommand
 ): AST | null {
 	let next = root
 	for (const row of rows) {
+		if (command === 'delete') {
+			next = withoutNearest(next, env, row) ?? next
+			continue
+		}
 		const chain = reach(next, env, row)?.chain
-		const action = chain?.at(-1) && actionsOf(chain.at(-1)!).find(({ id }) => id === how)
+		const action = chain?.at(-1) && actionsOf(chain.at(-1)!).find(({ id }) => id === command)
 		if (chain && action && 'apply' in action) next = withParent(chain, action.apply())
 	}
 	return print(next) === print(root) ? null : next
+}
+
+/** What that puts on the clipboard for `rows`, a line to each. */
+export function copiedBySlotCommand(
+	root: AST,
+	env: Env,
+	rows: readonly string[],
+	command: SlotCommand
+): string {
+	return rows
+		.flatMap(row => {
+			const action = slotCommandAt(root, env, row, command)
+			return action && 'copy' in action ? [action.copy()] : []
+		})
+		.join('\n')
 }
 
 /**

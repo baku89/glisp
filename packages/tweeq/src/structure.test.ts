@@ -1017,7 +1017,9 @@ describe('actionsOf', () => {
 		}
 		expect(copy('[(+ 1  2)]', 'Copy Value')).toBe('3')
 		expect(copy('[(+ 1  2)]', 'Copy Expression')).toBe('(+ 1  2)')
-		expect(copy('["a"]', 'Copy Value')).toBe('"a"')
+		expect(copy('["a"]', 'Copy Value')).toBe('a')
+		expect(copy('[(++ "a" "b")]', 'Copy Value')).toBe('ab')
+		expect(copy('[1.5]', 'Copy Value')).toBe('1.5')
 	})
 
 	it('offers no value for what has none', () => {

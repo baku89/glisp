@@ -1,5 +1,6 @@
 import type { AST } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
+import type { MenuItem } from 'tweeq/Menu'
 import type { InjectionKey, ShallowRef } from 'vue'
 
 /** The slot selected in an editor, and how to delete it, if it can go. */
@@ -96,6 +97,13 @@ export interface Linker {
 }
 
 export const LINKER: InjectionKey<Linker> = Symbol('glisp-linker')
+
+/** A key that the app around an editor has for something else. See `AstEditor`. */
+export const HOST_KEY: InjectionKey<(event: KeyboardEvent) => boolean> = Symbol('glisp-host-key')
+
+/** What the app around an editor has to offer for the slot at a path, as a menu. */
+export const COMMANDS_FOR: InjectionKey<(path: string) => MenuItem[]> =
+	Symbol('glisp-commands-for')
 
 /** An icon for what a row comes to, if a host has one, such as the shape itself. */
 export const VALUE_ICON: InjectionKey<(value: unknown) => string | null> =

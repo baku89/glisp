@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { IconSequence } from 'bndr-js'
 import { Icon } from 'tweeq/Icon'
 import { Popover } from 'tweeq/Popover'
 import { vTooltip } from 'tweeq/Tooltip'
@@ -16,7 +17,7 @@ import {
 interface Tool {
 	readonly name: string
 	readonly icon: string
-	readonly tooltip: { readonly content: string; readonly shortcut?: readonly string[] }
+	readonly tooltip: { readonly content: string; readonly shortcut?: IconSequence | undefined }
 }
 
 const props = defineProps<{

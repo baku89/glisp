@@ -16,7 +16,7 @@ import AstCodePopup from './AstCodePopup.vue'
 import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import type { Place } from './multiRows'
-import { RATIO_KEEPER, SOLVER } from './selection'
+import { HOST_KEY, RATIO_KEEPER, SOLVER } from './selection'
 import {
 	canSolve,
 	editorOfValue,
@@ -222,8 +222,9 @@ function editExpression(): void {
 	editing.value = true
 }
 
+const hostKey = inject(HOST_KEY, undefined)
 const editItems = computed(() =>
-	editMenuItems(hasNumber.value ? editValue : null, editExpression)
+	editMenuItems(hasNumber.value ? editValue : null, editExpression, hostKey)
 )
 const fieldMenu = computed<MenuItem[]>(() => [...editItems.value, ...props.menuItems])
 

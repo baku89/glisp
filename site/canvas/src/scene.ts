@@ -69,6 +69,8 @@ import {
 	under,
 	type Vec,
 	withinArg,
+	isRect,
+	outlineOf,
 } from './graphics'
 
 export interface Shape {
@@ -89,12 +91,15 @@ export const hasInside = ({ paint }: Shape): boolean =>
 	paint !== undefined && (paint.fill !== 'none' || paint.stroke !== 'none')
 
 /** The rows of what is at all within the corners `a` and `b`, once each. */
+/** It has an outline, as a path, and not only a place. A frame is drawn differently. */
+export const isOutlined = (draw: string): boolean => draw === 'path' || draw === 'frame'
+
 export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 	const [left, right] = a[0] < b[0] ? [a[0], b[0]] : [b[0], a[0]]
 	const [top, bottom] = a[1] < b[1] ? [a[1], b[1]] : [b[1], a[1]]
 	const rows = scene.flatMap(({ row, draw, value }) => {
 		const [[l, t], [r, d]] =
-			draw === 'path' ? bounds(value as Path) : [value as Vec, value as Vec]
+			isOutlined(draw) ? bounds(value as Path) : [value as Vec, value as Vec]
 		return l <= right && r >= left && t <= bottom && d >= top ? [row] : []
 	})
 	return [...new Set(rows)]
@@ -699,7 +704,9 @@ function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] 
 				? { row, draw, value: value.path.path, paint: value.paint }
 				: isPath(value)
 					? { row, draw, value: value.path }
-					: { row, draw, value },
+					: isRect(value)
+						? { row, draw, value: outlineOf(value) }
+						: { row, draw, value },
 		]
 	}
 	if (type === null || !Array.isArray(value)) return []

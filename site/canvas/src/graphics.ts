@@ -204,6 +204,29 @@ export class StyledValue {
 
 export const isStyled = (value: unknown): value is StyledValue => value instanceof StyledValue
 
+/**
+ * An area, which is not a shape: it is not drawn as one, and a path is not one of these. What
+ * a path has around it is an area only by asking for it, as `path.bounds`.
+ */
+export class RectValue {
+	constructor(
+		readonly origin: Vec,
+		readonly size: Vec
+	) {}
+
+	[AS_SOURCE](): AST {
+		return new CallAST(parse('rect.new'), [toAst(this.origin, null), toAst(this.size, null)])
+	}
+}
+
+export const isRect = (value: unknown): value is RectValue => value instanceof RectValue
+
+/** The corners an area goes between. */
+export const cornersOf = ({ origin, size }: RectValue): readonly [Vec, Vec] => [
+	origin,
+	[origin[0] + size[0], origin[1] + size[1]],
+]
+
 export const LINE_CAPS = ['butt', 'round', 'square'] as const
 export const LINE_JOINS = ['miter', 'round', 'bevel'] as const
 
@@ -743,7 +766,41 @@ const makeStyled = withDoc(
 	'Style'
 )
 
+/** What is drawn of an area. */
+export const outlineOf = (area: RectValue): Path => {
+	const [from, to] = cornersOf(area)
+	return rectangle(from, to)
+}
+
+export const rectType = said(
+	makeType('rect', isRect, new RectValue([0, 0], [100, 100])),
+	'frame',
+	'mdi:crop-free'
+)
+
+const makeArea = makeTypedFn(
+	[point, size],
+	rectType,
+	(origin, extent) => new RectValue(origin as Vec, extent as Vec),
+	['origin', 'size']
+)
+
+const makeBounds = makeTypedFn(
+	[pathType],
+	rectType,
+	value => {
+		const [[left, top], [right, bottom]] = bounds((value as PathValue).path)
+		return new RectValue([left, top], [right - left, bottom - top])
+	},
+	['path']
+)
+
+withMembers(rectType, {
+	new: withDoc(makeArea, 'An area from its `origin`, of this `size`, such as a page to export.', 'Area'),
+})
+
 withMembers(pathType, {
+	bounds: withDoc(makeBounds, 'The area that `path` just fits in.', 'Bounds'),
 	d: withDoc(makeD, 'A path from its data, as an SVG path has it.', 'Path Data'),
 	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.', 'Circle'),
 	ellipseFromFoci: withDoc(makeEllipseFromFoci, 'An ellipse around `focus1` and `focus2`, going `through` a point, which says how large it is, as an ellipse is where the distances to its foci come to the same.', 'Ellipse from Foci'),
@@ -2038,6 +2095,9 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
  * The grip of a call of `fn`, if it has one. `inner` gives the grip of an argument
  * that is itself a call, and null if it is not.
  */
+// An area is taken hold of as a rectangle is, having the same origin and size.
+makers.set(makeArea, makers.get(makeRect)!)
+
 export const gripOf = (
 	fn: unknown,
 	args: readonly unknown[],
@@ -2069,6 +2129,7 @@ export const inkOn = (color: string): string =>
 
 const BINDINGS: Readonly<Record<string, unknown>> = {
 	path: pathType,
+	rect: rectType,
 	color: colorType,
 	style: makeStyled,
 	background: makeBackground,

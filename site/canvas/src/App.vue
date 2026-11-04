@@ -7,25 +7,27 @@ import {
 	inspectionOf,
 	useGlispDocument,
 } from '@glisp/tweeq'
-import { copiedRows } from '@glisp/tweeq/rowsClipboard'
-import { renameBindingAt } from '@glisp/tweeq/structure'
-import { useEventListener, useMediaQuery } from '@vueuse/core'
+import { copiedBySlotCommand, copiedRows, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
+import { renameBindingAt, SLOT_COMMANDS, type SlotCommand } from '@glisp/tweeq/structure'
+import { useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
 import { useAppConfigStore } from 'tweeq/stores/appConfig'
 import { useActionsStore } from 'tweeq/stores/actions'
 import { useThemeStore } from 'tweeq/stores/theme'
+import { Menu, type MenuItem } from 'tweeq/Menu'
+import { Popover } from 'tweeq/Popover'
 import { TitleBar } from 'tweeq/TitleBar'
 import { vTooltip } from 'tweeq/Tooltip'
 import { initTweeq } from 'tweeq/useTweeq'
-import { computed, ref, useTemplateRef, watch, watchEffect } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch, watchEffect } from 'vue'
 
 import CanvasView from './CanvasView.vue'
 import { exportSvg, openFile, saveFile } from './files'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
-import { iconOfPath, inkOn, withGraphics } from './graphics'
+import { iconOfPath, inkOn, withGraphics, isRect, type RectValue } from './graphics'
 import type { GridKind } from './grid'
 import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
@@ -42,6 +44,19 @@ import {
 	viewToFit,
 } from './rows'
 import { backgroundOf, isBackgroundAt, paintedRow } from './scene'
+import {
+	actionTypesOver,
+	copyableType,
+	exportableType,
+	groupType,
+	numberType,
+	pathType,
+	rowType,
+	type Selected,
+	selectedOf,
+	slotTypes,
+	valueTextOf,
+} from './selection'
 import { bindingsOfSvg, svgOfRows } from './svg'
 import ToolBar from './ToolBar.vue'
 import { type Arrangement, arranged as arrangedTools } from './toolbar'
@@ -103,20 +118,21 @@ watch(document.root, root => {
 	}
 })
 
+/** A tool's key is said only here. What runs it and what says so all come from this. */
 const TOOLS = [
-	{ name: 'select', tooltip: { content: 'Select', shortcut: ['V'] }, icon: 'ph:cursor-fill' },
-	{ name: 'pen', tooltip: { content: 'Pen', shortcut: ['P'] }, icon: 'ph:pen-nib' },
-	{ name: 'pencil', tooltip: { content: 'Pencil', shortcut: ['B'] }, icon: 'ph:pencil-simple' },
-	{ name: 'rect', tooltip: { content: 'Rectangle', shortcut: ['R'] }, icon: SHAPE_ICONS.rect },
-	{ name: 'ellipse', tooltip: { content: 'Ellipse', shortcut: ['O'] }, icon: SHAPE_ICONS.circle },
-	{ name: 'ngon', tooltip: { content: 'Polygon', shortcut: ['N'] }, icon: SHAPE_ICONS.ngon },
-	{ name: 'star', tooltip: { content: 'Star' }, icon: SHAPE_ICONS.star },
-	{ name: 'roundRect', tooltip: { content: 'Rounded Rectangle' }, icon: SHAPE_ICONS.roundRect },
-	{ name: 'superellipse', tooltip: { content: 'Superellipse' }, icon: SHAPE_ICONS.superellipse },
-	{ name: 'capsule', tooltip: { content: 'Capsule' }, icon: SHAPE_ICONS.capsule },
-	{ name: 'fan', tooltip: { content: 'Fan' }, icon: SHAPE_ICONS.fan },
-	{ name: 'spiral', tooltip: { content: 'Spiral' }, icon: SHAPE_ICONS.spiral },
-	{ name: 'clothoid', tooltip: { content: 'Clothoid' }, icon: SHAPE_ICONS.clothoid },
+	{ name: 'select', label: 'Select', key: 'v', icon: 'ph:cursor-fill' },
+	{ name: 'pen', label: 'Pen', key: 'p', icon: 'ph:pen-nib' },
+	{ name: 'pencil', label: 'Pencil', key: 'b', icon: 'ph:pencil-simple' },
+	{ name: 'rect', label: 'Rectangle', key: 'r', icon: SHAPE_ICONS.rect },
+	{ name: 'ellipse', label: 'Ellipse', key: 'o', icon: SHAPE_ICONS.circle },
+	{ name: 'ngon', label: 'Polygon', key: 'n', icon: SHAPE_ICONS.ngon },
+	{ name: 'star', label: 'Star', icon: SHAPE_ICONS.star },
+	{ name: 'roundRect', label: 'Rounded Rectangle', icon: SHAPE_ICONS.roundRect },
+	{ name: 'superellipse', label: 'Superellipse', icon: SHAPE_ICONS.superellipse },
+	{ name: 'capsule', label: 'Capsule', icon: SHAPE_ICONS.capsule },
+	{ name: 'fan', label: 'Fan', icon: SHAPE_ICONS.fan },
+	{ name: 'spiral', label: 'Spiral', icon: SHAPE_ICONS.spiral },
+	{ name: 'clothoid', label: 'Clothoid', icon: SHAPE_ICONS.clothoid },
 ] as const
 const tool = ref<(typeof TOOLS)[number]['name']>('select')
 
@@ -138,22 +154,20 @@ const toggleGrid = (kind: GridKind): void => {
 	grid.value = grid.value === kind ? 'none' : kind
 }
 
-useEventListener(window, 'keydown', (event: KeyboardEvent) => {
-	const target = event.target as HTMLElement | null
-	if (target?.closest?.('input, textarea, [contenteditable]')) return
-	if (event.metaKey || event.ctrlKey || event.altKey) return
-	const key = event.key.toLowerCase()
-	// In a drawing app these are tools, before what they mean to a row in the tree.
-	if (key === 'v' || key === 'p') {
-		tool.value = key === 'v' ? 'select' : 'pen'
-		event.stopPropagation()
-	} else if (key === 'b') tool.value = 'pencil'
-	else if (key === 'r') tool.value = 'rect'
-	else if (key === 'o') tool.value = 'ellipse'
-	else if (key === 'n') tool.value = 'ngon'
-	else if (key === 'd') dimensionsOn.value = !dimensionsOn.value
-	else if (key === 'escape') tool.value = 'select'
-}, { capture: true })
+const toolKeys = new Set<string>(TOOLS.flatMap(tool => ('key' in tool ? [tool.key] : [])))
+
+/** In a drawing app these are tools, before what they mean to a row in the tree. */
+const isToolKey = (event: KeyboardEvent): boolean =>
+	!event.metaKey && !event.ctrlKey && !event.altKey && toolKeys.has(event.key.toLowerCase())
+
+/** The tools as the bar shows them, saying the keys that their actions have. */
+const toolsOnBar = computed(() =>
+	TOOLS.map(({ name, label, icon }) => ({
+		name,
+		icon,
+		tooltip: { content: label, shortcut: actions.shortcutOf(`tool_${name}`) },
+	}))
+)
 
 /** The project floats over the canvas, or is out of the way as a tab, across reloads. */
 const projectOpen = useAppConfigStore().ref('glisp.canvas.project.open', true)
@@ -301,6 +315,7 @@ const $canvas = useTemplateRef<{
 	setView(next: mat2d): void
 	zoomBy(factor: number): void
 	zoomTo(zoom: number): void
+	rowAtPoint(x: number, y: number): string | null
 	size(): readonly [number, number]
 }>('$canvas')
 
@@ -345,7 +360,121 @@ const inspection = computed(() =>
 		: inspectionOf(document.root.value, document.env.value, inspected.value)
 )
 
-useActionsStore().register([
+const actions = useActionsStore()
+
+const selection = computed(() =>
+	selectedOf(document.root.value, document.env.value, selected.value)
+)
+/** What a hole can be filled from, when nothing selected fills it. */
+const rowsToChoose = computed(() => {
+	const root = programOf(document.root.value)
+	return root
+		? selectedOf(root, document.env.value, root.bindings.map(([name]) => rowCalled('', name)))
+		: []
+})
+/** The row of a list of rows at a place on the screen, if there is one. */
+function listedRowAt(x: number, y: number): Selected | null {
+	const row = window.document
+		.elementFromPoint(x, y)
+		?.closest('.TqParameterTreeItem')
+		?.querySelector('.row .row-path')
+		?.getAttribute('data-path')
+	return row ? selectedRow(row) : null
+}
+const selectedRow = (row: string): Selected | null =>
+	selectedOf(document.root.value, document.env.value, [row])[0] ?? null
+
+/** The row of what is at a place on the screen, listed or drawn. */
+function rowOnScreenAt(x: number, y: number): Selected | null {
+	const drawn = $canvas.value?.rowAtPoint(x, y)
+	return listedRowAt(x, y) ?? (drawn ? selectedRow(drawn) : null)
+}
+
+actions.provideContext({
+	types: actionTypesOver({
+		rows: () => rowsToChoose.value,
+		at: rowOnScreenAt,
+		from: rowOnScreenAt,
+	}),
+	subject: () => selection.value,
+})
+
+// What a form asks for is pointed at, which a tool for drawing would take for drawing.
+watch(
+	() => actions.form,
+	form => {
+		if (form) tool.value = 'select'
+	}
+)
+
+/** Does `act` to the rows it was given, which are then what is selected, if they were not. */
+const onRows =
+	(act: () => unknown) =>
+	async (chosen: readonly Selected[]): Promise<void> => {
+		const rows = chosen.map(({ row }) => row)
+		if (rows.join() !== selected.value.join()) {
+			selectOnCanvas(rows)
+			await nextTick()
+		}
+		act()
+	}
+
+/** What takes all that is selected, whatever it is. */
+const rowsParam = { name: 'rows', type: rowType, many: true }
+
+/**
+ * One of what can be done to a slot, as an action. It goes by the rows it is given, which may
+ * be parts of rows, and not by what is selected. A key that is a tool's does not do this.
+ */
+function slotAction(command: SlotCommand) {
+	const { label, icon, ...rest } = SLOT_COMMANDS[command]
+	const keys = 'keys' in rest ? rest.keys : undefined
+	const isTool = keys?.length === 1 && toolKeys.has(keys[0].toLowerCase())
+	const root = () => document.root.value
+	return {
+		id: `slot_${command}`,
+		label,
+		icon,
+		...(keys && !isTool ? { hint: [...keys] } : {}),
+		params: [{ name: 'rows', type: slotTypes[command], many: true }],
+		describe(chosen: readonly Selected[]) {
+			const here = chosen[0] && slotCommandAt(root(), document.env.value, chosen[0].row, command)
+			return here ? { label: here.label, icon: here.icon } : null
+		},
+		perform(chosen: readonly Selected[]) {
+			const rows = chosen.map(({ row }) => row)
+			if (command === 'copy') {
+				const text = copiedBySlotCommand(root(), document.env.value, rows, command)
+				void navigator.clipboard.writeText(text)
+				return
+			}
+			const next = withSlotCommand(root(), document.env.value, rows, command)
+			if (next instanceof LetAST) setProgram(next, command === 'delete' ? [] : undefined)
+		},
+	}
+}
+
+/** What can be done to the slot at `path`, or to all that is selected, if it is among that. */
+function commandsFor(path: string): MenuItem[] {
+	const rows = selected.value.includes(path) ? selected.value : [path]
+	return actions.menuFor(selectedOf(document.root.value, document.env.value, rows))
+}
+
+const canvasMenu = ref<readonly [number, number] | null>(null)
+const canvasMenuItems = computed(() =>
+	canvasMenu.value === null
+		? []
+		: actions.menuFor(selection.value)
+)
+
+/** A right click is on what is under it, along with what it is selected with. */
+function openCanvasMenu(x: number, y: number, row: string | null): void {
+	if (row === null) return
+	if (!selected.value.includes(row)) selectOnCanvas([row])
+	canvasMenu.value = [x, y]
+}
+
+actions.register([
 	{
 		id: 'file',
 		order: 10,
@@ -368,12 +497,14 @@ useActionsStore().register([
 				id: 'file_export_svg',
 				label: 'Export SVG...',
 				icon: 'mdi:export-variant',
-				perform() {
-					const svg = svgOfRows(
-						document.root.value,
-						document.env.value,
-						drawnRows(document.root.value, document.env.value)
-					)
+				// What is drawn, or an area, or both: that much of those. With neither, it is all there is.
+				params: [{ name: 'what', type: exportableType, many: true, optional: true }],
+				perform(chosen: readonly Selected[] = []) {
+					const root = document.root.value
+					const env = document.env.value
+					const area = chosen.find(({ value }) => isRect(value))?.value as RectValue | undefined
+					const drawings = chosen.filter(({ value }) => !isRect(value)).map(({ row }) => row)
+					const svg = svgOfRows(root, env, drawings.length > 0 ? drawings : drawnRows(root, env), area)
 					if (svg !== null) void exportSvg(svg)
 				},
 			},
@@ -386,8 +517,21 @@ useActionsStore().register([
 		children: [
 			{ id: 'edit_undo', label: 'Undo', icon: 'mdi:undo', perform: () => document.undo() },
 			{ id: 'edit_redo', label: 'Redo', icon: 'mdi:redo', perform: () => document.redo() },
-			{ id: 'edit_cut', label: 'Cut', icon: 'mdi:content-cut', perform: () => $editor.value?.cut() },
-			{ id: 'edit_copy', label: 'Copy', icon: 'mdi:content-copy', perform: () => $editor.value?.copy() },
+			{ id: 'edit_cut', label: 'Cut', icon: 'mdi:content-cut', params: [rowsParam], perform: onRows(() => $editor.value?.cut()) },
+			{ id: 'edit_copy', label: 'Copy', icon: 'mdi:content-copy', params: [rowsParam], perform: onRows(() => $editor.value?.copy()) },
+			{
+				id: 'edit_copy_value',
+				label: SLOT_COMMANDS.value.label,
+				icon: SLOT_COMMANDS.value.icon,
+				params: [{ name: 'values', type: copyableType, many: true }],
+				perform(chosen: readonly Selected[]) {
+					const texts = chosen.flatMap(({ row }) => {
+						const current = selectedRow(row)
+						return (current && valueTextOf(current, document.env.value)) ?? []
+					})
+					void navigator.clipboard.writeText(texts.join('\n'))
+				},
+			},
 			{
 				id: 'edit_paste',
 				label: 'Paste',
@@ -401,12 +545,13 @@ useActionsStore().register([
 				label: 'Duplicate',
 				icon: 'mdi:content-duplicate',
 				bind: 'command+d',
-				perform() {
+				params: [rowsParam],
+				perform: onRows(() => {
 					const text = copiedRows(document.root.value, document.env.value, selected.value)
 					if (text !== '') $editor.value?.duplicate(text)
-				},
+				}),
 			},
-			{ id: 'edit_delete', label: 'Delete', icon: 'mdi:trash-can-outline', perform: () => $editor.value?.remove() },
+			...(['copy', 'delete'] as const).map(slotAction),
 			{
 				id: 'edit_select_all',
 				label: 'Select All',
@@ -421,12 +566,13 @@ useActionsStore().register([
 		order: 30,
 		icon: 'mdi:shape-outline',
 		children: [
-			{ id: 'object_front', label: 'Bring to Front', icon: 'mdi:arrange-bring-to-front', bind: 'shift+]', perform: () => arrange('front') },
-			{ id: 'object_forward', label: 'Bring Forward', icon: 'mdi:arrange-bring-forward', bind: ']', perform: () => arrange('forward') },
-			{ id: 'object_backward', label: 'Send Backward', icon: 'mdi:arrange-send-backward', bind: '[', perform: () => arrange('backward') },
-			{ id: 'object_back', label: 'Send to Back', icon: 'mdi:arrange-send-to-back', bind: 'shift+[', perform: () => arrange('back') },
-			{ id: 'object_group', label: 'Group', icon: 'mdi:group', bind: 'command+g', perform: group },
-			{ id: 'object_ungroup', label: 'Ungroup', icon: 'mdi:ungroup', bind: 'command+shift+g', perform: ungroup },
+			{ id: 'object_front', label: 'Bring to Front', icon: 'mdi:arrange-bring-to-front', bind: 'shift+]', params: [rowsParam], perform: onRows(() => arrange('front')) },
+			{ id: 'object_forward', label: 'Bring Forward', icon: 'mdi:arrange-bring-forward', bind: ']', params: [rowsParam], perform: onRows(() => arrange('forward')) },
+			{ id: 'object_backward', label: 'Send Backward', icon: 'mdi:arrange-send-backward', bind: '[', params: [rowsParam], perform: onRows(() => arrange('backward')) },
+			{ id: 'object_back', label: 'Send to Back', icon: 'mdi:arrange-send-to-back', bind: 'shift+[', params: [rowsParam], perform: onRows(() => arrange('back')) },
+			...(['step', 'all', 'pin', 'hide'] as const).map(slotAction),
+			{ id: 'object_group', label: 'Group', icon: 'mdi:group', bind: 'command+g', params: [rowsParam], perform: onRows(() => group()) },
+			{ id: 'object_ungroup', label: 'Ungroup', icon: 'mdi:ungroup', bind: 'command+shift+g', params: [{ name: 'groups', type: groupType, many: true }], perform: onRows(ungroup) },
 		],
 	},
 	{
@@ -435,13 +581,20 @@ useActionsStore().register([
 		icon: 'mdi:eye-outline',
 		children: [
 			{ id: 'view_fit', label: 'Fit All', icon: 'mdi:fit-to-screen-outline', bind: 'shift+1', perform: () => fit() },
-			{ id: 'view_fit_selection', label: 'Fit Selection', icon: 'mdi:selection-search', bind: 'shift+2', perform: () => fit(selected.value) },
+			{ id: 'view_fit_selection', label: 'Fit Selection', icon: 'mdi:selection-search', bind: 'shift+2', params: [rowsParam], perform: onRows(() => fit(selected.value)) },
 			{ id: 'view_actual', label: 'Actual Size', icon: 'mdi:numeric-1-box-outline', bind: 'command+0', perform: () => $canvas.value?.zoomTo(1) },
+			{
+				id: 'view_zoom_to',
+				label: 'Zoom To',
+				icon: 'mdi:magnify',
+				params: [{ name: 'percent', type: numberType, asked: true }],
+				perform: (percent: number) => $canvas.value?.zoomTo(percent / 100),
+			},
 			{ id: 'view_zoom_in', label: 'Zoom In', icon: 'mdi:magnify-plus-outline', bind: 'command+=', perform: () => $canvas.value?.zoomBy(ZOOM_STEP) },
 			{ id: 'view_zoom_out', label: 'Zoom Out', icon: 'mdi:magnify-minus-outline', bind: 'command+-', perform: () => $canvas.value?.zoomBy(1 / ZOOM_STEP) },
 			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => (projectOpen.value = !projectOpen.value) },
 			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => (inspectorOpen.value = !inspectorOpen.value) },
-			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
+			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', bind: 'd', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
 			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGrid('dots') },
 			{ id: 'view_grid', label: 'Toggle Grid', icon: 'ph:grid-four', perform: () => toggleGrid('lines') },
 		],
@@ -450,12 +603,14 @@ useActionsStore().register([
 		id: 'tool',
 		order: 50,
 		icon: 'ph:cursor-fill',
-		children: TOOLS.map(({ name, tooltip, icon }) => ({
-			id: `tool_${name}`,
-			label: tooltip.content,
-			icon,
+		children: TOOLS.map(item => ({
+			id: `tool_${item.name}`,
+			label: item.label,
+			icon: item.icon,
+			// Letting go of whatever else is being done is going back to selecting.
+			...('key' in item ? { bind: item.name === 'select' ? [item.key, 'esc'] : item.key } : {}),
 			perform() {
-				tool.value = name
+				tool.value = item.name
 			},
 		})),
 	},
@@ -485,7 +640,18 @@ function selectInTree(row: string | null): void {
 					:dimensions="dimensionsOn"
 					:grid="grid"
 					@select="selectOnCanvas"
+					@menu="openCanvasMenu"
 				/>
+				<Popover
+					v-if="canvasMenu && canvasMenuItems.length > 0"
+					:reference="null"
+					:placement="canvasMenu"
+					:open="true"
+					teleport=".TqViewport"
+					@update:open="$event || (canvasMenu = null)"
+				>
+					<Menu :items="canvasMenuItems" @close="canvasMenu = null" />
+				</Popover>
 				<FloatPanel
 					v-model:open="projectOpen"
 					name="glisp.canvas.project"
@@ -521,6 +687,8 @@ function selectInTree(row: string | null): void {
 							:document="document"
 							compact
 							layers
+							:hostKey="isToolKey"
+							:commandsFor="commandsFor"
 							:iconOfValue="iconOfPath"
 							:alsoSelected="selected"
 							:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
@@ -592,7 +760,7 @@ function selectInTree(row: string | null): void {
 					</AstEditor>
 				</FloatPanel>
 				<ToolBar
-					:tools="TOOLS"
+					:tools="toolsOnBar"
 					:active="tool"
 					:arrangement="toolArrangement"
 					@select="tool = $event as typeof tool"
@@ -600,7 +768,7 @@ function selectInTree(row: string | null): void {
 				>
 					<span class="tools-divider" />
 					<button
-						v-tooltip="{ content: 'Dimensions', shortcut: ['D'] }"
+						v-tooltip="{ content: 'Dimensions', shortcut: actions.shortcutOf('view_dimensions') }"
 						class="tool"
 						:class="{ active: dimensionsOn }"
 						aria-label="Dimensions"

@@ -1405,12 +1405,32 @@ export function kindIconOf(ast: AST): string | null {
 	}
 }
 
+/**
+ * What can be done to any slot it applies to, by name. A menu, a key and a host's own actions
+ * all go by this, so that one of them is written once. `actionsOf` says when each applies.
+ */
+export const SLOT_COMMANDS = {
+	step: { id: 'step', label: 'Evaluate One Step', icon: 'mdi:debug-step-into', keys: ['E'], group: 'edit' },
+	all: { id: 'all', label: 'Evaluate All', icon: 'mdi:debug-step-over', keys: ['⇧', 'E'], group: 'edit' },
+	pin: { id: 'pin', label: 'Pin', icon: 'mdi:pin', keys: ['P'], group: 'edit' },
+	hide: { id: 'hide', label: 'Hide', icon: 'mdi:eye-off-outline', keys: ['H'], group: 'edit' },
+	value: { id: 'value', label: 'Copy Value', icon: 'mdi:content-copy', group: 'copy' },
+	copy: { id: 'copy', label: 'Copy Expression', icon: 'mdi:code-parentheses', keys: ['⌘', 'C'], group: 'copy' },
+	delete: { id: 'delete', label: 'Delete', icon: 'mdi:trash-can-outline', keys: ['⌫'], group: 'remove' },
+} as const
+
+export type SlotCommand = keyof typeof SLOT_COMMANDS
+
+/** A value as it is outside of a program: a string is its text, and not how it is written. */
+export const plainTextOf = (value: unknown, env: Env): string =>
+	typeof value === 'string' ? value : print(toAst(value, env))
+
 /** Something that can be done to a slot, for a menu. */
 export type SlotAction = {
 	readonly label: string
 	readonly icon: string
-	/** Which one it is, for what runs it by a key. */
-	readonly id?: 'step' | 'all' | 'pin' | 'hide' | 'copy'
+	/** Which one it is, if it is one of `SLOT_COMMANDS`. */
+	readonly id?: SlotCommand
 	/** The keys that run it, as a menu shows them. */
 	readonly keys?: readonly string[]
 	/** It adds to what is inside, which then ought to be showing. */
@@ -1423,8 +1443,10 @@ export type SlotAction = {
 			apply(): AST
 	  }
 	| {
-			/** What to put on the clipboard. */
+			/** What to put on the clipboard, for taking it somewhere else. */
 			copy(): string
+			/** What reads back as the same thing, if that is not the same, for pasting it here. */
+			written?(): string
 	  }
 )
 
@@ -1444,11 +1466,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 			slot.role !== 'function')
 	if (canStep) {
 		actions.push({
-			id: 'step',
-			label: 'Evaluate One Step',
-			icon: 'mdi:debug-step-into',
-			keys: ['E'],
-			group: 'edit',
+			...SLOT_COMMANDS.step,
 			apply: () => {
 				const next = expand(slot.ast, slot.env)
 				if (next !== slot.ast) return slot.replace(next)
@@ -1464,11 +1482,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	}
 	if (isExpression(slot.ast) && hasValue(slot.ast) && slot.role !== 'function') {
 		actions.push({
-			id: 'all',
-			label: 'Evaluate All',
-			icon: 'mdi:debug-step-over',
-			keys: ['⇧', 'E'],
-			group: 'edit',
+			...SLOT_COMMANDS.all,
 			apply: () => {
 				const { value, diagnostics } = evaluate(slot.ast, slot.env)
 				return slot.replace(
@@ -1502,20 +1516,14 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	if (hasValue(slot.ast) && slot.role !== 'function' && slot.role !== 'step') {
 		const pinned = isPinned(slot.ast)
 		actions.push({
-			id: 'pin',
-			label: pinned ? 'Unpin' : 'Pin',
-			icon: pinned ? 'mdi:pin-off' : 'mdi:pin',
-			keys: ['P'],
-			group: 'edit',
+			...SLOT_COMMANDS.pin,
+			...(pinned ? { label: 'Unpin', icon: 'mdi:pin-off' } : {}),
 			apply: () => slot.replace(pinned ? unpin(slot.ast) : pin(slot.ast)),
 		})
 		const hidden = isHidden(slot.ast)
 		actions.push({
-			id: 'hide',
-			label: hidden ? 'Show' : 'Hide',
-			icon: hidden ? 'mdi:eye-outline' : 'mdi:eye-off-outline',
-			keys: ['H'],
-			group: 'edit',
+			...SLOT_COMMANDS.hide,
+			...(hidden ? { label: 'Show', icon: 'mdi:eye-outline' } : {}),
 			apply: () => slot.replace(hidden ? unhide(slot.ast) : hide(slot.ast)),
 		})
 	}
@@ -1527,28 +1535,24 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		slot.role !== 'function'
 	) {
 		actions.push({
-			label: 'Copy Value',
-			icon: 'mdi:content-copy',
-			group: 'copy',
-			copy: () => print(toAst(evaluate(slot.ast, slot.env).value, slot.env)),
+			...SLOT_COMMANDS.value,
+			copy: () => plainTextOf(evaluate(slot.ast, slot.env).value, slot.env),
 		})
 	}
 	actions.push({
-		id: 'copy',
-		keys: ['⌘', 'C'],
-		label: isExpression(slot.ast) ? 'Copy Expression' : 'Copy Value',
-		icon: isExpression(slot.ast) ? 'mdi:code-parentheses' : 'mdi:content-copy',
-		group: 'copy',
-		copy: () => sourceOf(slot.ast),
+		...SLOT_COMMANDS.copy,
+		...(isExpression(slot.ast) ? {} : { label: 'Copy Value', icon: 'mdi:content-copy' }),
+		copy: () => {
+			const literal = isExpression(slot.ast) ? null : literalOf(slot.ast)
+			return literal ? plainTextOf(literal.value, slot.env) : sourceOf(slot.ast)
+		},
+		written: () => sourceOf(slot.ast),
 	})
 
 	if (slot.remove !== undefined) {
 		const remove = slot.remove
 		actions.push({
-			label: 'Delete',
-			icon: 'mdi:trash-can-outline',
-			keys: ['⌫'],
-			group: 'remove',
+			...SLOT_COMMANDS.delete,
 			apply: remove,
 		})
 	}

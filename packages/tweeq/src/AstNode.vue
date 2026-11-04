@@ -14,7 +14,9 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
-import { ALSO_SELECTED, LINKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
+import {
+	COMMANDS_FOR,
+	HOST_KEY, ALSO_SELECTED, LINKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	canSolve,
@@ -327,7 +329,7 @@ function select(): void {
 			const action = actionsOf(props.entry).find(a => a.id === id)
 			if (action === undefined) return
 			if ('apply' in action) emit('change', action.apply())
-			else void navigator.clipboard.writeText(action.copy())
+			else void navigator.clipboard.writeText(action.written?.() ?? action.copy())
 		},
 	}
 }
@@ -337,16 +339,23 @@ function paste(next: AST): void {
 	update(ast.value.kind === 'meta' ? new MetaAST(ast.value.metadata, next) : next)
 }
 
+const hostKey = inject(HOST_KEY, undefined)
+const commandsFor = inject(COMMANDS_FOR, undefined)
+
 const referenceItems = computed<MenuItem[]>(() =>
 	linker === null || isFunction.value ? [] : referenceMenuItems(linker, props.path, paste)
 )
 
 const slotMenu = computed(() =>
 	withCopyItems(
-		slotMenuItems(props.entry, (parent, action) => {
-			if (action.opens) open.value = true
-			emit('change', parent)
-		}),
+		slotMenuItems(
+			props.entry,
+			(parent, action) => {
+				if (action.opens) open.value = true
+				emit('change', parent)
+			},
+			commandsFor?.(props.path)
+		),
 		referenceItems.value
 	)
 )
@@ -355,7 +364,7 @@ const slotMenu = computed(() =>
 const menuItems = computed<MenuItem[]>(() => [
 	...(isFunction.value
 		? []
-		: editMenuItems($value.value?.editValue ?? null, editExpression)),
+		: editMenuItems($value.value?.editValue ?? null, editExpression, hostKey)),
 	...(renamable.value || isFunction.value
 		? [
 				{

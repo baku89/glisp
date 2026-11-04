@@ -1,7 +1,7 @@
 import { buildPrelude, type Env, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { copiedRows, evaluatedRows, evaluationsAt, pastedArguments, pastedRows, reach, withoutNearest, withoutRows } from './rowsClipboard'
+import { copiedBySlotCommand, copiedRows, pastedArguments, slotCommandAt, slotCommandsAt, withSlotCommand, pastedRows, reach, withoutNearest, withoutRows } from './rowsClipboard'
 
 const env: Env = buildPrelude()
 
@@ -21,7 +21,7 @@ describe('copiedRows', () => {
 	})
 })
 
-describe('evaluating rows', () => {
+describe('slot commands on rows', () => {
 	const root = parse(`{
 		sq = (=> (x: number): number (* x x))
 		a = (sq 2)
@@ -29,31 +29,42 @@ describe('evaluating rows', () => {
 		n = 1
 	}`)
 
-	it('says what can be done to a row', () => {
-		expect([...evaluationsAt(root, env, 'binding:a')].sort()).toEqual(['all', 'step'])
-		expect(evaluationsAt(root, env, 'binding:n').has('step')).toBe(false)
-		expect(evaluationsAt(root, env, 'binding:nowhere').size).toBe(0)
+	it('says what applies to a row', () => {
+		const a = slotCommandsAt(root, env, 'binding:a')
+		expect(a.has('step') && a.has('all') && a.has('delete')).toBe(true)
+		expect(slotCommandsAt(root, env, 'binding:n').has('step')).toBe(false)
+		expect(slotCommandsAt(root, env, 'binding:nowhere').size).toBe(0)
+	})
+
+	it('says what one is called there', () => {
+		const pinned = withSlotCommand(root, env, ['binding:a'], 'pin')!
+		expect(slotCommandAt(root, env, 'binding:a', 'pin')?.label).toBe('Pin')
+		expect(slotCommandAt(pinned, env, 'binding:a', 'pin')?.label).toBe('Unpin')
 	})
 
 	it('goes one step down', () => {
-		const next = evaluatedRows(root, env, ['binding:a'], 'step')!
-		expect(print(next)).toContain('a = (* 2 2)')
+		expect(print(withSlotCommand(root, env, ['binding:a'], 'step')!)).toContain('a = (* 2 2)')
 	})
 
 	it('goes all the way down', () => {
-		const next = evaluatedRows(root, env, ['binding:a'], 'all')!
-		expect(print(next)).toContain('a = 4')
+		expect(print(withSlotCommand(root, env, ['binding:a'], 'all')!)).toContain('a = 4')
 	})
 
 	it('does all of the rows', () => {
-		const next = print(evaluatedRows(root, env, ['binding:a', 'binding:b'], 'all')!)
+		const next = print(withSlotCommand(root, env, ['binding:a', 'binding:b'], 'all')!)
 		expect(next).toContain('a = 4')
 		expect(next).toContain('b = 3')
 	})
 
 	it('is nothing, if nothing comes of it', () => {
-		expect(evaluatedRows(root, env, ['binding:n'], 'step')).toBeNull()
-		expect(evaluatedRows(root, env, ['binding:nowhere'], 'all')).toBeNull()
+		expect(withSlotCommand(root, env, ['binding:n'], 'step')).toBeNull()
+		expect(withSlotCommand(root, env, ['binding:nowhere'], 'all')).toBeNull()
+	})
+
+	it('puts a line to each on the clipboard', () => {
+		expect(copiedBySlotCommand(root, env, ['binding:a', 'binding:b'], 'copy')).toBe(
+			'(sq 2)\n(+ 1 2)'
+		)
 	})
 })
 

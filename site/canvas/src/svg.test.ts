@@ -2,7 +2,7 @@ import { buildPrelude, type Env, evaluate, parse, print } from '@glisp/lang'
 import { copiedRows, pastedArguments, pastedRows, reach } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
-import { isPath, withGraphics } from './graphics'
+import { isPath, RectValue, withGraphics } from './graphics'
 import { sceneOf } from './scene'
 import { bindingsOfSvg, svgOfRows } from './svg'
 
@@ -165,5 +165,39 @@ describe('bindingsOfSvg', () => {
 		expect(sceneOf(ast, env).map(s => s.row)).toEqual(['binding:path1', 'binding:rect1'])
 		expect(isPath(evaluate(parse('(path.d "M0 0 C 1 0 2 0 3 3 Z")'), env).value)).toBe(true)
 		expect(print(ast)).toContain('rect1 = (path.rect [0 0] [1 2])')
+	})
+})
+
+describe('exporting an area', () => {
+	const root = parse(`{
+		near = (path.rect [0 0] [10 10])
+		far = (path.rect [500 500] [10 10])
+	}`)
+	const area = new RectValue([0, 0], [100, 50])
+	const rows = ['binding:near', 'binding:far']
+
+	it('shows the area, whatever is in it', () => {
+		expect(svgOfRows(root, env, rows, area)).toContain('viewBox="0 0 100 50"')
+	})
+
+	it('has only what is at all within it', () => {
+		const svg = svgOfRows(root, env, rows, area)!
+		expect(svg).toContain('id="near"')
+		expect(svg).not.toContain('id="far"')
+	})
+
+	it('is nothing if nothing is', () => {
+		expect(svgOfRows(root, env, ['binding:far'], area)).toBeNull()
+	})
+
+	it('goes by what is drawn, without one', () => {
+		expect(svgOfRows(root, env, rows)).toContain('id="far"')
+	})
+
+	it('does not draw an area in itself', () => {
+		const framed = parse('{page = (rect.new [0 0] [100 100]) a = (path.rect [0 0] [10 10])}')
+		const svg = svgOfRows(framed, env, ['binding:page', 'binding:a'])!
+		expect(svg).not.toContain('id="page"')
+		expect(svg).toContain('id="a"')
 	})
 })

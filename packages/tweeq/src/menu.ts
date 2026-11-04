@@ -7,8 +7,11 @@ import { actionsOf, parseSource, type Slot, type SlotAction } from './structure'
 /** How a value's field goes into editing: `editValue` if it has a number to edit. */
 export function editMenuItems(
 	editValue: (() => void) | null,
-	editExpression: () => void
+	editExpression: () => void,
+	/** Keys the app has for something else, which then do not do this. */
+	hostKey?: (event: KeyboardEvent) => boolean
 ): MenuItem[] {
+	const valueKey = hostKey?.(new KeyboardEvent('keydown', { key: 'v' })) ? {} : { bindIcon: ['V'] }
 	return [
 		...(editValue === null
 			? []
@@ -16,7 +19,7 @@ export function editMenuItems(
 					{
 						label: 'Edit Value',
 						icon: 'mdi:pound',
-						bindIcon: ['V'],
+						...valueKey,
 						perform: editValue,
 					},
 				]),
@@ -30,14 +33,19 @@ export function editMenuItems(
 	]
 }
 
-/** A slot's actions as a menu, in groups. `apply` gets the new parent. */
+/**
+ * A slot's actions as a menu, in groups. `apply` gets the new parent. With `commands`, which
+ * is what the app around has for it, those stand in for what `SLOT_COMMANDS` would offer.
+ */
 export function slotMenuItems(
 	slot: Slot,
-	apply: (parent: AST, action: SlotAction) => void
+	apply: (parent: AST, action: SlotAction) => void,
+	commands?: readonly MenuItem[]
 ): MenuItem[] {
 	const items: MenuItem[] = []
 	let group: SlotAction['group'] | null = null
-	for (const action of actionsOf(slot)) {
+	const own = actionsOf(slot).filter(({ id }) => commands === undefined || id === undefined)
+	for (const action of own) {
 		if (group !== null && group !== action.group) items.push({ separator: true })
 		group = action.group
 		items.push({
@@ -50,7 +58,8 @@ export function slotMenuItems(
 			},
 		})
 	}
-	return items
+	if (commands === undefined || commands.length === 0) return items
+	return [...items, ...(items.length > 0 ? [{ separator: true as const }] : []), ...commands]
 }
 
 /**

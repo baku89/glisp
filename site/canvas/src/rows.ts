@@ -8,7 +8,7 @@ import { viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import type { Path, Vec } from './graphics'
-import { sceneOf } from './scene'
+import { isOutlined, sceneOf } from './scene'
 
 const BINDING = 'binding:'
 
@@ -129,7 +129,7 @@ export function boundsOfRows(
 	for (const { row, draw, value } of sceneOf(root, env)) {
 		if (rows && !rows.some(path => row === path || row.startsWith(`${path}/`))) continue
 		const [[l, t], [r, b]] =
-			draw === 'path' ? bounds(value as Path) : [value as Vec, value as Vec]
+			isOutlined(draw) ? bounds(value as Path) : [value as Vec, value as Vec]
 		left = Math.min(left, l)
 		top = Math.min(top, t)
 		right = Math.max(right, r)

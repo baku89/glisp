@@ -56,6 +56,7 @@ import {
 	anchorsAlong,
 	pencilled,
 	rowOfHandle,
+	isOutlined,
 } from './scene'
 
 const props = defineProps<{
@@ -72,8 +73,13 @@ const props = defineProps<{
 	grid?: GridKind
 }>()
 
-const emit = defineEmits<{ select: [rows: readonly string[]] }>()
+const emit = defineEmits<{
+	select: [rows: readonly string[]]
+	/** A right click, and the row of what it was on, if anything. */
+	menu: [x: number, y: number, row: string | null]
+}>()
 
+const FRAME_ALPHA = 0.4
 const GRID_DOT = 2
 const GRID_DOT_ALPHA = 0.18
 const GRID_LINE_ALPHA = 0.06
@@ -373,6 +379,14 @@ useZUI($canvas, delta => {
 })
 
 defineExpose({
+	/** The row of what is drawn at a place on the screen, if anything is. */
+	rowAtPoint(clientX: number, clientY: number): string | null {
+		// Not through what floats over it.
+		const canvas = $canvas.value
+		if (!canvas || window.document.elementFromPoint(clientX, clientY) !== canvas) return null
+		const box = canvas.getBoundingClientRect()
+		return shapeAt(clientX - box.left, clientY - box.top)?.row ?? null
+	},
 	/** Have this as the view. */
 	setView(next: mat2d): void {
 		view.value = next
@@ -672,7 +686,14 @@ function draw(): void {
 	}
 
 	for (const shape of scene.value) {
-		if (shape.draw === 'path') {
+		if (shape.draw === 'frame') {
+			// An area is not part of the drawing, and is only outlined, faintly, to see where it is.
+			context.save()
+			context.globalAlpha = FRAME_ALPHA
+			context.lineWidth = 1
+			context.stroke(pathOnScreen(shape.value as Path, view.value))
+			context.restore()
+		} else if (shape.draw === 'path') {
 			const onScreenPath = pathOnScreen(shape.value as Path, view.value)
 			const { paint } = shape
 			if (paint !== undefined) {
@@ -713,7 +734,7 @@ function draw(): void {
 	context.fillStyle = accent
 	for (const shape of scene.value) {
 		if (!isMarked(shape)) continue
-		if (shape.draw === 'path') {
+		if (isOutlined(shape.draw)) {
 			context.lineWidth = shape.row === hovered.value ? 2 : 1.5
 			context.stroke(pathOnScreen(shape.value as Path, view.value))
 		} else if (shape.draw === 'point') {
@@ -866,7 +887,7 @@ function shapeAt(x: number, y: number): Shape | null {
 	context.lineWidth = HIT_WIDTH
 	let found: Shape | null = null
 	for (const shape of [...scene.value].reverse()) {
-		if (shape.draw === 'path') {
+		if (isOutlined(shape.draw)) {
 			const path = pathOnScreen(shape.value as Path, view.value)
 			if (
 				context.isPointInStroke(path, x, y) ||
@@ -984,8 +1005,14 @@ let pressed:
 			others: readonly SnapPoint[]
 			moving: boolean
 			collapse: boolean
+			/** The program as it was, to go back to if the move is called off. */
+			base: LetAST
 	  }
 	| null = null
+
+/** Whether something floats over the canvas there, which what is carried has left it for. */
+const overPanel = (x: number, y: number): boolean =>
+	window.document.elementFromPoint(x, y)?.closest('.FloatPanel, [data-tq-takes-drag]') != null
 
 let spaceDown = false
 const typing = (event: Event): boolean =>
@@ -1111,6 +1138,7 @@ function onPointerDown(event: PointerEvent): void {
 			})(),
 			moving: false,
 			collapse: already && !event.shiftKey && rows.length > 1,
+			base: props.document.root.value,
 		}
 		return
 	}
@@ -1453,6 +1481,15 @@ function onPointerMove(event: PointerEvent): void {
 			if (!pressed.moving && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
 			pressed.moving = true
 			hovered.value = null
+			// Carried off the canvas, it is not being moved, for as long as it stays there.
+			if (overPanel(event.clientX, event.clientY)) {
+				props.document.rewind(pressed.base)
+				problem.value = null
+				held.value = null
+				snapMark.value = null
+				evenLine.value = null
+				break
+			}
 			const [toX, toY] = snappedMove(pressed.own, pressed.others, pressed.from, [x, y])
 			let next: ReturnType<typeof apply> = {
 				ast: props.document.root.value,
@@ -1549,6 +1586,7 @@ useEventListener(window, 'pointerup', event => {
 			ref="$canvas"
 			:style="{ cursor }"
 			@pointerdown="onPointerDown"
+			@contextmenu.prevent="emit('menu', $event.clientX, $event.clientY, shapeAt($event.offsetX, $event.offsetY)?.row ?? null)"
 			@pointermove="onPointerMove"
 			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null)"
 			@auxclick.prevent

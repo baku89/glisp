@@ -21,8 +21,11 @@ import {
 	withoutRows,
 	withParent,
 } from './rowsClipboard'
+import type { MenuItem } from 'tweeq/Menu'
 import {
 	ALSO_SELECTED,
+	COMMANDS_FOR,
+	HOST_KEY,
 	LINKER,
 	OPEN_ROW,
 	RENAMER,
@@ -55,6 +58,10 @@ const props = defineProps<{
 	iconOfValue?: (value: unknown) => string | null
 	/** A function's icon, by how its head is written, over what it says of itself. */
 	iconOfFunction?: (fn: string) => string | null
+	/** A key that the app around it has for something else, before what it means to a row. */
+	hostKey?: (event: KeyboardEvent) => boolean
+	/** What the app has to offer for the slot at a path, over what is offered here. */
+	commandsFor?: (path: string) => MenuItem[]
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
 	/** What rows are on a clipboard, if not their code, for what is outside of this. */
@@ -168,6 +175,8 @@ function copyReference(path: string): boolean {
 }
 
 provide(VALUE_ICON, value => props.iconOfValue?.(value) ?? null)
+provide(HOST_KEY, event => props.hostKey?.(event) ?? false)
+if (props.commandsFor) provide(COMMANDS_FOR, path => props.commandsFor!(path))
 
 provide(LINKER, {
 	can: (source, target) => linked(source, target) !== null,
@@ -586,7 +595,7 @@ useEventListener(
 )
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
-	if (isInspector.value) return
+	if (isInspector.value || props.hostKey?.(event)) return
 	const target = event.target as HTMLElement | null
 	if (target?.closest('input, textarea, [contenteditable]')) return
 	const isMod = event.metaKey || event.ctrlKey
