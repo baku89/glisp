@@ -277,7 +277,7 @@ function freeArea(): Area {
 
 function fit(rows?: readonly string[]): void {
 	const box = boundsOfRows(document.root.value, document.env.value, rows)
-	if (box) $canvas.value?.setView(viewToFit(box, freeArea()) as unknown as mat2d)
+	if (box) $canvas.value?.glideTo(viewToFit(box, freeArea()) as unknown as mat2d)
 }
 
 const ZOOM_STEP = 1.5
@@ -327,7 +327,7 @@ const $editor = useTemplateRef<{
 	duplicate(text: string): void
 }>('$editor')
 const $canvas = useTemplateRef<{
-	setView(next: mat2d): void
+	glideTo(next: mat2d): void
 	zoomBy(factor: number): void
 	zoomTo(zoom: number): void
 	rowAtPoint(x: number, y: number): string | null

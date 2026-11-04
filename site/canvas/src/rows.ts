@@ -141,6 +141,9 @@ export function boundsOfRows(
 /** What is free of the panels on a screen, as `[left, top, right, bottom]`. */
 export type Area = readonly [number, number, number, number]
 
+/** How the program is on a screen, as a `mat2d`, which only goes in and across. */
+export type View = readonly [number, number, number, number, number, number]
+
 const MAX_FIT_ZOOM = 8
 
 /** The view that has `box` as large as it can be in `area`, in the middle of it. */
@@ -163,6 +166,20 @@ export function viewToFit(
 		areaLeft + areaWidth / 2 - (zoom * (left + right)) / 2,
 		areaTop + areaHeight / 2 - (zoom * (top + bottom)) / 2,
 	]
+}
+
+/**
+ * The view `t` of the way from one to another. How far in goes by ratio, so that each doubling
+ * takes as long, and what is on screen goes straight, as it does around one point when zooming.
+ */
+export function viewBetween(
+	[zoomA, , , , ax, ay]: View,
+	[zoomB, , , , bx, by]: View,
+	t: number
+): View {
+	const zoom = zoomA * (zoomB / zoomA) ** t
+	const along = Math.abs(zoomB - zoomA) < 1e-9 ? t : (zoom - zoomA) / (zoomB - zoomA)
+	return [zoom, 0, 0, zoom, ax + (bx - ax) * along, ay + (by - ay) * along]
 }
 
 /** The name of the binding that a row is, if it is one. */

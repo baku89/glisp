@@ -6,7 +6,7 @@ import { mat2d, vec2 } from 'linearly'
 import { toPath2D } from 'pave/path/canvas'
 import { transform } from 'pave/path/modifiers'
 import { useZUI } from 'tweeq/use/useZUI'
-import { computed, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
 import Dimensions from './Dimensions.vue'
 import {
@@ -18,6 +18,7 @@ import {
 } from './modulate'
 import { otherControl, type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec, inkOn, onlyShapes } from './graphics'
 import { type GridKind, gridPositions, offAxis } from './grid'
+import { viewBetween } from './rows'
 import {
 	changed,
 	type Dimension,
@@ -397,7 +398,34 @@ const fromScreen = (x: number, y: number, mat: mat2d = view.value): Vec => {
 const pathOnScreen = (path: Path, mat: mat2d = onScreen.value): Path2D =>
 	toPath2D(transform(path, mat))
 
+/** Going to a view, a frame at a time, until something else moves it. */
+let gliding: number | null = null
+
+function stopGliding(): void {
+	if (gliding !== null) cancelAnimationFrame(gliding)
+	gliding = null
+}
+
+function glideTo(next: mat2d): void {
+	stopGliding()
+	if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		view.value = next
+		return
+	}
+	const from = view.value
+	const start = performance.now()
+	const step = (now: number) => {
+		const t = Math.min(1, (now - start) / GLIDE_TIME)
+		const eased = t < 0.5 ? 4 * t ** 3 : 1 - (2 - 2 * t) ** 3 / 2
+		view.value = t < 1 ? (viewBetween(from, next, eased) as mat2d) : next
+		gliding = t < 1 ? requestAnimationFrame(step) : null
+	}
+	gliding = requestAnimationFrame(step)
+}
+onBeforeUnmount(stopGliding)
+
 useZUI($canvas, delta => {
+	stopGliding()
 	view.value = mat2d.mul(delta, view.value)
 })
 
@@ -410,17 +438,17 @@ defineExpose({
 		const box = canvas.getBoundingClientRect()
 		return shapeAt(clientX - box.left, clientY - box.top)?.row ?? null
 	},
-	/** Have this as the view. */
-	setView(next: mat2d): void {
-		view.value = next
-	},
+	/** Go over to this as the view. */
+	glideTo,
 	/** Zoom by this much, around the middle of what can be seen. */
 	zoomBy(factor: number): void {
+		stopGliding()
 		const middle: vec2 = [size.value[0] / 2, size.value[1] / 2]
 		view.value = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
 	},
 	/** The same as it was, with this as how far in it is. */
 	zoomTo(zoom: number): void {
+		stopGliding()
 		const factor = zoom / view.value[0]
 		const middle: vec2 = [size.value[0] / 2, size.value[1] / 2]
 		view.value = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
@@ -459,6 +487,8 @@ const OFFSET_BEND = 3.5
 /** How far along the outline they reach once bent, which is less, for them to come to a point. */
 const OFFSET_BENT_REACH = 3.5
 const OFFSET_BEND_TIME = 100
+/** How long going over to another view takes, in ms. */
+const GLIDE_TIME = 320
 /** What is being dragged is larger, for there being no pointer to find it by. */
 const HELD_SCALE = 1.3
 
@@ -1658,6 +1688,7 @@ function onPointerMove(event: PointerEvent): void {
 		}
 		case 'pan': {
 			const [fromX, fromY] = pressed.from
+			stopGliding()
 			view.value = mat2d.mul(
 				mat2d.fromTranslation([event.clientX - fromX, event.clientY - fromY]),
 				view.value

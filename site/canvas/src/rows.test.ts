@@ -10,6 +10,7 @@ import {
 	nameOfRow,
 	rowCalled,
 	ungrouped,
+	viewBetween,
 	viewToFit,
 } from './rows'
 
@@ -103,6 +104,31 @@ describe('fitting', () => {
 	it('does not go in forever', () => {
 		const [zoom] = viewToFit([[0, 0], [0, 0]], [0, 0, 100, 100])
 		expect(zoom).toBe(8)
+	})
+})
+
+describe('the view between two', () => {
+	const from = [1, 0, 0, 1, 0, 0] as const
+	const to = [4, 0, 0, 4, 90, -30] as const
+
+	it('starts at one and ends at the other', () => {
+		expect(viewBetween(from, to, 0)).toEqual(from)
+		expect(viewBetween(from, to, 1)).toEqual(to)
+	})
+
+	it('goes in by ratio', () => {
+		expect(viewBetween(from, to, 0.5)[0]).toBeCloseTo(2)
+	})
+
+	it('has what is on screen go straight', () => {
+		// At a zoom of 2, a third of the way from 1 to 4, and so a third of the way across.
+		const [, , , , x, y] = viewBetween(from, to, 0.5)
+		expect(x).toBeCloseTo(30)
+		expect(y).toBeCloseTo(-10)
+	})
+
+	it('only moves, when how far in stays', () => {
+		expect(viewBetween([2, 0, 0, 2, 0, 0], [2, 0, 0, 2, 10, 20], 0.5)).toEqual([2, 0, 0, 2, 5, 10])
 	})
 })
 
