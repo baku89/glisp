@@ -1366,6 +1366,9 @@ describe('a string, that comes from elsewhere', () => {
 
 	it('has the widget it would have had if written', () => {
 		const shades = evaluate(parse('(enum "a" "b")'), env).value as Parameters<typeof editorOfValue>[1]
+		const seed = evaluate(parse('seed'), env).value as Parameters<typeof editorOfValue>[1]
+		expect(editorOfValue(42, seed)).toEqual({ kind: 'number', value: 42, seed: true })
+		expect(editorOfValue(42, null)).toEqual({ kind: 'number', value: 42 })
 		expect(editorOfValue('a', null)).toEqual({ kind: 'string', value: 'a' })
 		expect(editorOfValue('a', shades)).toMatchObject({ kind: 'enum', value: 'a', options: ['a', 'b'] })
 	})

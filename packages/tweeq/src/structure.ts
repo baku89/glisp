@@ -107,7 +107,12 @@ export function withoutBinding(block: LetAST, name: string): LetAST {
 
 /** The widget for a node that a widget can edit directly. */
 export type Editor =
-	| { readonly kind: 'number'; readonly value: number }
+	| {
+			readonly kind: 'number'
+			readonly value: number
+			/** It decides what `random` gives, so it is there to be rolled, more than to be read. */
+			readonly seed?: true
+	  }
 	| { readonly kind: 'string'; readonly value: string }
 	| { readonly kind: 'color'; readonly value: string }
 	| {
@@ -555,7 +560,9 @@ export function editorOfValue(value: unknown, expected: TypeValue | null): Edito
 		const icons = enumIconsOf(expected)
 		return { kind: 'enum', value, options: [...shape.values], ...(icons ? { icons } : {}) }
 	}
-	if (typeof value === 'number') return { kind: 'number', value }
+	if (typeof value === 'number') {
+		return { kind: 'number', value, ...(expected?.typeName === 'seed' ? { seed: true as const } : {}) }
+	}
 	// No color at all is not something a swatch can show: it would look like black.
 	if (typeof value === 'string' && value !== 'none' && textOf(expected?.meta?.get('input')) === 'color') {
 		return { kind: 'color', value }
