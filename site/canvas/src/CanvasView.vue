@@ -1544,6 +1544,12 @@ function onPointerMove(event: PointerEvent): void {
 }
 
 useEventListener(window, 'pointerup', event => {
+	// Taken by what it was let go of over, it was being brought there, and was never moved.
+	if (pressed?.kind === 'move' && pressed.moving && event.defaultPrevented) {
+		props.document.rewind(pressed.base)
+		problem.value = null
+		held.value = null
+	}
 	const wasHandle = pressed?.kind === 'handle'
 	const clicked = pressed?.kind === 'handle' && pressed.at === null ? pressed : null
 	// A click on one of several, not having moved them, is about that one.
@@ -1595,12 +1601,6 @@ useEventListener(window, 'pointerup', event => {
 			@pointermove="onPointerMove"
 			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null)"
 			@auxclick.prevent
-	// Taken by what it was let go of over, it was being brought there, and was never moved.
-	if (pressed?.kind === 'move' && pressed.moving && event.defaultPrevented) {
-		props.document.rewind(pressed.base)
-		problem.value = null
-		held.value = null
-	}
 		/>
 		<Dimensions
 			v-if="held !== null && heldDimensions.length > 0"
