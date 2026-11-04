@@ -209,10 +209,14 @@ defineExpose({
 // row as it is now, if it is still there.
 watch(props.document.root, () => {
 	const path = selection.value?.path ?? null
-	reselecting = path !== null && rowExists(path) ? path : null
+	// A row already on its way to being selected, such as one just added, goes first.
+	const coming = revealTarget.value?.path ?? null
+	reselecting = coming ?? (path !== null && rowExists(path) ? path : null)
 	selection.value = null
 	unsolved.value = null
-	if (reselecting !== null) revealTarget.value = { path: reselecting, quiet: true }
+	if (coming === null && reselecting !== null) {
+		revealTarget.value = { path: reselecting, quiet: true }
+	}
 })
 
 // A press anywhere but on a row's label, or the menu it opened, ends a selection, unless

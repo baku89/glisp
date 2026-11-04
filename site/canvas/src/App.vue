@@ -115,7 +115,6 @@ function selectInTree(row: string | null): void {
 							:selected="selected"
 							:drawing="drawing"
 							@select="selectOnCanvas"
-							@drew="tool = 'select'"
 						/>
 						<div class="tools" data-selects-rows>
 							<button
@@ -159,6 +158,7 @@ function selectInTree(row: string | null): void {
 									:session="document.session"
 									historyKey="glisp.canvas.history"
 									noClear
+									noFocus
 									@change="document.sync()"
 								/>
 							</section>

@@ -23,6 +23,8 @@ const props = defineProps<{
 	historyKey?: string
 	/** No button to clear with, as `:clear` and Ctrl+L still do. */
 	noClear?: boolean
+	/** It is not what is being typed into to begin with, as keys mean something else. */
+	noFocus?: boolean
 }>()
 
 /** The session has changed, by what was run here. */
@@ -70,7 +72,7 @@ function writeHistory(): void {
 
 function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
 	editor = instance
-	instance.focus()
+	if (!props.noFocus) instance.focus()
 	instance.onKeyDown(event => {
 		if (handleKey(event, instance)) {
 			event.preventDefault()

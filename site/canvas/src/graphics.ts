@@ -5,6 +5,7 @@
  */
 
 import {
+	AS_SOURCE,
 	type AST,
 	buildPrelude,
 	CallAST,
@@ -40,7 +41,7 @@ import {
 	rectangle,
 	regularPolygon,
 } from 'pave/path/primitives'
-import { toD } from 'pave/path/svg'
+import { fromD, toD } from 'pave/path/svg'
 
 const said = (type: TypeValue, draw: string, icon: string): TypeValue =>
 	withTypeMeta(
@@ -112,13 +113,19 @@ withMembers(mat2d, {
 	mul: multiply,
 })
 
-export function isPath(value: unknown): boolean {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		Array.isArray((value as { curves?: unknown }).curves)
-	)
+/**
+ * A path, to the language: what is in it is pave's business, and could as well be in
+ * WebAssembly. It is written as what it comes to, an SVG path's data.
+ */
+export class PathValue {
+	constructor(readonly path: Path) {}
+
+	[AS_SOURCE](): AST {
+		return callOf('d', [lit(toD(this.path))])
+	}
 }
+
+export const isPath = (value: unknown): value is PathValue => value instanceof PathValue
 
 /** How much of an icon's 24 a shape takes up, leaving room for its line. */
 const ICON_EXTENT = 18
@@ -126,7 +133,7 @@ const ICON_EXTENT = 18
 /** A path's own shape, fit into an icon, or null if it is not a path with a size. */
 export function iconOfPath(value: unknown): string | null {
 	if (!isPath(value)) return null
-	const path = value as Parameters<typeof bounds>[0]
+	const { path } = value
 	const [[left, top], [right, bottom]] = bounds(path)
 	const size = Math.max(right - left, bottom - top)
 	if (!Number.isFinite(size) || size === 0) return null
@@ -142,24 +149,41 @@ export function iconOfPath(value: unknown): string | null {
 	return `stroke:${toD(transform(path, fit))}`
 }
 
-const pathType = said(makeType('path', isPath, { curves: [] }), 'path', 'mdi:vector-curve')
+const pathType = said(
+	makeType('path', isPath, new PathValue({ curves: [] } as unknown as Path)),
+	'path',
+	'mdi:vector-curve'
+)
 
 /** A call to a member of `path`, as a next rung is written. */
 const callOf = (member: string, args: readonly AST[]): AST =>
 	new CallAST(parse(`path.${member}`), [...args])
 
+const makeD = makeTypedFn(
+	[evaluate(parse('string'), buildPrelude()).value as TypeValue],
+	pathType,
+	d => {
+		try {
+			return new PathValue(fromD(d as string))
+		} catch {
+			return pathType.default
+		}
+	},
+	['d']
+)
+
 /** The rungs: each shape is said in terms of the more general one it is a case of. */
 const makeEllipse = makeTypedFn(
 	[point, vec2],
 	pathType,
-	(center, radius) => ellipse(center as Vec, radius as Vec),
+	(center, radius) => new PathValue(ellipse(center as Vec, radius as Vec)),
 	['center', 'radius']
 )
 const makeCircle = withExpansion(
 	makeTypedFn(
 		[point, number],
 		pathType,
-		(center, radius) => circle(center as Vec, radius as number),
+		(center, radius) => new PathValue(circle(center as Vec, radius as number)),
 		['center', 'radius']
 	),
 	([center, radius]) =>
@@ -170,14 +194,14 @@ const makeCircle = withExpansion(
 const makePolyline = makeTypedFn(
 	[],
 	pathType,
-	(...points) => polyline(...(points as Vec[])),
+	(...points) => new PathValue(polyline(...(points as Vec[]))),
 	[],
 	point
 )
 const makePolygon = makeTypedFn(
 	[],
 	pathType,
-	(...points) => polygon(...(points as Vec[])),
+	(...points) => new PathValue(polygon(...(points as Vec[]))),
 	[],
 	point
 )
@@ -185,7 +209,7 @@ const makeRect = withExpansion(
 	makeTypedFn(
 		[point, point],
 		pathType,
-		(start, end) => rectangle(start as Vec, end as Vec),
+		(start, end) => new PathValue(rectangle(start as Vec, end as Vec)),
 		['start', 'end']
 	),
 	([start, end], { value }) => {
@@ -204,7 +228,7 @@ const makeLine = withExpansion(
 	makeTypedFn(
 		[point, point],
 		pathType,
-		(start, end) => line(start as Vec, end as Vec),
+		(start, end) => new PathValue(line(start as Vec, end as Vec)),
 		['start', 'end']
 	),
 	([start, end]) =>
@@ -215,7 +239,9 @@ const makeNgon = withExpansion(
 		[point, number, number],
 		pathType,
 		(center, radius, sides) =>
-			regularPolygon(center as Vec, radius as number, Math.max(3, Math.round(sides as number))),
+			new PathValue(
+				regularPolygon(center as Vec, radius as number, Math.max(3, Math.round(sides as number)))
+			),
 		['center', 'radius', 'sides']
 	),
 	([center, radius, sides], { value }) => {
@@ -233,23 +259,24 @@ const makeArc = makeTypedFn(
 	[point, number, number, number],
 	pathType,
 	(center, radius, start, end) =>
-		arc(center as Vec, radius as number, start as number, end as number),
+		new PathValue(arc(center as Vec, radius as number, start as number, end as number)),
 	['center', 'radius', 'start', 'end']
 )
 const makeCubic = makeTypedFn(
 	[point, point, point, point],
 	pathType,
 	(start, control1, control2, end) =>
-		cubicBezier(start as Vec, control1 as Vec, control2 as Vec, end as Vec),
+		new PathValue(cubicBezier(start as Vec, control1 as Vec, control2 as Vec, end as Vec)),
 	['start', 'control1', 'control2', 'end']
 )
 const makeTransformed = makeTypedFn(
 	[pathType, mat2d],
 	pathType,
-	(path, matrix) => transform(path as Path, matrix as Mat),
+	(path, matrix) => new PathValue(transform((path as PathValue).path, matrix as Mat)),
 	['path', 'by']
 )
 withMembers(pathType, {
+	d: makeD,
 	circle: makeCircle,
 	ellipse: makeEllipse,
 	rect: makeRect,
@@ -356,14 +383,14 @@ const shiftVertex = (vertex: Vertex, delta: Vec): Vertex => ({
 })
 
 /**
- * Take hold of a path written out, by its vertices and what controls its curves, as
- * they are all there is to say about it. A vertex takes its controls along.
+ * Take hold of a path's data, by its vertices and what controls its curves, as they
+ * are all there is to say about it. A vertex takes its controls along.
  */
-export function gripOfPathValue(path: Path): Grip {
+function gripOfD(path: Path): Grip {
 	const curves = (path as unknown as { curves: readonly Curve[] }).curves
 	const handles: Handle[] = []
 	const guides: Path[] = []
-	const whole = (value: Path): Change[] => [{ route: [], value }]
+	const whole = (value: Path): Change[] => [change(0, toD(value))]
 	curves.forEach(({ vertices, closed }, c) => {
 		vertices.forEach(({ point: at, command, args }, v) => {
 			const previous = vertices[v - 1] ?? (closed ? vertices.at(-1) : undefined)
@@ -514,6 +541,7 @@ function matrixGrip(m: Mat, arg: number): Grip {
 type Maker = (args: readonly unknown[], inner: (arg: number) => Grip | null) => Grip
 
 const makers = new Map<unknown, Maker>([
+	[makeD, ([d]) => gripOfD(fromD(d as string))],
 	[
 		makeCircle,
 		([center, radius]) => {

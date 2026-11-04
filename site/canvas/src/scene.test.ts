@@ -10,7 +10,7 @@ import {
 } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { iconOfPath, isPath, type Vec, withGraphics } from './graphics'
+import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
 import { changed, drawn, gripAt, nameFor, rowsWithin, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
@@ -20,7 +20,7 @@ const scene = (src: string) =>
 describe('path', () => {
 	it('makes paths that a type can tell', () => {
 		expect(isPath(evaluate(parse('(path.circle [0 0] 10)'), env).value)).toBe(true)
-		expect(evaluate(parse('(: 1 path)'), env).value).toEqual({ curves: [] })
+		expect(evaluate(parse('(: 1 path)'), env).value).toEqual(new PathValue({ curves: [] } as never))
 	})
 
 	it('is a type that functions come with', () => {
@@ -77,7 +77,7 @@ describe('sceneOf', () => {
 		])
 	})
 
-	it('has a path that has been written out, as evaluating one does', () => {
+	it('has a path that has been evaluated in place', () => {
 		const value = evaluate(parse('(path.rect [0 0] [10 10])'), env).value
 		expect(scene(`{c = ${print(toAst(value, env))}}`)).toEqual(['binding:c path'])
 	})
@@ -240,23 +240,38 @@ describe('grips', () => {
 		expect(pulled('{d = (: [1 2] point) c = d}', 0, [5, 6])).toBe('{d = (: [5 6] point) c = d}')
 	})
 
-	describe('a path written out', () => {
-		const written = (src: string) => `{c = ${print(toAst(evaluate(parse(src), env).value, env))}}`
-		const line = '{curves: [{vertices: [{point: [0 0] command: "L"} {point: [10 0] command: "L"}] closed: false}]}'
+	describe('a path as its data', () => {
+		const data = (src: string) => print(toAst(evaluate(parse(src), env).value, env))
+
+		it('is what a path is written as', () => {
+			expect(data('(path.rect [0 0] [10 10])')).toBe('(path.d "M 0,0 L 10,0 L 10,10 L 0,10 Z")')
+		})
+
+		it('comes to the same path', () => {
+			const again = evaluate(parse(data('(path.ellipse [0 0] [10 20])')), env).value
+			expect(print(toAst(again, env))).toBe(data('(path.ellipse [0 0] [10 20])'))
+		})
 
 		it('is taken by its vertices', () => {
-			expect(kinds(written('(path.rect [0 0] [10 10])'))).toEqual(['point', 'point', 'point', 'point'])
-			expect(pulled(`{c = ${line}}`, 1, [5, 5])).toBe(`{c = ${line.replace('[10 0]', '[5 5]')}}`)
+			const source = '{c = (path.d "M 0,0 L 10,0")}'
+			expect(kinds(source)).toEqual(['point', 'point'])
+			expect(pulled(source, 1, [5, 5])).toBe('{c = (path.d "M 0,0 L 5,5")}')
 		})
 
 		it('is moved as a whole', () => {
-			const root = parse(`{c = ${line}}`)
+			const root = parse('{c = (path.d "M 0,0 L 10,0")}')
 			const { ast } = changed(root, env, row, gripAt(root, env, row)!.move!([1, 2]))
-			expect(print(ast!)).toBe(`{c = ${line.replace('[0 0]', '[1 2]').replace('[10 0]', '[11 2]')}}`)
+			expect(print(ast!)).toBe('{c = (path.d "M 1,2 L 11,2")}')
+		})
+
+		it('moves an arc by where it goes, leaving its radii', () => {
+			const root = parse(`{c = ${data('(path.ellipse [0 0] [10 20])')}}`)
+			const { ast } = changed(root, env, row, gripAt(root, env, row)!.move!([1, 2]))
+			expect(print(ast!)).toBe('{c = (path.d "M 11,2 A 10,20 0 0 1 -9,2 A 10,20 0 0 1 11,2 Z")}')
 		})
 
 		describe('with a curve', () => {
-			const source = written('(path.cubic [0 0] [1 0] [2 0] [3 0])')
+			const source = '{c = (path.d "M 0,0 C 1,0 2,0 3,0")}'
 
 			it('is taken by what controls it too, with lines to them', () => {
 				const grip = gripAt(parse(source), env, row)!
@@ -265,15 +280,19 @@ describe('grips', () => {
 			})
 
 			it('takes the controls along with a vertex', () => {
-				expect(pulled(source, 3, [13, 0])).toContain('point: [13 0] command: "C" args: [[1 0] [12 0]]')
-				const first = pulled(source, 0, [10, 0])!
-				expect(first).toContain('point: [10 0]')
-				expect(first).toContain('args: [[11 0] [2 0]]')
+				expect(pulled(source, 3, [13, 0])).toBe('{c = (path.d "M 0,0 C 1,0 12,0 13,0")}')
+				expect(pulled(source, 0, [10, 0])).toBe('{c = (path.d "M 10,0 C 11,0 2,0 3,0")}')
 			})
 
 			it('moves a control on its own', () => {
-				expect(pulled(source, 1, [5, 5])).toContain('args: [[5 5] [2 0]]')
+				expect(pulled(source, 1, [5, 5])).toBe('{c = (path.d "M 0,0 C 5,5 2,0 3,0")}')
 			})
+		})
+
+		it('is the last rung, from a circle on', () => {
+			const ladder = expandLadder(parse('(path.circle [0 0] 5)'), env).map(print)
+			expect(ladder.at(-1)).toBe('(path.ellipse [0 0] [5 5])')
+			expect(data(ladder.at(-1)!)).toMatch(/^\(path\.d "M 5,0 A/)
 		})
 	})
 

@@ -2402,7 +2402,16 @@ import {
  *
  * Spec: docs/spec/host-api.md — `g.toAst`
  */
+/**
+ * What a host value has to say how it is written, as its insides are its own: an
+ * object from elsewhere, say, that only a call can make. Without it, one that is not
+ * a plain record or vector has no source, and goes in as it is.
+ */
+export const AS_SOURCE: unique symbol = Symbol.for('glisp.asSource') as never
+
 export function toAst(value: unknown, env: Env): AST {
+	const written = (value as { [AS_SOURCE]?: unknown } | null | undefined)?.[AS_SOURCE]
+	if (typeof written === 'function') return written.call(value, env) as AST
 	if (
 		typeof value === 'number' ||
 		typeof value === 'string' ||

@@ -161,6 +161,21 @@ makeTopLevel({
 
 It changes the type it is given, so make one of your own rather than giving members to `number`. A host value that is a plain record of these reads the same way, as `geom.rect.center`, and static analysis can see through both.
 
+### A value of your own
+
+A host value whose insides are its own, such as an object from WebAssembly, says how it is written with `AS_SOURCE`, for it to go back to being code when it is evaluated in place, shown in a REPL, or saved.
+
+```ts
+class Path {
+	constructor(readonly d: string) {}
+	[AS_SOURCE]() {
+		return new CallAST(parse('path.d'), [lit(this.d)])
+	}
+}
+```
+
+What it writes should come to a value the same as itself. It is the last rung of its ladder, and `solve` goes back through it like any other call.
+
 ### Overloads
 
 `new OverloadValue([fn1, fn2])`, bound with `host`, dispatches to the first variant whose parameters fit the arguments. In Glisp, `(overload f g)`. Order the variants from most to least specific.

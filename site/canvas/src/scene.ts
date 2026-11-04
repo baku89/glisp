@@ -29,7 +29,6 @@ import {
 	type Change,
 	type Grip,
 	gripOf,
-	gripOfPathValue,
 	gripOfPoint,
 	isPath,
 	type Mat,
@@ -110,9 +109,8 @@ const drawOf = (type: TypeValue | null): string | null =>
 /** What in `value` is to be drawn, by what `type` says of it and what it holds. */
 function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] {
 	const draw = drawOf(type)
-	if (draw !== null) return [{ row, draw, value }]
-	// Written out, it is a path as much as one that a function gave.
-	if (isPath(value)) return [{ row, draw: 'path', value }]
+	// What is drawn of a path is what is in it, which only a canvas needs to know.
+	if (draw !== null) return [{ row, draw, value: isPath(value) ? value.path : value }]
 	if (type === null || !Array.isArray(value)) return []
 	const { shape } = unwrapLazy(type)
 	const elementType = (i: number): TypeValue | null =>
@@ -180,7 +178,6 @@ function gripAtNode(start: AST, startEnv: Env): Grip | null {
 	}
 	const value = evaluate(readByName(node), env).value
 	if (drawOf(infer(readByName(node), env)) === 'point') return gripOfPoint(value as Vec)
-	if (isPath(value)) return gripOfPathValue(value as Path)
 	return call.kind === 'call' ? NO_GRIP : null
 }
 

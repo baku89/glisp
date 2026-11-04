@@ -28,11 +28,7 @@ const props = defineProps<{
 	drawing?: ShapeTool | null
 }>()
 
-const emit = defineEmits<{
-	select: [rows: readonly string[]]
-	/** A shape has been drawn, or would have been: that is it for the tool. */
-	drew: []
-}>()
+const emit = defineEmits<{ select: [rows: readonly string[]] }>()
 
 const $canvas = useTemplateRef<HTMLCanvasElement>('$canvas')
 const size = ref<[number, number]>([0, 0])
@@ -290,7 +286,15 @@ interface Moving {
 let pressed:
 	| { kind: 'handle'; row: string; handle: Handle; mat: mat2d; from: Vec; offset: Vec }
 	| { kind: 'pan'; from: [number, number] }
-	| { kind: 'draw'; tool: ShapeTool; base: LetAST; name: string; at: Vec; drawing: boolean }
+	| {
+			kind: 'draw'
+			tool: ShapeTool
+			base: LetAST
+			name: string
+			at: Vec
+			to: Vec
+			drawing: boolean
+	  }
 	| { kind: 'range'; base: readonly string[]; last: readonly string[] }
 	| {
 			kind: 'move'
@@ -305,6 +309,13 @@ let pressed:
 let spaceDown = false
 const typing = (event: Event): boolean =>
 	(event.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]') != null
+
+// Shift says at once, without having to move, how even a shape being drawn is.
+useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {
+	if (event.key === 'Shift' && pressed?.kind === 'draw' && pressed.drawing) {
+		drawPressed(event.shiftKey)
+	}
+})
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (event.code !== 'Space' || typing(event)) return
@@ -339,6 +350,7 @@ function onPointerDown(event: PointerEvent): void {
 			base,
 			name: nameFor(base, props.drawing),
 			at: [x, y],
+			to: [x, y],
 			drawing: false,
 		}
 		return
@@ -395,6 +407,25 @@ function onPointerDown(event: PointerEvent): void {
 	range.value = { from: [x, y], to: [x, y] }
 }
 
+/** The shape being drawn, as far as the pointer has got, and as even as asked. */
+function drawPressed(even: boolean): void {
+	if (pressed?.kind !== 'draw') return
+	const [fromX, fromY] = pressed.at
+	const [x, y] = pressed.to
+	props.document.setRoot(
+		drawn(
+			pressed.base,
+			pressed.name,
+			pressed.tool,
+			fromScreen(fromX, fromY),
+			fromScreen(x, y),
+			even
+		)
+	)
+	if (!pressed.drawing) emit('select', [`binding:${pressed.name}`])
+	pressed.drawing = true
+}
+
 function onPointerMove(event: PointerEvent): void {
 	const { offsetX: x, offsetY: y } = event
 	if (pressed === null) {
@@ -421,19 +452,8 @@ function onPointerMove(event: PointerEvent): void {
 		case 'draw': {
 			const [fromX, fromY] = pressed.at
 			if (!pressed.drawing && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
-			const row = `binding:${pressed.name}`
-			props.document.setRoot(
-				drawn(
-					pressed.base,
-					pressed.name,
-					pressed.tool,
-					fromScreen(fromX, fromY),
-					fromScreen(x, y),
-					event.shiftKey
-				)
-			)
-			if (!pressed.drawing) emit('select', [row])
-			pressed.drawing = true
+			pressed.to = [x, y]
+			drawPressed(event.shiftKey)
 			break
 		}
 		case 'handle': {
@@ -493,10 +513,6 @@ useEventListener(window, 'pointerup', () => {
 		emit('select', [pressed.row])
 	}
 	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : 'default'
-	if (pressed?.kind === 'draw') {
-		cursor.value = 'default'
-		emit('drew')
-	}
 	pressed = null
 	range.value = null
 })
