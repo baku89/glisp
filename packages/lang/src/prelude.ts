@@ -1082,7 +1082,7 @@ function makeRange(): TypedHostFn {
 	)
 }
 
-const seedType = makeType('seed', isSeed, 0)
+export const seedType = makeType('seed', isSeed, 0)
 
 /** What makes a sequence: a function from a number to the value at that place in it. */
 function makeRandom(): Record<string, TypedHostFn> {
