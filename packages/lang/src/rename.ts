@@ -104,6 +104,13 @@ export function renameBindingIn(
 		let here: AST = start.ast
 		let entered = true
 		for (const [i, segment] of path.segments.entries()) {
+			if (segment === '/') {
+				while (scope?.parent) scope = scope.parent
+				if (scope === null) break
+				here = scope.ast
+				entered = true
+				continue
+			}
 			if (segment === '..') {
 				if (entered) scope = scope?.parent ?? null
 				if (scope === null) break

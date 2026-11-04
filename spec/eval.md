@@ -39,7 +39,7 @@ For each node type, the number of trivia slots reflects the syntactic positions 
 | Metadata-attached `^{meta} expr` | 2 | 1 | `^` is **sticky** to `{`; trivia only between `^{...}` and `expr` |
 | `~expr` | 1 | 0 | **sticky** |
 | Spread `...expr`, `...~expr` | 1 | 0 | **sticky** |
-| Path `../...`, `./...` | atom-internal | 0 | path tokens are single atoms; no trivia inside |
+| Path `../...`, `./...`, `/...` | atom-internal | 0 | path tokens are single atoms; no trivia inside |
 
 The flexible/sticky split is chosen so layout-affecting delimiters (`:`, `=`) accommodate multi-line forms, while prefix-style modifiers (`^`, `~`, `...`) remain visually attached to what they modify.
 
@@ -60,7 +60,7 @@ The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via build
 | `'record'` | record literal | `{x: 10 y: 20}`. The same AST shape expresses a record type when its field values happen to be type values (handled by the type system, not by a different `kind`). |
 | `'let'`    | let-block            | `{name = expr ...}`                                           |
 | `'fn'`     | function literal     | `(=> ...)` with parameters, return type, optional body        |
-| `'path'`   | path                 | `./...`, `../...`                                             |
+| `'path'`   | path                 | `./...`, `../...`, `/...`                                     |
 | `'unquote'`| compute within a step | `~expr`                                                       |
 | `'spread'` | spread               | `...expr`; `...~expr` is a spread of an `'unquote'`           |
 | `'meta'`   | metadata-attached    | `^{...} expr`                                                 |
@@ -146,7 +146,7 @@ Frames without `bindings` (records, vectors, applications) are skipped — they 
 
 ## Path lookup
 
-A path atom carries a sequence of segments. Each segment is one of: `'..'` (go up to parent), a name, or an integer.
+A path atom carries a sequence of segments. Each segment is one of: `'..'` (go up to parent), a name, or an integer. A leading `'/'` has the walk begin at the root frame: the outermost frame whose node is written, past those that only stand for what a host binds (the prelude and what is layered on it). With no such frame, a diagnostic is emitted and the path yields `()`.
 
 To resolve a path at env `e`, start with the env's top frame (representing the AST node containing the path) and process segments in order:
 

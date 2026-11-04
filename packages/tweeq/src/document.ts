@@ -88,11 +88,11 @@ export function useGlispDocument(
 		copiedReference: shallowRef(null),
 		env: computed(() => {
 			void root.value
-			return session.env
+			return session.hostEnv
 		}),
 		diagnostics: computed(() => {
 			void root.value
-			return check(root.value, session.env).filter(
+			return check(root.value, session.hostEnv).filter(
 				d => d.level === 'error'
 			)
 		}),

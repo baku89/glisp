@@ -414,13 +414,15 @@ export class FnAST extends ASTNode {
 /**
  * Path atom. A path is a sequence of segments separated by `/`. Each segment
  * is `'..'` (go up to parent), a name (descend into a named child), or an
- * integer index (descend into a positional child).
+ * integer index (descend into a positional child). A leading `'/'` starts at
+ * the root of the program instead of where the path is.
  *
  *   ./foo            → segments: ['foo']
  *   ../foo           → segments: ['..', 'foo']
  *   ../../foo        → segments: ['..', '..', 'foo']
  *   ../foo/bar       → segments: ['..', 'foo', 'bar']
  *   ./               → segments: []
+ *   /foo/bar         → segments: ['/', 'foo', 'bar']
  *
  * Distinguishing path from spread (`...`): a path always begins with `./` or
  * `../` and contains a `/`. `...xs` (no slash) is a spread.
@@ -435,6 +437,7 @@ export class PathAST extends ASTNode {
 
 	override printStructural(): string {
 		if (this.segments.length === 0) return './'
+		if (this.segments[0] === '/') return '/' + this.segments.slice(1).map(String).join('/')
 		const head = this.segments[0] === '..' ? '../' : './'
 		const rest =
 			this.segments[0] === '..' ? this.segments.slice(1) : this.segments

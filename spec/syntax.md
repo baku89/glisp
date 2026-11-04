@@ -139,7 +139,7 @@ a.b.c            ;; → ((a "b") "c"), left-associative
 
 Accessor `.` is syntactic sugar that has the same evaluation semantics as the call form `(rec key)` / `(arr i)`. Dynamic keys (variables, expressions) must be written in call form. The CST keeps a distinct `'access'` AST kind for the dot notation so `unparse` can reproduce the source as written.
 
-### Path — `./` and `../`
+### Path — `./`, `../` and `/`
 
 A path atom references an AST position relative to the current expression by walking the container structure (the AST tree).
 
@@ -152,7 +152,7 @@ A path is a sequence of segments separated by `/`. Each segment is one of:
 
 `..` may be repeated arbitrarily by chaining with `/` to walk further up: `../..` is two levels up, `../../..` is three, and so on. There is no special "deeper" syntax — chained `..` segments are how depth is expressed.
 
-Distinguishing path from spread/splice: a path always begins with `./` or `../` and contains at least one `/`. A token of the shape `...name` (no slash) is a spread/splice, not a path.
+Distinguishing path from spread/splice: a path always begins with `./`, `../` or `/` and contains at least one `/`. A token of the shape `...name` (no slash) is a spread/splice, not a path.
 
 <!-- test -->
 ```glisp
@@ -174,7 +174,16 @@ Paths walk every AST level, including records, vectors, and function application
 - A call's head has none, and neither does a function's parameters, generics, or body. A path cannot descend into a function literal.
 - A path cannot appear in a function signature, as a parameter's type or the return type. This is a syntax error. Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
 
-There is no absolute path form (no leading `/...`).
+A path beginning with `/` starts from the root, the outermost node of the program, wherever it is written. It comes to the same as climbing there with `..`, and counts no levels, so what is around it can change without it saying anything else. `/` right before a name or an index begins such a path; otherwise, it is division, so write `(/ a b)` with a space.
+
+<!-- test -->
+```glisp
+a = {b = [10 20]}
+c = {d = [[/a/b/1]]}
+/c/d/0/0                        ;; → 20
+```
+
+The prelude and what else a host binds is not a part of the program: a path from the root cannot reach them, and has no root to start from if nothing written surrounds it. In a session, the root is the session's let-block.
 
 ### Optional fields and arguments — `?`
 
@@ -320,7 +329,7 @@ A unary `...` prefix expands its operand into the surrounding form. The same pre
 
 The operand of `...` must evaluate to a vector (in call/vector contexts) or to a record (in record context). Type mismatch falls back per the usual rules.
 
-The `...` of a spread is always followed directly by an identifier or `~`. This distinguishes it from path forms, which always begin with `./` or `../` and contain a `/` (see [Path](#path----and-)).
+The `...` of a spread is always followed directly by an identifier or `~`. This distinguishes it from path forms, which always begin with `./`, `../` or `/` and contain a `/` (see [Path](#path-----and-)).
 
 ## Special forms
 
@@ -607,6 +616,6 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `%`           | partial-application placeholder                        |
 | `.`           | member accessor (record field / vector index / what goes with a type) |
 | `..`          | path segment: parent of the current node (chain via `/`) |
-| `/`           | division atom; path separator after `.` or `..`        |
+| `/`           | division atom; path separator after `.` or `..`; before a name or an index, a path from the root |
 
 

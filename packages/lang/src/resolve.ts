@@ -19,7 +19,7 @@
  */
 
 import { desugar } from './desugar.js'
-import { argumentOf, type CallParameters, childAt } from './eval.js'
+import { argumentOf, type CallParameters, childAt, isHostLevel, NO_ROOT } from './eval.js'
 import { callParameters } from './infer.js'
 import {
 	type AST,
@@ -149,6 +149,8 @@ function computeFreeRefs(
 }
 
 function climbCount(path: PathAST): number {
+	// From the root, it is outside of anything but the root itself.
+	if (path.segments[0] === '/') return Infinity
 	return path.segments.filter(seg => seg === '..').length
 }
 
@@ -426,6 +428,15 @@ function argumentByName(
 	return parameters === null ? UNKNOWN : argumentOf(call, name, parameters)
 }
 
+/** The scope of the outermost node that is written. See `rootFrame`. */
+function rootScope(start: Scope | null): Scope | null {
+	let root: Scope | null = null
+	for (let scope = start; scope !== null; scope = scope.parent) {
+		if (!isHostLevel(scope.ast, scope.names?.size ?? 0)) root = scope
+	}
+	return root
+}
+
 /** The head's signature cannot be read statically, so neither can the path. */
 const UNKNOWN = Symbol('unknown')
 
@@ -442,6 +453,13 @@ function walkPath(
 	let here: AST | null = scope?.ast ?? null
 	let entered = true
 	for (const segment of path.segments) {
+		if (segment === '/') {
+			scope = rootScope(start)
+			if (scope === null) return NO_ROOT
+			here = scope.ast
+			entered = true
+			continue
+		}
 		if (segment === '..') {
 			if (entered) {
 				if (scope === null) return 'path goes above top-level'

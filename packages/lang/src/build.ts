@@ -157,7 +157,7 @@ export function fn(
 }
 
 /**
- * Path AST. Pass segments in order, where `'..'` means parent.
+ * Path AST. Pass segments in order, where `'..'` means parent, and a leading `'/'` the root of the program.
  *
  *   path('foo')          → ./foo
  *   path('..', 'foo')    → ../foo

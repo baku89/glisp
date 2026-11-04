@@ -2361,6 +2361,13 @@ export function pathTarget(
 	let entered = true
 
 	for (const seg of segments) {
+		if (seg === '/') {
+			frame = rootFrame(env)
+			if (frame === null) return { message: NO_ROOT }
+			astHere = frame.ast
+			entered = true
+			continue
+		}
 		if (seg === '..') {
 			if (entered) {
 				if (frame === null) return { message: 'path goes above top-level' }
@@ -2381,6 +2388,27 @@ export function pathTarget(
 
 	if (astHere === null) return { message: 'path goes above top-level' }
 	return { ast: astHere, env: entered ? (frame?.parent ?? null) : frame }
+}
+
+/** Why a path from the root has nowhere to start. */
+export const NO_ROOT = 'no program for a path from the root to start at'
+
+/**
+ * Whether a level only stands for bindings a host gave: the prelude, and what a host
+ * layers on it. What these bind is not written in a node, so a path has nothing to walk.
+ */
+export function isHostLevel(ast: AST, bound: number): boolean {
+	if (ast.kind === 'let') return ast.bindings.length === 0 && bound > 0
+	return ast.kind === 'lit'
+}
+
+/** The frame of the outermost node that is written: where a path from the root starts. */
+export function rootFrame(env: Env): Env {
+	let root: Env = null
+	for (let frame = env; frame !== null; frame = frame.parent) {
+		if (!isHostLevel(frame.ast, frame.bindings?.size ?? 0)) root = frame
+	}
+	return root
 }
 
 /** The frame the evaluator pushes on entering a path-addressable node. */

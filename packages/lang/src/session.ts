@@ -61,6 +61,16 @@ export class Session {
 		return this.frame
 	}
 
+	/**
+	 * What the let-block is evaluated against: what a host evaluates it, or anything edited
+	 * from it, against. Against `env` it would be inside itself as it was, and a path from
+	 * the root would start there, rather than at what was edited.
+	 */
+	get hostEnv(): Env {
+		if (this.parent !== null) this.runtime.adopt(this.parent)
+		return this.parent
+	}
+
 	/** The session as a let-block AST: its single source of truth. */
 	ast(): LetAST {
 		return this.letBlock
@@ -393,6 +403,8 @@ function parseAssignmentSugar(src: string): AssignmentSugar | null {
 		return { path: [target.value as string], exprSrc }
 	}
 	if (target?.kind !== 'pathSegments') return null
-	const path = target.value as ReadonlyArray<string | number>
+	const written = target.value as ReadonlyArray<string | number>
+	// The session is the root, so from there is from here.
+	const path = written[0] === '/' ? written.slice(1) : written
 	return path.length === 0 || path.includes('..') ? null : { path, exprSrc }
 }

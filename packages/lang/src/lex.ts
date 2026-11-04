@@ -144,6 +144,14 @@ export function lex(src: string): Token[] {
 			continue
 		}
 
+		// `/` right before a name or an index begins a path from the root.
+		if (ch === '/' && startsSegmentFromRoot(charAt(src, pos + 1))) {
+			const token = readPathFromDots(src, pos, pos, 1, ['/'])
+			tokens.push(token)
+			pos = token.end
+			continue
+		}
+
 		// Bare `/` is the division operator (a single-character identifier).
 		// Path tokens like `./foo` and `../bar` are captured by the dot-family
 		// branch above before reaching here.
@@ -338,9 +346,10 @@ function readPathFromDots(
 	src: string,
 	start: number,
 	dotsEnd: number,
-	dots: number
+	dots: number,
+	from: readonly string[] = []
 ): Token {
-	const segments: ('..' | string | number)[] = []
+	const segments: ('..' | string | number)[] = [...from]
 	for (let k = 1; k < dots; k++) segments.push('..')
 
 	let pos = dotsEnd  // pointing at '/'
@@ -374,6 +383,10 @@ function readPathFromDots(
 		end: pos,
 		value: segments,
 	}
+}
+
+function startsSegmentFromRoot(ch: string): boolean {
+	return ch !== '.' && isPathSegmentStart(ch)
 }
 
 function isPathSegmentStart(ch: string): boolean {

@@ -234,6 +234,7 @@ The builders are functions, also collected as `g`:
 | `.withBody(expr)`                | `(=> (a: T): R expr)`        |
 | `.withGenerics('T')`             | `(=> (T) (a: T): R)`         |
 | `path('..', 'x')`                | `../x`                       |
+| `path('/', 'x', 0)`              | `/x/0`                       |
 | `unquote(a)`, `spread(a)`        | `~a`, `...a`                 |
 | `meta({ label: 'x' }, a)`        | `^{label: "x"} a`            |
 | `pin(a)`, `unpin(a)`             | `@a`, and `a` from it. `isPinned(a)` asks |

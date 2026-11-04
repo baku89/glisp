@@ -527,7 +527,9 @@ class SignatureStore implements EvalStore {
 			}
 		}
 		let start = env
-		for (let i = 0; i < free.up; i++) {
+		// From the root, wherever it stands: the walk finds the root from here.
+		const up = free.path.segments[0] === '/' ? 0 : free.up
+		for (let i = 0; i < up; i++) {
 			if (start === null) return { label, token: 'unreachable' }
 			start = start.parent
 		}
