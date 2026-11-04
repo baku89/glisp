@@ -6,7 +6,7 @@ import { nearest as nearestOn } from 'pave/path/queries'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, onlyShapes, otherControl, type Vec, withGraphics } from './graphics'
-import { anchorsAlong, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, drawnFrom, evenlyFrom, facesWhenDrawn, gripAt, linked, nameFor, placesTakenBy, rowsOfHandle, type ShapeTool, snapPointsOf, sceneOf } from './scene'
+import { anchorsAlong, boxHandlesOf, cornerTurners, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, drawnFrom, evenlyFrom, facesWhenDrawn, gripAt, linked, nameFor, placesTakenBy, rowsOfHandle, type ShapeTool, snapPointsOf, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const ROW = 'binding:c'
@@ -370,8 +370,8 @@ describe('what is still a handle, with a tool in hand', () => {
 	})
 
 	it('is how many, or how far, but not a corner or a vertex', () => {
-		expect(shaping('(path.ngon [0 0] 20 5)')).toEqual([false, true, false])
-		expect(shaping('(path.star [0 0] 20 10 5)')).toEqual([false, false, true, false])
+		expect(shaping('(path.ngon [0 0] 20 5)')).toEqual([false, true, true, false])
+		expect(shaping('(path.star [0 0] 20 10 5)')).toEqual([false, false, true, true, false])
 		expect(shaping('(path.circle [0 0] 20)')).toEqual([false, false])
 		expect(shaping('(path.capsule [0 0] [50 0] 10)')).toEqual([false, false, true])
 		expect(shaping('(path.superellipse [0 0] [20 20] 2)')[0]).toBe(true)
@@ -678,7 +678,7 @@ describe('the part of a row that a handle is', () => {
 	}
 
 	it('is the place it is of', () => {
-		expect(of('(path.ngon [0 0] 20 5)', 2)).toBe('binding:c/arg0')
+		expect(of('(path.ngon [0 0] 20 5)', 3)).toBe('binding:c/arg0')
 		expect(of('(path.cubic [0 0] [1 1] [2 2] [3 3])', 0)).toBe('binding:c/arg1')
 		expect(of('(path.line [0 0] [9 9])', 1)).toBe('binding:c/arg1')
 		expect(of('(path.rect [0 0] [10 10])', 4)).toBe('binding:c/arg0')
@@ -1173,5 +1173,65 @@ describe('what refers to a place on something else', () => {
 	it('changes what it is only where it cannot move', () => {
 		expect(moved('(path.circle @[100 100] 50)')).toBe('(path.circle @[100 100] 70)')
 		expect(moved('(path.circle [@100 100] 50)')).toBe('(path.circle [@100 120] 70)')
+	})
+})
+
+describe('what pulls one side of a box', () => {
+	it('is a grip, and a corner is not', () => {
+		const grips = boxHandlesOf([[0, 0], [10, 10]], { even: false, scaled: () => [] }).map(({ corner, grip }) => [corner, grip])
+		expect(grips).toContainEqual([false, true])
+		expect(grips).toContainEqual([true, false])
+		expect(grips.every(([corner, grip]) => corner !== grip)).toBe(true)
+	})
+
+	it('is what an ellipse has on its axes', () => {
+		const { handles } = gripAt(parse('{c = (path.ellipse [0 0] [20 10])}'), env, ROW)!
+		expect(handles.filter(({ grip }) => grip).map(({ name }) => name).sort()).toEqual(['bottom', 'right'])
+	})
+})
+
+describe('what turns something by the corners of its box', () => {
+	const box: readonly [Vec, Vec] = [[-10, -10], [10, 10]]
+	const turning = gripAt(parse('{c = (path.ngon [0 0] 10 5 0)}'), env, ROW)!.handles.find(({ rotates }) => rotates)!
+	const angleOf = (changes: ReturnType<(typeof turning)['to']>) => changes[0]
+
+	it('is one to each corner, each outside of that corner', () => {
+		const turners = cornerTurners(box, 0, turning)
+		expect(turners.map(({ at }) => at)).toEqual([[-10, -10], [-10, 10], [10, -10], [10, 10]])
+		expect(turners.every(({ outsideCorner, rotates }) => outsideCorner && rotates)).toBe(true)
+		expect(turners.every(({ heldOn }) => heldOn === undefined)).toBe(true)
+	})
+
+	it('turns nothing for being taken hold of, and then by as much as it is pulled round', () => {
+		const corner = cornerTurners(box, 0, turning)[3]!
+		const asIs = turning.to([10, 0], [10, 0])
+		expect(angleOf(corner.to(corner.at!, corner.at!))).toEqual(angleOf(asIs))
+		const quarter = turning.to([0, 10], [0, 10])
+		const pulled = corner.to([-10, 10], corner.at!)
+		expect(JSON.stringify(angleOf(pulled))).toBe(JSON.stringify(angleOf(quarter)))
+	})
+})
+
+describe('what turns something around', () => {
+	const rotating = (source: string) =>
+		gripAt(parse(`{c = ${source}}`), env, ROW)!.handles.filter(({ kind }) => kind === 'direction').map(({ rotates }) => rotates === true)
+
+	it('says so, and what says which way something goes does not', () => {
+		expect(rotating('(path.ellipse [0 0] [20 10] 30)')).toEqual([true])
+		expect(rotating('(mat2d.rotate 30)')).toEqual([true])
+		expect(rotating('(path.ngon [0 0] 20 5)')).toEqual([true])
+		expect(rotating('(path.star [0 0] 20 10 5 30)')).toEqual([true])
+		expect(rotating('(line.at [10 0] 90)')).toEqual([false])
+		expect(rotating('(path.clothoid [0 0] 30 100 0 0.01)')).toEqual([false])
+	})
+
+	it('turns only that, around its center, whether or not its angle was written', () => {
+		const turn = (source: string, to: [number, number]) => {
+			const root = parse(`{c = ${source}}`)
+			const handle = gripAt(root, env, ROW)!.handles.find(({ rotates }) => rotates)!
+			return print(changed(root, env, ROW, handle.to(to, handle.at!)).ast!)
+		}
+		expect(turn('(path.ngon [0 0] 20 5)', [0, 100])).toContain('(path.ngon [0 0] 20 5 90)')
+		expect(turn('(path.star [0 0] 20 10 5 0)', [0, 100])).toContain('(path.star [0 0] 20 10 5 90)')
 	})
 })

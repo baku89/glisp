@@ -1107,7 +1107,7 @@ describe('grips', () => {
 
 	it('count the sides of an ngon by how far round', () => {
 		const source = '{c = (path.ngon [0 0] 10 6)}'
-		expect(kinds(source)).toEqual(['point', 'dia', 'translate'])
+		expect(kinds(source)).toEqual(['point', 'dia', 'direction', 'translate'])
 		expect(pulled(source, 1, [0, 50])).toBe('[c = (path.ngon [0 0] 10 4)]')
 	})
 

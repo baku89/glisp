@@ -1579,6 +1579,14 @@ export interface Handle {
 	readonly inward?: boolean
 	/** What it turns around, when it goes by even angles, for the line that it is then on. */
 	readonly pivot?: Vec
+	/** A `direction` that turns something around, rather than saying which way something goes. */
+	readonly rotates?: boolean
+	/** An `arrow` that pulls one side of a box, and so looks like what lies along that side. */
+	readonly grip?: boolean
+	/** It turns something by a corner of the box around it, from outside of that corner, and `at` is the corner. */
+	readonly outsideCorner?: boolean
+	/** The line it is held out on, which goes when it does. */
+	readonly heldOn?: Path
 	/** What it turns around instead, when the other side goes the other way. */
 	readonly middle?: Vec
 	/** It stays where it is, when the rest of a grip is shown somewhere else. */
@@ -1968,6 +1976,24 @@ const angleHeld = (c: Vec, angle: number, to: Vec, how?: HandleDrag): number => 
 	return how?.even ? Math.round(near / ANGLE_STEP) * ANGLE_STEP : near
 }
 
+/** What turns something around `c`, held out past `from` for it to be clear of it, and the line it is held on. */
+function turnedBy(arg: number, c: Vec, angle: number, from: number): { handle: Handle; guide: Path } {
+	const at = add(c, toward(angle, from + ELLIPSE_FACING))
+	const guide = line(add(c, toward(angle, from)), at)
+	return {
+		handle: {
+			kind: 'direction',
+			rotates: true,
+			heldOn: guide,
+			at,
+			pivot: c,
+			angle,
+			to: (to, _, how) => [change(arg, angleHeld(c, angle, to, how))],
+		},
+		guide,
+	}
+}
+
 /** As far from `c` as `to` is, at the nearest of the angles that go evenly. */
 const evenFrom = (c: Vec, to: Vec): Vec =>
 	add(c, toward(Math.round(degrees(sub(to, c)) / ANGLE_STEP) * ANGLE_STEP, dist(c, to)))
@@ -2215,6 +2241,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				return Math.abs((to[0] - c[0]) * x + (to[1] - c[1]) * y)
 			}
 			const facing = on(rx + ELLIPSE_FACING, 0)
+			const faced = line(on(rx, 0), facing)
 			// Saying where a side is by its numbers goes only for one that is not turned.
 			// Out along its own axes, which are then not along those of the canvas.
 			const turnedSides: Readonly<Record<string, PlaceCode>> = (() => {
@@ -2248,6 +2275,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				handles: [
 					{
 						kind: 'arrow',
+						grip: true,
 						name: 'right',
 						at: on(rx, 0),
 						angle: first,
@@ -2255,6 +2283,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					},
 					{
 						kind: 'arrow',
+						grip: true,
 						name: 'bottom',
 						at: on(0, ry),
 						angle: first + 90,
@@ -2262,6 +2291,8 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					},
 					{
 						kind: 'direction',
+						rotates: true,
+						heldOn: faced,
 						at: facing,
 						pivot: c,
 						angle: first,
@@ -2269,7 +2300,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					},
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
-				guides: [line(on(rx, 0), facing)],
+				guides: [faced],
 				snaps: {
 					points: [
 						{ at: on(rx, 0), name: 'right', ...side('right') },
@@ -2585,6 +2616,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			const first = finiteAngle(turned)
 			const ring = r + NGON_RING
 			const count = Math.max(3, Math.round(sides as number))
+			const turning = turnedBy(3, c, first, r)
 			// Its angle can be left unsaid, and then there is nothing to refer to.
 			const vertexCode = (i: number): PlaceCode =>
 				polarCode(
@@ -2604,9 +2636,10 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				handles: [
 					vertexHandle(1, 3, free, c, first, r, vertexCode(0)),
 					countDial(2, c, ring, count, first),
+					turning.handle,
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
-				guides: [arc(c, ring, first + 3.6, first + 120)],
+				guides: [arc(c, ring, first + 3.6, first + 120), turning.guide],
 				snaps: (() => {
 					const vertices = Array.from({ length: count }, (_, i) =>
 						add(c, toward(first + (360 / count) * i, r))
@@ -2672,6 +2705,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			const count = tipCount(tips)
 			const first = finite(turned)
 			const ring = Math.max(out, within) + NGON_RING
+			const turning = turnedBy(4, c, first, Math.max(out, within))
 			const vertices = Array.from({ length: count * 2 }, (_, i) =>
 				add(c, toward(first + (180 / count) * i, i % 2 === 0 ? out : within))
 			)
@@ -2699,9 +2733,10 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						...(within < HANDLE_CLEAR ? {} : { code: vertexCode(1) }),
 					},
 					countDial(3, c, ring, count, first),
+					turning.handle,
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
-				guides: [arc(c, ring, first + 3.6, first + 120)],
+				guides: [arc(c, ring, first + 3.6, first + 120), turning.guide],
 				snaps: {
 					points: vertices.map((at, i) => ({ at, name: 'vertex', code: vertexCode(i) })),
 					lines: linesThrough(vertices, true),
@@ -2973,6 +3008,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				handles: [
 					{
 						kind: 'direction',
+						rotates: true,
 						at: add(t, turned),
 						pivot: t,
 						angle: r,
@@ -3018,6 +3054,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				handles: [
 					{
 						kind: 'direction',
+						rotates: true,
 						at,
 						pivot: [0, 0],
 						angle: turned,

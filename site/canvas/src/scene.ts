@@ -970,6 +970,39 @@ const LEAST_SCALE = 1e-3
 const WAYS = [-1, 0, 1] as const
 
 /**
+ * What turns something by the corners of the box around it. A corner goes to where it is pulled,
+ * so that taking hold of one does not by itself turn anything, however it stands to what it turns around.
+ */
+export function cornerTurners(
+	[[left, top], [right, bottom]]: readonly [Vec, Vec],
+	angle: number,
+	turning: Handle
+): Handle[] {
+	const pivot = turning.pivot!
+	const facing = turning.angle ?? 0
+	return WAYS.flatMap(wx =>
+		WAYS.flatMap((wy): Handle[] => {
+			if (wx === 0 || wy === 0) return []
+			const at = turnedBy([wx < 0 ? left : right, wy < 0 ? top : bottom], angle)
+			const by = facing - (Math.atan2(at[1] - pivot[1], at[0] - pivot[0]) * 180) / Math.PI
+			return [
+				{
+					...turning,
+					heldOn: undefined,
+					outsideCorner: true,
+					at,
+					angle: (Math.atan2(wy, wx) * 180) / Math.PI + angle,
+					to(to, from, how) {
+						const [x, y] = turnedBy([to[0] - pivot[0], to[1] - pivot[1]], by)
+						return turning.to([pivot[0] + x, pivot[1] + y], from, how)
+					},
+				},
+			]
+		})
+	)
+}
+
+/**
  * The handles of the box around something, which is the same for everything, with what is on the
  * sides only for what can go by a different scale each way, as `box` has said.
  */
@@ -989,6 +1022,7 @@ export function boxHandlesOf([[left, top], [right, bottom]]: readonly [Vec, Vec]
 					kind: isCorner ? 'point' : 'arrow',
 					name: 'box',
 					corner: isCorner,
+					grip: !isCorner,
 					at: turnedBy(at, angle),
 					angle: (Math.atan2(wy, wx) * 180) / Math.PI + angle,
 					to(toOnCanvas, _, how) {
@@ -1028,10 +1062,18 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 	const handles = boxHandlesOf(around, answer).filter(
 		({ at }) => !own.some(place => Math.hypot(place[0] - at![0], place[1] - at![1]) < SAME_PLACE)
 	)
+	// What turns it goes to the corners of the box, and what it was held out on goes with it.
+	const turning = held.grip.handles.find(({ rotates, pivot }) => rotates && pivot !== undefined)
+	const turners = turning ? cornerTurners(around, answer.angle ?? 0, turning) : []
+	const kept = held.grip.handles.map(handle => handle !== turning)
 	return {
 		...held,
-		grip: { ...held.grip, handles: [...handles, ...held.grip.handles] },
-		rowOf: [...handles.map(() => row), ...held.rowOf],
+		grip: {
+			...held.grip,
+			handles: [...handles, ...turners, ...held.grip.handles.filter((_, i) => kept[i])],
+			guides: held.grip.guides.filter(guide => guide !== turning?.heldOn),
+		},
+		rowOf: [...handles.map(() => row), ...turners.map(() => row), ...held.rowOf.filter((_, i) => kept[i])],
 	}
 }
 

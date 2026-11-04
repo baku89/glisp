@@ -559,6 +559,11 @@ const CROSS = new Path2D('M 12 0 H -12 M 0 12 V -12')
 const DIAMOND = new Path2D('M 7 0 L 0 7 L -7 0 L 0 -7 Z')
 /** What only says which way: the head of an arrow, at the end of its line. */
 const POINTER = new Path2D('M -8 -6 L 0 0 L -8 6')
+/** How far out from a corner of a box the line is that turns it, and how far to either side of that it can be taken hold of. */
+const TURNER_RADIUS = 13
+const TURNER_REACH = 7
+/** What pulls one side of a box, lying along the side: three lines, as what is taken hold of is. */
+const GRIP = new Path2D('M -3 -5 V 5 M 0 -5 V 5 M 3 -5 V 5')
 /** Which way something goes, for a button that has a way to go. */
 const BUTTON_ARROW = new Path2D('M -4 0 H 4 M 1 -3 L 4 0 L 1 3')
 /** How far either side of an outline the marks of what moves it are, and how far they bend. */
@@ -618,7 +623,20 @@ function drawHandle(
 	context.translate(x, y)
 	if (dragged) context.scale(HELD_SCALE, HELD_SCALE)
 	context.fillStyle = active ? accent : paper
-	if (handle.kind === 'dia') {
+	if (handle.outsideCorner) {
+		// As a rounded corner would go, around the corner, between the two sides it is between.
+		context.rotate(facing(handle.angle ?? 0))
+		context.lineCap = 'round'
+		context.beginPath()
+		context.arc(0, 0, TURNER_RADIUS, -Math.PI / 4, Math.PI / 4)
+		edged()
+		context.stroke()
+	} else if (handle.grip) {
+		context.rotate(facing(handle.angle ?? 0))
+		context.lineCap = 'round'
+		edged(GRIP)
+		context.stroke(GRIP)
+	} else if (handle.kind === 'dia' || handle.rotates) {
 		context.lineWidth = 1
 		edged(DIAMOND)
 		context.fill(DIAMOND)
@@ -1274,13 +1292,22 @@ function handleAt(x: number, y: number): number | null {
 	let nearest: number | null = null
 	let away = HANDLE_RADIUS + 3
 	for (let i = handles.length - 1; i >= 0; i--) {
-		const { at } = handles[i]!
-		if (at === undefined) continue
+		const { at, outsideCorner } = handles[i]!
+		if (at === undefined || outsideCorner) continue
 		const [hx, hy] = toScreen(at)
 		const distance = Math.hypot(hx - x, hy - y)
 		if (distance < away || (nearest === null && distance === away)) [nearest, away] = [i, distance]
 	}
 	if (nearest !== null) return nearest
+	for (let i = handles.length - 1; i >= 0; i--) {
+		const { at, outsideCorner, angle } = handles[i]!
+		if (at === undefined || !outsideCorner) continue
+		const [hx, hy] = toScreen(at)
+		const across = Math.abs(Math.hypot(hx - x, hy - y) - TURNER_RADIUS)
+		const off = Math.atan2(y - hy, x - hx) - facing(angle ?? 0)
+		const round = Math.abs(Math.atan2(Math.sin(off), Math.cos(off)))
+		if (across <= TURNER_REACH && round <= Math.PI / 4 + 0.2) return i
+	}
 	if (!context) return null
 	context.save()
 	context.setTransform(1, 0, 0, 1, 0, 0)
