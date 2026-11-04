@@ -127,9 +127,11 @@ function drawHandle(
 		context.lineWidth = 1
 		context.stroke(DIAMOND)
 	} else {
-		if (handle.kind === 'arrow' || handle.kind === 'translate') {
+		// Which way an arrow pulls is for when it is reached for, along with the cursor.
+		if (handle.kind === 'translate' || (handle.kind === 'arrow' && active)) {
 			context.save()
 			context.rotate(facing(handle.angle ?? 0))
+			context.lineWidth = 1
 			context.stroke(handle.kind === 'arrow' ? ARROW : CROSS)
 			context.restore()
 		}
