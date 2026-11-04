@@ -78,35 +78,41 @@ const LABELS: Readonly<Record<Merge, string>> = {
 	first: 'First',
 	last: 'Last',
 	ave: 'Average',
-	min: 'Minimum',
-	max: 'Maximum',
+	min: 'Min',
+	max: 'Max',
 }
 
-const menuOf = (field: MultiField): MenuItem[] => [
-	...(isMixed(field.values)
-		? MERGES.map(
-				(how): MenuItem => ({
-					label: `Merge to ${LABELS[how]}`,
-					icon: 'mdi:call-merge',
-					perform: () => merge(field, how),
-				})
-			)
-		: []),
-	...(field.canExtract
-		? [
-				{ separator: true as const },
-				...(isMixed(field.values) ? MERGES : (['first'] as const)).map(
-					(how): MenuItem => ({
-						label: isMixed(field.values)
-							? `Extract ${LABELS[how]} as Parameter`
-							: 'Extract as Parameter',
-						icon: 'mdi:variable',
-						perform: () => extract(field, how),
-					})
-				),
-			]
-		: []),
-]
+const menuOf = (field: MultiField): MenuItem[] => {
+	const mixed = isMixed(field.values)
+	const each = (perform: (how: Merge) => void): MenuItem[] =>
+		MERGES.map(how => ({ label: LABELS[how], perform: () => perform(how) }))
+	return [
+		...(mixed
+			? [
+					{
+						label: 'Merge',
+						icon: 'mdi:call-merge',
+						children: each(how => merge(field, how)),
+					},
+				]
+			: []),
+		...(field.canExtract
+			? [
+					mixed
+						? {
+								label: 'Extract Parameter',
+								icon: 'mdi:variable',
+								children: each(how => extract(field, how)),
+							}
+						: {
+								label: 'Extract Parameter',
+								icon: 'mdi:variable',
+								perform: () => extract(field, 'first'),
+							},
+				]
+			: []),
+	]
+}
 
 const menu = shallowRef<{
 	items: MenuItem[]
