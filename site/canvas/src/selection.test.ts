@@ -1,4 +1,5 @@
-import { buildPrelude, type Env, parse, type TypeValue } from '@glisp/lang'
+import { buildPrelude, type Env, type TypeValue } from '@glisp/lang'
+import { parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'

@@ -23,11 +23,13 @@ import {
 	print,
 	readByName,
 	solve,
+	SymAST,
 	toAst,
 	type TypedHostFn,
 	type TypeValue,
 	UNSET,
 	unwrapLazy,
+	VecAST,
 	callParameters,
 	withoutCall,
 	withPathsInto,
@@ -35,6 +37,9 @@ import {
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import {
 	elementOptionsOf,
+	isGroup,
+	layersOf,
+	withLayerAdded,
 	isProportional,
 	keepingRatio,
 	type NumberOptions,
@@ -194,11 +199,10 @@ const saidIn = (style: CallAST, key: keyof Paint): AST | undefined =>
  * be anyway says nothing, so a fill in front goes with a line behind it.
  */
 export function withPaintOfRows(root: LetAST, env: Env, rows: readonly string[], path: AST): AST {
-	const styles = root.bindings
-		.filter(([name]) => rows.includes(`binding:${name}`))
-		.map(([name]) => rowAt(root, env, `binding:${name}`)?.node)
+	const styles = layersOf(root)
+		.filter(name => rows.includes(`binding:${name}`))
+		.map(name => rowAt(root, env, `binding:${name}`)?.node)
 		.flatMap(node => (node && isStyle(bare(node)) ? [bare(node) as CallAST] : []))
-		.reverse()
 	const said = (key: keyof Paint): AST | undefined => {
 		const nothing = print(toAst(NO_PAINT[key], null))
 		return styles.map(style => saidIn(style, key)).find(ast => ast && print(ast) !== nothing)
@@ -601,7 +605,7 @@ export function drawn(
 			: even
 				? `(path.circle ${written(center)} ${rounded(size[0] / 2)})`
 				: `(path.ellipse ${written(center)} ${written([size[0] / 2, size[1] / 2])})`
-	return new LetAST([...root.bindings, [name, parse(source)]], root.body)
+	return withLayerAdded(root, name, parse(source))
 }
 
 /** A place a pen has been, and where it was pulled to, if it was. */
@@ -646,6 +650,81 @@ export function anchorsAlong(
 					: otherControl(was.at, into, last, before, how)
 		return { ...anchor, ...(out === undefined ? {} : { out }), ...(into === undefined ? {} : { into }) }
 	})
+}
+
+/** Where a pen would go next, lined up with what it has drawn, and what that lines up by. */
+export interface PenGuided {
+	readonly at: Vec
+	readonly lines: readonly (readonly [Vec, Vec])[]
+}
+
+/**
+ * Where a pen at `to` goes, having been to `anchors`, if something says so. Held `even`, it
+ * goes from the last of them by even angles, as far as where that crosses in line with
+ * another. Otherwise, it is in line across or down with any within `tolerance` of it.
+ */
+export function penGuided(
+	anchors: readonly Anchor[],
+	to: Vec,
+	tolerance: number,
+	even: boolean,
+	step = FINEST
+): PenGuided | null {
+	const last = anchors.at(-1)?.at
+	if (last === undefined) return null
+	const rounded = ([x, y]: Vec): Vec => [roundedTo(x, step), roundedTo(y, step)]
+	// The nearest first, for what was last drawn to be what it goes by, of those alike.
+	const others = anchors.slice(0, -1).reverse().map(({ at }) => at)
+	if (even) {
+		const free = evenlyFrom(last, to)
+		const reach = Math.hypot(free[0] - last[0], free[1] - last[1])
+		if (reach === 0) return null
+		const way: Vec = [(free[0] - last[0]) / reach, (free[1] - last[1]) / reach]
+		let best: { at: Vec; by: Vec } | null = null
+		let away = tolerance
+		for (const other of others) {
+			for (const axis of [0, 1] as const) {
+				if (Math.abs(way[axis]) < 1e-9) continue
+				const along = (other[axis] - last[axis]) / way[axis]
+				if (along <= 0) continue
+				const at: Vec = [last[0] + way[0] * along, last[1] + way[1] * along]
+				const distance = Math.hypot(at[0] - free[0], at[1] - free[1])
+				if (distance < away) [best, away] = [{ at, by: other }, distance]
+			}
+		}
+		const at = rounded(best?.at ?? free)
+		return { at, lines: [[last, at], ...(best === null ? [] : [[best.by, at] as const])] }
+	}
+	const inLine = (axis: 0 | 1): Vec | null => {
+		let best: Vec | null = null
+		let away = tolerance
+		for (const other of [last, ...others]) {
+			const distance = Math.abs(other[axis] - to[axis])
+			if (distance < away) [best, away] = [other, distance]
+		}
+		return best
+	}
+	const [across, down] = [inLine(0), inLine(1)]
+	if (across === null && down === null) return null
+	const at: Vec = [across?.[0] ?? to[0], down?.[1] ?? to[1]]
+	const lines = [across, down].flatMap(by =>
+		by === null || (by[0] === at[0] && by[1] === at[1]) ? [] : [[by, at] as const]
+	)
+	return { at, lines }
+}
+
+/**
+ * The first of what a pen drew, as it comes to be pulled in closing, by a pointer going on
+ * the way the path does. That is only how the path comes back to it: both ways, if
+ * `symmetric`, or still in line with how it leaves, if `smooth`.
+ */
+export function closingPulled(first: Anchor, pointer: Vec, how?: HandleDrag): Anchor {
+	const { at } = first
+	const going = how?.even ? evenlyFrom(at, pointer) : pointer
+	const into: Vec = [at[0] * 2 - going[0], at[1] * 2 - going[1]]
+	if (how?.symmetric) return { ...first, out: going, into }
+	if (!how?.smooth || first.out === undefined) return { ...first, into }
+	return { ...first, out: otherControl(at, into, first.out, inOf(first)!, { smooth: true }), into }
 }
 
 const place = ([x, y]: Vec): string => `${roundedTo(x, FINEST)},${roundedTo(y, FINEST)}`
@@ -752,7 +831,7 @@ export function pencilled(
 		String(roundedTo(Number(n), FINEST))
 	)
 	const name = nameOfKind(root, 'pencil')
-	return { ast: new LetAST([...root.bindings, [name, parse(`(path.d "${d}")`)]], root.body), name }
+	return { ast: withLayerAdded(root, name, parse(`(path.d "${d}")`)), name }
 }
 
 export function penned(
@@ -763,10 +842,7 @@ export function penned(
 ): { ast: LetAST; name: string } {
 	const kind = penKind(anchors, closed)
 	const name = nameOfKind(root, kind)
-	let ast: AST = new LetAST(
-		[...root.bindings, [name, parse(penSource(anchors, closed, kind))]],
-		root.body
-	)
+	let ast: AST = withLayerAdded(root, name, parse(penSource(anchors, closed, kind)))
 	anchors.forEach(({ snap }, i) => {
 		const arg = argOfAnchor(kind, i)
 		if (snap === undefined || arg === null) return
@@ -805,7 +881,8 @@ function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] 
 			: shape.kind === 'tuple'
 				? (shape.elements[i] ?? shape.rest ?? null)
 				: null
-	return value.flatMap((element, i) => shapesIn(elementType(i), element, row))
+	// What comes first in a vector is in front, so it is drawn last.
+	return [...value.entries()].reverse().flatMap(([i, element]) => shapesIn(elementType(i), element, row))
 }
 
 /** What a project says of the canvas it is on, with nothing to take hold of. */
@@ -843,6 +920,7 @@ export const backgroundRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] 
 
 /** A row of a program that says what color is behind everything. */
 export const backgroundCall = (color: string): AST => parse(`(background ${JSON.stringify(color)})`)
+
 export const gridRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
 	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'grid')
 
@@ -855,23 +933,57 @@ export const gridCall = (kind: GridKind): AST => parse(`(grid ${JSON.stringify(k
 
 /** What the program draws, or else what it would if nothing were hidden, of what is. */
 function drawnIn(root: AST, env: Env, hidden = false): Shape[] {
-	const visit = (slots: readonly Slot[], parent: string, inHidden: boolean): Shape[] =>
-		slots.flatMap(slot => {
-			if (!slot.key.startsWith('binding:')) return []
+	const visit = (block: AST, blockEnv: Env, parent: string, inHidden: boolean): Shape[] => {
+		const node = bare(block)
+		// What is drawn is what a block's vector holds, however it is bound. What comes first is
+		// in front, as it is on top in a list of layers, so it is drawn last.
+		if (node.kind !== 'let' || node.body?.kind !== 'vec') return []
+		const { slots } = viewOf(node, blockEnv)
+		const held = new Set(layersOf(node))
+		return [...node.body.elements.entries()].reverse().flatMap(([i, element]) => {
+			const key = element.kind === 'sym' && held.has(element.name) ? `binding:${element.name}` : `element:${i}`
+			const slot = slots.find(other => other.key === key)
+			if (slot === undefined) return []
 			const isOut = inHidden || isHidden(slot.ast)
 			if (isOut && !hidden) return []
 			const row = parent === '' ? slot.key : `${parent}/${slot.key}`
-			const node = bare(slot.ast)
-			// A block with nothing to return is a group, and one with a Return gives
-			// only that.
-			if (node.kind === 'let' && node.body === null) {
-				return visit(viewOf(node, slot.env).slots, row, isOut)
-			}
+			if (isGroup(slot.ast)) return visit(slot.ast, slot.env, row, isOut)
 			if (isOut !== hidden) return []
 			const value = evaluate(readByName(slot.ast), slot.env).value
 			return shapesIn(infer(readByName(slot.ast), slot.env), value, row)
 		})
-	return visit(viewOf(root, env).slots, '', false)
+	}
+	return visit(root, env, '', false)
+}
+
+/** All that is drawn in the end, in that order: what is on the canvas, and what it is on. */
+export const paintedIn = (root: AST, env: Env): Shape[] => drawnIn(root, env)
+
+/**
+ * A program as it is written now, from when what it drew went by the order of its bindings: its
+ * blocks with nothing to return come to hold what draws anything, in that order, and whatever
+ * is a block like them. What refers to anything still refers to it.
+ */
+export function withLayersFromOrder(root: AST, env: Env): AST {
+	const holding = (block: LetAST, blockEnv: Env): LetAST => {
+		const inside = viewOf(block, blockEnv).slots
+		const names: string[] = []
+		const bindings = block.bindings.map(([name, value]) => {
+			const slot = inside.find(({ key }) => key === `binding:${name}`)!
+			const node = bare(value)
+			if (node.kind === 'let' && node.body === null) {
+				names.push(name)
+				const next = holding(node, slot.env)
+				return [name, value.kind === 'meta' ? new MetaAST(value.metadata, next) : next] as const
+			}
+			const read = readByName(value)
+			if (shapesIn(infer(read, slot.env), evaluate(read, slot.env).value, name).length > 0) names.push(name)
+			return [name, value] as const
+		})
+		// What was drawn last is what is in front, which comes first now.
+		return new LetAST(bindings, new VecAST(names.reverse().map(name => new SymAST(name))))
+	}
+	return root.kind === 'let' && root.body === null ? holding(root, env) : root
 }
 
 /** What a name comes to, in the program, however many names away, or a path to a call. */
@@ -1125,8 +1237,7 @@ function readAt(
 export function isGroupRow(root: AST, env: Env, row: string): boolean {
 	const node = rowAt(root, env, row)?.node
 	if (!node) return false
-	const inner = bare(node)
-	return inner.kind === 'let' && inner.body === null
+	return isGroup(node)
 }
 
 /** What a row comes to, past the style it is only given. */

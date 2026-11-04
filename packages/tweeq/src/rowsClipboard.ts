@@ -13,7 +13,9 @@ import {
 	lookupBareName,
 	MetaAST,
 	print,
+	SymAST,
 	type TypeValue,
+	VecAST,
 } from '@glisp/lang'
 
 import { readProgram } from './programSource'
@@ -297,7 +299,18 @@ export function pastedRows(
 	const found = holder.bindings.findIndex(([name]) => name === afterName)
 	const at = found < 0 ? holder.bindings.length : found + 1
 	const bindings = [...holder.bindings.slice(0, at), ...added, ...holder.bindings.slice(at)]
-	const next = new LetAST(bindings, holder.body)
+	// What goes beside what its vector holds is held too, right after it, or else first.
+	const elements = holder.body?.kind === 'vec' ? holder.body.elements : null
+	const beside = elements?.findIndex(e => e.kind === 'sym' && e.name === afterName) ?? -1
+	const body =
+		elements !== null && (afterName === undefined || beside >= 0)
+			? new VecAST([
+					...elements.slice(0, beside + 1),
+					...added.map(([name]) => new SymAST(name)),
+					...elements.slice(beside + 1),
+				])
+			: holder.body
+	const next = new LetAST(bindings, body)
 
 	const prefix = placed ? binding!.split('/').slice(0, -1) : []
 	return {

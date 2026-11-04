@@ -109,6 +109,9 @@ export const COMMANDS_FOR: InjectionKey<(path: string) => MenuItem[]> =
 export const VALUE_ICON: InjectionKey<(value: unknown) => string | null> =
 	Symbol('glisp-value-icon')
 
+/** Whether this is a list of what there is, where only a group opens. */
+export const LAYERS: InjectionKey<boolean> = Symbol('glisp-layers')
+
 /** Opening the rows down to one, and selecting it. */
 export interface RowRevealer {
 	/** The row to get to, until it has been reached, and whether to rename it there. */

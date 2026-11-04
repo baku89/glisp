@@ -1,4 +1,5 @@
-import { buildPrelude, type Env, type LetAST, parse, print } from '@glisp/lang'
+import { buildPrelude, type Env, type LetAST, print } from '@glisp/lang'
+import { parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
@@ -16,41 +17,40 @@ import {
 	viewBetween,
 	viewToFit,
 } from './rows'
+import { layersOf } from '@glisp/tweeq/structure'
 
 const env: Env = withGraphics(buildPrelude())
-const program = '{a = 1 b = 2 c = 3 d = 4}'
+const program = '[a = 1 b = 2 c = 3 d = 4]'
 const order = (how: 'forward' | 'backward' | 'front' | 'back', ...names: string[]) =>
-	arranged(parse(program) as LetAST, names.map(n => `binding:${n}`), how)
-		.bindings.map(([name]) => name)
-		.join('')
+	layersOf(arranged(parse(program) as LetAST, names.map(n => `binding:${n}`), how)).join('')
 
 describe('arranged', () => {
-	it('goes one step', () => {
-		expect(order('forward', 'b')).toBe('acbd')
-		expect(order('backward', 'c')).toBe('acbd')
+	it('goes one step, forward being toward the first', () => {
+		expect(order('forward', 'b')).toBe('bacd')
+		expect(order('backward', 'c')).toBe('abdc')
 	})
 
 	it('stays at the end', () => {
-		expect(order('forward', 'd')).toBe('abcd')
-		expect(order('backward', 'a')).toBe('abcd')
+		expect(order('forward', 'a')).toBe('abcd')
+		expect(order('backward', 'd')).toBe('abcd')
 	})
 
 	it('goes together, in the order they were', () => {
-		expect(order('forward', 'a', 'b')).toBe('cabd')
-		expect(order('backward', 'c', 'd')).toBe('acdb')
-		expect(order('forward', 'a', 'c')).toBe('badc')
+		expect(order('forward', 'c', 'd')).toBe('acdb')
+		expect(order('backward', 'a', 'b')).toBe('cabd')
+		expect(order('forward', 'b', 'd')).toBe('badc')
 	})
 
 	it('goes all the way', () => {
-		expect(order('front', 'a', 'c')).toBe('bdac')
-		expect(order('back', 'b', 'd')).toBe('bdac')
+		expect(order('front', 'b', 'd')).toBe('bdac')
+		expect(order('back', 'a', 'c')).toBe('bdac')
 	})
 })
 
 describe('grouped', () => {
 	it('has them in one, where the last of them was', () => {
 		const result = grouped(parse(program) as LetAST, env, ['binding:a', 'binding:c'])!
-		expect(print(result.ast)).toBe('{b = 2 group1 = {a = 1 c = 3} d = 4}')
+		expect(print(result.ast)).toBe('[group1 = [a = 1 c = 3] b = 2 d = 4]')
 		expect(result.row).toBe('binding:group1')
 	})
 
@@ -78,7 +78,7 @@ describe('grouped', () => {
 describe('ungrouped', () => {
 	it('lets them go, where it was', () => {
 		const result = ungrouped(parse('{b = 2 g = {a = 1 c = 3} d = 4}') as LetAST, env, ['binding:g'])!
-		expect(print(result.ast)).toBe('{b = 2 a = 1 c = 3 d = 4}')
+		expect(print(result.ast)).toBe('{b = 2 a = 1 c = 3 d = 4 []}')
 		expect(result.rows).toEqual(['binding:a', 'binding:c'])
 	})
 
@@ -186,6 +186,7 @@ describe('picking rows', () => {
 		expect(picked([], c, 'range')).toEqual([c])
 	})
 })
+
 describe('rowsAbout', () => {
 	const part = 'binding:l/arg0'
 	it('is the row kept hold of, while only parts of it are selected', () => {
@@ -202,11 +203,11 @@ describe('rowsAbout', () => {
 })
 
 describe('grouping what is referred to from the root', () => {
-	const program = '{a = [1 2] b = [[/a/1]] c = 0}'
+	const program = '[a = [1 2] b = [[/a/1]] c = 0]'
 
 	it('has it go on reaching it, in the group and out of it again', () => {
 		const { ast } = grouped(parse(program) as LetAST, env, ['binding:a'])!
-		expect(print(ast)).toBe('{group1 = {a = [1 2]} b = [[/group1/a/1]] c = 0}')
+		expect(print(ast)).toBe('[group1 = [a = [1 2]] b = [[/group1/a/1]] c = 0]')
 		const out = ungrouped(ast, env, ['binding:group1'])!
 		expect(print(out.ast)).toBe(program)
 	})
@@ -220,21 +221,21 @@ describe('withBackground', () => {
 
 	it('adds a row at the top, if nothing says it', () => {
 		expect(given('{c = 1}')).toEqual({
-			source: '{background1 = (background "#ffffff") c = 1}',
+			source: '{c = 1 [background1 = (background "#ffffff")]}',
 			row: 'binding:background1',
 		})
 	})
 
 	it('leaves what says it as it is, to be chosen from', () => {
 		const src = '{bg = (background "#ff0000") c = 1}'
-		expect(given(src)).toEqual({ source: src, row: 'binding:bg' })
+		expect(given(src)).toEqual({ source: '{c = 1 [bg = (background "#ff0000")]}', row: 'binding:bg' })
 	})
 
 	it('brings it out of being hidden', () => {
-		expect(given('{bg = #_(background "#ff0000")}').source).toBe('{bg = (background "#ff0000")}')
+		expect(given('{bg = #_(background "#ff0000")}').source).toBe('[bg = (background "#ff0000")]')
 	})
 
 	it('has it say a color, if it says there is none', () => {
-		expect(given('{bg = (background "none")}').source).toBe('{bg = (background "#ffffff")}')
+		expect(given('{bg = (background "none")}').source).toBe('[bg = (background "#ffffff")]')
 	})
 })

@@ -1,7 +1,7 @@
 /**
- * What is laid over a canvas to see by. A program says which, by `grid`, but nothing
- * comes of it except on the canvas: it goes by the program's coordinates so that it moves
- * and zooms along with what is drawn.
+ * What is laid over a canvas to see by. A program says which, by `grid`, and it goes by the
+ * program's coordinates so that it moves and zooms along with what is drawn. It is drawn in the
+ * end too, as `svg.ts` has it, at the step it has at full size.
  */
 
 export type GridKind = 'none' | 'dots' | 'lines'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, LetAST, parse, print } from '@glisp/lang'
+import { type AST, buildPrelude, LetAST, parse, print } from '@glisp/lang'
 import {
 	AstEditor,
 	AstMultiInspector,
@@ -9,7 +9,7 @@ import {
 } from '@glisp/tweeq'
 import { combined, type Filter, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
-import { renameBindingAt, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
+import { layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
@@ -34,11 +34,11 @@ import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
 import {
 	pickedRows,
-	withBackground,
 	type Arrange,
 	arranged,
 	type Area,
 	boundsOfRows,
+	allPaintedRows,
 	drawnRows,
 	grouped,
 	nameOfRow,
@@ -46,9 +46,10 @@ import {
 	rowsAbout,
 	ungrouped,
 	viewToFit,
+	withBackground,
 	withGridToggled,
 } from './rows'
-import { backgroundOf, gridCall, gridOf, isOfCanvasAt, paintedRow, pathOfRow, withPaintOfRows } from './scene'
+import { backgroundOf, gridCall, gridOf, isOfCanvasAt, paintedRow, pathOfRow, withPaintOfRows, withLayersFromOrder } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -75,10 +76,43 @@ watchEffect(() => {
 })
 
 const EXAMPLE = `{
-  grid1 = (grid "dots")
   radius = 60
-  c = (path.circle [240 200] radius)
-  r = (path.rect [360 140] [160 120])
+  [
+    c = (path.circle [240 200] radius)
+    r = (path.rect [360 140] [160 120])
+    grid1 = (grid "dots")
+  ]
+}`
+
+/**
+ * A program to read to see how one is written. What is only said is the graph, in any order,
+ * and the vector is what is drawn, the first in front, as it is on top in a list of layers.
+ */
+const NEW_SKETCH = `{
+  ; What is only named is not drawn, and it does not matter which comes first.
+  size = 120
+  gap = 20
+  ring = (path.circle [0 0] size)
+
+  ; The vector is the sketch. What comes first is in front, and on top in Project.
+  [
+    ; A vector with names in it is a group, which goes on the canvas as one.
+    marks = [
+      left = (style (path.circle [-60 0] 16) fill="#ffffff")
+      right = (style (path.circle [60 0] 16) fill="#ffffff")
+    ]
+
+    ; Made from what is named above, which itself draws nothing.
+    disc = (style ring fill="#1473e6")
+    halo = (style (path.offset ring gap) stroke="#1473e6" width=2)
+
+    ; A name lets the rest of it refer to this, from anywhere.
+    plate = (style (path.rect [-200 -200] [400 400]) fill="#f0ece2")
+
+    ; These are drawn in the end too, behind all else.
+    grid1 = (grid "dots")
+    background1 = (background "#ffffff")
+  ]
 }`
 
 // The program stays across reloads, as source, in this browser.
@@ -86,13 +120,21 @@ const STORAGE_KEY = 'glisp.canvas.source'
 
 /**
  * A program as written now, from what was written before: `style` was once a member of
- * `path`, and what a rectangle starts from was once its `topLeft`.
+ * `path`, what a rectangle starts from was once its `topLeft`, and what was drawn went by
+ * the order of its bindings.
  */
-const fromBefore = (source: string): string =>
-	source
+const graphicsEnv = withGraphics(buildPrelude())
+function fromBefore(source: string): string {
+	const written = source
 		.replaceAll('(path.style ', '(style ')
 		.replaceAll('/topLeft', '/origin')
 		.replaceAll('topLeft=', 'origin=')
+	try {
+		return print(withLayersFromOrder(parse(written), graphicsEnv))
+	} catch {
+		return written
+	}
+}
 
 const readsBack = (source: string): boolean => {
 	try {
@@ -218,7 +260,7 @@ let fileHandle: FileSystemFileHandle | null = null
 function readProgramText(text: string): void {
 	try {
 		const next = programOf(parse(fromBefore(text)))
-		if (next !== null) document.setRoot(new LetAST(next.bindings, null))
+		if (next !== null) document.setRoot(next)
 	} catch {
 		// What cannot be read leaves what is there.
 	}
@@ -320,7 +362,7 @@ const paintable = computed(() =>
 	about.value.filter(row => {
 		const [root, env] = [document.root.value, document.env.value]
 		// A part of what a row is written as, such as a number, has no fill or line unless it is a path.
-		const isPart = !row.split('/').every(key => key.startsWith('binding:'))
+		const isPart = !row.split('/').every(key => /^(binding|element):/.test(key))
 		return !isOfCanvasAt(root, env, row) && (!isPart || pathOfRow(root, env, row) !== null)
 	})
 )
@@ -436,7 +478,7 @@ const selection = computed(() =>
 const rowsToChoose = computed(() => {
 	const root = programOf(document.root.value)
 	return root
-		? selectedOf(root, document.env.value, root.bindings.map(([name]) => rowCalled('', name)))
+		? selectedOf(root, document.env.value, layersOf(root).map(name => rowCalled('', name)))
 		: []
 })
 /** The row of a list of rows at a place on the screen, if there is one. */
@@ -631,7 +673,17 @@ actions.register([
 				icon: 'mdi:file-plus-outline',
 				perform() {
 					fileHandle = null
-					document.setRoot(new LetAST([['grid1', gridCall('dots')]], null))
+					document.setRoot(withLayerAdded(new LetAST([], null), 'grid1', gridCall('dots')))
+					selectOnCanvas([])
+				},
+			},
+			{
+				id: 'file_new_sketch',
+				label: 'New Sketch',
+				icon: 'mdi:file-document-edit-outline',
+				perform() {
+					fileHandle = null
+					document.setRoot(parse(NEW_SKETCH) as LetAST)
 					selectOnCanvas([])
 				},
 			},
@@ -649,7 +701,7 @@ actions.register([
 					const env = document.env.value
 					const area = chosen.find(({ value }) => isRect(value))?.value as RectValue | undefined
 					const drawings = chosen.filter(({ value }) => !isRect(value)).map(({ row }) => row)
-					const svg = svgOfRows(root, env, drawings.length > 0 ? drawings : drawnRows(root, env), area)
+					const svg = svgOfRows(root, env, drawings.length > 0 ? drawings : allPaintedRows(root, env), area)
 					if (svg !== null) void exportSvg(svg)
 				},
 			},

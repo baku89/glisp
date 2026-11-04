@@ -1,4 +1,5 @@
-import { type AST, buildPrelude, check, type Env, evaluate, LetAST, parse, print, Session, type TypedHostFn } from '@glisp/lang'
+import { type AST, buildPrelude, check, type Env, evaluate, LetAST, print, Session, type TypedHostFn } from '@glisp/lang'
+import { parse } from './program.testing'
 import { filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, referenceAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
@@ -344,6 +345,7 @@ describe('changing only how a path is painted', () => {
 		expect(pathOfRow(session.ast(), session.env, 'binding:u')!.path).toBe(before!.path)
 	})
 })
+
 describe('what is copied by a matrix', () => {
 	const pieces = (src: string): number =>
 		(evaluate(parse(src), env).value as PathValue).path.curves.length
@@ -564,6 +566,7 @@ describe('what wants a path, of what has a style', () => {
 		expect(print(wrappedAt(root, env, 'binding:a', filter)!)).toContain('o = (path.offset a 5)')
 	})
 })
+
 describe('what a matrix goes around', () => {
 	const applied = (src: string, [x, y]: readonly [number, number]) => {
 		const m = evaluate(parse(src), env).value as number[]
@@ -612,7 +615,7 @@ describe('what is moved, where it refers to a place on something else', () => {
 	])('moves %s with it, and leaves the rest of it as it is', (source, moved) => {
 		const { ast, problem } = at(source, [10, 5])
 		expect(problem).toBe(null)
-		expect(print(ast!)).toContain(`a = ${moved} `)
+		expect(print(ast!)).toContain(`a = ${moved}`)
 	})
 
 	it('leaves half as what the middle of a line is', () => {

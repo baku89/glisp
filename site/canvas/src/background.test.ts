@@ -1,4 +1,5 @@
-import { buildPrelude, type Env, type LetAST, parse, print } from '@glisp/lang'
+import { buildPrelude, type Env, type LetAST, print } from '@glisp/lang'
+import { parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { inkOn, withGraphics } from './graphics'
@@ -69,10 +70,10 @@ describe('a grid', () => {
 		expect(isOfCanvasAt(root, env, 'binding:g')).toBe(true)
 	})
 
-	it('is declared at the top of a project that has none, when it is turned on', () => {
-		const next = toggled('{c = 1}', 'dots')
+	it('is declared behind all else in a project that has none, when it is turned on', () => {
+		const next = toggled('{c = (path.circle [0 0] 1)}', 'dots')
 		expect(gridIn(next)).toBe('dots')
-		expect(next.indexOf('grid1')).toBeLessThan(next.indexOf('c ='))
+		expect(next.indexOf('grid1')).toBeGreaterThan(next.indexOf('c ='))
 	})
 
 	it('is said by the row it already has, from then on', () => {

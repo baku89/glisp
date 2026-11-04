@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetA
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, isAllOnItsRow, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, isAllOnItsRow, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -1321,6 +1321,16 @@ describe('what a call is not yet given', () => {
 		expect(missingWritten(parse(program), env, 'binding:x', 'b', parse('"blue"'))).toBeNull()
 		expect(missingWritten(parse(program), env, 'binding:y', 'z', parse('"blue"'))).toBeNull()
 		expect(missingReferringTo(parse(program), env, 'binding:y', 'b', 'binding:z')).toBeNull()
+	})
+})
+
+describe('a group', () => {
+	it('is a block that comes to a vector of what it holds', () => {
+		expect(isGroup(parse('[a = 1]'))).toBe(true)
+		expect(isGroup(parse('^{label: "x"} [a = 1]'))).toBe(true)
+		expect(isGroup(parse('{a = 1}'))).toBe(false)
+		expect(isGroup(parse('{a = 1 a}'))).toBe(false)
+		expect(isGroup(parse('(+ 1 2)'))).toBe(false)
 	})
 })
 

@@ -1,4 +1,5 @@
-import { buildPrelude, type Env, evaluate, parse, print } from '@glisp/lang'
+import { buildPrelude, type Env, evaluate, print } from '@glisp/lang'
+import { parse } from './program.testing'
 import { copiedRows, pastedArguments, pastedRows } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
@@ -123,14 +124,14 @@ describe('bindingsOfSvg', () => {
 				'polyline1 = (path.polyline [0 0] [1 1] [2 0])',
 				'polygon1 = (path.polygon [0 0] [1 1] [2 0])',
 				'path1 = (path.d "M0 0 L10 10")',
-			].join('\n')
+			].reverse().join('\n')
 		)
 	})
 
 	it('keeps a name that can be a name, and counts the rest', () => {
 		expect(
 			bindingsOfSvg(`<svg><rect id="logo" width="1" height="1"/><rect id="a b" width="1" height="1"/></svg>`)
-		).toBe('logo = (path.rect [0 0] [1 1])\nrect1 = (path.rect [0 0] [1 1])')
+		).toBe('rect1 = (path.rect [0 0] [1 1])\nlogo = (path.rect [0 0] [1 1])')
 	})
 
 	it('has how a line is drawn, and leaves what it cannot', () => {

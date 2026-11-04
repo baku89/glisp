@@ -17,7 +17,7 @@ import { iconOf } from './icons'
 import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
-	HOST_KEY, ALSO_SELECTED, LINKER, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
+	HOST_KEY, ALSO_SELECTED, LAYERS, LINKER, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	canSolve,
@@ -25,6 +25,7 @@ import {
 	canStack,
 	numbersFit,
 	type NumbersFit,
+	isGroup,
 	isProportional,
 	isAllOnItsRow,
 	isSizeInput,
@@ -117,6 +118,7 @@ const $value = useTemplateRef<{
 const bareKind = computed(() =>
 	ast.value.kind === 'meta' ? ast.value.expr.kind : ast.value.kind
 )
+const layers = inject(LAYERS, false)
 
 const renamer = inject(RENAMER, null)
 const renaming = ref(false)
@@ -197,8 +199,7 @@ const expandable = computed(
 	() =>
 		!allOnItsRow.value &&
 		(children.value.length > 0 ||
-			view.value.append !== null ||
-			view.value.missing.length > 0)
+			(!layers && (view.value.append !== null || view.value.missing.length > 0)))
 )
 const kindPressable = computed(() => referenceTarget.value !== null || expandable.value)
 
@@ -322,9 +323,10 @@ function toggle(id: 'pin' | 'hide'): void {
 	if (action !== undefined && 'apply' in action) emit('change', action.apply())
 }
 
-const children = computed(() =>
-	view.value.head === null ? view.value.slots : [view.value.head, ...view.value.slots]
-)
+const children = computed(() => {
+	if (layers) return isGroup(ast.value) ? view.value.slots : []
+	return view.value.head === null ? view.value.slots : [view.value.head, ...view.value.slots]
+})
 
 const alsoSelected = inject(ALSO_SELECTED, null)
 // What is selected inside of a row that is closed has nowhere else to be seen.
@@ -567,9 +569,9 @@ watch(
 			<AstSlots
 				:slots="children"
 				:parentPath="path"
-				:missing="view.missing"
-				:append="view.append"
-				:noAddRow="bareKind === 'let' && view.slots.length > 0"
+				:missing="layers ? [] : view.missing"
+				:append="layers ? null : view.append"
+				:noAddRow="layers || (bareKind === 'let' && view.slots.length > 0)"
 				:read="read"
 				:show="show"
 				@change="update"

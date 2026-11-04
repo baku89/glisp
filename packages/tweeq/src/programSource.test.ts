@@ -28,8 +28,8 @@ describe('a program as code', () => {
 		}
 	})
 
-	it('has nothing but bindings', () => {
-		expect(readProgram('a = 1\n(+ a 1)')).toMatchObject({ message: 'This can only have bindings.' })
+	it('has nothing but bindings, and what to draw', () => {
+		expect(readProgram('a = 1\n(+ a 1)')).toMatchObject({ message: 'This can only have bindings, and a vector of what to draw.' })
 	})
 })
 

@@ -1,15 +1,15 @@
 /**
  * What can be done to rows at the top of a program, as a whole: their order, which is
- * the order they are drawn in, and groups, which are let-blocks with no Return.
+ * that of the vector the program comes to, and groups, which are vectors of their own.
  */
 
-import { type AST, type Env, evaluate, isHidden, LetAST, readByName, unhide, withPathsMoved } from '@glisp/lang'
+import { type AST, type Env, evaluate, isHidden, LetAST, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
-import { viewOf } from '@glisp/tweeq/structure'
+import { isGroup, layersOf, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import type { Path, Vec } from './graphics'
-import { backgroundCall, backgroundOf, backgroundRowsIn, gridCall, gridOf, gridRowsIn, isOutlined, sceneOf } from './scene'
+import { backgroundCall, backgroundOf, backgroundRowsIn, gridCall, gridOf, gridRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
 
 const BINDING = 'binding:'
 
@@ -59,25 +59,26 @@ export function pickedRows(
 
 export type Arrange = 'forward' | 'backward' | 'front' | 'back'
 
-/** `root`, with the rows at its top in another order, the last being drawn last. */
+/** `root`, with the rows at its top in another order, the first being in front. */
 export function arranged(root: LetAST, rows: readonly string[], how: Arrange): LetAST {
 	const names = namesOf(rows)
-	const moving = root.bindings.filter(([name]) => names.has(name))
-	const staying = root.bindings.filter(([name]) => !names.has(name))
+	const layers = layersOf(root)
+	const moving = layers.filter(name => names.has(name))
+	const staying = layers.filter(name => !names.has(name))
 	if (moving.length === 0) return root
-	if (how === 'front') return new LetAST([...staying, ...moving], root.body)
-	if (how === 'back') return new LetAST([...moving, ...staying], root.body)
+	if (how === 'front') return withLayersOrdered(root, [...moving, ...staying])
+	if (how === 'back') return withLayersOrdered(root, [...staying, ...moving])
 
-	const bindings = [...root.bindings]
-	const order = how === 'forward' ? [...bindings.keys()].reverse() : [...bindings.keys()]
-	const step = how === 'forward' ? 1 : -1
+	// What comes first is in front, so what goes forward goes toward the start.
+	const order = how === 'forward' ? [...layers.keys()] : [...layers.keys()].reverse()
+	const step = how === 'forward' ? -1 : 1
 	for (const i of order) {
-		const other = bindings[i + step]
-		if (!names.has(bindings[i]![0]) || other === undefined || names.has(other[0])) continue
-		bindings[i + step] = bindings[i]!
-		bindings[i] = other
+		const other = layers[i + step]
+		if (!names.has(layers[i]!) || other === undefined || names.has(other)) continue
+		layers[i + step] = layers[i]!
+		layers[i] = other
 	}
-	return new LetAST(bindings, root.body)
+	return withLayersOrdered(root, layers)
 }
 
 /** How much of the program cannot be worked out, going into groups, as they give nothing. */
@@ -87,7 +88,7 @@ const errorsIn = (root: AST, env: Env): number =>
 		const node = ast.kind === 'meta' ? ast.expr : ast
 		return (
 			count +
-			(node.kind === 'let' && node.body === null
+			(isGroup(node)
 				? errorsIn(node, rowEnv)
 				: evaluate(readByName(ast), rowEnv).diagnostics.filter(({ level }) => level === 'error')
 						.length)
@@ -123,6 +124,17 @@ function rowSaying(
 	)
 }
 
+const elementCount = (root: LetAST): number =>
+	root.body?.kind === 'vec' ? root.body.elements.length : 0
+
+/** The place right in front of the background, which is behind all else, or else the very back. */
+function inFrontOfBackground(root: LetAST, env: Env): number {
+	if (root.body?.kind !== 'vec') return 0
+	const behind = new Set(backgroundRowsIn(root, env, false).map(({ row }) => row))
+	const found = root.body.elements.findIndex(e => e.kind === 'sym' && behind.has(`${BINDING}${e.name}`))
+	return found < 0 ? root.body.elements.length : found
+}
+
 /**
  * `root` with a background to choose the color of, and the row that says it: the row that says
  * so already, which comes out of being hidden, and a new one at the top of `color` if there is
@@ -139,7 +151,7 @@ export function withBackground(
 	if (row === undefined || !reached || !last) {
 		const name = freeName(root, 'background')
 		return {
-			ast: new LetAST([[name, backgroundCall(color)], ...root.bindings], root.body),
+			ast: withLayerAdded(root, name, backgroundCall(color), elementCount(root)),
 			row: `${BINDING}${name}`,
 		}
 	}
@@ -162,7 +174,7 @@ export function withGridToggled(root: LetAST, env: Env, kind: 'dots' | 'lines'):
 	const last = reached?.chain.at(-1)
 	return reached && last
 		? (withParent(reached.chain, last.replace(gridCall(next))) as LetAST)
-		: new LetAST([[freeName(root, 'grid'), gridCall(next)], ...root.bindings], root.body)
+		: withLayerAdded(root, freeName(root, 'grid'), gridCall(next), inFrontOfBackground(root, env))
 }
 
 /**
@@ -179,14 +191,20 @@ export function grouped(
 	const members = root.bindings.filter(([name]) => names.has(name))
 	if (members.length === 0) return null
 	const name = freeName(root, 'group')
-	const at = root.bindings.reduce((last, [bound], i) => (names.has(bound) ? i : last), 0)
-	const bindings = root.bindings.flatMap((binding, i): (readonly [string, AST])[] => {
-		if (i === at) return [[name, new LetAST(members, null)]]
-		return names.has(binding[0]) ? [] : [binding]
-	})
+	const layers = layersOf(root).filter(layer => names.has(layer))
+	const inGroup = [...layers, ...members.map(([member]) => member).filter(member => !layers.includes(member))]
+	const group = new LetAST(members, new VecAST(inGroup.map(member => new SymAST(member))))
+	const bindings = [...root.bindings.filter(([bound]) => !names.has(bound)), [name, group] as const]
+	const elements = root.body?.kind === 'vec' ? root.body.elements : []
+	const isMember = (element: AST) => element.kind === 'sym' && names.has(element.name)
+	const first = elements.findIndex(isMember)
+	// Where the frontmost of them was, and in front of all if none of them was anywhere.
+	const held = elements.flatMap((element, i) =>
+		i === first ? [new SymAST(name)] : isMember(element) ? [] : [element]
+	)
 	const ast = members.reduce<AST>(
 		(moved, [member]) => withPathsMoved(moved, env, [member], [name, member]),
-		new LetAST(bindings, root.body)
+		new LetAST(bindings, new VecAST(first < 0 ? [new SymAST(name), ...held] : held))
 	) as LetAST
 	return errorsIn(ast, env) > errorsIn(root, env) ? null : { ast, row: `${BINDING}${name}` }
 }
@@ -201,16 +219,19 @@ export function ungrouped(
 	rows: readonly string[]
 ): { ast: LetAST; rows: string[] } | null {
 	const names = namesOf(rows)
-	const isGroup = ([name, value]: readonly [string, AST]) =>
-		names.has(name) && value.kind === 'let' && value.body === null
-	if (!root.bindings.some(isGroup)) return null
-	const taken = new Set(root.bindings.filter(b => !isGroup(b)).map(([name]) => name))
+	const isFreed = ([name, value]: readonly [string, AST]) =>
+		names.has(name) && value.kind === 'let' && isGroup(value)
+	if (!root.bindings.some(isFreed)) return null
+	const taken = new Set(root.bindings.filter(b => !isFreed(b)).map(([name]) => name))
 	const freed: string[] = []
 	const moves: (readonly [readonly string[], readonly string[]])[] = []
+	const heldBy = new Map<string, readonly AST[]>()
 	const bindings = root.bindings.flatMap((binding): (readonly [string, AST])[] => {
-		if (!isGroup(binding)) return [binding]
-		const members = (binding[1] as LetAST).bindings
+		if (!isFreed(binding)) return [binding]
+		const group = binding[1] as LetAST
+		const members = group.bindings
 		if (members.some(([name]) => taken.has(name))) return [binding]
+		heldBy.set(binding[0], group.body?.kind === 'vec' ? group.body.elements : [])
 		for (const [name] of members) {
 			taken.add(name)
 			freed.push(`${BINDING}${name}`)
@@ -220,7 +241,16 @@ export function ungrouped(
 	})
 	const ast = moves.reduce<AST>(
 		(moved, [from, to]) => withPathsMoved(moved, env, from, to),
-		new LetAST(bindings, root.body)
+		new LetAST(
+			bindings,
+			root.body?.kind === 'vec'
+				? new VecAST(
+						root.body.elements.flatMap(element =>
+							element.kind === 'sym' ? (heldBy.get(element.name) ?? [element]) : [element]
+						)
+					)
+				: root.body
+		)
 	) as LetAST
 	return freed.length === 0 || errorsIn(ast, env) > errorsIn(root, env)
 		? null
@@ -230,6 +260,11 @@ export function ungrouped(
 /** The rows that draw anything, once each, in the order they are drawn. */
 export const drawnRows = (root: AST, env: Env): string[] => [
 	...new Set(sceneOf(root, env).map(({ row }) => row)),
+]
+
+/** The rows of all that is drawn in the end, the background and the grid too. */
+export const allPaintedRows = (root: AST, env: Env): string[] => [
+	...new Set(paintedIn(root, env).map(({ row }) => row)),
 ]
 
 /** The corners around what `rows` draw, or all there is. Null if that is nothing. */

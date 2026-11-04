@@ -5,10 +5,23 @@
 
 import { type AST, type Env, LetAST, parse, print } from '@glisp/lang'
 
-import { viewOf, type Slot } from './structure'
+import { layersOf, viewOf, type Slot } from './structure'
 
-export const sourceOfProgram = (root: LetAST): string =>
-	root.bindings.map(([name, value]) => `${name} = ${print(value)}`).join('\n')
+/** What is only bound, a binding to a line, and then what the program's vector holds, one to a line. */
+export function sourceOfProgram(root: LetAST): string {
+	const held = new Set(layersOf(root))
+	const lines = root.bindings
+		.filter(([name]) => !held.has(name))
+		.map(([name, value]) => `${name} = ${print(value)}`)
+	if (root.body?.kind !== 'vec') return lines.join('\n')
+	const said = new Set<string>()
+	const elements = root.body.elements.map(element => {
+		if (element.kind !== 'sym' || !held.has(element.name) || said.has(element.name)) return print(element)
+		said.add(element.name)
+		return `${element.name} = ${print(root.bindings.find(([name]) => name === element.name)![1])}`
+	})
+	return [...lines, elements.length === 0 ? '[]' : `[\n${elements.map(line => `  ${line}`).join('\n')}\n]`].join('\n')
+}
 
 export type ProgramReading =
 	| { readonly ast: LetAST }
@@ -29,10 +42,10 @@ export function readProgram(written: string): ProgramReading {
 		const at = (position ?? OPENING.length) - OPENING.length
 		return { message, offset: Math.min(Math.max(at, 0), written.length) }
 	}
-	if (ast.kind !== 'let' || ast.body !== null) {
-		return { message: 'This can only have bindings.', offset: 0 }
+	if (ast.kind !== 'let' || (ast.body !== null && ast.body.kind !== 'vec')) {
+		return { message: 'This can only have bindings, and a vector of what to draw.', offset: 0 }
 	}
-	return { ast: new LetAST(ast.bindings, null) }
+	return { ast: new LetAST(ast.bindings, ast.body) }
 }
 
 /** A part of what is written, by where it starts and where it ends. */

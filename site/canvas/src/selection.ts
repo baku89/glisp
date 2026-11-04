@@ -47,7 +47,7 @@ export const selectedOf = (root: AST, env: Env, rows: readonly string[]): Select
 		row,
 		value: isGroupRow(root, env, row) ? GROUP : valueOfRow(root, env, row),
 		commands: expressionCommandsAt(root, env, row),
-		isRow: row.split('/').every(key => key.startsWith('binding:')),
+		isRow: row.split('/').every(key => /^(binding|element):/.test(key)),
 	}))
 
 export const numberType = evaluate(parse('number'), buildPrelude()).value as TypeValue

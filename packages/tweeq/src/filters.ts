@@ -15,9 +15,11 @@ import {
 	LetAST,
 	MetaAST,
 	parse,
+	SymAST,
 	toAst,
 	type TypedHostFn,
 	type TypeValue,
+	VecAST,
 	withPathsInto,
 } from '@glisp/lang'
 
@@ -143,6 +145,16 @@ export function wrappedAt(root: AST, env: Env, path: string, filter: Filter): AS
 	return withPathsInto(withParent(chain, slot.replace(next)), env, call)
 }
 
+/** What a block's vector holds, with `as` where the frontmost of `names` was, and none of the rest. */
+function heldAs(body: AST | null, names: readonly string[], as: string): AST | null {
+	if (body?.kind !== 'vec') return body
+	const isOne = (element: AST) => element.kind === 'sym' && names.includes(element.name)
+	const first = body.elements.findIndex(isOne)
+	return new VecAST(
+		body.elements.flatMap((element, i) => (i === first ? [new SymAST(as)] : isOne(element) ? [] : [element]))
+	)
+}
+
 /**
  * `root` with the bindings `names` given to `filter`, each as `given`, in place of the last of
  * them and called what the first is, as `wrappedAt` leaves a name where it was. Null if one is not
@@ -169,6 +181,6 @@ export function combined(
 		if (i === at) return [[as, call]]
 		return names.includes(binding[0]) ? [] : [binding]
 	})
-	const ast = new LetAST(bindings, root.body)
+	const ast = new LetAST(bindings, heldAs(root.body, names, as))
 	return errorsIn(ast, env) > errorsIn(root, env) ? null : ast
 }

@@ -51,6 +51,60 @@ import {
 	VecAST,
 } from '@glisp/lang'
 
+/** Whether a node is a block that comes to a vector of what it holds, which is to say a group. */
+export const isGroup = (ast: AST): boolean => {
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	return bare.kind === 'let' && bare.body?.kind === 'vec'
+}
+
+/** The names of what a block binds and its vector holds, once each, in the vector's order. */
+export function layersOf(block: LetAST): string[] {
+	if (block.body?.kind !== 'vec') return []
+	const bound = new Set(block.bindings.map(([name]) => name))
+	const names = block.body.elements.flatMap(e => (e.kind === 'sym' && bound.has(e.name) ? [e.name] : []))
+	return [...new Set(names)]
+}
+
+const elementsOf = (block: LetAST): readonly AST[] =>
+	block.body?.kind === 'vec' ? block.body.elements : []
+
+/**
+ * `block`, binding `name` to `value` and holding it in its vector, which it comes to have if it
+ * has none: first, in front of the rest, or else `before` the element at that place.
+ */
+export function withLayerAdded(
+	block: LetAST,
+	name: string,
+	value: AST,
+	before = 0
+): LetAST {
+	const elements = elementsOf(block).slice()
+	elements.splice(before, 0, new SymAST(name))
+	return new LetAST([...block.bindings, [name, value] as const], new VecAST(elements))
+}
+
+/** `block`, with what it holds by name in the order of `names`, and the rest where it was. */
+export function withLayersOrdered(block: LetAST, names: readonly string[]): LetAST {
+	const placed = new Set(layersOf(block))
+	const next = names.filter(name => placed.has(name))
+	let at = 0
+	const seen = new Set<string>()
+	const elements = elementsOf(block).map(element => {
+		if (element.kind !== 'sym' || !placed.has(element.name) || seen.has(element.name)) return element
+		seen.add(element.name)
+		return new SymAST(next[at++] ?? element.name)
+	})
+	return new LetAST(block.bindings, new VecAST(elements))
+}
+
+/** `block` without the binding of `name`, nor its vector holding it. */
+export function withoutBinding(block: LetAST, name: string): LetAST {
+	const bindings = block.bindings.filter(([bound]) => bound !== name)
+	if (block.body?.kind !== 'vec') return new LetAST(bindings, block.body)
+	const elements = block.body.elements.filter(e => e.kind !== 'sym' || e.name !== name)
+	return new LetAST(bindings, new VecAST(elements))
+}
+
 /** The widget for a node that a widget can edit directly. */
 export type Editor =
 	| { readonly kind: 'number'; readonly value: number }
@@ -966,21 +1020,45 @@ const RETURN = 'Return'
 
 function viewOfLet(ast: LetAST, env: Env): NodeView {
 	const inside = pushLetFrame(ast, env)
-	const slots: Slot[] = ast.bindings.map(([name, value], i) => ({
+	const slotOf = (name: string, value: AST): Slot => ({
 		key: `binding:${name}`,
 		label: name,
 		ast: value,
 		env: inside,
 		expected: null,
-		replace: child => {
-			const bindings = ast.bindings.slice()
-			bindings[i] = [name, child] as const
-			return new LetAST(bindings, ast.body)
-		},
-		remove: () =>
-			new LetAST(ast.bindings.filter((_, j) => j !== i), ast.body),
-	}))
-	if (ast.body !== null) {
+		replace: child =>
+			new LetAST(
+				ast.bindings.map(binding => (binding[0] === name ? ([name, child] as const) : binding)),
+				ast.body
+			),
+		remove: () => withoutBinding(ast, name),
+	})
+	const held = new Set(layersOf(ast))
+	// What is only bound first, and then what its vector holds, in the order that has.
+	const slots: Slot[] = ast.bindings
+		.filter(([name]) => !held.has(name))
+		.map(([name, value]) => slotOf(name, value))
+	if (ast.body?.kind === 'vec') {
+		const shown = new Set<string>()
+		const elements = ast.body.elements
+		const withElements = (next: readonly AST[]) => new LetAST(ast.bindings, new VecAST(next))
+		elements.forEach((element, i) => {
+			if (element.kind === 'sym' && held.has(element.name) && !shown.has(element.name)) {
+				shown.add(element.name)
+				slots.push(slotOf(element.name, ast.bindings.find(([n]) => n === element.name)![1]))
+				return
+			}
+			slots.push({
+				key: `element:${i}`,
+				label: element.kind === 'call' ? print(element.head) : element.kind === 'sym' ? element.name : `${i}`,
+				ast: element,
+				env: inside,
+				expected: null,
+				replace: child => withElements(elements.map((e, j) => (j === i ? child : e))),
+				remove: () => withElements(elements.filter((_, j) => j !== i)),
+			})
+		})
+	} else if (ast.body !== null) {
 		slots.push({
 			key: 'body',
 			label: RETURN,
@@ -1014,9 +1092,19 @@ function viewOfLet(ast: LetAST, env: Env): NodeView {
 					[...ast.bindings, [freshName(ast), new LitAST(0)] as const],
 					ast.body
 				),
+			// Where it is shown: with what is only bound, or else in what the vector holds.
 			insert: at => {
+				const name = freshName(ast)
+				const bound = ast.bindings.filter(([other]) => !held.has(other)).length
+				if (ast.body?.kind === 'vec' && at >= bound && held.size > 0) {
+					const before = slots[at]?.key
+					const found = ast.body.elements.findIndex(
+						(e, i) => before === `element:${i}` || (e.kind === 'sym' && before === `binding:${e.name}`)
+					)
+					return withLayerAdded(ast, name, new LitAST(0), found < 0 ? ast.body.elements.length : found)
+				}
 				const bindings = ast.bindings.slice()
-				bindings.splice(at, 0, [freshName(ast), new LitAST(0)] as const)
+				bindings.splice(Math.min(at, bindings.length), 0, [name, new LitAST(0)] as const)
 				return new LetAST(bindings, ast.body)
 			},
 		},
@@ -1192,6 +1280,15 @@ function editLet(
 	return bindings === null ? null : new LetAST(bindings, node.body)
 }
 
+/** `node` with its block edited, through any metadata, or null if that cannot be. */
+function editBlock(node: AST, edit: (block: LetAST) => LetAST | null): AST | null {
+	if (node.kind === 'meta') {
+		const inner = editBlock(node.expr, edit)
+		return inner === null ? null : new MetaAST(node.metadata, inner)
+	}
+	return node.kind === 'let' ? edit(node) : null
+}
+
 /**
  * `root`, with the binding at the path `source` moved to `position` of the one at
  * `target`, as a file moves in a tree: only from a let to a let, never into itself,
@@ -1223,11 +1320,9 @@ export function moveBinding(
 
 	let value: AST | undefined
 	const removed = editAt(root, env, from.slice(0, -1), node =>
-		editLet(node, bindings => {
-			value = bindings.find(([bound]) => bound === name)?.[1]
-			return value === undefined
-				? null
-				: bindings.filter(([bound]) => bound !== name)
+		editBlock(node, block => {
+			value = block.bindings.find(([bound]) => bound === name)?.[1]
+			return value === undefined ? null : withoutBinding(block, name)
 		})
 	)
 	if (removed === null || value === undefined) return null
@@ -1236,7 +1331,8 @@ export function moveBinding(
 	const fromLevels = levelsTo(root, env, from)?.levels
 	const intoLevels = intoPath.length === 0 ? [] : levelsTo(root, env, intoPath)?.levels
 	const moved = editAt(removed, env, intoPath, node =>
-		editLet(node, bindings => {
+		editBlock(node, block => {
+			const { bindings } = block
 			if (!sameLet && bindings.some(([bound]) => bound === name)) return null
 			const at =
 				position === 'inside'
@@ -1246,7 +1342,15 @@ export function moveBinding(
 			if (position !== 'inside' && at < (position === 'after' ? 1 : 0)) return null
 			const next = bindings.slice()
 			next.splice(at, 0, [name, moving] as const)
-			return next
+			// Beside what its vector holds it is held too, and beside what is only bound, only bound.
+			if (block.body?.kind !== 'vec') return new LetAST(next, block.body)
+			const { elements } = block.body
+			const beside = elements.findIndex(e => e.kind === 'sym' && e.name === anchor)
+			if (position === 'inside' ? false : beside < 0) return new LetAST(next, block.body)
+			const place = position === 'inside' ? 0 : beside + (position === 'after' ? 1 : 0)
+			const held = elements.slice()
+			held.splice(place, 0, new SymAST(name))
+			return new LetAST(next, new VecAST(held))
 		})
 	)
 	return moved === null || sameLet || fromLevels === undefined || intoLevels === undefined

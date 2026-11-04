@@ -11,7 +11,8 @@ import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 
 import { cornersOf, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf, toHex } from './graphics'
-import { sceneOf } from './scene'
+import { type GridKind, gridStep } from './grid'
+import { paintedIn } from './scene'
 
 const NAMESPACE = 'https://glisp.app/canvas'
 const STROKE_WIDTH = 1.5
@@ -49,6 +50,23 @@ const unescaped = (text: string): string =>
 		.replace(/&#39;/g, "'")
 		.replace(/&amp;/g, '&')
 
+const GRID_COLOR = '#999999'
+const DOT_RADIUS = 0.75
+
+/** A grid, as it is at full size, over the area drawn. Its lines are where it has them on the canvas. */
+function gridIn(id: string, kind: GridKind, x: number, y: number, width: number, height: number): string[] {
+	if (kind === 'none') return []
+	const step = gridStep(1)
+	const mark =
+		kind === 'dots'
+			? `<circle cx="${step / 2}" cy="${step / 2}" r="${DOT_RADIUS}" fill="${GRID_COLOR}" stroke="none"/>`
+			: `<path d="M ${step / 2} 0 V ${step} M 0 ${step / 2} H ${step}" stroke="${GRID_COLOR}" stroke-width="${DOT_RADIUS}"/>`
+	return [
+		`  <pattern id="${id}" width="${step}" height="${step}" patternUnits="userSpaceOnUse" patternTransform="translate(${-step / 2} ${-step / 2})">${mark}</pattern>`,
+		`  <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="url(#${id})" stroke="none"/>`,
+	]
+}
+
 /**
  * The rows at `paths` as an SVG, or null if nothing in them is drawn. With an `area`, it is that
  * much of them: what is at all within it, and it is what the SVG shows, whatever goes past it.
@@ -65,10 +83,10 @@ export function svgOfRows(
 				[-Infinity, -Infinity],
 				[Infinity, Infinity],
 			]
-	const shapes = sceneOf(root, env).filter(({ row, draw, value }) => {
-		if (draw !== 'path' || !paths.some(path => row === path || row.startsWith(`${path}/`))) {
-			return false
-		}
+	const isAsked = (row: string) => paths.some(path => row === path || row.startsWith(`${path}/`))
+	const painted = paintedIn(root, env).filter(({ row }) => isAsked(row))
+	const shapes = painted.filter(({ draw, value }) => {
+		if (draw !== 'path') return false
 		const [[l, t], [r, b]] = bounds(value as Path)
 		return l <= toX && r >= fromX && t <= toY && b >= fromY
 	})
@@ -86,12 +104,20 @@ export function svgOfRows(
 	const [x, y] = area ? area.origin : [left - MARGIN, top - MARGIN]
 	const [width, height] = area ? area.size : [right - left + MARGIN * 2, bottom - top + MARGIN * 2]
 
-	const drawn = shapes.map(({ row, value, paint }) => {
+	const shown = new Set(shapes)
+	const drawn = painted.flatMap(shape => {
+		const { row, draw, value, paint } = shape
 		const id = row.split('/').at(-1)!.replace(/^binding:/, '')
-		const painted = paint
+		// As far as what is drawn goes, which is all it has to be behind.
+		if (draw === 'background') {
+			return value === 'none' ? [] : [`  <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${escaped(String(value))}"/>`]
+		}
+		if (draw === 'grid') return gridIn(escaped(id), value as GridKind, x, y, width, height)
+		if (!shown.has(shape)) return []
+		const attributes = paint
 			? `${colorAttributes('fill', paint.fill)}${colorAttributes('stroke', paint.stroke)} stroke-width="${paint.width}"${lineAttributes(paint)}`
 			: ''
-		return `  <path id="${escaped(id)}" d="${toD(value as Path)}"${painted}/>`
+		return [`  <path id="${escaped(id)}" d="${toD(value as Path)}"${attributes}/>`]
 	})
 	return [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${width} ${height}" width="${width}" height="${height}" fill="none" stroke="black" stroke-width="${STROKE_WIDTH}">`,
@@ -241,5 +267,6 @@ export function bindingsOfSvg(text: string): string | null {
 			return [`${kind}${count} = ${expression}`]
 		}
 	)
-	return lines.length > 0 ? lines.join('\n') : null
+	// What comes later in an SVG is in front, and what is in front comes first here.
+	return lines.length > 0 ? lines.reverse().join('\n') : null
 }

@@ -56,7 +56,7 @@ export function useGlispDocument(
 	const prelude = withIcons(buildPrelude())
 	const session = new Session(options.env?.(prelude) ?? prelude)
 	const initial = parse(source)
-	if (initial.kind === 'let') session.setAst(new LetAST(initial.bindings, null))
+	if (initial.kind === 'let') session.setAst(initial)
 
 	const root = shallowRef(session.ast())
 	const past = shallowRef<ReadonlyArray<LetAST>>([])

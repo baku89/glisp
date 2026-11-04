@@ -12,6 +12,7 @@ import { useNumberFieldEdits } from './numberFieldEdits'
 import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
+import { sourceOfProgram } from './programSource'
 import FunctionAbout from './FunctionAbout.vue'
 import { multiSelectHostOf } from './multiInputs'
 import {
@@ -26,11 +27,12 @@ import {
 import type { MenuItem } from 'tweeq/Menu'
 import {
 	ALSO_SELECTED,
+	LAYERS,
+	ROW_PICKER,
 	COMMANDS_FOR,
 	HOST_KEY,
 	LINKER,
 	OPEN_ROW,
-	ROW_PICKER,
 	RENAMER,
 	REVEALER,
 	SELECTION,
@@ -103,6 +105,8 @@ const show = (value: unknown, env: Env): string => {
 const bindings = computed(
 	() => viewOf(props.document.root.value, props.document.env.value).slots
 )
+
+provide(LAYERS, props.layers ?? false)
 
 const rootAppend = computed(
 	() => viewOf(props.document.root.value, props.document.env.value).append
@@ -249,7 +253,7 @@ function move(source: string, target: string, position: DropPosition): void {
 
 function replaceRoot(next: AST): void {
 	if (next.kind === 'let') {
-		props.document.setRoot(new LetAST(next.bindings, null))
+		props.document.setRoot(next)
 	}
 }
 
@@ -257,14 +261,12 @@ function replaceRoot(next: AST): void {
 // that goes unsaid.
 const editingEnv = ref(false)
 const $envButton = useTemplateRef<HTMLElement>('$envButton')
-const envSource = computed(() =>
-	props.document.root.value.bindings
-		.map(([name, value]) => `${name} = ${print(value)}`)
-		.join('\n')
-)
+const envSource = computed(() => sourceOfProgram(props.document.root.value))
 const asEnv = (written: string): string => `{\n${written}\n}`
 const refuseAsEnv = (next: AST): string | null =>
-	next.kind === 'let' && next.body === null ? null : 'This can only have bindings.'
+	next.kind === 'let' && (next.body === null || next.body.kind === 'vec')
+		? null
+		: 'This can only have bindings, and a vector of what to draw.'
 
 const isInspector = computed(() => props.inspect !== undefined)
 provide(OPEN_ROW, () => props.inspect ?? null)
