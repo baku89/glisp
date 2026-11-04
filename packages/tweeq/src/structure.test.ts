@@ -1329,11 +1329,12 @@ describe('a string that is expected to be long', () => {
 		withTypeMeta(evaluate(parse('string'), env).value as TypeValue, parse(`{${fields}}`) as RecordAST)
 
 	it('shows only what it is, as its type says', () => {
-		expect(editorOfValue('M 0,0', of('input: "long-text" icon: "ph:path" summary: "SVG Path"'))).toEqual({
+		expect(editorOfValue('M 0,0', of('input: "long-text" icon: "ph:path" summary: "Path Data" language: "path-data"'))).toEqual({
 			kind: 'longText',
 			value: 'M 0,0',
-			label: 'SVG Path',
+			label: 'Path Data',
 			icon: 'ph:path',
+			language: 'path-data',
 		})
 		expect(editorOfValue('x', of('input: "long-text"'))).toEqual({ kind: 'longText', value: 'x', label: 'Text' })
 	})

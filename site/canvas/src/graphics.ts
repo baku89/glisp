@@ -428,7 +428,8 @@ const pathData = withTypeMeta(
 		['input', lit('long-text')],
 		['icon', lit('ph:path')],
 		['name', lit('path data')],
-		['summary', lit('SVG Path')],
+		['summary', lit('Path Data')],
+		['language', lit('path-data')],
 	])
 )
 
@@ -1834,7 +1835,17 @@ type Maker = (
 ) => Grip
 
 const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
-	[makeD, ([d]) => gripOfD(fromD(d as string))],
+	[
+		makeD,
+		([d]) => {
+			// Data being written need not be a path yet, and then there is nothing to hold.
+			try {
+				return gripOfD(fromD(d as string))
+			} catch {
+				return NO_GRIP
+			}
+		},
+	],
 	// All there is to take hold of is what it is the style of.
 	[makeStyled, (_, inner) => inner(0) ?? NO_GRIP],
 	[

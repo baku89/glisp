@@ -104,6 +104,29 @@ export function registerGlisp(): void {
 	} as monaco.languages.IMonarchLanguage)
 }
 
+export const PATH_DATA = 'path-data'
+
+let pathDataRegistered = false
+
+/** Register the data of a path, as SVG has it, once. What it cannot be read as shows. */
+export function registerPathData(): void {
+	if (pathDataRegistered) return
+	pathDataRegistered = true
+
+	monaco.languages.register({ id: PATH_DATA })
+	monaco.languages.setMonarchTokensProvider(PATH_DATA, {
+		tokenPostfix: '.path',
+		tokenizer: {
+			root: [
+				[/[MmLlHhVvCcSsQqTtAaZz]/, 'keyword'],
+				[/[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?/, 'number'],
+				[/[\s,]+/, 'delimiter'],
+				[/./, 'invalid'],
+			],
+		},
+	} as monaco.languages.IMonarchLanguage)
+}
+
 /**
  * Make an editor edit one expression, going on from its end: Cmd+Enter confirms, Esc
  * cancels, and Enter goes on to the next line.

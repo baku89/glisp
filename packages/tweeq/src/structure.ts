@@ -62,6 +62,8 @@ export type Editor =
 			/** What it is, which is all that shows of it until it is opened. */
 			readonly label: string
 			readonly icon?: string
+			/** What it is written in, if its type says. */
+			readonly language?: string
 	  }
 	| { readonly kind: 'boolean'; readonly value: boolean }
 	| {
@@ -507,11 +509,13 @@ export function editorOfValue(value: unknown, expected: TypeValue | null): Edito
 	// A type says so of what is expected to be too long to read in a row.
 	if (typeof value === 'string' && textOf(expected?.meta?.get('input')) === 'long-text') {
 		const icon = textOf(expected?.meta?.get('icon'))
+		const language = textOf(expected?.meta?.get('language'))
 		return {
 			kind: 'longText',
 			value,
 			label: textOf(expected?.meta?.get('summary')) ?? 'Text',
 			...(icon ? { icon } : {}),
+			...(language ? { language } : {}),
 		}
 	}
 	if (typeof value === 'string') return { kind: 'string', value }
