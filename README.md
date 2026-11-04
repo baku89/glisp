@@ -6,9 +6,9 @@ A small functional language for embedding in creative software, and a vector dra
 
 This is a work in progress, and the language may still change.
 
-![Glisp Canvas, with a program in the code panel, the ring of dots and lines it draws, and the parameters of the dots in the inspector](assets/canvas.png)
+![Glisp Canvas, with a program in the code panel, the shapes it draws with one selected, and the parameters of that shape in the inspector](assets/canvas-window.png)
 
-The picture above is this program:
+## Example
 
 ```clojure
 {
@@ -29,7 +29,7 @@ The picture above is this program:
 
 ## About
 
-Glisp stands for Graphical LISP. A project in the drawing app is a Glisp program: dragging a handle on the canvas rewrites a value in the program, and the program can be edited as code at any time. The app is not aimed at one kind of graphics, and most of what a drawing does can be written as a function.
+Glisp stands for Graphical LISP. A project in the drawing app is a Glisp program: dragging a handle on the canvas rewrites a value in the program, and the program can be edited as code at any time. The app is not aimed at one kind of graphics.
 
 In the language:
 
