@@ -1,4 +1,4 @@
-import { buildPrelude, LetAST, parse, print, renameBinding } from '@glisp/lang'
+import { type AST, buildPrelude, LetAST, parse, print, renameBinding } from '@glisp/lang'
 import { combined, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { layersOf, moveBinding, viewOf, withLayerAdded } from '@glisp/tweeq/structure'
 import { pastedRows, withoutRows } from '@glisp/tweeq/rowsClipboard'
@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { withGraphics } from './graphics'
 import { allPaintedRows, arranged, grouped, ungrouped, withBackground, withGridToggled } from './rows'
 import { svgOfRows } from './svg'
-import { sceneOf, valueOfRow, withLayersFromOrder } from './scene'
+import { isGroupRow, paintAt, rowsPaintedBy, sceneOf, valueOfRow, withLayersFromOrder, withPaint } from './scene'
 
 const env = withGraphics(buildPrelude())
 const P = (x: number) => `(path.circle [${x} 0] 1)`
@@ -185,5 +185,31 @@ describe('what is put around what is drawn', () => {
 		expect(next).not.toBeNull()
 		expect(layersOf(next!)).toEqual(['a', 'b'])
 		expect(sceneOf(next!, env)).toHaveLength(2)
+	})
+})
+
+describe('how a group is drawn', () => {
+	const source = `{n = 1 [a = ${P(1)} g = [b = ${P(2)} h = [c = ${P(3)}] d = #_${P(4)} x = 1]]}`
+
+	it('is how what is drawn in it is, however deep, hidden or not', () => {
+		expect(rowsPaintedBy(parse(source), env, 'binding:g').sort()).toEqual([
+			'binding:g/binding:b',
+			'binding:g/binding:d',
+			'binding:g/binding:h/binding:c',
+		])
+	})
+
+	it('leaves a row that is not a group as it is', () => {
+		expect(rowsPaintedBy(parse(source), env, 'binding:a')).toEqual(['binding:a'])
+	})
+
+	it('goes on being a group, once what is in it has a line', () => {
+		const root = parse(source)
+		const next = rowsPaintedBy(root, env, 'binding:g').reduce<AST>(
+			(program, row) => withPaint(program, env, row, { stroke: '#000000' }),
+			root
+		)
+		expect(isGroupRow(next, env, 'binding:g')).toBe(true)
+		expect(paintAt(next, env, 'binding:g/binding:b')?.stroke).toBe('#000000')
 	})
 })

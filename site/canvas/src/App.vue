@@ -49,7 +49,7 @@ import {
 	withBackground,
 	withGridToggled,
 } from './rows'
-import { backgroundOf, gridCall, gridOf, isOfCanvasAt, paintedRow, pathOfRow, withPaintOfRows, withLayersFromOrder } from './scene'
+import { backgroundOf, gridCall, gridOf, isOfCanvasAt, paintedRow, pathOfRow, rowsPaintedBy, withPaintOfRows, withLayersFromOrder } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -359,7 +359,7 @@ const about = computed(() => rowsAbout(selected.value, keptRow.value))
 /** What is picked out in the inspector of what it is about. */
 const pickedOut = computed(() => (about.value === selected.value ? [] : selected.value))
 const paintable = computed(() =>
-	about.value.filter(row => {
+	about.value.flatMap(row => rowsPaintedBy(document.root.value, document.env.value, row)).filter(row => {
 		const [root, env] = [document.root.value, document.env.value]
 		// A part of what a row is written as, such as a number, has no fill or line unless it is a path.
 		const isPart = !row.split('/').every(key => /^(binding|element):/.test(key))

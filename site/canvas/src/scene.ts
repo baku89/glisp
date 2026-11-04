@@ -218,6 +218,16 @@ export function paintAt(root: AST, env: Env, row: string): Paint | null {
 	return shape === undefined ? null : (shape.paint ?? NO_PAINT)
 }
 
+/**
+ * The rows that what is said of how `row` is drawn goes to: itself, or for a group, which is
+ * not drawn as anything of its own, what is drawn in it, hidden or not.
+ */
+export function rowsPaintedBy(root: AST, env: Env, row: string): string[] {
+	if (!isGroupRow(root, env, row)) return [row]
+	const inside = [...sceneOf(root, env), ...hiddenShapesOf(root, env, [row])]
+	return [...new Set(inside.map(shape => shape.row).filter(other => other.startsWith(`${row}/`)))]
+}
+
 /** The row to inspect for what the row at `row` is, past the style it is only given. */
 export function paintedRow(root: AST, env: Env, row: string): string {
 	const node = rowAt(root, env, row)?.node
