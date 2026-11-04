@@ -11,20 +11,18 @@ This is a work in progress, and the language may still change.
 ## Example
 
 ```clojure
-{
-  turn = (/ tau 96)
-  ring = (map (range 0 96) (=> (i: number): _
-    [(+ 400 (* 290 (cos (* i turn))))
-     (+ 400 (* 290 (sin (* i turn))))]))
-  [
-    dots = (spray ring 7 3 26 44 "#ff4d2e" "#ffd23f")
-    rays = (style
-      (path.radial [400 400]
-        (map (range 0 24) (=> (i: number): _ [(* i 15) 70 215])))
-      stroke="#ffffff" width=3)
-    bg = (background "#1473e6")
-  ]
-}
+turn = (/ tau 96)
+ring = (map (range 0 96) (=> (i: number): _
+  [(+ 400 (* 290 (cos (* i turn))))
+   (+ 400 (* 290 (sin (* i turn))))]))
+[
+  dots = (spray ring 7 3 26 44 "#ff4d2e" "#ffd23f")
+  rays = (style
+    (path.radial [400 400]
+      (map (range 0 24) (=> (i: number): _ [(* i 15) 70 215])))
+    stroke="#ffffff" width=3)
+  bg = (background "#1473e6")
+]
 ```
 
 ![A ring of orange dots around white lines on blue, as the program above draws it](assets/canvas.png)
