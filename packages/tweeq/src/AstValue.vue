@@ -187,9 +187,6 @@ const hasNumber = computed(
 
 const $root = useTemplateRef<HTMLElement>('$root')
 
-/** What the code opens from: the widget, which may not fill the column. */
-const widget = computed(() => ($root.value?.firstElementChild ?? null) as HTMLElement | null)
-
 function editValue(): void {
 	// After a menu has closed, which gives the focus back to where it was.
 	void nextTick(() => $root.value?.querySelector('input')?.select())
@@ -301,7 +298,7 @@ const label = (value: unknown): string =>
 		</InputTextBase>
 		<AstCodePopup
 			v-if="editing"
-			:reference="widget"
+			:reference="$root"
 			:ast="ast"
 			:start="editingStart"
 			@change="update"
@@ -319,8 +316,10 @@ const label = (value: unknown): string =>
 .value > :deep(.TqInputGroup > *) {
 	flex: 1 1 0;
 }
-.value > :deep(.TqInputSwitch) {
+/* As wide as a switch looks, for what opens from it. */
+.value:has(> :deep(.TqInputSwitch)) {
 	justify-self: start;
+	width: fit-content;
 }
 /* As a parameter driven by an expression is in After Effects or Houdini. */
 .expression {
