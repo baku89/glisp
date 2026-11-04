@@ -3,7 +3,7 @@ import { numberOptionsAt, textOf, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, onlyShapes, type Vec, withGraphics } from './graphics'
-import { anchorsAlong, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, evenlyFrom, facesWhenDrawn, gripAt, nameFor, placesTakenBy, type ShapeTool, snapPointsOf, sceneOf } from './scene'
+import { anchorsAlong, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, drawnFrom, evenlyFrom, facesWhenDrawn, gripAt, nameFor, placesTakenBy, type ShapeTool, snapPointsOf, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const ROW = 'binding:c'
@@ -564,5 +564,83 @@ describe('an ellipse from its foci', () => {
 		for (const src of ['(path.ellipseFromFoci [0 0] [0 0] [5 0])', '(path.ellipseFromFoci [0 0] [10 0] [5 0])', '(path.ellipseFromFoci [0 0] [0 0] [0 0])']) {
 			expect(evaluate(parse(src), env).diagnostics).toEqual([])
 		}
+	})
+})
+
+describe('drawn out from the center', () => {
+	const root = parse('{a = 1}') as LetAST
+	const of = (tool: ShapeTool, to: Vec, even = false) =>
+		print(drawn(root, 'x', tool, [100, 100], to, even, 0.01, false, true).bindings.at(-1)![1])
+
+	it('goes both ways, whichever way it is dragged', () => {
+		expect(of('rect', [130, 120])).toBe('(path.rect [70 80] [60 40])')
+		expect(of('rect', [70, 80])).toBe('(path.rect [70 80] [60 40])')
+		expect(of('roundRect', [130, 120])).toMatch(/^\(path\.roundRect \[70 80\] \[60 40\] /)
+		expect(of('ellipse', [130, 120])).toBe('(path.ellipse [100 100] [30 20])')
+		expect(of('superellipse', [130, 120])).toBe('(path.superellipse [100 100] [30 20] 2)')
+		expect(of('capsule', [130, 100])).toMatch(/^\(path\.capsule \[70 100\] \[130 100\] /)
+	})
+
+	it('stays even, with Shift as well', () => {
+		expect(of('rect', [130, 120], true)).toBe('(path.square [70 70] 60)')
+		expect(of('ellipse', [130, 120], true)).toBe('(path.circle [100 100] 30)')
+	})
+
+	it('is as it was, without', () => {
+		const plain = (tool: ShapeTool, even = false) =>
+			print(drawn(root, 'x', tool, [100, 100], [130, 120], even, 0.01).bindings.at(-1)![1])
+		expect(plain('rect')).toBe('(path.rect [100 100] [30 20])')
+		expect(plain('ellipse')).toBe('(path.ellipse [115 110] [15 10])')
+		expect(plain('rect', true)).toBe('(path.square [100 100] 30)')
+		expect(plain('ellipse', true)).toBe('(path.circle [115 115] 15)')
+	})
+
+	it('refers to what it snapped to, if that is its center', () => {
+		const from = parse('{o = (path.circle [50 50] 10)}') as LetAST
+		const snap = snapPointsOf(from, env, sceneOf(from, env)).find(p => p.target === 'binding:o/arg0')!
+		const source = (tool: ShapeTool) =>
+			print(drawnFrom(from, env, 'x', tool, snap, [80, 70], false, 0.01, true).bindings.at(-1)![1])
+		expect(source('ellipse')).toMatch(/^\(path\.ellipse \.\.\/o\/center \[30 20\]\)$/)
+		expect(source('rect')).toBe('(path.rect [20 30] [60 40])')
+	})
+})
+
+describe('a handle, with the other side going the other way', () => {
+	const pull = (src: string, index: number, to: Vec, how: { symmetric?: boolean; even?: boolean }) => {
+		const root = parse(`{c = ${src}}`)
+		const handle = gripAt(root, env, ROW)!.handles[index]!
+		return print((changed(root, env, ROW, handle.to(to, handle.at!, how)).ast as LetAST).bindings[0]![1])
+	}
+
+	it('keeps the middle of a line, and of a capsule', () => {
+		expect(pull('(path.line [0 0] [100 0])', 1, [120, 10], { symmetric: true })).toBe('(path.line [-20 -10] [120 10])')
+		expect(pull('(path.line [0 0] [100 0])', 0, [-20, 10], { symmetric: true })).toBe('(path.line [-20 10] [120 -10])')
+		expect(pull('(path.capsule [0 0] [100 0] 5)', 1, [120, 10], { symmetric: true })).toBe('(path.capsule [-20 -10] [120 10] 5)')
+		expect(pull('(path.line [0 0] [100 0])', 1, [120, 10], {})).toBe('(path.line [0 0] [120 10])')
+	})
+
+	it('goes by even angles around the middle, with Shift as well', () => {
+		const grip = gripAt(parse('{c = (path.line [0 0] [100 0])}'), env, ROW)!
+		const handle = grip.handles[1]!
+		expect(handle.middle).toEqual([50, 0])
+		const [{ value: end }, { value: start }] = handle.to([90, 45], [100, 0], { symmetric: true, even: true }) as { value: Vec }[]
+		expect(end![0] - 50).toBeCloseTo(end![1])
+		expect(start![0]).toBeCloseTo(100 - end![0])
+		expect(start![1]).toBeCloseTo(-end![1])
+	})
+
+	it('keeps the middle of a square', () => {
+		const SQUARE = '(path.square [0 0] 100)'
+		expect(pull(SQUARE, 0, [120, 50], { symmetric: true })).toBe('(path.square [-20 -20] 140)')
+		expect(pull(SQUARE, 1, [50, 120], { symmetric: true })).toBe('(path.square [-20 -20] 140)')
+		expect(pull(SQUARE, 3, [120, 110], { symmetric: true })).toBe('(path.square [-20 -20] 140)')
+		expect(pull(SQUARE, 2, [-20, -10], { symmetric: true })).toBe('(path.square [-20 -20] 140)')
+		expect(pull(SQUARE, 0, [120, 50], {})).toBe('(path.square [0 0] 120)')
+	})
+
+	it('moves both foci, but not what it goes through', () => {
+		expect(pull('(path.ellipseFromFoci [0 0] [100 0] [50 30])', 1, [120, 0], { symmetric: true })).toBe(
+			'(path.ellipseFromFoci [-20 0] [120 0] [50 30])'
+		)
 	})
 })

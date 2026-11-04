@@ -44,6 +44,8 @@ import {
 } from '@glisp/tweeq/structure'
 
 import { mat2d } from 'linearly'
+import { fit } from 'pave/path/fitting'
+import { toD } from 'pave/path/svg'
 import { bounds } from 'pave/path/metrics'
 
 import {
@@ -358,16 +360,19 @@ export function drawnFrom(
 	snap: SnapPoint,
 	to: Vec,
 	even: boolean,
-	step = FINEST
+	step = FINEST,
+	fromCenter = false
 ): LetAST {
 	const [dx, dy] = [to[0] - snap.at[0], to[1] - snap.at[1]]
 	const fromCorner = tool === 'rect' || tool === 'roundRect'
-	const anchored = canRefer(snap) && !(fromCorner && (dx < 0 || dy < 0))
-	const next = drawn(root, name, tool, snap.at, to, even, step, anchored)
+	// What is drawn out both ways does not start at what it snapped to, if it has an end.
+	const elsewhere = fromCenter && (fromCorner || tool === 'capsule')
+	const anchored = canRefer(snap) && !elsewhere && !(fromCorner && (dx < 0 || dy < 0))
+	const next = drawn(root, name, tool, snap.at, to, even, step, anchored, fromCenter)
 	if (!anchored) return next
 	const source = `binding:${name}/arg0`
 	const result = referred(next, env, source, snap)
-	return result?.kind === 'let' ? result : drawn(root, name, tool, snap.at, to, even, step)
+	return result?.kind === 'let' ? result : drawn(root, name, tool, snap.at, to, even, step, false, fromCenter)
 }
 
 /** How much of the program cannot be worked out, row by row. */
@@ -458,7 +463,9 @@ export function drawn(
 	to: Vec,
 	even: boolean,
 	step = FINEST,
-	anchored = false
+	anchored = false,
+	/** It goes out both ways from `from`, which is then its middle. */
+	fromCenter = false
 ): LetAST {
 	const rounded = (n: number) => roundedTo(n, step)
 	const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
@@ -467,10 +474,13 @@ export function drawn(
 	const end: Vec = even
 		? [from[0] + Math.sign(dx || 1) * side, from[1] + Math.sign(dy || 1) * side]
 		: to
-	const center: Vec = [(from[0] + end[0]) / 2, (from[1] + end[1]) / 2]
-	const corner: Vec = [Math.min(from[0], end[0]), Math.min(from[1], end[1])]
-	const size: Vec = [Math.abs(end[0] - from[0]), Math.abs(end[1] - from[1])]
-	const size2: Vec = [end[0] - from[0], end[1] - from[1]]
+	const mirrored = ([x, y]: Vec): Vec => [from[0] * 2 - x, from[1] * 2 - y]
+	const begin = fromCenter ? mirrored(end) : from
+	const center: Vec = [(begin[0] + end[0]) / 2, (begin[1] + end[1]) / 2]
+	const corner: Vec = [Math.min(begin[0], end[0]), Math.min(begin[1], end[1])]
+	const size: Vec = [Math.abs(end[0] - begin[0]), Math.abs(end[1] - begin[1])]
+	const size2: Vec = [end[0] - begin[0], end[1] - begin[1]]
+	const capsuleEnd = even ? evenlyFrom(from, to) : to
 	const out = Math.max(Math.abs(dx), Math.abs(dy))
 	const reach = Math.hypot(dx, dy)
 	const toward = (Math.atan2(dy, dx) * 180) / Math.PI
@@ -483,7 +493,7 @@ export function drawn(
 			: tool === 'star'
 			? `(path.star ${written(from)} ${rounded(reach)} ${rounded(reach * STAR_INNER)} ${NGON_SIDES}${turned})`
 			: tool === 'capsule'
-			? `(path.capsule ${written(from)} ${written(even ? evenlyFrom(from, to) : to)} ${rounded(reach * CAPSULE_RADIUS)})`
+			? `(path.capsule ${written(fromCenter ? mirrored(capsuleEnd) : from)} ${written(capsuleEnd)} ${rounded(reach * CAPSULE_RADIUS)})`
 			: tool === 'fan'
 			? `(path.fan ${written(from)} ${rounded(reach * FAN_INNER)} ${rounded(reach)} ${rounded(heading - FAN_SPREAD)} ${rounded(heading + FAN_SPREAD)})`
 			: tool === 'spiral'
@@ -497,7 +507,7 @@ export function drawn(
 			: anchored && tool === 'rect' && even
 			? `(path.square ${written(from)} ${rounded(size2[0])})`
 			: tool === 'rect' && even
-			? `(path.square ${written(corner)} ${rounded(side)})`
+			? `(path.square ${written(corner)} ${rounded(size[0])})`
 			: anchored && tool === 'rect'
 			? `(path.rect ${written(from)} ${written(size2)})`
 			: anchored && even
@@ -507,8 +517,8 @@ export function drawn(
 			: tool === 'rect'
 			? `(path.rect ${written(corner)} ${written(size)})`
 			: even
-				? `(path.circle ${written(center)} ${rounded(side / 2)})`
-				: `(path.ellipse ${written(center)} ${written([Math.abs(dx) / 2, Math.abs(dy) / 2])})`
+				? `(path.circle ${written(center)} ${rounded(size[0] / 2)})`
+				: `(path.ellipse ${written(center)} ${written([size[0] / 2, size[1] / 2])})`
 	return new LetAST([...root.bindings, [name, parse(source)]], root.body)
 }
 
@@ -620,6 +630,38 @@ function argOfAnchor(kind: PenKind, index: number): number | null {
  * `root` with what a pen has drawn through `anchors`, as what it comes to, and each place
  * that snapped to something referring to that, where it is an argument.
  */
+/** How many times as long as what it closes over a stroke has to be, to be taken as closing. */
+const PENCIL_CLOSES_OVER = 4
+
+/**
+ * `root` with a stroke of a pencil through `points`, as a curve of no more than `tolerance`
+ * from them, closed if it ends within `closesWithin` of where it began. Null if it went nowhere.
+ */
+export function pencilled(
+	root: LetAST,
+	points: readonly Vec[],
+	tolerance: number,
+	closesWithin: number
+): { ast: LetAST; name: string } | null {
+	const [first] = points
+	const last = points.at(-1)
+	if (first === undefined || last === undefined) return null
+	const length = points.reduce(
+		(sum, at, i) => (i === 0 ? 0 : sum + Math.hypot(at[0] - points[i - 1]![0], at[1] - points[i - 1]![1])),
+		0
+	)
+	if (length === 0) return null
+	const closed =
+		Math.hypot(last[0] - first[0], last[1] - first[1]) <= closesWithin &&
+		length > closesWithin * PENCIL_CLOSES_OVER
+	const through = (closed ? points.slice(0, -1) : points) as [number, number][]
+	const d = toD(fit(through, { tolerance, closed })).replace(/-?\d+\.\d+(?:e-?\d+)?/g, n =>
+		String(roundedTo(Number(n), FINEST))
+	)
+	const name = nameOfKind(root, 'pencil')
+	return { ast: new LetAST([...root.bindings, [name, parse(`(path.d "${d}")`)]], root.body), name }
+}
+
 export function penned(
 	root: LetAST,
 	env: Env,

@@ -106,6 +106,7 @@ watch(document.root, root => {
 const TOOLS = [
 	{ name: 'select', tooltip: { content: 'Select', shortcut: ['V'] }, icon: 'ph:cursor-fill' },
 	{ name: 'pen', tooltip: { content: 'Pen', shortcut: ['P'] }, icon: 'ph:pen-nib' },
+	{ name: 'pencil', tooltip: { content: 'Pencil', shortcut: ['B'] }, icon: 'ph:pencil-simple' },
 	{ name: 'rect', tooltip: { content: 'Rectangle', shortcut: ['R'] }, icon: SHAPE_ICONS.rect },
 	{ name: 'ellipse', tooltip: { content: 'Ellipse', shortcut: ['O'] }, icon: SHAPE_ICONS.circle },
 	{ name: 'ngon', tooltip: { content: 'Polygon', shortcut: ['N'] }, icon: SHAPE_ICONS.ngon },
@@ -121,7 +122,7 @@ const tool = ref<(typeof TOOLS)[number]['name']>('select')
 
 /** What is on the bar at first: the rest is there behind its dots, until it is wanted. */
 const FIRST_TOOLS: Arrangement = {
-	shown: ['select', 'pen', 'rect', 'ellipse', 'ngon'],
+	shown: ['select', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
 	stowed: ['star', 'roundRect', 'superellipse', 'capsule', 'fan', 'spiral', 'clothoid'],
 }
 const toolsKept = useAppConfigStore().ref<Partial<Arrangement> | null>('glisp.canvas.tools', null)
@@ -146,7 +147,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (key === 'v' || key === 'p') {
 		tool.value = key === 'v' ? 'select' : 'pen'
 		event.stopPropagation()
-	} else if (key === 'r') tool.value = 'rect'
+	} else if (key === 'b') tool.value = 'pencil'
+	else if (key === 'r') tool.value = 'rect'
 	else if (key === 'o') tool.value = 'ellipse'
 	else if (key === 'n') tool.value = 'ngon'
 	else if (key === 'd') dimensionsOn.value = !dimensionsOn.value

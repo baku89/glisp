@@ -53,6 +53,7 @@ import {
 	facesWhenDrawn,
 	placesTakenBy,
 	anchorsAlong,
+	pencilled,
 } from './scene'
 
 const props = defineProps<{
@@ -62,7 +63,7 @@ const props = defineProps<{
 	/** Where the program's origin is on screen, until the view has been moved. */
 	origin: readonly [number, number]
 	/** What a press does, if it draws. */
-	drawing?: ShapeTool | 'pen' | null
+	drawing?: ShapeTool | 'pen' | 'pencil' | null
 	/** A drag says its numbers exactly, and they can be typed once it is let go of. */
 	dimensions?: boolean
 	/** What is laid over the canvas to see by. */
@@ -104,6 +105,11 @@ const hoveredHandle = ref<number | null>(null)
 const draggedHandle = ref<number | null>(null)
 /** Two places on screen on the line that something going by even angles is on. */
 const evenLine = shallowRef<readonly [Vec, Vec] | null>(null)
+/** Where a pencil has been, until it is let go of and comes to be a curve. */
+const pencilStroke = shallowRef<readonly Vec[] | null>(null)
+/** How far on screen a pencil goes before that is somewhere else, and how far from the curve it can be. */
+const PENCIL_STEP = 1
+const PENCIL_TOLERANCE = 2.5
 /** The corners, on screen, of a range being drawn. */
 const range = shallowRef<{ from: Vec; to: Vec } | null>(null)
 /** How much finer than a pixel what a handle changes is, where that is small. */
@@ -694,6 +700,19 @@ function draw(): void {
 
 	drawReadout(context, ink, color('--tq-color-text-mute'), color('--tq-color-border'), paper)
 
+	if (pencilStroke.value !== null) {
+		context.lineWidth = 1
+		context.lineJoin = 'round'
+		context.lineCap = 'round'
+		context.strokeStyle = accent
+		context.beginPath()
+		for (const at of pencilStroke.value) {
+			const [px, py] = toScreen(at, view.value)
+			context.lineTo(px, py)
+		}
+		context.stroke()
+	}
+
 	if (penLine.value !== null) {
 		const [[ax, ay], [bx, by]] = penLine.value
 		context.lineWidth = 1
@@ -741,6 +760,7 @@ watchEffect(() => {
 		hoverBend.value,
 		draggedHandle.value,
 		evenLine.value,
+		pencilStroke.value,
 		scene.value,
 		background.value,
 		props.grid,
@@ -870,6 +890,7 @@ let pressed:
 	  }
 	| { kind: 'pan'; from: [number, number] }
 	| { kind: 'pen'; from: Vec }
+	| { kind: 'pencil'; points: readonly SnapPoint[] }
 	| {
 			kind: 'draw'
 			tool: ShapeTool
@@ -906,7 +927,7 @@ useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {
 	const valueOnly = event.metaKey || event.ctrlKey
 	const isModifier = ['Shift', 'Alt', 'Meta', 'Control'].includes(event.key)
 	if (isModifier && pressed?.kind === 'draw' && pressed.drawing) {
-		drawPressed(event.shiftKey, valueOnly)
+		drawPressed(event.shiftKey, valueOnly, event.altKey)
 	}
 	if (isModifier && pressed?.kind === 'handle') dragHandle(event.altKey, valueOnly, event.shiftKey)
 })
@@ -943,6 +964,11 @@ function onPointerDown(event: PointerEvent): void {
 		penLine.value = null
 	} else if (props.drawing === 'pen') {
 		penDown(x, y, event.metaKey || event.ctrlKey)
+		return
+	} else if (props.drawing === 'pencil') {
+		const points = snapPoints()
+		pencilStroke.value = [snapAt(points, x, y)?.at ?? fromScreen(x, y)]
+		pressed = { kind: 'pencil', points }
 		return
 	} else if (props.drawing) {
 		const base = props.document.root.value
@@ -1134,6 +1160,23 @@ function penDown(x: number, y: number, valueOnly: boolean): void {
 	pressed = { kind: 'pen', from: [x, y] }
 }
 
+/** That is the stroke, as a curve, which is left unselected for there to be another. */
+function finishPencil(end: SnapPoint | null): void {
+	const stroke = pencilStroke.value
+	pencilStroke.value = null
+	if (stroke === null) return
+	const zoom = view.value[0]
+	const next = pencilled(
+		props.document.root.value,
+		end === null ? stroke : [...stroke.slice(0, -1), end.at],
+		PENCIL_TOLERANCE / zoom,
+		SNAP_REACH / zoom
+	)
+	if (next === null) return
+	props.document.setRoot(next.ast)
+	emit('select', [])
+}
+
 /** That is the path, as far as it went. With only one place, it is no path at all. */
 function finishPen(): void {
 	extending = null
@@ -1146,6 +1189,14 @@ function finishPen(): void {
 }
 
 watch(() => props.drawing, finishPen)
+// Going off to something else in the middle of a stroke is leaving it undrawn.
+watch(
+	() => props.drawing,
+	() => {
+		pencilStroke.value = null
+		if (pressed?.kind === 'pencil') pressed = null
+	}
+)
 
 // Before it is what it means to a row in the tree.
 useEventListener(
@@ -1194,10 +1245,8 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	// A side taken past the other is the other one now, wherever it has been let go.
 	draggedHandle.value = nearestHandleOf(handle.kind, snap?.at ?? wanted)
 	const now = draggedHandle.value === null ? undefined : grip.value?.handles[draggedHandle.value]?.at
-	evenLine.value =
-		even && handle.pivot !== undefined && now !== undefined
-			? [toScreen(handle.pivot), toScreen(now)]
-			: null
+	const pivot = symmetric ? (handle.middle ?? handle.pivot) : handle.pivot
+	evenLine.value = even && pivot !== undefined && now !== undefined ? [toScreen(pivot), toScreen(now)] : null
 	const numbers =
 		props.dimensions && next.ast !== null
 			? dimensionsHeld(next.ast, props.document.env.value, row, handle, rounded, base, snap?.at ?? wanted, {
@@ -1217,7 +1266,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 }
 
 /** The shape being drawn, as far as the pointer has got, and as even as asked. */
-function drawPressed(even: boolean, valueOnly: boolean): void {
+function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): void {
 	if (pressed?.kind !== 'draw') return
 	const [fromX, fromY] = pressed.at
 	const [x, y] = pressed.to
@@ -1236,8 +1285,8 @@ function drawPressed(even: boolean, valueOnly: boolean): void {
 	props.document.setRoot(
 		// Command has it only be the same value, for now, rather than refer to that.
 		snap === null || valueOnly
-			? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep())
-			: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep())
+			? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep(), false, fromCenter)
+			: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep(), fromCenter)
 	)
 	if (name !== pressed.name) emit('select', [`binding:${name}`])
 	pressed.name = name
@@ -1290,6 +1339,21 @@ function onPointerMove(event: PointerEvent): void {
 		return
 	}
 	switch (pressed.kind) {
+		case 'pencil': {
+			const stroke = [...(pencilStroke.value ?? [])]
+			const said = event.getCoalescedEvents?.() ?? []
+			for (const { offsetX, offsetY } of said.length > 0 ? said : [event]) {
+				const at = fromScreen(offsetX, offsetY)
+				const before = stroke.at(-1)
+				const far = PENCIL_STEP / view.value[0]
+				if (before === undefined || Math.hypot(at[0] - before[0], at[1] - before[1]) >= far) {
+					stroke.push(at)
+				}
+			}
+			pencilStroke.value = stroke
+			snapMark.value = snapAt(pressed.points, x, y)
+			break
+		}
 		case 'pen': {
 			const [fromX, fromY] = pressed.from
 			if (pen === null || Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) break
@@ -1301,7 +1365,7 @@ function onPointerMove(event: PointerEvent): void {
 			const [fromX, fromY] = pressed.at
 			if (!pressed.drawing && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
 			pressed.to = [x, y]
-			drawPressed(event.shiftKey, event.metaKey || event.ctrlKey)
+			drawPressed(event.shiftKey, event.metaKey || event.ctrlKey, event.altKey)
 			break
 		}
 		case 'handle': {
@@ -1370,6 +1434,7 @@ useEventListener(window, 'pointerup', event => {
 		emit('select', [pressed.row])
 	}
 	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : 'default'
+	if (pressed?.kind === 'pencil') finishPencil(snapMark.value)
 	// Letting go of a drag is being at what it got hold of.
 	if (pressed !== null && held.value !== null) {
 		const base = props.document.root.value

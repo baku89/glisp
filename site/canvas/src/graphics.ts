@@ -813,6 +813,8 @@ export interface Handle {
 	readonly inward?: boolean
 	/** What it turns around, when it goes by even angles, for the line that it is then on. */
 	readonly pivot?: Vec
+	/** What it turns around instead, when the other side goes the other way. */
+	readonly middle?: Vec
 	/** It pulls what goes through somewhere else, and is not on it, as a curve's controls are. */
 	readonly control?: boolean
 	/** It does not end up where it is taken to, so it is not to refer to what it snapped to. */
@@ -1146,10 +1148,18 @@ const evenFrom = (c: Vec, to: Vec): Vec =>
 const evenEnds = (handles: readonly Handle[], a: Vec, b: Vec): Handle[] =>
 	handles.map((handle, i) => {
 		const other = i === 0 ? b : a
+		const middle: Vec = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
 		return {
 			...handle,
 			pivot: other,
-			to: (to: Vec, _: Vec, how?: HandleDrag) => [change(i, how?.even ? evenFrom(other, to) : to)],
+			middle,
+			to: (to: Vec, _: Vec, how?: HandleDrag) => {
+				const around = how?.symmetric ? middle : other
+				const at = how?.even ? evenFrom(around, to) : to
+				return how?.symmetric
+					? [change(i, at), change(1 - i, [middle[0] * 2 - at[0], middle[1] * 2 - at[1]])]
+					: [change(i, at)]
+			},
 		}
 	})
 
@@ -1375,7 +1385,9 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 		makeEllipseFromFoci,
 		args => {
 			const [focus1, focus2, through] = args as [Vec, Vec, Vec]
-			return pointsGrip(args as Vec[], [line(focus1, through), line(focus2, through)])
+			const grip = pointsGrip(args as Vec[], [line(focus1, through), line(focus2, through)])
+			const [first, second, last] = grip.handles
+			return { ...grip, handles: [...evenEnds([first!, second!], focus1, focus2), last!] }
 		},
 	],
 	[
@@ -1527,14 +1539,19 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				const next = Math.max(e[0] - x, e[1] - y)
 				return [change(0, [e[0] - next, e[1] - next]), sized(next)]
 			}
+			// Or the other side goes the other way, for the center to stay where it is.
+			const around = (half: number): Change[] => [
+				change(0, [middle[0] - half, middle[1] - half]),
+				sized(half * 2),
+			]
 			return {
 				marks: [
 					...pointMarks([0], s, 'above-start'),
 					{ route: [1], at: [middle[0], Math.max(s[1], e[1])], side: 'below' },
 				],
 				handles: [
-					{ kind: 'offset', name: 'right', code: squarePlace(1, 2), angle: 0, at: [e[0], middle[1]], to: to => [sized(to[0] - s[0])] },
-					{ kind: 'offset', name: 'bottom', code: squarePlace(2, 1), angle: 90, at: [middle[0], e[1]], to: to => [sized(to[1] - s[1])] },
+					{ kind: 'offset', name: 'right', code: squarePlace(1, 2), angle: 0, at: [e[0], middle[1]], to: (to, _, how) => (how?.symmetric ? around(to[0] - middle[0]) : [sized(to[0] - s[0])]) },
+					{ kind: 'offset', name: 'bottom', code: squarePlace(2, 1), angle: 90, at: [middle[0], e[1]], to: (to, _, how) => (how?.symmetric ? around(to[1] - middle[1]) : [sized(to[1] - s[1])]) },
 					{
 						kind: 'point',
 						name: 'top left',
@@ -1542,9 +1559,12 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						angle: 45,
 						at: s,
 						means: [{ route: [1], set: value => [change(0, [e[0] - value, e[1] - value]), sized(value)] }],
-						to: to => fromFar(to[0], to[1]),
+						to: (to, _, how) =>
+							how?.symmetric
+								? around(Math.max(middle[0] - to[0], middle[1] - to[1]))
+								: fromFar(to[0], to[1]),
 					},
-					{ kind: 'point', name: 'bottom right', code: squarePlace(1, 1), angle: 45, at: e, to: to => [sized(Math.max(to[0] - s[0], to[1] - s[1]))] },
+					{ kind: 'point', name: 'bottom right', code: squarePlace(1, 1), angle: 45, at: e, to: (to, _, how) => (how?.symmetric ? around(Math.max(to[0] - middle[0], to[1] - middle[1])) : [sized(Math.max(to[0] - s[0], to[1] - s[1]))]) },
 				],
 				guides: [],
 				snaps: {
