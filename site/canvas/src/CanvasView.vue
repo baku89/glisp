@@ -214,15 +214,15 @@ function snappedMove(
 /** How near, on screen, a place has to be to be snapped to. */
 const SNAP_REACH = 8
 
+/** The nearest of `points` within reach of `at` in the program's coordinates, unless turned off. */
+const snapNear = (points: readonly SnapPoint[], at: Vec): SnapPoint | null =>
+	props.snapping ? nearestSnap(points, at, SNAP_REACH / view.value[0]) : null
+
 /** Everywhere there is to snap to, on what `root` draws. */
 function snapPoints(
 	root: AST = props.document.root.value,
 	except?: ReadonlySet<string>
 ): SnapPoint[] {
-/** The nearest of `points` within reach of `at` in the program's coordinates, unless turned off. */
-const snapNear = (points: readonly SnapPoint[], at: Vec): SnapPoint | null =>
-	props.snapping ? nearestSnap(points, at, SNAP_REACH / view.value[0]) : null
-
 	const { env } = props.document
 	return snapPointsOf(root, env.value, sceneOf(root, env.value), except)
 }

@@ -156,7 +156,6 @@ const toggleGrid = (kind: GridKind): void => {
 /** A drag or a drawing goes to what it comes near. */
 const snappingOn = useAppConfigStore().ref('glisp.canvas.snapping', true)
 
-
 const toolKeys = new Set<string>(TOOLS.flatMap(tool => ('key' in tool ? [tool.key] : [])))
 
 /** In a drawing app these are tools, before what they mean to a row in the tree. */
@@ -602,6 +601,7 @@ actions.register([
 			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => (projectOpen.value = !projectOpen.value) },
 			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => (inspectorOpen.value = !inspectorOpen.value) },
 			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', bind: 'd', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
+			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
 			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGrid('dots') },
 			{ id: 'view_grid', label: 'Toggle Grid', icon: 'ph:grid-four', perform: () => toggleGrid('lines') },
 		],
@@ -645,6 +645,7 @@ function selectInTree(row: string | null): void {
 					:origin="origin"
 					:drawing="drawing"
 					:dimensions="dimensionsOn"
+					:snapping="snappingOn"
 					:grid="grid"
 					@select="selectOnCanvas"
 					@menu="openCanvasMenu"
@@ -667,7 +668,6 @@ function selectInTree(row: string | null): void {
 					icon="ph:tree-view"
 					:width="PROJECT_WIDTH"
 				>
-			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
 					<template #header>
 						<div class="tabs" role="tablist">
 							<button
@@ -711,7 +711,6 @@ function selectInTree(row: string | null): void {
 					</div>
 				</FloatPanel>
 				<FloatPanel
-					:snapping="snappingOn"
 					v-model:open="inspectorOpen"
 					name="glisp.canvas.inspector"
 					data-selects-rows
@@ -786,6 +785,16 @@ function selectInTree(row: string | null): void {
 					>
 						<Icon icon="ph:ruler" />
 					</button>
+					<button
+						v-tooltip="{ content: 'Snapping', shortcut: actions.shortcutOf('view_snapping') }"
+						class="tool"
+						:class="{ active: snappingOn }"
+						aria-label="Snapping"
+						:aria-pressed="snappingOn"
+						@click="snappingOn = !snappingOn"
+					>
+						<Icon icon="ph:magnet" />
+					</button>
 				</ToolBar>
 			</div>
 		</template>
@@ -851,16 +860,6 @@ function selectInTree(row: string | null): void {
 	color: var(--tq-color-text-mute);
 	cursor: pointer;
 }
-					<button
-						v-tooltip="{ content: 'Snapping', shortcut: actions.shortcutOf('view_snapping') }"
-						class="tool"
-						:class="{ active: snappingOn }"
-						aria-label="Snapping"
-						:aria-pressed="snappingOn"
-						@click="snappingOn = !snappingOn"
-					>
-						<Icon icon="ph:magnet" />
-					</button>
 .tab:hover {
 	color: var(--tq-color-text);
 }
