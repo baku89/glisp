@@ -965,3 +965,19 @@ describe('how far round something is', () => {
 		expect(optionsOf('(path.ngon [0 0] 10 5 30)', 1).suffix).toBeUndefined()
 	})
 })
+
+describe('the tip of a polygon or a star', () => {
+	it.each(['(path.ngon [0 0] 20 5 30)', '(path.star [0 0] 20 10 5 30)'])('points the way it goes out, on %s', src => {
+		const tip = gripAt(parse(`{c = ${src}}`), env, ROW)!.handles[0]!
+		expect(tip.kind).toBe('direction')
+		expect(tip.angle).toBe(30)
+	})
+
+	it('is still somewhere to start from, with a tool in hand', () => {
+		expect(onlyShapes(gripAt(parse('{c = (path.ngon [0 0] 20 5)}'), env, ROW)!.handles[0]!)).toBe(false)
+	})
+
+	it('is not what a way of its own is', () => {
+		expect(onlyShapes(gripAt(parse('{c = (path.clothoid [0 0] 30 100 0 0)}'), env, ROW)!.handles[1]!)).toBe(true)
+	})
+})

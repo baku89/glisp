@@ -323,10 +323,10 @@ describe('where each number goes', () => {
 
 		it('is out from the center of a polygon, whichever way its corner points', () => {
 			const at = (angle: number) => `{c = (path.ngon [0 0] 50 5 ${angle})}`
-			expect(pulled(at(0), 'point', [50, 0], [{ route: [1] }])).toEqual(['right'])
-			expect(pulled(at(90), 'point', [0, 50], [{ route: [1] }])).toEqual(['below'])
-			expect(pulled(at(180), 'point', [-50, 0], [{ route: [1] }])).toEqual(['left'])
-			expect(pulled(at(-90), 'point', [0, -50], [{ route: [1] }])).toEqual(['above'])
+			expect(pulled(at(0), 'direction', [50, 0], [{ route: [1] }])).toEqual(['right'])
+			expect(pulled(at(90), 'direction', [0, 50], [{ route: [1] }])).toEqual(['below'])
+			expect(pulled(at(180), 'direction', [-50, 0], [{ route: [1] }])).toEqual(['left'])
+			expect(pulled(at(-90), 'direction', [0, -50], [{ route: [1] }])).toEqual(['above'])
 		})
 
 		it('stacks what else a corner says, rather than over the first', () => {
@@ -337,7 +337,7 @@ describe('where each number goes', () => {
 				[{ route: [1] }, { route: [3] }],
 				[50, 0],
 				at => at,
-				'point'
+				'direction'
 			)
 			expect(placed.map(({ at, side }) => `${at.join()} ${side}`)).toEqual([
 				'50,0 right',

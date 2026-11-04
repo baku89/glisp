@@ -913,6 +913,8 @@ export interface Handle {
 	readonly pivot?: Vec
 	/** What it turns around instead, when the other side goes the other way. */
 	readonly middle?: Vec
+	/** It is drawn just past where it is, as there is already a corner to be seen there. */
+	readonly past?: boolean
 	/** What it is exactly, more than one thing, as a vertex is how far out and which way. */
 	readonly parts?: readonly (readonly number[])[]
 	/** It pulls what goes through somewhere else, and is not on it, as a curve's controls are. */
@@ -1007,7 +1009,6 @@ export const NO_GRIP: Grip = { handles: [], guides: [] }
 export const onlyShapes = ({ kind, control, place, code, name }: Handle): boolean =>
 	kind !== 'path' &&
 	(control === true ||
-		kind === 'direction' ||
 		kind === 'dia' ||
 		(place === undefined && code === undefined && name === undefined))
 
@@ -1299,8 +1300,10 @@ const vertexHandle = (
 ): Handle => {
 	const at = add(c, toward(angle, Math.max(radius, HANDLE_CLEAR)))
 	return {
-		kind: 'point',
+		kind: 'direction',
 		name: 'vertex',
+		angle,
+		past: true,
 		parts: [[radiusArg], [angleArg]],
 		// Held clear of what it is measured from, it is not then quite at the vertex.
 		...(code === undefined || radius < HANDLE_CLEAR ? {} : { code }),
