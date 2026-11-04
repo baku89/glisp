@@ -425,6 +425,12 @@ It goes down from the node to a literal, the only thing it changes:
 
 It stops at `@`, at a host function with no inverse, and for now at `?`, `|>` and `overload`.
 
+`map` works its function backward for each element, and then what it is passed backward to that. Only the argument changes: not the function's literals, and not what it refers to from outside.
+
+### Only part of a value
+
+`UNSET` in what is wanted is a part that can come to whatever it does. `[x (* x 2)]` wanted to be `[5 UNSET]` makes `x` 5, and the second element follows along. This is what editing one element of a vector means, where wanting the whole of it would fail.
+
 ### Which argument changes
 
 Of a call's arguments, it tries a literal first, as that changes nothing else, and then a later one before an earlier one. `(+ a 1)` changes the `1`, `(+ a @1)` changes `a`, and `(+ a b)` changes `b`, or `a` if `b` cannot change. The first that works is the one, so a program steers it with `@`.

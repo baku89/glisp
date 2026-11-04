@@ -41,6 +41,7 @@ import {
 	type TypedHostFn,
 	type TypeValue,
 	unitType,
+	UNSET,
 	withExpansion,
 	withInverse,
 	withSignature,
@@ -65,6 +66,16 @@ const without = (xs: readonly unknown[], index: number): unknown[] =>
 	xs.filter((_, i) => i !== index)
 const unlessZero = (divisor: number, value: () => number): number | undefined =>
 	divisor === 0 ? undefined : value()
+
+/** What to go through for each element to come out as wanted. The function stays. */
+const invertMap: HostInverse = (index, result, [xs, f], { invert }) => {
+	if (index !== 0 || !Array.isArray(result) || !Array.isArray(xs)) return undefined
+	if (result.length !== xs.length) return undefined
+	const needed = result.map((wanted, i) =>
+		wanted === UNSET ? UNSET : invert(f, wanted, xs[i])
+	)
+	return needed.includes(undefined) ? undefined : needed
+}
 
 const invertAnd: HostInverse = (index, result, args) =>
 	result === false
@@ -681,7 +692,7 @@ export function buildPrelude(): Env {
 		// -----------------------------------------------------------------
 		map: bind(
 			'Makes a new vector by applying `f` to each of `xs`.',
-			host(makeMap())
+			host(withInverse(makeMap(), invertMap))
 		),
 		filter: bind(
 			'Keeps those of `xs` that meet `p`.',

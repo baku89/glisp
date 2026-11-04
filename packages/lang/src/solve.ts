@@ -18,6 +18,7 @@ import {
 	type GlispClosure,
 	isGlispClosure,
 	isTypedHostFn,
+	UNSET,
 	lookupBareName,
 	pathTarget,
 	pushLetFrame,
@@ -63,6 +64,9 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 		return failure(node, env, 'not a node that can be edited')
 	}
 
+	/** Set while working out what to call a function with: all that may change. */
+	let probe: LitAST | null = null
+
 	let steps = 0
 	let reason: { ast: AST; env: Env; message: string } | null = null
 	const stop = (ast: AST, at: Env, message: string): null => {
@@ -94,7 +98,7 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 
 		switch (ast.kind) {
 			case 'lit':
-				if (!places.has(ast)) {
+				if (probe !== null ? ast !== probe : !places.has(ast)) {
 					return stop(ast, at, 'part of a function, which other calls share')
 				}
 				return typeof ast.value === typeof wanted
@@ -195,12 +199,32 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 
 		const args = ast.args.map(arg => evaluate(arg, inside).value)
 		for (const index of argumentOrder(ast.args)) {
-			const needed = inverse(index, wanted, args)
+			const needed = inverse(index, wanted, args, { invert })
 			if (needed === undefined || !isUsable(needed)) continue
 			const edits = next(ast.args[index]!, inside, needed)
 			if (edits !== null) return edits
 		}
 		return stop(ast, at, 'no argument can make that value')
+	}
+
+	const invert = (fn: unknown, result: unknown, current: unknown): unknown => {
+		const outer = probe
+		const argument = lit(current as never) as LitAST
+		probe = argument
+		try {
+			let edits: Edits | null = null
+			if (isGlispClosure(fn) && fn.ast.body !== null) {
+				const call = new CallAST(argument, [argument])
+				edits = back(fn.ast.body, bodyEnv(fn, call, null), result, 0)
+			} else if (isTypedHostFn(fn) && fn.inverse !== undefined) {
+				const needed = fn.inverse(0, result, [current], { invert })
+				return needed === undefined || !isUsable(needed) ? undefined : needed
+			}
+			if (edits === null) return undefined
+			return edits.has(argument) ? edits.get(argument) : current
+		} finally {
+			probe = outer
+		}
 	}
 
 	const edits = back(node, nodeEnv, value, 0)
@@ -395,7 +419,7 @@ function isUsable(value: unknown): boolean {
 
 /** Whether two values are the same, allowing for what arithmetic rounds off. */
 function same(a: unknown, b: unknown): boolean {
-	if (a === b) return true
+	if (a === b || b === UNSET) return true
 	if (typeof a === 'number' && typeof b === 'number') {
 		return Math.abs(a - b) <= TOLERANCE * Math.max(1, Math.abs(a), Math.abs(b))
 	}

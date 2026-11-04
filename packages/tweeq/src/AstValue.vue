@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, UNIT } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, UNIT, UNSET } from '@glisp/lang'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
@@ -168,7 +168,8 @@ const solvableNumbers = computed(() => {
 function solveElement(index: number, next: number): void {
 	const numbers = solvableNumbers.value
 	if (numbers !== null) {
-		solver?.solve(ast.value, numbers.map((n, i) => (i === index ? next : n)))
+		// The others can follow along, as what they come from may be the same.
+		solver?.solve(ast.value, numbers.map((_, i) => (i === index ? next : UNSET)))
 	}
 }
 const hasNumber = computed(

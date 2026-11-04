@@ -6,6 +6,7 @@ import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
 import { Session } from './session.js'
+import { UNSET } from './eval.js'
 import { solve } from './solve.js'
 import type { AST, LetAST } from './types.js'
 
@@ -233,5 +234,58 @@ describe('solve with booleans', () => {
 
 	it('has no way back through a comparison yet', () => {
 		expect(reason('{a = 1 r = (< a 2)}', false)).toBeDefined()
+	})
+})
+
+describe('solve for only part of a value', () => {
+	it('leaves the rest to come to whatever it does', () => {
+		expect(edited('{a = 1 b = 2 r = [a b]}', [5, UNSET])).toBe('{a = 5 b = 2 r = [a b]}')
+		expect(edited('{x = 1 r = [x x]}', [5, UNSET])).toBe('{x = 5 r = [x x]}')
+		expect(edited('{x = 1 r = [x (* x 2)]}', [5, UNSET])).toBe('{x = 5 r = [x (* x 2)]}')
+		expect(edited('{a = 1 r = {p: a q: 2}}', { p: 5, q: UNSET })).toBe('{a = 5 r = {p: a q: 2}}')
+	})
+
+	it('still fails where what is asked for cannot be', () => {
+		expect(edited('{x = 1 r = [x x]}', [5, 7])).toBeNull()
+	})
+
+	it('changes nothing with nothing asked for', () => {
+		expect(edited('{a = 1 r = [a a]}', [UNSET, UNSET])).toBe('{a = 1 r = [a a]}')
+	})
+})
+
+describe('solve through map', () => {
+	it('works the function backward for each element', () => {
+		expect(edited('{a = 1 b = 2 r = (map [a b] (* % 2))}', [10, 20])).toBe(
+			'{a = 5 b = 10 r = (map [a b] (* % 2))}'
+		)
+		expect(edited('{r = (map [1 2] (* % 2))}', [10, 20])).toBe('{r = (map [5 10] (* % 2))}')
+	})
+
+	it('goes through a named function, and leaves its literals', () => {
+		expect(
+			edited('{f = (=> (x: number): number (+ x 1)) r = (map [1 2] f)}', [10, 2])
+		).toBe('{f = (=> (x: number): number (+ x 1)) r = (map [9 1] f)}')
+	})
+
+	it('goes through what is passed to it, by name or worked out', () => {
+		expect(edited('{a = 1 xs = [a 2] r = (map xs (* % 2))}', [10, 4])).toBe(
+			'{a = 5 xs = [a 2] r = (map xs (* % 2))}'
+		)
+	})
+
+	it('does one element, and lets the others follow what they share', () => {
+		expect(
+			edited('{a = 40 s = 1.5 r = (map [a (* a s)] (* % 2))}', [200, UNSET])
+		).toBe('{a = 100 s = 1.5 r = (map [a (* a s)] (* % 2))}')
+	})
+
+	it('does not change what the function refers to from outside', () => {
+		expect(edited('{k = 2 r = (map [1] (* % k))}', [10])).toBe('{k = 2 r = (map [5] (* % k))}')
+	})
+
+	it('needs the same length, and a function with a way back', () => {
+		expect(edited('{r = (map [1 2] (* % 2))}', [1])).toBeNull()
+		expect(edited('{r = (map [1] (=> (x: number): number 5))}', [6])).toBeNull()
 	})
 })

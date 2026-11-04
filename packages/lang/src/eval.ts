@@ -733,8 +733,20 @@ export function withSignature<F extends TypedHostFn>(
 export type HostInverse = (
 	index: number,
 	result: unknown,
-	args: readonly unknown[]
+	args: readonly unknown[],
+	context: InverseContext
 ) => unknown
+
+/** In a value wanted of something, a part that can be whatever it comes to. */
+export const UNSET: unique symbol = Symbol.for('glisp.unset') as never
+
+export interface InverseContext {
+	/**
+	 * What to call a function with for it to give `result`, `current` being what it is
+	 * called with now. Undefined if nothing would do. Only that argument changes.
+	 */
+	invert(fn: unknown, result: unknown, current: unknown): unknown
+}
 
 export function withInverse<F extends TypedHostFn>(
 	fn: F,

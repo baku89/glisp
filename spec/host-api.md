@@ -146,6 +146,8 @@ withExpansion(power, ([base, exp], context) => {
 withInverse(add, (index, result, args) => result - args[1 - index])
 ```
 
+For a function that takes a function, the fourth argument has `invert(fn, result, current)`, which is what to call `fn` with for it to give `result`, or `undefined`.
+
 ### Overloads
 
 `new OverloadValue([fn1, fn2])`, bound with `host`, dispatches to the first variant whose parameters fit the arguments. In Glisp, `(overload f g)`. Order the variants from most to least specific.
@@ -208,7 +210,7 @@ isBindingName('a')              // whether a name can be a binding's
 solve(root, env, node, value)  // { ast, diagnostics }: `root`, edited so that `node` gives `value`
 ```
 
-`node` is somewhere in `root`, which stands in `env`. `ast` is null, with a diagnostic saying where it stopped, if there is no way to the value. See [Working backward](./eval.md#working-backward).
+`node` is somewhere in `root`, which stands in `env`. `value` can have `UNSET` in it for a part that can be whatever it comes to. `ast` is null, with a diagnostic saying where it stopped, if there is no way to the value. See [Working backward](./eval.md#working-backward).
 
 ## Checking and reflection
 
