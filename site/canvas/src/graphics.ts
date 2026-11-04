@@ -269,9 +269,18 @@ const makeLine = withExpansion(
 	([start, end]) =>
 		start === undefined || end === undefined ? null : callOf('polyline', [start, end])
 )
+/** As many as there can be sides, of which a shape has at least three. */
+const sideCount = withTypeMeta(
+	number,
+	new RecordAST([
+		['min', lit(3)],
+		['step', lit(1)],
+	])
+)
+
 const makeNgon = withExpansion(
 	makeTypedFn(
-		[point, number, number],
+		[point, number, sideCount],
 		pathType,
 		(center, radius, sides) =>
 			new PathValue(

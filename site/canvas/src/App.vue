@@ -66,6 +66,7 @@ const TOOLS = [
 	{ name: 'pen', tooltip: { content: 'Pen', shortcut: ['P'] }, icon: 'ph:pen-nib' },
 	{ name: 'rect', tooltip: { content: 'Rectangle', shortcut: ['R'] }, icon: 'ph:rectangle' },
 	{ name: 'ellipse', tooltip: { content: 'Ellipse', shortcut: ['O'] }, icon: 'ph:circle' },
+	{ name: 'ngon', tooltip: { content: 'Polygon', shortcut: ['N'] }, icon: 'ph:polygon' },
 ] as const
 const tool = ref<(typeof TOOLS)[number]['name']>('select')
 const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
@@ -81,6 +82,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		event.stopPropagation()
 	} else if (key === 'r') tool.value = 'rect'
 	else if (key === 'o') tool.value = 'ellipse'
+	else if (key === 'n') tool.value = 'ngon'
 	else if (key === 'escape') tool.value = 'select'
 }, { capture: true })
 

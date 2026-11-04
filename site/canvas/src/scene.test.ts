@@ -143,6 +143,11 @@ describe('drawing a shape', () => {
 		expect(shape('ellipse', [-10, -10])).toBe('{a = 1 x = (path.ellipse [0 0] [10 10])}')
 	})
 
+	it('adds a polygon out from where it was pressed', () => {
+		expect(shape('ngon', [13, 14])).toBe('{a = 1 x = (path.ngon [10 10] 5 5)}')
+		expect(nameFor(root, 'ngon', false)).toBe('ngon1')
+	})
+
 	it('is even when asked to, as far as the longer side goes', () => {
 		expect(shape('rect', [30, 50], true)).toBe('{a = 1 x = (path.rect [10 10] [40 40])}')
 		expect(shape('rect', [-30, 20], true)).toBe('{a = 1 x = (path.rect [-30 10] [40 40])}')
@@ -314,6 +319,11 @@ describe('grips', () => {
 		const source = '{c = (path.polyline [0 0] [1 1] [2 2])}'
 		expect(kinds(source)).toEqual(['point', 'point', 'point'])
 		expect(pulled(source, 2, [5, 5])).toBe('{c = (path.polyline [0 0] [1 1] [5 5])}')
+	})
+
+	it('have a whole number of sides, of at least three, on an ngon', () => {
+		const [, , sides] = viewOf(parse('(path.ngon [0 0] 10 6)'), env).slots
+		expect(sides!.numberOptions).toEqual({ min: 3, step: 1 })
 	})
 
 	it('count the sides of an ngon by how far round', () => {

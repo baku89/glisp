@@ -58,7 +58,10 @@ export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 	return [...new Set(rows)]
 }
 
-export type ShapeTool = 'rect' | 'ellipse'
+export type ShapeTool = 'rect' | 'ellipse' | 'ngon'
+
+/** How many sides a polygon starts with. */
+const NGON_SIDES = 5
 
 const rounded = (n: number): number => Math.round(n * 100) / 100
 const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
@@ -93,7 +96,9 @@ export function drawn(
 	const corner: Vec = [Math.min(from[0], end[0]), Math.min(from[1], end[1])]
 	const size: Vec = [Math.abs(end[0] - from[0]), Math.abs(end[1] - from[1])]
 	const source =
-		tool === 'rect'
+		tool === 'ngon'
+			? `(path.ngon ${written(from)} ${rounded(Math.hypot(dx, dy))} ${NGON_SIDES})`
+			: tool === 'rect'
 			? `(path.rect ${written(corner)} ${written(size)})`
 			: even
 				? `(path.circle ${written(center)} ${rounded(side / 2)})`
