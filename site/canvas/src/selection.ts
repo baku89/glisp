@@ -19,7 +19,7 @@ import {
 	type StyledValue,
 } from './graphics'
 import { nameOfRow } from './rows'
-import { isGroupRow, valueOfRow } from './scene'
+import { holdsRows, valueOfRow } from './scene'
 
 export interface Selected {
 	readonly row: string
@@ -45,7 +45,7 @@ function expressionCommandsAt(root: AST, env: Env, row: string): ReadonlySet<Slo
 export const selectedOf = (root: AST, env: Env, rows: readonly string[]): Selected[] =>
 	rows.map(row => ({
 		row,
-		value: isGroupRow(root, env, row) ? GROUP : valueOfRow(root, env, row),
+		value: holdsRows(root, env, row) ? GROUP : valueOfRow(root, env, row),
 		commands: expressionCommandsAt(root, env, row),
 		isRow: row.split('/').every(key => /^(binding|element):/.test(key)),
 	}))

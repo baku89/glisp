@@ -130,6 +130,15 @@ export const SELECTION: InjectionKey<ShallowRef<Selection | null>> =
 /** The rows selected along with the one that is, from elsewhere, such as a canvas. */
 export const ALSO_SELECTED: InjectionKey<() => readonly string[]> = Symbol('also-selected')
 
+/** The rows gone through to one gone into, from elsewhere, such as a canvas, told from being selected. */
+export const ISOLATED: InjectionKey<() => readonly string[]> = Symbol('isolated')
+
+/** The rows to list among layers in one that is not a group, however deep in it they are written. */
+export const LAYER_ROWS: InjectionKey<(path: string) => readonly string[]> = Symbol('layer-rows')
+
+/** What a row with no name of its own is called among layers, if anything says. */
+export const LAYER_LABEL: InjectionKey<(path: string) => string | null> = Symbol('layer-label')
+
 /**
  * What a host does with a click on a row, for what it means to it with the keys held.
  * False if the row is not to be selected after all, as it has only just been left out.

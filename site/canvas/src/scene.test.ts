@@ -130,8 +130,8 @@ describe('sceneOf', () => {
 	it('goes through a name, and into a vector', () => {
 		expect(scene('{c = (path.circle [0 0] 1) d = c}')).toEqual(['binding:c path', 'binding:d path'])
 		expect(scene('{v = [(path.circle [0 0] 1) (path.circle [1 1] 1)]}')).toEqual([
-			'binding:v path',
-			'binding:v path',
+			'binding:v/1 path',
+			'binding:v/0 path',
 		])
 	})
 

@@ -27,6 +27,9 @@ import {
 import type { MenuItem } from 'tweeq/Menu'
 import {
 	ALSO_SELECTED,
+	ISOLATED,
+	LAYER_LABEL,
+	LAYER_ROWS,
 	LAYERS,
 	ROW_PICKER,
 	COMMANDS_FOR,
@@ -70,6 +73,12 @@ const props = defineProps<{
 	commandsFor?: (path: string) => MenuItem[]
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
+	/** The rows gone through to one gone into, from elsewhere, such as a canvas. */
+	isolated?: readonly string[]
+	/** The rows to list among layers in one that is not a group, however deep in it they are written. */
+	layerRows?: (path: string) => readonly string[]
+	/** What a row with no name of its own is called among layers, if anything says. */
+	layerLabel?: (path: string) => string | null
 	/** What a click on a row means to the app, with the keys held. False if it is not to be selected. */
 	pickRow?: (path: string, event: MouseEvent) => boolean
 	/** What rows are on a clipboard, if not their code, for what is outside of this. */
@@ -390,6 +399,9 @@ watch(
 	}
 )
 provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
+provide(ISOLATED, () => props.isolated ?? [])
+provide(LAYER_ROWS, path => props.layerRows?.(path) ?? [])
+provide(LAYER_LABEL, path => props.layerLabel?.(path) ?? null)
 provide(ROW_PICKER, (path, event) => props.pickRow?.(path, event) ?? true)
 useDeleteInInspector(selection, () => isInspector.value, removeNearest)
 /** What was selected has just gone, so there is nothing to select again. */

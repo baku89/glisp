@@ -42,9 +42,9 @@ import {
 	type Arrange,
 	arranged,
 	type Area,
+	crumbsOf,
 	boundsOfRows,
 	allPaintedRows,
-	drawnRows,
 	grouped,
 	nameOfRow,
 	rowCalled,
@@ -54,7 +54,7 @@ import {
 	withBackground,
 	withGridToggled,
 } from './rows'
-import { backgroundOf, gridCall, gridOf, isOfCanvasAt, paintAt, paintedRow, pathOfRow, rowsPaintedBy, valueOfRow, withPaintOfRows, withLayersFromOrder } from './scene'
+import { backgroundOf, canIsolate, diveAt, labelOfRow, rowsListedIn, gridCall, gridOf, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -397,6 +397,9 @@ function showCode(): void {
 const selected = ref<readonly string[]>([])
 /** The row that a handle was clicked on, whose part that is what is selected. */
 const keptRow = ref<string | null>(null)
+/** The rows gone through to the one gone into, as a double click does, outside of which all is faint. */
+const isolation = ref<readonly string[]>([])
+const isolated = computed(() => isolation.value.at(-1) ?? null)
 /** What the inspector is about: the whole of a shape, with a part picked out of it. */
 const about = computed(() => rowsAbout(selected.value, keptRow.value))
 /** What is picked out in the inspector of what it is about. */
@@ -446,6 +449,7 @@ const $canvas = useTemplateRef<{
 	zoomTo(zoom: number): void
 	zoom(): number
 	rowAtPoint(x: number, y: number): string | null
+	leaveIsolated(): void
 	size(): readonly [number, number]
 }>('$canvas')
 const zoom = computed(() => $canvas.value?.zoom() ?? 1)
@@ -471,6 +475,45 @@ const zoomPresets = computed<MenuItem[]>(() => [
 				},
 			]),
 ])
+
+// Going by what is selected, from anywhere, to what is outside of it is leaving it, and so is
+// its no longer being there to be in.
+watch(about, rows => {
+	const at = isolated.value
+	if (at !== null && rows.some(row => !isWithin(row, at))) isolation.value = []
+})
+watch(
+	() => document.root.value,
+	root => {
+		const at = isolated.value
+		if (at !== null && !canIsolate(root, document.env.value, at)) isolation.value = []
+	}
+)
+
+const crumbs = computed(() => crumbsOf(document.root.value, document.env.value, isolation.value))
+
+/** Back out to a level, with what was gone into from there being what is selected. */
+function goToCrumb(index: number): void {
+	const crumb = crumbs.value[index]
+	const next = crumbs.value[index + 1]
+	if (crumb === undefined || next === undefined) return
+	isolation.value = crumb.through
+	selectOnCanvas([next.row])
+}
+
+function backOneLevel(): void {
+	if (crumbs.value.length > 1) goToCrumb(crumbs.value.length - 2)
+	else $canvas.value?.leaveIsolated()
+}
+
+/** Goes into a row, as a double click does on the canvas. */
+function isolateRow(row: string): void {
+	const [root, env] = [document.root.value, document.env.value]
+	const dive = diveAt(root, env, row, rowsPaintedBy(root, env, row)[0], [])
+	if (dive === null || dive.isolated === null) return
+	isolation.value = [...new Set([...isolation.value, row, dive.isolated])]
+	selectOnCanvas(dive.rows)
+}
 
 function selectOnCanvas(rows: readonly string[]): void {
 	selected.value = rows
@@ -501,6 +544,10 @@ const renamed = (row: string, name: string) =>
 function renameRow(row: string, name: string): void {
 	const next = renamed(row, name)
 	if (!(next instanceof LetAST)) return
+	// What is gone into is there under its new name, whatever else there is to say of it.
+	isolation.value = isolation.value.map(through =>
+		isWithin(through, row) ? `${rowCalled(row, name)}${through.slice(row.length)}` : through
+	)
 	document.setRoot(next)
 	if (about.value.includes(row)) {
 		const called = rowCalled(row, name)
@@ -894,7 +941,7 @@ actions.register([
 				label: 'Select All',
 				icon: 'mdi:select-all',
 				bind: 'command+a',
-				perform: () => selectOnCanvas(drawnRows(document.root.value, document.env.value)),
+				perform: () => selectOnCanvas(rowsToTake(document.root.value, document.env.value, isolated.value)),
 			},
 		],
 	},
@@ -908,6 +955,8 @@ actions.register([
 			{ id: 'object_backward', label: 'Send Backward', icon: 'mdi:arrange-send-backward', bind: '[', params: [rowsParam], perform: onRows(() => arrange('backward')) },
 			{ id: 'object_back', label: 'Send to Back', icon: 'mdi:arrange-send-to-back', bind: 'shift+[', params: [rowsParam], perform: onRows(() => arrange('back')) },
 			...(['step', 'all', 'pin', 'hide'] as const).map(slotAction),
+			{ id: 'object_isolate', label: 'Isolate', icon: 'mdi:target', params: [rowsParam], perform: onRows(() => isolateRow(selected.value[0]!)) },
+			{ id: 'object_exit_isolation', label: 'Exit Isolation', icon: 'mdi:arrow-collapse-up', perform: () => $canvas.value?.leaveIsolated() },
 			{ id: 'object_group', label: 'Group', icon: 'mdi:group', bind: 'command+g', params: [rowsParam], perform: onRows(() => group()) },
 			{ id: 'object_ungroup', label: 'Ungroup', icon: 'mdi:ungroup', bind: 'command+shift+g', params: [{ name: 'groups', type: groupType, many: true }], perform: onRows(ungroup) },
 		],
@@ -1011,9 +1060,11 @@ function selectInTree(row: string | null): void {
 					:snapping="snappingOn"
 					:grid="grid"
 					v-model:keptRow="keptRow"
+					v-model:isolation="isolation"
 					@select="selectOnCanvas"
 					@menu="openCanvasMenu"
 				/>
+				<IsolationBar v-if="crumbs.length > 0" :crumbs="crumbs" @back="backOneLevel" @go="goToCrumb" />
 				<QuickAdd
 					v-if="quickAddAt !== null"
 					:items="quickAddItems"
@@ -1071,6 +1122,9 @@ function selectInTree(row: string | null): void {
 							:commandsFor="commandsFor"
 							:iconOfValue="iconOfPath"
 							:alsoSelected="about"
+							:isolated="isolation"
+							:layerRows="row => rowsListedIn(document.root.value, document.env.value, row)"
+							:layerLabel="row => labelOfRow(document.root.value, document.env.value, row)"
 							:pickRow="pickInTree"
 							:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 							:pasteAs="bindingsOfSvg"

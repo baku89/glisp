@@ -33,7 +33,12 @@ import {
 	drawnFrom,
 	gripAt,
 	gripOfRows,
-	rowsInside,
+	diveAt,
+	innerPathsOf,
+	isOutside,
+	isWithin,
+	rowsPaintedBy,
+	rowTakenAt,
 	linked,
 	nameFor,
 	nearestSnap,
@@ -102,6 +107,8 @@ const emit = defineEmits<{
 
 const FRAME_ALPHA = 0.4
 const SOURCE_ALPHA = 0.5
+/** How much there is to see of what is outside of what is isolated. */
+const OUTSIDE_ALPHA = 0.25
 const UNPAINTED_ALPHA = 0.25
 const GRID_DOT = 2
 const GRID_DOT_ALPHA = 0.18
@@ -139,6 +146,9 @@ const draggedHandle = ref<number | null>(null)
  * one. To the canvas it is that row that is selected, or there would be nothing to go on with.
  */
 const keptRow = defineModel<string | null>('keptRow', { default: null })
+/** The row gone into, outside of which everything is faint and out of reach. */
+const isolation = defineModel<readonly string[]>('isolation', { default: () => [] })
+const isolated = computed(() => isolation.value.at(-1) ?? null)
 const taken = computed(() => rowsAbout(props.selected, keptRow.value))
 watch(taken, rows => {
 	if (rows[0] !== keptRow.value) keptRow.value = null
@@ -404,6 +414,16 @@ const background = computed(() => backgroundOf(props.document.root.value, props.
 const gripOfRow = (row: string) =>
 	gripAt(props.document.root.value, props.document.env.value, row)
 
+/** What the path that is isolated is made from, if it is a path rather than a group. */
+const insideIsolated = computed(() => {
+	const { root, env } = props.document
+	if (isolated.value === null) return []
+	return innerPathsOf(root.value, env.value, isolated.value).flatMap(row => {
+		const found = pathOfRow(root.value, env.value, row)
+		return found === null ? [] : [{ row, ...found }]
+	})
+})
+
 /** The handles of all that is selected, and whose each of them is. */
 const gripped = computed(() =>
 	gripOfRows(props.document.root.value, props.document.env.value, taken.value)
@@ -457,13 +477,14 @@ useZUI($canvas, delta => {
 })
 
 defineExpose({
+	leaveIsolated,
 	/** The row of what is drawn at a place on the screen, if anything is. */
 	rowAtPoint(clientX: number, clientY: number): string | null {
 		// Not through what floats over it.
 		const canvas = $canvas.value
 		if (!canvas || window.document.elementFromPoint(clientX, clientY) !== canvas) return null
 		const box = canvas.getBoundingClientRect()
-		return shapeAt(clientX - box.left, clientY - box.top)?.row ?? null
+		return rowOfShapeAt(clientX - box.left, clientY - box.top)
 	},
 	/** Where a place on the screen is in what is drawn. */
 	placeAt(clientX: number, clientY: number): Vec {
@@ -799,8 +820,9 @@ function draw(): void {
 		context.globalAlpha = 1
 	}
 
+	const isHovered = (row: string): boolean => hovered.value !== null && isWithin(row, hovered.value)
 	const isMarked = ({ row }: Shape): boolean =>
-		taken.value.includes(row) || row === hovered.value
+		taken.value.some(of => isWithin(row, of)) || isHovered(row)
 	const drawPoint = (shape: Shape): void => {
 		const [px, py] = toScreen(shape.value as Vec, view.value)
 		context.beginPath()
@@ -809,10 +831,11 @@ function draw(): void {
 	}
 
 	for (const shape of scene.value) {
+		context.globalAlpha = isOutside(shape.row, isolation.value) ? OUTSIDE_ALPHA : 1
 		if (shape.draw === 'frame') {
 			// An area is not part of the drawing, and is only outlined, faintly, to see where it is.
 			context.save()
-			context.globalAlpha = FRAME_ALPHA
+			context.globalAlpha *= FRAME_ALPHA
 			context.lineWidth = 1
 			context.stroke(pathOnScreen(shape.value as Path, view.value))
 			context.restore()
@@ -844,7 +867,7 @@ function draw(): void {
 			if (paint === undefined && !isMarked(shape)) {
 				// With no style it has no look of its own, and is only there to be found and worked on.
 				context.save()
-				context.globalAlpha = UNPAINTED_ALPHA
+				context.globalAlpha *= UNPAINTED_ALPHA
 				context.strokeStyle = ink
 				context.lineWidth = 1
 				context.stroke(onScreenPath)
@@ -855,6 +878,7 @@ function draw(): void {
 			drawPoint(shape)
 		}
 	}
+	context.globalAlpha = 1
 
 	// What is selected or about to be shows over everything drawn, whatever order that is in.
 	context.strokeStyle = accent
@@ -862,11 +886,17 @@ function draw(): void {
 	for (const shape of scene.value) {
 		if (!isMarked(shape)) continue
 		if (isOutlined(shape.draw)) {
-			context.lineWidth = shape.row === hovered.value ? 2 : 1.5
+			context.lineWidth = isHovered(shape.row) ? 2 : 1.5
 			context.stroke(pathOnScreen(shape.value as Path, view.value))
 		} else if (shape.draw === 'point') {
 			drawPoint(shape)
 		}
+	}
+
+	// What it is made from is what there is to take hold of, having gone into it.
+	for (const { row, path, transform } of insideIsolated.value) {
+		context.lineWidth = row === hovered.value ? 2 : 1
+		context.stroke(pathOnScreen(path, gripView(transform)))
 	}
 
 	context.strokeStyle = accent
@@ -1035,6 +1065,8 @@ watchEffect(() => {
 		size.value,
 		taken.value,
 		hovered.value,
+		isolation.value,
+		insideIsolated.value,
 		hoveredHandle.value,
 		range.value,
 		penLine.value,
@@ -1078,8 +1110,19 @@ const isOnPath = (path: Path, transform: Mat, x: number, y: number, within = fal
 
 /** The row to take hold of at a place on screen: what is selected inside of a path, or the path. */
 function rowHeldAt(x: number, y: number): string | null {
-	const inner = innerSelected.value.find(({ path, transform }) => isOnPath(path, transform, x, y))
-	return inner?.row ?? shapeAt(x, y)?.row ?? null
+	const onLine = [...innerSelected.value, ...insideIsolated.value].find(({ path, transform }) =>
+		isOnPath(path, transform, x, y)
+	)
+	// Having gone into a path, what it is made from is all there is, right across.
+	const inside = insideIsolated.value.find(({ path, transform }) => isOnPath(path, transform, x, y, true))
+	return onLine?.row ?? inside?.row ?? rowOfShapeAt(x, y)
+}
+
+/** The row that what is drawn at a place on screen goes with, which may be a group it is in. */
+function rowOfShapeAt(x: number, y: number): string | null {
+	const shape = shapeAt(x, y)
+	const { root, env } = props.document
+	return shape === null ? null : rowTakenAt(root.value, env.value, shape.row, taken.value, isolated.value)
 }
 
 /** What was selected before the clicks that a double click is, the first of which selects. */
@@ -1090,14 +1133,49 @@ const CLICKS_WITHIN_MS = 500
 /** Goes one path further into what is there, to all that it is made from. */
 function onDoubleClick(event: MouseEvent): void {
 	const { offsetX: x, offsetY: y } = event
+	if (props.drawing) return
 	const held = rowHeldAt(x, y)
-	if (held === null) return
-	const next = rowsInside(props.document.root.value, props.document.env.value, held, beforeClicks)
-	if (next.length > 0) emit('select', next)
+	if (held === null) {
+		// What it has gone into is still there underneath, and this is only outside of it elsewhere.
+		const under = shapeAt(x, y, true)
+		if (under === null || isOutside(under.row, isolation.value)) leaveIsolated()
+		return
+	}
+	const { root, env } = props.document
+	const dive = diveAt(root.value, env.value, held, shapeAt(x, y)?.row, beforeClicks)
+	if (dive === null) return
+	if (dive.isolated !== null) {
+		isolation.value = [...new Set([...isolation.value, held, dive.isolated])]
+	}
+	// What was about to be taken was the whole of it, which it no longer is.
+	hovered.value = null
+	emit('select', dive.rows)
 }
 
+/** All the way out, with what it had gone into, as a whole, being what is selected. */
+function leaveIsolated(): void {
+	const [first] = isolation.value
+	if (first === undefined) return
+	emit('select', [first.split('/')[0]!])
+	isolation.value = []
+}
+
+useEventListener(
+	window,
+	'keydown',
+	(event: KeyboardEvent) => {
+		// With a tool in hand, it is that which is let go of first, and a menu is closed before anything.
+		const isElsewhere = typing(event) || window.document.querySelector(':popover-open') !== null
+		if (event.key !== 'Escape' || isolated.value === null || props.drawing || pressed !== null || isElsewhere) return
+		event.stopPropagation()
+		event.preventDefault()
+		leaveIsolated()
+	},
+	{ capture: true }
+)
+
 /** The shape at a place on screen, the last drawn first. */
-function shapeAt(x: number, y: number): Shape | null {
+function shapeAt(x: number, y: number, outsideToo = false): Shape | null {
 	const context = $canvas.value?.getContext('2d')
 	if (!context) return null
 	context.save()
@@ -1105,6 +1183,11 @@ function shapeAt(x: number, y: number): Shape | null {
 	context.lineWidth = HIT_WIDTH
 	let found: Shape | null = null
 	for (const shape of [...scene.value].reverse()) {
+		// What is outside of what is isolated is only there to be seen.
+		if (!outsideToo && isolated.value !== null) {
+			const isWithinIsolated = isWithin(shape.row, isolated.value) && insideIsolated.value.length === 0
+			if (!isWithinIsolated) continue
+		}
 		if (isOutlined(shape.draw)) {
 			const path = pathOnScreen(shape.value as Path, view.value)
 			if (
@@ -1288,6 +1371,8 @@ function onPointerDown(event: PointerEvent): void {
 
 	// With a tool in hand, what is only there to shape something is still that.
 	const shaping = shapingHandleAt(x, y)
+	// What is drawn goes in the program as a whole, so that is where it is to be seen.
+	if (shaping === null && props.drawing) isolation.value = []
 	if (shaping !== null) {
 		penLine.value = null
 	} else if (props.drawing === 'pen') {
@@ -1365,7 +1450,10 @@ function onPointerDown(event: PointerEvent): void {
 				: [shape.row]
 		if (rows !== props.selected) emit('select', rows)
 		// A press both selects and takes hold of what it selected.
-		const moving = rows.flatMap(row => {
+		// A group has no place of its own, so that moving it is moving all that is drawn in it.
+		const { root, env } = props.document
+		const drawnRows = new Set(rows.flatMap(row => rowsPaintedBy(root.value, env.value, row)))
+		const moving = [...drawnRows].flatMap(row => {
 			const found = gripOfRow(row)
 			return found === null ? [] : [{ row, grip: found }]
 		})
@@ -1855,9 +1943,9 @@ function onPointerMove(event: PointerEvent): void {
 			return
 		}
 		const index = handleAt(x, y)
-		const shape = index === null ? shapeAt(x, y) : null
+		const shape = index === null ? rowHeldAt(x, y) : null
 		hoveredHandle.value = index
-		hovered.value = shape?.row ?? null
+		hovered.value = shape
 		cursor.value = spaceDown
 			? 'grab'
 			: index !== null
@@ -1952,11 +2040,14 @@ function onPointerMove(event: PointerEvent): void {
 			const { from } = range.value!
 			range.value = { from, to: [x, y] }
 			const within = rowsWithin(
-				scene.value,
+				scene.value.filter(({ row }) => isolated.value === null || isWithin(row, isolated.value)),
 				fromScreen(from[0], from[1]),
 				fromScreen(x, y)
 			)
-			const rows = [...new Set([...pressed.base, ...within])]
+			const { root, env } = props.document
+			const { base } = pressed
+			const takenWithin = within.map(row => rowTakenAt(root.value, env.value, row, base, isolated.value))
+			const rows = [...new Set([...base, ...takenWithin])]
 			if (rows.join() !== pressed.last.join()) {
 				pressed.last = rows
 				emit('select', rows)
@@ -2047,7 +2138,7 @@ useEventListener(window, 'pointerup', event => {
 			:style="{ cursor }"
 			@pointerdown="onPointerDown"
 			@dblclick="onDoubleClick"
-			@contextmenu.prevent="emit('menu', $event.clientX, $event.clientY, shapeAt($event.offsetX, $event.offsetY)?.row ?? null)"
+			@contextmenu.prevent="emit('menu', $event.clientX, $event.clientY, rowOfShapeAt($event.offsetX, $event.offsetY))"
 			@pointermove="onPointerMove"
 			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null), (brushPointer = null)"
 			@auxclick.prevent

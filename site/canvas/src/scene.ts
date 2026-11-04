@@ -38,6 +38,7 @@ import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import {
 	elementOptionsOf,
 	isGroup,
+	referenceTargetOf,
 	layersOf,
 	withLayerAdded,
 	isProportional,
@@ -237,7 +238,7 @@ export function paintAt(root: AST, env: Env, row: string): Paint | null {
  * not drawn as anything of its own, what is drawn in it, hidden or not.
  */
 export function rowsPaintedBy(root: AST, env: Env, row: string): string[] {
-	if (!isGroupRow(root, env, row)) return [row]
+	if (!holdsRows(root, env, row)) return [row]
 	const inside = [...sceneOf(root, env), ...hiddenShapesOf(root, env, [row])]
 	return [...new Set(inside.map(shape => shape.row).filter(other => other.startsWith(`${row}/`)))]
 }
@@ -980,23 +981,45 @@ function drawnIn(root: AST, env: Env, hidden = false): Shape[] {
 		const node = bare(block)
 		// What is drawn is what a block's vector holds, however it is bound. What comes first is
 		// in front, as it is on top in a list of layers, so it is drawn last.
-		if (node.kind !== 'let' || node.body?.kind !== 'vec') return []
+		const elements =
+			node.kind === 'vec' ? node.elements : node.kind === 'let' && node.body?.kind === 'vec' ? node.body.elements : null
+		if (elements === null) return []
 		const { slots } = viewOf(node, blockEnv)
-		const held = new Set(layersOf(node))
-		return [...node.body.elements.entries()].reverse().flatMap(([i, element]) => {
-			const key = element.kind === 'sym' && held.has(element.name) ? `binding:${element.name}` : `element:${i}`
+		const held = new Set(node.kind === 'let' ? layersOf(node) : [])
+		return [...elements.entries()].reverse().flatMap(([i, element]) => {
+			const key =
+				node.kind === 'vec'
+					? `${i}`
+					: element.kind === 'sym' && held.has(element.name)
+						? `binding:${element.name}`
+						: `element:${i}`
 			const slot = slots.find(other => other.key === key)
 			if (slot === undefined) return []
 			const isOut = inHidden || isHidden(slot.ast)
 			if (isOut && !hidden) return []
 			const row = parent === '' ? slot.key : `${parent}/${slot.key}`
-			if (isGroup(slot.ast)) return visit(slot.ast, slot.env, row, isOut)
+			if (isGroup(slot.ast) || isVecOfDrawn(slot.ast, slot.env)) return visit(slot.ast, slot.env, row, isOut)
 			if (isOut !== hidden) return []
 			const value = evaluate(readByName(slot.ast), slot.env).value
 			return shapesIn(infer(readByName(slot.ast), slot.env), value, row)
 		})
 	}
-	return visit(root, env, '', false)
+	return bare(root).kind === 'let' ? visit(root, env, '', false) : []
+}
+
+/**
+ * Whether a node is a vector of what each draws something, with no names, as what a spray comes to
+ * once it has been worked out. Each is a row of its own, as they are in a group.
+ */
+export function isVecOfDrawn(ast: AST, env: Env): boolean {
+	const node = bare(ast)
+	if (node.kind !== 'vec' || node.elements.length === 0) return false
+	if (drawOf(infer(readByName(ast), env)) !== null) return false
+	return viewOf(node, env).slots.every(({ ast: element, env: elementEnv }) => {
+		if (isHidden(element)) return true
+		const value = evaluate(readByName(element), elementEnv).value
+		return shapesIn(infer(readByName(element), elementEnv), value, '').length > 0
+	})
 }
 
 /** All that is drawn in the end, in that order: what is on the canvas, and what it is on. */
@@ -1141,9 +1164,21 @@ export function pathOfRow(
 	return path === null ? null : { path, transform: found.transform }
 }
 
+/** The row of what the row at `row` is, past the style it is only given and the names it goes by. */
+export function rowWorkedOn(root: AST, env: Env, row: string): string {
+	const seen = new Set([row])
+	let at = row
+	for (;;) {
+		const next = referenceTargetOf(root, env, at) ?? paintedRow(root, env, at)
+		if (seen.has(next)) return at
+		seen.add(next)
+		at = next
+	}
+}
+
 /** The paths that what the row at `row` comes to is made from, which is where to go into it. */
 export function innerPathsOf(root: AST, env: Env, row: string): readonly string[] {
-	const at = paintedRow(root, env, row)
+	const at = rowWorkedOn(root, env, row)
 	const found = rowAt(root, env, at)
 	if (found === null || bare(found.node).kind !== 'call') return []
 	return viewOf(found.node, found.env)
@@ -1281,6 +1316,102 @@ export function isGroupRow(root: AST, env: Env, row: string): boolean {
 	const node = rowAt(root, env, row)?.node
 	if (!node) return false
 	return isGroup(node)
+}
+
+/** Whether a row goes as what it holds does, each being a row of its own, having none of its own. */
+export function holdsRows(root: AST, env: Env, row: string): boolean {
+	const found = rowAt(root, env, row)
+	return found !== null && (isGroup(found.node) || isVecOfDrawn(found.node, found.env))
+}
+
+/**
+ * What taking hold of what is drawn at `row` takes hold of: the outermost group around it, which
+ * goes as one. A group that has something in it selected has been gone into, and is left to that,
+ * and what is isolated is as far out as anything goes.
+ */
+export function rowTakenAt(
+	root: AST,
+	env: Env,
+	row: string,
+	selected: readonly string[],
+	isolated: string | null = null
+): string {
+	const keys = row.split('/')
+	const first = isolated === null ? 1 : isolated.split('/').length + 1
+	for (let i = first; i < keys.length; i++) {
+		const around = keys.slice(0, i).join('/')
+		const isInto = selected.some(other => other.startsWith(`${around}/`))
+		if (!isInto && holdsRows(root, env, around)) return around
+	}
+	return row
+}
+
+/** The row in `group` that what is drawn at `row` is, or is in. */
+export const rowInGroup = (group: string, row: string): string =>
+	`${group}/${row.slice(group.length + 1).split('/')[0]}`
+
+/** Whether `row` is `of`, or is somewhere in it. */
+export const isWithin = (row: string, of: string): boolean => row === of || row.startsWith(`${of}/`)
+
+/**
+ * Whether what is drawn at `row` has nothing to do with what is isolated, the last of the rows that
+ * have been gone through to get there: it is neither in that, nor what any of them is part of, as
+ * what a path is made from is seen for what it makes, however far away it is written.
+ */
+export function isOutside(row: string, gone: readonly string[]): boolean {
+	const isolated = gone.at(-1)
+	return isolated !== undefined && !isWithin(row, isolated) && !gone.some(through => isWithin(through, row))
+}
+
+/** Whether there is an inside to a row to go to: a group, or a path made from others. */
+export const canIsolate = (root: AST, env: Env, row: string): boolean =>
+	holdsRows(root, env, row) || innerPathsOf(root, env, row).length > 0
+
+/**
+ * What a double click at `held` comes to: what to select, and what it has gone into, if anything,
+ * which for a group is that group, by what is drawn at `drawnRow`, and for a path what it is made
+ * of. Null if there is nothing for it to do.
+ */
+export function diveAt(
+	root: AST,
+	env: Env,
+	held: string,
+	drawnRow: string | undefined,
+	before: readonly string[]
+): { readonly rows: readonly string[]; readonly isolated: string | null } | null {
+	if (drawnRow !== undefined && drawnRow.startsWith(`${held}/`) && holdsRows(root, env, held)) {
+		return { rows: [rowInGroup(held, drawnRow)], isolated: held }
+	}
+	const rows = rowsInside(root, env, held, before)
+	const [first] = rows
+	if (first === undefined) return null
+	return { rows, isolated: first === held ? null : first.slice(0, first.lastIndexOf('/')) }
+}
+
+/** What to list in a row that is not a group: what it holds with no names, or what it is made from. */
+export function rowsListedIn(root: AST, env: Env, row: string): string[] {
+	const found = rowAt(root, env, row)
+	if (found === null) return []
+	if (isVecOfDrawn(found.node, found.env)) {
+		return viewOf(bare(found.node), found.env).slots.map(({ key }) => `${row}/${key}`)
+	}
+	// What goes by a name is listed where it is written.
+	return innerPathsOf(root, env, row).filter(inner => inner.startsWith(`${row}/`))
+}
+
+/** What a row with no name of its own is called: what makes it, past its style, or the name it refers to. */
+export function labelOfRow(root: AST, env: Env, row: string): string | null {
+	const found = rowAt(root, env, paintedRow(root, env, row))
+	if (found === null) return null
+	const node = bare(found.node)
+	return node.kind === 'sym' ? node.name : (viewOf(node, found.env).head?.label ?? null)
+}
+
+/** All that there is to select at once, from where it is isolated, as a press would take it. */
+export function rowsToTake(root: AST, env: Env, isolated: string | null): string[] {
+	if (isolated !== null && !holdsRows(root, env, isolated)) return [...innerPathsOf(root, env, isolated)]
+	const drawnInside = sceneOf(root, env).filter(({ row }) => isolated === null || isWithin(row, isolated))
+	return [...new Set(drawnInside.map(({ row }) => rowTakenAt(root, env, row, [], isolated)))]
 }
 
 /** What a row comes to, past the style it is only given. */

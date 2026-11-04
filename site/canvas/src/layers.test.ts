@@ -5,9 +5,11 @@ import { pastedRows, withoutRows } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
-import { allPaintedRows, arranged, grouped, ungrouped, withBackground, withGridToggled } from './rows'
+import { allPaintedRows, arranged, crumbsOf, grouped, ungrouped, withBackground, withGridToggled } from './rows'
 import { svgOfRows } from './svg'
-import { isGroupRow, paintAt, rowsPaintedBy, sceneOf, valueOfRow, withLayersFromOrder, withPaint } from './scene'
+import { canIsolate, changed, diveAt, gripAt, isGroupRow, isOutside, labelOfRow, paintAt, rowsListedIn, rowInGroup, rowsPaintedBy, rowsToTake, rowTakenAt, sceneOf, valueOfRow, withLayersFromOrder, withPaint } from './scene'
+import { bounds } from 'pave/path/metrics'
+import type { Path } from './graphics'
 
 const env = withGraphics(buildPrelude())
 const P = (x: number) => `(path.circle [${x} 0] 1)`
@@ -188,6 +190,54 @@ describe('what is put around what is drawn', () => {
 	})
 })
 
+describe('taking hold of what is drawn in a group', () => {
+	const source = `[a = ${P(1)} g = [b = ${P(2)} h = [c = ${P(3)} e = ${P(5)}]]]`
+	const root = parse(source)
+	const [G, H, B, C, E] = [
+		'binding:g',
+		'binding:g/binding:h',
+		'binding:g/binding:b',
+		'binding:g/binding:h/binding:c',
+		'binding:g/binding:h/binding:e',
+	]
+	const at = (row: string, selected: string[] = []) => rowTakenAt(root, env, row, selected)
+
+	it('takes hold of the outermost group', () => {
+		expect(at(C!)).toBe(G)
+		expect(at(C!, [G!])).toBe(G)
+		expect(at('binding:a', [C!])).toBe('binding:a')
+	})
+
+	it('stays in a group that has been gone into, as far as it has', () => {
+		expect(at(C!, [B!])).toBe(H)
+		expect(at(B!, [H!])).toBe(B)
+		expect(at(C!, [E!])).toBe(C)
+	})
+
+	it('goes one row further in, by what is drawn there', () => {
+		expect(rowInGroup(G!, C!)).toBe(H)
+		expect(rowInGroup(H!, C!)).toBe(C)
+	})
+
+	it('moves all that is drawn in it, and it goes on being a group', () => {
+		const rows = rowsPaintedBy(root, env, G!)
+		const next = rows.reduce<AST>((program, row) => {
+			const { move } = gripAt(root, env, row)!
+			return changed(program, env, row, move!([10, 20])).ast!
+		}, root)
+		const places = (program: AST) =>
+			Object.fromEntries(
+				sceneOf(program, env).map(({ row, value }) => [row, bounds(value as Path)[0]])
+			)
+		const [before, after] = [places(root), places(next)]
+		expect(after['binding:a']).toEqual(before['binding:a'])
+		for (const row of rows) {
+			expect(after[row]).toEqual([before[row]![0] + 10, before[row]![1] + 20])
+		}
+		expect(isGroupRow(next, env, G!)).toBe(true)
+	})
+})
+
 describe('how a group is drawn', () => {
 	const source = `{n = 1 [a = ${P(1)} g = [b = ${P(2)} h = [c = ${P(3)}] d = #_${P(4)} x = 1]]}`
 
@@ -211,5 +261,254 @@ describe('how a group is drawn', () => {
 		)
 		expect(isGroupRow(next, env, 'binding:g')).toBe(true)
 		expect(paintAt(next, env, 'binding:g/binding:b')?.stroke).toBe('#000000')
+	})
+})
+
+describe('going into something, as a double click does', () => {
+	const source = `[a = ${P(1)} g = [b = ${P(2)} h = [c = ${P(3)}]] m = (style (path.offset (path.offset ${P(4)} 1) 2) fill="#000000")]`
+	const root = parse(source)
+	const [G, H, B, C] = ['binding:g', 'binding:g/binding:h', 'binding:g/binding:b', 'binding:g/binding:h/binding:c']
+	const M = 'binding:m/arg0'
+
+	it('isolates a group, by what is drawn there, and so on further in', () => {
+		expect(diveAt(root, env, G!, B!, [])).toEqual({ rows: [B], isolated: G })
+		expect(diveAt(root, env, G!, C!, [])).toEqual({ rows: [H], isolated: G })
+		expect(diveAt(root, env, H!, C!, [])).toEqual({ rows: [C], isolated: H })
+	})
+
+	it('isolates what a path is made from, past its style, and so on further in', () => {
+		expect(diveAt(root, env, 'binding:m', undefined, [])).toEqual({ rows: [`${M}/arg0`], isolated: M })
+		expect(diveAt(root, env, `${M}/arg0`, undefined, [])).toEqual({ rows: [`${M}/arg0/arg0`], isolated: `${M}/arg0` })
+	})
+
+	it('has nothing to go into in a path made from nothing', () => {
+		expect(diveAt(root, env, B!, B!, [])).toBeNull()
+		expect(canIsolate(root, env, B!)).toBe(false)
+		expect(canIsolate(root, env, G!)).toBe(true)
+		expect(canIsolate(root, env, M)).toBe(true)
+	})
+
+	it('takes what is in it, no further out and no further in than the next', () => {
+		expect(rowTakenAt(root, env, C!, [], G!)).toBe(H)
+		expect(rowTakenAt(root, env, B!, [], G!)).toBe(B)
+		expect(rowTakenAt(root, env, C!, [], H!)).toBe(C)
+	})
+
+	it('has what is outside of it be so, and not what it is part of', () => {
+		expect(isOutside('binding:a', [G!])).toBe(true)
+		expect(isOutside(B!, [G!])).toBe(false)
+		expect(isOutside(B!, [G!, H!])).toBe(true)
+		expect(isOutside('binding:m', [M])).toBe(false)
+		expect(isOutside('binding:a', [])).toBe(false)
+	})
+
+	it('selects all of it, from where it is', () => {
+		expect(rowsToTake(root, env, null).sort()).toEqual(['binding:a', G, 'binding:m'].sort())
+		expect(rowsToTake(root, env, G!).sort()).toEqual([B, H].sort())
+		expect(rowsToTake(root, env, M)).toEqual([`${M}/arg0`])
+	})
+})
+
+describe('a vector of what is drawn, with no names, as a spray comes to', () => {
+	const circle = (x: number) => `(style (path.d "M ${x + 1} 0 A 1 1 0 0 1 ${x - 1} 0 A 1 1 0 0 1 ${x + 1} 0 Z") fill="#000000")`
+	const source = `[o = ${P(100)} s = [${circle(0)} ${circle(10)} ${circle(20)}] n = [1 2] v = [[1 2] [3 4]]]`
+	const root = parse(source)
+	const [S, FIRST] = ['binding:s', 'binding:s/0']
+
+	it('has each be a row of its own, the first in front', () => {
+		expect(sceneOf(root, env).map(({ row }) => row).filter(row => row.startsWith(S))).toEqual([
+			'binding:s/2',
+			'binding:s/1',
+			FIRST,
+		])
+	})
+
+	it('leaves numbers and places as what they are', () => {
+		expect(canIsolate(root, env, 'binding:n')).toBe(false)
+		expect(canIsolate(root, env, 'binding:v')).toBe(false)
+		expect(rowsPaintedBy(root, env, 'binding:v')).toEqual(['binding:v'])
+	})
+
+	it('is gone into, and taken hold of, as a group is', () => {
+		expect(rowTakenAt(root, env, FIRST, [])).toBe(S)
+		expect(diveAt(root, env, S, FIRST, [])).toEqual({ rows: [FIRST], isolated: S })
+		expect(rowTakenAt(root, env, FIRST, [], S)).toBe(FIRST)
+		expect(rowsToTake(root, env, S)).toHaveLength(3)
+	})
+
+	it('moves as one', () => {
+		const rows = rowsPaintedBy(root, env, S)
+		expect(rows).toHaveLength(3)
+		const next = rows.reduce<AST>((program, row) => {
+			const { move } = gripAt(root, env, row)!
+			expect(move).toBeDefined()
+			return changed(program, env, row, move!([10, 20])).ast!
+		}, root)
+		const places = (program: AST) =>
+			Object.fromEntries(sceneOf(program, env).map(({ row, value }) => [row, bounds(value as Path)[0]]))
+		const [before, after] = [places(root), places(next)]
+		for (const row of rows) {
+			expect(after[row]![0]).toBeCloseTo(before[row]![0] + 10)
+			expect(after[row]![1]).toBeCloseTo(before[row]![1] + 20)
+		}
+		expect(after['binding:o']).toEqual(before['binding:o'])
+	})
+
+	it('is let go of as a group is, each going where it was held', () => {
+		const result = ungrouped(root as LetAST, env, [S])!
+		expect(result.rows).toEqual(['element:1', 'element:2', 'element:3'])
+		expect(sceneOf(result.ast, env).map(({ row }) => row).filter(row => row.startsWith('element:'))).toEqual([
+			'element:3',
+			'element:2',
+			'element:1',
+		])
+	})
+
+	it('is left as it is, if it is not held, so that nothing goes', () => {
+		const unheld = parse(`{s = [${circle(0)} ${circle(10)}] [o = ${P(1)}]}`) as LetAST
+		expect(ungrouped(unheld, env, [S])).toBeNull()
+	})
+
+	it('is left as it is, if something still refers to it', () => {
+		const used = parse(`[s = [${circle(0)} ${circle(10)}] t = s]`) as LetAST
+		const result = ungrouped(used, env, [S])
+		expect(result).toBeNull()
+	})
+})
+
+describe('going into what goes by a name', () => {
+	const C = '(path.circle [0 0] 10)'
+	const root = parse(`{r = (path.offset ${C} 1) [m = (style r fill="#000000") n = r o = (path.offset r 2) p = ${P(9)}]}`)
+	const [R, M, N, O] = ['binding:r', 'binding:m', 'binding:n', 'binding:o']
+
+	it('goes to where it is written, past a style', () => {
+		expect(canIsolate(root, env, M!)).toBe(true)
+		expect(diveAt(root, env, M!, undefined, [])).toEqual({ rows: [`${R}/arg0`], isolated: R })
+	})
+
+	it('goes the same way from a row that is only the name', () => {
+		expect(diveAt(root, env, N!, undefined, [])).toEqual({ rows: [`${R}/arg0`], isolated: R })
+	})
+
+	it('goes on through a name it comes to, once it is in', () => {
+		expect(diveAt(root, env, O!, undefined, [])).toEqual({ rows: [`${O}/arg0`], isolated: O })
+		expect(diveAt(root, env, `${O}/arg0`, undefined, [])).toEqual({ rows: [`${R}/arg0`], isolated: R })
+	})
+
+	it('keeps what it went through in sight, and not what merely uses it too', () => {
+		expect(isOutside(M!, [M!, R!])).toBe(false)
+		expect(isOutside(N!, [M!, R!])).toBe(true)
+		expect(isOutside('binding:p', [M!, R!])).toBe(true)
+	})
+
+	it('has nothing to go into in what is made from nothing, however it is named', () => {
+		const plain = parse(`{r = ${C} [m = (style r fill="#000000")]}`)
+		expect(canIsolate(plain, env, 'binding:m')).toBe(false)
+	})
+})
+
+describe('what is listed in a row that is not a group', () => {
+	const root = parse(`{r = ${P(0)} [
+		u = (style (path.unite ${P(1)} ${P(2)} ${P(3)}) fill="#000000")
+		h = (path.convexHull ${P(4)})
+		n = (path.offset (path.offset ${P(5)} 1) 2)
+		o = (path.offset r 2)
+		c = (style r fill="#000000")
+		p = ${P(6)}
+		s = [(style ${P(7)} fill="#000000") ${P(8)}]
+		v = [1 2]
+	]}`)
+	const listed = (row: string) => rowsListedIn(root, env, `binding:${row}`).map(it => it.replace(`binding:${row}/`, ''))
+
+	it('is what it is made from, past its style, all of it', () => {
+		expect(listed('u')).toEqual(['arg0/arg0', 'arg0/arg1', 'arg0/arg2'])
+		expect(listed('h')).toEqual(['arg0'])
+	})
+
+	it('goes one at a time', () => {
+		expect(listed('n')).toEqual(['arg0'])
+		expect(rowsListedIn(root, env, 'binding:n/arg0')).toEqual(['binding:n/arg0/arg0'])
+	})
+
+	it('is the name, where it is only that, and what it is written as only where that is', () => {
+		expect(listed('o')).toEqual(['arg0'])
+		expect(rowsListedIn(root, env, 'binding:o/arg0')).toEqual([])
+		expect(listed('c')).toEqual([])
+	})
+
+	it('is nothing in a path made from nothing, or what is not drawn', () => {
+		expect(listed('p')).toEqual([])
+		expect(listed('v')).toEqual([])
+	})
+
+	it('is what a vector holds, each being drawn', () => {
+		expect(listed('s')).toEqual(['0', '1'])
+	})
+
+	it('is called what makes it, past its style, or what it refers to', () => {
+		expect(labelOfRow(root, env, 'binding:u/arg0/arg0')).toBe('Circle')
+		expect(labelOfRow(root, env, 'binding:s/0')).toBe('Circle')
+		expect(labelOfRow(root, env, 'binding:n/arg0')).toBe('Offset')
+		expect(labelOfRow(root, env, 'binding:o/arg0')).toBe('r')
+	})
+})
+
+describe('the levels gone into', () => {
+	const root = parse(`{r = (path.offset ${P(0)} 1) [
+		g = [h = [a = ${P(1)}]]
+		n = (style (path.offset (path.offset ${P(2)} 1) 2) fill="#000000")
+		m = (style r fill="#000000")
+		o = (path.offset r 2)
+	]}`)
+	const crumbs = (gone: string[]) => crumbsOf(root, env, gone).map(({ label }) => label)
+
+	it('is nothing, having gone into nothing', () => {
+		expect(crumbs([])).toEqual([])
+	})
+
+	it('goes by the names of groups', () => {
+		expect(crumbs(['binding:g', 'binding:g/binding:h'])).toEqual(['g', 'h'])
+	})
+
+	it('has a row and what it is styled be one level', () => {
+		expect(crumbs(['binding:n', 'binding:n/arg0'])).toEqual(['n'])
+		expect(crumbs(['binding:n', 'binding:n/arg0', 'binding:n/arg0/arg0'])).toEqual(['n', 'Offset'])
+	})
+
+	it('has a row and what it refers to be one level', () => {
+		expect(crumbs(['binding:m', 'binding:r'])).toEqual(['m'])
+		expect(crumbs(['binding:o', 'binding:o/arg0', 'binding:r'])).toEqual(['o', 'r'])
+	})
+
+	it('goes back to all that it had gone through', () => {
+		const [first] = crumbsOf(root, env, ['binding:n', 'binding:n/arg0', 'binding:n/arg0/arg0'])
+		expect(first!.through).toEqual(['binding:n', 'binding:n/arg0'])
+	})
+})
+
+describe('grouping inside of a group', () => {
+	const [X, Y, Z] = [P(1), P(2), P(3)]
+	const root = parse(`[o = [g = [a = ${X} b = ${Y}] d = ${Z}] c = ${P(4)}]`) as LetAST
+
+	it('lets go of a group where it is', () => {
+		const result = ungrouped(root, env, ['binding:o/binding:g'])!
+		expect(print(result.ast)).toBe(`[o = [a = ${X} b = ${Y} d = ${Z}] c = ${P(4)}]`)
+		expect(result.rows).toEqual(['binding:o/binding:a', 'binding:o/binding:b'])
+	})
+
+	it('groups where they are', () => {
+		const result = grouped(root, env, ['binding:o/binding:g', 'binding:o/binding:d'])!
+		expect(result.row).toBe('binding:o/binding:group1')
+		expect(print(result.ast)).toBe(`[o = [group1 = [g = [a = ${X} b = ${Y}] d = ${Z}]] c = ${P(4)}]`)
+	})
+
+	it('does not group across blocks', () => {
+		expect(grouped(root, env, ['binding:o/binding:d', 'binding:c'])).toBeNull()
+	})
+
+	it('lets go of one in each of two blocks, at once', () => {
+		const two = parse(`[o = [g = [a = ${X}]] h = [b = ${Y}]]`) as LetAST
+		const result = ungrouped(two, env, ['binding:o/binding:g', 'binding:h'])!
+		expect(print(result.ast)).toBe(`[o = [a = ${X}] b = ${Y}]`)
 	})
 })

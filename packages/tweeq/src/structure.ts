@@ -51,6 +51,25 @@ import {
 	VecAST,
 } from '@glisp/lang'
 
+/**
+ * The slot that `keys` lead to from `ast`, going through those on the way as if they were not
+ * there: what is done to it goes to what `ast` comes to be, and its key says the way there.
+ */
+export function slotAlong(ast: AST, env: Env, keys: readonly string[]): Slot | null {
+	const [first, ...rest] = keys
+	const slot = viewOf(ast, env).slots.find(({ key }) => key === first)
+	if (slot === undefined || rest.length === 0) return slot ?? null
+	const inner = slotAlong(slot.ast, slot.env, rest)
+	if (inner === null) return null
+	const { remove } = inner
+	return {
+		...inner,
+		key: `${slot.key}/${inner.key}`,
+		replace: child => slot.replace(inner.replace(child)),
+		...(remove === undefined ? {} : { remove: () => slot.replace(remove()) }),
+	}
+}
+
 /** Whether a node is a block that comes to a vector of what it holds, which is to say a group. */
 export const isGroup = (ast: AST): boolean => {
 	const bare = ast.kind === 'meta' ? ast.expr : ast

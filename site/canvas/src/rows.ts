@@ -3,13 +3,13 @@
  * that of the vector the program comes to, and groups, which are vectors of their own.
  */
 
-import { type AST, type Env, evaluate, isHidden, LetAST, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
+import { type AST, type Env, evaluate, isHidden, LetAST, MetaAST, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
-import { isGroup, layersOf, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
+import { isGroup, layersOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import type { Path, Vec } from './graphics'
-import { backgroundCall, backgroundOf, backgroundRowsIn, gridCall, gridOf, gridRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
+import { isVecOfDrawn, labelOfRow, rowWorkedOn, backgroundCall, backgroundOf, backgroundRowsIn, gridCall, gridOf, gridRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
 
 const BINDING = 'binding:'
 
@@ -182,7 +182,7 @@ export function withGridToggled(root: LetAST, env: Env, kind: 'dots' | 'lines'):
  * nothing to group, or if that would leave anything not coming to what it did: a path
  * counts how far it goes, so one that goes in or out of the group no longer gets there.
  */
-export function grouped(
+function groupedIn(
 	root: LetAST,
 	env: Env,
 	rows: readonly string[]
@@ -213,21 +213,34 @@ export function grouped(
  * `root`, with the groups among the rows let go of, what was in them being where they
  * were. Null if none of them is one, or what is in one would no longer come to the same.
  */
-export function ungrouped(
+function ungroupedIn(
 	root: LetAST,
 	env: Env,
 	rows: readonly string[]
 ): { ast: LetAST; rows: string[] } | null {
 	const names = namesOf(rows)
+	const { slots } = viewOf(root, env)
+	const envOf = (key: string): Env => slots.find(slot => slot.key === key)?.env ?? env
+	const elements = root.body?.kind === 'vec' ? root.body.elements : []
+	// What has no names goes where it is held, and what is not held has nowhere to go.
+	const isVecLetGo = (name: string, value: AST): boolean =>
+		elements.some(element => element.kind === 'sym' && element.name === name) &&
+		isVecOfDrawn(value, envOf(`${BINDING}${name}`))
 	const isFreed = ([name, value]: readonly [string, AST]) =>
-		names.has(name) && value.kind === 'let' && isGroup(value)
-	if (!root.bindings.some(isFreed)) return null
+		names.has(name) && ((value.kind === 'let' && isGroup(value)) || isVecLetGo(name, value))
+	const isElementFreed = (element: AST, i: number): element is VecAST =>
+		rows.includes(`element:${i}`) && isVecOfDrawn(element, envOf(`element:${i}`))
+	if (!root.bindings.some(isFreed) && !elements.some(isElementFreed)) return null
 	const taken = new Set(root.bindings.filter(b => !isFreed(b)).map(([name]) => name))
 	const freed: string[] = []
 	const moves: (readonly [readonly string[], readonly string[]])[] = []
 	const heldBy = new Map<string, readonly AST[]>()
 	const bindings = root.bindings.flatMap((binding): (readonly [string, AST])[] => {
 		if (!isFreed(binding)) return [binding]
+		if (binding[1].kind === 'vec') {
+			heldBy.set(binding[0], binding[1].elements)
+			return []
+		}
 		const group = binding[1] as LetAST
 		const members = group.bindings
 		if (members.some(([name]) => taken.has(name))) return [binding]
@@ -239,22 +252,82 @@ export function ungrouped(
 		}
 		return [...members]
 	})
+	const held: AST[] = []
+	elements.forEach((element, i) => {
+		const inside = isElementFreed(element, i)
+			? element.elements
+			: element.kind === 'sym'
+				? heldBy.get(element.name)
+				: undefined
+		for (const each of inside ?? [element]) {
+			if (inside !== undefined && each.kind !== 'sym') freed.push(`element:${held.length}`)
+			held.push(each)
+		}
+	})
 	const ast = moves.reduce<AST>(
 		(moved, [from, to]) => withPathsMoved(moved, env, from, to),
-		new LetAST(
-			bindings,
-			root.body?.kind === 'vec'
-				? new VecAST(
-						root.body.elements.flatMap(element =>
-							element.kind === 'sym' ? (heldBy.get(element.name) ?? [element]) : [element]
-						)
-					)
-				: root.body
-		)
+		new LetAST(bindings, root.body?.kind === 'vec' ? new VecAST(held) : root.body)
 	) as LetAST
 	return freed.length === 0 || errorsIn(ast, env) > errorsIn(root, env)
 		? null
 		: { ast, rows: freed }
+}
+
+const parentOf = (row: string): string => row.slice(0, Math.max(0, row.lastIndexOf('/')))
+const keyOf = (row: string): string => row.slice(row.lastIndexOf('/') + 1)
+const inParent = (parent: string, row: string): string => (parent === '' ? row : `${parent}/${row}`)
+
+/**
+ * `root`, with `act` done to the block at the row `parent`, wherever that is, and what else it
+ * says. Null if there is no block there, or nothing comes of it.
+ */
+function inBlock<R extends { readonly ast: LetAST }>(
+	root: LetAST,
+	env: Env,
+	parent: string,
+	act: (block: LetAST, blockEnv: Env) => R | null
+): R | null {
+	if (parent === '') return act(root, env)
+	const slot = slotAlong(root, env, parent.split('/'))
+	const block = slot?.ast.kind === 'meta' ? slot.ast.expr : slot?.ast
+	if (!slot || !(block instanceof LetAST)) return null
+	const result = act(block, slot.env)
+	if (result === null) return null
+	const next = slot.ast.kind === 'meta' ? new MetaAST(slot.ast.metadata, result.ast) : result.ast
+	return { ...result, ast: slot.replace(next) as LetAST }
+}
+
+/** `rows`, all in the one block, in a group of their own there. Null if they are not in one. */
+export function grouped(
+	root: LetAST,
+	env: Env,
+	rows: readonly string[]
+): { ast: LetAST; row: string } | null {
+	const parent = parentOf(rows[0] ?? '')
+	if (rows.some(row => parentOf(row) !== parent)) return null
+	const result = inBlock(root, env, parent, (block, blockEnv) => groupedIn(block, blockEnv, rows.map(keyOf)))
+	if (result === null || errorsIn(result.ast, env) > errorsIn(root, env)) return null
+	return { ast: result.ast, row: inParent(parent, result.row) }
+}
+
+/** `root`, with the groups among `rows` let go of, in whatever block each of them is. */
+export function ungrouped(
+	root: LetAST,
+	env: Env,
+	rows: readonly string[]
+): { ast: LetAST; rows: string[] } | null {
+	// From the deepest, for there still being the way to what is further out.
+	const parents = [...new Set(rows.map(parentOf))].sort((a, b) => b.length - a.length)
+	let ast = root
+	const freed: string[] = []
+	for (const parent of parents) {
+		const keys = rows.filter(row => parentOf(row) === parent).map(keyOf)
+		const result = inBlock(ast, env, parent, (block, blockEnv) => ungroupedIn(block, blockEnv, keys))
+		if (result === null) continue
+		ast = result.ast
+		freed.push(...result.rows.map(row => inParent(parent, row)))
+	}
+	return freed.length === 0 || errorsIn(ast, env) > errorsIn(root, env) ? null : { ast, rows: freed }
 }
 
 /** The rows that draw anything, once each, in the order they are drawn. */
@@ -343,6 +416,32 @@ export const rowsAbout = (selected: readonly string[], kept: string | null): rea
 export function nameOfRow(row: string): string | null {
 	const key = row.split('/').at(-1)!
 	return key.startsWith(BINDING) ? key.slice(BINDING.length) : null
+}
+
+/** One level of what has been gone into, to be told of and gone back to. */
+export interface Crumb {
+	readonly row: string
+	readonly label: string
+	/** The rows gone through by the time this is what is isolated. */
+	readonly through: readonly string[]
+}
+
+/**
+ * The levels that the rows gone through come to. A row and what it only stands for, as a style
+ * stands for what it is given and a name for what it refers to, are one and the same level.
+ */
+export function crumbsOf(root: AST, env: Env, gone: readonly string[]): Crumb[] {
+	const crumbs: Crumb[] = []
+	gone.forEach((row, i) => {
+		const last = crumbs.at(-1)
+		if (last !== undefined && rowWorkedOn(root, env, last.through.at(-1)!) === row) {
+			crumbs[crumbs.length - 1] = { ...last, through: gone.slice(0, i + 1) }
+		} else {
+			const label = nameOfRow(row) ?? labelOfRow(root, env, row) ?? row
+			crumbs.push({ row, label, through: gone.slice(0, i + 1) })
+		}
+	})
+	return crumbs
 }
 
 /** The row of the same binding, once it has been called `name`. */

@@ -17,9 +17,10 @@ import { iconOf } from './icons'
 import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
-	HOST_KEY, ALSO_SELECTED, LAYERS, LINKER, LOCKED, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
+	HOST_KEY, ALSO_SELECTED, ISOLATED, LAYER_LABEL, LAYER_ROWS, LAYERS, LINKER, LOCKED, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
+	slotAlong,
 	canSolve,
 	elementAt,
 	canStack,
@@ -127,6 +128,8 @@ const renamer = inject(RENAMER, null)
 const renaming = ref(false)
 
 const open = ref(inject(OPEN_ROW, null)?.() === props.path)
+const layerRows = inject(LAYER_ROWS, null)
+const layerLabel = inject(LAYER_LABEL, null)
 
 /** A short vector shows its elements on its own row, until it is opened. */
 const tree = inject(ParameterTreeContextKey, null)
@@ -330,7 +333,13 @@ function toggle(id: 'pin' | 'hide'): void {
 }
 
 const children = computed(() => {
-	if (layers) return isGroup(ast.value) ? view.value.slots : []
+	if (layers) {
+		if (isGroup(ast.value)) return view.value.slots
+		return (layerRows?.(props.path) ?? []).flatMap(row => {
+			const slot = slotAlong(ast.value, props.entry.env, row.slice(props.path.length + 1).split('/'))
+			return slot === null ? [] : [slot]
+		})
+	}
 	return view.value.head === null ? view.value.slots : [view.value.head, ...view.value.slots]
 })
 
@@ -344,6 +353,12 @@ const selected = computed(() => {
 		(!open.value && also.some(row => row.startsWith(`${props.path}/`)))
 	)
 })
+
+// All the way to what has been gone into, which may be a part of a row that is not listed.
+const isolatedRows = inject(ISOLATED, null)
+const isIsolated = computed(() =>
+	(isolatedRows?.() ?? []).some(row => row === props.path || row.startsWith(`${props.path}/`))
+)
 
 const picker = inject(ROW_PICKER, null)
 function pick(event: MouseEvent): void {
@@ -444,7 +459,7 @@ watch(
 	<ParameterTreeItem
 		ref="$item"
 		v-model:open="open"
-		:label="view.label ?? (titled ? titleOf(entry) : entry.label)"
+		:label="(layers && !isBinding ? layerLabel?.(path) : null) ?? view.label ?? (titled ? titleOf(entry) : entry.label)"
 		:icon="icon"
 		:hint="hint"
 		:expandable="expandable"
@@ -463,7 +478,7 @@ watch(
 		@select="pick"
 		@nameClick="isFunction && (editingCode = true)"
 	>
-		<div class="value-row" :class="{ stacked: inline && fit === 'stacked', locked }">
+		<div class="value-row" :class="{ stacked: inline && fit === 'stacked', locked, isolated: isIsolated }">
 			<InputTranslate
 				v-if="translatable"
 				:inert="locked"
@@ -595,6 +610,12 @@ watch(
 /* Not written: what it comes to anyway, until it is edited. */
 :global(.TqParameterTreeItem:has(.row-absent):not(:hover, :focus-within)) {
 	opacity: 0.5;
+}
+/* Gone into, which is not the same as being selected, and can be along with it. */
+:global(.TqParameterTreeItem:has(.value-row.isolated)) {
+	border-radius: var(--tq-radius-input);
+	outline: 1px solid var(--tq-color-accent);
+	outline-offset: -1px;
 }
 /* There when reached for, or when it is what the row being selected would do. */
 /* Taking no room from the name, until it is what is reached for. */

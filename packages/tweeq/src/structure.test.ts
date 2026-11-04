@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetA
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { slotAlong, slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -1581,5 +1581,25 @@ describe('slotCommandOfKey', () => {
 		expect(key('p')).toBeNull()
 		expect(key('e', { metaKey: true })).toBeNull()
 		expect(key('a')).toBeNull()
+	})
+})
+
+describe('slotAlong', () => {
+	const env = buildPrelude()
+	const root = parse('(inc (inc 1))')
+
+	it('reaches through what is on the way, its key saying the way there', () => {
+		const slot = slotAlong(root, env, ['arg0', 'arg0'])!
+		expect(slot.key).toBe('arg0/arg0')
+		expect(print(slot.ast)).toBe('1')
+	})
+
+	it('has what is done to it come to the whole of it', () => {
+		const slot = slotAlong(root, env, ['arg0', 'arg0'])!
+		expect(print(slot.replace(parse('2')))).toBe('(inc (inc 2))')
+	})
+
+	it('is nothing where there is no way', () => {
+		expect(slotAlong(root, env, ['arg0', 'nope'])).toBeNull()
 	})
 })
