@@ -642,6 +642,10 @@ const makers = new Map<unknown, Maker>([
 					{ kind: 'arrow', angle: 90, at: [middle[0], s[1]], to: to => top(to[1]) },
 					{ kind: 'arrow', angle: 0, at: [e[0], middle[1]], to: to => right(to[0]) },
 					{ kind: 'arrow', angle: 90, at: [middle[0], e[1]], to: to => bottom(to[1]) },
+					// A corner takes the whole of it.
+					...([s, [e[0], s[1]], [s[0], e[1]], e] as const).map(
+						(at): Handle => ({ kind: 'point', at, to: to => moved(sub(to, at)) })
+					),
 				],
 				guides: [],
 				move: moved,

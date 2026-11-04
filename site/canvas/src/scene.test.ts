@@ -290,9 +290,15 @@ describe('grips', () => {
 		expect(pulled(source, 1, [99, 40])).toBe('{c = (path.ellipse [0 0] [10 40])}')
 	})
 
+	it('move a rect by a corner, staying as it is', () => {
+		const source = '{c = (path.rect [0 0] [10 10])}'
+		expect(pulled(source, 4, [3, 4])).toBe('{c = (path.rect [3 4] [10 10])}')
+		expect(pulled(source, 7, [13, 14])).toBe('{c = (path.rect [3 4] [10 10])}')
+	})
+
 	it('take a rect by the middle of each side, the far side staying where it is', () => {
 		const source = '{c = (path.rect [0 0] [10 10])}'
-		expect(gripAt(parse(source), env, row)!.handles.map(h => [h.kind, h.at])).toEqual([
+		expect(gripAt(parse(source), env, row)!.handles.slice(0, 4).map(h => [h.kind, h.at])).toEqual([
 			['arrow', [0, 5]],
 			['arrow', [5, 0]],
 			['arrow', [10, 5]],

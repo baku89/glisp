@@ -277,8 +277,7 @@ function handleAt(x: number, y: number): number | null {
 
 /** What a handle shows it does, as a cursor. */
 function cursorOf(handle: Handle): string {
-	if (handle.kind === 'translate') return 'move'
-	if (handle.angle === undefined) return 'grab'
+	if (handle.angle === undefined) return 'move'
 	const quarter = Math.round((facing(handle.angle) / Math.PI) * 4 + 4) % 4
 	return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][quarter]!
 }
