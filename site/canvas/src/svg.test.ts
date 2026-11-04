@@ -31,6 +31,11 @@ describe('svgOfRows', () => {
 		expect(svg).toContain('a = (&lt; 1 2)')
 	})
 
+	it('says how it is drawn, if it says', () => {
+		const svg = svgOfRows(parse('{c = (style (path.rect [0 0] [1 1]) "#ff0000" "#000000" 2)}'), env, ['binding:c'])!
+		expect(svg).toContain('fill="#ff0000" stroke="#000000" stroke-width="2"')
+	})
+
 	it('goes into a group', () => {
 		const svg = svgOfRows(parse('{g = {c = (path.circle [0 0] 1)}}'), env, ['binding:g'])!
 		expect(svg).toContain('id="c"')
@@ -79,6 +84,18 @@ describe('bindingsOfSvg', () => {
 		expect(
 			bindingsOfSvg(`<svg><rect id="logo" width="1" height="1"/><rect id="a b" width="1" height="1"/></svg>`)
 		).toBe('logo = (path.rect [0 0] [1 1])\nrect1 = (path.rect [0 0] [1 1])')
+	})
+
+	it('has how it is drawn, either way it is said', () => {
+		expect(bindingsOfSvg(`<svg><circle r="1" fill="#ff0000"/></svg>`)).toBe(
+			'circle1 = (style (path.circle [0 0] 1) "#ff0000" "none" 1)'
+		)
+		expect(bindingsOfSvg(`<svg><circle r="1" style="fill: none; stroke: #00f; stroke-width: 3"/></svg>`)).toBe(
+			'circle1 = (style (path.circle [0 0] 1) "none" "#00f" 3)'
+		)
+		expect(bindingsOfSvg(`<svg><circle r="1" stroke="black"/></svg>`)).toBe(
+			'circle1 = (style (path.circle [0 0] 1) "#000000" "black" 1)'
+		)
 	})
 
 	it('leaves out what is only there to be used', () => {

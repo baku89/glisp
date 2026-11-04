@@ -174,8 +174,8 @@ export function withFieldValues(
 }
 
 /**
- * The program with a new binding of `value`, ahead of the first of the rows, that `field`
- * of each row refers to. Null unless the rows are at the top, and it can be replaced.
+ * The program with a new binding of `value`, ahead of what the first of the rows is in,
+ * that `field` of each row refers to. Null if it cannot be replaced.
  */
 export function extractedField(
 	root: AST,
@@ -186,8 +186,8 @@ export function extractedField(
 ): { ast: AST; name: string } | null {
 	if (root.kind !== 'let' || !field.canExtract) return null
 	const at = paths.map(path => {
-		const [key, ...rest] = path.split('/')
-		return rest.length > 0 ? -1 : root.bindings.findIndex(([name]) => `binding:${name}` === key)
+		const [key] = path.split('/')
+		return root.bindings.findIndex(([name]) => `binding:${name}` === key)
 	})
 	if (at.some(i => i < 0)) return null
 

@@ -36,16 +36,35 @@ const props = defineProps<{
 	document: GlispDocument
 	/** The rows selected, as the tree has them too. */
 	selected: readonly string[]
+	/** Where the program's origin is on screen, until the view has been moved. */
+	origin: readonly [number, number]
 	/** What a press does, if it draws. */
 	drawing?: ShapeTool | 'pen' | null
 }>()
 
 const emit = defineEmits<{ select: [rows: readonly string[]] }>()
 
+const VIEW_KEY = 'glisp.canvas.view'
+const VIEW_SAVE_MS = 200
+
+/** How the view was left, in this browser. */
+function storedView(): mat2d | null {
+	try {
+		const stored = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null') as unknown
+		return Array.isArray(stored) &&
+			stored.length === 6 &&
+			stored.every(n => typeof n === 'number' && Number.isFinite(n))
+			? (stored as unknown as mat2d)
+			: null
+	} catch {
+		return null
+	}
+}
+
 const $canvas = useTemplateRef<HTMLCanvasElement>('$canvas')
 const size = ref<[number, number]>([0, 0])
 /** From the program's coordinates to the screen's. */
-const view = shallowRef<mat2d>(mat2d.I)
+const view = shallowRef<mat2d>(storedView() ?? mat2d.fromTranslation([...props.origin]))
 /** The row of what the pointer is over, which is about to be selected. */
 const hovered = ref<string | null>(null)
 const hoveredHandle = ref<number | null>(null)
@@ -187,6 +206,18 @@ const pathOnScreen = (path: Path, mat: mat2d = onScreen.value): Path2D =>
 
 useZUI($canvas, delta => {
 	view.value = mat2d.mul(delta, view.value)
+})
+
+let savingView: ReturnType<typeof setTimeout> | undefined
+watch(view, next => {
+	clearTimeout(savingView)
+	savingView = setTimeout(() => {
+		try {
+			localStorage.setItem(VIEW_KEY, JSON.stringify(next))
+		} catch {
+			// With nowhere to keep it, it lasts as long as the page.
+		}
+	}, VIEW_SAVE_MS)
 })
 
 function color(name: string): string {
@@ -339,9 +370,14 @@ function draw(): void {
 	if (!canvas || !context) return
 	const ratio = window.devicePixelRatio
 	const [width, height] = size.value
-	canvas.width = width * ratio
-	canvas.height = height * ratio
-	context.scale(ratio, ratio)
+	// Only when it has to, as this makes the whole of it anew.
+	const [pixelsWide, pixelsHigh] = [Math.round(width * ratio), Math.round(height * ratio)]
+	if (canvas.width !== pixelsWide || canvas.height !== pixelsHigh) {
+		canvas.width = pixelsWide
+		canvas.height = pixelsHigh
+	}
+	context.setTransform(ratio, 0, 0, ratio, 0, 0)
+	context.clearRect(0, 0, width, height)
 
 	const ink = color('--tq-color-text')
 	const guide = color('--tq-color-text-subtle')
@@ -353,8 +389,24 @@ function draw(): void {
 		context.strokeStyle = isMarked ? accent : shape.draw === 'path' ? ink : guide
 		context.fillStyle = context.strokeStyle
 		if (shape.draw === 'path') {
-			context.lineWidth = shape.row === hovered.value ? 2 : 1.5
-			context.stroke(pathOnScreen(shape.value as Path, view.value))
+			const onScreenPath = pathOnScreen(shape.value as Path, view.value)
+			const { paint } = shape
+			if (paint !== undefined) {
+				if (paint.fill !== 'none') {
+					context.fillStyle = paint.fill
+					context.fill(onScreenPath)
+				}
+				if (paint.stroke !== 'none' && paint.width > 0) {
+					context.strokeStyle = paint.stroke
+					context.lineWidth = paint.width * view.value[0]
+					context.stroke(onScreenPath)
+				}
+			}
+			if (paint === undefined || isMarked) {
+				context.strokeStyle = isMarked ? accent : ink
+				context.lineWidth = shape.row === hovered.value ? 2 : 1.5
+				context.stroke(onScreenPath)
+			}
 		} else if (shape.draw === 'point') {
 			const [px, py] = toScreen(shape.value as Vec, view.value)
 			context.beginPath()
@@ -403,6 +455,8 @@ function draw(): void {
 	}
 }
 
+let drawing: number | null = null
+
 watchEffect(() => {
 	void [
 		scene.value,
@@ -417,7 +471,13 @@ watchEffect(() => {
 		snapMark.value,
 		readout.value,
 	]
-	draw()
+	// Once a frame, however many things changed in it.
+	if (drawing === null) {
+		drawing = requestAnimationFrame(() => {
+			drawing = null
+			draw()
+		})
+	}
 })
 
 useResizeObserver($canvas, ([entry]) => {

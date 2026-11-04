@@ -18,6 +18,7 @@ import { ALSO_SELECTED, LINKER, OPEN_ROW, RENAMER, REVEALER, SELECTION, SOLVER, 
 import {
 	actionsOf,
 	fitsInline,
+	problemOf,
 	titleOf,
 	isTranslatable,
 	kindIconOf,
@@ -65,7 +66,15 @@ const isBinding = computed(() => props.entry.key.startsWith('binding:'))
 const isFunction = computed(() => props.entry.role === 'function')
 
 // A function says what it does; anything else, what it is expected to be.
-const hint = computed(() => props.entry.doc ?? props.entry.expected?.typeName)
+/** What is wrong with what it comes to, which shows on the row as well as on its value. */
+const problem = computed(() =>
+	isFunction.value
+		? null
+		: problemOf(ast.value, props.entry.env, props.entry.expected, props.read)
+)
+const hint = computed(
+	() => problem.value ?? props.entry.doc ?? props.entry.expected?.typeName
+)
 
 // A binding's name is edited on its label. What a call calls is an expression, so its
 // code opens from the row.
@@ -440,6 +449,7 @@ watch(
 
 		<template #labelEnd>
 			<span class="row-path" :data-path="path" hidden />
+			<span v-if="problem !== null" class="row-problem" hidden />
 			<AstGapAdd v-if="insertBefore" @add="insertBefore" />
 			<button
 				v-if="pinned"
@@ -584,5 +594,14 @@ watch(
 }
 .kind.reference:hover {
 	opacity: 0.8;
+}
+</style>
+
+<style>
+/* The row is the tree's, so this says so from inside of it. */
+.row:has(> .row-problem) > .name,
+.row:has(> .row-problem) > .icon {
+	color: var(--tq-color-error);
+	opacity: 1;
 }
 </style>

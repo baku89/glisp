@@ -6,14 +6,16 @@
 
 import {
 	type AST,
-	type CallAST,
+	CallAST,
 	enterNode,
 	type Env,
 	evaluate,
 	infer,
 	isHidden,
 	LetAST,
+	lit,
 	lookupBareName,
+	MetaAST,
 	parse,
 	print,
 	readByName,
@@ -34,9 +36,12 @@ import {
 	gripOf,
 	gripOfPoint,
 	isPath,
+	isStyled,
 	type Mat,
 	type PlaceCode,
 	NO_GRIP,
+	NO_PAINT,
+	type Paint,
 	type Path,
 	under,
 	type Vec,
@@ -48,6 +53,8 @@ export interface Shape {
 	readonly row: string
 	readonly draw: string
 	readonly value: unknown
+	/** How it is drawn, if it says. */
+	readonly paint?: Paint
 }
 
 /** The rows of what is at all within the corners `a` and `b`, once each. */
@@ -96,6 +103,46 @@ function roundedValue(value: unknown, step: number): unknown {
 export const roundedChanges = (changes: readonly Change[], step: number): Change[] =>
 	changes.map(({ route, value }) => ({ route, value: roundedValue(value, step) }))
 
+const STYLE = 'style'
+
+const isStyle = (ast: AST): ast is CallAST =>
+	ast.kind === 'call' && print(ast.head) === STYLE
+
+/** How the row at `row` is drawn, if it draws anything. */
+export function paintAt(root: AST, env: Env, row: string): Paint | null {
+	const shape = sceneOf(root, env).find(s => s.row === row)
+	return shape === undefined ? null : (shape.paint ?? NO_PAINT)
+}
+
+/** The row to inspect for what the row at `row` is, past the style it is only given. */
+export function paintedRow(root: AST, env: Env, row: string): string {
+	const node = rowAt(root, env, row)?.node
+	return node && isStyle(bare(node)) ? `${row}/arg0` : row
+}
+
+/**
+ * `root`, with the row at `row` drawn differently, being wrapped in a style if it is not
+ * in one, and let out of it once there is nothing to it.
+ */
+export function withPaint(root: AST, env: Env, row: string, part: Partial<Paint>): AST {
+	const reached = reach(root, env, row)
+	const last = reached?.chain.at(-1)
+	if (!reached || !last) return root
+	const node = bare(last.ast)
+	const styled = isStyle(node)
+	const path = styled ? node.args[0]! : node
+	const old = paintAt(root, env, row) ?? NO_PAINT
+	const arg = (i: number, key: keyof Paint): AST =>
+		part[key] !== undefined ? lit(part[key]!) : styled && node.args[i] ? node.args[i]! : lit(old[key])
+	const nothing = { ...old, ...part }
+	const next =
+		nothing.fill === 'none' && nothing.stroke === 'none'
+			? path
+			: new CallAST(parse(STYLE), [path, arg(1, 'fill'), arg(2, 'stroke'), arg(3, 'width')])
+	const kept = last.ast.kind === 'meta' ? new MetaAST(last.ast.metadata, next) : next
+	return withParent(reached.chain, last.replace(kept))
+}
+
 /**
  * The rows of what comes out differently in `after`, whatever it is that does it: what
  * refers to what changed goes with it, so that where it was is no longer anywhere.
@@ -139,6 +186,7 @@ export function snapPointsOf(
 		// In the coordinates of what is drawn, as a row inside a matrix is not.
 		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []
 		const whose = row.split('/').at(-1)!.replace(/^binding:/, '')
+		const inside = grip.within === undefined ? row : `${row}/${grip.within}`
 		const called = (name: string) => `${whose} ${name}`
 		const handles = grip.handles.flatMap(({ at, place, name, code }) =>
 			at === undefined
@@ -146,10 +194,14 @@ export function snapPointsOf(
 				: [
 						{
 							at,
-							...(code === undefined ? {} : { code: { of: row, make: code } }),
+							...(code === undefined ? {} : { code: { of: inside, make: code } }),
 							label: name === undefined ? whose : called(name),
 							target:
-								place === 'self' ? row : place === undefined ? null : `${row}/arg${place}`,
+								place === 'self'
+									? inside
+									: place === undefined
+										? null
+										: `${inside}/arg${place}`,
 						},
 					]
 		)
@@ -157,7 +209,7 @@ export function snapPointsOf(
 			...handles,
 			...(grip.snaps?.points ?? []).map(({ at, name, code }) => ({
 				at,
-				...(code === undefined ? {} : { code: { of: row, make: code } }),
+				...(code === undefined ? {} : { code: { of: inside, make: code } }),
 				label: called(name),
 				target: null,
 			})),
@@ -286,7 +338,9 @@ export function linked(
 	place: number,
 	snap: SnapPoint
 ): AST | null {
-	const next = referred(root, env, `${row}/arg${place}`, snap)
+	const within = gripAt(root, env, row)?.within
+	const inside = within === undefined ? row : `${row}/${within}`
+	const next = referred(root, env, `${inside}/arg${place}`, snap)
 	if (next === null) return null
 	const reached = gripAt(next, env, row)?.handles.find(handle => handle.place === place)?.at
 	return reached?.[0] === snap.at[0] && reached[1] === snap.at[1] ? next : null
@@ -398,7 +452,15 @@ const drawOf = (type: TypeValue | null): string | null =>
 function shapesIn(type: TypeValue | null, value: unknown, row: string): Shape[] {
 	const draw = drawOf(type)
 	// What is drawn of a path is what is in it, which only a canvas needs to know.
-	if (draw !== null) return [{ row, draw, value: isPath(value) ? value.path : value }]
+	if (draw !== null) {
+		return [
+			isStyled(value)
+				? { row, draw, value: value.path.path, paint: value.paint }
+				: isPath(value)
+					? { row, draw, value: value.path }
+					: { row, draw, value },
+		]
+	}
 	if (type === null || !Array.isArray(value)) return []
 	const { shape } = unwrapLazy(type)
 	const elementType = (i: number): TypeValue | null =>

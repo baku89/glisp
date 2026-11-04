@@ -46,9 +46,12 @@ export function svgOfRows(root: AST, env: Env, paths: readonly string[]): string
 	const [x, y] = [left - MARGIN, top - MARGIN]
 	const [width, height] = [right - left + MARGIN * 2, bottom - top + MARGIN * 2]
 
-	const drawn = shapes.map(({ row, value }) => {
+	const drawn = shapes.map(({ row, value, paint }) => {
 		const id = row.split('/').at(-1)!.replace(/^binding:/, '')
-		return `  <path id="${escaped(id)}" d="${toD(value as Path)}"/>`
+		const painted = paint
+			? ` fill="${escaped(paint.fill)}" stroke="${escaped(paint.stroke)}" stroke-width="${paint.width}"`
+			: ''
+		return `  <path id="${escaped(id)}" d="${toD(value as Path)}"${painted}/>`
 	})
 	return [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${width} ${height}" width="${width}" height="${height}" fill="none" stroke="black" stroke-width="${STROKE_WIDTH}">`,
@@ -101,6 +104,25 @@ function bindingOf(element: string, attributes: Record<string, string>): readonl
 	}
 }
 
+/** What is said of how something is drawn, on itself or in its `style`. */
+function paintOf(attributes: Record<string, string>): Record<string, string> {
+	const declared = Object.fromEntries(
+		(attributes['style'] ?? '').split(';').flatMap(declaration => {
+			const [name, value] = declaration.split(':').map(part => part.trim())
+			return name && value ? [[name, value]] : []
+		})
+	)
+	return { ...attributes, ...declared }
+}
+
+/** An expression, in a style if the element says how it is drawn. */
+function painted(expression: string, attributes: Record<string, string>): string {
+	const { fill, stroke, 'stroke-width': width } = paintOf(attributes)
+	if (fill === undefined && stroke === undefined) return expression
+	// As an SVG has it: filled in black unless it says, and with no line.
+	return `(style ${expression} "${fill ?? '#000000'}" "${stroke ?? 'none'}" ${Number.parseFloat(width ?? '1') || 0})`
+}
+
 const isIdentifier = (name: string): boolean => /^[A-Za-z_][\w-]*$/.test(name)
 
 /**
@@ -122,7 +144,8 @@ export function bindingsOfSvg(text: string): string | null {
 			const attributes = attributesOf(rest!)
 			const binding = bindingOf(element!.toLowerCase(), attributes)
 			if (binding === null) return []
-			const [kind, expression] = binding
+			const [kind, shape] = binding
+			const expression = painted(shape, attributes)
 			const id = attributes['id']
 			if (id !== undefined && isIdentifier(id)) return [`${id} = ${expression}`]
 			const count = (counts.get(kind) ?? 0) + 1

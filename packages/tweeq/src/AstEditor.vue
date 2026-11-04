@@ -500,15 +500,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				/>
 			</ParameterTree>
 		</ScrollArea>
-		<ul
-			v-if="unsolved !== null || document.diagnostics.value.length > 0"
-			class="problems"
-		>
-			<li v-if="unsolved !== null">Cannot do that: {{ unsolved }}</li>
-			<li v-for="(problem, i) in document.diagnostics.value" :key="i">
-				{{ problem.message }}
-			</li>
-		</ul>
+		<!-- What is wrong with a value shows on it. This is what could not be done just now. -->
+		<p v-if="unsolved !== null" class="problems">Cannot do that: {{ unsolved }}</p>
 	</div>
 </template>
 
@@ -564,9 +557,6 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 }
 .problems {
 	flex-shrink: 0;
-	max-height: 30%;
-	overflow-y: auto;
-	list-style: none;
 	font-family: var(--tq-font-code);
 	color: var(--tq-color-error);
 }

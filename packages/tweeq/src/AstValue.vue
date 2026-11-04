@@ -3,6 +3,7 @@ import { type AST, type Diagnostic, type Env, infer, isHidden, readByName, UNIT,
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
+import { vTooltip } from 'tweeq/Tooltip'
 import { InputString } from 'tweeq/InputString'
 import { InputSwitch } from 'tweeq/InputSwitch'
 import { InputTextBase } from 'tweeq/InputTextBase'
@@ -232,7 +233,8 @@ const label = (value: unknown): string =>
 			hidden: isHidden(ast),
 			error: problem !== null,
 		}"
-		:title="problem ?? sourceOf(ast)"
+		v-tooltip="problem ?? undefined"
+		:title="problem === null ? sourceOf(ast) : undefined"
 		@keydown.capture="onFieldKey"
 	>
 		<InputNumber

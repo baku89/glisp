@@ -22,6 +22,8 @@ import { computed, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import CanvasView from './CanvasView.vue'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfPath, withGraphics } from './graphics'
+import PaintControls from './PaintControls.vue'
+import { paintedRow } from './scene'
 import { bindingsOfSvg, svgOfRows } from './svg'
 
 initTweeq('app.glisp.canvas', { accentColor: '#1473e6' })
@@ -98,6 +100,16 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 /** The project floats over the canvas, or is out of the way as a tab, across reloads. */
 const projectOpen = useAppConfigStore().ref('glisp.canvas.project.open', true)
 
+const PROJECT_WIDTH = 280
+const ORIGIN_MARGIN = 32
+/** The top left of what the project leaves showing, and a little in from there. */
+const origin = [
+	(projectOpen.value
+		? useAppConfigStore().ref('glisp.canvas.project.width', PROJECT_WIDTH).value
+		: 32) + ORIGIN_MARGIN,
+	ORIGIN_MARGIN,
+] as const
+
 const PROJECT_TABS = [
 	{ name: 'layers', label: 'Project', icon: 'ph:tree-view' },
 	{ name: 'code', label: 'Code', icon: 'ph:code' },
@@ -130,7 +142,20 @@ function selectOnCanvas(rows: readonly string[]): void {
 }
 
 /** What the inspector shows: one row, as several have nothing in common to show. */
-const inspected = computed(() => (selected.value.length === 1 ? selected.value[0]! : null))
+const inspected = computed(() =>
+	selected.value.length === 1 ? insideOf(selected.value[0]!) : null
+)
+/** What is there to inspect of a row, past the style it is only given. */
+const insideOf = (row: string): string =>
+	paintedRow(document.root.value, document.env.value, row)
+const insideRows = computed(() => selected.value.map(insideOf))
+/** What the row selected is called, as what it is called is the row, not what is in it. */
+const selectedName = computed(() => {
+	const [row] = selected.value
+	return row === undefined
+		? null
+		: (inspectionOf(document.root.value, document.env.value, row)?.name ?? null)
+})
 
 const inspection = computed(() =>
 	inspected.value === null
@@ -141,7 +166,7 @@ const inspection = computed(() =>
 /** The function that several rows are all calls of, if they are. */
 const sharedFn = computed(() =>
 	selected.value.length > 1
-		? (inspectRows(document.root.value, document.env.value, selected.value)?.fn ?? null)
+		? (inspectRows(document.root.value, document.env.value, insideRows.value)?.fn ?? null)
 		: null
 )
 
@@ -162,6 +187,7 @@ function selectInTree(row: string | null): void {
 				<CanvasView
 					:document="document"
 					:selected="selected"
+					:origin="origin"
 					:drawing="drawing"
 					@select="selectOnCanvas"
 				/>
@@ -171,7 +197,7 @@ function selectInTree(row: string | null): void {
 					side="left"
 					label="Project"
 					icon="ph:tree-view"
-					:width="280"
+					:width="PROJECT_WIDTH"
 				>
 					<template #header>
 						<div class="tabs" role="tablist">
@@ -225,7 +251,7 @@ function selectInTree(row: string | null): void {
 				>
 					<template #header>
 						<button
-							v-if="inspection?.outer"
+							v-if="inspection?.outer && inspected === selected[0]"
 							v-tooltip="'What holds this'"
 							class="outer"
 							aria-label="What holds this"
@@ -235,7 +261,7 @@ function selectInTree(row: string | null): void {
 						</button>
 						<span class="panel-title">
 							<template v-if="inspection">
-								<span class="name">{{ inspection.name }}</span>
+								<span class="name">{{ selectedName }}</span>
 								<span v-if="inspection.fn" class="fn">{{ inspection.fn }}</span>
 							</template>
 							<template v-else-if="selected.length > 1">
@@ -244,7 +270,8 @@ function selectInTree(row: string | null): void {
 							</template>
 						</span>
 					</template>
-					<AstMultiInspector v-if="selected.length > 1" :document="document" :rows="selected" />
+					<PaintControls v-if="selected.length > 0" :document="document" :rows="selected" />
+					<AstMultiInspector v-if="selected.length > 1" :document="document" :rows="insideRows" />
 					<AstEditor
 						v-else
 						:document="document"
@@ -384,8 +411,7 @@ function selectInTree(row: string | null): void {
 	padding: var(--padding);
 	border: 1px solid var(--tq-color-border);
 	border-radius: calc(var(--radius) + var(--padding));
-	background: var(--tq-color-surface);
-	backdrop-filter: blur(var(--tq-popup-blur));
+	background: var(--tq-color-background);
 	box-shadow: 0 0 20px 0 var(--tq-color-shadow);
 }
 .tool {

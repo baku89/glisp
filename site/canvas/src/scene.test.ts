@@ -6,6 +6,7 @@ import {
 	type LetAST,
 	parse,
 	print,
+	solve,
 	toAst,
 } from '@glisp/lang'
 import {
@@ -29,6 +30,7 @@ import {
 	linked,
 	nameFor,
 	nearestSnap,
+	paintedRow,
 	penned,
 	readoutOf,
 	roundedChanges,
@@ -37,6 +39,7 @@ import {
 	rowsWithin,
 	sceneOf,
 	snapPointsOf,
+	withPaint,
 } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
@@ -641,6 +644,106 @@ describe('how finely a pointer says anything', () => {
 			{ route: [0], value: [1.2, unset] },
 			{ route: [1], value: 'M 1.2,5.7 A 1.2,1.2 0 0 1 2,3 Z' },
 		])
+	})
+})
+
+describe('color', () => {
+	const value = (src: string) => evaluate(parse(src), env).value
+
+	it('is made of what it has', () => {
+		expect(value('(color.rgb 1 0 0)')).toBe('#ff0000')
+		expect(value('(color.gray 0)')).toBe('#000000')
+		expect(value('(color.hsl 120 1 0.5)')).toBe('#00ff00')
+		expect(value('(color.alpha (color.rgb 1 0 0) 0.5)')).toBe('#ff000080')
+	})
+
+	it('is worked out from others', () => {
+		expect(value('(color.invert "#000000")')).toBe('#ffffff')
+		expect(value('(color.mix "#000000" "#ffffff" 0)')).toBe('#000000')
+		expect(value('(color.mix "#000000" "#ffffff" 1)')).toBe('#ffffff')
+		const lighter = value('(color.brighten "#444444" 1)') as string
+		expect(lighter > '#444444').toBe(true)
+		expect((value('(color.darken "#444444" 1)') as string) < '#444444').toBe(true)
+	})
+
+	it('is a type that what is not one falls back from', () => {
+		expect(value('(: "#ff0000" color)')).toBe('#ff0000')
+		expect(value('(: "red" color)')).toBe('red')
+		expect(value('(: 1 color)')).toBe('#000000')
+	})
+
+	it('goes back through what it was made of', () => {
+		const edited = (src: string, color: string) => {
+			const root = parse(src)
+			const [slot] = viewOf(root, env).slots
+			return print(solve(root, env, slot!.ast, color).ast!)
+		}
+		expect(edited('{c = (color.gray 0)}', '#ffffff')).toContain('(color.gray 1)')
+		expect(edited('{c = (color.invert "#000000")}', '#000000')).toContain('(color.invert "#ffffff")')
+	})
+})
+
+describe('painting', () => {
+	const row = 'binding:c'
+	const root = parse('{c = (path.circle [0 0] 10)}')
+
+	it('is drawn as it says', () => {
+		const painted = parse('{c = (style (path.circle [0 0] 10) "#ff0000" "none" 2)}')
+		expect(sceneOf(painted, env)[0]!.paint).toEqual({ fill: '#ff0000', stroke: 'none', width: 2 })
+		expect(sceneOf(root, env)[0]!.paint).toBeUndefined()
+	})
+
+	it('wraps what has none, and goes on in it', () => {
+		const once = withPaint(root, env, row, { fill: '#ff0000' })
+		expect(print(once)).toBe('{c = (style (path.circle [0 0] 10) "#ff0000" "none" 0)}')
+		const twice = withPaint(once, env, row, { stroke: '#000000', width: 2 })
+		expect(print(twice)).toBe('{c = (style (path.circle [0 0] 10) "#ff0000" "#000000" 2)}')
+	})
+
+	it('is let go of, once there is nothing to it', () => {
+		const once = withPaint(root, env, row, { fill: '#ff0000' })
+		expect(print(withPaint(once, env, row, { fill: 'none' }))).toBe('{c = (path.circle [0 0] 10)}')
+	})
+
+	it('keeps what a color refers to, that is not being changed', () => {
+		const refers = parse('{k = "#00ff00" c = (style (path.circle [0 0] 1) k "none" 0)}')
+		expect(print(withPaint(refers, env, row, { width: 3 }))).toContain('(style (path.circle [0 0] 1) k "none" 3)')
+	})
+
+	it('has handles as what it is the style of has', () => {
+		const painted = withPaint(root, env, row, { fill: '#ff0000' })
+		const handle = gripAt(painted, env, row)!.handles[0]!
+		expect(print(changed(painted, env, row, handle.to([30, 0], [30, 0])).ast!)).toContain('(path.circle [0 0] 30)')
+		expect(print(changed(painted, env, row, gripAt(painted, env, row)!.move!([1, 2])).ast!)).toContain('(path.circle [1 2] 10)')
+	})
+
+	it('is nothing a path knows about', () => {
+		const styled = evaluate(parse('(style (path.rect [0 0] [1 1]) "#ff0000" "none" 0)'), env).value
+		expect(isPath(styled)).toBe(false)
+		expect(iconOfPath(styled)).toMatch(/^stroke:/)
+	})
+
+	it('is looked past, to inspect what is in it', () => {
+		const painted = withPaint(root, env, row, { fill: '#ff0000' })
+		expect(paintedRow(painted, env, row)).toBe('binding:c/arg0')
+		expect(paintedRow(root, env, row)).toBe('binding:c')
+	})
+
+	it('is what things in it can still be snapped to, and refer to', () => {
+		const painted = withPaint(root, env, row, { fill: '#ff0000' }) as LetAST
+		const points = snapPointsOf(painted, env, sceneOf(painted, env))
+		const center = points.find(p => p.target !== null)!
+		expect(center.target).toBe('binding:c/arg0/arg0')
+		const next = drawnFrom(painted, env, 'x', 'rect', center, [20, 20], false)
+		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect ../c/path/center [20 20])')
+		expect(gripAt(next, env, 'binding:x')!.handles[4]!.at).toEqual([0, 0])
+	})
+
+	it('comes along when it is evaluated', () => {
+		const painted = '(style (path.rect [0 0] [1 1]) "#ff0000" "none" 0)'
+		expect(print(toAst(evaluate(parse(painted), env).value, env))).toBe(
+			'(style (path.d "M 0,0 L 1,0 L 1,1 L 0,1 Z") "#ff0000" "none" 0)'
+		)
 	})
 })
 

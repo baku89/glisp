@@ -25,9 +25,11 @@ import {
 	VecAST,
 	withDoc,
 	withExpansion,
+	withInverse,
 	withMembers,
 	withTypeMeta,
 } from '@glisp/lang'
+import Color from 'colorjs.io'
 import { mat2d as Mat2d, vec2 as Vec2 } from 'linearly'
 import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
@@ -158,6 +160,30 @@ export class PathValue {
 	}
 }
 
+/** A path and how it is drawn, which a path itself has nothing to say about. */
+export class StyledValue {
+	constructor(
+		readonly path: PathValue,
+		readonly paint: Paint
+	) {}
+
+	[AS_SOURCE](): AST {
+		const { fill, stroke, width } = this.paint
+		return new CallAST(parse('style'), [this.path[AS_SOURCE](), lit(fill), lit(stroke), lit(width)])
+	}
+}
+
+export const isStyled = (value: unknown): value is StyledValue => value instanceof StyledValue
+
+/** How a path is drawn. A color of `none` is not drawn. */
+export interface Paint {
+	readonly fill: string
+	readonly stroke: string
+	readonly width: number
+}
+
+export const NO_PAINT: Paint = { fill: 'none', stroke: 'none', width: 0 }
+
 export const isPath = (value: unknown): value is PathValue => value instanceof PathValue
 
 /** How much of an icon's 24 a shape takes up, leaving room for its line. */
@@ -165,8 +191,9 @@ const ICON_EXTENT = 18
 
 /** A path's own shape, fit into an icon, or null if it is not a path with a size. */
 export function iconOfPath(value: unknown): string | null {
-	if (!isPath(value)) return null
-	const { path } = value
+	const drawn = isStyled(value) ? value.path : value
+	if (!isPath(drawn)) return null
+	const { path } = drawn
 	const [[left, top], [right, bottom]] = bounds(path)
 	const size = Math.max(right - left, bottom - top)
 	if (!Number.isFinite(size) || size === 0) return null
@@ -319,6 +346,149 @@ const makeTransformed = makeTypedFn(
 	(path, matrix) => new PathValue(transform((path as PathValue).path, matrix as Mat)),
 	['path', 'by']
 )
+const stringType = evaluate(parse('string'), buildPrelude()).value as TypeValue
+const colorMeta = new RecordAST([
+	['input', lit('color')],
+	['icon', lit('ph:palette')],
+])
+/**
+ * A color is a string, that CSS and SVG would read as one: which it can be told from
+ * only by trying, and one that cannot be read is left for them to not draw.
+ */
+const colorOf = (fallback: string): TypeValue =>
+	Object.create(withTypeMeta(stringType, colorMeta), {
+		default: { value: fallback },
+	}) as TypeValue
+const colorType = colorOf('#000000')
+/** A color to draw with, which can be no color at all. */
+const paintColor = colorOf('none')
+
+const toHex = (color: Color): string =>
+	color.to('srgb').toGamut({ space: 'srgb' }).toString({ format: 'hex', collapse: false })
+
+const parsed = (value: unknown): Color => {
+	try {
+		return new Color(value as string)
+	} catch {
+		return new Color('#000000')
+	}
+}
+
+/** The channels of a color, in the space a function makes it in, to go back through. */
+const channelsOf = (value: unknown, space: 'srgb' | 'hsl'): number[] => {
+	const color = parsed(value).to(space)
+	const [a, b, c] = color.coords
+	const scale = space === 'hsl' ? [1, 0.01, 0.01] : [1, 1, 1]
+	return [(a || 0) * scale[0]!, (b || 0) * scale[1]!, (c || 0) * scale[2]!, color.alpha ?? 1]
+}
+
+const makeRgb = makeTypedFn(
+	[number, number, number],
+	colorType,
+	(r, g, b) => toHex(new Color('srgb', [r, g, b] as [number, number, number])),
+	['red', 'green', 'blue']
+)
+const makeHsl = makeTypedFn(
+	[number, number, number],
+	colorType,
+	(h, s, l) => toHex(new Color('hsl', [h as number, (s as number) * 100, (l as number) * 100])),
+	['hue', 'saturation', 'lightness']
+)
+const makeAlpha = withInverse(
+	makeTypedFn(
+		[colorType, number],
+		colorType,
+		(c, a) => {
+			const color = parsed(c).clone()
+			color.alpha = a as number
+			return toHex(color)
+		},
+		['color', 'alpha']
+	),
+	(index, result, [c]) => (index === 1 ? channelsOf(result, 'srgb')[3] : c)
+)
+const makeGray = withInverse(
+	makeTypedFn(
+		[number],
+		colorType,
+		v => toHex(new Color('srgb', [v, v, v] as [number, number, number])),
+		['value']
+	),
+	(_, result) => channelsOf(result, 'srgb')[0]
+)
+const mixed = makeTypedFn(
+	[colorType, colorType, number],
+	colorType,
+	(a, b, t) => toHex(parsed(a).mix(parsed(b), t as number, { space: 'oklch' }) as Color),
+	['a', 'b', 'ratio']
+)
+/** Lighter by this much in OKLCH, in which it looks like that much. */
+const lighter = (value: unknown, by: number): string => {
+	const color = parsed(value).to('oklch')
+	color.coords[0] = Math.min(1, Math.max(0, (color.coords[0] || 0) + by))
+	return toHex(color)
+}
+const LIGHTNESS_STEP = 0.1
+const makeBrighter = makeTypedFn(
+	[colorType, number],
+	colorType,
+	(c, by) => lighter(c, (by as number) * LIGHTNESS_STEP),
+	['color', 'by']
+)
+const makeDarker = makeTypedFn(
+	[colorType, number],
+	colorType,
+	(c, by) => lighter(c, -(by as number) * LIGHTNESS_STEP),
+	['color', 'by']
+)
+const makeInverted = withInverse(
+	makeTypedFn(
+		[colorType],
+		colorType,
+		c => {
+			const color = parsed(c).to('srgb')
+			const [r, g, b] = color.coords
+			return toHex(new Color('srgb', [1 - (r || 0), 1 - (g || 0), 1 - (b || 0)], color.alpha))
+		},
+		['color']
+	),
+	(_, result) => {
+		const color = parsed(result).to('srgb')
+		const [r, g, b] = color.coords
+		return toHex(new Color('srgb', [1 - (r || 0), 1 - (g || 0), 1 - (b || 0)], color.alpha))
+	}
+)
+withMembers(colorType, {
+	rgb: withDoc(makeRgb, 'A color from how much `red`, `green` and `blue` it has, from 0 to 1.'),
+	hsl: withDoc(makeHsl, 'A color from its `hue` in degrees, and `saturation` and `lightness` from 0 to 1.'),
+	gray: withDoc(makeGray, 'A gray, from black at 0 to white at 1.'),
+	alpha: withDoc(makeAlpha, 'A `color`, as see-through as `alpha` says, from 0 to 1.'),
+	mix: withDoc(mixed, 'What `a` and `b` come to together, as far from `a` as `ratio` says.'),
+	brighten: withDoc(makeBrighter, 'A `color`, lighter by how much it looks.'),
+	darken: withDoc(makeDarker, 'A `color`, darker by how much it looks.'),
+	invert: withDoc(makeInverted, 'The opposite of a `color`.'),
+})
+
+const styledType = said(
+	makeType('styled', isStyled, new StyledValue(pathType.default as PathValue, NO_PAINT)),
+	'path',
+	'mdi:vector-curve'
+)
+const makeStyled = withDoc(
+	makeTypedFn(
+		[pathType, paintColor, paintColor, number],
+		styledType,
+		(path, fill, stroke, width) =>
+			new StyledValue(path as PathValue, {
+				fill: fill as string,
+				stroke: stroke as string,
+				width: width as number,
+			}),
+		['path', 'fill', 'stroke', 'width']
+	),
+	'A `path`, with what it is filled with, and the color and width of its line.'
+)
+
 withMembers(pathType, {
 	d: withDoc(makeD, 'A path from its data, as an SVG path has it.'),
 	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.'),
@@ -384,6 +554,8 @@ export interface Grip {
 	readonly guides: readonly Path[]
 	/** What has to change, for the whole of it to be moved by `delta`. */
 	move?(delta: Vec): readonly Change[]
+	/** Where in the row it is, if it is in something the row says more about. */
+	readonly within?: string
 	/** Where else on it matters, to line something else up with, besides its handles. */
 	readonly snaps?: Snaps
 }
@@ -420,6 +592,7 @@ export const under = (arg: number, grip: Grip): Grip => {
 	const { move } = grip
 	return {
 		guides: grip.guides,
+		within: grip.within === undefined ? `arg${arg}` : `arg${arg}/${grip.within}`,
 		...(grip.snaps === undefined ? {} : { snaps: grip.snaps }),
 		handles: grip.handles.map(handle => ({
 			...handle,
@@ -676,6 +849,8 @@ type Maker = (args: readonly unknown[], inner: (arg: number) => Grip | null) => 
 
 const makers = new Map<unknown, Maker>([
 	[makeD, ([d]) => gripOfD(fromD(d as string))],
+	// All there is to take hold of is what it is the style of.
+	[makeStyled, (_, inner) => inner(0) ?? NO_GRIP],
 	[
 		makeCircle,
 		([center, radius]) => {
@@ -984,7 +1159,15 @@ export function withinArg(fn: unknown, arg: number, args: readonly unknown[]): M
 	return null
 }
 
-const BINDINGS: Readonly<Record<string, unknown>> = { path: pathType, vec2, point, size, mat2d }
+const BINDINGS: Readonly<Record<string, unknown>> = {
+	path: pathType,
+	color: colorType,
+	style: makeStyled,
+	vec2,
+	point,
+	size,
+	mat2d,
+}
 
 /** `parent`, with what a canvas adds. */
 export function withGraphics(parent: Env): Env {
