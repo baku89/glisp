@@ -590,7 +590,7 @@ useEventListener(
 		const command = slotCommandOfKey(event)
 		if (command === null || pickedOut.value.length === 0 || event.defaultPrevented) return
 		const target = event.target as HTMLElement | null
-		if (target?.closest?.('input, textarea, [contenteditable]')) return
+		if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
 		event.stopPropagation()
 		event.preventDefault()
 		const next = withSlotCommand(document.root.value, document.env.value, pickedOut.value, command)

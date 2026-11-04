@@ -551,7 +551,7 @@ useEventListener(
 		if (event.defaultPrevented) return
 		if (isInspector.value && (selection.value === null || !isRow(selection.value.path))) return
 		const target = event.target as HTMLElement | null
-		if (target?.closest?.('input, textarea, [contenteditable]')) return
+		if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
 		const written =
 			event.clipboardData?.getData('image/svg+xml') || (event.clipboardData?.getData('text') ?? '')
 		if (pasteOnSelection(written)) {
@@ -577,7 +577,7 @@ useEventListener(
 		const selected = selection.value
 		if (!isInspector.value || selected === null || !isRow(selected.path)) return
 		const target = event.target as HTMLElement | null
-		if (target?.closest?.('input, textarea, [contenteditable]')) return
+		if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
 		if (!getSelection()?.isCollapsed) return
 		event.stopPropagation()
 		event.preventDefault()
@@ -594,12 +594,14 @@ useEventListener(
 	(event: KeyboardEvent) => {
 		const selected = selection.value
 		const command = slotCommandOfKey(event)
-		if (!isInspector.value || selected === null || command === null || event.defaultPrevented) return
+		const writes = event.key === '=' && !event.metaKey && !event.ctrlKey && !event.altKey
+		if (!isInspector.value || selected === null || (command === null && !writes) || event.defaultPrevented) return
 		const target = event.target as HTMLElement | null
-		if (target?.closest?.('input, textarea, [contenteditable]')) return
+		if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
 		event.stopPropagation()
 		event.preventDefault()
-		selected.evaluate?.(command)
+		if (command === null) selected.editExpression?.()
+		else selected.evaluate?.(command)
 	},
 	{ capture: true }
 )
@@ -609,7 +611,7 @@ if (!isInspector.value) useNumberFieldEdits(props.document)
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (isInspector.value || props.hostKey?.(event)) return
 	const target = event.target as HTMLElement | null
-	if (target?.closest('input, textarea, [contenteditable]')) return
+	if (target?.closest('input, textarea, [contenteditable], .monaco-editor')) return
 	const isMod = event.metaKey || event.ctrlKey
 	if (isMod && event.key.toLowerCase() === 'z') {
 		event.preventDefault()

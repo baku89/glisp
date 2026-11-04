@@ -1,7 +1,7 @@
 import { buildPrelude, type Env, type LetAST, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { readProgram, rowWritten, sourceOfProgram, writtenAt } from './programSource'
+import { readProgram, rowsAcross, rowWritten, sourceOfProgram, writtenAt } from './programSource'
 
 describe('a program as code', () => {
 	it('is a binding to a line', () => {
@@ -88,5 +88,23 @@ describe('what a row is, in what is written', () => {
 			const { from, to } = writtenAt(program, env, row)!
 			expect(rowWritten(program, env, from, to)).toBe(row)
 		}
+	})
+})
+
+describe('what a selection goes over', () => {
+	const env = buildPrelude()
+	const source = sourceOfProgram(parse('{a = 1 b = 2 c = 3}') as LetAST)
+	const reading = readProgram(source)
+	const program = 'ast' in reading ? reading.ast : null
+
+	it('is each row it touches, from part of the way into one to part of the way into another', () => {
+		expect(rowsAcross(program!, env, source.indexOf('1'), source.indexOf('2'))).toHaveLength(2)
+		expect(rowsAcross(program!, env, source.indexOf('1'), source.indexOf('3') + 1)).toHaveLength(3)
+	})
+
+	it('is nothing for a cursor, or what is between rows', () => {
+		const end = source.indexOf('1') + 1
+		expect(rowsAcross(program!, env, end, end)).toEqual([])
+		expect(rowsAcross(program!, env, end, end + 1)).toEqual([])
 	})
 })

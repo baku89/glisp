@@ -41,7 +41,7 @@ export function useDeleteInInspector(
 			const selected = selection.value
 			if (!isInspector() || selected === null) return
 			const target = event.target as HTMLElement | null
-			if (target?.closest?.('input, textarea, [contenteditable]')) return
+			if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
 			event.stopPropagation()
 			event.preventDefault()
 			selection.value = null

@@ -1146,7 +1146,7 @@ let pressed:
 
 let spaceDown = false
 const typing = (event: Event): boolean =>
-	(event.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]') != null
+	(event.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable], .monaco-editor') != null
 
 // What is held down says at once, without having to move, how a shape goes.
 useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {

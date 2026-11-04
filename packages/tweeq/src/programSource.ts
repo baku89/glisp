@@ -73,6 +73,14 @@ export function writtenAt(program: LetAST, env: Env, row: string): Written | nul
 	return written
 }
 
+/** The rows of the program that a selection goes over, being in none of them on its own. */
+export function rowsAcross(program: LetAST, env: Env, from: number, to: number): readonly string[] {
+	return viewOf(program, env).slots.flatMap(slot => {
+		const written = writtenOf(slot)
+		return written !== null && written.from < to && from < written.to ? [slot.key] : []
+	})
+}
+
 /** The row of the least that has all of what is from `from` to `to` in it, or null if nothing does. */
 export function rowWritten(program: LetAST, env: Env, from: number, to: number): string | null {
 	const keys: string[] = []

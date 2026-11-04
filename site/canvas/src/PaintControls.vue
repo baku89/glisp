@@ -252,7 +252,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 function keyOfSelected(event: Event): keyof Paint | null {
 	if (!ownSelection()) return null
 	const target = event.target as Element | null
-	if (target?.closest?.('input, textarea, [contenteditable]')) return null
+	if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return null
 	return selection.value!.path.slice(PATH.length) as keyof Paint
 }
 

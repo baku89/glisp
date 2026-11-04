@@ -7,7 +7,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import { type GlispDocument } from './document'
 import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
-import { readProgram, rowWritten, sourceOfProgram, writtenAt } from './programSource'
+import { readProgram, rowsAcross, rowWritten, sourceOfProgram, writtenAt } from './programSource'
 
 const props = defineProps<{
 	document: GlispDocument
@@ -78,7 +78,8 @@ function onCursorMoved(): void {
 	const rows = (editor?.getSelections() ?? []).flatMap(selection => {
 		const from = model.getOffsetAt(selection.getStartPosition())
 		const to = model.getOffsetAt(selection.getEndPosition())
-		return rowWritten(ast, env, from, to) ?? []
+		const within = rowWritten(ast, env, from, to)
+		return within === null ? rowsAcross(ast, env, from, to) : [within]
 	})
 	rowsFromHere = [...new Set(rows)]
 	if (!isSame(rowsFromHere, props.selected ?? [])) emit('select', rowsFromHere)
@@ -123,8 +124,10 @@ function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
 watch(
 	() => props.selected ?? [],
 	rows => {
-		if (rowsFromHere === null || !isSame(rows, rowsFromHere)) showRows(rows)
+		// What is being selected here is not to be taken away, however many times it comes back.
+		if (rowsFromHere !== null && isSame(rows, rowsFromHere)) return
 		rowsFromHere = null
+		showRows(rows)
 	}
 )
 
