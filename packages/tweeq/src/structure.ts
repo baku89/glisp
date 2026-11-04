@@ -1375,6 +1375,28 @@ export function fitsInline(count: number, width: number, gap = 2): boolean {
 	return width === 0 || count * MIN_INPUT_WIDTH + (count - 1) * gap <= width
 }
 
+/** The least a number needs with no icon, for numbers to stay numbers as long as they can. */
+const BARE_INPUT_WIDTH = 44
+
+/** How `count` numbers go in a row: as they are, without their icons, or one above another. */
+export type NumbersFit = 'side' | 'bare' | 'stacked'
+
+/** What is left of a row for `count` numbers side by side says how they go. */
+export function numbersFit(count: number, width: number, gap = 2): NumbersFit {
+	if (fitsInline(count, width, gap)) return 'side'
+	return count * BARE_INPUT_WIDTH + (count - 1) * gap <= width ? 'bare' : 'stacked'
+}
+
+/** The most numbers to put one above another, past which a row is more than it is worth. */
+const MOST_STACKED = 4
+
+/** Whether what a vector comes to can be numbers one above another, if it has to be. */
+export const canStack = (value: unknown): boolean =>
+	Array.isArray(value) &&
+	value.length > 0 &&
+	value.length <= MOST_STACKED &&
+	value.every(element => typeof element === 'number')
+
 /** An icon for what kind of expression a node is, or null if it is not one. */
 export function kindIconOf(ast: AST): string | null {
 	if (!isExpression(ast)) return null

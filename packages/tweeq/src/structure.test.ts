@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, make
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionFromField, canStack, fitsInline, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -540,6 +540,33 @@ describe('elementAt', () => {
 		expect(elementAt('c/arg1', 'c/arg1')).toBe(null)
 		expect(elementAt('c/arg1', 'c/arg1/0/arg0')).toBe(null)
 		expect(elementAt('c/arg1', 'c/arg10/0')).toBe(null)
+	})
+})
+
+describe('numbersFit', () => {
+	it('goes without icons before going one above another', () => {
+		expect(numbersFit(2, 130)).toBe('side')
+		expect(numbersFit(2, 129)).toBe('bare')
+		expect(numbersFit(2, 90)).toBe('bare')
+		expect(numbersFit(2, 89)).toBe('stacked')
+	})
+
+	it('takes a width not yet measured to fit', () => {
+		expect(numbersFit(2, 0)).toBe('side')
+	})
+})
+
+describe('canStack', () => {
+	it('is for a few numbers', () => {
+		expect(canStack([1, 2])).toBe(true)
+		expect(canStack([1, 2, 3, 4])).toBe(true)
+	})
+
+	it('is not for many of them, or anything else', () => {
+		expect(canStack([1, 2, 3, 4, 5])).toBe(false)
+		expect(canStack([])).toBe(false)
+		expect(canStack([1, 'a'])).toBe(false)
+		expect(canStack(1)).toBe(false)
 	})
 })
 

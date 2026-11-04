@@ -21,7 +21,7 @@ import {
 	canSolve,
 	editorOfValue,
 	expressionFromField,
-	fitsInline,
+	numbersFit,
 	hasValue,
 	isExpression,
 	elementOptionsOf,
@@ -41,6 +41,12 @@ const props = defineProps<{
 	menuItems: MenuItem[]
 	/** Where it is in a row of them, which also leaves no room for an icon. */
 	inlinePosition?: InputPosition
+	/** Where it is in a column of them. */
+	blockPosition?: InputPosition
+	/** Without its icon, there being no room for one. */
+	bare?: boolean
+	/** How much of the row is taken by what is beside it. */
+	beside?: number
 	read: (
 		ast: AST,
 		env: Env
@@ -124,7 +130,7 @@ const isString = computed(
 )
 
 // The node's own say goes first, over what its parameter's type says.
-const numberOptions = computed(() => numberOptionsAt(props.entry))
+const numberOptions = computed(() => iconless(numberOptionsAt(props.entry), props.bare ?? false))
 
 // An expression shows its value, and its code opens from it, in room to read it. Only
 // the one being edited has an editor, so that a long program stays light.
@@ -193,10 +199,22 @@ const solvableNumbers = computed(() => {
 	const value = result.value?.value
 	return solvable.value &&
 		Array.isArray(value) &&
-		fitsInline(value.length, tree?.valueWidth.value ?? 0)
+		solvableFit.value !== 'stacked'
 		? (value as number[])
 		: null
 })
+const solvableFit = computed(() => {
+	const value = result.value?.value
+	return numbersFit(
+		Array.isArray(value) ? value.length : 0,
+		Math.max(0, (tree?.valueWidth.value ?? 0) - (props.beside ?? 0))
+	)
+})
+const iconless = <T extends { leftIcon?: string }>(options: T, bare: boolean): Omit<T, 'leftIcon'> => {
+	if (!bare) return options
+	const { leftIcon: _, ...rest } = options
+	return rest
+}
 function solveElement(index: number, next: number): void {
 	const numbers = solvableNumbers.value
 	if (keepRatio?.(`${props.path}/${index}`, next)) return
@@ -261,6 +279,7 @@ const label = (value: unknown): string =>
 			:modelValue="view.editor.value"
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
+			:blockPosition="blockPosition"
 			:multiSelectData="place"
 			@update:modelValue="keepRatio?.(path, $event) || update(withLiteral(ast, $event))"
 		/>
@@ -292,6 +311,7 @@ const label = (value: unknown): string =>
 			:modelValue="result?.value as number"
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
+			:blockPosition="blockPosition"
 			:multiSelectData="place"
 			@update:modelValue="keepRatio?.(path, $event) || solver?.solve(ast, $event, path)"
 		/>
@@ -299,7 +319,7 @@ const label = (value: unknown): string =>
 			<InputNumber
 				v-for="(number, i) in solvableNumbers"
 				:key="i"
-				v-bind="elementOptionsOf(entry.expected, i)"
+				v-bind="iconless(elementOptionsOf(entry.expected, i), solvableFit !== 'side')"
 				:modelValue="number"
 				:menuItems="fieldMenu"
 				:multiSelectData="{ path, element: i }"

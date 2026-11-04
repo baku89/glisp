@@ -21,7 +21,9 @@ import {
 	actionsOf,
 	canSolve,
 	elementAt,
-	fitsInline,
+	canStack,
+	numbersFit,
+	type NumbersFit,
 	isProportional,
 	isSizeInput,
 	keepingRatio,
@@ -129,10 +131,15 @@ const placeValue = computed(
 const PAD_WIDTH = 26
 const solver = inject(SOLVER, null)
 const titled = inject(TITLED, false)
-const fits = (count: number): boolean =>
-	fitsInline(count, Math.max(0, (tree?.valueWidth.value ?? 0) - (translatable.value ? PAD_WIDTH : 0)))
+const roomFor = (count: number): NumbersFit =>
+	numbersFit(count, Math.max(0, (tree?.valueWidth.value ?? 0) - (translatable.value ? PAD_WIDTH : 0)))
+const fit = computed(() => roomFor(view.value.slots.length))
+// Numbers have ways of making room, where anything else goes by how much it needs.
 const inline = computed(
-	() => bareKind.value === 'vec' && !open.value && fits(view.value.slots.length)
+	() =>
+		bareKind.value === 'vec' &&
+		!open.value &&
+		(fit.value === 'side' || canStack(placeValue.value))
 )
 
 // A size has a chain across its width and height, to have them go together.
@@ -143,7 +150,7 @@ const sized = computed(() => {
 		!isFunction.value &&
 		Array.isArray(value) &&
 		value.length === 2 &&
-		(inline.value || (solver !== null && canSolve(props.entry, value) && fits(2)))
+		(inline.value || (solver !== null && canSolve(props.entry, value) && roomFor(2) !== 'stacked'))
 	)
 })
 const proportional = computed(() => isProportional(ast.value, props.entry.env))
@@ -420,7 +427,7 @@ watch(
 		@select="select"
 		@nameClick="isFunction && (editingCode = true)"
 	>
-		<div class="value-row">
+		<div class="value-row" :class="{ stacked: inline && fit === 'stacked' }">
 			<InputTranslate
 				v-if="translatable"
 				:modelValue="placeValue as [number, number]"
@@ -432,6 +439,7 @@ watch(
 					:parentPath="path"
 					:read="read"
 					:show="show"
+					:fit="canStack(placeValue) ? fit : undefined"
 					@change="update"
 				/>
 			</div>
@@ -439,6 +447,7 @@ watch(
 				v-else-if="!isFunction"
 				ref="$value"
 				:entry="entry"
+				:beside="translatable ? PAD_WIDTH : 0"
 				:path="path"
 				:menuItems="slotMenu"
 				:read="read"
@@ -565,6 +574,13 @@ watch(
 	color: var(--tq-color-text-subtle);
 	cursor: pointer;
 	transform: translateX(-50%) scale(0.8);
+}
+/* One above the other, it goes beside them, with the width and the height both to its left. */
+.value-row.stacked > .chain {
+	position: static;
+	align-self: center;
+	margin: 0;
+	transform: none;
 }
 .value-row > .chain:hover {
 	color: var(--tq-color-text-mute);
