@@ -132,6 +132,7 @@ const isReference = computed(() => {
 const whip = ref<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
 let whipped = false
 let hovered: Element | null = null
+let hoveredField: Element | null = null
 let endWhip: (() => void) | null = null
 onBeforeUnmount(() => endWhip?.())
 
@@ -150,10 +151,17 @@ function openOnHover(row: Element | null): void {
 
 function setHovered(target: Element | null): void {
 	hovered?.classList.remove('drop-target', 'link-target')
+	hoveredField?.classList.remove('link-target')
 	hovered = target
-	hovered?.classList.add(
-		hovered.classList.contains('TqParameterTreeItem') ? 'drop-target' : 'link-target'
-	)
+	const isRow = hovered?.classList.contains('TqParameterTreeItem') ?? false
+	hovered?.classList.add(isRow ? 'drop-target' : 'link-target')
+	// A row's own field says so as well, as the elements beside others do.
+	const path = isRow ? hovered?.querySelector('.row .row-path')?.getAttribute('data-path') : null
+	hoveredField =
+		path == null
+			? null
+			: (hovered?.querySelector(`.value[data-path="${CSS.escape(path)}"]`) ?? null)
+	hoveredField?.classList.add('link-target')
 }
 
 /**

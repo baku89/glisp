@@ -322,9 +322,10 @@ const label = (value: unknown): string =>
 .callee :deep(.TqInputTextBase:hover) {
 	background: var(--tq-color-input-hover);
 }
+/* As an input with focus looks. */
 .value.link-target {
 	border-radius: var(--tq-radius-input);
-	box-shadow: 0 0 0 2px var(--tq-color-accent);
+	box-shadow: 0 0 0 1px var(--tq-color-accent);
 }
 .value.error {
 	--tq-color-text: var(--tq-color-error);
