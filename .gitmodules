@@ -1,3 +1,9 @@
 [submodule "dev_modules/tweeq"]
 	path = dev_modules/tweeq
 	url = https://github.com/baku89/tweeq
+[submodule "dev_modules/pave"]
+	path = dev_modules/pave
+	url = https://github.com/baku89/pave
+[submodule "dev_modules/geome"]
+	path = dev_modules/geome
+	url = https://github.com/baku89/geome
