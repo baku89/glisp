@@ -295,10 +295,12 @@ describe('grips', () => {
 		expect(pulled(source, 1, [99, 40])).toBe('{c = (path.ellipse [0 0] [10 40])}')
 	})
 
-	it('move a rect by a corner, staying as it is', () => {
+	it('resize a rect by a corner, the opposite one staying where it is', () => {
 		const source = '{c = (path.rect [0 0] [10 10])}'
-		expect(pulled(source, 4, [3, 4])).toBe('{c = (path.rect [3 4] [10 10])}')
-		expect(pulled(source, 7, [13, 14])).toBe('{c = (path.rect [3 4] [10 10])}')
+		expect(pulled(source, 4, [-5, -6])).toBe('{c = (path.rect [-5 -6] [15 16])}')
+		expect(pulled(source, 5, [20, -6])).toBe('{c = (path.rect [0 -6] [20 16])}')
+		expect(pulled(source, 6, [-5, 20])).toBe('{c = (path.rect [-5 0] [15 20])}')
+		expect(pulled(source, 7, [20, 30])).toBe('{c = (path.rect [0 0] [20 30])}')
 	})
 
 	it('take a rect by the middle of each side, the far side staying where it is', () => {
