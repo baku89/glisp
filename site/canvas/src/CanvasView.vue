@@ -8,6 +8,13 @@ import { transform } from 'pave/path/modifiers'
 import { useZUI } from 'tweeq/use/useZUI'
 import { computed, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
+import {
+	type Modulation,
+	modulationAt,
+	withPointInserted,
+	withPointRemoved,
+	withPointsClosed,
+} from './modulate'
 import { type Change, type Grip, type Handle, type Mat, type Path, type Vec } from './graphics'
 import {
 	changed,
@@ -759,7 +766,74 @@ const closesPen = (x: number, y: number): boolean => {
 	return Math.hypot(hx - x, hy - y) <= HANDLE_RADIUS + 3
 }
 
+/** What a pen would do here to what is selected, rather than drawing something new. */
+function modulationHere(x: number, y: number): Modulation | null {
+	const [row, other] = props.selected
+	if (pen !== null || extending !== null || row === undefined || other !== undefined) return null
+	const { root, env } = props.document
+	return modulationAt(root.value, env.value, row, fromScreen(x, y), SNAP_REACH / view.value[0])
+}
+
+const MODULATION_LABEL: Readonly<Record<Modulation['kind'], string>> = {
+	insert: 'add point',
+	remove: 'remove point',
+	continue: 'continue',
+}
+
+/** The row a pen is going on from one end of. */
+let extending: { row: string; end: 'start' | 'end' } | null = null
+
+function setModulated(next: { ast: AST; row: string } | null): void {
+	if (next === null || next.ast.kind !== 'let') return
+	props.document.setRoot(next.ast)
+	if (props.selected[0] !== next.row) emit('select', [next.row])
+}
+
 function penDown(x: number, y: number, valueOnly: boolean): void {
+	const { root, env } = props.document
+	if (extending !== null) {
+		const here = modulationAt(
+			root.value,
+			env.value,
+			extending.row,
+			fromScreen(x, y),
+			SNAP_REACH / view.value[0]
+		)
+		const otherEnd = extending.end === 'end' ? 'start' : 'end'
+		if (here?.kind === 'continue' && here.end === otherEnd) {
+			setModulated(withPointsClosed(root.value, env.value, extending.row))
+			extending = null
+			return
+		}
+		const count = gripAt(root.value, env.value, extending.row)?.handles.length ?? 0
+		const next = withPointInserted(
+			root.value,
+			env.value,
+			extending.row,
+			extending.end === 'end' ? count : 0,
+			snapAt(snapPoints(root.value, new Set([extending.row])), x, y)?.at ?? fromScreen(x, y),
+			pointerStep()
+		)
+		if (next !== null) {
+			extending = { ...extending, row: next.row }
+			setModulated(next)
+		}
+		return
+	}
+	const modulation = modulationHere(x, y)
+	if (modulation !== null) {
+		const row = props.selected[0]!
+		if (modulation.kind === 'continue') extending = { row, end: modulation.end }
+		else if (modulation.kind === 'remove') {
+			setModulated(withPointRemoved(root.value, env.value, row, modulation.index))
+		} else {
+			setModulated(
+				withPointInserted(root.value, env.value, row, modulation.index, modulation.at, pointerStep())
+			)
+		}
+		snapMark.value = null
+		return
+	}
 	if (closesPen(x, y)) {
 		writePen(true)
 		pen = null
@@ -786,6 +860,7 @@ function penDown(x: number, y: number, valueOnly: boolean): void {
 
 /** That is the path, as far as it went. With only one place, it is no path at all. */
 function finishPen(): void {
+	extending = null
 	if (pen !== null && pen.anchors.length < 2) {
 		props.document.setRoot(pen.base)
 		emit('select', [])
@@ -801,7 +876,7 @@ useEventListener(
 	window,
 	'keydown',
 	(event: KeyboardEvent) => {
-		if (event.key !== 'Enter' || pen === null || typing(event)) return
+		if (event.key !== 'Enter' || (pen === null && extending === null) || typing(event)) return
 		event.stopPropagation()
 		event.preventDefault()
 		finishPen()
@@ -869,9 +944,13 @@ function onPointerMove(event: PointerEvent): void {
 			hovered.value = null
 			hoveredHandle.value = null
 			const closes = props.drawing === 'pen' && closesPen(x, y)
-			cursor.value = closes ? 'pointer' : 'crosshair'
-			const near = closes ? null : snapAt(snapPoints(), x, y)
-			snapMark.value = near
+			const modulation = props.drawing === 'pen' ? modulationHere(x, y) : null
+			cursor.value = closes || modulation !== null ? 'pointer' : 'crosshair'
+			const near = closes || modulation !== null ? null : snapAt(snapPoints(), x, y)
+			snapMark.value =
+				modulation === null
+					? near
+					: { at: modulation.at, target: null, label: MODULATION_LABEL[modulation.kind] }
 			const last = pen?.anchors.at(-1)
 			penLine.value = last ? [toScreen(last.at, view.value), [x, y]] : null
 			return

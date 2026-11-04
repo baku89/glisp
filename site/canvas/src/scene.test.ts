@@ -178,8 +178,8 @@ describe('drawing a shape', () => {
 	})
 
 	it('is even when asked to, as far as the longer side goes', () => {
-		expect(shape('rect', [30, 50], true)).toBe('{a = 1 x = (path.rect [10 10] [40 40])}')
-		expect(shape('rect', [-30, 20], true)).toBe('{a = 1 x = (path.rect [-30 10] [40 40])}')
+		expect(shape('rect', [30, 50], true)).toBe('{a = 1 x = (path.square [10 10] 40)}')
+		expect(shape('rect', [-30, 20], true)).toBe('{a = 1 x = (path.square [-30 10] 40)}')
 		expect(shape('ellipse', [30, 50], true)).toBe('{a = 1 x = (path.circle [30 30] 20)}')
 	})
 
@@ -192,7 +192,8 @@ describe('drawing a shape', () => {
 	it('is a circle when an ellipse is even, and counts those on their own', () => {
 		expect(nameFor(root, 'ellipse', true)).toBe('circle1')
 		expect(nameFor(parse('{ellipse1 = 1 circle1 = 2}') as LetAST, 'ellipse', true)).toBe('circle2')
-		expect(nameFor(root, 'rect', true)).toBe('rect1')
+		expect(nameFor(root, 'rect', true)).toBe('square1')
+		expect(nameFor(root, 'rect', false)).toBe('rect1')
 	})
 })
 
@@ -675,6 +676,30 @@ describe('what a handle has changed', () => {
 	})
 })
 
+describe('a square', () => {
+	it('is a rect, on the way', () => {
+		expect(expandLadder(parse('(path.square [1 2] (+ 1 2))'), env).map(print)[1]).toBe(
+			'(path.rect [1 2] [(+ 1 2) (+ 1 2)])'
+		)
+	})
+
+	it('can be referred to, by its corners', () => {
+		const root = parse('{s = (path.square [10 10] 20) c = (path.circle [0 0] 1)}') as LetAST
+		const near = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [30, 30], 0.5)!
+		const next = drawnFrom(root, env, 'x', 'ngon', near, [90, 90], false)
+		expect(gripAt(next, env, 'binding:x')!.handles.at(-1)!.at).toEqual([30, 30])
+	})
+
+	it('refers from where it starts, along the diagonal, and not otherwise', () => {
+		const root = parse('{c = (path.circle [100 100] 10)}') as LetAST
+		const center = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [100, 100], 1)!
+		const drawnAs = (to: Vec) => print(drawnFrom(root, env, 'x', 'rect', center, to, true).bindings.at(-1)![1])
+		expect(drawnAs([130, 120])).toBe('(path.square ../c/center 30)')
+		expect(drawnAs([70, 80])).toBe('(path.square ../c/center -30)')
+		expect(drawnAs([130, 80])).toBe('(path.square [100 70] 30)')
+	})
+})
+
 describe('how finely a pointer says anything', () => {
 	it('goes by the zoom and the screen, in powers of ten', () => {
 		expect(dragStep(1, 1)).toBe(1)
@@ -912,6 +937,24 @@ describe('grips', () => {
 	it('turn the ends of an arc by the short way', () => {
 		const source = '{c = (path.arc [0 0] 10 170 200)}'
 		expect(pulled(source, 2, [-10, -1])).toMatch(/\(path\.arc \[0 0\] 10 170 18\d\.\d+\)/)
+	})
+
+	it('take a curve by where it goes through, where what pulls it is in the same place', () => {
+		const source = '{c = (path.cubic [0 0] [0 0] [5 5] [9 0])}'
+		const { handles } = gripAt(parse(source), env, row)!
+		const atStart = handles.flatMap((h, i) => (h.at![0] === 0 ? [i] : []))
+		// The last of them is what is found first.
+		expect(pulled(source, atStart.at(-1)!, [1, 1])).toBe('{c = (path.cubic [1 1] [0 0] [5 5] [9 0])}')
+	})
+
+	it('take a square by a corner or side, as one size', () => {
+		const source = '{c = (path.square [0 0] 10)}'
+		expect(pulled(source, 0, [20, 99])).toBe('{c = (path.square [0 0] 20)}')
+		expect(pulled(source, 1, [99, 30])).toBe('{c = (path.square [0 0] 30)}')
+		expect(pulled(source, 2, [-5, -2])).toBe('{c = (path.square [-5 -5] 15)}')
+		expect(pulled(source, 3, [20, 40])).toBe('{c = (path.square [0 0] 40)}')
+		const root = parse(source)
+		expect(print(changed(root, env, row, gripAt(root, env, row)!.move!([3, 4])).ast!)).toBe('{c = (path.square [3 4] 10)}')
 	})
 
 	it('show what controls a curve', () => {

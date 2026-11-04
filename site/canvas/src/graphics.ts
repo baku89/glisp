@@ -286,6 +286,21 @@ const makeRect = withExpansion(
 		])
 	}
 )
+const makeSquare = withExpansion(
+	makeTypedFn(
+		[point, number],
+		pathType,
+		(topLeft, side) =>
+			new PathValue(
+				rectangle(topLeft as Vec, add(topLeft as Vec, [side as number, side as number]))
+			),
+		['topLeft', 'size']
+	),
+	([topLeft, side]) =>
+		topLeft === undefined || side === undefined
+			? null
+			: callOf('rect', [topLeft, new VecAST([side, side])])
+)
 const makeLine = withExpansion(
 	makeTypedFn(
 		[point, point],
@@ -494,6 +509,7 @@ withMembers(pathType, {
 	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.'),
 	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` each way.'),
 	rect: withDoc(makeRect, 'A rectangle from its `topLeft`, of this `size`.'),
+	square: withDoc(makeSquare, 'A square from its `topLeft`, with sides of this `size`.'),
 	line: withDoc(makeLine, 'A straight line from `start` to `end`.'),
 	polyline: withDoc(makePolyline, 'Straight lines through each of the points, in turn.'),
 	polygon: withDoc(makePolygon, 'Straight lines through each of the points, and back.'),
@@ -740,23 +756,20 @@ const QUADRANTS = [
 ] as const
 
 /** Where the parts of a rect are, from its top left and size. */
-const RECT_X = (p: (path: string) => string, along: number): string =>
+const across = (p: (path: string) => string, start: string, size: string, along: number): string =>
 	along === 0
-		? p('arg0/0')
+		? p(start)
 		: along === 1
-			? `(+ ${p('arg0/0')} ${p('arg1/0')})`
-			: `(+ ${p('arg0/0')} (/ ${p('arg1/0')} 2))`
-const RECT_Y = (p: (path: string) => string, along: number): string =>
-	along === 0
-		? p('arg0/1')
-		: along === 1
-			? `(+ ${p('arg0/1')} ${p('arg1/1')})`
-			: `(+ ${p('arg0/1')} (/ ${p('arg1/1')} 2))`
-/** At `x` and `y` of the way across, 2 being the middle. */
-const rectPlace =
+			? `(+ ${p(start)} ${p(size)})`
+			: `(+ ${p(start)} (/ ${p(size)} 2))`
+/** At `x` and `y` of the way across, 2 being the middle, by what is its width and height. */
+const placeIn =
+	(width: string, height: string) =>
 	(x: number, y: number): PlaceCode =>
 	p =>
-		`[${RECT_X(p, x)} ${RECT_Y(p, y)}]`
+		`[${across(p, 'arg0/0', width, x)} ${across(p, 'arg0/1', height, y)}]`
+const rectPlace = placeIn('arg1/0', 'arg1/1')
+const squarePlace = placeIn('arg1', 'arg1')
 
 const GIZMO_SIZE = 80
 const NGON_RING = 40
@@ -765,10 +778,17 @@ const NGON_RING = 40
 const pointsGrip = (
 	points: readonly Vec[],
 	guides: readonly Path[] = [],
-	snaps?: Snaps
+	snaps?: Snaps,
+	/** What comes first is taken last, where they are in the same place. */
+	order: readonly number[] = points.map((_, i) => i)
 ): Grip => ({
 	...(snaps === undefined ? {} : { snaps }),
-	handles: points.map((at, i) => ({ kind: 'point', place: i, at, to: to => [change(i, to)] })),
+	handles: order.map(i => ({
+		kind: 'point',
+		place: i,
+		at: points[i]!,
+		to: (to: Vec) => [change(i, to)],
+	})),
 	guides,
 	move: delta => points.map((at, i) => change(i, add(at, delta))),
 })
@@ -959,6 +979,45 @@ const makers = new Map<unknown, Maker>([
 		},
 	],
 	[
+		makeSquare,
+		([topLeft, side]) => {
+			const s = topLeft as Vec
+			const size = side as number
+			const e = add(s, [size, size])
+			const middle: Vec = [s[0] + size / 2, s[1] + size / 2]
+			const moved = (delta: Vec): Change[] => [change(0, add(s, delta))]
+			// A side stays where it is across from what is being taken, and the rest follows.
+			const sized = (next: number): Change => change(1, next)
+			const fromFar = (x: number, y: number): Change[] => {
+				const next = Math.max(e[0] - x, e[1] - y)
+				return [change(0, [e[0] - next, e[1] - next]), sized(next)]
+			}
+			return {
+				handles: [
+					{ kind: 'arrow', name: 'right', code: squarePlace(1, 2), angle: 0, at: [e[0], middle[1]], to: to => [sized(to[0] - s[0])] },
+					{ kind: 'arrow', name: 'bottom', code: squarePlace(2, 1), angle: 90, at: [middle[0], e[1]], to: to => [sized(to[1] - s[1])] },
+					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, to: to => fromFar(to[0], to[1]) },
+					{ kind: 'point', name: 'bottom right', code: squarePlace(1, 1), angle: 45, at: e, to: to => [sized(Math.max(to[0] - s[0], to[1] - s[1]))] },
+				],
+				guides: [],
+				snaps: {
+					points: [
+						{ at: middle, name: 'center', code: squarePlace(2, 2) },
+						{ at: [e[0], s[1]], name: 'top right', code: squarePlace(1, 0) },
+						{ at: [s[0], e[1]], name: 'bottom left', code: squarePlace(0, 1) },
+					],
+					lines: [
+						{ from: s, to: [e[0], s[1]], name: 'top' },
+						{ from: [e[0], s[1]], to: e, name: 'right' },
+						{ from: e, to: [s[0], e[1]], name: 'bottom' },
+						{ from: [s[0], e[1]], to: s, name: 'left' },
+					],
+				},
+				move: moved,
+			}
+		},
+	],
+	[
 		makeLine,
 		args => {
 			const [start, end] = args as [Vec, Vec]
@@ -974,7 +1033,13 @@ const makers = new Map<unknown, Maker>([
 		makeCubic,
 		args => {
 			const [start, control1, control2, end] = args as Vec[]
-			return pointsGrip(args as Vec[], [line(start!, control1!), line(end!, control2!)])
+			// A place where it goes through, before what only pulls it, wherever they coincide.
+			return pointsGrip(
+				args as Vec[],
+				[line(start!, control1!), line(end!, control2!)],
+				undefined,
+				[1, 2, 0, 3]
+			)
 		},
 	],
 	[

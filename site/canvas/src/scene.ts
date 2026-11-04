@@ -290,7 +290,9 @@ export function drawnFrom(
 	even: boolean,
 	step = FINEST
 ): LetAST {
-	const anchored = canRefer(snap)
+	// A square has one size, so it can only go out from there along the diagonal.
+	const [dx, dy] = [to[0] - snap.at[0], to[1] - snap.at[1]]
+	const anchored = canRefer(snap) && !(tool === 'rect' && even && dx * dy < 0)
 	const next = drawn(root, name, tool, snap.at, to, even, step, anchored)
 	if (!anchored) return next
 	const source = `binding:${name}/arg0`
@@ -371,7 +373,7 @@ export function linked(
 
 /** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */
 export function nameFor(root: LetAST, tool: ShapeTool, even: boolean): string {
-	return nameOfKind(root, tool === 'ellipse' && even ? 'circle' : tool)
+	return nameOfKind(root, !even ? tool : tool === 'ellipse' ? 'circle' : tool === 'rect' ? 'square' : tool)
 }
 
 /**
@@ -403,6 +405,10 @@ export function drawn(
 	const source =
 		tool === 'ngon'
 			? `(path.ngon ${written(from)} ${rounded(Math.hypot(dx, dy))} ${NGON_SIDES})`
+			: anchored && tool === 'rect' && even
+			? `(path.square ${written(from)} ${rounded(size2[0])})`
+			: tool === 'rect' && even
+			? `(path.square ${written(corner)} ${rounded(side)})`
 			: anchored && tool === 'rect'
 			? `(path.rect ${written(from)} ${written(size2)})`
 			: anchored && even
