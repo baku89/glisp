@@ -7,6 +7,8 @@ import { ScrollArea } from 'tweeq/ScrollArea'
 import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
 import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
+import { useNumberFieldEdits } from './numberFieldEdits'
+
 import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
@@ -579,6 +581,8 @@ useEventListener(
 	},
 	{ capture: true }
 )
+
+if (!isInspector.value) useNumberFieldEdits(props.document)
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (isInspector.value || props.hostKey?.(event)) return

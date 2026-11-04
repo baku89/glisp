@@ -1,4 +1,4 @@
-import { LetAST, parse } from '@glisp/lang'
+import { LetAST, parse, print } from '@glisp/lang'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useGlispDocument } from './document'
@@ -47,5 +47,67 @@ describe('rewind', () => {
 		document.undo()
 		expect(document.root.value).toBe(start)
 		expect(document.canUndo.value).toBe(false)
+	})
+})
+
+describe('what is held', () => {
+	const set = (document: ReturnType<typeof useGlispDocument>, source: string) =>
+		document.setRoot(program(source))
+	const at = (document: ReturnType<typeof useGlispDocument>) => print(document.root.value)
+
+	it('undoes as one, however long it takes', () => {
+		const document = useGlispDocument('{a = 1}')
+		document.hold()
+		set(document, '{a = 5}')
+		set(document, '{a = 52}')
+		set(document, '{a = 520}')
+		document.release()
+		document.undo()
+		expect(at(document)).toBe('{a = 1}')
+		expect(document.canUndo.value).toBe(false)
+	})
+
+	it('stays one through a batch, as several rows typed in at once are', () => {
+		const document = useGlispDocument('{a = 1}')
+		document.hold()
+		document.batch(() => set(document, '{a = 5}'))
+		document.batch(() => set(document, '{a = 52}'))
+		document.release()
+		document.undo()
+		expect(at(document)).toBe('{a = 1}')
+	})
+
+	it('is apart from what comes before and after, however soon', () => {
+		vi.restoreAllMocks()
+		const document = useGlispDocument('{a = 1}')
+		set(document, '{a = 2}')
+		document.hold()
+		set(document, '{a = 3}')
+		document.release()
+		set(document, '{a = 4}')
+		document.undo()
+		expect(at(document)).toBe('{a = 3}')
+		document.undo()
+		expect(at(document)).toBe('{a = 2}')
+		document.undo()
+		expect(at(document)).toBe('{a = 1}')
+	})
+
+	it('adds nothing to undo, if nothing was written', () => {
+		const document = useGlispDocument('{a = 1}')
+		document.hold()
+		document.release()
+		expect(document.canUndo.value).toBe(false)
+	})
+
+	it('goes on as a new edit after an undo, without having been let go of', () => {
+		const document = useGlispDocument('{a = 1}')
+		document.hold()
+		set(document, '{a = 2}')
+		document.undo()
+		set(document, '{a = 3}')
+		document.undo()
+		expect(at(document)).toBe('{a = 1}')
+		document.release()
 	})
 })

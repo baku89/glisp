@@ -35,6 +35,9 @@ export interface GlispDocument {
 	setRoot(next: LetAST): void
 	/** Have every `setRoot` that `write` makes undo as one. */
 	batch(write: () => void): void
+	/** Have every `setRoot` from now until `release` undo as one, as typing in a field does. */
+	hold(): void
+	release(): void
 	/** Evaluate a node in its env, sharing the cache with everything else. */
 	read(ast: AST, env: Env): EvalResult
 	/** Pick up a change the session made by itself, as a REPL does. */
@@ -58,9 +61,10 @@ export function useGlispDocument(
 	const root = shallowRef(session.ast())
 	const past = shallowRef<ReadonlyArray<LetAST>>([])
 	const future = shallowRef<ReadonlyArray<LetAST>>([])
-	let lastEditAt = 0
+	let lastEditAt = -Infinity
 	let batching = false
 	let recorded = false
+	let held = false
 
 	const install = (next: LetAST): void => {
 		session.setAst(next)
@@ -69,7 +73,7 @@ export function useGlispDocument(
 
 	const record = (): void => {
 		if (recorded) return
-		recorded = batching
+		recorded = batching || held
 		const now = performance.now()
 		if (now - lastEditAt > COALESCE_MS) {
 			past.value = [...past.value, root.value]
@@ -104,15 +108,27 @@ export function useGlispDocument(
 			try {
 				write()
 			} finally {
-				batching = recorded = false
+				batching = false
+				if (!held) recorded = false
 			}
+		},
+		hold() {
+			if (held) return
+			held = true
+			recorded = false
+			// What comes next is not more of what came just before.
+			lastEditAt = -Infinity
+		},
+		release() {
+			held = recorded = false
+			lastEditAt = -Infinity
 		},
 		read: (ast, env) => session.evalAstIn(ast, env),
 		sync() {
 			if (session.ast() === root.value) return
 			past.value = [...past.value, root.value]
 			future.value = []
-			lastEditAt = 0
+			lastEditAt = -Infinity
 			root.value = session.ast()
 		},
 		undo() {
@@ -120,14 +136,16 @@ export function useGlispDocument(
 			if (previous === undefined) return
 			past.value = past.value.slice(0, -1)
 			future.value = [...future.value, root.value]
-			lastEditAt = 0
+			lastEditAt = -Infinity
+			recorded = false
 			install(previous)
 		},
 		rewind(to) {
 			if (root.value === to) return
 			const at = past.value.lastIndexOf(to)
 			if (at >= 0) past.value = past.value.slice(0, at)
-			lastEditAt = 0
+			lastEditAt = -Infinity
+			recorded = false
 			install(to)
 		},
 		redo() {
@@ -135,7 +153,8 @@ export function useGlispDocument(
 			if (next === undefined) return
 			future.value = future.value.slice(0, -1)
 			past.value = [...past.value, root.value]
-			lastEditAt = 0
+			lastEditAt = -Infinity
+			recorded = false
 			install(next)
 		},
 	}
