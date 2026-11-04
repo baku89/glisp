@@ -148,8 +148,15 @@ describe('drawing a shape', () => {
 	})
 
 	it('is named for what it is, and nothing already there', () => {
-		expect(nameFor(root, 'rect')).toBe('rect')
-		expect(nameFor(parse('{rect = 1 rect2 = 2}') as LetAST, 'rect')).toBe('rect3')
+		expect(nameFor(root, 'rect', false)).toBe('rect1')
+		expect(nameFor(parse('{rect1 = 1 rect2 = 2}') as LetAST, 'rect', false)).toBe('rect3')
+		expect(nameFor(root, 'ellipse', false)).toBe('ellipse1')
+	})
+
+	it('is a circle when an ellipse is even, and counts those on their own', () => {
+		expect(nameFor(root, 'ellipse', true)).toBe('circle1')
+		expect(nameFor(parse('{ellipse1 = 1 circle1 = 2}') as LetAST, 'ellipse', true)).toBe('circle2')
+		expect(nameFor(root, 'rect', true)).toBe('rect1')
 	})
 })
 

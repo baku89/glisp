@@ -348,7 +348,7 @@ function onPointerDown(event: PointerEvent): void {
 			kind: 'draw',
 			tool: props.drawing,
 			base,
-			name: nameFor(base, props.drawing),
+			name: '',
 			at: [x, y],
 			to: [x, y],
 			drawing: false,
@@ -412,17 +412,20 @@ function drawPressed(even: boolean): void {
 	if (pressed?.kind !== 'draw') return
 	const [fromX, fromY] = pressed.at
 	const [x, y] = pressed.to
+	// It is named for what it is, which can change as it is drawn.
+	const name = nameFor(pressed.base, pressed.tool, even)
 	props.document.setRoot(
 		drawn(
 			pressed.base,
-			pressed.name,
+			name,
 			pressed.tool,
 			fromScreen(fromX, fromY),
 			fromScreen(x, y),
 			even
 		)
 	)
-	if (!pressed.drawing) emit('select', [`binding:${pressed.name}`])
+	if (name !== pressed.name) emit('select', [`binding:${name}`])
+	pressed.name = name
 	pressed.drawing = true
 }
 

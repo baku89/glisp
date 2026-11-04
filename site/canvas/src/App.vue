@@ -61,7 +61,7 @@ watch(document.root, root => {
 })
 
 const TOOLS = [
-	{ name: 'select', tooltip: { content: 'Select' }, icon: 'ph:cursor-fill' },
+	{ name: 'select', tooltip: { content: 'Select', shortcut: ['V'] }, icon: 'ph:cursor-fill' },
 	{ name: 'rect', tooltip: { content: 'Rectangle', shortcut: ['R'] }, icon: 'ph:rectangle' },
 	{ name: 'ellipse', tooltip: { content: 'Ellipse', shortcut: ['O'] }, icon: 'ph:circle' },
 ] as const
@@ -73,10 +73,14 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (target?.closest?.('input, textarea, [contenteditable]')) return
 	if (event.metaKey || event.ctrlKey || event.altKey) return
 	const key = event.key.toLowerCase()
-	if (key === 'r') tool.value = 'rect'
+	if (key === 'v') {
+		tool.value = 'select'
+		// In a drawing app it is the tool, before what it means to a row in the tree.
+		event.stopPropagation()
+	} else if (key === 'r') tool.value = 'rect'
 	else if (key === 'o') tool.value = 'ellipse'
 	else if (key === 'escape') tool.value = 'select'
-})
+}, { capture: true })
 
 const selected = ref<readonly string[]>([])
 const $editor = useTemplateRef<{ reveal(path: string): void; deselect(): void }>('$editor')
@@ -120,7 +124,7 @@ function selectInTree(row: string | null): void {
 							<button
 								v-for="{ name, tooltip, icon } in TOOLS"
 								:key="name"
-								v-tooltip="{ ...tooltip, shortcut: [...('shortcut' in tooltip ? tooltip.shortcut : [])] }"
+								v-tooltip="{ ...tooltip, shortcut: [...tooltip.shortcut] }"
 								class="tool"
 								:class="{ active: tool === name }"
 								:aria-label="tooltip.content"

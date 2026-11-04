@@ -63,13 +63,13 @@ export type ShapeTool = 'rect' | 'ellipse'
 const rounded = (n: number): number => Math.round(n * 100) / 100
 const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
 
-/** The name a shape drawn with `tool` gets, that `root` does not have yet. */
-export function nameFor(root: LetAST, tool: ShapeTool): string {
+/** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */
+export function nameFor(root: LetAST, tool: ShapeTool, even: boolean): string {
 	const taken = new Set(root.bindings.map(([name]) => name))
-	if (!taken.has(tool)) return tool
-	let n = 2
-	while (taken.has(`${tool}${n}`)) n++
-	return `${tool}${n}`
+	const kind = tool === 'ellipse' && even ? 'circle' : tool
+	let n = 1
+	while (taken.has(`${kind}${n}`)) n++
+	return `${kind}${n}`
 }
 
 /**
