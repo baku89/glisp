@@ -423,7 +423,7 @@ It goes down from the node to a literal, the only thing it changes:
 - A call to a closure goes through its body, and a parameter leads to the argument as written. The literals of a function stay, since other calls share them.
 - A call to a host function asks its inverse what an argument would have to be. See [Which argument changes](#which-argument-changes).
 
-It stops at `@`, at a host function with no inverse, and for now at `?`, `|>` and `overload`. An inverse gets the arguments as the function would, what failed being the type's default, and one that throws has no way back: like evaluation, `solve` gives a diagnostic, and does not throw for an error in the program.
+It stops at `@`, including a path that goes through something pinned to what is in it, at a host function with no inverse, and for now at `?`, `|>` and `overload`. An inverse gets the arguments as the function would, what failed being the type's default, and one that throws has no way back: like evaluation, `solve` gives a diagnostic, and does not throw for an error in the program.
 
 `map` works its function backward for each element, and then what it is passed backward to that. Only the argument changes: not the function's literals, and not what it refers to from outside.
 
@@ -433,7 +433,9 @@ It stops at `@`, at a host function with no inverse, and for now at `?`, `|>` an
 
 ### Which argument changes
 
-Of a call's arguments, it tries a literal first, as that changes nothing else, and then a later one before an earlier one. `(+ a 1)` changes the `1`, `(+ a @1)` changes `a`, and `(+ a b)` changes `b`, or `a` if `b` cannot change. The first that works is the one, so a program steers it with `@`.
+Of a call's arguments, it tries a literal first, as that changes nothing else, and then a later one before an earlier one, as what comes later is less of what a call is. `(+ a 1)` changes the `1`, `(+ a @1)` changes `a`, and `(+ a b)` changes `b`, or `a` if `b` cannot change. The first that works is the one, so a program steers it with `@`.
+
+After a literal, and before going by the order, comes a path through a parameter whose type says `changesFirst: true`, of a host function. A host says this of what can change without what a thing is changing, such as where it is: with `(circle (center: Place) radius)`, `(+ ../a/center ../a/radius)` changes the center, whichever way around it is written, and the radius only if the center cannot change.
 
 ### What cannot add up
 

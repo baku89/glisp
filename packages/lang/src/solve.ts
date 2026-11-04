@@ -12,6 +12,7 @@
 
 import { isHidden, isPinned, lit } from './build.js'
 import { desugar } from './desugar.js'
+import { callParameters } from './infer.js'
 import {
 	enterNode,
 	evaluate,
@@ -122,9 +123,12 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 			}
 			case 'path': {
 				const target = pathTarget(ast.segments, at)
-				return 'message' in target
-					? stop(ast, at, target.message)
-					: next(target.ast, target.env, wanted)
+				if ('message' in target) return stop(ast, at, target.message)
+				// What it goes through being pinned, what is in it is as well.
+				for (const step of stepsOf(ast.segments, at)) {
+					if (isPinned(step.parent) && step.parent !== target.ast) return stop(step.parent, at, 'pinned')
+				}
+				return next(target.ast, target.env, wanted)
 			}
 			case 'let':
 				return ast.body === null
@@ -208,7 +212,7 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 			const type = paramTypes[i] ?? variadicTail
 			return type === undefined ? value : coerceTo(type, value)
 		})
-		for (const index of argumentOrder(ast.args)) {
+		for (const index of argumentOrder(ast.args, inside)) {
 			const needed = askInverse(inverse, index, wanted, args)
 			if (needed === undefined || !isUsable(needed)) continue
 			const edits = next(ast.args[index]!, inside, needed)
@@ -302,17 +306,60 @@ function bodyEnv(closure: GlispClosure, call: CallAST, callEnv: Env): Env {
 }
 
 /**
- * Which argument to try changing first: a literal, as that changes nothing else,
- * and then a later one before an earlier one.
+ * Which argument to try changing first: a literal, as that changes nothing else, then what
+ * refers to a parameter that says to be changed first, and then a later one before an
+ * earlier one, as what comes later is less of what a call is.
  */
-function argumentOrder(args: readonly AST[]): number[] {
+function argumentOrder(args: readonly AST[], env: Env): number[] {
 	const isLiteral = (arg: AST) =>
 		(arg.kind === 'meta' ? !isPinned(arg) && arg.expr.kind === 'lit' : arg.kind === 'lit')
 	const later = args.map((_, i) => args.length - 1 - i)
+	const others = later.filter(i => !isLiteral(args[i]!))
+	const first = others.filter(i => refersToChangedFirst(args[i]!, env))
 	return [
 		...later.filter(i => isLiteral(args[i]!)),
-		...later.filter(i => !isLiteral(args[i]!)),
+		...first,
+		...others.filter(i => !first.includes(i)),
 	]
+}
+
+/** The key of what a type says, for what is in a parameter of it to be changed first. */
+const CHANGES_FIRST = 'changesFirst'
+
+/** Where each step down of a path gets to, and what it was in. */
+function* stepsOf(
+	segments: ReadonlyArray<'..' | string | number>,
+	env: Env
+): Generator<{ readonly parent: AST; readonly parentEnv: Env; readonly ast: AST }> {
+	for (let i = 1; i < segments.length; i++) {
+		const segment = segments[i]
+		if (segment === '/' || segment === '..') continue
+		const parent = pathTarget(segments.slice(0, i), env)
+		const child = pathTarget(segments.slice(0, i + 1), env)
+		if ('message' in parent || 'message' in child) return
+		yield { parent: parent.ast, parentEnv: parent.env, ast: child.ast }
+	}
+}
+
+/** Whether the path `arg` goes through a parameter whose type says to be changed first. */
+function refersToChangedFirst(arg: AST, env: Env): boolean {
+	const path = arg.kind === 'meta' ? arg.expr : arg
+	if (path.kind !== 'path') return false
+	for (const { parent, parentEnv, ast } of stepsOf(path.segments, env)) {
+		const call = parent.kind === 'meta' ? parent.expr : parent
+		if (call.kind !== 'call') continue
+		const inside = enterNode(call, parentEnv)
+		const head = evaluate(call.head, inside).value
+		if (!isTypedHostFn(head)) continue
+		const named = [...(call.kwargs ?? [])].find(([, value]) => value === ast)?.[0]
+		const index =
+			named === undefined
+				? call.args.indexOf(ast)
+				: (callParameters(call, inside)?.names.indexOf(named) ?? -1)
+		const said = (head.paramTypes[index] ?? head.variadicTail)?.meta?.get(CHANGES_FIRST)
+		if (index >= 0 && said?.kind === 'lit' && said.value === true) return true
+	}
+	return false
 }
 
 /**

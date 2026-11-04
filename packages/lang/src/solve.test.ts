@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { host, lit } from './build.js'
-import { makeTopLevel, makeTypedFn, numberType, withInverse } from './eval.js'
+import { makeTopLevel, makeTypedFn, numberType, withInverse, withTypeMeta } from './eval.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
 import { Session } from './session.js'
 import { UNSET } from './eval.js'
 import { solve } from './solve.js'
-import { type AST, CallAST, LetAST } from './types.js'
+import { type AST, CallAST, type Env, LetAST, RecordAST } from './types.js'
 
 const env = buildPrelude()
 
@@ -91,6 +91,7 @@ describe('solve — a call', () => {
 
 	it('otherwise goes for the later of what it can reach', () => {
 		expect(edited('{a = 1 b = 2 r = (+ a b)}', 10)).toBe('{a = 1 b = 9 r = (+ a b)}')
+		expect(edited('{a = 1 b = @2 r = (+ a b)}', 10)).toBe('{a = 8 b = @2 r = (+ a b)}')
 	})
 
 	it('has a way back for arithmetic', () => {
@@ -321,5 +322,63 @@ describe('what cannot be worked out', () => {
 		)
 		const root = new LetAST([['r', new CallAST(host(failing), [lit(1)])]], null)
 		expect(solve(root, env, root.bindings[0]![1], 2).ast).toBeNull()
+	})
+})
+
+describe('solve — what a parameter says of itself', () => {
+	const place = withTypeMeta(numberType, new RecordAST([['changesFirst', lit(true)]]))
+	const circle = makeTypedFn([place, numberType], numberType, (c, r) => (c as number) + (r as number), ['center', 'radius'])
+	const places: Env = {
+		ast: new LetAST([], null),
+		parent: env,
+		bindings: new Map([['circle', { ast: host(circle), env: null }]]),
+	}
+	const moved = (src: string, value: unknown) => {
+		const root = parse(src) as LetAST
+		const r = root.bindings.find(([name]) => name === 'r')![1]
+		const { ast } = solve(root, places, r, value)
+		return ast && print(ast)
+	}
+
+	it('changes what refers to it first, wherever it comes in a call', () => {
+		expect(moved('{a = (circle 10 2) r = (+ ../a/center ../a/radius)}', 20)).toBe('{a = (circle 18 2) r = (+ ../a/center ../a/radius)}')
+		expect(moved('{a = (circle 10 2) r = (+ ../a/radius ../a/center)}', 20)).toBe('{a = (circle 18 2) r = (+ ../a/radius ../a/center)}')
+	})
+
+	it('goes on to the rest, where that is pinned', () => {
+		expect(moved('{a = (circle @10 2) r = (+ ../a/center ../a/radius)}', 20)).toBe('{a = (circle @10 10) r = (+ ../a/center ../a/radius)}')
+	})
+
+	it('still changes a literal before it', () => {
+		expect(moved('{a = (circle 10 2) r = (+ ../a/center 5)}', 20)).toBe('{a = (circle 10 2) r = (+ ../a/center 10)}')
+	})
+
+	it('changes the later, as ever, where nothing says otherwise', () => {
+		expect(moved('{a = (circle 10 2) b = 1 r = (+ ../a/radius ../b)}', 20)).toBe('{a = (circle 10 2) b = 18 r = (+ ../a/radius ../b)}')
+	})
+})
+
+describe('solve — a path into what is pinned', () => {
+	const moved = (src: string, value: unknown) => {
+		const root = parse(src) as LetAST
+		const r = root.bindings.find(([name]) => name === 'r')![1]
+		return solve(root, env, r, value)
+	}
+
+	it('leaves it, as it is pinned as a whole', () => {
+		const { ast, diagnostics } = moved('{z = @[1 2] r = ./z/0}', 5)
+		expect(ast).toBeNull()
+		expect(diagnostics[0]?.message).toBe('pinned')
+		expect(moved('{z = @{a: 7} r = ./z/a}', 5).ast).toBeNull()
+	})
+
+	it('goes to something else, if there is something', () => {
+		const { ast } = moved('{z = @[1 2] b = 3 r = (+ b ../z/0)}', 10)
+		expect(ast && print(ast)).toBe('{z = @[1 2] b = 9 r = (+ b ../z/0)}')
+	})
+
+	it('leaves what is beside it as it was', () => {
+		const { ast } = moved('{z = [@1 2] r = ./z/1}', 5)
+		expect(ast && print(ast)).toBe('{z = [@1 5] r = ./z/1}')
 	})
 })
