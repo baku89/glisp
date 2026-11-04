@@ -74,6 +74,8 @@ const props = defineProps<{
 	grid?: GridKind
 }>()
 
+	/** A drag or a drawing goes to what it comes near. */
+	snapping?: boolean
 const emit = defineEmits<{
 	select: [rows: readonly string[]]
 	/** A right click, and the row of what it was on, if anything. */
@@ -198,7 +200,7 @@ function snappedMove(
 	let best: { snap: SnapPoint; distance: number; delta: Vec } | null = null
 	for (const { at } of own) {
 		const moved: Vec = [at[0] + dx, at[1] + dy]
-		const snap = nearestSnap(others, moved, SNAP_REACH / view.value[0])
+		const snap = snapNear(others, moved)
 		if (snap === null) continue
 		const distance = Math.hypot(snap.at[0] - moved[0], snap.at[1] - moved[1])
 		if (best === null || distance < best.distance) {
@@ -217,12 +219,16 @@ function snapPoints(
 	root: AST = props.document.root.value,
 	except?: ReadonlySet<string>
 ): SnapPoint[] {
+/** The nearest of `points` within reach of `at` in the program's coordinates, unless turned off. */
+const snapNear = (points: readonly SnapPoint[], at: Vec): SnapPoint | null =>
+	props.snapping ? nearestSnap(points, at, SNAP_REACH / view.value[0]) : null
+
 	const { env } = props.document
 	return snapPointsOf(root, env.value, sceneOf(root, env.value), except)
 }
 
 const snapAt = (points: readonly SnapPoint[], x: number, y: number): SnapPoint | null =>
-	nearestSnap(points, fromScreen(x, y), SNAP_REACH / view.value[0])
+	snapNear(points, fromScreen(x, y))
 
 /** A path being drawn with the pen, which goes on until it is finished. */
 let pen: { base: LetAST; name: string; anchors: readonly Anchor[] } | null = null
@@ -1338,7 +1344,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	const { row, handle, mat, from, offset, at, base, points } = pressed
 	const [px, py] = fromScreen(at[0], at[1], mat)
 	const wanted: Vec = [px + offset[0], py + offset[1]]
-	const snap = nearestSnap(points, wanted, SNAP_REACH / view.value[0])
+	const snap = snapNear(points, wanted)
 	snapMark.value = snap
 
 	const changes = handle.to(snap?.at ?? wanted, from, { symmetric, even })

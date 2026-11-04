@@ -153,6 +153,9 @@ const grid = useAppConfigStore().ref<GridKind>('glisp.canvas.grid', 'dots')
 const toggleGrid = (kind: GridKind): void => {
 	grid.value = grid.value === kind ? 'none' : kind
 }
+/** A drag or a drawing goes to what it comes near. */
+const snappingOn = useAppConfigStore().ref('glisp.canvas.snapping', true)
+
 
 const toolKeys = new Set<string>(TOOLS.flatMap(tool => ('key' in tool ? [tool.key] : [])))
 
@@ -664,6 +667,7 @@ function selectInTree(row: string | null): void {
 					icon="ph:tree-view"
 					:width="PROJECT_WIDTH"
 				>
+			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
 					<template #header>
 						<div class="tabs" role="tablist">
 							<button
@@ -707,6 +711,7 @@ function selectInTree(row: string | null): void {
 					</div>
 				</FloatPanel>
 				<FloatPanel
+					:snapping="snappingOn"
 					v-model:open="inspectorOpen"
 					name="glisp.canvas.inspector"
 					data-selects-rows
@@ -846,6 +851,16 @@ function selectInTree(row: string | null): void {
 	color: var(--tq-color-text-mute);
 	cursor: pointer;
 }
+					<button
+						v-tooltip="{ content: 'Snapping', shortcut: actions.shortcutOf('view_snapping') }"
+						class="tool"
+						:class="{ active: snappingOn }"
+						aria-label="Snapping"
+						:aria-pressed="snappingOn"
+						@click="snappingOn = !snappingOn"
+					>
+						<Icon icon="ph:magnet" />
+					</button>
 .tab:hover {
 	color: var(--tq-color-text);
 }
