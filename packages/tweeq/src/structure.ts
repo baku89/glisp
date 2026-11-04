@@ -22,13 +22,17 @@ import {
 	isTypeValue,
 	LetAST,
 	LitAST,
+	lookupBareName,
 	MetaAST,
 	parse,
+	PathAST,
+	pathTarget,
 	pin,
 	print,
 	pushLetFrame,
 	RecordAST,
 	renameBindingIn,
+	SymAST,
 	resolveTypeSlot,
 	toAst,
 	typeFits,
@@ -984,6 +988,85 @@ export function renameBindingAt(
 		return node
 	})
 	return block === null ? null : renameBindingIn(root, block, from, name)
+}
+
+const bareOf = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
+
+/**
+ * `root`, with what is at the path `source` referring to what is at `target`: by
+ * name if that name means it from there, or else by a path. Paths are slot keys
+ * from `root`, joined by `/`. Null if it cannot be: what is at `target` holds it, or
+ * no name or path reaches what is there.
+ */
+export function referenceAt(
+	root: AST,
+	env: Env,
+	source: string,
+	target: string
+): AST | null {
+	const split = (path: string) => path.split('/').filter(part => part !== '')
+	const from = split(source)
+	const to = split(target)
+	if (from.length === 0 || to.length === 0) return null
+	if (`${source}/`.startsWith(`${target}/`)) return null
+
+	const walk = (parts: readonly string[]): { slot: Slot; levels: (string | number)[] } | null => {
+		let node = root
+		let nodeEnv = env
+		let found: Slot | null = null
+		const levels: (string | number)[] = []
+		for (const key of parts) {
+			const bare = bareOf(node)
+			const slot = viewOf(node, nodeEnv).slots.find(s => s.key === key)
+			if (slot === undefined) return null
+			if (key.startsWith(BINDING)) levels.push(key.slice(BINDING.length))
+			else if (key.startsWith('field:')) levels.push(key.slice('field:'.length))
+			else if (key.startsWith('kw:')) levels.push(key.slice('kw:'.length))
+			else if (/^\d+$/.test(key)) levels.push(Number(key))
+			else if (key.startsWith('arg') && bare.kind === 'call') {
+				const index = Number(key.slice('arg'.length))
+				const parameters = callParameters(bare, slot.env)
+				const name = parameters?.names[index]
+				if (name !== undefined) levels.push(name)
+				else if (parameters?.variadicName !== undefined) {
+					levels.push(parameters.variadicName, index - parameters.names.length)
+				} else return null
+			} else return null
+			found = slot
+			node = slot.ast
+			nodeEnv = slot.env
+		}
+		return found === null ? null : { slot: found, levels }
+	}
+	const sourceAt = walk(from)
+	const targetAt = walk(to)
+	if (sourceAt === null || targetAt === null) return null
+	const wanted = targetAt.slot.ast
+	const here = sourceAt.slot.env
+
+	const reference = (): AST | null => {
+		const last = to.at(-1)!
+		if (last.startsWith(BINDING)) {
+			const name = last.slice(BINDING.length)
+			if (lookupBareName(name, here)?.ast === wanted) return new SymAST(name)
+		}
+		let common = 0
+		while (common < from.length - 1 && from[common] === to[common]) common++
+		const shared = common === 0 ? [] : (walk(to.slice(0, common))?.levels ?? [])
+		const segments = [
+			...new Array<string>(from.length - 1 - common).fill('..'),
+			...targetAt.levels.slice(shared.length),
+		]
+		const landed = pathTarget(segments, here)
+		return 'message' in landed || bareOf(landed.ast) !== bareOf(wanted)
+			? null
+			: new PathAST(segments)
+	}
+	const next = reference()
+	if (next === null) return null
+	return editAt(root, env, from, node =>
+		node.kind === 'meta' ? new MetaAST(node.metadata, next) : next
+	)
 }
 
 /**

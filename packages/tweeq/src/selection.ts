@@ -29,6 +29,14 @@ export interface BackwardSolver {
 
 export const SOLVER: InjectionKey<BackwardSolver> = Symbol('glisp-solver')
 
+/** How a row comes to refer to another, which takes the whole program. */
+export interface Linker {
+	can(source: string, target: string): boolean
+	link(source: string, target: string): void
+}
+
+export const LINKER: InjectionKey<Linker> = Symbol('glisp-linker')
+
 /** Opening the rows down to one, and selecting it. */
 export interface RowRevealer {
 	/** The row to get to, until it has been reached, and whether to rename it there. */

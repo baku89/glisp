@@ -4,7 +4,7 @@ import { Icon } from 'tweeq/Icon'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { vTooltip } from 'tweeq/Tooltip'
-import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
 import AstInline from './AstInline.vue'
@@ -12,7 +12,7 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
-import { RENAMER, REVEALER, SELECTION } from './selection'
+import { LINKER, RENAMER, REVEALER, SELECTION } from './selection'
 import { actionsOf, fitsInline, kindIconOf, type Slot, sourceOf, viewOf } from './structure'
 
 const props = defineProps<{
@@ -114,7 +114,74 @@ const kindHint = computed(() => {
 const kindPressable = computed(
 	() => referenceTarget.value !== null || view.value.slots.length > 0
 )
+
+// A reference can be pulled out to another row, like After Effects' pick whip.
+const linker = inject(LINKER, null)
+const isReference = computed(() => {
+	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
+	return (bare.kind === 'sym' || bare.kind === 'path') && linker !== null
+})
+const whip = ref<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
+let whipped = false
+let hovered: Element | null = null
+let endWhip: (() => void) | null = null
+onBeforeUnmount(() => endWhip?.())
+
+function setHovered(row: Element | null): void {
+	hovered?.classList.remove('drop-target')
+	hovered = row
+	hovered?.classList.add('drop-target')
+}
+
+/** The row under the pointer that this could refer to, and what it is called. */
+function linkableAt(x: number, y: number): { row: Element; path: string } | null {
+	const row = window.document.elementFromPoint(x, y)?.closest('.TqParameterTreeItem')
+	const target = row?.querySelector('.row .row-path')?.getAttribute('data-path')
+	if (!row || target == null || !linker?.can(props.path, target)) return null
+	return { row, path: target }
+}
+
+function onKindPress(event: PointerEvent): void {
+	if (!isReference.value || event.button !== 0) return
+	event.preventDefault()
+	const icon = (event.currentTarget as Element).getBoundingClientRect()
+	const [x1, y1] = [icon.left + icon.width / 2, icon.top + icon.height / 2]
+	const [startX, startY] = [event.clientX, event.clientY]
+	whipped = false
+
+	const onMove = (move: PointerEvent) => {
+		if (!whipped && Math.hypot(move.clientX - startX, move.clientY - startY) < 4) return
+		whipped = true
+		whip.value = { x1, y1, x2: move.clientX, y2: move.clientY }
+		setHovered(linkableAt(move.clientX, move.clientY)?.row ?? null)
+	}
+	const onUp = (up: PointerEvent) => {
+		const landed = whipped ? linkableAt(up.clientX, up.clientY) : null
+		endWhip?.()
+		if (landed) linker?.link(props.path, landed.path)
+	}
+	const onKey = (key: KeyboardEvent) => {
+		if (key.key === 'Escape') endWhip?.()
+	}
+	endWhip = () => {
+		window.removeEventListener('pointermove', onMove)
+		window.removeEventListener('pointerup', onUp)
+		window.removeEventListener('keydown', onKey)
+		setHovered(null)
+		whip.value = null
+		endWhip = null
+	}
+	window.addEventListener('pointermove', onMove)
+	window.addEventListener('pointerup', onUp)
+	window.addEventListener('keydown', onKey)
+}
+
 function onKind(): void {
+	// Letting go of a pull is a click, too.
+	if (whipped) {
+		whipped = false
+		return
+	}
 	const target = referenceTarget.value
 	if (target !== null && revealer) revealer.target.value = { path: target }
 	else open.value = !open.value
@@ -251,6 +318,7 @@ watch(
 		/>
 
 		<template #labelEnd>
+			<span class="row-path" :data-path="path" hidden />
 			<button
 				v-if="insertBefore"
 				class="gap-add"
@@ -277,16 +345,24 @@ watch(
 				v-if="kindIcon !== null"
 				v-tooltip="kindHint"
 				class="end kind"
-				:class="{ pressable: kindPressable }"
+				:class="{ pressable: kindPressable || isReference, reference: isReference }"
 				type="button"
-				:disabled="!kindPressable"
+				:disabled="!kindPressable && !isReference"
 				:aria-label="kindHint"
+				@pointerdown="onKindPress"
 				@click.stop="onKind"
 				@dblclick.stop
 			>
 				<Icon :icon="kindIcon" />
 			</button>
 		</template>
+
+		<Teleport v-if="whip" to=".TqViewport">
+			<svg class="whip">
+				<line :x1="whip.x1" :y1="whip.y1" :x2="whip.x2" :y2="whip.y2" />
+				<circle :cx="whip.x2" :cy="whip.y2" r="3" />
+			</svg>
+		</Teleport>
 
 		<template #children>
 			<AstSlots
@@ -335,13 +411,28 @@ watch(
 .gap-add > * {
 	position: absolute;
 	top: 50%;
-	right: 0;
-	width: var(--tq-icon-size);
-	height: var(--tq-icon-size);
+	left: 50%;
+	width: 12px;
+	height: 12px;
 	border-radius: 50%;
 	color: var(--tq-color-on-accent);
 	background: var(--tq-color-accent);
-	transform: translateY(-50%);
+	transform: translate(-50%, -50%);
+}
+.whip {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+.whip line {
+	stroke: var(--tq-color-info);
+	stroke-width: 1.5;
+}
+.whip circle {
+	fill: var(--tq-color-info);
 }
 .end {
 	display: block;
@@ -371,8 +462,18 @@ watch(
 .kind.pressable {
 	cursor: pointer;
 }
+/* A name for something else, and not what this row does: a filled mark. */
+.kind.reference {
+	border-radius: 50%;
+	color: var(--tq-color-background);
+	background: var(--tq-color-info);
+	transform: scale(0.78);
+}
 .pin:hover,
-.kind.pressable:hover {
+.kind.pressable:not(.reference):hover {
 	background: var(--tq-color-input-hover);
+}
+.kind.reference:hover {
+	opacity: 0.8;
 }
 </style>

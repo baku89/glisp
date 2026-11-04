@@ -9,8 +9,14 @@ import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
-import { RENAMER, REVEALER, SELECTION, type Selection, SOLVER } from './selection'
-import { moveBinding, referenceTargetOf, renameBindingAt, viewOf } from './structure'
+import { LINKER, RENAMER, REVEALER, SELECTION, type Selection, SOLVER } from './selection'
+import {
+	moveBinding,
+	referenceAt,
+	referenceTargetOf,
+	renameBindingAt,
+	viewOf,
+} from './structure'
 
 const props = defineProps<{ document: GlispDocument }>()
 
@@ -66,6 +72,17 @@ provide(RENAMER, {
 			path,
 			name
 		)
+		if (next !== null) replaceRoot(next)
+	},
+})
+
+const linked = (source: string, target: string): AST | null =>
+	referenceAt(props.document.root.value, props.document.env.value, source, target)
+
+provide(LINKER, {
+	can: (source, target) => linked(source, target) !== null,
+	link(source, target) {
+		const next = linked(source, target)
 		if (next !== null) replaceRoot(next)
 	},
 })

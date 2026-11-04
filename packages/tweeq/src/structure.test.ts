@@ -2,7 +2,7 @@ import { buildPrelude, check, evaluate, host, isPinned, meta, parse, print, Sess
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { actionsOf, canSolve, numberOptionsAt, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canSolve, numberOptionsAt, referenceAt, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -997,6 +997,47 @@ describe('helpers', () => {
 	it('parses source, or says it cannot', () => {
 		expect(print(parseSource('(+ 1 2)')!)).toBe('(+ 1 2)')
 		expect(parseSource('(+ 1')).toBeNull()
+	})
+})
+
+describe('referenceAt', () => {
+	const linked = (src: string, source: string, target: string) => {
+		const next = referenceAt(parse(src), env, source, target)
+		return next === null ? null : print(next)
+	}
+
+	it('refers by name, where the name means it', () => {
+		expect(linked('{a = 1 b = 2}', 'binding:b', 'binding:a')).toBe('{a = 1 b = a}')
+		expect(linked('{a = 1 q = (+ 0 1)}', 'binding:q/arg0', 'binding:a')).toBe('{a = 1 q = (+ a 1)}')
+		expect(linked('{a = 1 q = {r = 2}}', 'binding:q/binding:r', 'binding:a')).toBe('{a = 1 q = {r = a}}')
+	})
+
+	it('refers by a path to what has no name there', () => {
+		expect(linked('{z = {a = 1} q = 0}', 'binding:q', 'binding:z/binding:a')).toBe('{z = {a = 1} q = ./z/a}')
+		expect(linked('{z = {x: 1} q = 0}', 'binding:q', 'binding:z/field:x')).toBe('{z = {x: 1} q = ./z/x}')
+		expect(linked('{z = [1 2] q = 0}', 'binding:q', 'binding:z/1')).toBe('{z = [1 2] q = ./z/1}')
+		expect(linked('{a = 1 q = {a = 2 r = 0}}', 'binding:q/binding:r', 'binding:a')).toBe(
+			'{a = 1 q = {a = 2 r = ../a}}'
+		)
+	})
+
+	it('evaluates to what it refers to', () => {
+		const next = referenceAt(parse('{z = {a = 7} q = 0 q}'), env, 'binding:q', 'binding:z/binding:a')!
+		expect(evaluate(next, env).value).toBe(7)
+	})
+
+	it('keeps metadata', () => {
+		expect(linked('{a = 1 b = ^{label: "B"} 2}', 'binding:b', 'binding:a')).toBe('{a = 1 b = ^{label: "B"} a}')
+	})
+
+	it('does not refer to itself, or to what holds it', () => {
+		expect(linked('{a = 1}', 'binding:a', 'binding:a')).toBeNull()
+		expect(linked('{a = {b = 1}}', 'binding:a/binding:b', 'binding:a')).toBeNull()
+	})
+
+	it('wants both to be there', () => {
+		expect(linked('{a = 1}', 'binding:a', 'binding:z')).toBeNull()
+		expect(linked('{a = 1}', 'binding:z', 'binding:a')).toBeNull()
 	})
 })
 
