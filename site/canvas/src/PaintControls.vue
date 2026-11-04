@@ -46,6 +46,14 @@ const DEFAULT_WIDTH = 1
 						:modelValue="paint[kind]"
 						@update:modelValue="set({ [kind]: $event })"
 					/>
+					<InputNumber
+						v-if="kind === 'stroke'"
+						class="width"
+						leftIcon="ph:line-weight"
+						:modelValue="paint.width"
+						:min="0"
+						@update:modelValue="set({ width: $event })"
+					/>
 					<InputButton
 						icon="mdi:close"
 						subtle
@@ -66,16 +74,6 @@ const DEFAULT_WIDTH = 1
 								: { stroke: DEFAULT_COLOR, width: paint.width || DEFAULT_WIDTH }
 						)
 					"
-				/>
-			</div>
-		</template>
-		<template v-if="paint.stroke !== 'none'">
-			<span class="label">Width</span>
-			<div class="field">
-				<InputNumber
-					:modelValue="paint.width"
-					:min="0"
-					@update:modelValue="set({ width: $event })"
 				/>
 			</div>
 		</template>
@@ -106,5 +104,8 @@ const DEFAULT_WIDTH = 1
 }
 .field > .color {
 	flex: 1;
+}
+.field > .width {
+	flex: 0 0 64px;
 }
 </style>
