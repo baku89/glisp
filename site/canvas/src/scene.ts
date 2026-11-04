@@ -230,6 +230,8 @@ export interface SnapPoint {
 	readonly to?: Vec
 	/** What was snapped to along, with `at` being where on it. */
 	readonly line?: readonly [Vec, Vec]
+	/** It is where that line would go, if it went on. */
+	readonly beyond?: boolean
 }
 
 /** Everywhere on what is drawn that something can snap to. */
@@ -283,14 +285,11 @@ export function snapPointsOf(
 }
 
 /** The nearest place to `at` along a line, from `from` to `to`. */
-function along(from: Vec, to: Vec, at: Vec): Vec {
+function along(from: Vec, to: Vec, at: Vec): { at: Vec; beyond: boolean } {
 	const [dx, dy] = [to[0] - from[0], to[1] - from[1]]
 	const length = dx * dx + dy * dy
-	const t =
-		length === 0
-			? 0
-			: Math.min(1, Math.max(0, ((at[0] - from[0]) * dx + (at[1] - from[1]) * dy) / length))
-	return [from[0] + dx * t, from[1] + dy * t]
+	const t = length === 0 ? 0 : ((at[0] - from[0]) * dx + (at[1] - from[1]) * dy) / length
+	return { at: [from[0] + dx * t, from[1] + dy * t], beyond: length !== 0 && (t < 0 || t > 1) }
 }
 
 /** The nearest of `points` to `at`, within `tolerance`, one with a row before one without. */
@@ -310,17 +309,22 @@ export function nearestSnap(
 		}
 	}
 	if (best !== null) return best
-	// Only with no place in reach, as a place is more of a place than a line is.
-	for (const { at: from, to, label } of points) {
-		if (to === undefined) continue
-		const on = along(from, to, at)
-		const distance = Math.hypot(on[0] - at[0], on[1] - at[1])
-		if (distance < bestDistance) {
-			best = { at: on, target: null, label, line: [from, to] }
-			bestDistance = distance
+	// Only with no place in reach, as a place is more of a place than a line is, and a
+	// line more than where it would go if it went on.
+	for (const onward of [false, true]) {
+		for (const { at: from, to, label } of points) {
+			if (to === undefined) continue
+			const { at: on, beyond } = along(from, to, at)
+			if (beyond !== onward) continue
+			const distance = Math.hypot(on[0] - at[0], on[1] - at[1])
+			if (distance < bestDistance) {
+				best = { at: on, target: null, label, line: [from, to], ...(beyond ? { beyond } : {}) }
+				bestDistance = distance
+			}
 		}
+		if (best !== null) return best
 	}
-	return best
+	return null
 }
 
 /**
@@ -504,13 +508,34 @@ export function drawn(
 export interface Anchor {
 	readonly at: Vec
 	readonly out?: Vec
+	/** How it is come into, if that has been said, rather than being the other way from `out`. */
+	readonly into?: Vec
 	/** What it was put down on, to refer to if it can. */
 	readonly snap?: SnapPoint
 }
 
 /** What a curve comes into `anchor` by: the other way from what it goes out by. */
-const inOf = ({ at, out }: Anchor): Vec | undefined =>
-	out && [at[0] * 2 - out[0], at[1] * 2 - out[1]]
+const inOf = ({ at, out, into }: Anchor): Vec | undefined =>
+	into ?? (out && [at[0] * 2 - out[0], at[1] * 2 - out[1]])
+
+/**
+ * `anchors`, with the curve as `path` now has it, its controls having been taken hold of
+ * in the middle of drawing it. Something else altogether leaves them as they are.
+ */
+export function anchorsAlong(anchors: readonly Anchor[], path: Path): readonly Anchor[] {
+	const vertices = (path as unknown as { curves: readonly { vertices: readonly { command: string; args?: readonly Vec[] }[] }[] }).curves[0]?.vertices
+	if (vertices?.length !== anchors.length) return anchors
+	const controls = (i: number): readonly Vec[] | null => {
+		const vertex = vertices[i]
+		return vertex?.command === 'C' && vertex.args?.length === 2 ? vertex.args : null
+	}
+	return anchors.map(({ out: last, into: _into, ...anchor }, i) => {
+		// The last has nothing to come out to yet, so it goes on as it was going to.
+		const out = i === anchors.length - 1 ? last : controls(i + 1)?.[0]
+		const into = controls(i)?.[1]
+		return { ...anchor, ...(out === undefined ? {} : { out }), ...(into === undefined ? {} : { into }) }
+	})
+}
 
 const place = ([x, y]: Vec): string => `${roundedTo(x, FINEST)},${roundedTo(y, FINEST)}`
 
@@ -541,7 +566,7 @@ export function dOfAnchors(anchors: readonly Anchor[], closed: boolean): string 
 export type PenKind = 'line' | 'polyline' | 'polygon' | 'cubic' | 'path'
 
 export function penKind(anchors: readonly Anchor[], closed: boolean): PenKind {
-	const curved = anchors.some(anchor => anchor.out !== undefined)
+	const curved = anchors.some(anchor => anchor.out !== undefined || anchor.into !== undefined)
 	if (curved) return anchors.length === 2 && !closed ? 'cubic' : 'path'
 	if (closed) return anchors.length >= 3 ? 'polygon' : 'path'
 	if (anchors.length === 2) return 'line'
@@ -942,15 +967,15 @@ export function dimensionsOf(
  * what the drag said, which is the argument after where it started.
  */
 /**
- * The numbers to say while the whole of it is being moved, which are where it is: a place,
- * not every one of them that goes with it.
+ * The numbers to say while the whole of it is being moved, which are where it is, if there
+ * is one place that says so: a rect's or a circle's, but not each of a polyline's.
  */
 export const dimensionsMoved = (
 	root: AST,
 	env: Env,
 	row: string,
 	changes: readonly Change[]
-): Dimension[] => dimensionsOf(root, env, row, changes.slice(0, 1))
+): Dimension[] => (changes.length === 1 ? dimensionsOf(root, env, row, changes) : [])
 
 export function dimensionsDrawn(
 	root: AST,

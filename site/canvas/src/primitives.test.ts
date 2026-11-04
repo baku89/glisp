@@ -3,7 +3,7 @@ import { numberOptionsAt, textOf, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, onlyShapes, type Vec, withGraphics } from './graphics'
-import { changed, dimensionAt, dimensionsMoved, dimensionsOf, drawn, evenlyFrom, facesWhenDrawn, gripAt, nameFor, placesTakenBy, type ShapeTool, snapPointsOf, sceneOf } from './scene'
+import { anchorsAlong, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, evenlyFrom, facesWhenDrawn, gripAt, nameFor, placesTakenBy, type ShapeTool, snapPointsOf, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const ROW = 'binding:c'
@@ -292,10 +292,16 @@ describe('the numbers of what is moved', () => {
 		return dimensionsMoved(next, env, ROW, changes).map(({ label, value }) => `${label} ${value}`)
 	}
 
-	it('are of one place, however many go with it', () => {
-		expect(moved('(path.polyline [0 0] [10 0] [10 10])', [1, 2])).toEqual(['X 1', 'Y 2'])
-		expect(moved('(path.cubic [0 0] [1 0] [2 0] [3 0])', [1, 2])).toEqual(['X 1', 'Y 2'])
+	it('are of the one place that says where it is', () => {
 		expect(moved('(path.rect [0 0] [10 10])', [1, 2])).toEqual(['X 1', 'Y 2'])
+		expect(moved('(path.circle [0 0] 10)', [1, 2])).toEqual(['X 1', 'Y 2'])
+		expect(moved('(path.ngon [0 0] 10 5)', [1, 2])).toEqual(['X 1', 'Y 2'])
+	})
+
+	it('are none, if no one place does', () => {
+		expect(moved('(path.polyline [0 0] [10 0] [10 10])', [1, 2])).toEqual([])
+		expect(moved('(path.cubic [0 0] [1 0] [2 0] [3 0])', [1, 2])).toEqual([])
+		expect(moved('(path.capsule [0 0] [10 0] 5)', [1, 2])).toEqual([])
 	})
 
 	it('are of the vertex itself, if that is what is dragged', () => {
@@ -446,5 +452,49 @@ describe('a polygon and a polyline', () => {
 		expect((value as { path: { curves: unknown[] } }).path.curves).toEqual([])
 		expect(gripAt(parse(`{c = (path.${name})}`), env, ROW)).not.toBeNull()
 		expect(iconOfPath(value)).toBeNull()
+	})
+})
+
+describe('a line, evenly', () => {
+	it('has its ends dragged by 45 degrees around the other', () => {
+		const grip = gripAt(parse('{c = (path.line [0 0] [100 0])}'), env, ROW)!
+		const [end] = grip.handles.filter(h => h.place === 1)
+		expect(end!.pivot).toEqual([0, 0])
+		const [{ value }] = end!.to([60, 50], [100, 0], { even: true }) as [{ value: Vec }]
+		expect(value[0]).toBeCloseTo(value[1])
+		expect(end!.to([60, 50], [100, 0])).toEqual([{ route: [1], value: [60, 50] }])
+	})
+})
+
+describe('what a pen is drawing, having had its controls taken hold of', () => {
+	const pathOf = (src: string) => (evaluate(parse(src), env).value as { path: Path }).path
+	type Path = Parameters<typeof anchorsAlong>[1]
+
+	it('goes on from them', () => {
+		const anchors = [{ at: [0, 0] as Vec, out: [1, 1] as Vec }, { at: [9, 0] as Vec }]
+		const after = anchorsAlong(anchors, pathOf('(path.cubic [0 0] [2 5] [7 5] [9 0])'))
+		expect(after).toEqual([
+			{ at: [0, 0], out: [2, 5] },
+			{ at: [9, 0], into: [7, 5] },
+		])
+		expect(dOfAnchors([...after, { at: [20, 0] }], false)).toBe('M 0,0 C 2,5 7,5 9,0 L 20,0')
+	})
+
+	it('keeps how the last is going to go on', () => {
+		const anchors = [{ at: [0, 0] as Vec, out: [1, 1] as Vec }, { at: [9, 0] as Vec, out: [12, 3] as Vec }]
+		const after = anchorsAlong(anchors, pathOf('(path.cubic [0 0] [2 5] [7 5] [9 0])'))
+		expect(after[1]).toEqual({ at: [9, 0], into: [7, 5], out: [12, 3] })
+		expect(dOfAnchors([...after, { at: [20, 0] }], false)).toBe('M 0,0 C 2,5 7,5 9,0 C 12,3 20,0 20,0')
+	})
+
+	it('keeps what it was put down on', () => {
+		const snap = { at: [0, 0] as Vec, target: 'binding:a/arg0', label: 'a' }
+		const anchors = [{ at: [0, 0] as Vec, snap }, { at: [9, 0] as Vec }]
+		expect(anchorsAlong(anchors, pathOf('(path.cubic [0 0] [2 5] [7 5] [9 0])'))[0]!.snap).toBe(snap)
+	})
+
+	it('is as it was, if that is something else altogether', () => {
+		const anchors = [{ at: [0, 0] as Vec }, { at: [9, 0] as Vec }]
+		expect(anchorsAlong(anchors, pathOf('(path.polyline [0 0] [1 1] [2 2])'))).toBe(anchors)
 	})
 })

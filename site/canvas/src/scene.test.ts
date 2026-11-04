@@ -477,10 +477,28 @@ describe('snapping', () => {
 		expect(around.filter(p => p.to !== undefined)).toHaveLength(4)
 	})
 
-	it('snaps along a line, as far as it goes', () => {
+	it('snaps along a line', () => {
 		expect(nearestSnap(points, [12, 7], 2.5)!.at).toEqual([10, 7])
+		expect(nearestSnap(points, [12, 7], 2.5)!.beyond).toBeUndefined()
 		expect(nearestSnap(points, [12, 7], 1)).toBeNull()
 		expect(nearestSnap(points, [12, 7], 2.5)!.target).toBeNull()
+	})
+
+	describe('where a line would go, if it went on', () => {
+		const edge = { at: [0, 0] as Vec, to: [10, 0] as Vec, target: null, label: 'edge' }
+
+		it('snaps there, saying so, on either side', () => {
+			expect(nearestSnap([edge], [20, 1], 2)).toMatchObject({ at: [20, 0], beyond: true, line: [[0, 0], [10, 0]] })
+			expect(nearestSnap([edge], [-20, 1], 2)).toMatchObject({ at: [-20, 0], beyond: true })
+			expect(nearestSnap([edge], [20, 3], 2)).toBeNull()
+		})
+
+		it('has a line itself go before it, and a place before that', () => {
+			const other = { at: [19, -5] as Vec, to: [19, 5] as Vec, target: null, label: 'other' }
+			expect(nearestSnap([edge, other], [20, 1], 2)).toMatchObject({ at: [19, 1], label: 'other' })
+			const place = { at: [20, 2] as Vec, target: null, label: 'place' }
+			expect(nearestSnap([edge, place], [20, 1], 2)).toMatchObject({ at: [20, 2], label: 'place' })
+		})
 	})
 
 	it('has a place go before a line', () => {

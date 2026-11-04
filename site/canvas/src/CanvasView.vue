@@ -49,6 +49,7 @@ import {
 	evenlyFrom,
 	facesWhenDrawn,
 	placesTakenBy,
+	anchorsAlong,
 } from './scene'
 
 const props = defineProps<{
@@ -457,7 +458,7 @@ function drawExtended(context: CanvasRenderingContext2D, [ax, ay]: Vec, [bx, by]
  */
 function drawSnap(
 	context: CanvasRenderingContext2D,
-	{ at, label, line, target, code }: SnapPoint,
+	{ at, label, line, beyond, target, code }: SnapPoint,
 	accent: string,
 	paper: string
 ): void {
@@ -465,13 +466,13 @@ function drawSnap(
 	context.save()
 	context.strokeStyle = accent
 	if (line) {
-		// As far as it snaps, which is no further than it goes.
 		const [[ax, ay], [bx, by]] = [toScreen(line[0], view.value), toScreen(line[1], view.value)]
 		context.lineWidth = 2
 		context.beginPath()
 		context.moveTo(ax, ay)
 		context.lineTo(bx, by)
 		context.stroke()
+		if (beyond) drawExtended(context, [ax, ay], [bx, by])
 	} else {
 		context.lineWidth = 2
 		context.beginPath()
@@ -878,9 +879,6 @@ function onPointerDown(event: PointerEvent): void {
 	// With a tool in hand, what is only there to shape something is still that.
 	const shaping = shapingHandleAt(x, y)
 	if (shaping !== null) {
-		// The drawing stops there, as what it draws is written from where it has been.
-		pen = null
-		extending = null
 		penLine.value = null
 	} else if (props.drawing === 'pen') {
 		penDown(x, y, event.metaKey || event.ctrlKey)
@@ -1324,6 +1322,11 @@ useEventListener(window, 'pointerup', event => {
 	readout.value = null
 	if (wasHandle) {
 		draggedHandle.value = null
+		// What is being drawn goes on from what was done to it.
+		if (pen !== null) {
+			const drawn = scene.value.find(({ row }) => row === props.selected[0])
+			if (drawn !== undefined) pen.anchors = anchorsAlong(pen.anchors, drawn.value as Path)
+		}
 		// The pointer is back, and is over whatever it has got to.
 		if (event.target === $canvas.value) onPointerMove(event)
 		else cursor.value = 'default'

@@ -1111,6 +1111,17 @@ const angleHeld = (c: Vec, angle: number, to: Vec, how?: HandleDrag): number => 
 const evenFrom = (c: Vec, to: Vec): Vec =>
 	add(c, toward(Math.round(degrees(sub(to, c)) / ANGLE_STEP) * ANGLE_STEP, dist(c, to)))
 
+/** The two ends of something, each going by even angles around the other. */
+const evenEnds = (handles: readonly Handle[], a: Vec, b: Vec): Handle[] =>
+	handles.map((handle, i) => {
+		const other = i === 0 ? b : a
+		return {
+			...handle,
+			pivot: other,
+			to: (to: Vec, _: Vec, how?: HandleDrag) => [change(i, how?.even ? evenFrom(other, to) : to)],
+		}
+	})
+
 /** The first vertex of what goes around `c`, pulled out as far, and turned as far, as it is. */
 const vertexHandle = (
 	radiusArg: number,
@@ -1496,10 +1507,11 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 		makeLine,
 		args => {
 			const [start, end] = args as [Vec, Vec]
-			return pointsGrip(args as Vec[], [], {
+			const grip = pointsGrip(args as Vec[], [], {
 				points: [{ at: [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2], name: 'middle' }],
 				lines: [{ from: start, to: end, name: 'line' }],
 			})
+			return { ...grip, handles: evenEnds(grip.handles, start, end) }
 		},
 	],
 	[makePolyline, args => pointsGrip(args as Vec[], [], { lines: linesThrough(args as Vec[], false) })],
@@ -1655,14 +1667,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				...ends,
 				marks: [...ends.marks!, { route: [2], at, side: 'right' }],
 				handles: [
-					...ends.handles.map((handle, i) => {
-						const other = i === 0 ? b : a
-						return {
-							...handle,
-							pivot: other,
-							to: (to: Vec, _: Vec, how?: HandleDrag) => [change(i, how?.even ? evenFrom(other, to) : to)],
-						}
-					}),
+					...evenEnds(ends.handles, a, b),
 					{
 						kind: 'offset',
 						at,
