@@ -161,6 +161,8 @@ const point = withTypeMeta(
 		['input', lit('translate')],
 		['name', lit('point')],
 		// Where something is can change without what it is changing.
+		['changesFirst', lit(true)],
+		// Where something is can change without what it is changing.
 	])
 )
 

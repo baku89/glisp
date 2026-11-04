@@ -1628,10 +1628,32 @@ export function changed(
 			continue
 		}
 		const { ast, diagnostics } = solve(next, env, node, value)
-		if (ast === null) {
+		// A place that can go only one way goes as far as it can: the rest stays.
+		const some = ast ?? partsChanged(next, env, row, route, value)
+		if (some === null) {
 			return { ast: null, problem: diagnostics[0]?.message ?? 'cannot be moved' }
 		}
-		next = ast
+		next = some
 	}
 	return { ast: next, problem: null }
+}
+
+/** `root`, with each part of what is wanted that can be there, or null if none can. */
+function partsChanged(
+	root: AST,
+	env: Env,
+	row: string,
+	route: readonly number[],
+	value: unknown
+): AST | null {
+	if (!Array.isArray(value)) return null
+	let next = root
+	for (const [i, part] of value.entries()) {
+		if (part === UNSET) continue
+		const found = rowAt(next, env, row)
+		const node = found && nodeAt(found.node, found.env, route)
+		const only = value.map((_, j) => (j === i ? part : UNSET))
+		next = (node && solve(next, env, node, only).ast) ?? next
+	}
+	return next === root ? null : next
 }

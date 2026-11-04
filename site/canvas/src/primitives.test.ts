@@ -1052,3 +1052,39 @@ describe('what is about a corner', () => {
 		expect(cornered('(path.ngon [0 0] 10 5)')).toEqual([])
 	})
 })
+
+describe('a place of which only a part can change', () => {
+	const moved = (src: string, to: Vec) => {
+		const root = parse(src)
+		const { ast, problem } = changed(root, env, ROW, [{ route: [0], value: to }])
+		return { problem, source: ast && print(ast) }
+	}
+
+	it('goes as far as it can', () => {
+		expect(moved('{c = (path.circle [@1 2] 5)}', [7, 8]).source).toBe('{c = (path.circle [@1 8] 5)}')
+		expect(moved('{c = (path.circle [1 @2] 5)}', [7, 8]).source).toBe('{c = (path.circle [7 @2] 5)}')
+	})
+
+	it('says why, if it cannot go at all', () => {
+		expect(moved('{c = (path.circle @[1 2] 5)}', [7, 8]).problem).toBe('pinned')
+		expect(moved('{c = (path.circle [@1 @2] 5)}', [7, 8]).problem).toBe('pinned')
+	})
+})
+
+describe('what refers to a place on something else', () => {
+	const REF = 'b = (path.circle [(+ ../../../a/center/0 ../../../a/radius) ../../a/center/1] 30)'
+	const moved = (a: string) => {
+		const root = parse(`{a = ${a} ${REF}}`)
+		const { ast } = changed(root, env, 'binding:b', [{ route: [0], value: [170, 120] }])
+		return ast && print((ast as LetAST).bindings[0]![1])
+	}
+
+	it('moves that, and leaves what it is', () => {
+		expect(moved('(path.circle [100 100] 50)')).toBe('(path.circle [120 120] 50)')
+	})
+
+	it('changes what it is only where it cannot move', () => {
+		expect(moved('(path.circle @[100 100] 50)')).toBe('(path.circle @[100 100] 70)')
+		expect(moved('(path.circle [@100 100] 50)')).toBe('(path.circle [@100 120] 70)')
+	})
+})
