@@ -207,6 +207,8 @@ export interface TypeValue {
 	readonly meta?: RecordAST
 	/** This type without `meta`, if it has any. */
 	readonly plain?: TypeValue
+	/** What goes with this type, read as `T.name`. It says nothing about its values. */
+	readonly members?: Readonly<Record<string, unknown>>
 	/**
 	 * Optional type-constructor hook. When set, `(T arg ...)` is dispatched
 	 * here with the args evaluated as types, and the result is the
@@ -756,6 +758,15 @@ export function withInverse<F extends TypedHostFn>(
 	return fn
 }
 
+/** Say what goes with a type, so that `vec2.add` is there along with `p: vec2`. */
+export function withMembers<T extends TypeValue>(
+	type: T,
+	members: Readonly<Record<string, unknown>>
+): T {
+	Object.defineProperty(type, 'members', { value: members })
+	return type
+}
+
 /** Say what a call to a host function is, one level down the ladder. */
 export function withExpansion<F extends TypedHostFn>(
 	fn: F,
@@ -1215,6 +1226,16 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 			const targetResult = evaluate(ast.target, env)
 			const diagnostics = [...targetResult.diagnostics]
 			const value = targetResult.value
+			if (isTypeValue(value) && typeof ast.key === 'string') {
+				const got = value.members?.[ast.key]
+				if (got === undefined) {
+					diagnostics.push(
+						diag(ast, env, `${value.typeName} has no member: ${ast.key}`)
+					)
+					return { value: UNIT, diagnostics }
+				}
+				return { value: got, diagnostics }
+			}
 			if (Array.isArray(value) && typeof ast.key === 'number') {
 				const got = value[ast.key]
 				if (got === undefined) {

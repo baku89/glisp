@@ -608,8 +608,12 @@ function inferNode(ast: AST, env: Env): TypeValue | null {
 		}
 		case 'unquote':
 			return infer(ast.expr, env)
-		case 'access':
-			return memberType(infer(ast.target, env), ast.key)
+		case 'access': {
+			const held = heldByHost(ast, env)
+			return held === undefined
+				? memberType(infer(ast.target, env), ast.key)
+				: typeOfHostValue(held)
+		}
 		case 'call':
 			return checkCall(ast, env, () => {})
 		case 'spread':
@@ -638,6 +642,25 @@ function inferRecord(ast: RecordAST, env: Env): TypeValue | null {
 		fields.set(entry[0], type)
 	}
 	return makeRecordType(fields, ast.optional ?? new Set())
+}
+
+/**
+ * What a name, or a member of what a host has bound, comes to, without running
+ * anything, as `vec2.add` or `geom.rect.center`. Undefined if it is not that.
+ */
+function heldByHost(ast: AST, env: Env): unknown {
+	if (ast.kind === 'sym') {
+		const target = lookupBareName(ast.name, env)
+		if (target === null) return undefined
+		const inner = target.ast.kind === 'meta' ? target.ast.expr : target.ast
+		return inner.kind === 'host' ? inner.value : undefined
+	}
+	if (ast.kind !== 'access' || typeof ast.key !== 'string') return undefined
+	const holder = heldByHost(ast.target, env)
+	if (isTypeValue(holder)) return holder.members?.[ast.key]
+	return typeof holder === 'object' && holder !== null && !Array.isArray(holder)
+		? (holder as Record<string, unknown>)[ast.key]
+		: undefined
 }
 
 function memberType(

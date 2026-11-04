@@ -206,6 +206,16 @@ When the target type of `(: v T)` is a function type `(=> (...): R)` and the inp
 
 Lifting only happens inside `(: v T)` against a function type. Outside it a value's identity is unchanged. This rule complements the ban on zero-parameter functions: instead of writing `(=> (): T body)` (which is a syntax error), pass `body` through `(: body T)` wherever a function is expected.
 
+## Members
+
+A type can have functions and constants that go with it, read with `.`, so that a host's `vec2` is one name for the points and for what is done to them.
+
+```glisp
+(=> (p: vec2): vec2 (vec2.scale p 2))
+```
+
+Members say nothing about the type's values, so they take no part in what fits what. For now only a host gives a type members. See [`withMembers`](./host-api.md#what-goes-with-a-type).
+
 ## Metadata
 
 Any value (including types) can be wrapped with metadata via `^{...}` prefix.

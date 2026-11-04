@@ -128,7 +128,7 @@ A vector is a value of type `[...T]` for some element type `T`.
 
 ### Accessor — `.`
 
-Member access on records and vectors. The right of `.` is a literal name (for records, becomes a string key) or an integer (for vectors, becomes an index); the left is any expression that evaluates to a record or vector.
+Member access on records, vectors and types. The right of `.` is a literal name (for records, becomes a string key) or an integer (for vectors, becomes an index); the left is any expression that evaluates to one of them. A type's members are [what goes with it](./types.md#members), as `vec2.add`.
 
 ```glisp
 point.x          ;; → (point "x")
@@ -585,7 +585,7 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `?`           | match special form (head); optional field/arg suffix   |
 | `\|>`         | pipe special form                                      |
 | `%`           | partial-application placeholder                        |
-| `.`           | member accessor (record field / vector index)          |
+| `.`           | member accessor (record field / vector index / what goes with a type) |
 | `..`          | path segment: parent of the current node (chain via `/`) |
 | `/`           | division atom; path separator after `.` or `..`        |
 

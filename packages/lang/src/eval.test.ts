@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { check } from './check.js'
-import { infer, resolveTypeSlot } from './infer.js'
+import { callParameters, infer, resolveTypeSlot } from './infer.js'
 import { Runtime } from './runtime.js'
 import { Session } from './session.js'
 import { print } from './print.js'
@@ -9,6 +9,7 @@ import {
 	access,
 	call,
 	fn,
+	host,
 	letBlock,
 	lit,
 	path,
@@ -20,7 +21,9 @@ import {
 import {
 	emptyEnv,
 	evaluate,
+	makeTupleType,
 	printType,
+	withMembers,
 	IO,
 	isGlispClosure,
 	isTypeValue,
@@ -29,12 +32,13 @@ import {
 	makeTopLevel,
 	makeType,
 	makeTypedFn,
+	type TypeValue,
 	toAst,
 	typeFits,
 } from './eval.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
-import { UNIT } from './types.js'
+import { type CallAST, type Env, LetAST, UNIT } from './types.js'
 
 // -----------------------------------------------------------------------------
 // Literals + symbol lookup (skeleton-era tests, kept)
@@ -1406,5 +1410,58 @@ describe('default in metadata', () => {
 
 	it('means nothing on what is not a type', () => {
 		expect(run('^{default: 7} 5').value).toBe(5)
+	})
+})
+
+describe('members of a type', () => {
+	const num = evaluate(parse('number'), buildPrelude()).value as TypeValue
+	const scale = makeTypedFn([num, num], num, (a, b) => (a as number) * (b as number), ['x', 'by'])
+	const pair = withMembers(makeTupleType([num, num]), { scale, zero: [0, 0] })
+	const env: Env = {
+		ast: new LetAST([], null),
+		parent: buildPrelude(),
+		bindings: new Map(
+			Object.entries({ pair, geom: { pair } }).map(([name, value]) => [
+				name,
+				{ ast: host(value), env: null },
+			])
+		),
+	}
+	const run = (src: string) => evaluate(parse(src), env)
+
+	it('are read with a dot, and called', () => {
+		expect(run('(pair.scale 2 3)').value).toBe(6)
+		expect(run('pair.zero').value).toEqual([0, 0])
+	})
+
+	it('go through a record of them', () => {
+		expect(run('(geom.pair.scale 2 3)').value).toBe(6)
+	})
+
+	it('leave the type as a type', () => {
+		expect(run('(: [1 2] pair)').value).toEqual([1, 2])
+		expect(run('(: "a" pair)').value).toEqual([0, 0])
+		expect(run('{f = (=> (p: pair): number p.0) (f [4 5])}').value).toBe(4)
+	})
+
+	it('say which one is missing', () => {
+		const result = run('pair.nope')
+		expect(result.value).toBe(UNIT)
+		expect(result.diagnostics[0]?.message).toContain('has no member: nope')
+		expect(run('number.nope').diagnostics[0]?.message).toContain('has no member: nope')
+	})
+
+	it('are seen by static analysis, which runs nothing', () => {
+		expect(printType(infer(parse('pair.scale'), env)!)).toContain('(=>')
+		expect(infer(parse('(pair.scale 2 3)'), env)?.typeName).toBe('number')
+		expect(infer(parse('(geom.pair.scale 2 3)'), env)?.typeName).toBe('number')
+		expect(check(parse('(pair.scale 2 3)'), env)).toEqual([])
+		expect(check(parse('(pair.scale "a" 3)'), env)).not.toEqual([])
+		expect(callParameters(parse('(pair.scale 2 3)') as CallAST, env)?.names).toEqual(['x', 'by'])
+	})
+
+	it('survive what metadata does to the type', () => {
+		const said = resolveTypeSlot(parse('^{min: 0} pair'), env)!
+		expect(said.members?.zero).toEqual([0, 0])
 	})
 })

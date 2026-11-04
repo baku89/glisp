@@ -148,6 +148,19 @@ withInverse(add, (index, result, args) => result - args[1 - index])
 
 For a function that takes a function, the fourth argument has `invert(fn, result, current)`, which is what to call `fn` with for it to give `result`, or `undefined`.
 
+### What goes with a type
+
+`withMembers` gives a type what can be read from it with `.`, so that it is a set of values and the functions on them under one name.
+
+```ts
+makeTopLevel({
+	vec2: host(withMembers(makeTupleType([numberType, numberType]), { add, scale })),
+})
+// (=> (p: vec2): vec2 (vec2.scale p 2))
+```
+
+It changes the type it is given, so make one of your own rather than giving members to `number`. A host value that is a plain record of these reads the same way, as `geom.rect.center`, and static analysis can see through both.
+
 ### Overloads
 
 `new OverloadValue([fn1, fn2])`, bound with `host`, dispatches to the first variant whose parameters fit the arguments. In Glisp, `(overload f g)`. Order the variants from most to least specific.
