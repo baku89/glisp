@@ -301,8 +301,6 @@ export const pathType = said(
 const callOf = (member: string, args: readonly AST[]): AST =>
 	new CallAST(parse(`path.${member}`), [...args])
 
-const makeD = makeTypedFn(
-	[pathData],
 /** Too long to read in a row, and rarely written by hand. */
 const pathData = withTypeMeta(
 	evaluate(parse('string'), buildPrelude()).value as TypeValue,
@@ -313,6 +311,8 @@ const pathData = withTypeMeta(
 	])
 )
 
+const makeD = makeTypedFn(
+	[pathData],
 	pathType,
 	d => {
 		try {
