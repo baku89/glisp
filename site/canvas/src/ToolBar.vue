@@ -266,7 +266,7 @@ const ghost = computed(() => {
 			:aria-expanded="open"
 			@click="open = !open"
 		>
-			<Icon :icon="activeStowed?.icon ?? 'ph:dots-three-bold'" />
+			<Icon :icon="activeStowed?.icon ?? 'ph:dots-three-vertical-bold'" />
 		</button>
 		<slot />
 		<Popover
