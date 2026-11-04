@@ -7,11 +7,13 @@
 import {
 	type AST,
 	CallAST,
+	coerceTo,
 	enterNode,
 	type Env,
 	evaluate,
 	infer,
 	isHidden,
+	isTypedHostFn,
 	LetAST,
 	lit,
 	lookupBareName,
@@ -20,6 +22,7 @@ import {
 	print,
 	readByName,
 	solve,
+	type TypedHostFn,
 	type TypeValue,
 	UNSET,
 	unwrapLazy,
@@ -286,6 +289,15 @@ export function drawnFrom(
 	return result?.kind === 'let' ? result : drawn(root, name, tool, snap.at, to, even, step)
 }
 
+/** How much of the program cannot be worked out, row by row. */
+const errorsIn = (root: AST, env: Env): number =>
+	viewOf(root, env).slots.reduce(
+		(count, { ast, env: rowEnv }) =>
+			count +
+			evaluate(readByName(ast), rowEnv).diagnostics.filter(({ level }) => level === 'error').length,
+		0
+	)
+
 /** Whether it can be referred to, by anything that is somewhere it can be seen from. */
 export const canRefer = (snap: SnapPoint): boolean => snap.target !== null || snap.code !== undefined
 
@@ -342,6 +354,8 @@ export function linked(
 	const inside = within === undefined ? row : `${row}/${within}`
 	const next = referred(root, env, `${inside}/arg${place}`, snap)
 	if (next === null) return null
+	// Going round in a circle comes to the default, which can be just where it was.
+	if (errorsIn(next, env) > errorsIn(root, env)) return null
 	const reached = gripAt(next, env, row)?.handles.find(handle => handle.place === place)?.at
 	return reached?.[0] === snap.at[0] && reached[1] === snap.at[1] ? next : null
 }
@@ -502,12 +516,22 @@ function follow(start: AST, startEnv: Env): { node: AST; env: Env } | null {
 	return { node, env }
 }
 
+/**
+ * What a call is given, as what it takes: what failed to come to anything is the default,
+ * in each place, as it is for the call itself, so that there is always something to hold.
+ */
 const argsOf = (call: CallAST, env: Env) => {
 	const inside = enterNode(call, env)
+	const head = evaluate(call.head, inside).value
+	const { paramTypes = [], variadicTail } = (isTypedHostFn(head) ? head : {}) as Partial<TypedHostFn>
 	return {
 		inside,
-		head: evaluate(call.head, inside).value,
-		args: call.args.map(arg => evaluate(arg, inside).value),
+		head,
+		args: call.args.map((arg, i) => {
+			const { value } = evaluate(arg, inside)
+			const type = paramTypes[i] ?? variadicTail
+			return type === undefined ? value : coerceTo(type, value)
+		}),
 	}
 }
 

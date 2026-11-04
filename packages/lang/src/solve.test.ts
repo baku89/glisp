@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { lit } from './build.js'
-import { makeTopLevel } from './eval.js'
+import { host, lit } from './build.js'
+import { makeTopLevel, makeTypedFn, numberType, withInverse } from './eval.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
 import { Session } from './session.js'
 import { UNSET } from './eval.js'
 import { solve } from './solve.js'
-import type { AST, LetAST } from './types.js'
+import { type AST, CallAST, LetAST } from './types.js'
 
 const env = buildPrelude()
 
@@ -287,5 +287,39 @@ describe('solve through map', () => {
 	it('needs the same length, and a function with a way back', () => {
 		expect(edited('{r = (map [1 2] (* % 2))}', [1])).toBeNull()
 		expect(edited('{r = (map [1] (=> (x: number): number 5))}', [6])).toBeNull()
+	})
+})
+
+describe('what cannot be worked out', () => {
+	const attempt = (src: string, value: unknown) => {
+		const root = parse(src) as LetAST
+		return solve(root, env, root.bindings.at(-1)![1], value)
+	}
+
+	it('stops with a reason, rather than failing, at what comes to nothing', () => {
+		const { ast, diagnostics } = attempt('{r = (+ ../nope ../nor)}', 5)
+		expect(ast).toBeNull()
+		expect(diagnostics.length).toBeGreaterThan(0)
+	})
+
+	it('goes on to what can change', () => {
+		expect(print(attempt('{r = (+ 1 ../nope)}', 5).ast!)).toBe('{r = (+ 5 ../nope)}')
+		expect(print(attempt('{r = (+ ../nope 1)}', 5).ast!)).toBe('{r = (+ ../nope 5)}')
+	})
+
+	it('stops inside of a vector too', () => {
+		expect(print(attempt('{r = [(+ ../../nope 1) 2]}', [5, 2]).ast!)).toBe('{r = [(+ ../../nope 5) 2]}')
+		expect(attempt('{r = [(+ ../../nope ../../nor) 2]}', [5, 2]).ast).toBeNull()
+	})
+
+	it('has an inverse that fails be no way back', () => {
+		const failing = withInverse(
+			makeTypedFn([numberType], numberType, x => x, ['x']),
+			() => {
+				throw new Error('out of its depth')
+			}
+		)
+		const root = new LetAST([['r', new CallAST(host(failing), [lit(1)])]], null)
+		expect(solve(root, env, root.bindings[0]![1], 2).ast).toBeNull()
 	})
 })

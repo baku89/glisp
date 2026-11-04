@@ -17,7 +17,10 @@ import {
 	evaluate,
 	type GlispClosure,
 	isGlispClosure,
+	coerceTo,
+	type HostInverse,
 	isTypedHostFn,
+	type TypedHostFn,
 	UNSET,
 	lookupBareName,
 	pathTarget,
@@ -198,14 +201,34 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 		const inverse = isTypedHostFn(head) ? head.inverse : undefined
 		if (inverse === undefined) return stop(ast, at, 'has no way back')
 
-		const args = ast.args.map(arg => evaluate(arg, inside).value)
+		// As the function itself would get them, with what failed being the default.
+		const { paramTypes, variadicTail } = head as TypedHostFn
+		const args = ast.args.map((arg, i) => {
+			const { value } = evaluate(arg, inside)
+			const type = paramTypes[i] ?? variadicTail
+			return type === undefined ? value : coerceTo(type, value)
+		})
 		for (const index of argumentOrder(ast.args)) {
-			const needed = inverse(index, wanted, args, { invert })
+			const needed = askInverse(inverse, index, wanted, args)
 			if (needed === undefined || !isUsable(needed)) continue
 			const edits = next(ast.args[index]!, inside, needed)
 			if (edits !== null) return edits
 		}
 		return stop(ast, at, 'no argument can make that value')
+	}
+
+	/** What an inverse says, one that fails on what it is given having nothing to say. */
+	const askInverse = (
+		inverse: HostInverse,
+		index: number,
+		result: unknown,
+		args: readonly unknown[]
+	): unknown => {
+		try {
+			return inverse(index, result, args, { invert })
+		} catch {
+			return undefined
+		}
 	}
 
 	const invert = (fn: unknown, result: unknown, current: unknown): unknown => {
@@ -218,7 +241,7 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 				const call = new CallAST(argument, [argument])
 				edits = back(fn.ast.body, bodyEnv(fn, call, null), result, 0)
 			} else if (isTypedHostFn(fn) && fn.inverse !== undefined) {
-				const needed = fn.inverse(0, result, [current], { invert })
+				const needed = askInverse(fn.inverse, 0, result, [current])
 				return needed === undefined || !isUsable(needed) ? undefined : needed
 			}
 			if (edits === null) return undefined

@@ -959,6 +959,26 @@ describe('grips', () => {
 	})
 })
 
+describe('what cannot be worked out', () => {
+	const row = 'binding:c'
+	const held = (src: string) => gripAt(parse(src), env, row)!
+
+	it('has a handle where the default is, rather than failing', () => {
+		expect(held('{c = (path.circle [../nope/x 5] 1)}').handles.at(-1)!.at).toEqual([0, 0])
+		expect(held('{c = (path.circle ../nope/center 1)}').handles.at(-1)!.at).toEqual([0, 0])
+		expect(held('{c = (path.circle [0 0] ../nope)}').handles[0]!.at).toEqual([0, 0])
+		expect(held('{c = (path.rect "x" [1 1])}').handles).toHaveLength(8)
+		expect(held('{c = (path.polyline [../nope 0] [1 1])}').handles).toHaveLength(2)
+	})
+
+	it('can be drawn, snapped to and moved all the same', () => {
+		const root = parse('{c = (path.circle [(+ ../../../gone/topLeft/0 1) ../../gone/topLeft/1] 10)}')
+		expect(sceneOf(root, env)).toHaveLength(1)
+		expect(snapPointsOf(root, env, sceneOf(root, env)).length).toBeGreaterThan(0)
+		expect(gripAt(root, env, row)!.move!([1, 2])).toHaveLength(1)
+	})
+})
+
 describe('moving the whole', () => {
 	const move = (src: string, row = 'binding:c') => {
 		const root = parse(src)

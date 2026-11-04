@@ -423,7 +423,7 @@ It goes down from the node to a literal, the only thing it changes:
 - A call to a closure goes through its body, and a parameter leads to the argument as written. The literals of a function stay, since other calls share them.
 - A call to a host function asks its inverse what an argument would have to be. See [Which argument changes](#which-argument-changes).
 
-It stops at `@`, at a host function with no inverse, and for now at `?`, `|>` and `overload`.
+It stops at `@`, at a host function with no inverse, and for now at `?`, `|>` and `overload`. An inverse gets the arguments as the function would, what failed being the type's default, and one that throws has no way back: like evaluation, `solve` gives a diagnostic, and does not throw for an error in the program.
 
 `map` works its function backward for each element, and then what it is passed backward to that. Only the argument changes: not the function's literals, and not what it refers to from outside.
 

@@ -54,7 +54,9 @@ const readsBack = (source: string): boolean => {
 function stored(): string | null {
 	try {
 		const source = localStorage.getItem(STORAGE_KEY)
-		return source !== null && readsBack(source) ? source : null
+		// `style` was once a member of `path`, for programs kept from then.
+		const kept = source?.replaceAll('(path.style ', '(style ') ?? null
+		return kept !== null && readsBack(kept) ? kept : null
 	} catch {
 		return null
 	}
