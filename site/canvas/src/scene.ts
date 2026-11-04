@@ -838,6 +838,11 @@ export function backgroundOf(root: AST, env: Env): string | null {
 export const isOfCanvasAt = (root: AST, env: Env, row: string): boolean =>
 	drawnIn(root, env).some(shape => shape.row === row && NOT_SHAPES.has(shape.draw))
 
+export const backgroundRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
+	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'background')
+
+/** A row of a program that says what color is behind everything. */
+export const backgroundCall = (color: string): AST => parse(`(background ${JSON.stringify(color)})`)
 export const gridRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
 	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'grid')
 

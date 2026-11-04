@@ -12,6 +12,7 @@ import {
 	rowCalled,
 	rowsAbout,
 	ungrouped,
+	withBackground,
 	viewBetween,
 	viewToFit,
 } from './rows'
@@ -208,5 +209,32 @@ describe('grouping what is referred to from the root', () => {
 		expect(print(ast)).toBe('{group1 = {a = [1 2]} b = [[/group1/a/1]] c = 0}')
 		const out = ungrouped(ast, env, ['binding:group1'])!
 		expect(print(out.ast)).toBe(program)
+	})
+})
+
+describe('withBackground', () => {
+	const given = (src: string) => {
+		const { ast, row } = withBackground(parse(src) as LetAST, env, '#ffffff')
+		return { source: print(ast), row }
+	}
+
+	it('adds a row at the top, if nothing says it', () => {
+		expect(given('{c = 1}')).toEqual({
+			source: '{background1 = (background "#ffffff") c = 1}',
+			row: 'binding:background1',
+		})
+	})
+
+	it('leaves what says it as it is, to be chosen from', () => {
+		const src = '{bg = (background "#ff0000") c = 1}'
+		expect(given(src)).toEqual({ source: src, row: 'binding:bg' })
+	})
+
+	it('brings it out of being hidden', () => {
+		expect(given('{bg = #_(background "#ff0000")}').source).toBe('{bg = (background "#ff0000")}')
+	})
+
+	it('has it say a color, if it says there is none', () => {
+		expect(given('{bg = (background "none")}').source).toBe('{bg = (background "#ffffff")}')
 	})
 })

@@ -3,13 +3,13 @@
  * the order they are drawn in, and groups, which are let-blocks with no Return.
  */
 
-import { type AST, type Env, evaluate, isHidden, LetAST, readByName, withPathsMoved } from '@glisp/lang'
+import { type AST, type Env, evaluate, isHidden, LetAST, readByName, unhide, withPathsMoved } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import { viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import type { Path, Vec } from './graphics'
-import { gridCall, gridOf, gridRowsIn, isOutlined, sceneOf } from './scene'
+import { backgroundCall, backgroundOf, backgroundRowsIn, gridCall, gridOf, gridRowsIn, isOutlined, sceneOf } from './scene'
 
 const BINDING = 'binding:'
 
@@ -121,6 +121,33 @@ function rowSaying(
 			)
 			.at(-1)?.row
 	)
+}
+
+/**
+ * `root` with a background to choose the color of, and the row that says it: the row that says
+ * so already, which comes out of being hidden, and a new one at the top of `color` if there is
+ * none. One that says there is none comes to say `color` too, or there would be nothing to see.
+ */
+export function withBackground(
+	root: LetAST,
+	env: Env,
+	color: string
+): { ast: LetAST; row: string } {
+	const row = rowSaying(root, env, backgroundRowsIn)
+	const reached = row === undefined ? null : reach(root, env, row)
+	const last = reached?.chain.at(-1)
+	if (row === undefined || !reached || !last) {
+		const name = freeName(root, 'background')
+		return {
+			ast: new LetAST([[name, backgroundCall(color)], ...root.bindings], root.body),
+			row: `${BINDING}${name}`,
+		}
+	}
+	const shown = unhide(last.ast)
+	const next = backgroundOf(withParent(reached.chain, last.replace(shown)), env) === null
+		? backgroundCall(color)
+		: shown
+	return { ast: withParent(reached.chain, last.replace(next)) as LetAST, row }
 }
 
 /**

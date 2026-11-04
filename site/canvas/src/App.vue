@@ -34,6 +34,7 @@ import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
 import {
 	pickedRows,
+	withBackground,
 	type Arrange,
 	arranged,
 	type Area,
@@ -257,6 +258,15 @@ function setProgram(next: LetAST | null, rows?: readonly string[]): void {
 function arrange(how: Arrange): void {
 	const root = programOf(document.root.value)
 	if (root) setProgram(arranged(root, selected.value, how))
+}
+
+/** There being a background, with what chooses its color to hand. */
+function setBackground(): void {
+	const root = programOf(document.root.value)
+	if (root === null) return
+	const { ast, row } = withBackground(root, document.env.value, theme.colorBackground)
+	setProgram(ast, [row])
+	inspectorOpen.value = true
 }
 
 function group(): void {
@@ -716,6 +726,7 @@ actions.register([
 			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
 			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGrid('dots') },
 			{ id: 'view_grid', label: 'Toggle Grid', icon: 'ph:grid-four', perform: () => toggleGrid('lines') },
+			{ id: 'view_background', label: 'Set Background', icon: 'ph:paint-bucket', perform: setBackground },
 		],
 	},
 	{
