@@ -320,27 +320,13 @@ function copyRows(): boolean {
 		selectedRows()
 	)
 	if (text === '') return false
-	const rows = selectedRows()
-	const last =
-		rows.length === 1
-			? reach(props.document.root.value, props.document.env.value, rows[0]!)?.chain.at(-1)
-			: undefined
-	props.document.copiedParameter.value =
-		last?.parameter === undefined ? null : { written: text, expected: last.expected }
-	void navigator.clipboard.writeText(props.copyAs?.(rows) ?? text)
+	void navigator.clipboard.writeText(props.copyAs?.(selectedRows()) ?? text)
 	return true
 }
 
 /** What is on the clipboard, given to the parameters that the rows at `paths` have for it. */
 function giveArguments(paths: readonly string[], text: string): boolean {
-	const copied = props.document.copiedParameter.value
-	const next = pastedArguments(
-		props.document.root.value,
-		props.document.env.value,
-		paths,
-		text,
-		copied?.written === text ? copied.expected : null
-	)
+	const next = pastedArguments(props.document.root.value, props.document.env.value, paths, text)
 	if (next === null) return false
 	replaceRoot(next)
 	return true

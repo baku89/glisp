@@ -1,5 +1,5 @@
 import { buildPrelude, type Env, evaluate, parse, print } from '@glisp/lang'
-import { copiedRows, pastedArguments, pastedRows, reach } from '@glisp/tweeq/rowsClipboard'
+import { copiedRows, pastedArguments, pastedRows } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
 import { isPath, RectValue, withGraphics } from './graphics'
@@ -54,9 +54,8 @@ describe('svgOfRows', () => {
 
 describe('a parameter on the clipboard', () => {
 	const root = parse(
-		'{a = (path.rect [0 0] [10 20]) b = (path.superellipse [5 5] [1 1] 2) c = (style (path.roundRect [0 0] [1 1] 2) "#ff0000") d = (path.circle [0 0] 3)}'
+		'{a = (path.rect [0 0] [10 20]) b = (path.superellipse [5 5] [1 1] 2) c = (style (path.roundRect [0 0] [1 1] 2) "#ff0000") d = (path.circle [0 0] 3) e = (path.ellipse [0 0] [30 40])}'
 	)
-	const typeOf = (path: string) => reach(root, env, path)!.chain.at(-1)!.expected
 
 	it('is not an SVG', () => {
 		expect(svgOfRows(root, env, ['binding:a/arg1'])).toBeNull()
@@ -69,18 +68,19 @@ describe('a parameter on the clipboard', () => {
 		)
 	})
 
-	it('goes to the only one of the same kind, if none has the name', () => {
-		const next = pastedArguments(root, env, ['binding:b'], 'size = [10 20]', typeOf('binding:a/arg1'))
-		expect(print(next!)).toContain('b = (path.superellipse [5 5] [10 20] 2)')
+	it('goes from an ellipse to a superellipse, as both have a radius of each axis', () => {
+		const text = copiedRows(root, env, ['binding:e/arg1'])
+		expect(print(pastedArguments(root, env, ['binding:b'], text)!)).toContain(
+			'b = (path.superellipse [5 5] [30 40] 2)'
+		)
 	})
 
-	it('does not go by a vector being a vector, without knowing what it was', () => {
+	it('does not go by the type alone: a size is not a radius', () => {
 		expect(pastedArguments(root, env, ['binding:b'], 'size = [10 20]')).toBeNull()
 	})
 
-	it('does not go to a number for being a number', () => {
-		const radius = typeOf('binding:d/arg1')
-		expect(pastedArguments(root, env, ['binding:b'], 'radius = 40', radius)).toBeNull()
+	it('does not go to a radius that would not take it', () => {
+		expect(pastedArguments(root, env, ['binding:b'], 'radius = 40')).toBeNull()
 	})
 
 	it('is a binding of its own where there is no place for it', () => {

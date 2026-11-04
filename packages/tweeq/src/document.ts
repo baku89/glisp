@@ -14,7 +14,6 @@ import {
 	LetAST,
 	parse,
 	Session,
-	type TypeValue,
 } from '@glisp/lang'
 
 import { withIcons } from './icons'
@@ -32,8 +31,6 @@ export interface GlispDocument {
 	readonly env: ComputedRef<Env>
 	/** The row a reference has been copied of, and what is on the clipboard for it. */
 	readonly copiedReference: ShallowRef<{ readonly path: string; readonly written: string } | null>
-	/** What the parameter copied wants, which what is on the clipboard for it cannot say. */
-	readonly copiedParameter: ShallowRef<{ readonly written: string; readonly expected: TypeValue | null } | null>
 	/** Replace the whole program. */
 	setRoot(next: LetAST): void
 	/** Have every `setRoot` that `write` makes undo as one. */
@@ -85,7 +82,6 @@ export function useGlispDocument(
 		root,
 		session,
 		copiedReference: shallowRef(null),
-		copiedParameter: shallowRef(null),
 		env: computed(() => {
 			void root.value
 			return session.env

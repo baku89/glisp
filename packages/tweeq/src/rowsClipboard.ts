@@ -17,7 +17,7 @@ import {
 } from '@glisp/lang'
 
 import { readProgram } from './programSource'
-import { actionsOf, type Slot, type SlotAction, type SlotCommand, textOf, viewOf } from './structure'
+import { actionsOf, type Slot, viewOf, type SlotAction, type SlotCommand } from './structure'
 
 const BINDING = 'binding:'
 
@@ -193,15 +193,10 @@ function fits(value: AST, expected: TypeValue | null, env: Env): boolean {
 	return type === null || argFits(value, type, expected)
 }
 
-/** Whether a type stands for a kind of thing of its own, more than for the values it has. */
-const isKind = (type: TypeValue | null): type is TypeValue =>
-	textOf(type?.meta?.get('input')) !== null
-
 /**
  * The program with `value` where the row at `path` has a place for it. By name, among the
  * parameters of what the row is made of. Or else in the row itself, which was chosen by
- * hand, if `alone` says that nothing else is coming to it too. Or else in the only one
- * that is the same kind of thing as where it was copied from.
+ * hand, if `alone` says that nothing else is coming to it too.
  */
 function landed(
 	root: AST,
@@ -209,8 +204,7 @@ function landed(
 	path: string,
 	name: string,
 	value: AST,
-	alone: boolean,
-	from: TypeValue | null
+	alone: boolean
 ): AST | null {
 	const chain = reach(root, env, path)?.chain
 	const row = chain?.at(-1)
@@ -220,24 +214,20 @@ function landed(
 
 	const named = places.find(place => place.name === name)
 	if (named) return named.put(value)
-	if (alone && !isBindingKey(row.key) && fits(value, row.expected, row.env)) {
-		return program(keepingMeta(row.ast, value))
-	}
-	const alike = isKind(from) ? places.filter(place => place.expected === from) : []
-	return alike.length === 1 ? alike[0]!.put(value) : null
+	return alone && !isBindingKey(row.key) && fits(value, row.expected, row.env)
+		? program(keepingMeta(row.ast, value))
+		: null
 }
 
 /**
  * The program with what is on the clipboard given to the rows at `paths`, each of which
- * has a place for all of it, or null if none does. `from` is what it was copied from
- * wanted, if that is known.
+ * has a place for all of it, or null if none does.
  */
 export function pastedArguments(
 	root: AST,
 	env: Env,
 	paths: readonly string[],
-	text: string,
-	from: TypeValue | null = null
+	text: string
 ): AST | null {
 	const reading = readProgram(text)
 	if (!('ast' in reading) || reading.ast.bindings.length === 0) return null
@@ -247,7 +237,7 @@ export function pastedArguments(
 	for (const path of paths) {
 		const given: AST | null = bindings.reduce<AST | null>(
 			(program, [name, value]) =>
-				program && landed(program, env, path, name, value, bindings.length === 1, from),
+				program && landed(program, env, path, name, value, bindings.length === 1),
 			next ?? root
 		)
 		if (given !== null) next = given
