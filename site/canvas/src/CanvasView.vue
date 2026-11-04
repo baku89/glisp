@@ -36,6 +36,7 @@ const HANDLE_RADIUS = 5
 const HIT_WIDTH = 10
 const HOVER_WIDTH = 3
 const DASH = [3, 2]
+const RANGE_OPACITY = 0.1
 
 const scene = computed(() => sceneOf(props.document.root.value, props.document.env.value))
 
@@ -167,10 +168,12 @@ function draw(): void {
 		const { from, to } = range.value
 		context.lineWidth = 1
 		context.strokeStyle = accent
-		context.fillStyle = color('--tq-color-accent-soft')
+		context.fillStyle = accent
 		context.beginPath()
 		context.rect(from[0], from[1], to[0] - from[0], to[1] - from[1])
+		context.globalAlpha = RANGE_OPACITY
 		context.fill()
+		context.globalAlpha = 1
 		context.stroke()
 	}
 }
