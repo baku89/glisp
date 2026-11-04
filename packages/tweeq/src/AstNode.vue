@@ -13,7 +13,7 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
-import { ALSO_SELECTED, LINKER, RENAMER, REVEALER, SELECTION, VALUE_ICON } from './selection'
+import { ALSO_SELECTED, LINKER, OPEN_ROW, RENAMER, REVEALER, SELECTION, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	fitsInline,
@@ -95,7 +95,7 @@ const bareKind = computed(() =>
 const renamer = inject(RENAMER, null)
 const renaming = ref(false)
 
-const open = ref(false)
+const open = ref(inject(OPEN_ROW, null)?.() === props.path)
 
 /** A short vector shows its elements on its own row, until it is opened. */
 const tree = inject(ParameterTreeContextKey, null)

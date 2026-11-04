@@ -64,9 +64,9 @@ const rounded = (n: number): number => Math.round(n * 100) / 100
 const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
 
 /** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */
-export function nameFor(root: LetAST, tool: ShapeTool, even: boolean): string {
+export function nameFor(root: LetAST, tool: ShapeTool | 'pen', even: boolean): string {
 	const taken = new Set(root.bindings.map(([name]) => name))
-	const kind = tool === 'ellipse' && even ? 'circle' : tool
+	const kind = tool === 'pen' ? 'path' : tool === 'ellipse' && even ? 'circle' : tool
 	let n = 1
 	while (taken.has(`${kind}${n}`)) n++
 	return `${kind}${n}`
@@ -96,6 +96,49 @@ export function drawn(
 			: even
 				? `(path.circle ${written(center)} ${rounded(side / 2)})`
 				: `(path.ellipse ${written(center)} ${written([Math.abs(dx) / 2, Math.abs(dy) / 2])})`
+	return new LetAST([...root.bindings, [name, parse(source)]], root.body)
+}
+
+/** A place a pen has been, and where it was pulled to, if it was. */
+export interface Anchor {
+	readonly at: Vec
+	readonly out?: Vec
+}
+
+/** What a curve comes into `anchor` by: the other way from what it goes out by. */
+const inOf = ({ at, out }: Anchor): Vec | undefined =>
+	out && [at[0] * 2 - out[0], at[1] * 2 - out[1]]
+
+const place = ([x, y]: Vec): string => `${rounded(x)},${rounded(y)}`
+
+/** An SVG path's data, through `anchors` in turn. */
+export function dOfAnchors(anchors: readonly Anchor[], closed: boolean): string {
+	const [first] = anchors
+	if (first === undefined) return ''
+	const stops = closed ? [...anchors.slice(1), first] : anchors.slice(1)
+	let from = first
+	const parts = [`M ${place(first.at)}`]
+	for (const to of stops) {
+		const into = inOf(to)
+		parts.push(
+			from.out === undefined && into === undefined
+				? `L ${place(to.at)}`
+				: `C ${place(from.out ?? from.at)} ${place(into ?? to.at)} ${place(to.at)}`
+		)
+		from = to
+	}
+	if (closed) parts.push('Z')
+	return parts.join(' ')
+}
+
+/** `root` with a path through `anchors`, under `name`. */
+export function penned(
+	root: LetAST,
+	name: string,
+	anchors: readonly Anchor[],
+	closed: boolean
+): LetAST {
+	const source = `(path.d "${dOfAnchors(anchors, closed)}")`
 	return new LetAST([...root.bindings, [name, parse(source)]], root.body)
 }
 

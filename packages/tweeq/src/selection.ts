@@ -60,3 +60,6 @@ export const SELECTION: InjectionKey<ShallowRef<Selection | null>> =
 
 /** The rows selected along with the one that is, from elsewhere, such as a canvas. */
 export const ALSO_SELECTED: InjectionKey<() => readonly string[]> = Symbol('also-selected')
+
+/** The row that starts out open, as what is being looked at. */
+export const OPEN_ROW: InjectionKey<() => string | null> = Symbol('open-row')

@@ -12,6 +12,7 @@ import { type GlispDocument } from './document'
 import {
 	ALSO_SELECTED,
 	LINKER,
+	OPEN_ROW,
 	RENAMER,
 	REVEALER,
 	SELECTION,
@@ -37,6 +38,13 @@ const props = defineProps<{
 	iconOfValue?: (value: unknown) => string | null
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
+	/** Only the names, as a list of what there is, with the values left to an inspector. */
+	layers?: boolean
+	/**
+	 * Be an inspector: only this row, open, and nothing of its own to say about keys
+	 * or the selection, which are for the tree. Null with nothing to inspect.
+	 */
+	inspect?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -171,8 +179,43 @@ const asEnv = (written: string): string => `{\n${written}\n}`
 const refuseAsEnv = (next: AST): string | null =>
 	next.kind === 'let' && next.body === null ? null : 'This can only have bindings.'
 
+const isInspector = computed(() => props.inspect !== undefined)
+provide(OPEN_ROW, () => props.inspect ?? null)
+
+/** The row being inspected, and the slots down to it, to go back up through. */
+const inspected = computed(() => {
+	if (!props.inspect) return null
+	const parts = props.inspect.split('/')
+	const chain: Slot[] = []
+	let node: AST = props.document.root.value
+	let env: Env = props.document.env.value
+	for (const key of parts) {
+		const slots: readonly Slot[] = viewOf(node, env).slots
+		const slot = slots.find(s => s.key === key)
+		if (slot === undefined) return null
+		chain.push(slot)
+		node = slot.ast
+		env = slot.env
+	}
+	return { chain, parentPath: parts.slice(0, -1).join('/') }
+})
+
+/** What holds the row inspected has changed, so everything around that does. */
+function replaceInspected(next: AST): void {
+	const chain = inspected.value?.chain ?? []
+	let parent = next
+	for (let i = chain.length - 2; i >= 0; i--) parent = chain[i]!.replace(parent)
+	replaceRoot(parent)
+}
+
 const selection = shallowRef<Selection | null>(null)
 provide(SELECTION, selection)
+watch(
+	() => props.inspect,
+	() => {
+		if (isInspector.value) selection.value = null
+	}
+)
 provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
 /** A row on its way to being selected again, having been edited. */
 let reselecting: string | null = null
@@ -230,6 +273,7 @@ useEventListener(window, 'pointerdown', (event: PointerEvent) => {
 
 // Pasting into a row, as code, whether it was copied as a value or as an expression.
 useEventListener(window, 'paste', (event: ClipboardEvent) => {
+	if (isInspector.value) return
 	const target = event.target as HTMLElement | null
 	if (target?.closest?.('input, textarea, [contenteditable]')) return
 	if (selection.value?.paste === undefined) return
@@ -240,6 +284,7 @@ useEventListener(window, 'paste', (event: ClipboardEvent) => {
 })
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+	if (isInspector.value) return
 	const target = event.target as HTMLElement | null
 	if (target?.closest('input, textarea, [contenteditable]')) return
 	const isMod = event.metaKey || event.ctrlKey
@@ -287,7 +332,23 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 </script>
 
 <template>
-	<div class="AstEditor">
+	<div v-if="isInspector" class="AstEditor" data-selects-rows>
+		<ScrollArea class="tree">
+			<ParameterTree name="glisp.inspector">
+				<AstSlots
+					v-if="inspected !== null"
+					:key="inspect ?? ''"
+					:slots="[inspected.chain.at(-1)!]"
+					:parentPath="inspected.parentPath"
+					noAddRow
+					:read="document.read"
+					:show="show"
+					@change="replaceInspected"
+				/>
+			</ParameterTree>
+		</ScrollArea>
+	</div>
+	<div v-else class="AstEditor" :class="{ layers }">
 		<div class="toolbar">
 			<InputButton
 				v-if="!compact"
@@ -360,6 +421,14 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 </template>
 
 <style scoped>
+/* Names alone: the value's column goes, with what resizes it. */
+.layers :deep(.TqParameterGrid.grid) {
+	grid-template-columns: minmax(0, 1fr) 0;
+}
+.layers :deep(.TqParameter > .input),
+.layers :deep(.resizer) {
+	display: none;
+}
 .AstEditor {
 	display: flex;
 	flex-direction: column;

@@ -6,7 +6,7 @@ import { mat2d, vec2 } from 'linearly'
 import { toPath2D } from 'pave/path/canvas'
 import { transform } from 'pave/path/modifiers'
 import { useZUI } from 'tweeq/use/useZUI'
-import { computed, ref, shallowRef, useTemplateRef, watchEffect } from 'vue'
+import { computed, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
 import { type Change, type Grip, type Handle, type Mat, type Path, type Vec } from './graphics'
 import {
@@ -14,7 +14,9 @@ import {
 	drawn,
 	gripAt,
 	nameFor,
+	penned,
 	rowsWithin,
+	type Anchor,
 	sceneOf,
 	type Shape,
 	type ShapeTool,
@@ -25,7 +27,7 @@ const props = defineProps<{
 	/** The rows selected, as the tree has them too. */
 	selected: readonly string[]
 	/** What a press does, if it draws. */
-	drawing?: ShapeTool | null
+	drawing?: ShapeTool | 'pen' | null
 }>()
 
 const emit = defineEmits<{ select: [rows: readonly string[]] }>()
@@ -39,6 +41,11 @@ const hovered = ref<string | null>(null)
 const hoveredHandle = ref<number | null>(null)
 /** The corners, on screen, of a range being drawn. */
 const range = shallowRef<{ from: Vec; to: Vec } | null>(null)
+/** A path being drawn with the pen, which goes on until it is finished. */
+let pen: { base: LetAST; name: string; anchors: readonly Anchor[] } | null = null
+/** From the last place to the pointer, on screen. */
+const penLine = shallowRef<[Vec, Vec] | null>(null)
+
 const cursor = ref('default')
 /** Why what was asked for could not be, until the next press. */
 const problem = ref<string | null>(null)
@@ -175,6 +182,16 @@ function draw(): void {
 		drawHandle(context, handle, i === hoveredHandle.value, accent, paper)
 	}
 
+	if (penLine.value !== null) {
+		const [[ax, ay], [bx, by]] = penLine.value
+		context.lineWidth = 1
+		context.strokeStyle = accent
+		context.beginPath()
+		context.moveTo(ax, ay)
+		context.lineTo(bx, by)
+		context.stroke()
+	}
+
 	if (range.value !== null) {
 		const { from, to } = range.value
 		context.lineWidth = 1
@@ -199,6 +216,7 @@ watchEffect(() => {
 		hovered.value,
 		hoveredHandle.value,
 		range.value,
+		penLine.value,
 	]
 	draw()
 })
@@ -286,6 +304,7 @@ interface Moving {
 let pressed:
 	| { kind: 'handle'; row: string; handle: Handle; mat: mat2d; from: Vec; offset: Vec }
 	| { kind: 'pan'; from: [number, number] }
+	| { kind: 'pen'; from: Vec }
 	| {
 			kind: 'draw'
 			tool: ShapeTool
@@ -339,6 +358,11 @@ function onPointerDown(event: PointerEvent): void {
 	if (spaceDown) {
 		pressed = { kind: 'pan', from: [event.clientX, event.clientY] }
 		cursor.value = 'grabbing'
+		return
+	}
+
+	if (props.drawing === 'pen') {
+		penDown(x, y)
 		return
 	}
 
@@ -407,6 +431,60 @@ function onPointerDown(event: PointerEvent): void {
 	range.value = { from: [x, y], to: [x, y] }
 }
 
+function writePen(closed: boolean): void {
+	if (pen !== null) props.document.setRoot(penned(pen.base, pen.name, pen.anchors, closed))
+}
+
+const closesPen = (x: number, y: number): boolean => {
+	const first = pen?.anchors[0]
+	if (first === undefined || pen!.anchors.length < 2) return false
+	const [hx, hy] = toScreen(first.at, view.value)
+	return Math.hypot(hx - x, hy - y) <= HANDLE_RADIUS + 3
+}
+
+function penDown(x: number, y: number): void {
+	if (closesPen(x, y)) {
+		writePen(true)
+		pen = null
+		penLine.value = null
+		return
+	}
+	if (pen === null) {
+		const base = props.document.root.value
+		pen = { base, name: nameFor(base, 'pen', false), anchors: [] }
+	}
+	const isFirst = pen.anchors.length === 0
+	pen.anchors = [...pen.anchors, { at: fromScreen(x, y) }]
+	writePen(false)
+	if (isFirst) emit('select', [`binding:${pen.name}`])
+	pressed = { kind: 'pen', from: [x, y] }
+}
+
+/** That is the path, as far as it went. With only one place, it is no path at all. */
+function finishPen(): void {
+	if (pen !== null && pen.anchors.length < 2) {
+		props.document.setRoot(pen.base)
+		emit('select', [])
+	}
+	pen = null
+	penLine.value = null
+}
+
+watch(() => props.drawing, finishPen)
+
+// Before it is what it means to a row in the tree.
+useEventListener(
+	window,
+	'keydown',
+	(event: KeyboardEvent) => {
+		if (event.key !== 'Enter' || pen === null || typing(event)) return
+		event.stopPropagation()
+		event.preventDefault()
+		finishPen()
+	},
+	{ capture: true }
+)
+
 /** The shape being drawn, as far as the pointer has got, and as even as asked. */
 function drawPressed(even: boolean): void {
 	if (pressed?.kind !== 'draw') return
@@ -435,7 +513,10 @@ function onPointerMove(event: PointerEvent): void {
 		if (props.drawing) {
 			hovered.value = null
 			hoveredHandle.value = null
-			cursor.value = 'crosshair'
+			const closes = props.drawing === 'pen' && closesPen(x, y)
+			cursor.value = closes ? 'pointer' : 'crosshair'
+			const last = pen?.anchors.at(-1)
+			penLine.value = last ? [toScreen(last.at, view.value), [x, y]] : null
 			return
 		}
 		const index = handleAt(x, y)
@@ -452,6 +533,13 @@ function onPointerMove(event: PointerEvent): void {
 		return
 	}
 	switch (pressed.kind) {
+		case 'pen': {
+			const [fromX, fromY] = pressed.from
+			if (pen === null || Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) break
+			pen.anchors = [...pen.anchors.slice(0, -1), { at: pen.anchors.at(-1)!.at, out: fromScreen(x, y) }]
+			writePen(false)
+			break
+		}
 		case 'draw': {
 			const [fromX, fromY] = pressed.at
 			if (!pressed.drawing && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
@@ -528,7 +616,7 @@ useEventListener(window, 'pointerup', () => {
 			:style="{ cursor }"
 			@pointerdown="onPointerDown"
 			@pointermove="onPointerMove"
-			@pointerleave="(hovered = null), (hoveredHandle = null)"
+			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null)"
 			@auxclick.prevent
 		/>
 		<p v-if="problem !== null" class="problem">Cannot do that: {{ problem }}</p>

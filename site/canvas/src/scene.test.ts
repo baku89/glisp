@@ -11,7 +11,7 @@ import {
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
-import { changed, drawn, gripAt, nameFor, rowsWithin, sceneOf } from './scene'
+import { changed, dOfAnchors, drawn, gripAt, nameFor, penned, rowsWithin, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const scene = (src: string) =>
@@ -157,6 +157,36 @@ describe('drawing a shape', () => {
 		expect(nameFor(root, 'ellipse', true)).toBe('circle1')
 		expect(nameFor(parse('{ellipse1 = 1 circle1 = 2}') as LetAST, 'ellipse', true)).toBe('circle2')
 		expect(nameFor(root, 'rect', true)).toBe('rect1')
+	})
+})
+
+describe('the pen', () => {
+	it('goes straight from where it was only clicked', () => {
+		expect(dOfAnchors([{ at: [0, 0] }, { at: [10, 0] }], false)).toBe('M 0,0 L 10,0')
+	})
+
+	it('curves where it was pulled, the same both ways', () => {
+		expect(dOfAnchors([{ at: [0, 0], out: [5, 0] }, { at: [10, 10] }], false)).toBe(
+			'M 0,0 C 5,0 10,10 10,10'
+		)
+		expect(dOfAnchors([{ at: [0, 0] }, { at: [10, 10], out: [15, 10] }], false)).toBe(
+			'M 0,0 C 0,0 5,10 10,10'
+		)
+	})
+
+	it('closes back to where it started', () => {
+		expect(dOfAnchors([{ at: [0, 0] }, { at: [10, 0] }, { at: [10, 10] }], true)).toBe(
+			'M 0,0 L 10,0 L 10,10 L 0,0 Z'
+		)
+	})
+
+	it('adds a path, named as one, to draw and to take hold of', () => {
+		const root = parse('{a = 1}') as LetAST
+		expect(nameFor(root, 'pen', false)).toBe('path1')
+		const next = penned(root, 'path1', [{ at: [0, 0] }, { at: [10, 0] }], false)
+		expect(print(next)).toBe('{a = 1 path1 = (path.d "M 0,0 L 10,0")}')
+		expect(sceneOf(next, env).map(s => s.row)).toEqual(['binding:path1'])
+		expect(gripAt(next, env, 'binding:path1')!.handles).toHaveLength(2)
 	})
 })
 

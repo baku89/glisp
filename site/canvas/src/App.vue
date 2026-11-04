@@ -5,6 +5,7 @@ import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
 import { PaneSplit } from 'tweeq/PaneSplit'
+import { useAppConfigStore } from 'tweeq/stores/appConfig'
 import { useThemeStore } from 'tweeq/stores/theme'
 import { TitleBar } from 'tweeq/TitleBar'
 import { vTooltip } from 'tweeq/Tooltip'
@@ -62,6 +63,7 @@ watch(document.root, root => {
 
 const TOOLS = [
 	{ name: 'select', tooltip: { content: 'Select', shortcut: ['V'] }, icon: 'ph:cursor-fill' },
+	{ name: 'pen', tooltip: { content: 'Pen', shortcut: ['P'] }, icon: 'ph:pen-nib' },
 	{ name: 'rect', tooltip: { content: 'Rectangle', shortcut: ['R'] }, icon: 'ph:rectangle' },
 	{ name: 'ellipse', tooltip: { content: 'Ellipse', shortcut: ['O'] }, icon: 'ph:circle' },
 ] as const
@@ -73,14 +75,17 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (target?.closest?.('input, textarea, [contenteditable]')) return
 	if (event.metaKey || event.ctrlKey || event.altKey) return
 	const key = event.key.toLowerCase()
-	if (key === 'v') {
-		tool.value = 'select'
-		// In a drawing app it is the tool, before what it means to a row in the tree.
+	// In a drawing app these are tools, before what they mean to a row in the tree.
+	if (key === 'v' || key === 'p') {
+		tool.value = key === 'v' ? 'select' : 'pen'
 		event.stopPropagation()
 	} else if (key === 'r') tool.value = 'rect'
 	else if (key === 'o') tool.value = 'ellipse'
 	else if (key === 'escape') tool.value = 'select'
 }, { capture: true })
+
+/** The project floats over the canvas, or is out of the way as a tab, across reloads. */
+const projectOpen = useAppConfigStore().ref('glisp.canvas.project.open', true)
 
 const selected = ref<readonly string[]>([])
 const $editor = useTemplateRef<{ reveal(path: string): void; deselect(): void }>('$editor')
@@ -91,6 +96,9 @@ function selectOnCanvas(rows: readonly string[]): void {
 	if (first === undefined) $editor.value?.deselect()
 	else $editor.value?.reveal(first)
 }
+
+/** What the inspector shows: one row, as several have nothing in common to show. */
+const inspected = computed(() => (selected.value.length === 1 ? selected.value[0]! : null))
 
 // A row that is one of several stays one of several, as the tree only has the one.
 function selectInTree(row: string | null): void {
@@ -106,10 +114,10 @@ function selectInTree(row: string | null): void {
 		</template>
 		<template #default>
 			<PaneSplit
-				name="glisp.canvas"
+				name="glisp.canvas.inspector"
 				direction="horizontal"
 				fixed="second"
-				:size="360"
+				:size="320"
 				:scroll="[false, false]"
 			>
 				<template #first>
@@ -120,6 +128,43 @@ function selectInTree(row: string | null): void {
 							:drawing="drawing"
 							@select="selectOnCanvas"
 						/>
+						<aside v-show="projectOpen" class="project">
+							<header class="project-header" data-selects-rows>
+								<span class="project-title">
+									<Icon icon="ph:tree-view" />
+									Project
+								</span>
+								<button
+									v-tooltip="'Minimize'"
+									class="project-toggle"
+									aria-label="Minimize Project"
+									@click="projectOpen = false"
+								>
+									<Icon icon="ph:caret-left" />
+								</button>
+							</header>
+							<div class="project-tree">
+								<AstEditor
+									ref="$editor"
+									:document="document"
+									compact
+									layers
+									:iconOfValue="iconOfPath"
+									:alsoSelected="selected"
+									@select="selectInTree"
+								/>
+							</div>
+						</aside>
+						<button
+							v-show="!projectOpen"
+							v-tooltip="{ content: 'Project', placement: 'right' }"
+							class="project-tab"
+							aria-label="Show Project"
+							data-selects-rows
+							@click="projectOpen = true"
+						>
+							<Icon icon="ph:tree-view" />
+						</button>
 						<div class="tools" data-selects-rows>
 							<button
 								v-for="{ name, tooltip, icon } in TOOLS"
@@ -147,17 +192,14 @@ function selectInTree(row: string | null): void {
 						<template #first>
 							<section class="pane">
 								<AstEditor
-									ref="$editor"
 									:document="document"
-									compact
+									:inspect="inspected"
 									:iconOfValue="iconOfPath"
-									:alsoSelected="selected"
-									@select="selectInTree"
 								/>
 							</section>
 						</template>
 						<template #second>
-							<section class="pane">
+							<section class="pane" data-selects-rows>
 								<Repl
 									:session="document.session"
 									historyKey="glisp.canvas.history"
@@ -178,6 +220,79 @@ function selectInTree(row: string | null): void {
 .stage {
 	position: relative;
 	height: 100%;
+	overflow: hidden;
+}
+/* Coming out from the left edge, so with a border on the other three sides. */
+.project,
+.project-tab {
+	position: absolute;
+	left: 0;
+	border: 1px solid var(--tq-color-border);
+	border-left: none;
+	border-radius: 0 var(--tq-radius-pane) var(--tq-radius-pane) 0;
+	background: var(--tq-color-surface);
+	backdrop-filter: blur(var(--tq-popup-blur));
+	/* As a popup has, the same as a modal. */
+	box-shadow: 0 0 20px 0 var(--tq-color-shadow);
+}
+.project {
+	top: 16px;
+	bottom: 16px;
+	display: flex;
+	flex-direction: column;
+	width: 240px;
+}
+.project-header {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 6px 0 var(--tq-pane-padding);
+}
+.project-title {
+	display: flex;
+	gap: var(--tq-gap-related);
+	align-items: center;
+	font-weight: 600;
+}
+.project-title > :first-child {
+	flex: none;
+	font-size: 18px;
+}
+.project-toggle,
+.project-tab {
+	display: grid;
+	place-items: center;
+	border: none;
+	background: none;
+	color: var(--tq-color-text-mute);
+	cursor: pointer;
+}
+.project-toggle {
+	width: 24px;
+	height: 24px;
+	border-radius: var(--tq-radius-input);
+}
+.project-toggle:hover {
+	background: var(--tq-color-input-hover);
+	color: var(--tq-color-text);
+}
+.project-tab {
+	top: 16px;
+	width: 32px;
+	height: 40px;
+	border: 1px solid var(--tq-color-border);
+	border-left: none;
+	background: var(--tq-color-surface);
+	font-size: 18px;
+}
+.project-tab:hover {
+	color: var(--tq-color-text);
+}
+.project-tree {
+	flex: 1;
+	min-height: 0;
+	padding: var(--tq-pane-padding);
 }
 .tools {
 	--padding: 6px;
@@ -193,7 +308,7 @@ function selectInTree(row: string | null): void {
 	border-radius: calc(var(--radius) + var(--padding));
 	background: var(--tq-color-surface);
 	backdrop-filter: blur(var(--tq-popup-blur));
-	box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+	box-shadow: 0 0 20px 0 var(--tq-color-shadow);
 }
 .tool {
 	display: grid;
