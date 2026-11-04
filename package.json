@@ -12,7 +12,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && npm run typecheck -w site/lang && npm run typecheck -w site/canvas",
+    "typecheck": "tsc --noEmit && npm run typecheck -w site/lang && npm run typecheck -w site/canvas && npm run typecheck:modules",
+    "typecheck:modules": "tsc -p tsconfig.modules.json && tsc -p dev_modules/geome/tsconfig.json --noEmit",
     "repl": "npm run start -w @glisp/repl",
     "dev": "npm run dev -w site/lang",
     "dev:canvas": "npm run dev -w site/canvas",

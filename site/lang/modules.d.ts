@@ -12,3 +12,10 @@ declare module '*.frag' {
 
 declare module 'markdown-it-deflist'
 declare module 'markdown-it-footnote'
+
+/** Only a type in pave, for whoever draws with it, and not something installed here. */
+declare module 'p5' {
+	export default class p5 {
+		[key: string]: any
+	}
+}

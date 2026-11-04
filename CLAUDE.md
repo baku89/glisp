@@ -36,6 +36,7 @@ npm run dev         # the website
 npm run build
 ```
 
+- `npm run typecheck` holds pave and geome to their own settings, as `dev_modules` has its own repositories: `site/canvas/typecheck.mjs` leaves out what Glisp's stricter ones say of them.
 - Spec and implementation change together. `spec.test.ts` runs the marked examples in `spec/` and `site/lang/guide.md`.
 - Mark an example block with `<!-- test -->` above it when every `;; → value` in it should hold.
 - The author writes the notes this design came from at baku89.com (`Glisp文法` and others). When they disagree with `spec/`, ask which one stands.
