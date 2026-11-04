@@ -208,6 +208,25 @@ useZUI($canvas, delta => {
 	view.value = mat2d.mul(delta, view.value)
 })
 
+defineExpose({
+	/** Have this as the view. */
+	setView(next: mat2d): void {
+		view.value = next
+	},
+	/** Zoom by this much, around the middle of what can be seen. */
+	zoomBy(factor: number): void {
+		const middle: vec2 = [size.value[0] / 2, size.value[1] / 2]
+		view.value = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
+	},
+	/** The same as it was, with this as how far in it is. */
+	zoomTo(zoom: number): void {
+		const factor = zoom / view.value[0]
+		const middle: vec2 = [size.value[0] / 2, size.value[1] / 2]
+		view.value = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
+	},
+	size: () => size.value,
+})
+
 let savingView: ReturnType<typeof setTimeout> | undefined
 watch(view, next => {
 	clearTimeout(savingView)

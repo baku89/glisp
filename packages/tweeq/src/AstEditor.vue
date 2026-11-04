@@ -303,6 +303,23 @@ defineExpose({
 	deselect(): void {
 		selection.value = null
 	},
+	copy: () => void copyRows(),
+	cut(): void {
+		if (copyRows()) removeRows()
+	},
+	remove: () => removeRows(),
+	/** What is on the clipboard, as a paste would have it. */
+	paste(written: string): void {
+		const rows = pastedRows(
+			props.document.root.value,
+			props.document.env.value,
+			selectedRows().at(-1) ?? null,
+			props.pasteAs?.(written) ?? written
+		)
+		if (rows === null) return
+		replaceRoot(rows.ast)
+		emit('pasted', rows.paths)
+	},
 })
 
 // A selection deletes through the tree as it was, so an edit makes it again, from the

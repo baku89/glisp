@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { parse, print } from '@glisp/lang'
+import { LetAST, parse, print } from '@glisp/lang'
 import {
 	AstEditor,
 	AstMultiInspector,
@@ -9,10 +9,13 @@ import {
 	Repl,
 	useGlispDocument,
 } from '@glisp/tweeq'
+import { copiedRows } from '@glisp/tweeq/rowsClipboard'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
+import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
 import { useAppConfigStore } from 'tweeq/stores/appConfig'
+import { useActionsStore } from 'tweeq/stores/actions'
 import { useThemeStore } from 'tweeq/stores/theme'
 import { TitleBar } from 'tweeq/TitleBar'
 import { vTooltip } from 'tweeq/Tooltip'
@@ -20,9 +23,20 @@ import { initTweeq } from 'tweeq/useTweeq'
 import { computed, ref, useTemplateRef, watch, watchEffect } from 'vue'
 
 import CanvasView from './CanvasView.vue'
+import { exportSvg, openFile, saveFile } from './files'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfPath, withGraphics } from './graphics'
 import PaintControls from './PaintControls.vue'
+import {
+	type Arrange,
+	arranged,
+	type Area,
+	boundsOfRows,
+	drawnRows,
+	grouped,
+	ungrouped,
+	viewToFit,
+} from './rows'
 import { paintedRow } from './scene'
 import { bindingsOfSvg, svgOfRows } from './svg'
 
@@ -105,10 +119,11 @@ const projectOpen = useAppConfigStore().ref('glisp.canvas.project.open', true)
 const PROJECT_WIDTH = 280
 const ORIGIN_MARGIN = 32
 /** The top left of what the project leaves showing, and a little in from there. */
+const projectWidth = useAppConfigStore().ref('glisp.canvas.project.width', PROJECT_WIDTH)
+const inspectorWidth = useAppConfigStore().ref('glisp.canvas.inspector.width', 320)
+const TAB_WIDTH = 32
 const origin = [
-	(projectOpen.value
-		? useAppConfigStore().ref('glisp.canvas.project.width', PROJECT_WIDTH).value
-		: 32) + ORIGIN_MARGIN,
+	(projectOpen.value ? projectWidth.value : TAB_WIDTH) + ORIGIN_MARGIN,
 	ORIGIN_MARGIN,
 ] as const
 
@@ -121,6 +136,86 @@ const projectTab = useAppConfigStore().ref<'layers' | 'code'>('glisp.canvas.proj
 if (!PROJECT_TABS.some(({ name }) => name === projectTab.value)) projectTab.value = 'layers'
 const replOpen = useAppConfigStore().ref('glisp.canvas.repl.open', true)
 const inspectorOpen = useAppConfigStore().ref('glisp.canvas.inspector.open', true)
+
+const programOf = (root: { kind: string }): LetAST | null =>
+	root instanceof LetAST ? root : null
+
+/** The file it is kept in, once it is in one. */
+let fileHandle: FileSystemFileHandle | null = null
+
+function readProgramText(text: string): void {
+	try {
+		const next = programOf(parse(text.replaceAll('(path.style ', '(style ')))
+		if (next !== null) document.setRoot(new LetAST(next.bindings, null))
+	} catch {
+		// What cannot be read leaves what is there.
+	}
+}
+
+async function open(): Promise<void> {
+	const opened = await openFile()
+	if (opened === null) return
+	fileHandle = opened.handle
+	readProgramText(opened.text)
+	selectOnCanvas([])
+}
+
+async function save(asNew: boolean): Promise<void> {
+	const handle = await saveFile(print(document.root.value), asNew ? null : fileHandle)
+	if (handle !== null) fileHandle = handle
+}
+
+// A file opened with this app, from outside of it.
+const launching = window as unknown as {
+	launchQueue?: {
+		setConsumer(consumer: (params: { files: FileSystemFileHandle[] }) => void): void
+	}
+}
+launching.launchQueue?.setConsumer(async ({ files: [handle] }) => {
+	if (!handle) return
+	fileHandle = handle
+	readProgramText(await (await handle.getFile()).text())
+})
+
+function setProgram(next: LetAST | null, rows?: readonly string[]): void {
+	if (next === null) return
+	document.setRoot(next)
+	if (rows) selectOnCanvas(rows)
+}
+
+function arrange(how: Arrange): void {
+	const root = programOf(document.root.value)
+	if (root) setProgram(arranged(root, selected.value, how))
+}
+
+function group(): void {
+	const root = programOf(document.root.value)
+	const result = root && grouped(root, document.env.value, selected.value)
+	if (result) setProgram(result.ast, [result.row])
+}
+
+function ungroup(): void {
+	const root = programOf(document.root.value)
+	const result = root && ungrouped(root, document.env.value, selected.value)
+	if (result) setProgram(result.ast, result.rows)
+}
+
+const FIT_MARGIN = 32
+
+/** What is free of the panels that are open. */
+function freeArea(): Area {
+	const [width, height] = $canvas.value?.size() ?? [0, 0]
+	const left = projectOpen.value ? projectWidth.value : TAB_WIDTH
+	const right = inspectorOpen.value || replOpen.value ? inspectorWidth.value : TAB_WIDTH
+	return [left + FIT_MARGIN, FIT_MARGIN, width - right - FIT_MARGIN, height - FIT_MARGIN]
+}
+
+function fit(rows?: readonly string[]): void {
+	const box = boundsOfRows(document.root.value, document.env.value, rows)
+	if (box) $canvas.value?.setView(viewToFit(box, freeArea()) as unknown as mat2d)
+}
+
+const ZOOM_STEP = 1.5
 /** The editor is there once it has been asked for, and stays, with what is written in it. */
 const codeOpened = ref(projectTab.value === 'code')
 watch(projectTab, tab => {
@@ -134,7 +229,20 @@ function showCode(): void {
 }
 
 const selected = ref<readonly string[]>([])
-const $editor = useTemplateRef<{ reveal(path: string): void; deselect(): void }>('$editor')
+const $editor = useTemplateRef<{
+	reveal(path: string): void
+	deselect(): void
+	copy(): void
+	cut(): void
+	remove(): void
+	paste(written: string): void
+}>('$editor')
+const $canvas = useTemplateRef<{
+	setView(next: mat2d): void
+	zoomBy(factor: number): void
+	zoomTo(zoom: number): void
+	size(): readonly [number, number]
+}>('$canvas')
 
 function selectOnCanvas(rows: readonly string[]): void {
 	selected.value = rows
@@ -172,6 +280,120 @@ const sharedFn = computed(() =>
 		: null
 )
 
+useActionsStore().register([
+	{
+		id: 'file',
+		order: 10,
+		icon: 'mdi:file-outline',
+		children: [
+			{
+				id: 'file_new',
+				label: 'New',
+				icon: 'mdi:file-plus-outline',
+				perform() {
+					fileHandle = null
+					document.setRoot(new LetAST([], null))
+					selectOnCanvas([])
+				},
+			},
+			{ id: 'file_open', label: 'Open...', icon: 'mdi:folder-open-outline', bind: 'command+o', perform: open },
+			{ id: 'file_save', label: 'Save', icon: 'mdi:content-save-outline', bind: 'command+s', perform: () => save(false) },
+			{ id: 'file_save_as', label: 'Save As...', icon: 'mdi:content-save-edit-outline', bind: 'command+shift+s', perform: () => save(true) },
+			{
+				id: 'file_export_svg',
+				label: 'Export SVG...',
+				icon: 'mdi:export-variant',
+				perform() {
+					const svg = svgOfRows(
+						document.root.value,
+						document.env.value,
+						drawnRows(document.root.value, document.env.value)
+					)
+					if (svg !== null) void exportSvg(svg)
+				},
+			},
+		],
+	},
+	{
+		id: 'edit',
+		order: 20,
+		icon: 'mdi:pencil-outline',
+		children: [
+			{ id: 'edit_undo', label: 'Undo', icon: 'mdi:undo', perform: () => document.undo() },
+			{ id: 'edit_redo', label: 'Redo', icon: 'mdi:redo', perform: () => document.redo() },
+			{ id: 'edit_cut', label: 'Cut', icon: 'mdi:content-cut', perform: () => $editor.value?.cut() },
+			{ id: 'edit_copy', label: 'Copy', icon: 'mdi:content-copy', perform: () => $editor.value?.copy() },
+			{
+				id: 'edit_paste',
+				label: 'Paste',
+				icon: 'mdi:content-paste',
+				async perform() {
+					$editor.value?.paste(await navigator.clipboard.readText())
+				},
+			},
+			{
+				id: 'edit_duplicate',
+				label: 'Duplicate',
+				icon: 'mdi:content-duplicate',
+				bind: 'command+d',
+				perform() {
+					const text = copiedRows(document.root.value, document.env.value, selected.value)
+					if (text !== '') $editor.value?.paste(text)
+				},
+			},
+			{ id: 'edit_delete', label: 'Delete', icon: 'mdi:trash-can-outline', perform: () => $editor.value?.remove() },
+			{
+				id: 'edit_select_all',
+				label: 'Select All',
+				icon: 'mdi:select-all',
+				bind: 'command+a',
+				perform: () => selectOnCanvas(drawnRows(document.root.value, document.env.value)),
+			},
+		],
+	},
+	{
+		id: 'object',
+		order: 30,
+		icon: 'mdi:shape-outline',
+		children: [
+			{ id: 'object_front', label: 'Bring to Front', icon: 'mdi:arrange-bring-to-front', bind: 'shift+]', perform: () => arrange('front') },
+			{ id: 'object_forward', label: 'Bring Forward', icon: 'mdi:arrange-bring-forward', bind: ']', perform: () => arrange('forward') },
+			{ id: 'object_backward', label: 'Send Backward', icon: 'mdi:arrange-send-backward', bind: '[', perform: () => arrange('backward') },
+			{ id: 'object_back', label: 'Send to Back', icon: 'mdi:arrange-send-to-back', bind: 'shift+[', perform: () => arrange('back') },
+			{ id: 'object_group', label: 'Group', icon: 'mdi:group', bind: 'command+g', perform: group },
+			{ id: 'object_ungroup', label: 'Ungroup', icon: 'mdi:ungroup', bind: 'command+shift+g', perform: ungroup },
+		],
+	},
+	{
+		id: 'view',
+		order: 40,
+		icon: 'mdi:eye-outline',
+		children: [
+			{ id: 'view_fit', label: 'Fit All', icon: 'mdi:fit-to-screen-outline', bind: 'shift+1', perform: () => fit() },
+			{ id: 'view_fit_selection', label: 'Fit Selection', icon: 'mdi:selection-search', bind: 'shift+2', perform: () => fit(selected.value) },
+			{ id: 'view_actual', label: 'Actual Size', icon: 'mdi:numeric-1-box-outline', bind: 'command+0', perform: () => $canvas.value?.zoomTo(1) },
+			{ id: 'view_zoom_in', label: 'Zoom In', icon: 'mdi:magnify-plus-outline', bind: 'command+=', perform: () => $canvas.value?.zoomBy(ZOOM_STEP) },
+			{ id: 'view_zoom_out', label: 'Zoom Out', icon: 'mdi:magnify-minus-outline', bind: 'command+-', perform: () => $canvas.value?.zoomBy(1 / ZOOM_STEP) },
+			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => (projectOpen.value = !projectOpen.value) },
+			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => (inspectorOpen.value = !inspectorOpen.value) },
+			{ id: 'view_repl', label: 'Toggle REPL', icon: 'ph:terminal', perform: () => (replOpen.value = !replOpen.value) },
+		],
+	},
+	{
+		id: 'tool',
+		order: 50,
+		icon: 'ph:cursor-fill',
+		children: TOOLS.map(({ name, tooltip, icon }) => ({
+			id: `tool_${name}`,
+			label: tooltip.content,
+			icon,
+			perform() {
+				tool.value = name
+			},
+		})),
+	},
+])
+
 // A row that is one of several stays one of several, as the tree only has the one.
 function selectInTree(row: string | null): void {
 	if (row === null) selected.value = []
@@ -187,6 +409,7 @@ function selectInTree(row: string | null): void {
 		<template #default>
 			<div class="stage">
 				<CanvasView
+					ref="$canvas"
 					:document="document"
 					:selected="selected"
 					:origin="origin"
