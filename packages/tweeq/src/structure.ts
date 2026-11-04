@@ -95,6 +95,7 @@ export interface NumberOptions {
 	readonly step?: number
 	readonly prefix?: string
 	readonly suffix?: string
+	readonly leftIcon?: string
 }
 
 /**
@@ -194,6 +195,8 @@ function numberOptionsOf(metadata: MetaAST['metadata'] | null | undefined): Numb
 	const [min, max, step] = [read('min'), read('max'), read('step')]
 	const prefix = textOf(metadata?.get('prefix'))
 	const suffix = textOf(metadata?.get('suffix'))
+	// Not `icon`, which is the type's own, for the row.
+	const leftIcon = textOf(metadata?.get('fieldIcon'))
 	const ordered = min === undefined || max === undefined || min < max
 	return {
 		...(ordered && min !== undefined ? { min } : {}),
@@ -201,8 +204,21 @@ function numberOptionsOf(metadata: MetaAST['metadata'] | null | undefined): Numb
 		...(step !== undefined && step > 0 ? { step } : {}),
 		...(prefix === null ? {} : { prefix }),
 		...(suffix === null ? {} : { suffix }),
+		...(leftIcon === null ? {} : { leftIcon }),
 	}
 }
+
+/** What the type wanted of an element of a vector says of a number at `index`, if anything. */
+export function elementOptionsOf(expected: TypeValue | null, index: number): NumberOptions {
+	const shape = expected === null ? null : unwrapLazy(expected).shape
+	return shape?.kind === 'tuple'
+		? numberOptionsOf(shape.elements[index]?.meta)
+		: {}
+}
+
+/** Whether what `expected` is can also be taken hold of as a place, by a pad. */
+export const isTranslatable = (expected: TypeValue | null): boolean =>
+	textOf(expected?.meta?.get('input')) === 'translate'
 
 /**
  * What a slot's number field goes by: what its position wants, and over that what
@@ -654,10 +670,11 @@ function viewOfVec(
 		...LEAF,
 		slots: ast.elements.map((element, i) => ({
 			key: `${i}`,
-			label: `${i}`,
+			label: textOf(elementType(i)?.meta?.get('title')) ?? `${i}`,
 			ast: element,
 			env: inside,
 			expected: elementType(i),
+			numberOptions: numberOptionsOf(elementType(i)?.meta),
 			replace: child => {
 				const elements = ast.elements.slice()
 				elements[i] = child

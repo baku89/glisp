@@ -200,6 +200,7 @@ function selectInTree(row: string | null): void {
 				<FloatPanel
 					v-model:open="inspectorOpen"
 					name="glisp.canvas.inspector"
+					fit
 					side="right"
 					label="Inspector"
 					icon="ph:sliders-horizontal"

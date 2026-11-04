@@ -20,6 +20,7 @@ import {
 	fitsInline,
 	hasValue,
 	isExpression,
+	elementOptionsOf,
 	numberOptionsAt,
 	problemOf,
 	type Slot,
@@ -250,6 +251,7 @@ const label = (value: unknown): string =>
 			<InputNumber
 				v-for="(number, i) in solvableNumbers"
 				:key="i"
+				v-bind="elementOptionsOf(entry.expected, i)"
 				:modelValue="number"
 				:menuItems="fieldMenu"
 				@update:modelValue="solveElement(i, $event)"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, readByName } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
+import { InputTranslate } from 'tweeq/InputTranslate'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { vTooltip } from 'tweeq/Tooltip'
@@ -13,10 +14,11 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
-import { ALSO_SELECTED, LINKER, OPEN_ROW, RENAMER, REVEALER, SELECTION, VALUE_ICON } from './selection'
+import { ALSO_SELECTED, LINKER, OPEN_ROW, RENAMER, REVEALER, SELECTION, SOLVER, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	fitsInline,
+	isTranslatable,
 	kindIconOf,
 	parseSource,
 	type Slot,
@@ -99,8 +101,17 @@ const open = ref(inject(OPEN_ROW, null)?.() === props.path)
 
 /** A short vector shows its elements on its own row, until it is opened. */
 const tree = inject(ParameterTreeContextKey, null)
+/** A point's pad, to take it by, and what is left beside it for its numbers. */
+const translatable = computed(
+	() => isTranslatable(props.entry.expected) && Array.isArray(placeValue.value)
+)
+const placeValue = computed(
+	() => props.read(readByName(ast.value), props.entry.env).value
+)
+const PAD_WIDTH = 26
+const solver = inject(SOLVER, null)
 const fits = (count: number): boolean =>
-	fitsInline(count, tree?.valueWidth.value ?? 0)
+	fitsInline(count, Math.max(0, (tree?.valueWidth.value ?? 0) - (translatable.value ? PAD_WIDTH : 0)))
 const inline = computed(
 	() => bareKind.value === 'vec' && !open.value && fits(view.value.slots.length)
 )
@@ -389,26 +400,33 @@ watch(
 		@select="select"
 		@nameClick="isFunction && (editingCode = true)"
 	>
-		<div v-if="inline" ref="$anchor" class="inline-anchor">
-			<AstInline
-				:slots="view.slots"
-				:parentPath="path"
+		<div class="value-row">
+			<InputTranslate
+				v-if="translatable"
+				:modelValue="placeValue as [number, number]"
+				@update:modelValue="solver?.solve(ast, $event)"
+			/>
+			<div v-if="inline" ref="$anchor" class="inline-anchor">
+				<AstInline
+					:slots="view.slots"
+					:parentPath="path"
+					:read="read"
+					:show="show"
+					@change="update"
+				/>
+			</div>
+			<AstValue
+				v-else-if="!isFunction"
+				ref="$value"
+				:entry="entry"
+				:path="path"
+				:menuItems="slotMenu"
 				:read="read"
 				:show="show"
-				@change="update"
+				@change="emit('change', $event)"
 			/>
+			<div v-else ref="$anchor" />
 		</div>
-		<AstValue
-			v-else-if="!isFunction"
-			ref="$value"
-			:entry="entry"
-			:path="path"
-			:menuItems="slotMenu"
-			:read="read"
-			:show="show"
-			@change="emit('change', $event)"
-		/>
-		<div v-else ref="$anchor" />
 		<AstCodePopup
 			v-if="editingCode"
 			:reference="$anchor"
@@ -481,6 +499,18 @@ watch(
 </template>
 
 <style scoped>
+.value-row {
+	display: flex;
+	gap: var(--tq-gap-related);
+	min-width: 0;
+}
+.value-row > :not(.TqInputTranslate) {
+	flex: 1;
+	min-width: 0;
+}
+.value-row > :deep(.TqInputTranslate) {
+	flex: none;
+}
 .inline-anchor {
 	display: grid;
 	min-width: 0;

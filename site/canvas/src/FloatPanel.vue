@@ -15,6 +15,8 @@ const props = defineProps<{
 	icon: string
 	/** How wide it opens, until it has been made otherwise. */
 	width: number
+	/** As tall as what is in it, until it has been made otherwise. */
+	fit?: boolean
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -79,7 +81,7 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	<aside
 		ref="$root"
 		class="FloatPanel"
-		:class="[side, { open, resizing }]"
+		:class="[side, { open, resizing, fitting: fit && height === null }]"
 		:style="style"
 	>
 		<button
@@ -146,6 +148,26 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 .FloatPanel.open {
 	width: var(--panel-width);
 	height: var(--panel-height);
+}
+/* It takes as much as it has in it, as far as there is room. */
+.FloatPanel.open.fitting {
+	display: flex;
+	flex-direction: column;
+	height: auto;
+	max-height: var(--panel-height);
+	interpolate-size: allow-keywords;
+}
+.fitting .body {
+	position: static;
+	flex: 0 1 auto;
+	min-height: 0;
+	height: auto;
+}
+.fitting .content {
+	flex: 0 1 auto;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 }
 /* It goes by the pointer, rather than following it. */
 .FloatPanel.resizing {

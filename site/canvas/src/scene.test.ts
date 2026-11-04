@@ -8,6 +8,7 @@ import {
 	print,
 	toAst,
 } from '@glisp/lang'
+import { isTranslatable, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
@@ -188,6 +189,37 @@ describe('the pen', () => {
 		expect(print(next)).toBe('{a = 1 path1 = (path.d "M 0,0 L 10,0")}')
 		expect(sceneOf(next, env).map(s => s.row)).toEqual(['binding:path1'])
 		expect(gripAt(next, env, 'binding:path1')!.handles).toHaveLength(2)
+	})
+})
+
+describe('what a vector is made of', () => {
+	const elements = (src: string, arg: number) => {
+		const inside = viewOf(parse(src), env).slots[arg]!
+		return viewOf(inside.ast, inside.env, inside.expected).slots.map(s => [
+			s.label,
+			s.numberOptions,
+		])
+	}
+
+	it('says X and Y, for a point', () => {
+		expect(elements('(path.circle [1 2] 3)', 0)).toEqual([
+			['X', { prefix: 'X' }],
+			['Y', { prefix: 'Y' }],
+		])
+	})
+
+	it('has arrows, for a size', () => {
+		expect(elements('(path.rect [0 0] [1 2])', 1)).toEqual([
+			['Width', { leftIcon: 'ph:arrows-horizontal' }],
+			['Height', { leftIcon: 'ph:arrows-vertical' }],
+		])
+	})
+
+	it('has a pad to take a point by, and not a size', () => {
+		const [center] = viewOf(parse('(path.circle [1 2] 3)'), env).slots
+		const [, rectSize] = viewOf(parse('(path.rect [0 0] [1 2])'), env).slots
+		expect(isTranslatable(center!.expected)).toBe(true)
+		expect(isTranslatable(rectSize!.expected)).toBe(false)
 	})
 })
 

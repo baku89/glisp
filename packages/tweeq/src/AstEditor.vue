@@ -411,7 +411,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 </script>
 
 <template>
-	<div v-if="isInspector" class="AstEditor" data-selects-rows>
+	<div v-if="isInspector" class="AstEditor inspector" data-selects-rows>
 		<ScrollArea class="tree">
 			<template v-if="inspected !== null">
 				<div class="inspector-header">
@@ -429,7 +429,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 					</h3>
 					<p v-if="inspected.doc !== null" class="inspector-doc">{{ inspected.doc }}</p>
 				</div>
-				<ParameterTree name="glisp.inspector">
+				<ParameterTree name="glisp.inspector" :labelWidth="110">
 					<AstSlots
 						:key="inspect ?? ''"
 						:slots="inspected.alone ? [inspected.chain.at(-1)!] : inspected.view.slots"
@@ -517,6 +517,14 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 </template>
 
 <style scoped>
+/* As tall as what it shows, for what holds it to go by. */
+.AstEditor.inspector {
+	height: auto;
+	min-height: 0;
+}
+.AstEditor.inspector .tree {
+	flex: 0 1 auto;
+}
 .inspector-header {
 	margin-bottom: var(--tq-gap-control);
 	padding-inline: 3px;

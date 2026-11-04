@@ -82,8 +82,40 @@ withMembers(vec2, {
 	),
 })
 
+/** A number that has a part to play in a vector, which says so where it is shown. */
+const part = (fields: readonly (readonly [string, string])[]): TypeValue =>
+	withTypeMeta(number, new RecordAST(fields.map(([key, text]) => [key, lit(text)] as const)))
+
 /** Not every vec2 is a point: a size is not to be drawn. */
-const point = said(vec2, 'point', 'mdi:circle-small')
+const point = withTypeMeta(
+	said(
+		makeTupleType([
+			part([
+				['title', 'X'],
+				['prefix', 'X'],
+			]),
+			part([
+				['title', 'Y'],
+				['prefix', 'Y'],
+			]),
+		]),
+		'point',
+		'mdi:circle-small'
+	),
+	new RecordAST([['input', lit('translate')]])
+)
+
+/** How far something goes each way. */
+const size = makeTupleType([
+	part([
+		['title', 'Width'],
+		['fieldIcon', 'ph:arrows-horizontal'],
+	]),
+	part([
+		['title', 'Height'],
+		['fieldIcon', 'ph:arrows-vertical'],
+	]),
+])
 
 const mat2d = makeTupleType([number, number, number, number, number, number])
 const makeTranslation = makeTypedFn(
@@ -175,7 +207,7 @@ const makeD = makeTypedFn(
 
 /** The rungs: each shape is said in terms of the more general one it is a case of. */
 const makeEllipse = makeTypedFn(
-	[point, vec2],
+	[point, size],
 	pathType,
 	(center, radius) => new PathValue(ellipse(center as Vec, radius as Vec)),
 	['center', 'radius']
@@ -208,10 +240,10 @@ const makePolygon = makeTypedFn(
 )
 const makeRect = withExpansion(
 	makeTypedFn(
-		[point, vec2],
+		[point, size],
 		pathType,
-		(topLeft, size) =>
-			new PathValue(rectangle(topLeft as Vec, add(topLeft as Vec, size as Vec))),
+		(topLeft, extent) =>
+			new PathValue(rectangle(topLeft as Vec, add(topLeft as Vec, extent as Vec))),
 		['topLeft', 'size']
 	),
 	([topLeft, size], { value }) => {
@@ -799,7 +831,7 @@ export function withinArg(fn: unknown, arg: number, args: readonly unknown[]): M
 	return null
 }
 
-const BINDINGS: Readonly<Record<string, unknown>> = { path: pathType, vec2, point, mat2d }
+const BINDINGS: Readonly<Record<string, unknown>> = { path: pathType, vec2, point, size, mat2d }
 
 /** `parent`, with what a canvas adds. */
 export function withGraphics(parent: Env): Env {

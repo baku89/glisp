@@ -161,6 +161,10 @@ makeTopLevel({
 
 It changes the type it is given, so make one of your own rather than giving members to `number`. A host value that is a plain record of these reads the same way, as `geom.rect.center`, and static analysis can see through both.
 
+### What a part of it is called
+
+Metadata on the element types of a tuple is for showing one of its elements: `title` names it, and `prefix` or `fieldIcon` go in its field.
+
 ### What it does
 
 A function that comes with a type, as a member, has no binding to write `^{doc}` on. `withDoc` says what it does, for a host to show.
