@@ -676,6 +676,7 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 					label: filler.label,
 					group: filler.group,
 					icon: filler.value ? 'mdi:at' : (iconOfFunction(filler.name) ?? 'mdi:function-variant'),
+					action: filler.group === 'Wrap' ? ('wrap' as const) : ('replace' as const),
 					perform() {
 						const next = withFilled(program, document.env.value, filling, filler, quickAddPlace)
 						if (next instanceof LetAST) setProgram(next)
@@ -692,6 +693,7 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 		label: item.label,
 		group: 'Selected',
 		icon: item.icon,
+		action: 'wrap' as const,
 		perform: 'params' in item ? () => void actions.perform(item.id) : (item.perform as () => void),
 	}))
 	const already = new Set(taken.map(({ name }) => name))
@@ -968,7 +970,7 @@ function selectInTree(row: string | null): void {
 					v-if="quickAddAt !== null"
 					:items="quickAddItems"
 					:at="quickAddAt"
-					:placeholder="quickFillAt === null ? 'Add…' : 'Replace with…'"
+					:placeholder="quickFillAt === null ? 'Add…' : 'Replace or wrap…'"
 					@close="quickAddAt = null"
 				/>
 				<Popover

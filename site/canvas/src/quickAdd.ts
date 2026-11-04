@@ -43,7 +43,7 @@ export interface Addable {
 }
 
 /** In the order they are listed, with what is more to do with drawing first. */
-const GROUPS = ['Project', 'Shapes', 'Path', 'Color', 'Vector', 'Matrix', 'Math', 'List', 'Text', 'Other'] as const
+const GROUPS = ['Wrap', 'Project', 'Shapes', 'Path', 'Color', 'Vector', 'Matrix', 'Math', 'List', 'Text', 'Other'] as const
 
 const MODULES: Readonly<Record<string, (typeof GROUPS)[number]>> = {
 	color: 'Color',
@@ -249,7 +249,11 @@ const inPlace = (root: AST, env: Env, path: string, next: AST): AST | null => {
 	return withParent(chain, slot.replace(ast.kind === 'meta' ? new MetaAST(ast.metadata, next) : next))
 }
 
-/** What can go at `path`: what is there to refer to first, then what gives such a thing. */
+/**
+ * What can go at `path`, which is two things that are not told apart by what is asked for:
+ * what is there to refer to, in place of what is there, then what takes what is there and
+ * gives what will do, then what gives that of itself.
+ */
 export function fillersAt(root: LetAST, env: Env, path: string): readonly Filler[] {
 	const slot = reach(root, env, path)?.chain.at(-1)
 	if (slot === undefined) return []
@@ -279,13 +283,14 @@ export function fillersAt(root: LetAST, env: Env, path: string): readonly Filler
 	}
 	const own = functionsOfProgram(root, env)
 	const taken = new Set(own.map(({ name }) => name))
+	const wrapping = new Set(filtersFor([current], env, own).map(({ name }) => name))
 	const functions = [...own, ...functionsIn(env).filter(({ name }) => !taken.has(name))]
 		.filter(({ fn }) => fn.returnType !== undefined && goesIn(expected, current, fn.returnType))
 		.map(
 			(filter): Filler => ({
 				name: filter.name,
 				label: filter.label,
-				group: taken.has(filter.name) ? 'Project' : groupOf(filter),
+				group: wrapping.has(filter.name) ? 'Wrap' : taken.has(filter.name) ? 'Project' : groupOf(filter),
 			})
 		)
 		.map((item, i) => [item, i] as const)

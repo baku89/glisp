@@ -12,6 +12,8 @@ export interface QuickAddItem {
 	readonly group: string
 	readonly quiet?: boolean
 	readonly icon: string
+	/** What it does to what is selected, if it does something to that. */
+	readonly action?: 'wrap' | 'replace'
 	perform(): void
 }
 
@@ -24,7 +26,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 
-const WIDTH = 260
+/** What is done is said the same way whatever else is listed, as a search mixes them. */
+const ACTIONS = {
+	wrap: { icon: 'mdi:code-parentheses', title: 'Wrap what is there' },
+	replace: { icon: 'mdi:swap-horizontal', title: 'Replace what is there' },
+} as const
+
+const WIDTH = 280
 const HEIGHT = 340
 const MARGIN = 8
 
@@ -117,6 +125,14 @@ const startsGroup = (i: number): boolean =>
 					<Icon class="icon" :icon="item.icon" />
 					<span class="label">{{ item.label }}</span>
 					<span class="name">{{ item.name }}</span>
+					<Icon
+						v-if="item.action"
+						class="action"
+						:class="item.action"
+						:icon="ACTIONS[item.action].icon"
+						:title="ACTIONS[item.action].title"
+						:aria-label="ACTIONS[item.action].title"
+					/>
 				</button>
 			</template>
 			<p v-if="shown.length === 0" class="none">Nothing like that</p>
@@ -193,6 +209,12 @@ const startsGroup = (i: number): boolean =>
 	margin-left: auto;
 	opacity: 0.5;
 	font-size: 10px;
+}
+.action {
+	flex: none;
+	width: 14px;
+	height: 14px;
+	opacity: 0.7;
 }
 .none {
 	padding: 8px 6px;

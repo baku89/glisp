@@ -170,6 +170,7 @@ describe('what goes where a value is selected', () => {
 		v = [1 2]
 		f = (=> (x: number): number (* x 2))
 		g = (=> (p: path): path p)
+		h = (=> (a: string): number 1)
 		c = (path.circle [0 0] 10)
 		s = (path.square v n)
 	}`
@@ -189,10 +190,25 @@ describe('what goes where a value is selected', () => {
 		for (const name of ['sin', 'n', 'path.circle']) expect(here).not.toContain(name)
 	})
 
-	it('has what is there to refer to first, then what is the program\'s', () => {
+	it('has what is there to refer to first, then what takes what is there, then the rest', () => {
 		const here = at('binding:c/arg1')
 		expect(here[0]).toMatchObject({ name: 'n', group: 'Values', value: true })
-		expect(here.find(({ name }) => name === 'f')!.group).toBe('Project')
+		const groupOf = (of: string) => here.find(({ name }) => name === of)!.group
+		expect(groupOf('sin')).toBe('Wrap')
+		expect(groupOf('f')).toBe('Wrap')
+		expect(groupOf('h')).toBe('Project')
+		const groups = here.map(({ group }) => group)
+		expect(groups.indexOf('Values')).toBeLessThan(groups.indexOf('Wrap'))
+		expect(groups.indexOf('Wrap')).toBeLessThan(groups.indexOf('Project'))
+	})
+
+	it('has a wrap give what is wanted, and not only take what is there', () => {
+		// A number can be made a string of, which is no use for a radius.
+		expect(names('binding:c/arg1')).not.toContain('show')
+	})
+
+	it('wraps a place in what takes a place', () => {
+		expect(at('binding:c/arg0').find(({ name }) => name === 'vec2.add')!.group).toBe('Wrap')
 	})
 
 	it('goes by what it has, where nothing says what it wants', () => {
@@ -213,6 +229,7 @@ describe('what goes where a value is selected', () => {
 		expect(put('binding:c/arg1', 'n')).toContain('c = (path.circle [0 0] n)')
 		expect(put('binding:c/arg1', 'sin')).toContain('c = (path.circle [0 0] (sin 10))')
 		expect(put('binding:c/arg1', 'f')).toContain('c = (path.circle [0 0] (f 10))')
+		expect(put('binding:c/arg1', 'h')).toContain('c = (path.circle [0 0] (h ""))')
 		expect(put('binding:c/arg0', 'vec2.add')).toContain('c = (path.circle (vec2.add [0 0] [0 0]) 10)')
 	})
 
