@@ -495,14 +495,17 @@ function selectInTree(row: string | null): void {
 							</template>
 						</span>
 					</template>
-					<PaintControls v-if="selected.length > 0" :document="document" :rows="selected" />
-					<AstMultiInspector v-if="selected.length > 1" :document="document" :rows="insideRows" />
+					<AstMultiInspector v-if="selected.length > 1" :document="document" :rows="insideRows">
+						<PaintControls :document="document" :rows="selected" />
+					</AstMultiInspector>
 					<AstEditor
 						v-else
 						:document="document"
 						:inspect="inspected"
 						:iconOfValue="iconOfPath"
-					/>
+					>
+						<PaintControls v-if="selected.length > 0" :document="document" :rows="selected" />
+					</AstEditor>
 				</FloatPanel>
 				<FloatPanel
 					v-model:open="replOpen"

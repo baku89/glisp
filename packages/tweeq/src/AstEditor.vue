@@ -11,7 +11,7 @@ import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
 import { multiSelectHostOf } from './multiInputs'
-import { copiedRows, pastedRows, reach, withoutRows, withParent } from './rowsClipboard'
+import { copiedRows, pastedRows, reach, withoutNearest, withoutRows, withParent } from './rowsClipboard'
 import {
 	ALSO_SELECTED,
 	LINKER,
@@ -22,6 +22,7 @@ import {
 	type Selection,
 	SOLVER,
 	TITLED,
+	useDeleteInInspector,
 	VALUE_ICON,
 } from './selection'
 import {
@@ -257,6 +258,14 @@ function copyRows(): boolean {
 	return true
 }
 
+/** The row at `path`, or the nearest of what holds it that can go. */
+function removeNearest(path: string): void {
+	const next = withoutNearest(props.document.root.value, props.document.env.value, path)
+	if (next === null) return
+	reselectNothing = true
+	replaceRoot(next)
+}
+
 function removeRows(): void {
 	const next = withoutRows(
 		props.document.root.value,
@@ -276,6 +285,7 @@ watch(
 	}
 )
 provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
+useDeleteInInspector(selection, () => isInspector.value, removeNearest)
 /** What was selected has just gone, so there is nothing to select again. */
 let reselectNothing = false
 /** A row on its way to being selected again, having been edited. */
@@ -434,6 +444,9 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		} else if (selection.value.remove !== undefined) {
 			event.preventDefault()
 			selection.value.remove()
+		} else {
+			event.preventDefault()
+			removeNearest(selection.value.path)
 		}
 	} else if (event.key === 'Escape') {
 		selection.value = null
@@ -444,6 +457,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 <template>
 	<div v-if="isInspector" class="AstEditor inspector" data-selects-rows>
 		<ScrollArea class="tree">
+			<!-- What a host has to say of it too, in rows that share this selection. -->
+			<slot />
 			<template v-if="inspected !== null">
 				<p v-if="inspected.doc !== null" class="inspector-doc">{{ inspected.doc }}</p>
 				<ParameterTree name="glisp.inspector" :labelWidth="110">

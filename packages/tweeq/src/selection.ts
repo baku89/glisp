@@ -1,4 +1,5 @@
 import type { AST } from '@glisp/lang'
+import { useEventListener } from '@vueuse/core'
 import type { InjectionKey, ShallowRef } from 'vue'
 
 /** The slot selected in an editor, and how to delete it, if it can go. */
@@ -13,6 +14,35 @@ export interface Selection {
 	readonly editExpression?: () => void
 	/** Put this in its place, as what is pasted. */
 	readonly paste?: (next: AST) => void
+}
+
+/**
+ * Deleting is about the row selected in an inspector, while there is one, rather than
+ * what is selected elsewhere. A row that cannot go leaves it to `removeNearest`, if it is
+ * given, to go up through what holds it.
+ */
+export function useDeleteInInspector(
+	selection: ShallowRef<Selection | null>,
+	isInspector: () => boolean = () => true,
+	removeNearest?: (path: string) => void
+): void {
+	useEventListener(
+		window,
+		'keydown',
+		(event: KeyboardEvent) => {
+			if (event.key !== 'Delete' && event.key !== 'Backspace') return
+			const selected = selection.value
+			if (!isInspector() || selected === null) return
+			const target = event.target as HTMLElement | null
+			if (target?.closest?.('input, textarea, [contenteditable]')) return
+			event.stopPropagation()
+			event.preventDefault()
+			selection.value = null
+			if (selected.remove !== undefined) selected.remove()
+			else removeNearest?.(selected.path)
+		},
+		{ capture: true }
+	)
 }
 
 /** How a row renames the binding it shows, which takes the whole program. */

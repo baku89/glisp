@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { Icon } from 'tweeq/Icon'
-import { InputNumber } from 'tweeq/InputNumber'
-import { type MenuItem, Menu } from 'tweeq/Menu'
+import { type MenuItem } from 'tweeq/Menu'
 import { Parameter, ParameterTree } from 'tweeq/ParameterGrid'
-import { Popover } from 'tweeq/Popover'
 import { ScrollArea } from 'tweeq/ScrollArea'
 import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
-import { vTooltip } from 'tweeq/Tooltip'
 import { computed, provide, ref, shallowRef } from 'vue'
 
 import { type GlispDocument } from './document'
+import MixedNumber from './MixedNumber.vue'
 import { MERGE_LABELS, multiSelectHostOf } from './multiInputs'
 import {
 	extractedAt,
@@ -21,6 +18,7 @@ import {
 	type MultiField,
 	withValuesAt,
 } from './multiRows'
+import { SELECTION, type Selection, useDeleteInInspector } from './selection'
 
 const props = defineProps<{
 	document: GlispDocument
@@ -28,6 +26,9 @@ const props = defineProps<{
 }>()
 
 provide(MULTI_SELECT_HOST, multiSelectHostOf(props.document))
+const selection = shallowRef<Selection | null>(null)
+provide(SELECTION, selection)
+useDeleteInInspector(selection)
 
 const inspection = computed(() =>
 	inspectRows(props.document.root.value, props.document.env.value, props.rows)
@@ -46,25 +47,6 @@ function setValues(field: MultiField, values: readonly number[]): void {
 	if (ast?.kind === 'let') props.document.setRoot(ast)
 }
 
-/** What it shows: the one value, or if they differ, what they come to on average. */
-const shown = (field: MultiField): number => merged(field.values, 'ave')
-
-/** They go together, by as much, so that how they differ is kept. */
-function shift(field: MultiField, next: number): void {
-	const by = next - shown(field)
-	setValues(
-		field,
-		isMixed(field.values)
-			? field.values.map(value => Math.round((value + by) * 1000) / 1000)
-			: field.values.map(() => next)
-	)
-}
-
-function merge(field: MultiField, how: Merge): void {
-	const value = merged(field.values, how)
-	setValues(field, field.values.map(() => value))
-}
-
 function extract(field: MultiField, how: Merge): void {
 	const result = field.canExtract
 		? extractedAt(
@@ -79,106 +61,52 @@ function extract(field: MultiField, how: Merge): void {
 	if (result?.ast.kind === 'let') props.document.setRoot(result.ast)
 }
 
-const menuOf = (field: MultiField): MenuItem[] => {
-	const mixed = isMixed(field.values)
-	const each = (perform: (how: Merge) => void): MenuItem[] =>
-		MERGES.map(how => ({ label: MERGE_LABELS[how], perform: () => perform(how) }))
-	return [
-		...(mixed
-			? [
-					{
-						label: 'Merge',
-						icon: 'mdi:call-merge',
-						children: each(how => merge(field, how)),
-					},
-				]
-			: []),
-		...(field.canExtract
-			? [
-					mixed
-						? {
-								label: 'Extract Parameter',
-								icon: 'mdi:variable',
-								children: each(how => extract(field, how)),
-							}
-						: {
-								label: 'Extract Parameter',
-								icon: 'mdi:variable',
-								perform: () => extract(field, 'first'),
-							},
-				]
-			: []),
-	]
-}
-
-const menu = shallowRef<{
-	items: MenuItem[]
-	at: [number, number]
-	reference: HTMLElement
-} | null>(null)
-
-function openMenu(field: MultiField, event: MouseEvent): void {
-	menu.value = {
-		items: menuOf(field),
-		at: [event.clientX, event.clientY],
-		reference: event.currentTarget as HTMLElement,
-	}
-}
-
-/** How far apart they are, when asked. Rounded, as they can be as long as they like. */
-function range(values: readonly number[]): string {
-	const short = (n: number) => Math.round(n * 100) / 100
-	return `${short(Math.min(...values))} – ${short(Math.max(...values))}`
-}
+const extractItems = (field: MultiField): MenuItem[] =>
+	field.canExtract
+		? [
+				isMixed(field.values)
+					? {
+							label: 'Extract Parameter',
+							icon: 'mdi:variable',
+							children: MERGES.map(how => ({
+								label: MERGE_LABELS[how],
+								perform: () => extract(field, how),
+							})),
+						}
+					: {
+							label: 'Extract Parameter',
+							icon: 'mdi:variable',
+							perform: () => extract(field, 'first'),
+						},
+			]
+		: []
 </script>
 
 <template>
-	<div v-if="inspection" class="AstMultiInspector" data-selects-rows>
+	<div class="AstMultiInspector" data-selects-rows>
+		<ScrollArea class="tree">
+		<!-- What a host has to say of them too, in rows of its own. -->
+		<slot />
+		<template v-if="inspection">
 		<p v-if="inspection.doc !== null" class="doc">{{ inspection.doc }}</p>
-		<ScrollArea>
-		<ParameterTree name="glisp.inspector" :labelWidth="90">
+		<ParameterTree name="glisp.inspector" :labelWidth="110">
 			<Parameter v-for="arg in inspection.args" :key="arg.label" :label="arg.label">
 				<div class="fields">
-					<div
+					<MixedNumber
 						v-for="field in arg.fields"
 						:key="field.name"
-						v-tooltip="isMixed(field.values) ? range(field.values) : undefined"
-						class="field"
-						:class="{ mixed: isMixed(field.values) }"
-						@contextmenu.prevent.stop="openMenu(field, $event)"
-					>
-						<InputNumber
-							v-bind="field.options"
-							:multiSelectData="field.places"
-							:modelValue="shown(field)"
-							@update:modelValue="shift(field, $event)"
-						/>
-						<span v-if="isMixed(field.values)" class="multiple">Mixed</span>
-						<button
-							v-if="isMixed(field.values)"
-							class="merge"
-							type="button"
-							aria-label="Merge"
-							@click.stop="openMenu(field, $event)"
-						>
-							<Icon icon="mdi:call-merge" />
-						</button>
-					</div>
+						v-bind="field.options"
+						:multiSelectData="field.places"
+						:values="field.values"
+						:items="extractItems(field)"
+						@update:values="setValues(field, $event)"
+					/>
 				</div>
 			</Parameter>
 		</ParameterTree>
+		</template>
 		</ScrollArea>
-		<p v-if="problem !== null" class="problem">Cannot do that: {{ problem }}</p>
-		<Popover
-			v-if="menu"
-			:reference="menu.reference"
-			:placement="menu.at"
-			:open="true"
-			teleport=".TqViewport"
-			@update:open="$event || (menu = null)"
-		>
-			<Menu :items="menu.items" @close="menu = null" />
-		</Popover>
+		<p v-if="inspection && problem !== null" class="problem">Cannot do that: {{ problem }}</p>
 	</div>
 </template>
 
@@ -187,6 +115,11 @@ function range(values: readonly number[]): string {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
+}
+/* Room for the ring of a focused input, and a selected row's color, as an inspector has. */
+.tree {
+	margin: -1px;
+	padding: 3px;
 }
 .doc {
 	margin-bottom: var(--tq-gap-control);
@@ -198,44 +131,6 @@ function range(values: readonly number[]): string {
 	display: flex;
 	gap: var(--tq-gap-related);
 	min-width: 0;
-}
-.field {
-	position: relative;
-	flex: 1;
-	min-width: 0;
-}
-/* Saying only that they differ, in place of any one of them, as C4D does. */
-.mixed :deep(.display-at-inactive) {
-	visibility: hidden;
-}
-.multiple {
-	position: absolute;
-	inset: 0;
-	display: grid;
-	place-items: center;
-	overflow: hidden;
-	color: var(--tq-color-text-mute);
-	white-space: nowrap;
-	pointer-events: none;
-}
-.field:has(input:focus) .multiple {
-	visibility: hidden;
-}
-.merge {
-	position: absolute;
-	top: 0;
-	right: 0;
-	display: grid;
-	place-items: center;
-	width: 18px;
-	height: 100%;
-	border: none;
-	background: none;
-	color: var(--tq-color-text-mute);
-	cursor: pointer;
-}
-.merge:hover {
-	color: var(--tq-color-text);
 }
 .problem {
 	margin-top: var(--tq-gap-control);

@@ -40,6 +40,19 @@ export function withParent(chain: readonly Slot[], next: AST): AST {
 	return node
 }
 
+/**
+ * The program without the row at `path`, or if that cannot go, without the nearest of
+ * what holds it that can: a part that is needed is deleted by deleting what needs it.
+ */
+export function withoutNearest(root: AST, env: Env, path: string): AST | null {
+	const chain = reach(root, env, path)?.chain ?? []
+	for (let i = chain.length - 1; i >= 0; i--) {
+		const removed = chain[i]!.remove?.()
+		if (removed !== undefined) return withParent(chain.slice(0, i + 1), removed)
+	}
+	return null
+}
+
 const isBinding = (path: string): boolean =>
 	path.split('/').at(-1)!.startsWith(BINDING)
 

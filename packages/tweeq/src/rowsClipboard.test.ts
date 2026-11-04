@@ -1,7 +1,7 @@
 import { buildPrelude, type Env, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { copiedRows, pastedRows, withoutRows } from './rowsClipboard'
+import { copiedRows, pastedRows, withoutNearest, withoutRows } from './rowsClipboard'
 
 const env: Env = buildPrelude()
 
@@ -25,6 +25,29 @@ describe('withoutRows', () => {
 	it('goes into what holds them', () => {
 		const next = withoutRows(parse('{g = {a = 1 b = 2}}'), env, ['binding:g/binding:a'])
 		expect(print(next)).toBe('{g = {b = 2}}')
+	})
+})
+
+describe('withoutNearest', () => {
+	const without = (src: string, path: string) => {
+		const next = withoutNearest(parse(src), env, path)
+		return next && print(next)
+	}
+
+	it('is the row itself, if it can go', () => {
+		expect(without('{v = [1 [2 3]]}', 'binding:v/1/0')).toBe('{v = [1 [3]]}')
+	})
+
+	it('goes up to the nearest of what holds it that can', () => {
+		expect(without('{v = [(take [1] 1) 2]}', 'binding:v/0/arg1')).toBe('{v = [2]}')
+	})
+
+	it('goes as far as the binding, and leaves the others', () => {
+		expect(without('{a = (take [1] 1) b = 2}', 'binding:a/arg1')).toBe('{b = 2}')
+	})
+
+	it('is nothing, for a row that is not there', () => {
+		expect(without('{a = 1}', 'binding:b')).toBeNull()
 	})
 })
 
