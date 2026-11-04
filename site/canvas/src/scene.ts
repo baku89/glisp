@@ -15,11 +15,14 @@ import {
 	LetAST,
 	lookupBareName,
 	parse,
+	print,
 	readByName,
 	solve,
 	type TypeValue,
+	UNSET,
 	unwrapLazy,
 } from '@glisp/lang'
+import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import { referenceAt, type Slot, textOf, viewOf } from '@glisp/tweeq/structure'
 
 import { mat2d } from 'linearly'
@@ -32,6 +35,7 @@ import {
 	gripOfPoint,
 	isPath,
 	type Mat,
+	type PlaceCode,
 	NO_GRIP,
 	type Path,
 	under,
@@ -98,6 +102,8 @@ export interface SnapPoint {
 	readonly target: string | null
 	/** What it is, to say so: whose it is, and what on it. */
 	readonly label: string
+	/** How it is worked out from the row at `of`, if no one thing there says where it is. */
+	readonly code?: { readonly of: string; readonly make: PlaceCode }
 	/** It is a line, from `at` to here, that snaps anywhere along it. */
 	readonly to?: Vec
 	/** What was snapped to along, with `at` being where on it. */
@@ -118,12 +124,13 @@ export function snapPointsOf(
 		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []
 		const whose = row.split('/').at(-1)!.replace(/^binding:/, '')
 		const called = (name: string) => `${whose} ${name}`
-		const handles = grip.handles.flatMap(({ at, place, name }) =>
+		const handles = grip.handles.flatMap(({ at, place, name, code }) =>
 			at === undefined
 				? []
 				: [
 						{
 							at,
+							...(code === undefined ? {} : { code: { of: row, make: code } }),
 							label: name === undefined ? whose : called(name),
 							target:
 								place === 'self' ? row : place === undefined ? null : `${row}/arg${place}`,
@@ -132,8 +139,9 @@ export function snapPointsOf(
 		)
 		return [
 			...handles,
-			...(grip.snaps?.points ?? []).map(({ at, name }) => ({
+			...(grip.snaps?.points ?? []).map(({ at, name, code }) => ({
 				at,
+				...(code === undefined ? {} : { code: { of: row, make: code } }),
 				label: called(name),
 				target: null,
 			})),
@@ -189,8 +197,8 @@ export function nearestSnap(
 }
 
 /**
- * `drawn`, with where it starts referring to what it snapped to. Only what starts where
- * it was pressed can: a rect from its top left, and a polygon from its center.
+ * `drawn`, with where it starts referring to what it snapped to, which is then its top
+ * left, or its center: a rect goes whichever way it was drawn, and an ellipse out from it.
  */
 export function drawnFrom(
 	root: LetAST,
@@ -202,12 +210,52 @@ export function drawnFrom(
 	even: boolean,
 	step = FINEST
 ): LetAST {
-	const next = drawn(root, name, tool, snap.at, to, even, step)
-	const startsThere =
-		tool === 'ngon' || (tool === 'rect' && to[0] >= snap.at[0] && to[1] >= snap.at[1])
-	if (!startsThere || snap.target === null) return next
-	const referred = referenceAt(next, env, `binding:${name}/arg0`, snap.target)
-	return referred?.kind === 'let' ? referred : next
+	const anchored = canRefer(snap)
+	const next = drawn(root, name, tool, snap.at, to, even, step, anchored)
+	if (!anchored) return next
+	const source = `binding:${name}/arg0`
+	const result = referred(next, env, source, snap)
+	return result?.kind === 'let' ? result : drawn(root, name, tool, snap.at, to, even, step)
+}
+
+/** Whether it can be referred to, by anything that is somewhere it can be seen from. */
+export const canRefer = (snap: SnapPoint): boolean => snap.target !== null || snap.code !== undefined
+
+/**
+ * Code with references in place of where it says `\0n\0`, each going out as many more
+ * levels as it is inside of, as a path is relative to where it is.
+ */
+function withinCode(written: string, parts: readonly string[]): string {
+	let depth = 0
+	return written.replace(/[([]|[)\]]|\0(\d+)\0/g, (token, part: string | undefined) => {
+		if (part !== undefined) return `${'../'.repeat(depth)}${parts[Number(part)]}`
+		depth += token === '(' || token === '[' ? 1 : -1
+		return token
+	})
+}
+
+/** `root`, with what is at `source` referring to what `snap` is, one way or the other. */
+function referred(root: AST, env: Env, source: string, snap: SnapPoint): AST | null {
+	if (snap.target !== null) return referenceAt(root, env, source, snap.target)
+	if (snap.code === undefined) return null
+	const { of, make } = snap.code
+	try {
+		const parts: string[] = []
+		const written = make(path => {
+			const next = referenceAt(root, env, source, `${of}/${path}`)
+			const reference = next && reach(next, env, source)?.chain.at(-1)?.ast
+			if (!reference) throw new Error('out of reach')
+			parts.push(print(reference))
+			return `\0${parts.length - 1}\0`
+		})
+		const reached = reach(root, env, source)
+		const last = reached?.chain.at(-1)
+		return reached && last
+			? withParent(reached.chain, last.replace(parse(withinCode(written, parts))))
+			: null
+	} catch {
+		return null
+	}
 }
 
 /**
@@ -222,8 +270,7 @@ export function linked(
 	place: number,
 	snap: SnapPoint
 ): AST | null {
-	if (snap.target === null) return null
-	const next = referenceAt(root, env, `${row}/arg${place}`, snap.target)
+	const next = referred(root, env, `${row}/arg${place}`, snap)
 	if (next === null) return null
 	const reached = gripAt(next, env, row)?.handles.find(handle => handle.place === place)?.at
 	return reached?.[0] === snap.at[0] && reached[1] === snap.at[1] ? next : null
@@ -249,7 +296,8 @@ export function drawn(
 	from: Vec,
 	to: Vec,
 	even: boolean,
-	step = FINEST
+	step = FINEST,
+	anchored = false
 ): LetAST {
 	const rounded = (n: number) => roundedTo(n, step)
 	const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
@@ -261,9 +309,17 @@ export function drawn(
 	const center: Vec = [(from[0] + end[0]) / 2, (from[1] + end[1]) / 2]
 	const corner: Vec = [Math.min(from[0], end[0]), Math.min(from[1], end[1])]
 	const size: Vec = [Math.abs(end[0] - from[0]), Math.abs(end[1] - from[1])]
+	const size2: Vec = [end[0] - from[0], end[1] - from[1]]
+	const out = Math.max(Math.abs(dx), Math.abs(dy))
 	const source =
 		tool === 'ngon'
 			? `(path.ngon ${written(from)} ${rounded(Math.hypot(dx, dy))} ${NGON_SIDES})`
+			: anchored && tool === 'rect'
+			? `(path.rect ${written(from)} ${written(size2)})`
+			: anchored && even
+			? `(path.circle ${written(from)} ${rounded(out)})`
+			: anchored
+			? `(path.ellipse ${written(from)} ${written([Math.abs(dx), Math.abs(dy)])})`
 			: tool === 'rect'
 			? `(path.rect ${written(corner)} ${written(size)})`
 			: even
@@ -464,20 +520,33 @@ export function readoutOf(
 function linesOf(root: AST, env: Env, row: string, changes: readonly Change[]): string[] {
 	const found = rowAt(root, env, row)
 	if (found === null) return []
-	const lines = changes.flatMap(({ route }) => {
+	const lines = changes.flatMap(({ route, value: wanted }) => {
 		let label = row.split('/').at(-1)!.replace(/^binding:/, '')
+		let expected: TypeValue | null = null
 		let at = follow(found.node, found.env)
 		for (const arg of route) {
 			if (at === null) return []
 			const slot = viewOf(bare(at.node), at.env).slots.find(s => s.key === `arg${arg}`)
 			if (slot === undefined) return []
 			label = slot.label
+			expected = slot.expected
 			at = route.at(-1) === arg ? { node: slot.ast, env: slot.env } : follow(slot.ast, slot.env)
 		}
 		if (at === null) return []
 		const { value } = evaluate(readByName(at.node), at.env)
 		if (typeof value === 'number') return [`${label} ${shown(value)}`]
-		return isNumbers(value) ? [`${label} ${value.map(shown).join(', ')}`] : []
+		if (!isNumbers(value)) return []
+		// Of a vector, only what was asked of it, as what it is called on its own.
+		if (Array.isArray(wanted) && wanted.includes(UNSET)) {
+			const shape = expected === null ? null : unwrapLazy(expected).shape
+			return value.flatMap((element, i) => {
+				if (wanted[i] === UNSET) return []
+				const title =
+					shape?.kind === 'tuple' ? textOf(shape.elements[i]?.meta?.get('title')) : null
+				return [`${title ?? `${label} ${i}`} ${shown(element)}`]
+			})
+		}
+		return [`${label} ${value.map(shown).join(', ')}`]
 	})
 	return [...new Set(lines)]
 }

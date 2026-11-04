@@ -39,6 +39,10 @@ const props = defineProps<{
 	iconOfValue?: (value: unknown) => string | null
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
+	/** What rows are on a clipboard, if not their code, for what is outside of this. */
+	copyAs?: (rows: readonly string[]) => string | null
+	/** What is on a clipboard from outside of this, as code, if it can be. */
+	pasteAs?: (text: string) => string | null
 	/** Only the names, as a list of what there is, with the values left to an inspector. */
 	layers?: boolean
 	/**
@@ -238,7 +242,7 @@ function copyRows(): boolean {
 		selectedRows()
 	)
 	if (text === '') return false
-	void navigator.clipboard.writeText(text)
+	void navigator.clipboard.writeText(props.copyAs?.(selectedRows()) ?? text)
 	return true
 }
 
@@ -323,7 +327,9 @@ useEventListener(window, 'paste', (event: ClipboardEvent) => {
 	if (isInspector.value) return
 	const target = event.target as HTMLElement | null
 	if (target?.closest?.('input, textarea, [contenteditable]')) return
-	const text = event.clipboardData?.getData('text') ?? ''
+	const written =
+		event.clipboardData?.getData('image/svg+xml') || (event.clipboardData?.getData('text') ?? '')
+	const text = props.pasteAs?.(written) ?? written
 	// Bindings are more of them, whatever is selected, which is where they go after.
 	const rows = pastedRows(
 		props.document.root.value,

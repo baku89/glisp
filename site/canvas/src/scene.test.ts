@@ -415,14 +415,52 @@ describe('snapping', () => {
 		expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.ngon \.\.\/c\/center /)
 	})
 
-	it('has only the value, for what does not start where it was pressed', () => {
+	it('refers from there, whichever way it was drawn', () => {
 		const start = points.find(p => p.target === 'binding:c/arg0')!
-		expect(print(drawnFrom(root, env, 'x', 'rect', start, [90, 90], false).bindings.at(-1)![1])).toBe(
-			'(path.rect [90 90] [10 10])'
-		)
-		expect(print(drawnFrom(root, env, 'x', 'ellipse', start, [120, 120], false).bindings.at(-1)![1])).toBe(
-			'(path.ellipse [110 110] [10 10])'
-		)
+		const drawnAs = (tool: 'rect' | 'ellipse', to: Vec, even = false) =>
+			print(drawnFrom(root, env, 'x', tool, start, to, even).bindings.at(-1)![1])
+		expect(drawnAs('rect', [90, 90])).toBe('(path.rect ../c/center [-10 -10])')
+		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse ../c/center [20 30])')
+		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle ../c/center 30)')
+	})
+
+	describe('what no one argument says', () => {
+		const at = (where: Vec) => nearestSnap(points, where, 0.5)!
+		const refers = (where: Vec) => {
+			const next = drawnFrom(root, env, 'x', 'ngon', at(where), [500, 500], false)
+			return {
+				code: print(next.bindings.at(-1)![1]),
+				center: gripAt(next, env, 'binding:x')!.handles.at(-1)!.at,
+			}
+		}
+
+		it('is worked out from them', () => {
+			expect(refers([10, 10])).toMatchObject({ center: [10, 10] })
+			expect(refers([10, 10]).code).toContain('(+ ../../../r/topLeft/0 ../../../r/size/0)')
+			expect(refers([5, 5]).center).toEqual([5, 5])
+			expect(refers([10, 0]).center).toEqual([10, 0])
+			expect(refers([110, 100]).center).toEqual([110, 100])
+			expect(refers([100, 90]).center).toEqual([100, 90])
+		})
+
+		it('goes along with what it is worked out from', () => {
+			const next = drawnFrom(root, env, 'x', 'ngon', at([10, 10]), [500, 500], false)
+			const { ast } = changed(next, env, 'binding:r', gripAt(next, env, 'binding:r')!.move!([3, 4]))
+			expect(gripAt(ast!, env, 'binding:x')!.handles.at(-1)!.at).toEqual([13, 14])
+		})
+
+		it('has a handle dragged to it refer too', () => {
+			const next = linked(root, env, 'binding:c', 0, at([10, 10]))!
+			expect(print(next)).toContain('(path.circle [(+ ../../../r/topLeft/0 ../../../r/size/0)')
+			expect(gripAt(next, env, 'binding:c')!.handles.at(-1)!.at).toEqual([10, 10])
+		})
+
+		it('has only the value, when what it comes from is out of reach', () => {
+			const hidden = parse('{p = [0 0] r = (path.rect p [10 10]) c = (path.circle [50 50] 1)}') as LetAST
+			const near = nearestSnap(snapPointsOf(hidden, env, sceneOf(hidden, env)), [10, 10], 0.5)!
+			const next = drawnFrom(hidden, env, 'x', 'ngon', near, [90, 90], false)
+			expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.ngon \[10 10\]|\(path\.ngon \[\(\+/)
+		})
 	})
 
 	describe('a handle', () => {
@@ -469,14 +507,23 @@ describe('what a handle has changed', () => {
 	})
 
 	it('has each thing, once', () => {
-		expect(readout('{c = (path.rect [0 0] [10 10])}', 0, [-5, 0])).toEqual([
-			'topLeft -5, 0',
-			'size 15, 10',
+		expect(readout('{c = (path.rect [0 0] [10 10])}', 4, [-5, -6])).toEqual([
+			'X -5',
+			'Width 15',
+			'Y -6',
+			'Height 16',
 		])
 	})
 
 	it('leaves out what is not any different', () => {
-		expect(readout('{c = (path.rect [0 0] [10 10])}', 7, [20, 30])).toEqual(['size 20, 30'])
+		expect(readout('{c = (path.rect [0 0] [10 10])}', 7, [20, 30])).toEqual(['Width 20', 'Height 30'])
+	})
+
+	it('is only the part of a vector that was taken hold of', () => {
+		expect(readout('{c = (path.rect [0 0] [10 10])}', 2, [25, 99])).toEqual(['Width 25'])
+		expect(readout('{c = (path.rect [0 0] [10 10])}', 3, [99, 25])).toEqual(['Height 25'])
+		expect(readout('{c = (path.rect [0 0] [10 10])}', 0, [-5, 99])).toEqual(['X -5', 'Width 15'])
+		expect(readout('{c = (path.ellipse [0 0] [10 20])}', 0, [30, 99])).toEqual(['Width 30'])
 	})
 
 	it('has what it is, until anything is different', () => {

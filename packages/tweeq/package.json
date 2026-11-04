@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./multiRows": "./src/multiRows.ts",
+    "./rowsClipboard": "./src/rowsClipboard.ts",
     "./structure": "./src/structure.ts"
   },
   "dependencies": {

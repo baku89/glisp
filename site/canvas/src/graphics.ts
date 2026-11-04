@@ -367,6 +367,8 @@ export interface Handle {
 	 * index, or the whole of what is taken hold of. Otherwise it is only a place.
 	 */
 	readonly place?: number | 'self'
+	/** How it is worked out, if it is not the place of anything. */
+	readonly code?: PlaceCode
 	/** What it changes is much smaller than where it is on a canvas, as a scale is. */
 	readonly fine?: boolean
 	/** It is drawn with a broken line, being there only to take hold of. */
@@ -386,9 +388,15 @@ export interface Grip {
 	readonly snaps?: Snaps
 }
 
+/**
+ * How a place that no argument says is worked out from them, as code, for something to
+ * refer to it. `part` gives a reference to something in the call, such as `arg0/1`.
+ */
+export type PlaceCode = (part: (path: string) => string) => string
+
 /** Places, and straight lines, that something can snap to. */
 export interface Snaps {
-	readonly points?: readonly { readonly at: Vec; readonly name: string }[]
+	readonly points?: readonly { readonly at: Vec; readonly name: string; readonly code?: PlaceCode }[]
 	readonly lines?: readonly {
 		readonly from: Vec
 		readonly to: Vec
@@ -541,12 +549,41 @@ function gripOfD(path: Path): Grip {
 	}
 }
 
+/** Where the sides of a circle are, from its center and how far out each way. */
+const sidesOf = (rx: string, ry: string): Readonly<Record<string, PlaceCode>> => ({
+	right: p => `[(+ ${p('arg0/0')} ${p(rx)}) ${p('arg0/1')}]`,
+	bottom: p => `[${p('arg0/0')} (+ ${p('arg0/1')} ${p(ry)})]`,
+	left: p => `[(- ${p('arg0/0')} ${p(rx)}) ${p('arg0/1')}]`,
+	top: p => `[${p('arg0/0')} (- ${p('arg0/1')} ${p(ry)})]`,
+})
+const CIRCLE_SIDES = sidesOf('arg1', 'arg1')
+const ELLIPSE_SIDES = sidesOf('arg1/0', 'arg1/1')
+
 const QUADRANTS = [
 	['right', 0],
 	['bottom', 90],
 	['left', 180],
 	['top', 270],
 ] as const
+
+/** Where the parts of a rect are, from its top left and size. */
+const RECT_X = (p: (path: string) => string, along: number): string =>
+	along === 0
+		? p('arg0/0')
+		: along === 1
+			? `(+ ${p('arg0/0')} ${p('arg1/0')})`
+			: `(+ ${p('arg0/0')} (/ ${p('arg1/0')} 2))`
+const RECT_Y = (p: (path: string) => string, along: number): string =>
+	along === 0
+		? p('arg0/1')
+		: along === 1
+			? `(+ ${p('arg0/1')} ${p('arg1/1')})`
+			: `(+ ${p('arg0/1')} (/ ${p('arg1/1')} 2))`
+/** At `x` and `y` of the way across, 2 being the middle. */
+const rectPlace =
+	(x: number, y: number): PlaceCode =>
+	p =>
+		`[${RECT_X(p, x)} ${RECT_Y(p, y)}]`
 
 const GIZMO_SIZE = 80
 const NGON_RING = 40
@@ -656,7 +693,11 @@ const makers = new Map<unknown, Maker>([
 				],
 				guides: [],
 				snaps: {
-					points: QUADRANTS.map(([name, angle]) => ({ at: add(c, toward(angle, r)), name })),
+					points: QUADRANTS.map(([name, angle]) => ({
+						at: add(c, toward(angle, r)),
+						name,
+						code: CIRCLE_SIDES[name]!,
+					})),
 				},
 				move: delta => [change(0, add(c, delta))],
 			}
@@ -686,10 +727,10 @@ const makers = new Map<unknown, Maker>([
 				guides: [],
 				snaps: {
 					points: [
-						{ at: [c[0] + rx, c[1]], name: 'right' },
-						{ at: [c[0], c[1] + ry], name: 'bottom' },
-						{ at: [c[0] - rx, c[1]], name: 'left' },
-						{ at: [c[0], c[1] - ry], name: 'top' },
+						{ at: [c[0] + rx, c[1]], name: 'right', code: ELLIPSE_SIDES['right']! },
+						{ at: [c[0], c[1] + ry], name: 'bottom', code: ELLIPSE_SIDES['bottom']! },
+						{ at: [c[0] - rx, c[1]], name: 'left', code: ELLIPSE_SIDES['left']! },
+						{ at: [c[0], c[1] - ry], name: 'top', code: ELLIPSE_SIDES['top']! },
 					],
 				},
 				move: delta => [change(0, add(c, delta))],
@@ -719,18 +760,18 @@ const makers = new Map<unknown, Maker>([
 			const bottom = (y: number, how?: HandleDrag) => across(1, opposite(1, y, s[1], how), y)
 			return {
 				handles: [
-					{ kind: 'arrow', name: 'left', angle: 0, at: [s[0], middle[1]], to: (to, _, how) => left(to[0], how) },
-					{ kind: 'arrow', name: 'top', angle: 90, at: [middle[0], s[1]], to: (to, _, how) => top(to[1], how) },
-					{ kind: 'arrow', name: 'right', angle: 0, at: [e[0], middle[1]], to: (to, _, how) => right(to[0], how) },
-					{ kind: 'arrow', name: 'bottom', angle: 90, at: [middle[0], e[1]], to: (to, _, how) => bottom(to[1], how) },
+					{ kind: 'arrow', name: 'left', code: rectPlace(0, 2), angle: 0, at: [s[0], middle[1]], to: (to, _, how) => left(to[0], how) },
+					{ kind: 'arrow', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], to: (to, _, how) => top(to[1], how) },
+					{ kind: 'arrow', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], to: (to, _, how) => right(to[0], how) },
+					{ kind: 'arrow', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], to: (to, _, how) => bottom(to[1], how) },
 					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, to: (to, _, how) => [...left(to[0], how), ...top(to[1], how)] },
-					{ kind: 'point', name: 'top right', angle: -45, at: [e[0], s[1]], to: (to, _, how) => [...right(to[0], how), ...top(to[1], how)] },
-					{ kind: 'point', name: 'bottom left', angle: -45, at: [s[0], e[1]], to: (to, _, how) => [...left(to[0], how), ...bottom(to[1], how)] },
-					{ kind: 'point', name: 'bottom right', angle: 45, at: e, to: (to, _, how) => [...right(to[0], how), ...bottom(to[1], how)] },
+					{ kind: 'point', name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], to: (to, _, how) => [...right(to[0], how), ...top(to[1], how)] },
+					{ kind: 'point', name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], to: (to, _, how) => [...left(to[0], how), ...bottom(to[1], how)] },
+					{ kind: 'point', name: 'bottom right', code: rectPlace(1, 1), angle: 45, at: e, to: (to, _, how) => [...right(to[0], how), ...bottom(to[1], how)] },
 				],
 				guides: [],
 				snaps: {
-					points: [{ at: middle, name: 'center' }],
+					points: [{ at: middle, name: 'center', code: rectPlace(2, 2) }],
 					lines: [
 						{ from: s, to: [e[0], s[1]], name: 'top' },
 						{ from: [e[0], s[1]], to: e, name: 'right' },

@@ -233,7 +233,7 @@ const SNAP_LABEL_FONT = `11px ${getComputedStyle(window.document.documentElement
  */
 function drawSnap(
 	context: CanvasRenderingContext2D,
-	{ at, label, line, target }: SnapPoint,
+	{ at, label, line, target, code }: SnapPoint,
 	accent: string,
 	paper: string
 ): void {
@@ -255,7 +255,7 @@ function drawSnap(
 	}
 	// Bare, with an edge of the paper to stay readable over what is under it, and bold
 	// if it will be referred to, rather than only being the same.
-	context.font = target === null ? SNAP_LABEL_FONT : `bold ${SNAP_LABEL_FONT}`
+	context.font = target === null && code === undefined ? SNAP_LABEL_FONT : `bold ${SNAP_LABEL_FONT}`
 	context.textBaseline = 'middle'
 	const [left, top] = [x + 11, y - 13]
 	context.lineJoin = 'round'
@@ -271,6 +271,7 @@ function drawSnap(
 function drawReadout(
 	context: CanvasRenderingContext2D,
 	ink: string,
+	mute: string,
 	border: string,
 	paper: string
 ): void {
@@ -284,7 +285,14 @@ function drawReadout(
 	context.save()
 	context.font = SNAP_LABEL_FONT
 	context.textBaseline = 'middle'
-	const width = Math.max(...said.map(line => context.measureText(line).width)) + 12
+	// What it is called goes quietly, for what it is to stand out.
+	const parts = said.map(line => {
+		const [, name = '', value = line] = /^(.*?) ?(-?[\d.]+(?:, -?[\d.]+)*)$/.exec(line) ?? []
+		const nameWidth = name === '' ? 0 : context.measureText(`${name} `).width
+		return { name, value, nameWidth }
+	})
+	const width =
+		Math.max(...parts.map(({ value, nameWidth }) => nameWidth + context.measureText(value).width)) + 12
 	const [left, top] = [at[0] + 14, at[1] + 14]
 	context.beginPath()
 	context.roundRect(left, top, width, said.length * 15 + 5, 4)
@@ -293,8 +301,13 @@ function drawReadout(
 	context.lineWidth = 1
 	context.fill()
 	context.stroke()
-	context.fillStyle = ink
-	said.forEach((line, i) => context.fillText(line, left + 6, top + 10.5 + i * 15))
+	parts.forEach(({ name, value, nameWidth }, i) => {
+		const y = top + 10.5 + i * 15
+		context.fillStyle = mute
+		context.fillText(name, left + 6, y)
+		context.fillStyle = ink
+		context.fillText(value, left + 6 + nameWidth, y)
+	})
 	context.restore()
 }
 
@@ -342,7 +355,7 @@ function draw(): void {
 		drawSnap(context, snapMark.value, accent, paper)
 	}
 
-	drawReadout(context, ink, color('--tq-color-border'), paper)
+	drawReadout(context, ink, color('--tq-color-text-mute'), color('--tq-color-border'), paper)
 
 	if (penLine.value !== null) {
 		const [[ax, ay], [bx, by]] = penLine.value

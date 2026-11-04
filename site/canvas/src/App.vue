@@ -22,8 +22,9 @@ import { computed, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import CanvasView from './CanvasView.vue'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfPath, withGraphics } from './graphics'
+import { bindingsOfSvg, svgOfRows } from './svg'
 
-initTweeq('app.glisp.canvas', { accentColor: '#0000ff' })
+initTweeq('app.glisp.canvas', { accentColor: '#1473e6' })
 
 const theme = useThemeStore()
 const prefersDark = useMediaQuery('(prefers-color-scheme: dark)')
@@ -201,6 +202,8 @@ function selectInTree(row: string | null): void {
 							layers
 							:iconOfValue="iconOfPath"
 							:alsoSelected="selected"
+							:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
+							:pasteAs="bindingsOfSvg"
 							@select="selectInTree"
 							@code="showCode"
 							@pasted="selectOnCanvas"
