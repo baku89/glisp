@@ -247,6 +247,8 @@ const held = shallowRef<{
 	at: Vec
 	/** The kind of handle dragged, if what it says goes outside of it. */
 	outsideOf: Handle['kind'] | null
+	/** It came of drawing a shape. */
+	drawn: boolean
 	first: number
 	editing: boolean
 	/** The program as the drag left it, to go back to. */
@@ -278,13 +280,14 @@ function hold(
 	places: readonly Dimension[],
 	[x, y]: Vec,
 	first = 0,
-	outsideOf: Handle['kind'] | null = null
+	outsideOf: Handle['kind'] | null = null,
+	drawn = false
 ): void {
 	beforeExpression = null
 	held.value =
 		places.length === 0
 			? null
-			: { row, places, at: fromScreen(x, y), outsideOf, first, editing: false, base: props.document.root.value }
+			: { row, places, at: fromScreen(x, y), outsideOf, drawn, first, editing: false, base: props.document.root.value }
 }
 
 function typeDimension(dimension: Dimension, value: number): void {
@@ -1405,7 +1408,7 @@ function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): vo
 	if (props.dimensions) {
 		const row = `binding:${name}`
 		const { dimensions, first } = dimensionsDrawn(props.document.root.value, env.value, row)
-		hold(row, dimensions, [x, y], first)
+		hold(row, dimensions, [x, y], first, null, true)
 	}
 }
 
@@ -1606,6 +1609,7 @@ useEventListener(window, 'pointerup', event => {
 			:room="size"
 			:editing="held.editing"
 			:first="held.first"
+			:afterDrawing="held.drawn"
 			:expression="typeExpression"
 			@set="typeDimension"
 			@done="doneTyping"

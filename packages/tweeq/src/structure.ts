@@ -1474,7 +1474,7 @@ export function kindIconOf(ast: AST): string | null {
 export const SLOT_COMMANDS = {
 	step: { id: 'step', label: 'Evaluate One Step', icon: 'mdi:debug-step-into', keys: ['E'], group: 'edit' },
 	all: { id: 'all', label: 'Evaluate All', icon: 'mdi:debug-step-over', keys: ['⇧', 'E'], group: 'edit' },
-	pin: { id: 'pin', label: 'Pin', icon: 'mdi:pin', keys: ['P'], group: 'edit' },
+	pin: { id: 'pin', label: 'Pin', icon: 'mdi:pin', keys: ['⇧', 'P'], group: 'edit' },
 	hide: { id: 'hide', label: 'Hide', icon: 'mdi:eye-off-outline', keys: ['H'], group: 'edit' },
 	value: { id: 'value', label: 'Copy Value', icon: 'mdi:content-copy', group: 'copy' },
 	copy: { id: 'copy', label: 'Copy Expression', icon: 'mdi:code-parentheses', keys: ['⌘', 'C'], group: 'copy' },

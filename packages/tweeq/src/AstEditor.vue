@@ -611,7 +611,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		if (selection.value?.evaluate === undefined) return
 		event.preventDefault()
 		selection.value.evaluate('hide')
-	} else if (event.key.toLowerCase() === 'p' && !isMod && !event.altKey) {
+	} else if (event.key.toLowerCase() === 'p' && event.shiftKey && !isMod && !event.altKey) {
 		if (selection.value?.evaluate === undefined) return
 		event.preventDefault()
 		selection.value.evaluate('pin')

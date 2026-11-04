@@ -15,6 +15,8 @@ const props = defineProps<{
 	editing: boolean
 	/** Which of them to go to first. */
 	first: number
+	/** A shape has just been drawn, after which the next thing may well be a tool. */
+	afterDrawing: boolean
 	/** What comes of typing something other than a number, and what is wrong with it. */
 	expression: (dimension: Dimension, text: string) => string | null
 }>()
@@ -29,10 +31,14 @@ const $root = useTemplateRef<HTMLElement>('$root')
 
 const inputs = (): HTMLInputElement[] => [...($root.value?.querySelectorAll('input') ?? [])]
 
+/** Only offered, so that a letter is for a tool. Going to one is going to type in it. */
+let offered = false
+
 watch(
 	() => props.editing,
 	async editing => {
 		if (!editing) return
+		offered = props.afterDrawing
 		await nextTick()
 		inputs()[props.first]?.focus()
 	},
@@ -49,7 +55,7 @@ function nextInput(event: KeyboardEvent): void {
 
 /** Before an input hears of it, or it would be typed. */
 function onKeydownFirst(event: KeyboardEvent): void {
-	if (!isForElsewhere(event, event.target as HTMLInputElement)) return
+	if (!offered || !isForElsewhere(event, event.target as HTMLInputElement)) return
 	event.preventDefault()
 	event.stopPropagation()
 	emit('done', true)
@@ -61,6 +67,7 @@ function onKeydown(event: KeyboardEvent): void {
 	if (!['Tab', 'Enter', 'Escape'].includes(event.key)) return
 	event.preventDefault()
 	if (event.key === 'Tab') {
+		offered = false
 		// Tab lets go of the selected inputs once it gets to the window, as it has to before
 		// focus moves, or going back with Shift would select all that are on the way.
 		setTimeout(() => nextInput(event))
@@ -75,6 +82,10 @@ function onKeydown(event: KeyboardEvent): void {
  * it would look like going elsewhere.
  */
 let pressedHere = false
+function onPressHere(): void {
+	pressedHere = true
+	offered = false
+}
 useEventListener(window, 'pointerup', () => (pressedHere = false), { capture: true })
 useEventListener(window, 'pointercancel', () => (pressedHere = false), { capture: true })
 
@@ -101,7 +112,7 @@ const set = (dimension: Dimension, value: number): void => {
 </script>
 
 <template>
-	<div ref="$root" class="Dimensions" @keydown.capture="onKeydownFirst" @keydown="onKeydown" @focusout="onFocusout" @pointerdown.capture="pressedHere = true">
+	<div ref="$root" class="Dimensions" @keydown.capture="onKeydownFirst" @keydown="onKeydown" @focusout="onFocusout" @pointerdown.capture="onPressHere">
 		<DimensionField
 			v-for="placed in dimensions"
 			:key="`${placed.dimensions[0]!.route}/${placed.dimensions[0]!.index}`"

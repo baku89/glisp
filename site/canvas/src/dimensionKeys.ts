@@ -1,7 +1,7 @@
 /**
- * What a key means to a number that has only just been offered to type over. A number
- * begins with what a shortcut does not, so one can follow a drawing at once, and so does an
- * expression, as `(`, or `=` for one that begins with a name.
+ * What a key means to a number that has only just been offered to type over, as it is once
+ * a shape has been drawn. A number begins with what a shortcut does not, so one can follow a
+ * drawing at once, and so does an expression, as `(`, or `=` for one that begins with a name.
  */
 
 export interface KeyPressed {

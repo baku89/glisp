@@ -158,7 +158,11 @@ const toolKeys = new Set<string>(TOOLS.flatMap(tool => ('key' in tool ? [tool.ke
 
 /** In a drawing app these are tools, before what they mean to a row in the tree. */
 const isToolKey = (event: KeyboardEvent): boolean =>
-	!event.metaKey && !event.ctrlKey && !event.altKey && toolKeys.has(event.key.toLowerCase())
+	!event.metaKey &&
+	!event.ctrlKey &&
+	!event.altKey &&
+	!event.shiftKey &&
+	toolKeys.has(event.key.toLowerCase())
 
 /** The tools as the bar shows them, saying the keys that their actions have. */
 const toolsOnBar = computed(() =>
