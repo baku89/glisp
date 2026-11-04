@@ -7,6 +7,7 @@ import FunctionAbout from './FunctionAbout.vue'
 import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
 import { computed, provide, ref, shallowRef } from 'vue'
 
+import { displayedAs } from './numberField'
 import { type GlispDocument } from './document'
 import MixedNumber from './MixedNumber.vue'
 import { MERGE_LABELS, multiSelectHostOf } from './multiInputs'
@@ -101,7 +102,7 @@ const extractItems = (field: MultiField): MenuItem[] =>
 					<MixedNumber
 						v-for="field in arg.fields"
 						:key="field.name"
-						v-bind="field.options"
+						v-bind="displayedAs(field.options)"
 						:multiSelectData="field.places"
 						:values="field.values"
 						:items="extractItems(field)"

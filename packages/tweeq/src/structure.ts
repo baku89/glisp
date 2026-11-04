@@ -108,6 +108,8 @@ export interface NumberOptions {
 	readonly min?: number
 	readonly max?: number
 	readonly step?: number
+	/** It is shown as this many times what it is, as a percentage is. */
+	readonly scale?: number
 	readonly prefix?: string
 	readonly suffix?: string
 	readonly leftIcon?: string
@@ -211,7 +213,7 @@ function numberOptionsOf(metadata: MetaAST['metadata'] | null | undefined): Numb
 			? field.value
 			: undefined
 	}
-	const [min, max, step] = [read('min'), read('max'), read('step')]
+	const [min, max, step, scale] = [read('min'), read('max'), read('step'), read('scale')]
 	const prefix = textOf(metadata?.get('prefix'))
 	const suffix = textOf(metadata?.get('suffix'))
 	// Not `icon`, which is the type's own, for the row.
@@ -221,6 +223,7 @@ function numberOptionsOf(metadata: MetaAST['metadata'] | null | undefined): Numb
 		...(ordered && min !== undefined ? { min } : {}),
 		...(ordered && max !== undefined ? { max } : {}),
 		...(step !== undefined && step > 0 ? { step } : {}),
+		...(scale !== undefined && scale !== 0 ? { scale } : {}),
 		...(prefix === null ? {} : { prefix }),
 		...(suffix === null ? {} : { suffix }),
 		...(leftIcon === null ? {} : { leftIcon }),

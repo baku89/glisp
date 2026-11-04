@@ -567,6 +567,18 @@ describe('elementAt', () => {
 	})
 })
 
+describe('how a number is shown', () => {
+	it('says so as metadata', () => {
+		const slot = view('[^{min: 0 max: 1 scale: 100 suffix: "%"} 0.5]').slots[0]!
+		expect(numberOptionsAt(slot)).toEqual({ min: 0, max: 1, scale: 100, suffix: '%' })
+	})
+
+	it('says nothing by a scale that would leave nothing to show', () => {
+		const slot = view('[^{scale: 0} 0.5]').slots[0]!
+		expect(numberOptionsAt(slot)).toEqual({})
+	})
+})
+
 describe('numbersFit', () => {
 	it('goes without icons before going one above another', () => {
 		expect(numbersFit(2, 130)).toBe('side')

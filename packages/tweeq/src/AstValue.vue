@@ -17,6 +17,7 @@ import AstLongText from './AstLongText.vue'
 import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import type { Place } from './multiRows'
+import { displayedAs } from './numberField'
 import { HOST_KEY, RATIO_KEEPER, SOLVER } from './selection'
 import {
 	canSolve,
@@ -132,7 +133,9 @@ const isString = computed(
 )
 
 // The node's own say goes first, over what its parameter's type says.
-const numberOptions = computed(() => iconless(numberOptionsAt(props.entry), props.bare ?? false))
+const numberOptions = computed(() =>
+	displayedAs(iconless(numberOptionsAt(props.entry), props.bare ?? false))
+)
 
 // An expression shows its value, and its code opens from it, in room to read it. Only
 // the one being edited has an editor, so that a long program stays light.
@@ -357,7 +360,7 @@ const label = (value: unknown): string =>
 			<InputNumber
 				v-for="(number, i) in solvableNumbers"
 				:key="i"
-				v-bind="iconless(elementOptionsOf(entry.expected, i), solvableFit !== 'side')"
+				v-bind="displayedAs(iconless(elementOptionsOf(entry.expected, i), solvableFit !== 'side'))"
 				:modelValue="number"
 				:menuItems="fieldMenu"
 				:multiSelectData="{ path, element: i }"
