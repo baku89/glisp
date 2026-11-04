@@ -16,6 +16,8 @@ const props = defineProps<{
 	values: readonly number[]
 	/** What else its menu offers, after merging. */
 	items?: readonly MenuItem[]
+	/** How many of those it stands for are worked out, not written as numbers. */
+	workedOut?: 'none' | 'some' | 'all'
 }>()
 
 const emit = defineEmits<{ 'update:values': [values: readonly number[]] }>()
@@ -78,7 +80,7 @@ const range = computed(() => {
 	<div
 		v-tooltip="mixed ? range : undefined"
 		class="MixedNumber"
-		:class="{ mixed }"
+		:class="{ mixed, expression: workedOut === 'all', 'partly-expression': workedOut === 'some' }"
 		@contextmenu.prevent.stop="openMenu"
 	>
 		<InputNumber v-bind="$attrs" :modelValue="shown" @update:modelValue="shift" />
@@ -110,6 +112,23 @@ const range = computed(() => {
 	position: relative;
 	flex: 1;
 	min-width: 0;
+}
+/* As one that is driven by an expression looks on its own, in `AstValue`. */
+.expression {
+	--tq-color-text: var(--tq-color-info);
+	--tq-color-input: var(--tq-color-info-soft);
+	--tq-color-input-hover: var(--tq-color-info-soft);
+	--tq-color-accent: var(--tq-color-info);
+	--tq-color-accent-hover: var(--tq-color-info);
+}
+/* Written in more than one way, whether or not they come to the same. It goes behind what
+it says, as its color is not one that can be seen through. */
+.partly-expression :deep(.TqInputTextBase) {
+	background-image: repeating-linear-gradient(
+		-45deg,
+		var(--tq-color-info-soft) 0 4px,
+		transparent 4px 8px
+	);
 }
 /* Saying only that they differ, in place of any one of them, as C4D does. */
 .mixed :deep(.display-at-inactive) {

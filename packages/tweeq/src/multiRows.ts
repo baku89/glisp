@@ -23,6 +23,7 @@ import {
 import { reach, withParent } from './rowsClipboard'
 import {
 	elementOptionsOf,
+	isExpression,
 	mentionsTypeVar,
 	numberOptionsAt,
 	type NumberOptions,
@@ -51,6 +52,8 @@ export interface MultiField {
 	readonly values: readonly number[]
 	/** Whether it is written where it can be replaced, in each row. */
 	readonly canExtract: boolean
+	/** In how many of the rows it is worked out, rather than written as a number. */
+	readonly workedOut: 'none' | 'some' | 'all'
 }
 
 /** An argument that the rows have, and the numbers in it. */
@@ -114,6 +117,18 @@ function argsOf(root: AST, env: Env, path: string) {
 const isNumbers = (value: unknown): value is number[] =>
 	Array.isArray(value) && value.length > 0 && value.every(v => typeof v === 'number')
 
+/** Whether what is at a slot, or at the number `element` of it, is worked out. */
+function isWorkedOut(slot: Slot, element: number | null): boolean {
+	const ast = bare(slot.ast)
+	const written = element !== null && ast.kind === 'vec' ? ast.elements[element] : undefined
+	return isExpression(written ?? ast)
+}
+
+const howWorkedOut = (slots: readonly Slot[], element: number | null): MultiField['workedOut'] => {
+	const count = slots.filter(slot => isWorkedOut(slot, element)).length
+	return count === 0 ? 'none' : count === slots.length ? 'all' : 'some'
+}
+
 /** What the rows at `paths` have in common, or null if they are not calls of the same. */
 export function inspectRows(
 	root: AST,
@@ -144,6 +159,7 @@ export function inspectRows(
 							options: numberOptionsAt(slot),
 							values: results as number[],
 							canExtract: true,
+							workedOut: howWorkedOut(slots as Slot[], null),
 						},
 					],
 				},
@@ -165,6 +181,7 @@ export function inspectRows(
 						options: elementOptionsOf(shape, element),
 						values: (results as number[][]).map(r => r[element]!),
 						canExtract: areWritten,
+						workedOut: howWorkedOut(slots as Slot[], element),
 					}
 				}),
 			},

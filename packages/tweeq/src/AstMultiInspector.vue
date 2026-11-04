@@ -105,6 +105,7 @@ const extractItems = (field: MultiField): MenuItem[] =>
 						v-bind="displayedAs(field.options)"
 						:multiSelectData="field.places"
 						:values="field.values"
+						:workedOut="field.workedOut"
 						:items="extractItems(field)"
 						@update:values="setValues(field, $event)"
 					/>

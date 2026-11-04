@@ -464,6 +464,41 @@ describe('several rows at once', () => {
 		expect(circles.args[1]!.fields[0]!.values).toEqual([1, 2])
 	})
 
+	describe('are worked out', () => {
+		const of = (source: string, arg: number, element = 0) =>
+			inspectRows(parse(source), env, rows)!.args[arg]!.fields[element]!.workedOut
+
+		it('in all of them, where every row refers to something', () => {
+			expect(of('{s = 6 a = (path.circle [0 0] s) b = (path.circle [0 0] s)}', 1)).toBe('all')
+		})
+
+		it('in some of them, where a number is written in the others', () => {
+			expect(of('{s = 6 a = (path.circle [0 0] s) b = (path.circle [0 0] 6)}', 1)).toBe('some')
+		})
+
+		it('in none of them, where all have a number written', () => {
+			expect(of('{a = (path.circle [0 0] 1) b = (path.circle [0 0] 1)}', 1)).toBe('none')
+		})
+
+		it('number by number, in a vector that is written', () => {
+			const source = '{s = 6 a = (path.rect [0 0] [s 2]) b = (path.rect [0 0] [s 2])}'
+			expect(of(source, 1, 0)).toBe('all')
+			expect(of(source, 1, 1)).toBe('none')
+		})
+
+		it('in all of the numbers of a vector that is not written', () => {
+			const source = '{v = [1 2] a = (path.rect [0 0] v) b = (path.rect [0 0] v)}'
+			expect(of(source, 1, 0)).toBe('all')
+			expect(of(source, 1, 1)).toBe('all')
+		})
+
+		it('in some, with a vector written in one and referred to in the other', () => {
+			const source = '{a = (path.rect [0 0] [1 2]) b = (path.rect ../a/origin [1 2])}'
+			expect(of(source, 0, 0)).toBe('some')
+			expect(of(source, 0, 1)).toBe('some')
+		})
+	})
+
 	it('come to one value, however that is asked for', () => {
 		expect(merged([10, 30, 20], 'first')).toBe(10)
 		expect(merged([10, 30, 20], 'last')).toBe(20)
