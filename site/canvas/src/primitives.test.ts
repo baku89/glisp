@@ -981,3 +981,24 @@ describe('the tip of a polygon or a star', () => {
 		expect(onlyShapes(gripAt(parse('{c = (path.clothoid [0 0] 30 100 0 0)}'), env, ROW)!.handles[1]!)).toBe(true)
 	})
 })
+
+describe('what is about a corner', () => {
+	const cornered = (src: string) =>
+		gripAt(parse(`{c = ${src}}`), env, ROW)!.handles.filter(h => h.corner === true).map(h => h.name ?? h.kind)
+
+	it('is square on a rect and a square', () => {
+		const corners = ['bottom left', 'bottom right', 'top left', 'top right']
+		expect(cornered('(path.rect [0 0] [10 10])').sort()).toEqual(corners)
+		expect(cornered('(path.square [0 0] 10)').sort()).toEqual(['bottom right', 'top left'])
+	})
+
+	it('is how round it is, as well', () => {
+		expect(cornered('(path.roundRect [0 0] [40 40] 5)')).toContain('arrow')
+		expect(cornered('(path.superellipse [0 0] [20 20] 2)')).toEqual(['arrow'])
+	})
+
+	it('is not what is round', () => {
+		expect(cornered('(path.circle [0 0] 10)')).toEqual([])
+		expect(cornered('(path.ngon [0 0] 10 5)')).toEqual([])
+	})
+})

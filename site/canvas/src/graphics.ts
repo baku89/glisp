@@ -913,6 +913,8 @@ export interface Handle {
 	readonly pivot?: Vec
 	/** What it turns around instead, when the other side goes the other way. */
 	readonly middle?: Vec
+	/** It is about a corner, and is drawn square to say so. */
+	readonly corner?: boolean
 	/** It is drawn just past where it is, as there is already a corner to be seen there. */
 	readonly past?: boolean
 	/** What it is exactly, more than one thing, as a vertex is how far out and which way. */
@@ -1658,10 +1660,10 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{ kind: 'offset', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], means: sideMeans(sides.top, heightBy.top), to: (to, _, how) => sideTo(sides.top, to[1], how) },
 					{ kind: 'offset', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], means: sideMeans(sides.right, widthBy.right), to: (to, _, how) => sideTo(sides.right, to[0], how) },
 					{ kind: 'offset', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], means: sideMeans(sides.bottom, heightBy.bottom), to: (to, _, how) => sideTo(sides.bottom, to[1], how) },
-					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, constrained: keeps, means: cornerMeans(sides.left, sides.top, widthBy.left, heightBy.top), to: (to, _, how) => cornerTo(sides.left, sides.top, to, how) },
-					{ kind: 'point', name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], means: cornerMeans(sides.right, sides.top, widthBy.right, heightBy.top), to: (to, _, how) => cornerTo(sides.right, sides.top, to, how) },
-					{ kind: 'point', name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], means: cornerMeans(sides.left, sides.bottom, widthBy.left, heightBy.bottom), to: (to, _, how) => cornerTo(sides.left, sides.bottom, to, how) },
-					{ kind: 'point', name: 'bottom right', code: rectPlace(1, 1), angle: 45, at: e, means: cornerMeans(sides.right, sides.bottom, widthBy.right, heightBy.bottom), to: (to, _, how) => cornerTo(sides.right, sides.bottom, to, how) },
+					{ kind: 'point', corner: true, name: 'top left', place: 0, angle: 45, at: s, constrained: keeps, means: cornerMeans(sides.left, sides.top, widthBy.left, heightBy.top), to: (to, _, how) => cornerTo(sides.left, sides.top, to, how) },
+					{ kind: 'point', corner: true, name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], means: cornerMeans(sides.right, sides.top, widthBy.right, heightBy.top), to: (to, _, how) => cornerTo(sides.right, sides.top, to, how) },
+					{ kind: 'point', corner: true, name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], means: cornerMeans(sides.left, sides.bottom, widthBy.left, heightBy.bottom), to: (to, _, how) => cornerTo(sides.left, sides.bottom, to, how) },
+					{ kind: 'point', corner: true, name: 'bottom right', code: rectPlace(1, 1), angle: 45, at: e, means: cornerMeans(sides.right, sides.bottom, widthBy.right, heightBy.bottom), to: (to, _, how) => cornerTo(sides.right, sides.bottom, to, how) },
 				],
 				guides: [],
 				snaps: {
@@ -1706,6 +1708,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{ kind: 'offset', name: 'bottom', code: squarePlace(2, 1), angle: 90, at: [middle[0], e[1]], to: (to, _, how) => (how?.symmetric ? around(to[1] - middle[1]) : [sized(to[1] - s[1])]) },
 					{
 						kind: 'point',
+						corner: true,
 						name: 'top left',
 						place: 0,
 						angle: 45,
@@ -1716,7 +1719,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 								? around(Math.max(middle[0] - to[0], middle[1] - to[1]))
 								: fromFar(to[0], to[1]),
 					},
-					{ kind: 'point', name: 'bottom right', code: squarePlace(1, 1), angle: 45, at: e, to: (to, _, how) => (how?.symmetric ? around(Math.max(to[0] - middle[0], to[1] - middle[1])) : [sized(Math.max(to[0] - s[0], to[1] - s[1]))]) },
+					{ kind: 'point', corner: true, name: 'bottom right', code: squarePlace(1, 1), angle: 45, at: e, to: (to, _, how) => (how?.symmetric ? around(Math.max(to[0] - middle[0], to[1] - middle[1])) : [sized(Math.max(to[0] - s[0], to[1] - s[1]))]) },
 				],
 				guides: [],
 				snaps: {
@@ -1961,6 +1964,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					...box.handles,
 					{
 						kind: 'arrow',
+						corner: true,
 						at,
 						angle: degrees([x, y]),
 						inward: true,
@@ -1997,6 +2001,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				handles: [
 					{
 						kind: 'arrow',
+						corner: true,
 						fine: true,
 						at,
 						angle: degrees([rx, ry]),

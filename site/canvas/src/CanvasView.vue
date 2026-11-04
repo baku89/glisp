@@ -356,6 +356,8 @@ const problem = ref<string | null>(null)
 
 const HANDLE_RADIUS = 5
 const PEN_CONTROL_RADIUS = 3
+/** As much to be seen of a square as of a round handle. */
+const CORNER_HALF = 4.5
 const HIT_WIDTH = 10
 const HOVER_WIDTH = 3
 const DASH = [3, 2]
@@ -522,7 +524,12 @@ function drawHandle(
 		}
 		context.lineWidth = 1
 		context.beginPath()
-		context.arc(0, 0, HANDLE_RADIUS, 0, Math.PI * 2)
+		if (handle.corner) {
+			context.rotate(facing(0))
+			context.rect(-CORNER_HALF, -CORNER_HALF, CORNER_HALF * 2, CORNER_HALF * 2)
+		} else {
+			context.arc(0, 0, HANDLE_RADIUS, 0, Math.PI * 2)
+		}
 		context.fill()
 		context.stroke()
 	}
