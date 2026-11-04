@@ -4,7 +4,7 @@ import { InputColor } from 'tweeq/InputColor'
 import { InputEnum } from 'tweeq/InputEnum'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
-import { fromNumber, InputShuffle } from 'tweeq/InputShuffle'
+import { InputSeed } from 'tweeq/InputSeed'
 import { vTooltip } from 'tweeq/Tooltip'
 import { InputString } from 'tweeq/InputString'
 import { InputSwitch } from 'tweeq/InputSwitch'
@@ -39,9 +39,6 @@ import {
 } from './structure'
 
 type InputPosition = 'start' | 'middle' | 'end'
-
-/** What is rolled is written into the program, which comes to the same from then on. */
-const rollSeed = fromNumber(0, 1_000_000)
 
 const props = defineProps<{
 	entry: Slot
@@ -325,19 +322,12 @@ const label = (value: unknown): string =>
 		:title="problem === null && (summary === null || isExpression(ast)) ? sourceOf(ast) : undefined"
 		@keydown.capture="onFieldKey"
 	>
-		<InputGroup v-if="view.editor?.kind === 'number' && view.editor.seed">
-			<InputNumber
-				:modelValue="view.editor.value"
-				:menuItems="fieldMenu"
-				:precision="0"
-				@update:modelValue="update(withLiteral(ast, $event))"
-			/>
-			<InputShuffle
-				:modelValue="view.editor.value"
-				:generate="rollSeed"
-				@update:modelValue="update(withLiteral(ast, $event))"
-			/>
-		</InputGroup>
+		<InputSeed
+			v-if="view.editor?.kind === 'number' && view.editor.seed"
+			:modelValue="view.editor.value"
+			:menuItems="fieldMenu"
+			@update:modelValue="update(withLiteral(ast, $event))"
+		/>
 		<InputNumber
 			v-else-if="view.editor?.kind === 'number'"
 			v-bind="numberOptions"
