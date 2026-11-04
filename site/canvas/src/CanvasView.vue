@@ -55,6 +55,7 @@ import {
 	placesTakenBy,
 	anchorsAlong,
 	pencilled,
+	rowOfHandle,
 } from './scene'
 
 const props = defineProps<{
@@ -104,8 +105,27 @@ const hovered = ref<string | null>(null)
 const hoveredHandle = ref<number | null>(null)
 /** The handle being dragged, which is all there is to see of the pointer meanwhile. */
 const draggedHandle = ref<number | null>(null)
+/**
+ * The row whose handles these still are, a part of it having been selected by clicking
+ * one. To the canvas it is that row that is selected, or there would be nothing to go on with.
+ */
+const keptRow = ref<string | null>(null)
+const taken = computed<readonly string[]>(() => {
+	const [row, other] = props.selected
+	return keptRow.value !== null && other === undefined && row?.startsWith(`${keptRow.value}/`)
+		? [keptRow.value]
+		: props.selected
+})
+watch(taken, rows => {
+	if (rows[0] !== keptRow.value) keptRow.value = null
+})
 /** Two places on screen on the line that something going by even angles is on. */
 const evenLine = shallowRef<readonly [Vec, Vec] | null>(null)
+/**
+ * The anchor a pen has got to, if it has been pulled, which nothing drawn says yet: what
+ * comes out of it is not a part of the path until there is somewhere for that to go.
+ */
+const penPulled = shallowRef<{ readonly at: Vec; readonly out: Vec } | null>(null)
 /** Where a pencil has been, until it is let go of and comes to be a curve. */
 const pencilStroke = shallowRef<readonly Vec[] | null>(null)
 /** How far on screen a pencil goes before that is somewhere else, and how far from the curve it can be. */
@@ -315,6 +335,7 @@ const cursor = ref('default')
 const problem = ref<string | null>(null)
 
 const HANDLE_RADIUS = 5
+const PEN_CONTROL_RADIUS = 3
 const HIT_WIDTH = 10
 const HOVER_WIDTH = 3
 const DASH = [3, 2]
@@ -328,7 +349,7 @@ const gripOfRow = (row: string) =>
 
 /** Handles are of one thing: several can only be moved. */
 const grip = computed(() => {
-	const [row, other] = props.selected
+	const [row, other] = taken.value
 	return row === undefined || other !== undefined ? null : gripOfRow(row)
 })
 
@@ -642,7 +663,7 @@ function draw(): void {
 	}
 
 	const isMarked = ({ row }: Shape): boolean =>
-		props.selected.includes(row) || row === hovered.value
+		taken.value.includes(row) || row === hovered.value
 	const drawPoint = (shape: Shape): void => {
 		const [px, py] = toScreen(shape.value as Vec, view.value)
 		context.beginPath()
@@ -741,8 +762,33 @@ function draw(): void {
 		context.strokeStyle = accent
 		context.beginPath()
 		context.moveTo(ax, ay)
-		context.lineTo(bx, by)
+		if (penPulled.value === null) {
+			context.lineTo(bx, by)
+		} else {
+			// As it would come out, going on from how it has been pulled.
+			const [cx, cy] = toScreen(penPulled.value.out, view.value)
+			context.bezierCurveTo(cx, cy, bx, by, bx, by)
+		}
 		context.stroke()
+	}
+
+	if (penPulled.value !== null) {
+		const { at, out } = penPulled.value
+		const [ox, oy] = toScreen(out, view.value)
+		const [ix, iy] = toScreen([at[0] * 2 - out[0], at[1] * 2 - out[1]], view.value)
+		context.lineWidth = 1
+		context.strokeStyle = accent
+		context.fillStyle = paper
+		context.beginPath()
+		context.moveTo(ix, iy)
+		context.lineTo(ox, oy)
+		context.stroke()
+		for (const [x, y] of [[ix, iy], [ox, oy]] as const) {
+			context.beginPath()
+			context.arc(x, y, PEN_CONTROL_RADIUS, 0, Math.PI * 2)
+			context.fill()
+			context.stroke()
+		}
 	}
 
 	if (range.value !== null) {
@@ -782,6 +828,7 @@ watchEffect(() => {
 		hoverBend.value,
 		draggedHandle.value,
 		evenLine.value,
+		penPulled.value,
 		pencilStroke.value,
 		scene.value,
 		background.value,
@@ -789,7 +836,7 @@ watchEffect(() => {
 		grip.value,
 		view.value,
 		size.value,
-		props.selected,
+		taken.value,
 		hovered.value,
 		hoveredHandle.value,
 		range.value,
@@ -1017,7 +1064,7 @@ function onPointerDown(event: PointerEvent): void {
 		draggedHandle.value = index
 		pressed = {
 			kind: 'handle',
-			row: props.selected[0]!,
+			row: taken.value[0]!,
 			handle,
 			mat,
 			from,
@@ -1029,7 +1076,7 @@ function onPointerDown(event: PointerEvent): void {
 				grip.value.transform.join() === '1,0,0,1,0,0' && handle.at !== undefined
 					? snapPoints(
 							props.document.root.value,
-							changedBy(props.selected[0]!, handle.to(add(at, TRIAL), from))
+							changedBy(taken.value[0]!, handle.to(add(at, TRIAL), from))
 						)
 					: [],
 		}
@@ -1038,13 +1085,13 @@ function onPointerDown(event: PointerEvent): void {
 
 	const shape = shapeAt(x, y)
 	if (shape !== null) {
-		const already = props.selected.includes(shape.row)
+		const already = taken.value.includes(shape.row)
 		const rows = event.shiftKey
 			? already
-				? props.selected.filter(row => row !== shape.row)
-				: [...props.selected, shape.row]
+				? taken.value.filter(row => row !== shape.row)
+				: [...taken.value, shape.row]
 			: already
-				? props.selected
+				? taken.value
 				: [shape.row]
 		if (rows !== props.selected) emit('select', rows)
 		// A press both selects and takes hold of what it selected.
@@ -1068,8 +1115,8 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
-	const base = event.shiftKey ? props.selected : []
-	if (!event.shiftKey && props.selected.length > 0) emit('select', [])
+	const base = event.shiftKey ? taken.value : []
+	if (!event.shiftKey && taken.value.length > 0) emit('select', [])
 	pressed = { kind: 'range', base, last: base }
 	range.value = { from: [x, y], to: [x, y] }
 }
@@ -1077,6 +1124,8 @@ function onPointerDown(event: PointerEvent): void {
 /** What it comes to, as far as it has got, and it is what is selected, whatever that is. */
 function writePen(closed: boolean): void {
 	if (pen === null) return
+	const last = pen.anchors.at(-1)
+	penPulled.value = !closed && last?.out !== undefined ? { at: last.at, out: last.out } : null
 	const { ast, name } = penned(pen.base, props.document.env.value, pen.anchors, closed)
 	props.document.setRoot(ast)
 	if (name !== pen.name) emit('select', [`binding:${name}`])
@@ -1092,7 +1141,7 @@ const closesPen = (x: number, y: number): boolean => {
 
 /** What a pen would do here to what is selected, rather than drawing something new. */
 function modulationHere(x: number, y: number): Modulation | null {
-	const [row, other] = props.selected
+	const [row, other] = taken.value
 	if (pen !== null || extending !== null || row === undefined || other !== undefined) return null
 	const { root, env } = props.document
 	return modulationAt(root.value, env.value, row, fromScreen(x, y), SNAP_REACH / view.value[0])
@@ -1110,7 +1159,7 @@ let extending: { row: string; end: 'start' | 'end' } | null = null
 function setModulated(next: { ast: AST; row: string } | null): void {
 	if (next === null || next.ast.kind !== 'let') return
 	props.document.setRoot(next.ast)
-	if (props.selected[0] !== next.row) emit('select', [next.row])
+	if (taken.value[0] !== next.row) emit('select', [next.row])
 }
 
 function penDown(x: number, y: number, valueOnly: boolean): void {
@@ -1146,7 +1195,7 @@ function penDown(x: number, y: number, valueOnly: boolean): void {
 	}
 	const modulation = modulationHere(x, y)
 	if (modulation !== null) {
-		const row = props.selected[0]!
+		const row = taken.value[0]!
 		if (modulation.kind === 'continue') extending = { row, end: modulation.end }
 		else if (modulation.kind === 'remove') {
 			setModulated(withPointRemoved(root.value, env.value, row, modulation.index))
@@ -1160,6 +1209,7 @@ function penDown(x: number, y: number, valueOnly: boolean): void {
 	}
 	if (closesPen(x, y)) {
 		writePen(true)
+		penPulled.value = null
 		pen = null
 		penLine.value = null
 		return
@@ -1201,6 +1251,7 @@ function finishPencil(end: SnapPoint | null): void {
 
 /** That is the path, as far as it went. With only one place, it is no path at all. */
 function finishPen(): void {
+	penPulled.value = null
 	extending = null
 	if (pen !== null && pen.anchors.length < 2) {
 		props.document.setRoot(pen.base)
@@ -1452,6 +1503,7 @@ function onPointerMove(event: PointerEvent): void {
 
 useEventListener(window, 'pointerup', event => {
 	const wasHandle = pressed?.kind === 'handle'
+	const clicked = pressed?.kind === 'handle' && pressed.at === null ? pressed : null
 	// A click on one of several, not having moved them, is about that one.
 	if (pressed?.kind === 'move' && pressed.collapse && !pressed.moving) {
 		emit('select', [pressed.row])
@@ -1469,11 +1521,19 @@ useEventListener(window, 'pointerup', event => {
 	evenLine.value = null
 	snapMark.value = null
 	readout.value = null
+	if (clicked !== null) {
+		const { root, env } = props.document
+		const part = rowOfHandle(root.value, env.value, clicked.row, clicked.handle)
+		if (part !== null) {
+			keptRow.value = clicked.row
+			emit('select', [part])
+		}
+	}
 	if (wasHandle) {
 		draggedHandle.value = null
 		// What is being drawn goes on from what was done to it.
 		if (pen !== null) {
-			const drawn = scene.value.find(({ row }) => row === props.selected[0])
+			const drawn = scene.value.find(({ row }) => row === taken.value[0])
 			if (drawn !== undefined) pen.anchors = anchorsAlong(pen.anchors, drawn.value as Path)
 		}
 		// The pointer is back, and is over whatever it has got to.

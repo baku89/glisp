@@ -3,7 +3,7 @@ import { numberOptionsAt, textOf, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, onlyShapes, type Vec, withGraphics } from './graphics'
-import { anchorsAlong, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, drawnFrom, evenlyFrom, facesWhenDrawn, gripAt, nameFor, placesTakenBy, type ShapeTool, snapPointsOf, sceneOf } from './scene'
+import { anchorsAlong, changed, dimensionAt, dOfAnchors, dimensionsMoved, dimensionsOf, drawn, drawnFrom, evenlyFrom, facesWhenDrawn, gripAt, nameFor, placesTakenBy, rowOfHandle, type ShapeTool, snapPointsOf, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const ROW = 'binding:c'
@@ -642,5 +642,51 @@ describe('a handle, with the other side going the other way', () => {
 		expect(pull('(path.ellipseFromFoci [0 0] [100 0] [50 30])', 1, [120, 0], { symmetric: true })).toBe(
 			'(path.ellipseFromFoci [-20 0] [120 0] [50 30])'
 		)
+	})
+})
+
+describe('the part of a row that a handle is', () => {
+	const of = (src: string, index: number) => {
+		const root = parse(`{c = ${src}}`)
+		return rowOfHandle(root, env, ROW, gripAt(root, env, ROW)!.handles[index]!)
+	}
+
+	it('is the place it is of', () => {
+		expect(of('(path.ngon [0 0] 20 5)', 2)).toBe('binding:c/arg0')
+		expect(of('(path.cubic [0 0] [1 1] [2 2] [3 3])', 0)).toBe('binding:c/arg1')
+		expect(of('(path.line [0 0] [9 9])', 1)).toBe('binding:c/arg1')
+		expect(of('(path.rect [0 0] [10 10])', 4)).toBe('binding:c/arg0')
+	})
+
+	it('is the one number it is about', () => {
+		expect(of('(path.rect [0 0] [10 20])', 2)).toBe('binding:c/arg1/0')
+		expect(of('(path.rect [0 0] [10 20])', 3)).toBe('binding:c/arg1/1')
+	})
+
+	it('is the one thing dragging it changes', () => {
+		expect(of('(path.circle [0 0] 20)', 0)).toBe('binding:c/arg1')
+		expect(of('(path.ngon [0 0] 20 5)', 1)).toBe('binding:c/arg2')
+		expect(of('(path.star [0 0] 20 10 5)', 1)).toBe('binding:c/arg2')
+		expect(of('(path.ellipse [0 0] [20 10])', 0)).toBe('binding:c/arg1/0')
+		expect(of('(path.ellipse [0 0] [20 10])', 1)).toBe('binding:c/arg1/1')
+		expect(of('(path.clothoid [0 0] 30 100 0 0)', 1)).toBe('binding:c/arg1')
+		expect(of('(path.capsule [0 0] [50 0] 10)', 2)).toBe('binding:c/arg2')
+	})
+
+	it('is nothing, if it changes more than one', () => {
+		expect(of('(path.ngon [0 0] 20 5)', 0)).toBeNull()
+		expect(of('(path.rect [0 0] [10 20])', 5)).toBeNull()
+		expect(of('(path.spiral [0 0] 0 20 3)', 1)).toBeNull()
+	})
+
+	it('is nothing, if it is not written', () => {
+		const direction = gripAt(parse('{c = (path.ellipse [0 0] [20 10])}'), env, ROW)!.handles.findIndex(h => h.kind === 'direction')
+		expect(of('(path.ellipse [0 0] [20 10])', direction)).toBeNull()
+		expect(of('(path.ellipse [0 0] [20 10] 30)', direction)).toBe('binding:c/arg2')
+	})
+
+	it('goes inside what is around it', () => {
+		expect(of('(style (path.circle [0 0] 20) fill="red")', 0)).toBe('binding:c/arg0/arg1')
+		expect(of('(style (path.circle [0 0] 20) fill="red")', 1)).toBe('binding:c/arg0/arg0')
 	})
 })
