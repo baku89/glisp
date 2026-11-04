@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { parse, print } from '@glisp/lang'
-import { AstEditor, AstProgramCode, inspectionOf, Repl, useGlispDocument } from '@glisp/tweeq'
+import {
+	AstEditor,
+	AstMultiInspector,
+	AstProgramCode,
+	inspectionOf,
+	inspectRows,
+	Repl,
+	useGlispDocument,
+} from '@glisp/tweeq'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
@@ -129,6 +137,13 @@ const inspection = computed(() =>
 		: inspectionOf(document.root.value, document.env.value, inspected.value)
 )
 
+/** The function that several rows are all calls of, if they are. */
+const sharedFn = computed(() =>
+	selected.value.length > 1
+		? (inspectRows(document.root.value, document.env.value, selected.value)?.fn ?? null)
+		: null
+)
+
 // A row that is one of several stays one of several, as the tree only has the one.
 function selectInTree(row: string | null): void {
 	if (row === null) selected.value = []
@@ -199,6 +214,7 @@ function selectInTree(row: string | null): void {
 					v-model:open="inspectorOpen"
 					name="glisp.canvas.inspector"
 					fit
+					data-selects-rows
 					side="right"
 					label="Inspector"
 					icon="ph:sliders-horizontal"
@@ -219,12 +235,15 @@ function selectInTree(row: string | null): void {
 								<span class="name">{{ inspection.name }}</span>
 								<span v-if="inspection.fn" class="fn">{{ inspection.fn }}</span>
 							</template>
-							<span v-else-if="selected.length > 1" class="name">
-								{{ selected.length }} selected
-							</span>
+							<template v-else-if="selected.length > 1">
+								<span class="name">{{ selected.length }} selected</span>
+								<span v-if="sharedFn" class="fn">{{ sharedFn }}</span>
+							</template>
 						</span>
 					</template>
+					<AstMultiInspector v-if="selected.length > 1" :document="document" :rows="selected" />
 					<AstEditor
+						v-else
 						:document="document"
 						:inspect="inspected"
 						:iconOfValue="iconOfPath"
@@ -244,7 +263,7 @@ function selectInTree(row: string | null): void {
 							<span class="name">REPL</span>
 						</span>
 					</template>
-					<div class="tab-content" data-selects-rows>
+					<div class="tab-content repl" data-selects-rows>
 						<Repl
 							:session="document.session"
 							historyKey="glisp.canvas.history"
@@ -339,6 +358,10 @@ function selectInTree(row: string | null): void {
 }
 .tab-content {
 	height: 100%;
+}
+.tab-content.repl {
+	box-sizing: border-box;
+	padding-right: calc(var(--tq-pane-padding) - 2px);
 }
 .problem-dot {
 	width: 6px;

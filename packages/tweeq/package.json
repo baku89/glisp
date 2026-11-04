@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./multiRows": "./src/multiRows.ts",
     "./structure": "./src/structure.ts"
   },
   "dependencies": {

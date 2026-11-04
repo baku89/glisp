@@ -321,5 +321,22 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	flex: 1;
 	min-height: 0;
 	padding: var(--tq-pane-padding);
+	/* The bar has the padding on this side for itself, whether it is there or not, and
+	stays off the edge. */
+	padding-right: 2px;
+}
+.content :deep(.TqScrollArea) {
+	scrollbar-gutter: stable;
+}
+.content :deep(.TqScrollArea)::-webkit-scrollbar {
+	width: calc(var(--tq-pane-padding) - 2px);
+}
+.content :deep(.TqScrollArea)::-webkit-scrollbar-thumb {
+	border: 2px solid transparent;
+	border-radius: 9999px;
+	background: var(--tq-color-border) padding-box;
+}
+.content > :not(:has(.TqScrollArea), .TqScrollArea) {
+	margin-right: calc(var(--tq-pane-padding) - 2px);
 }
 </style>

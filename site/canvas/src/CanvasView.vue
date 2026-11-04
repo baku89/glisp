@@ -11,15 +11,23 @@ import { computed, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'v
 import { type Change, type Grip, type Handle, type Mat, type Path, type Vec } from './graphics'
 import {
 	changed,
+	dragStep,
 	drawn,
+	drawnFrom,
 	gripAt,
+	linked,
 	nameFor,
+	nearestSnap,
 	penned,
+	roundedChanges,
+	roundedTo,
 	rowsWithin,
 	type Anchor,
 	sceneOf,
 	type Shape,
 	type ShapeTool,
+	type SnapPoint,
+	snapPointsOf,
 } from './scene'
 
 const props = defineProps<{
@@ -41,11 +49,37 @@ const hovered = ref<string | null>(null)
 const hoveredHandle = ref<number | null>(null)
 /** The corners, on screen, of a range being drawn. */
 const range = shallowRef<{ from: Vec; to: Vec } | null>(null)
+/** How much finer than a pixel what a handle changes is, where that is small. */
+const FINE_BY = 100
+
+/** As finely as a pointer can say anything, as things are on screen now. */
+const pointerStep = (): number => dragStep(view.value[0], window.devicePixelRatio)
+
+const roundedPlace = (x: number, y: number): Vec => {
+	const [wx, wy] = fromScreen(x, y)
+	const step = pointerStep()
+	return [roundedTo(wx, step), roundedTo(wy, step)]
+}
+
+/** How near, on screen, a place has to be to be snapped to. */
+const SNAP_REACH = 8
+
+/** Everywhere there is to snap to, on what `root` draws. */
+function snapPoints(root: AST = props.document.root.value, except?: string): SnapPoint[] {
+	const { env } = props.document
+	return snapPointsOf(root, env.value, sceneOf(root, env.value), except)
+}
+
+const snapAt = (points: readonly SnapPoint[], x: number, y: number): SnapPoint | null =>
+	nearestSnap(points, fromScreen(x, y), SNAP_REACH / view.value[0])
+
 /** A path being drawn with the pen, which goes on until it is finished. */
 let pen: { base: LetAST; name: string; anchors: readonly Anchor[] } | null = null
 /** From the last place to the pointer, on screen. */
 const penLine = shallowRef<[Vec, Vec] | null>(null)
 
+/** Where the pointer has snapped to, on screen. */
+const snapMark = shallowRef<Vec | null>(null)
 const cursor = ref('default')
 /** Why what was asked for could not be, until the next press. */
 const problem = ref<string | null>(null)
@@ -184,6 +218,15 @@ function draw(): void {
 		drawHandle(context, handle, i === hoveredHandle.value, accent, paper)
 	}
 
+	if (snapMark.value !== null) {
+		const [sx, sy] = snapMark.value
+		context.lineWidth = 2
+		context.strokeStyle = accent
+		context.beginPath()
+		context.arc(sx, sy, HANDLE_RADIUS + 2, 0, Math.PI * 2)
+		context.stroke()
+	}
+
 	if (penLine.value !== null) {
 		const [[ax, ay], [bx, by]] = penLine.value
 		context.lineWidth = 1
@@ -219,6 +262,7 @@ watchEffect(() => {
 		hoveredHandle.value,
 		range.value,
 		penLine.value,
+		snapMark.value,
 	]
 	draw()
 })
@@ -312,6 +356,10 @@ let pressed:
 			offset: Vec
 			/** Where the pointer has got to, on screen. */
 			at: Vec | null
+			/** The program as it was, for it not to go on from a reference it let go of. */
+			base: AST
+			/** What it can snap to, none of which is in itself. */
+			points: readonly SnapPoint[]
 	  }
 	| { kind: 'pan'; from: [number, number] }
 	| { kind: 'pen'; from: Vec }
@@ -322,6 +370,10 @@ let pressed:
 			name: string
 			at: Vec
 			to: Vec
+			/** What it can snap to, as it was before it was drawn. */
+			points: readonly SnapPoint[]
+			/** What it starts from, if it snapped to something. */
+			snap: SnapPoint | null
 			drawing: boolean
 	  }
 	| { kind: 'range'; base: readonly string[]; last: readonly string[] }
@@ -341,10 +393,12 @@ const typing = (event: Event): boolean =>
 
 // What is held down says at once, without having to move, how a shape goes.
 useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {
-	if (event.key === 'Shift' && pressed?.kind === 'draw' && pressed.drawing) {
-		drawPressed(event.shiftKey)
+	const valueOnly = event.metaKey || event.ctrlKey
+	const isModifier = ['Shift', 'Alt', 'Meta', 'Control'].includes(event.key)
+	if (isModifier && pressed?.kind === 'draw' && pressed.drawing) {
+		drawPressed(event.shiftKey, valueOnly)
 	}
-	if (event.key === 'Alt' && pressed?.kind === 'handle') dragHandle(event.altKey)
+	if (isModifier && pressed?.kind === 'handle') dragHandle(event.altKey, valueOnly)
 })
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
@@ -386,6 +440,8 @@ function onPointerDown(event: PointerEvent): void {
 			name: '',
 			at: [x, y],
 			to: [x, y],
+			points: snapPoints(),
+			snap: snapAt(snapPoints(), x, y),
 			drawing: false,
 		}
 		return
@@ -406,6 +462,11 @@ function onPointerDown(event: PointerEvent): void {
 			// It stays where it was taken, wherever on it that was.
 			offset: [at[0] - from[0], at[1] - from[1]],
 			at: null,
+			base: props.document.root.value,
+			points:
+				grip.value.transform.join() === '1,0,0,1,0,0' && handle.at !== undefined
+					? snapPoints(props.document.root.value, props.selected[0]!)
+					: [],
 		}
 		return
 	}
@@ -466,7 +527,7 @@ function penDown(x: number, y: number): void {
 		pen = { base, name: nameFor(base, 'pen', false), anchors: [] }
 	}
 	const isFirst = pen.anchors.length === 0
-	pen.anchors = [...pen.anchors, { at: fromScreen(x, y) }]
+	pen.anchors = [...pen.anchors, { at: snapAt(snapPoints(pen.base), x, y)?.at ?? roundedPlace(x, y) }]
 	writePen(false)
 	if (isFirst) emit('select', [`binding:${pen.name}`])
 	pressed = { kind: 'pen', from: [x, y] }
@@ -498,29 +559,42 @@ useEventListener(
 )
 
 /** The handle being dragged, to where the pointer has got. */
-function dragHandle(symmetric: boolean): void {
+function dragHandle(symmetric: boolean, valueOnly: boolean): void {
 	if (pressed?.kind !== 'handle' || pressed.at === null) return
-	const { row, handle, mat, from, offset, at } = pressed
+	const { row, handle, mat, from, offset, at, base, points } = pressed
 	const [px, py] = fromScreen(at[0], at[1], mat)
-	commit(apply(row, handle.to([px + offset[0], py + offset[1]], from, { symmetric })))
+	const wanted: Vec = [px + offset[0], py + offset[1]]
+	const snap = nearestSnap(points, wanted, SNAP_REACH / view.value[0])
+	snapMark.value = snap ? toScreen(snap.at, view.value) : null
+
+	const changes = handle.to(snap?.at ?? wanted, from, { symmetric })
+	const finest = handle.fine ? pointerStep() / FINE_BY : pointerStep()
+	const next = apply(row, roundedChanges(changes, finest), base)
+	const { place } = handle
+	if (next.ast !== null && snap !== null && !valueOnly && !symmetric && typeof place === 'number') {
+		const referring = linked(next.ast, props.document.env.value, row, place, snap)
+		if (referring !== null) next.ast = referring
+	}
+	commit(next)
 }
 
 /** The shape being drawn, as far as the pointer has got, and as even as asked. */
-function drawPressed(even: boolean): void {
+function drawPressed(even: boolean, valueOnly: boolean): void {
 	if (pressed?.kind !== 'draw') return
 	const [fromX, fromY] = pressed.at
 	const [x, y] = pressed.to
 	// It is named for what it is, which can change as it is drawn.
 	const name = nameFor(pressed.base, pressed.tool, even)
+	const end = snapAt(pressed.points, x, y)
+	snapMark.value = end ? toScreen(end.at, view.value) : null
+	const to = end?.at ?? fromScreen(x, y)
+	const { base, tool, snap } = pressed
+	const { env } = props.document
 	props.document.setRoot(
-		drawn(
-			pressed.base,
-			name,
-			pressed.tool,
-			fromScreen(fromX, fromY),
-			fromScreen(x, y),
-			even
-		)
+		// Command has it only be the same value, for now, rather than refer to that.
+		snap === null || valueOnly
+			? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep())
+			: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep())
 	)
 	if (name !== pressed.name) emit('select', [`binding:${name}`])
 	pressed.name = name
@@ -535,6 +609,8 @@ function onPointerMove(event: PointerEvent): void {
 			hoveredHandle.value = null
 			const closes = props.drawing === 'pen' && closesPen(x, y)
 			cursor.value = closes ? 'pointer' : 'crosshair'
+			const near = closes ? null : snapAt(snapPoints(), x, y)
+			snapMark.value = near ? toScreen(near.at, view.value) : null
 			const last = pen?.anchors.at(-1)
 			penLine.value = last ? [toScreen(last.at, view.value), [x, y]] : null
 			return
@@ -556,7 +632,7 @@ function onPointerMove(event: PointerEvent): void {
 		case 'pen': {
 			const [fromX, fromY] = pressed.from
 			if (pen === null || Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) break
-			pen.anchors = [...pen.anchors.slice(0, -1), { at: pen.anchors.at(-1)!.at, out: fromScreen(x, y) }]
+			pen.anchors = [...pen.anchors.slice(0, -1), { at: pen.anchors.at(-1)!.at, out: roundedPlace(x, y) }]
 			writePen(false)
 			break
 		}
@@ -564,12 +640,12 @@ function onPointerMove(event: PointerEvent): void {
 			const [fromX, fromY] = pressed.at
 			if (!pressed.drawing && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
 			pressed.to = [x, y]
-			drawPressed(event.shiftKey)
+			drawPressed(event.shiftKey, event.metaKey || event.ctrlKey)
 			break
 		}
 		case 'handle': {
 			pressed.at = [x, y]
-			dragHandle(event.altKey)
+			dragHandle(event.altKey, event.metaKey || event.ctrlKey)
 			break
 		}
 		case 'move': {
@@ -586,7 +662,7 @@ function onPointerMove(event: PointerEvent): void {
 				const mat = gripView(held.transform)
 				const [ax, ay] = fromScreen(fromX, fromY, mat)
 				const [bx, by] = fromScreen(x, y, mat)
-				next = apply(row, held.move([bx - ax, by - ay]), next.ast)
+				next = apply(row, roundedChanges(held.move([bx - ax, by - ay]), pointerStep()), next.ast)
 			}
 			commit(next)
 			break
@@ -625,6 +701,7 @@ useEventListener(window, 'pointerup', () => {
 	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : 'default'
 	pressed = null
 	range.value = null
+	snapMark.value = null
 })
 </script>
 
@@ -635,7 +712,7 @@ useEventListener(window, 'pointerup', () => {
 			:style="{ cursor }"
 			@pointerdown="onPointerDown"
 			@pointermove="onPointerMove"
-			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null)"
+			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null)"
 			@auxclick.prevent
 		/>
 		<p v-if="problem !== null" class="problem">Cannot do that: {{ problem }}</p>

@@ -255,6 +255,7 @@ function onKind(): void {
 
 const pinned = computed(() => isPinned(ast.value))
 const hidden = computed(() => isHidden(ast.value))
+const canHide = computed(() => actionsOf(props.entry).some(action => action.id === 'hide'))
 function toggle(id: 'pin' | 'hide'): void {
 	const action = actionsOf(props.entry).find(a => a.id === id)
 	if (action !== undefined && 'apply' in action) emit('change', action.apply())
@@ -450,15 +451,16 @@ watch(
 				<Icon icon="mdi:pin" />
 			</button>
 			<button
-				v-if="hidden"
-				v-tooltip="'Show'"
+				v-if="hidden || canHide"
+				v-tooltip="hidden ? 'Show' : 'Hide'"
 				class="end pin"
+				:class="{ reveals: !hidden }"
 				type="button"
-				aria-label="Show"
+				:aria-label="hidden ? 'Show' : 'Hide'"
 				@click.stop="toggle('hide')"
 				@dblclick.stop
 			>
-				<Icon icon="mdi:eye-off-outline" />
+				<Icon :icon="hidden ? 'mdi:eye-off-outline' : 'mdi:eye-outline'" />
 			</button>
 			<button
 				v-if="kindIcon !== null"
@@ -499,6 +501,15 @@ watch(
 </template>
 
 <style scoped>
+/* There when reached for, or when it is what the row being selected would do. */
+.end.reveals {
+	opacity: 0;
+}
+.row:hover .end.reveals,
+.TqParameterTreeItem.selected .end.reveals,
+.end.reveals:focus-visible {
+	opacity: 1;
+}
 .value-row {
 	display: flex;
 	gap: var(--tq-gap-related);

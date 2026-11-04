@@ -16,7 +16,7 @@ interface Reached {
 	readonly parent: AST
 }
 
-function reach(root: AST, env: Env, path: string): Reached | null {
+export function reach(root: AST, env: Env, path: string): Reached | null {
 	const chain: Slot[] = []
 	let node = root
 	let nodeEnv = env
@@ -34,7 +34,7 @@ function reach(root: AST, env: Env, path: string): Reached | null {
 }
 
 /** The program, with what holds the end of `chain` now `next`. */
-function withParent(chain: readonly Slot[], next: AST): AST {
+export function withParent(chain: readonly Slot[], next: AST): AST {
 	let node = next
 	for (let i = chain.length - 2; i >= 0; i--) node = chain[i]!.replace(node)
 	return node

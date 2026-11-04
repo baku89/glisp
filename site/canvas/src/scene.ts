@@ -20,7 +20,7 @@ import {
 	type TypeValue,
 	unwrapLazy,
 } from '@glisp/lang'
-import { type Slot, textOf, viewOf } from '@glisp/tweeq/structure'
+import { referenceAt, type Slot, textOf, viewOf } from '@glisp/tweeq/structure'
 
 import { mat2d } from 'linearly'
 import { bounds } from 'pave/path/metrics'
@@ -63,8 +63,155 @@ export type ShapeTool = 'rect' | 'ellipse' | 'ngon'
 /** How many sides a polygon starts with. */
 const NGON_SIDES = 5
 
-const rounded = (n: number): number => Math.round(n * 100) / 100
-const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
+/**
+ * As finely as a pointer can say anything, at this zoom and on this screen: a power of
+ * ten, so that it reads well, no coarser than one pixel of it.
+ */
+export function dragStep(zoom: number, pixelRatio: number): number {
+	return 10 ** Math.floor(Math.log10(1 / (zoom * pixelRatio)))
+}
+
+const FINEST = 0.01
+
+export function roundedTo(n: number, step: number): number {
+	if (step >= 1) return Math.round(n / step) * step
+	return Number(n.toFixed(Math.round(-Math.log10(step))))
+}
+
+/** `value`, with every number in it no finer than `step`, in the data of a path as well. */
+function roundedValue(value: unknown, step: number): unknown {
+	if (typeof value === 'number') return roundedTo(value, step)
+	if (Array.isArray(value)) return value.map(element => roundedValue(element, step))
+	if (typeof value === 'string') {
+		return value.replace(/-?\d+\.\d+(?:e-?\d+)?/g, n => String(roundedTo(Number(n), step)))
+	}
+	return value
+}
+
+/** What is to change, no finer than `step`. */
+export const roundedChanges = (changes: readonly Change[], step: number): Change[] =>
+	changes.map(({ route, value }) => ({ route, value: roundedValue(value, step) }))
+
+/** A place on a canvas to snap to, and the row that says where it is, if one does. */
+export interface SnapPoint {
+	readonly at: Vec
+	readonly target: string | null
+	/** It is a line, from `at` to here, that snaps anywhere along it. */
+	readonly to?: Vec
+}
+
+/** Everywhere on what is drawn that something can snap to. */
+export function snapPointsOf(
+	root: AST,
+	env: Env,
+	shapes: readonly Shape[],
+	except?: string
+): SnapPoint[] {
+	return [...new Set(shapes.map(({ row }) => row))].flatMap(row => {
+		if (row === except) return []
+		const grip = gripAt(root, env, row)
+		// In the coordinates of what is drawn, as a row inside a matrix is not.
+		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []
+		const handles = grip.handles.flatMap(({ at, place }) =>
+			at === undefined
+				? []
+				: [
+						{
+							at,
+							target:
+								place === 'self' ? row : place === undefined ? null : `${row}/arg${place}`,
+						},
+					]
+		)
+		return [
+			...handles,
+			...(grip.snaps?.points ?? []).map(at => ({ at, target: null })),
+			...(grip.snaps?.lines ?? []).map(([at, to]) => ({ at, to, target: null })),
+		]
+	})
+}
+
+/** The nearest place to `at` along a line, from `from` to `to`. */
+function along(from: Vec, to: Vec, at: Vec): Vec {
+	const [dx, dy] = [to[0] - from[0], to[1] - from[1]]
+	const length = dx * dx + dy * dy
+	const t =
+		length === 0
+			? 0
+			: Math.min(1, Math.max(0, ((at[0] - from[0]) * dx + (at[1] - from[1]) * dy) / length))
+	return [from[0] + dx * t, from[1] + dy * t]
+}
+
+/** The nearest of `points` to `at`, within `tolerance`, one with a row before one without. */
+export function nearestSnap(
+	points: readonly SnapPoint[],
+	at: Vec,
+	tolerance: number
+): SnapPoint | null {
+	let best: SnapPoint | null = null
+	let bestDistance = tolerance
+	for (const point of points) {
+		if (point.to !== undefined) continue
+		const distance = Math.hypot(point.at[0] - at[0], point.at[1] - at[1])
+		if (distance < bestDistance || (distance === bestDistance && best?.target === null)) {
+			best = point
+			bestDistance = distance
+		}
+	}
+	if (best !== null) return best
+	// Only with no place in reach, as a place is more of a place than a line is.
+	for (const { at: from, to } of points) {
+		if (to === undefined) continue
+		const on = along(from, to, at)
+		const distance = Math.hypot(on[0] - at[0], on[1] - at[1])
+		if (distance < bestDistance) {
+			best = { at: on, target: null, to }
+			bestDistance = distance
+		}
+	}
+	return best
+}
+
+/**
+ * `drawn`, with where it starts referring to what it snapped to. Only what starts where
+ * it was pressed can: a rect from its top left, and a polygon from its center.
+ */
+export function drawnFrom(
+	root: LetAST,
+	env: Env,
+	name: string,
+	tool: ShapeTool,
+	snap: SnapPoint,
+	to: Vec,
+	even: boolean,
+	step = FINEST
+): LetAST {
+	const next = drawn(root, name, tool, snap.at, to, even, step)
+	const startsThere =
+		tool === 'ngon' || (tool === 'rect' && to[0] >= snap.at[0] && to[1] >= snap.at[1])
+	if (!startsThere || snap.target === null) return next
+	const referred = referenceAt(next, env, `binding:${name}/arg0`, snap.target)
+	return referred?.kind === 'let' ? referred : next
+}
+
+/**
+ * `root`, with the argument at `place` of the row at `row` referring to what `snap` is
+ * the place of. Null if it cannot, or if that would not come to where it is: something
+ * that itself refers to this row, for one.
+ */
+export function linked(
+	root: AST,
+	env: Env,
+	row: string,
+	place: number,
+	snap: SnapPoint
+): AST | null {
+	if (snap.target === null) return null
+	const next = referenceAt(root, env, `${row}/arg${place}`, snap.target)
+	if (next === null) return null
+	const reached = gripAt(next, env, row)?.handles.find(handle => handle.place === place)?.at
+	return reached?.[0] === snap.at[0] && reached[1] === snap.at[1] ? next : null
+}
 
 /** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */
 export function nameFor(root: LetAST, tool: ShapeTool | 'pen', even: boolean): string {
@@ -85,8 +232,11 @@ export function drawn(
 	tool: ShapeTool,
 	from: Vec,
 	to: Vec,
-	even: boolean
+	even: boolean,
+	step = FINEST
 ): LetAST {
+	const rounded = (n: number) => roundedTo(n, step)
+	const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
 	const [dx, dy] = [to[0] - from[0], to[1] - from[1]]
 	const side = Math.max(Math.abs(dx), Math.abs(dy))
 	const end: Vec = even
@@ -116,7 +266,7 @@ export interface Anchor {
 const inOf = ({ at, out }: Anchor): Vec | undefined =>
 	out && [at[0] * 2 - out[0], at[1] * 2 - out[1]]
 
-const place = ([x, y]: Vec): string => `${rounded(x)},${rounded(y)}`
+const place = ([x, y]: Vec): string => `${roundedTo(x, FINEST)},${roundedTo(y, FINEST)}`
 
 /** An SVG path's data, through `anchors` in turn. */
 export function dOfAnchors(anchors: readonly Anchor[], closed: boolean): string {

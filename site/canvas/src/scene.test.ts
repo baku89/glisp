@@ -8,11 +8,34 @@ import {
 	print,
 	toAst,
 } from '@glisp/lang'
+import {
+	extractedField,
+	inspectRows,
+	isMixed,
+	merged,
+	withFieldValues,
+} from '@glisp/tweeq/multiRows'
 import { inspectionOf, isTranslatable, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
-import { changed, dOfAnchors, drawn, gripAt, nameFor, penned, rowsWithin, sceneOf } from './scene'
+import {
+	changed,
+	dOfAnchors,
+	dragStep,
+	drawn,
+	drawnFrom,
+	gripAt,
+	linked,
+	nameFor,
+	nearestSnap,
+	penned,
+	roundedChanges,
+	roundedTo,
+	rowsWithin,
+	sceneOf,
+	snapPointsOf,
+} from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const scene = (src: string) =>
@@ -242,6 +265,206 @@ describe('what heads an inspector', () => {
 
 	it('is nothing for a row no longer there', () => {
 		expect(inspectionOf(root, env, 'binding:gone')).toBeNull()
+	})
+})
+
+describe('several rows at once', () => {
+	const rows = ['binding:a', 'binding:b']
+	const root = parse('{a = (path.rect [0 0] [10 20]) b = (path.rect [5 5] [30 20])}')
+	const inspected = inspectRows(root, env, rows)!
+	const field = (arg: number, element: number) => inspected.args[arg]!.fields[element]!
+
+	it('have what they say to each argument', () => {
+		expect(inspected.fn).toBe('path.rect')
+		expect(inspected.args.map(a => a.label)).toEqual(['topLeft', 'size'])
+		expect(field(1, 0).values).toEqual([10, 30])
+		expect(field(1, 0).label).toBe('Width')
+		expect(field(1, 0).options).toEqual({ leftIcon: 'ph:arrows-horizontal' })
+		expect(isMixed(field(1, 0).values)).toBe(true)
+		expect(isMixed(field(1, 1).values)).toBe(false)
+	})
+
+	it('are nothing in common unless they are calls of the same', () => {
+		expect(inspectRows(parse('{a = (path.rect [0 0] [1 1]) b = (path.circle [0 0] 1)}'), env, rows)).toBeNull()
+		expect(inspectRows(parse('{a = 1 b = 2}'), env, rows)).toBeNull()
+	})
+
+	it('have numbers as well as vectors', () => {
+		const circles = inspectRows(parse('{a = (path.circle [0 0] 1) b = (path.circle [0 0] 2)}'), env, rows)!
+		expect(circles.args[1]!.fields[0]!.values).toEqual([1, 2])
+	})
+
+	it('come to one value, however that is asked for', () => {
+		expect(merged([10, 30, 20], 'first')).toBe(10)
+		expect(merged([10, 30, 20], 'last')).toBe(20)
+		expect(merged([10, 30, 20], 'ave')).toBe(20)
+		expect(merged([10, 30, 20], 'min')).toBe(10)
+		expect(merged([10, 30, 20], 'max')).toBe(30)
+		expect(merged([1, 2], 'ave')).toBe(1.5)
+		expect(merged([0, 0, 1], 'ave')).toBe(0.333)
+	})
+
+	it('go back to what each of them is written as', () => {
+		const { ast } = withFieldValues(root, env, rows, field(1, 0), [7, 8])
+		expect(print(ast!)).toBe('{a = (path.rect [0 0] [7 20]) b = (path.rect [5 5] [8 20])}')
+	})
+
+	it('say why they cannot, at a pin', () => {
+		const pinned = parse('{w = @10 a = (path.rect [0 0] [w 20]) b = (path.rect [5 5] [30 20])}')
+		const { ast, problem } = withFieldValues(pinned, env, rows, field(1, 0), [7, 8])
+		expect(ast).toBeNull()
+		expect(problem).toBe('pinned')
+	})
+
+	it('can have a number pulled out, that they all refer to', () => {
+		const result = extractedField(root, env, rows, field(1, 0), 20)!
+		expect(print(result.ast)).toBe(
+			'{width = 20 a = (path.rect [0 0] [width 20]) b = (path.rect [5 5] [width 20])}'
+		)
+		const pulled = inspectRows(result.ast, env, rows)!
+		expect(pulled.args[1]!.fields[0]!.values).toEqual([20, 20])
+	})
+
+	it('can go on being edited as one, through what was pulled out', () => {
+		const { ast: pulled } = extractedField(root, env, rows, field(1, 0), 20)!
+		const again = inspectRows(pulled, env, rows)!.args[1]!.fields[0]!
+		const { ast } = withFieldValues(pulled, env, rows, again, [50, 50])
+		expect(print(ast!)).toContain('width = 50')
+	})
+
+	it('give what is pulled out a name of its own, ahead of the first of them', () => {
+		const taken = parse('{width = 1 a = (path.rect [0 0] [10 20]) b = (path.rect [5 5] [30 20])}')
+		const result = extractedField(taken, env, rows, inspectRows(taken, env, rows)!.args[1]!.fields[0]!, 20)!
+		expect(result.name).toBe('width2')
+		expect(print(result.ast)).toMatch(/^\{width = 1 width2 = 20 a =/)
+	})
+})
+
+describe('snapping', () => {
+	const root = parse('{c = (path.circle [100 100] 10) r = (path.rect [0 0] [10 10])}') as LetAST
+	const points = snapPointsOf(root, env, sceneOf(root, env))
+
+	it('has the places of what is drawn, and what says where they are', () => {
+		expect(points).toContainEqual({ at: [100, 100], target: 'binding:c/arg0' })
+		expect(points).toContainEqual({ at: [110, 100], target: null })
+		expect(points).toContainEqual({ at: [0, 0], target: 'binding:r/arg0' })
+		expect(points).toContainEqual({ at: [10, 10], target: null })
+	})
+
+	it('has what each kind of thing has to line up with', () => {
+		expect(points).toContainEqual({ at: [90, 100], target: null })
+		expect(points).toContainEqual({ at: [100, 110], target: null })
+		expect(points).toContainEqual({ at: [5, 5], target: null })
+		expect(points).toContainEqual({ at: [10, 0], to: [10, 10], target: null })
+		const gon = parse('{g = (path.ngon [0 0] 10 4)}')
+		const around = snapPointsOf(gon, env, sceneOf(gon, env))
+		expect(around.filter(p => p.to !== undefined)).toHaveLength(4)
+	})
+
+	it('snaps along a line, as far as it goes', () => {
+		expect(nearestSnap(points, [12, 7], 2.5)!.at).toEqual([10, 7])
+		expect(nearestSnap(points, [12, 7], 1)).toBeNull()
+		expect(nearestSnap(points, [12, 7], 2.5)!.target).toBeNull()
+	})
+
+	it('has a place go before a line', () => {
+		expect(nearestSnap(points, [10.5, 8], 4)!.at).toEqual([10, 10])
+	})
+
+	it('finds the nearest, within reach', () => {
+		expect(nearestSnap(points, [102, 101], 8)).toEqual({ at: [100, 100], target: 'binding:c/arg0' })
+		expect(nearestSnap(points, [50, 50], 8)).toBeNull()
+	})
+
+	it('has a rect refer to the center it was drawn from', () => {
+		const next = drawnFrom(root, env, 'x', 'rect', points.find(p => p.target === 'binding:c/arg0')!, [130, 120], false)
+		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect ../c/center [30 20])')
+		const [, , shape] = sceneOf(next, env)
+		expect(gripAt(next, env, shape!.row)!.handles[0]!.at).toEqual([100, 110])
+	})
+
+	it('moves along with what it refers to', () => {
+		const next = drawnFrom(root, env, 'x', 'rect', points.find(p => p.target === 'binding:c/arg0')!, [130, 120], false)
+		const { ast } = changed(next, env, 'binding:c', gripAt(next, env, 'binding:c')!.move!([50, 0]))
+		expect(gripAt(ast!, env, 'binding:x')!.handles[0]!.at).toEqual([150, 110])
+	})
+
+	it('has a polygon refer from its center, whichever way it goes', () => {
+		const next = drawnFrom(root, env, 'x', 'ngon', points.find(p => p.target === 'binding:c/arg0')!, [90, 90], false)
+		expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.ngon \.\.\/c\/center /)
+	})
+
+	it('has only the value, for what does not start where it was pressed', () => {
+		const start = points.find(p => p.target === 'binding:c/arg0')!
+		expect(print(drawnFrom(root, env, 'x', 'rect', start, [90, 90], false).bindings.at(-1)![1])).toBe(
+			'(path.rect [90 90] [10 10])'
+		)
+		expect(print(drawnFrom(root, env, 'x', 'ellipse', start, [120, 120], false).bindings.at(-1)![1])).toBe(
+			'(path.ellipse [110 110] [10 10])'
+		)
+	})
+
+	describe('a handle', () => {
+		const center = { at: [100, 100], target: 'binding:c/arg0' } as const
+
+		it('has what it was dragged to refer to it', () => {
+			const next = linked(root, env, 'binding:r', 0, center)!
+			expect(print(next)).toBe('{c = (path.circle [100 100] 10) r = (path.rect ../c/center [10 10])}')
+		})
+
+		it('does not, for a place that no row says', () => {
+			expect(linked(root, env, 'binding:r', 0, { at: [110, 100], target: null })).toBeNull()
+		})
+
+		it('does not, for what already refers to it', () => {
+			const around = parse('{c = (path.circle ../r/topLeft 10) r = (path.rect [0 0] [10 10])}')
+			expect(linked(around, env, 'binding:r', 0, { at: [0, 0], target: 'binding:c/arg0' })).toBeNull()
+		})
+
+		it('has nothing of its own row to snap to', () => {
+			const others = snapPointsOf(root, env, sceneOf(root, env), 'binding:c')
+			expect(others.every(p => p.target !== 'binding:c/arg0')).toBe(true)
+			expect(others.length).toBeGreaterThan(0)
+		})
+	})
+
+	it('has only the value, for a place that no row says', () => {
+		expect(print(drawnFrom(root, env, 'x', 'rect', { at: [10, 10], target: null }, [20, 20], false).bindings.at(-1)![1])).toBe(
+			'(path.rect [10 10] [10 10])'
+		)
+	})
+})
+
+describe('how finely a pointer says anything', () => {
+	it('goes by the zoom and the screen, in powers of ten', () => {
+		expect(dragStep(1, 1)).toBe(1)
+		expect(dragStep(1, 2)).toBeCloseTo(0.1)
+		expect(dragStep(4, 1)).toBeCloseTo(0.1)
+		expect(dragStep(20, 1)).toBeCloseTo(0.01)
+		expect(dragStep(0.05, 1)).toBe(10)
+	})
+
+	it('rounds without leaving anything behind', () => {
+		expect(roundedTo(88.490715445, 0.1)).toBe(88.5)
+		expect(roundedTo(0.30000000000000004, 0.1)).toBe(0.3)
+		expect(roundedTo(137.86, 1)).toBe(138)
+		expect(roundedTo(137.86, 10)).toBe(140)
+	})
+
+	it('rounds what is to change, wherever a number is in it', () => {
+		const unset = Symbol.for('glisp.unset')
+		expect(
+			roundedChanges(
+				[
+					{ route: [0], value: [1.234, unset] },
+					{ route: [1], value: 'M 1.234,5.678 A 1.234,1.234 0 0 1 2,3 Z' },
+				],
+				0.1
+			)
+		).toEqual([
+			{ route: [0], value: [1.2, unset] },
+			{ route: [1], value: 'M 1.2,5.7 A 1.2,1.2 0 0 1 2,3 Z' },
+		])
 	})
 })
 
