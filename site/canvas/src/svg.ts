@@ -170,29 +170,117 @@ function bindingOf(element: string, attributes: Record<string, string>): readonl
 	}
 }
 
-/** What is said of how something is drawn, on itself or in its `style`. */
-function paintOf(attributes: Record<string, string>): Record<string, string> {
-	const declared = Object.fromEntries(
-		(attributes['style'] ?? '').split(';').flatMap(declaration => {
-			const [name, value] = declaration.split(':').map(part => part.trim())
-			return name && value ? [[name, value]] : []
+type Declarations = Record<string, string>
+
+/** What `style` says, as an attribute or in a rule. */
+const declarationsIn = (text: string): Declarations =>
+	Object.fromEntries(
+		text.split(';').flatMap(declaration => {
+			const at = declaration.indexOf(':')
+			const name = declaration.slice(0, at).trim().toLowerCase()
+			const value = declaration.slice(at + 1).replace(/!important/i, '').trim()
+			return at > 0 && value ? [[name, value]] : []
 		})
 	)
-	return { ...attributes, ...declared }
+
+/** What goes down to what is inside of something, unless that says otherwise. */
+const INHERITED = [
+	'color',
+	'fill',
+	'fill-opacity',
+	'stroke',
+	'stroke-opacity',
+	'stroke-width',
+	'stroke-linecap',
+	'stroke-linejoin',
+	'stroke-dasharray',
+	'stroke-dashoffset',
+	'stroke-miterlimit',
+	'visibility',
+] as const
+
+/** What can be said of how something is drawn. Only `opacity` and `display` do not go down. */
+const SAID = new Set<string>([...INHERITED, 'opacity', 'display'])
+
+interface Rule {
+	readonly tag: string | null
+	readonly id: string | null
+	readonly classes: readonly string[]
+	readonly weight: number
+	readonly said: Declarations
 }
 
-/** A color with its alpha in it, being as see-through as `opacity` says on top of what it is. */
-function withOpacity(text: string, opacity: string | undefined): string {
-	const color = colorIn(text)
+/**
+ * The rules of the `style` elements of an SVG. Of a selector, only what it says of the element
+ * itself is gone by, and not what that is in, which is as far as this needs to go.
+ */
+function rulesIn(text: string): Rule[] {
+	const css = [...text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)]
+		.map(([, content]) => content!.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/\/\*[\s\S]*?\*\//g, ''))
+		.join('\n')
+	return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(([, selectors, body]) =>
+		selectors!.split(',').flatMap((selector): Rule[] => {
+			const last = selector.trim().split(/[\s>+~]+/).at(-1) ?? ''
+			if (last === '' || /[:[@]/.test(last)) return []
+			const tag = /^[a-z][\w-]*/i.exec(last)?.[0]?.toLowerCase() ?? null
+			const id = /#([\w-]+)/.exec(last)?.[1] ?? null
+			const classes = [...last.matchAll(/\.([\w-]+)/g)].map(([, name]) => name!)
+			const weight = (id ? 100 : 0) + classes.length * 10 + (tag ? 1 : 0)
+			return [{ tag, id, classes, weight, said: declarationsIn(body!) }]
+		})
+	).sort((a, b) => a.weight - b.weight)
+}
+
+/** The first color of each gradient, as near as a flat color comes to one. */
+function gradientColorsIn(text: string): Map<string, string> {
+	const stops = new Map<string, string>()
+	const refers = new Map<string, string>()
+	for (const [, open, body] of text.matchAll(/<((?:linear|radial)Gradient\b[^>]*?)(?:\/>|>([\s\S]*?)<\/(?:linear|radial)Gradient>)/gi)) {
+		const attributes = attributesOf(open!)
+		const id = attributes['id']
+		if (id === undefined) continue
+		const href = attributes['href'] ?? attributes['xlink:href']
+		if (href?.startsWith('#')) refers.set(id, href.slice(1))
+		const stop = /<stop\b([^>]*)>/i.exec(body ?? '')?.[1]
+		if (stop === undefined) continue
+		const said = attributesOf(stop)
+		const declared = { ...said, ...declarationsIn(said['style'] ?? '') }
+		const color = declared['stop-color'] ?? '#000000'
+		stops.set(id, withOpacity(color, fractionIn(declared['stop-opacity'])))
+	}
+	for (const [id, to] of refers) {
+		const color = stops.get(to)
+		if (!stops.has(id) && color !== undefined) stops.set(id, color)
+	}
+	return stops
+}
+
+/** How much of something an opacity leaves of it, all of it if that does not say. */
+function fractionIn(opacity: string | undefined): number {
 	const by = Number.parseFloat(opacity ?? '') / (opacity?.trim().endsWith('%') ? 100 : 1)
-	if (color === null || !Number.isFinite(by) || by >= 1) return text
-	color.alpha = (color.alpha ?? 1) * Math.max(by, 0)
+	return Number.isFinite(by) ? Math.min(Math.max(by, 0), 1) : 1
+}
+
+/** A color with its alpha in it, being as see-through as `by` says on top of what it is. */
+function withOpacity(text: string, by: number): string {
+	const color = colorIn(text)
+	if (color === null || by >= 1) return text
+	color.alpha = (color.alpha ?? 1) * by
 	return toHex(color)
 }
 
-/** An expression, in a style if the element says how it is drawn. */
-function painted(expression: string, attributes: Record<string, string>): string {
+/** What a paint comes to as a color: `currentColor` is `color`, and a gradient its first color. */
+function colorOf(paint: string, current: string, gradients: ReadonlyMap<string, string>): string {
+	if (/^currentcolor$/i.test(paint)) return current
+	const [, id, fallback] = /^url\(\s*["']?#([^"')\s]+)["']?\s*\)\s*(.*)$/i.exec(paint) ?? []
+	if (id === undefined) return paint
+	return gradients.get(id) ?? (fallback === '' || fallback === undefined ? 'none' : fallback)
+}
+
+/** An expression, in a style with how it is drawn, as an SVG takes it where it does not say. */
+function painted(expression: string, said: Declarations, opacity: number, gradients: ReadonlyMap<string, string>): string {
 	const {
+		color,
 		fill,
 		stroke,
 		'fill-opacity': fillOpacity,
@@ -203,26 +291,26 @@ function painted(expression: string, attributes: Record<string, string>): string
 		'stroke-dasharray': dash,
 		'stroke-dashoffset': dashOffset,
 		'stroke-miterlimit': miterLimit,
-	} = paintOf(attributes)
-	if (fill === undefined && stroke === undefined) return expression
+	} = said
+	const current = color ?? '#000000'
 	const number = (value: string | undefined): AST | undefined => {
 		const parsed = Number.parseFloat(value ?? '')
 		return Number.isFinite(parsed) ? lit(parsed) : undefined
 	}
 	const dashes = dash?.split(/[\s,]+/).map(Number.parseFloat)
-	return print(
-		styleOf(parse(expression), {
-			// As an SVG has it: filled in black unless it says, and with no line.
-			fill: lit(withOpacity(fill ?? '#000000', fillOpacity)),
-			stroke: lit(withOpacity(stroke ?? 'none', strokeOpacity)),
-			width: lit(Number.parseFloat(width ?? '1') || 0),
-			...(cap !== undefined && (LINE_CAPS as readonly string[]).includes(cap) ? { cap: lit(cap) } : {}),
-			...(join !== undefined && (LINE_JOINS as readonly string[]).includes(join) ? { join: lit(join) } : {}),
-			...(dashes?.every(Number.isFinite) ? { dash: toAst(dashes, null) } : {}),
-			dashOffset: number(dashOffset),
-			miterLimit: number(miterLimit),
-		})
-	)
+	const styled = styleOf(parse(expression), {
+		// As an SVG has it: filled in black unless it says, and with no line.
+		fill: lit(withOpacity(colorOf(fill ?? '#000000', current, gradients), fractionIn(fillOpacity) * opacity)),
+		stroke: lit(withOpacity(colorOf(stroke ?? 'none', current, gradients), fractionIn(strokeOpacity) * opacity)),
+		width: lit(Number.parseFloat(width ?? '1') || 0),
+		...(cap !== undefined && (LINE_CAPS as readonly string[]).includes(cap) ? { cap: lit(cap) } : {}),
+		...(join !== undefined && (LINE_JOINS as readonly string[]).includes(join) ? { join: lit(join) } : {}),
+		...(dashes?.every(Number.isFinite) ? { dash: toAst(dashes, null) } : {}),
+		dashOffset: number(dashOffset),
+		miterLimit: number(miterLimit),
+	})
+	// With nothing to say, as where it is neither filled nor has a line, it is what it is.
+	return styled.kwargs ? print(styled) : expression
 }
 
 /** What an SVG would have to be told of a line, past what it takes for granted. */
@@ -249,24 +337,75 @@ export function bindingsOfSvg(text: string): string | null {
 	const code = /<glisp[^>]*>([\s\S]*?)<\/glisp>/.exec(text)?.[1]
 	if (code !== undefined) return unescaped(code)
 
-	const shown = text
-		.replace(/<!--[\s\S]*?-->/g, '')
+	const visible = text.replace(/<!--[\s\S]*?-->/g, '')
+	const rules = rulesIn(visible)
+	const gradients = gradientColorsIn(visible)
+	const shown = visible
+		.replace(/<style\b[\s\S]*?<\/style>/gi, '')
 		.replace(/<(defs|clipPath|mask|symbol|pattern|marker)\b[\s\S]*?<\/\1>/gi, '')
-	const counts = new Map<string, number>()
-	const lines = [...shown.matchAll(/<(rect|circle|ellipse|line|polyline|polygon|path)\b([^>]*)>/gi)].flatMap(
-		([, element, rest]) => {
-			const attributes = attributesOf(rest!)
-			const binding = bindingOf(element!.toLowerCase(), attributes)
-			if (binding === null) return []
-			const [kind, shape] = binding
-			const expression = painted(shape, attributes)
-			const id = attributes['id']
-			if (id !== undefined && isIdentifier(id)) return [`${id} = ${expression}`]
-			const count = (counts.get(kind) ?? 0) + 1
-			counts.set(kind, count)
-			return [`${kind}${count} = ${expression}`]
+
+	/** What is said of an element by the lowest to the highest: attributes, rules, its `style`. */
+	const saidOf = (tag: string, attributes: Record<string, string>): Declarations => {
+		const classes = (attributes['class'] ?? '').split(/\s+/)
+		const matching = rules.filter(
+			rule =>
+				(rule.tag === null || rule.tag === tag) &&
+				(rule.id === null || rule.id === attributes['id']) &&
+				rule.classes.every(name => classes.includes(name))
+		)
+		const all: Declarations = {
+			...attributes,
+			...Object.assign({}, ...matching.map(({ said }) => said)),
+			...declarationsIn(attributes['style'] ?? ''),
 		}
-	)
+		return Object.fromEntries(
+			Object.entries(all).filter(([name, value]) => SAID.has(name) && value.toLowerCase() !== 'inherit')
+		)
+	}
+
+	interface Open {
+		readonly tag: string
+		readonly said: Declarations
+		readonly opacity: number
+		readonly gone: boolean
+	}
+	const inside: Open[] = []
+	const counts = new Map<string, number>()
+	const lines: string[] = []
+	for (const [, closing, name, rest, selfClosed] of shown.matchAll(/<(\/?)([A-Za-z][\w:-]*)\b([^>]*?)(\/?)>/g)) {
+		const tag = name!.toLowerCase()
+		if (closing) {
+			const at = inside.map(open => open.tag).lastIndexOf(tag)
+			if (at >= 0) inside.length = at
+			continue
+		}
+		const attributes = attributesOf(rest!)
+		const around = inside.at(-1)
+		const own = saidOf(tag, attributes)
+		const down = Object.fromEntries(
+			INHERITED.flatMap(key => {
+				const value = own[key] ?? around?.said[key]
+				return value === undefined ? [] : [[key, value]]
+			})
+		)
+		const opacity = (around?.opacity ?? 1) * fractionIn(own['opacity'])
+		const gone = (around?.gone ?? false) || own['display'] === 'none'
+		if (!selfClosed) inside.push({ tag, said: down, opacity, gone })
+		if (gone || down['visibility'] === 'hidden' || down['visibility'] === 'collapse') continue
+
+		const binding = bindingOf(tag, attributes)
+		if (binding === null) continue
+		const [kind, shape] = binding
+		const expression = painted(shape, down, opacity, gradients)
+		const id = attributes['id']
+		if (id !== undefined && isIdentifier(id)) {
+			lines.push(`${id} = ${expression}`)
+			continue
+		}
+		const count = (counts.get(kind) ?? 0) + 1
+		counts.set(kind, count)
+		lines.push(`${kind}${count} = ${expression}`)
+	}
 	// What comes later in an SVG is in front, and what is in front comes first here.
 	return lines.length > 0 ? lines.reverse().join('\n') : null
 }
