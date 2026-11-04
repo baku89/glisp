@@ -647,6 +647,8 @@ export interface Handle {
 	readonly fine?: boolean
 	/** It is drawn with a broken line, being there only to take hold of. */
 	readonly dashed?: boolean
+	/** It does not end up where it is taken to, so it is not to refer to what it snapped to. */
+	readonly constrained?: boolean
 	/** What has to change, for it to be at `to`, having been taken at `from`. */
 	to(to: Vec, from: Vec, how?: HandleDrag): readonly Change[]
 	/**
@@ -1006,7 +1008,11 @@ function matrixGrip(m: Mat, arg: number): Grip {
 	}
 }
 
-type Maker = (args: readonly unknown[], inner: (arg: number) => Grip | null) => Grip
+type Maker = (
+	args: readonly unknown[],
+	inner: (arg: number) => Grip | null,
+	proportional: (arg: number) => boolean
+) => Grip
 
 const makers = new Map<unknown, Maker>([
 	[makeD, ([d]) => gripOfD(fromD(d as string))],
@@ -1081,7 +1087,7 @@ const makers = new Map<unknown, Maker>([
 	],
 	[
 		makeRect,
-		([origin, size]) => {
+		([origin, size], _inner, proportional) => {
 			const s = origin as Vec
 			const e = add(s, size as Vec)
 			const middle: Vec = [(s[0] + e[0]) / 2, (s[1] + e[1]) / 2]
@@ -1116,6 +1122,73 @@ const makers = new Map<unknown, Maker>([
 			})
 			const widthBy = { left: length(0, e[0], left), right: length(0, s[0], right) }
 			const heightBy = { top: length(1, e[1], top), bottom: length(1, s[1], bottom) }
+
+			// With its width and height going together, a side takes the other axis along:
+			// about the middle of it, for a side, and away from the corner across, for a corner.
+			// What is 0 says nothing of a ratio, so that goes as if they did not.
+			const extent: Vec = [Math.abs(e[0] - s[0]), Math.abs(e[1] - s[1])]
+			const keeps = proportional(1) && extent[0] > 0 && extent[1] > 0
+			interface Side {
+				readonly axis: 0 | 1
+				readonly far: number
+				readonly at: number
+				readonly go: (at: number, how?: HandleDrag) => Change[]
+			}
+			const sides = {
+				left: { axis: 0, far: e[0], at: s[0], go: left },
+				right: { axis: 0, far: s[0], at: e[0], go: right },
+				top: { axis: 1, far: e[1], at: s[1], go: top },
+				bottom: { axis: 1, far: s[1], at: e[1], go: bottom },
+			} as const satisfies Record<string, Side>
+			const stays = (side: Side, how?: HandleDrag): number =>
+				how?.symmetric ? middle[side.axis] : side.far
+			const reach = (side: Side, how?: HandleDrag): number => Math.abs(side.at - stays(side, how))
+			const wayTo = (side: Side, at: number, how?: HandleDrag): number =>
+				Math.sign(at - stays(side, how)) || 1
+			const factor = (side: Side, at: number, how?: HandleDrag): number =>
+				Math.abs(at - stays(side, how)) / reach(side, how)
+			const scaled = (side: Side, by: number, way: number, how?: HandleDrag): Change[] =>
+				side.go(stays(side, how) + way * by * reach(side, how), how)
+			const sideTo = (side: Side, at: number, how?: HandleDrag): Change[] => {
+				if (!keeps) return side.go(at, how)
+				const other = side.axis === 0 ? 1 : 0
+				const half = (extent[other] * factor(side, at, how)) / 2
+				return [...side.go(at, how), ...across(other, middle[other] - half, middle[other] + half)]
+			}
+			const cornerBy = (a: Side, b: Side, by: number, to: Vec, how?: HandleDrag): Change[] => [
+				...scaled(a, by, wayTo(a, to[a.axis], how), how),
+				...scaled(b, by, wayTo(b, to[b.axis], how), how),
+			]
+			const cornerTo = (a: Side, b: Side, to: Vec, how?: HandleDrag): Change[] =>
+				keeps
+					? cornerBy(a, b, Math.max(factor(a, to[a.axis], how), factor(b, to[b.axis], how)), to, how)
+					: [...a.go(to[a.axis], how), ...b.go(to[b.axis], how)]
+			const scaledSideBy = (side: Side, by: number, to: Vec, how?: HandleDrag): Change[] =>
+				sideTo(side, stays(side, how) + wayTo(side, to[side.axis], how) * by * reach(side, how), how)
+			const sideMeans = (side: Side, plain: HandleMeaning): readonly HandleMeaning[] =>
+				keeps
+					? [
+							{
+								route: [1],
+								index: side.axis,
+								set: (value, to, how) => scaledSideBy(side, value / extent[side.axis], to, how),
+							},
+						]
+					: [plain]
+			const cornerMeans = (
+				a: Side,
+				b: Side,
+				plainA: HandleMeaning,
+				plainB: HandleMeaning
+			): readonly HandleMeaning[] =>
+				keeps
+					? [a, b].map(side => ({
+							route: [1],
+							index: side.axis,
+							set: (value: number, to: Vec, how?: HandleDrag) =>
+								cornerBy(a, b, value / extent[side.axis], to, how),
+						}))
+					: [plainA, plainB]
 			return {
 				// Whichever way it was drawn, a length goes by the edge that is clear of the rest.
 				marks: [
@@ -1124,14 +1197,14 @@ const makers = new Map<unknown, Maker>([
 					{ route: [1], index: 1, at: [Math.max(s[0], e[0]), middle[1]], side: 'right' },
 				],
 				handles: [
-					{ kind: 'arrow', name: 'left', code: rectPlace(0, 2), angle: 0, at: [s[0], middle[1]], means: [widthBy.left], to: (to, _, how) => left(to[0], how) },
-					{ kind: 'arrow', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], means: [heightBy.top], to: (to, _, how) => top(to[1], how) },
-					{ kind: 'arrow', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], means: [widthBy.right], to: (to, _, how) => right(to[0], how) },
-					{ kind: 'arrow', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], means: [heightBy.bottom], to: (to, _, how) => bottom(to[1], how) },
-					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, means: [widthBy.left, heightBy.top], to: (to, _, how) => [...left(to[0], how), ...top(to[1], how)] },
-					{ kind: 'point', name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], means: [widthBy.right, heightBy.top], to: (to, _, how) => [...right(to[0], how), ...top(to[1], how)] },
-					{ kind: 'point', name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], means: [widthBy.left, heightBy.bottom], to: (to, _, how) => [...left(to[0], how), ...bottom(to[1], how)] },
-					{ kind: 'point', name: 'bottom right', code: rectPlace(1, 1), angle: 45, at: e, means: [widthBy.right, heightBy.bottom], to: (to, _, how) => [...right(to[0], how), ...bottom(to[1], how)] },
+					{ kind: 'arrow', name: 'left', code: rectPlace(0, 2), angle: 0, at: [s[0], middle[1]], means: sideMeans(sides.left, widthBy.left), to: (to, _, how) => sideTo(sides.left, to[0], how) },
+					{ kind: 'arrow', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], means: sideMeans(sides.top, heightBy.top), to: (to, _, how) => sideTo(sides.top, to[1], how) },
+					{ kind: 'arrow', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], means: sideMeans(sides.right, widthBy.right), to: (to, _, how) => sideTo(sides.right, to[0], how) },
+					{ kind: 'arrow', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], means: sideMeans(sides.bottom, heightBy.bottom), to: (to, _, how) => sideTo(sides.bottom, to[1], how) },
+					{ kind: 'point', name: 'top left', place: 0, angle: 45, at: s, constrained: keeps, means: cornerMeans(sides.left, sides.top, widthBy.left, heightBy.top), to: (to, _, how) => cornerTo(sides.left, sides.top, to, how) },
+					{ kind: 'point', name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], means: cornerMeans(sides.right, sides.top, widthBy.right, heightBy.top), to: (to, _, how) => cornerTo(sides.right, sides.top, to, how) },
+					{ kind: 'point', name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], means: cornerMeans(sides.left, sides.bottom, widthBy.left, heightBy.bottom), to: (to, _, how) => cornerTo(sides.left, sides.bottom, to, how) },
+					{ kind: 'point', name: 'bottom right', code: rectPlace(1, 1), angle: 45, at: e, means: cornerMeans(sides.right, sides.bottom, widthBy.right, heightBy.bottom), to: (to, _, how) => cornerTo(sides.right, sides.bottom, to, how) },
 				],
 				guides: [],
 				snaps: {
@@ -1402,8 +1475,9 @@ const makers = new Map<unknown, Maker>([
 export const gripOf = (
 	fn: unknown,
 	args: readonly unknown[],
-	inner: (arg: number) => Grip | null
-): Grip | null => makers.get(fn)?.(args, inner) ?? null
+	inner: (arg: number) => Grip | null,
+	proportional: (arg: number) => boolean = () => false
+): Grip | null => makers.get(fn)?.(args, inner, proportional) ?? null
 
 /** Where the program's coordinates are for the argument at `arg` of a call of `fn`. */
 export function withinArg(fn: unknown, arg: number, args: readonly unknown[]): Mat | null {

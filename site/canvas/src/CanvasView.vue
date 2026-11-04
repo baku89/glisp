@@ -223,8 +223,8 @@ function hold(row: string, places: readonly Dimension[], [x, y]: Vec, first = 0)
 function typeDimension(dimension: Dimension, value: number): void {
 	if (held.value === null) return
 	const { root, env } = props.document
-	const { row } = held.value
-	const next = apply(row, dimensionChanges(root.value, env.value, row, dimension, value))
+	const { row, base } = held.value
+	const next = apply(row, dimensionChanges(root.value, env.value, row, dimension, value, base))
 	typed = next.ast
 	commit(next)
 }
@@ -1005,7 +1005,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean): void {
 	const rounded = roundedChanges(changes, finest)
 	const next = apply(row, rounded, base)
 	const { place } = handle
-	if (next.ast !== null && snap !== null && !valueOnly && !symmetric && typeof place === 'number') {
+	if (next.ast !== null && snap !== null && !valueOnly && !symmetric && !handle.constrained && typeof place === 'number') {
 		const referring = linked(next.ast, props.document.env.value, row, place, snap)
 		if (referring !== null) next.ast = referring
 	}

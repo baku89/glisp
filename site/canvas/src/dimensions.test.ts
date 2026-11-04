@@ -373,3 +373,89 @@ describe('what a handle is about', () => {
 		expect(said(dimensions)).toEqual(['Radius 30'])
 	})
 })
+
+describe('a size that goes in proportion', () => {
+	const RECT = '{c = (path.rect [0 0] ^{proportional: true} [100 50])}'
+	const [LEFT, TOP, RIGHT, BOTTOM, TOP_LEFT, , , BOTTOM_RIGHT] = [0, 1, 2, 3, 4, 5, 6, 7]
+	const after = (src: string, index: number, to: Vec, symmetric = false): string => {
+		const root = parse(src)
+		const changes = gripAt(root, env, ROW)!.handles[index]!.to(to, to, { symmetric })
+		return print(changed(root, env, ROW, changes).ast!)
+	}
+	const rect = (topLeft: string, size: string) =>
+		`{c = (path.rect ${topLeft} ^{proportional: true} ${size})}`
+
+	it('has a corner keep the ratio, from the corner across, going by the further way', () => {
+		expect(after(RECT, BOTTOM_RIGHT!, [200, 10])).toBe(rect('[0 0]', '[200 100]'))
+		expect(after(RECT, BOTTOM_RIGHT!, [10, 100])).toBe(rect('[0 0]', '[200 100]'))
+	})
+
+	it('has the corner across stay where it is', () => {
+		expect(after(RECT, TOP_LEFT!, [-100, 0])).toBe(rect('[-100 -50]', '[200 100]'))
+	})
+
+	it('has a side take the other way along, about its middle', () => {
+		expect(after(RECT, RIGHT!, [200, 999])).toBe(rect('[0 -25]', '[200 100]'))
+		expect(after(RECT, LEFT!, [-100, 999])).toBe(rect('[-100 -25]', '[200 100]'))
+		expect(after(RECT, BOTTOM!, [999, 100])).toBe(rect('[-50 0]', '[200 100]'))
+		expect(after(RECT, TOP!, [999, -50])).toBe(rect('[-50 -50]', '[200 100]'))
+	})
+
+	it('goes from the center, when that is what stays', () => {
+		expect(after(RECT, BOTTOM_RIGHT!, [150, 0], true)).toBe(rect('[-50 -25]', '[200 100]'))
+	})
+
+	it('comes through to what it refers to', () => {
+		const src = '{s = ^{proportional: true} [100 50] c = (path.rect [0 0] s)}'
+		expect(after(src, BOTTOM_RIGHT!, [200, 100])).toBe(
+			'{s = ^{proportional: true} [200 100] c = (path.rect [0 0] s)}'
+		)
+	})
+
+	it('goes through a style', () => {
+		const src = '{c = (style (path.rect [0 0] ^{proportional: true} [100 50]) "red" "none" 0)}'
+		expect(after(src, BOTTOM_RIGHT!, [200, 10])).toBe(
+			'{c = (style (path.rect [0 0] ^{proportional: true} [200 100]) "red" "none" 0)}'
+		)
+	})
+
+	it('is not there for a size that does not', () => {
+		const src = '{c = (path.rect [0 0] [100 50])}'
+		expect(after(src, BOTTOM_RIGHT!, [200, 10])).toBe('{c = (path.rect [0 0] [200 10])}')
+		expect(after(src, RIGHT!, [200, 999])).toBe('{c = (path.rect [0 0] [200 50])}')
+	})
+
+	it('goes as if it did not where one way is 0, having no ratio', () => {
+		const src = rect('[0 0]', '[100 0]')
+		expect(after(src, BOTTOM_RIGHT!, [200, 10])).toBe(rect('[0 0]', '[200 10]'))
+	})
+
+	it('does not refer to what it snapped to, not ending up there', () => {
+		const grip = gripAt(parse(RECT), env, ROW)!
+		expect(grip.handles[TOP_LEFT!]!.constrained).toBe(true)
+		expect(gripAt(parse('{c = (path.rect [0 0] [100 50])}'), env, ROW)!.handles[TOP_LEFT!]!.constrained).toBe(false)
+	})
+
+	it('has what is typed bring the other along', () => {
+		const root = parse(RECT)
+		const width = dimensionAt(root, env, ROW, { route: [1], index: 0 })!
+		const changes = dimensionChanges(root, env, ROW, width, 300)
+		expect(print(changed(root, env, ROW, changes).ast!)).toBe(rect('[0 0]', '[300 150]'))
+	})
+
+	it('has what is typed keep the ratio it began with, through a 0', () => {
+		const base = parse(RECT)
+		const width = dimensionAt(base, env, ROW, { route: [1], index: 0 })!
+		const atZero = changed(base, env, ROW, dimensionChanges(base, env, ROW, width, 0, base)).ast!
+		const typed = dimensionChanges(atZero, env, ROW, width, 40, base)
+		expect(print(changed(atZero, env, ROW, typed).ast!)).toBe(rect('[0 0]', '[40 20]'))
+	})
+
+	it('has what is typed after a drag keep the ratio, and the corner across', () => {
+		const root = parse(RECT)
+		const handle = gripAt(root, env, ROW)!.handles[TOP_LEFT!]!
+		const [width] = handle.means!
+		const changes = width!.set(300, [-1, -1])
+		expect(print(changed(root, env, ROW, changes).ast!)).toBe(rect('[-200 -100]', '[300 150]'))
+	})
+})

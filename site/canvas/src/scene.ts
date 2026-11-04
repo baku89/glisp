@@ -31,6 +31,8 @@ import {
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import {
 	elementOptionsOf,
+	isProportional,
+	keepingRatio,
 	type NumberOptions,
 	numberOptionsAt,
 	referenceAt,
@@ -628,11 +630,19 @@ function gripAtNode(start: AST, startEnv: Env): Grip | null {
 	const call = bare(node)
 	if (call.kind === 'call') {
 		const { inside, head, args } = argsOf(call, env)
-		const grip = gripOf(head, args, i => {
-			const arg = call.args[i]
-			const inner = arg === undefined ? null : gripAtNode(arg, inside)
-			return inner === null ? null : under(i, inner)
-		})
+		const grip = gripOf(
+			head,
+			args,
+			i => {
+				const arg = call.args[i]
+				const inner = arg === undefined ? null : gripAtNode(arg, inside)
+				return inner === null ? null : under(i, inner)
+			},
+			i => {
+				const arg = call.args[i]
+				return arg !== undefined && isProportional(arg, inside)
+			}
+		)
 		if (grip !== null) return grip
 	}
 	const value = evaluate(readByName(node), env).value
@@ -710,7 +720,13 @@ function readAt(
 	env: Env,
 	row: string,
 	route: readonly number[]
-): { label: string; expected: TypeValue | null; options: NumberOptions; value: unknown } | null {
+): {
+	label: string
+	expected: TypeValue | null
+	options: NumberOptions
+	value: unknown
+	proportional: boolean
+} | null {
 	const found = rowAt(root, env, row)
 	if (found === null) return null
 	let label = row.split('/').at(-1)!.replace(/^binding:/, '')
@@ -727,7 +743,13 @@ function readAt(
 		at = i === route.length - 1 ? { node: slot.ast, env: slot.env } : follow(slot.ast, slot.env)
 	}
 	if (at === null) return null
-	return { label, expected, options, value: evaluate(readByName(at.node), at.env).value }
+	return {
+		label,
+		expected,
+		options,
+		value: evaluate(readByName(at.node), at.env).value,
+		proportional: isProportional(at.node, at.env),
+	}
 }
 
 /** Where one number is in a row: an argument, and which of it, if it is a vector. */
@@ -861,16 +883,26 @@ function isWritten(node: AST, wanted: unknown): boolean {
  * What has to change for a number to be `value`, however much that comes to. What it
  * would have to take along is left where it is, if that refers to something else: what a
  * shape was put on stays what it is on, and it is only this number that is any different.
+ * What goes in proportion goes by the ratio in `ratioFrom`, which is where the typing began,
+ * for it to last through a number that is 0 on the way to being typed.
  */
 export function dimensionChanges(
 	root: AST,
 	env: Env,
 	row: string,
 	dimension: Dimension,
-	value: number
+	value: number,
+	ratioFrom: AST = root
 ): readonly Change[] {
+	const alone = (): Change => {
+		const { route, index } = dimension
+		const read = index === undefined ? null : readAt(ratioFrom, env, row, route)
+		return read?.proportional && index !== undefined && isNumbers(read.value)
+			? { route, value: keepingRatio(null, read.value, index, value).wrote }
+			: dimensionChange(dimension, value)
+	}
 	const changes = dimension.set?.(value)
-	if (changes === undefined) return [dimensionChange(dimension, value)]
+	if (changes === undefined) return [alone()]
 	const found = rowAt(root, env, row)
 	const own = dimension.route.join()
 	const onlyWritten = changes.every(({ route, value: wanted }) => {
@@ -878,7 +910,7 @@ export function dimensionChanges(
 		const node = found && nodeAt(found.node, found.env, route)
 		return node !== null && isWritten(node, wanted)
 	})
-	return onlyWritten ? changes : [dimensionChange(dimension, value)]
+	return onlyWritten ? changes : [alone()]
 }
 
 /**
