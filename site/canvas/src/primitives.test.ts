@@ -993,6 +993,11 @@ describe('how far round something is', () => {
 
 describe('what moves an outline out from a path', () => {
 	const handleOf = (src: string) => gripAt(parse(`{c = ${src}}`), env, ROW)!.handles.find(h => h.name === 'distance')!
+
+	it('points the two ways it can go, from the start', () => {
+		expect(handleOf('(path.offset (path.circle [0 0] 10) 5)').along).toBe(true)
+		expect(handleOf('(path.offsetStroke (path.circle [0 0] 10) 5)').along).toBe(true)
+	})
 	const CURVE = '(path.cubic [0 0] [80 0] [120 60] [120 200])'
 	const SHAPES = [
 		`(path.offset ${CURVE} 25)`,

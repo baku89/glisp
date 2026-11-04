@@ -2759,6 +2759,8 @@ const outFromPath =
 				{
 					kind: 'offset',
 					name: 'distance',
+					// It is pulled out from one place, and is no outline of what it is on.
+					along: true,
 					angle: degrees(along),
 					at,
 					to: to => [

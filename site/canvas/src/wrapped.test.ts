@@ -100,9 +100,9 @@ describe('what is around a path', () => {
 		expect(grip(`(path.blend ${RECT} ${CIRCLE} 0.5)`).handles[0]!.fine).toBe(true)
 	})
 
-	it('has the ratio of a blend go along the line, and an offset not', () => {
+	it('has the ratio of a blend go along the line, and an offset as well', () => {
 		expect(grip(`(path.blend ${RECT} ${CIRCLE} 0.5)`).handles[0]!.along).toBe(true)
-		expect(grip(`(path.offset ${RECT} 5)`).handles[0]!.along).toBeUndefined()
+		expect(grip(`(path.offset ${RECT} 5)`).handles[0]!.along).toBe(true)
 	})
 
 	it('pulls the distance of an offset', () => {

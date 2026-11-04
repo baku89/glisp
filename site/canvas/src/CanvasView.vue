@@ -363,6 +363,8 @@ const HANDLE_RADIUS = 5
 const PEN_CONTROL_RADIUS = 3
 /** How far out from a handle the paper goes, each way, to be seen over the color of a shape. */
 const HANDLE_EDGE = 1.5
+/** How far past the ends of a line that goes. */
+const HANDLE_EDGE_PAST = 1
 /** As much to be seen of a square as of a round handle. */
 const CORNER_HALF = 4.5
 const HIT_WIDTH = 10
@@ -554,14 +556,23 @@ function drawHandle(
 		context.lineWidth = active ? 1.5 : 1
 		context.lineJoin = 'miter'
 		context.lineCap = 'butt'
-		context.beginPath()
-		for (const side of [1, -1]) {
-			context.moveTo(side * OFFSET_GAP, -reach)
-			context.lineTo(side * out, 0)
-			context.lineTo(side * OFFSET_GAP, reach)
+		// A cap would go half of the width of the edge past each end, which is more than is wanted.
+		const lines = (past: number): Path2D => {
+			const length = Math.hypot(OFFSET_GAP - out, reach)
+			const [endX, endY] = [
+				OFFSET_GAP + ((OFFSET_GAP - out) / length) * past,
+				reach + (reach / length) * past,
+			]
+			const path = new Path2D()
+			for (const side of [1, -1]) {
+				path.moveTo(side * endX, -endY)
+				path.lineTo(side * out, 0)
+				path.lineTo(side * endX, endY)
+			}
+			return path
 		}
-		edged()
-		context.stroke()
+		edged(lines(HANDLE_EDGE_PAST))
+		context.stroke(lines(0))
 	} else if (handle.kind === 'direction') {
 		context.rotate(facing(handle.angle ?? 0))
 		context.lineJoin = 'round'
