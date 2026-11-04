@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LetAST, parse, print } from '@glisp/lang'
+import { type AST, LetAST, parse, print } from '@glisp/lang'
 import {
 	AstEditor,
 	AstMultiInspector,
@@ -7,7 +7,8 @@ import {
 	inspectionOf,
 	useGlispDocument,
 } from '@glisp/tweeq'
-import { copiedBySlotCommand, copiedRows, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
+import { combined, type Filter, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
+import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { renameBindingAt, SLOT_COMMANDS, type SlotCommand } from '@glisp/tweeq/structure'
 import { useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
@@ -43,7 +44,7 @@ import {
 	ungrouped,
 	viewToFit,
 } from './rows'
-import { backgroundOf, isBackgroundAt, paintedRow } from './scene'
+import { backgroundOf, isBackgroundAt, paintedRow, withPaintOfRows } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -119,6 +120,9 @@ watch(document.root, root => {
 })
 
 /** A tool's key is said only here. What runs it and what says so all come from this. */
+/** What takes a path, but is what the inspector says of one, more than something around it. */
+const NOT_FILTERS: ReadonlySet<string> = new Set(['style', 'background'])
+
 const TOOLS = [
 	{ name: 'select', label: 'Select', key: 'v', icon: 'ph:cursor-fill' },
 	{ name: 'pen', label: 'Pen', key: 'p', icon: 'ph:pen-nib' },
@@ -390,6 +394,63 @@ function listedRowAt(x: number, y: number): Selected | null {
 const selectedRow = (row: string): Selected | null =>
 	selectedOf(document.root.value, document.env.value, [row])[0] ?? null
 
+/**
+ * What can be put around what is selected: what takes all of it, each in turn. One thing is
+ * given to it where it is, and several become one row, as there is only one place for it.
+ */
+const wraps = computed(() => {
+	const env = document.env.value
+	const chosen = selection.value
+	const root = programOf(document.root.value)
+	const together = chosen.length > 1
+	if (root === null || chosen.length === 0 || (together && !chosen.every(({ isRow }) => isRow))) {
+		return []
+	}
+	const rows = chosen.map(({ row }) => row)
+	// What is drawn of a row is what goes in. How it is drawn is not part of what it is given,
+	// and goes on to what they become, if that is something drawn.
+	const namesOf = (of: readonly string[]) => of.map(row => nameOfRow(row) ?? '')
+	const insideOf = (of: readonly string[]) =>
+		of.map(row => reach(root, env, paintedRow(root, env, row))?.chain.at(-1)?.ast) as AST[]
+	const all = (filter: Filter, of: readonly string[]): LetAST | null =>
+		combined(root, env, namesOf(of), insideOf(of), filter, call =>
+			filter.fn.returnType === pathType ? withPaintOfRows(root, env, of, call) : call
+		)
+	// What they became goes by the first of them.
+	const firstOf = (of: readonly string[]): string[] => of.slice(0, 1)
+	return filtersFor(chosen.map(({ value }) => value), env)
+		.filter(({ name }) => !NOT_FILTERS.has(name))
+		.flatMap(filter => {
+			const item = {
+				id: `wrap_${filter.name}`,
+				label: filter.label,
+				keywords: ['Wrap'],
+				tag: 'Wrap',
+				icon: iconOfFunction(filter.name) ?? 'mdi:function-variant',
+			}
+			// What it wants more of is asked for, and it goes with what it takes when that is there.
+			if (filter.more.length > 0) {
+				return [
+					{
+						...item,
+						params: filter.more.map(param => ({ ...param, asked: true })),
+						perform(...picked: readonly Selected[]) {
+							const of = [...rows, ...picked.map(({ row }) => row)]
+							const next = new Set(of).size === of.length ? all(filter, of) : null
+							if (next) setProgram(next, firstOf(of))
+						},
+					},
+				]
+			}
+			const done = together ? all(filter, rows) : wrappedAt(root, env, paintedRow(root, env, rows[0]!), filter)
+			if (!(done instanceof LetAST)) return []
+			return [
+				{ ...item, perform: () => setProgram(done, firstOf(rows)) },
+			]
+		})
+		.sort((a, b) => Number('params' in a) - Number('params' in b))
+})
+
 /** The row of what is at a place on the screen, listed or drawn. */
 function rowOnScreenAt(x: number, y: number): Selected | null {
 	const drawn = $canvas.value?.rowAtPoint(x, y)
@@ -403,6 +464,10 @@ actions.provideContext({
 		from: rowOnScreenAt,
 	}),
 	subject: () => selection.value,
+	suggestions: () => {
+		const items = wraps.value
+		return items.length === 0 ? null : { heading: 'Wrap', items }
+	},
 })
 
 // What a form asks for is pointed at, which a tool for drawing would take for drawing.

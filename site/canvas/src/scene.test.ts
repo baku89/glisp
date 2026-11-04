@@ -57,6 +57,7 @@ import {
 	sceneOf,
 	snapPointsOf,
 	withPaint,
+	withPaintOfRows,
 } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
@@ -1264,5 +1265,41 @@ describe('whether a shape has an inside to take hold of', () => {
 	it('has one, with a fill or a line', () => {
 		expect(hasInside(shape({ ...NO_PAINT, fill: '#000000' }))).toBe(true)
 		expect(hasInside(shape({ ...NO_PAINT, stroke: '#000000' }))).toBe(true)
+	})
+})
+
+describe('how what is put together is drawn', () => {
+	const RECT = '(path.rect [0 0] [10 10])'
+	const CIRCLE = '(path.circle [5 5] 5)'
+	const painted = (back: string, front: string): string => {
+		const root = parse(`{a = ${back} b = ${front}}`) as LetAST
+		const env = withGraphics(buildPrelude())
+		return print(withPaintOfRows(root, env, ['binding:b', 'binding:a'], parse('it')))
+	}
+
+	it('has a fill in front go with a line behind it', () => {
+		expect(
+			painted(`(style ${RECT} stroke="red" width=3)`, `(style ${CIRCLE} fill="blue")`)
+		).toBe(print(parse('(style it fill="blue" stroke="red" width=3)')))
+	})
+
+	it('goes by the one in front, whichever was selected first', () => {
+		expect(
+			painted(`(style ${RECT} fill="red" width=3)`, `(style ${CIRCLE} fill="blue" width=5)`)
+		).toBe(print(parse('(style it fill="blue" width=5)')))
+	})
+
+	it('takes what is only as it would be anyway as saying nothing', () => {
+		expect(painted(`(style ${RECT} fill="red")`, `(style ${CIRCLE} fill="none")`)).toBe(
+			print(parse('(style it fill="red")'))
+		)
+	})
+
+	it('reads what a style is given in order', () => {
+		expect(painted(`(style ${RECT} "red")`, CIRCLE)).toBe(print(parse('(style it fill="red")')))
+	})
+
+	it('adds no style where neither has one', () => {
+		expect(painted(RECT, CIRCLE)).toBe('it')
 	})
 })

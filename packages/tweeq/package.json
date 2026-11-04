@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./filters": "./src/filters.ts",
     "./multiRows": "./src/multiRows.ts",
     "./rowsClipboard": "./src/rowsClipboard.ts",
     "./structure": "./src/structure.ts"

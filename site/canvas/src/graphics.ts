@@ -5,6 +5,7 @@
  */
 
 import {
+	type TypedHostFn,
 	AS_SOURCE,
 	type AST,
 	buildPrelude,
@@ -31,6 +32,7 @@ import {
 	withOptional,
 	withTypeMeta,
 } from '@glisp/lang'
+import { withInitial } from '@glisp/tweeq/filters'
 import Color from 'colorjs.io'
 import { mat2d as Mat2d, vec2 as Vec2 } from 'linearly'
 import { bounds } from 'pave/path/metrics'
@@ -54,6 +56,16 @@ import {
 } from 'pave/path/primitives'
 import { clothoid, spiral } from 'pave/path/spirals'
 import { superellipse } from 'pave/path/superellipse'
+import { exclude, intersect, subtract, unite } from 'pave/path/boolean'
+import { dash } from 'pave/path/dash'
+import { bulge, twirl, wave } from 'pave/path/distortions'
+import { convexHull } from 'pave/path/hull'
+import { mirror, reflect } from 'pave/path/mirror'
+import { chamfer, fillet, flatten, reverse, subdivide, zigzag } from 'pave/path/modifiers'
+import { blend } from 'pave/path/layout'
+import { normal } from 'pave/path/location'
+import { offset, offsetStroke } from 'pave/path/offset'
+import { nearest } from 'pave/path/queries'
 import { fromD, toD } from 'pave/path/svg'
 
 const said = (type: TypeValue, draw: string, icon: string): TypeValue =>
@@ -106,6 +118,21 @@ withMembers(vec2, {
 const part = (fields: readonly (readonly [string, string | number])[]): TypeValue =>
 	withTypeMeta(number, new RecordAST(fields.map(([key, text]) => [key, lit(text)] as const)))
 
+/**
+ * How much of something, from 0 to 1, which is half until it is said otherwise. It is a number
+ * as far as what fits goes: it says what it means, and how it is to be taken hold of.
+ */
+const percentType = withTypeMeta(
+	{ ...number, default: 0.5 },
+	new RecordAST([
+		['min', lit(0)],
+		['max', lit(1)],
+		['scale', lit(100)],
+		['suffix', lit('%')],
+		['icon', lit('mdi:percent-outline')],
+	])
+)
+
 /** Not every vec2 is a point: a size is not to be drawn. */
 const point = withTypeMeta(
 	said(
@@ -148,6 +175,11 @@ const size = withTypeMeta(
 /** How long the side of something is. */
 const sideType = part([['min', 0]])
 
+/** The same type, and what is said of it, starting as `value`. */
+const withDefault = (type: TypeValue, value: unknown): TypeValue => {
+	const plain = Object.create(type.plain ?? type, { default: { value } }) as TypeValue
+	return type.meta ? withTypeMeta(plain, type.meta) : plain
+}
 const mat2d = makeTupleType([number, number, number, number, number, number])
 const makeTranslation = makeTypedFn(
 	[vec2],
@@ -663,7 +695,7 @@ const makeGray = withInverse(
 	(_, result) => channelsOf(result, 'srgb')[0]
 )
 const mixed = makeTypedFn(
-	[colorType, colorType, number],
+	[colorType, colorType, percentType],
 	colorType,
 	(a, b, t) => toHex(parsed(a).mix(parsed(b), t as number, { space: 'oklch' }) as Color),
 	['a', 'b', 'ratio']
@@ -797,6 +829,71 @@ const makeArea = makeTypedFn(
 	['origin', 'size']
 )
 
+/** How far from a path something goes, which is 10 until it is said otherwise. */
+const distanceType: TypeValue = { ...number, default: 10 }
+const miterLimitType: TypeValue = { ...number, default: 10 }
+
+const makeOffset = withOptional(
+	makeTypedFn(
+		[pathType, distanceType, lineJoinType, miterLimitType],
+		pathType,
+		(path, distance, join, miterLimit) =>
+			new PathValue(
+				offset((path as PathValue).path, distance as number, {
+					lineJoin: join as CanvasLineJoin,
+					miterLimit: miterLimit as number,
+				})
+			),
+		['path', 'distance', 'join', 'miterLimit']
+	),
+	['join', 'miterLimit']
+)
+
+const makeOffsetStroke = withOptional(
+	makeTypedFn(
+		[pathType, distanceType, lineCapType, lineJoinType, miterLimitType],
+		pathType,
+		(path, width, cap, join, miterLimit) =>
+			new PathValue(
+				offsetStroke((path as PathValue).path, width as number, {
+					lineCap: cap as CanvasLineCap,
+					lineJoin: join as CanvasLineJoin,
+					miterLimit: miterLimit as number,
+				})
+			),
+		['path', 'width', 'cap', 'join', 'miterLimit']
+	),
+	['cap', 'join', 'miterLimit']
+)
+
+const makeBlend = makeTypedFn(
+	[pathType, pathType, percentType],
+	pathType,
+	(a, b, ratio) =>
+		new PathValue(blend((a as PathValue).path, (b as PathValue).path, ratio as number)),
+	['a', 'b', 'ratio']
+)
+
+/** One path made from two or more, by how much of each there is to have. */
+const combining = (
+	combine: (paths: Path[]) => Path,
+	names: readonly [string, string],
+	rest: string
+): TypedHostFn =>
+	makeTypedFn(
+		[pathType, pathType],
+		pathType,
+		(...paths) => new PathValue(combine((paths as PathValue[]).map(({ path }) => path))),
+		[...names],
+		pathType,
+		rest
+	)
+
+const makeUnite = combining(unite, ['a', 'b'], 'others')
+const makeSubtract = combining(([subject, ...tools]) => subtract(subject!, tools), ['subject', 'tool'], 'tools')
+const makeIntersect = combining(intersect, ['a', 'b'], 'others')
+const makeExclude = combining(exclude, ['a', 'b'], 'others')
+
 const makeBounds = makeTypedFn(
 	[pathType],
 	rectType,
@@ -807,12 +904,156 @@ const makeBounds = makeTypedFn(
 	['path']
 )
 
+const pathOf = (value: unknown): Path => (value as PathValue).path
+
+/** How a path is around the middle of it, and how far that goes. */
+const aroundOf = (path: Path): { middle: Vec; reach: number } => {
+	const [[left, top], [right, bottom]] = bounds(path)
+	return {
+		middle: [(left + right) / 2, (top + bottom) / 2],
+		reach: Math.max(right - left, bottom - top) / 2,
+	}
+}
+
+const makeRoundCorners = makeTypedFn(
+	[pathType, withDefault(cornerType, 10)],
+	pathType,
+	(path, radius) => new PathValue(fillet(pathOf(path), radius as number)),
+	['path', 'radius']
+)
+const makeChamfer = makeTypedFn(
+	[pathType, distanceType],
+	pathType,
+	(path, distance) => new PathValue(chamfer(pathOf(path), distance as number)),
+	['path', 'distance']
+)
+const makeMirror = withInitial(
+	makeTypedFn(
+		[pathType, point, point],
+		pathType,
+		(path, start, end) => new PathValue(mirror(pathOf(path), [start as Vec, end as Vec])),
+		['path', 'start', 'end']
+	),
+	(path: unknown) => {
+		const [[, top], [right, bottom]] = bounds(pathOf(path))
+		return [
+			[right, top],
+			[right, bottom],
+		]
+	}
+)
+const makeReflect = withInitial(
+	makeTypedFn(
+		[pathType, point, point],
+		pathType,
+		(path, start, end) => new PathValue(reflect(pathOf(path), [start as Vec, end as Vec])),
+		['path', 'start', 'end']
+	),
+	(path: unknown) => {
+		const [[, top], [right, bottom]] = bounds(pathOf(path))
+		return [
+			[right, top],
+			[right, bottom],
+		]
+	}
+)
+const lengthOf = (value: number): TypeValue => withDefault(number, value)
+const makeZigzag = makeTypedFn(
+	[pathType, lengthOf(5), lengthOf(20)],
+	pathType,
+	(path, amplitude, wavelength) =>
+		new PathValue(zigzag(pathOf(path), amplitude as number, wavelength as number)),
+	['path', 'amplitude', 'wavelength']
+)
+const makeWave = makeTypedFn(
+	[pathType, lengthOf(5), lengthOf(40)],
+	pathType,
+	(path, amplitude, wavelength) =>
+		new PathValue(wave(pathOf(path), amplitude as number, wavelength as number)),
+	['path', 'amplitude', 'wavelength']
+)
+const makeTwirl = withInitial(
+	makeTypedFn(
+		[pathType, point, number, withDefault(angleType, 90)],
+		pathType,
+		(path, center, radius, angle) =>
+			new PathValue(twirl(pathOf(path), center as Vec, radius as number, angle as number)),
+		['path', 'center', 'radius', 'angle']
+	),
+	(path: unknown) => {
+		const { middle, reach } = aroundOf(pathOf(path))
+		return [middle, reach * 1.5]
+	}
+)
+const makeBulge = withInitial(
+	makeTypedFn(
+		[pathType, point, number, withDefault(number, 0.5)],
+		pathType,
+		(path, center, radius, strength) =>
+			new PathValue(bulge(pathOf(path), center as Vec, radius as number, strength as number)),
+		['path', 'center', 'radius', 'strength']
+	),
+	(path: unknown) => {
+		const { middle, reach } = aroundOf(pathOf(path))
+		return [middle, reach * 1.5]
+	}
+)
+const makeDash = makeTypedFn(
+	[pathType, withDefault(makeTupleType([], number), [10, 5])],
+	pathType,
+	(path, pattern) => new PathValue(dash(pathOf(path), pattern as number[])),
+	['path', 'pattern']
+)
+const makeSubdivide = makeTypedFn(
+	[
+		pathType,
+		withTypeMeta(
+			withDefault(number, 2),
+			new RecordAST([
+				['min', lit(1)],
+				['step', lit(1)],
+			])
+		),
+	],
+	pathType,
+	(path, division) => new PathValue(subdivide(pathOf(path), division as number)),
+	['path', 'division']
+)
+const makeFlatten = makeTypedFn(
+	[pathType, withDefault(number, 1)],
+	pathType,
+	(path, tolerance) => new PathValue(flatten(pathOf(path), tolerance as number)),
+	['path', 'tolerance']
+)
+const makeReverse = makeTypedFn([pathType], pathType, path => new PathValue(reverse(pathOf(path))), ['path'])
+const makeConvexHull = makeTypedFn([pathType], pathType, path => new PathValue(convexHull(pathOf(path))), ['path'])
+
 withMembers(rectType, {
 	new: withDoc(makeArea, 'An area from its `origin`, of this `size`, such as a page to export.', 'Area'),
 })
 
 withMembers(pathType, {
 	bounds: withDoc(makeBounds, 'The area that `path` just fits in.', 'Bounds'),
+	offset: withDoc(makeOffset, 'The outline of `path`, this `distance` out from it, or in, if that is below 0, going around corners by `join`.', 'Offset'),
+	offsetStroke: withDoc(makeOffsetStroke, 'The outline of a line along `path`, this `width`, ending by `cap` and going around corners by `join`.', 'Offset Stroke'),
+	roundCorners: withDoc(makeRoundCorners, 'The same `path`, with its corners rounded by `radius`.', 'Round Corners'),
+	chamfer: withDoc(makeChamfer, 'The same `path`, with its corners cut off `distance` back along each side.', 'Chamfer'),
+	mirror: withDoc(makeMirror, 'The `path`, and what it is across the line from `start` to `end`, as one.', 'Mirror'),
+	reflect: withDoc(makeReflect, 'What `path` is across the line from `start` to `end`.', 'Reflect'),
+	zigzag: withDoc(makeZigzag, 'The `path`, going from side to side by `amplitude`, once every `wavelength` along it.', 'Zigzag'),
+	wave: withDoc(makeWave, 'The `path`, moved by a wave of this `amplitude` and `wavelength`.', 'Wave'),
+	twirl: withDoc(makeTwirl, 'The `path`, turned around `center` by `angle` in degrees, less so out to `radius`.', 'Twirl'),
+	bulge: withDoc(makeBulge, 'The `path`, pushed out from `center` by `strength`, less so out to `radius`.', 'Bulge'),
+	dash: withDoc(makeDash, 'The parts of `path` that a line with this `pattern` of dashes and gaps would draw.', 'Dash'),
+	subdivide: withDoc(makeSubdivide, 'The same `path`, with each segment made into `division` of them.', 'Subdivide'),
+	flatten: withDoc(makeFlatten, 'The `path` in straight lines, as close to it as `tolerance`.', 'Flatten'),
+	reverse: withDoc(makeReverse, 'The same `path`, going the other way.', 'Reverse'),
+	convexHull: withDoc(makeConvexHull, 'The least convex shape that `path` fits in, as a band around it would be.', 'Convex Hull'),
+	unite: withDoc(makeUnite, 'What is inside of any of them.', 'Unite'),
+	subtract: withDoc(makeSubtract, 'What is inside of `subject`, and not inside of `tool` or any of `tools`.', 'Subtract'),
+	intersect: withDoc(makeIntersect, 'What is inside of all of them.', 'Intersect'),
+	exclude: withDoc(makeExclude, 'What is inside of one of them, and not where an even number overlap.', 'Exclude'),
+	blend: withDoc(makeBlend, 'What is between `a` and `b`, as far from `a` as `ratio` says.', 'Blend'),
 	d: withDoc(makeD, 'A path from its data, as an SVG path has it.', 'Path Data'),
 	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.', 'Circle'),
 	ellipseFromFoci: withDoc(makeEllipseFromFoci, 'An ellipse around `focus1` and `focus2`, going `through` a point, which says how large it is, as an ellipse is where the distances to its foci come to the same.', 'Ellipse from Foci'),
@@ -905,6 +1146,11 @@ export interface Handle {
 	readonly code?: PlaceCode
 	/** What it changes is much smaller than where it is on a canvas, as a scale is. */
 	readonly fine?: boolean
+	/**
+	 * It goes along a line, as an `offset` does when reached for, and has nothing it is an
+	 * outline of to lie along until then, so it always points the two ways it can go.
+	 */
+	readonly along?: boolean
 	/** It is drawn with a broken line, being there only to take hold of. */
 	readonly dashed?: boolean
 	/** It pulls in toward what it is measured from, with outside being the other way. */
@@ -945,6 +1191,8 @@ export interface Grip {
 	readonly handles: readonly Handle[]
 	/** What is only there to look at. */
 	readonly guides: readonly Path[]
+	/** What it is made from, which it no longer shows, being what comes of it. */
+	readonly sources?: readonly Path[]
 	/** What has to change, for the whole of it to be moved by `delta`. */
 	move?(delta: Vec): readonly Change[]
 	/** Where in the row it is, if it is in something the row says more about. */
@@ -1021,6 +1269,7 @@ export const under = (arg: number, grip: Grip): Grip => {
 	const { move } = grip
 	return {
 		guides: grip.guides,
+		...(grip.sources === undefined ? {} : { sources: grip.sources }),
 		within: grip.within === undefined ? `arg${arg}` : `arg${arg}/${grip.within}`,
 		...(grip.snaps === undefined ? {} : { snaps: grip.snaps }),
 		...(grip.marks === undefined
@@ -2226,6 +2475,187 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
  * The grip of a call of `fn`, if it has one. `inner` gives the grip of an argument
  * that is itself a call, and null if it is not.
  */
+const middleOf = (path: Path): Vec => {
+	const [[left, top], [right, bottom]] = bounds(path)
+	return [(left + right) / 2, (top + bottom) / 2]
+}
+
+/** What moves what a call is of, by moving each of them. They are in terms of the call already. */
+const movingAll = (grips: readonly (Grip | null)[]) => (delta: Vec): readonly Change[] =>
+	grips.flatMap(grip => grip?.move?.(delta) ?? [])
+
+/**
+ * A number that goes out from a path, `per` as far as it says, by a handle along the normal
+ * at where the path is nearest to its right side. Which way that is, for a path that has a
+ * way, is by where `moved` has it go.
+ */
+const outFromPath =
+	(per: number, moved: (path: Path) => Path | null): Maker =>
+	([path, distance], inner) => {
+		const source = (path as PathValue).path
+		const [[, top], [right, bottom]] = bounds(source)
+		const shape = inner(0)
+		const found = nearest(source, [right, (top + bottom) / 2])
+		if (found === null) return { handles: [], guides: [], sources: [source] }
+		const from = found.point as unknown as Vec
+		const [nx, ny] = normal(source, found.location) as unknown as Vec
+		// How near that way is to where it goes, or, if it goes both ways, how far to the right.
+		const out1 = moved(source)
+		const nearness = (way: number): number =>
+			out1 === null
+				? way * (nx || ny)
+				: -(nearest(out1, [from[0] + nx * way, from[1] + ny * way])?.distance ?? 0)
+		const way = nearness(1) >= nearness(-1) ? 1 : -1
+		const along: Vec = [nx * way, ny * way]
+		const out = (distance as number) * per
+		const at: Vec = [from[0] + along[0] * out, from[1] + along[1] * out]
+		return {
+			guides: [line(from, at)],
+			sources: [source],
+			handles: [
+				{
+					kind: 'offset',
+					name: 'distance',
+					angle: degrees(along),
+					at,
+					to: to => [
+						change(1, ((to[0] - from[0]) * along[0] + (to[1] - from[1]) * along[1]) / per),
+					],
+				},
+			],
+			...(shape?.move === undefined ? {} : { move: movingAll([shape]) }),
+		}
+	}
+
+makers.set(makeOffset, outFromPath(1, path => offset(path, 1)))
+// A stroke goes as far to each side, half of its width.
+makers.set(makeOffsetStroke, outFromPath(1 / 2, () => null))
+
+makers.set(makeBlend, ([a, b, ratio], inner) => {
+	const from = middleOf((a as PathValue).path)
+	const to = middleOf((b as PathValue).path)
+	const t = ratio as number
+	const along = sub(to, from)
+	const length = along[0] * along[0] + along[1] * along[1]
+	const shapes = [inner(0), inner(1)]
+	return {
+		guides: [line(from, to)],
+		sources: [(a as PathValue).path, (b as PathValue).path],
+		handles: [
+			{
+				kind: 'offset',
+				name: 'ratio',
+				angle: degrees(along),
+				at: [from[0] + along[0] * t, from[1] + along[1] * t],
+				// It goes from 0 to 1, which what is fine enough for a place is not fine enough for.
+				fine: true,
+				along: true,
+				to: at => {
+					if (length === 0) return []
+					const [x, y] = sub(at, from)
+					return [change(2, Math.max(0, Math.min(1, (x * along[0] + y * along[1]) / length)))]
+				},
+			},
+		],
+		...(shapes.some(shape => shape?.move !== undefined)
+			? { move: movingAll(shapes) }
+			: {}),
+	}
+})
+
+// What is around a path shows that path, however else it is taken hold of.
+const transformed = makers.get(makeTransformed)!
+makers.set(makeTransformed, (args, inner, proportional) => ({
+	...transformed(args, inner, proportional),
+	sources: [(args[0] as PathValue).path],
+}))
+
+makers.set(makeBounds, ([path], inner) => {
+	const shape = inner(0)
+	return {
+		guides: [],
+		handles: [],
+		sources: [(path as PathValue).path],
+		...(shape?.move === undefined ? {} : { move: movingAll([shape]) }),
+	}
+})
+
+/** A number pulled from a corner of what a path is in, inward along its top. */
+const fromCorner: Maker = ([path, amount], inner) => {
+	const [[, top], [right]] = bounds(pathOf(path))
+	const d = amount as number
+	const shape = inner(0)
+	return {
+		guides: [line([right, top], [right - d, top])],
+		sources: [pathOf(path)],
+		handles: [
+			{
+				kind: 'offset',
+				name: 'amount',
+				angle: 0,
+				along: true,
+				at: [right - d, top],
+				to: to => [change(1, Math.max(0, right - to[0]))],
+			},
+		],
+		...(shape?.move === undefined ? {} : { move: movingAll([shape]) }),
+	}
+}
+makers.set(makeRoundCorners, fromCorner)
+makers.set(makeChamfer, fromCorner)
+
+/** A path as it was, and where it is taken from: a line across it, or the center of a change. */
+const showingPath =
+	(handles: (args: readonly unknown[]) => Pick<Grip, 'handles' | 'guides'> = () => ({ handles: [], guides: [] })): Maker =>
+	(args, inner) => {
+		const shape = inner(0)
+		return {
+			...handles(args),
+			sources: [pathOf(args[0])],
+			...(shape?.move === undefined ? {} : { move: movingAll([shape]) }),
+		}
+	}
+
+const pointHandle = (arg: number, at: Vec): Handle => ({
+	kind: 'point',
+	at,
+	to: to => [change(arg, to)],
+})
+
+const acrossLine = showingPath(([, start, end]) => ({
+	guides: [line(start as Vec, end as Vec)],
+	handles: [pointHandle(1, start as Vec), pointHandle(2, end as Vec)],
+}))
+makers.set(makeMirror, acrossLine)
+makers.set(makeReflect, acrossLine)
+
+const aroundCenter = showingPath(([, center, radius]) => ({
+	guides: [circle(center as Vec, radius as number)],
+	handles: [
+		pointHandle(1, center as Vec),
+		radiusHandle(2, center as Vec, 0, radius as number),
+	],
+}))
+makers.set(makeTwirl, aroundCenter)
+makers.set(makeBulge, aroundCenter)
+
+for (const fn of [makeZigzag, makeWave, makeDash, makeSubdivide, makeFlatten, makeReverse, makeConvexHull]) {
+	makers.set(fn, showingPath())
+}
+
+// What is combined shows all that goes into it, and moves as one.
+for (const fn of [makeUnite, makeSubtract, makeIntersect, makeExclude]) {
+	makers.set(fn, (args, inner) => {
+		const shapes = args.map((_, i) => inner(i))
+		return {
+			guides: [],
+			handles: [],
+			sources: (args as PathValue[]).map(({ path }) => path),
+			...(shapes.some(shape => shape?.move !== undefined) ? { move: movingAll(shapes) } : {}),
+		}
+	})
+}
+
 // An area is taken hold of as a rectangle is, having the same origin and size.
 makers.set(makeArea, makers.get(makeRect)!)
 
@@ -2261,6 +2691,7 @@ export const inkOn = (color: string): string =>
 const BINDINGS: Readonly<Record<string, unknown>> = {
 	path: pathType,
 	rect: rectType,
+	percent: percentType,
 	color: colorType,
 	style: makeStyled,
 	background: makeBackground,

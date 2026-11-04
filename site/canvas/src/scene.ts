@@ -179,6 +179,29 @@ const STYLE = 'style'
 const isStyle = (ast: AST): ast is CallAST =>
 	ast.kind === 'call' && print(ast.head) === STYLE
 
+/** What a style says of `key`, however it is said. */
+const saidIn = (style: CallAST, key: keyof Paint): AST | undefined =>
+	style.kwargs?.get(key) ?? style.args[PAINT_KEYS.indexOf(key) + 1]
+
+/**
+ * `path`, drawn as the bindings at `rows` are put together: each part of how as the one in
+ * front has it, or else the next one behind that says anything of it. What is only as it would
+ * be anyway says nothing, so a fill in front goes with a line behind it.
+ */
+export function withPaintOfRows(root: LetAST, env: Env, rows: readonly string[], path: AST): AST {
+	const styles = root.bindings
+		.filter(([name]) => rows.includes(`binding:${name}`))
+		.map(([name]) => rowAt(root, env, `binding:${name}`)?.node)
+		.flatMap(node => (node && isStyle(bare(node)) ? [bare(node) as CallAST] : []))
+		.reverse()
+	const said = (key: keyof Paint): AST | undefined => {
+		const nothing = print(toAst(NO_PAINT[key], null))
+		return styles.map(style => saidIn(style, key)).find(ast => ast && print(ast) !== nothing)
+	}
+	const styled = styleOf(path, Object.fromEntries(PAINT_KEYS.map(key => [key, said(key)])))
+	return styled.kwargs ? styled : path
+}
+
 /** How the row at `row` is drawn, if it draws anything, or would if it were not hidden. */
 export function paintAt(root: AST, env: Env, row: string): Paint | null {
 	const atRow = (s: Shape): boolean => s.row === row
@@ -906,6 +929,30 @@ function rowAt(
 	return { node, env: nodeEnv, transform }
 }
 
+/** The path that the row at `row` comes to, if it does, with where that is on the canvas. */
+export function pathOfRow(
+	root: AST,
+	env: Env,
+	row: string
+): { readonly path: Path; readonly transform: Mat } | null {
+	const found = rowAt(root, env, row)
+	if (found === null) return null
+	const { value } = evaluate(readByName(found.node), found.env)
+	const path = isStyled(value) ? value.path.path : isPath(value) ? value.path : null
+	return path === null ? null : { path, transform: found.transform }
+}
+
+/** The paths that what the row at `row` comes to is made from, which is where to go into it. */
+export function innerPathsOf(root: AST, env: Env, row: string): readonly string[] {
+	const at = paintedRow(root, env, row)
+	const found = rowAt(root, env, at)
+	if (found === null || bare(found.node).kind !== 'call') return []
+	return viewOf(found.node, found.env)
+		.slots.filter(({ key }) => /^arg\d+$/.test(key))
+		.map(({ key }) => `${at}/${key}`)
+		.filter(inner => pathOfRow(root, env, inner) !== null)
+}
+
 /**
  * How the row at `row` can be taken hold of. A row that only refers to another has
  * the handles of that one, as moving it can only mean moving that.
@@ -919,6 +966,53 @@ export function gripAt(
 	if (found === null) return null
 	const grip = gripAtNode(found.node, found.env)
 	return grip === null ? null : { ...grip, transform: found.transform }
+}
+
+/**
+ * How `rows` can be taken hold of at once: the handles of all of them, and whose each is. Null
+ * if they have no coordinates in common to put those in, as they can then only be moved.
+ */
+export function gripOfRows(
+	root: AST,
+	env: Env,
+	rows: readonly string[]
+): { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] } | null {
+	const grips = rows.flatMap(row => {
+		const grip = gripAt(root, env, row)
+		return grip === null ? [] : [{ row, grip }]
+	})
+	const [first, second] = grips
+	if (first === undefined) return null
+	const rowOf = grips.flatMap(({ row, grip }) => grip.handles.map(() => row))
+	if (second === undefined) return { grip: first.grip, rowOf }
+	const transform = first.grip.transform
+	if (grips.some(({ grip }) => grip.transform.join() !== transform.join())) return null
+	const sources = grips.flatMap(({ grip }) => grip.sources ?? [])
+	return {
+		grip: {
+			transform,
+			handles: grips.flatMap(({ grip }) => grip.handles),
+			guides: grips.flatMap(({ grip }) => grip.guides),
+			...(sources.length > 0 ? { sources } : {}),
+		},
+		rowOf,
+	}
+}
+
+/**
+ * What a double click at `held` selects, having had `before` selected: all that it is made
+ * from, or, if it is one of several selected with nothing inside of it, only that one.
+ */
+export function rowsInside(
+	root: AST,
+	env: Env,
+	held: string,
+	before: readonly string[]
+): readonly string[] {
+	const within = before.length === 1 && before[0]!.startsWith(`${held}/`) ? before[0]! : held
+	const inner = innerPathsOf(root, env, within)
+	if (inner.length > 0) return inner
+	return before.length > 1 && before.includes(held) ? [held] : []
 }
 
 const shown = (n: number): string => String(Math.round(n * 1000) / 1000)

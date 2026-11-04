@@ -1,5 +1,7 @@
 import { type AST, buildPrelude, type Env, evaluate, expandLadder, LetAST, parse, print } from '@glisp/lang'
 import { numberOptionsAt, textOf, viewOf } from '@glisp/tweeq/structure'
+import { tangent as tangentOf } from 'pave/path/location'
+import { nearest as nearestOn } from 'pave/path/queries'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, onlyShapes, otherControl, type Vec, withGraphics } from './graphics'
@@ -963,6 +965,53 @@ describe('how far round something is', () => {
 
 	it('is not what anything else is', () => {
 		expect(optionsOf('(path.ngon [0 0] 10 5 30)', 1).suffix).toBeUndefined()
+	})
+})
+
+describe('what moves an outline out from a path', () => {
+	const handleOf = (src: string) => gripAt(parse(`{c = ${src}}`), env, ROW)!.handles.find(h => h.name === 'distance')!
+	const CURVE = '(path.cubic [0 0] [80 0] [120 60] [120 200])'
+	const SHAPES = [
+		`(path.offset ${CURVE} 25)`,
+		`(path.offset ${CURVE} -25)`,
+		'(path.offset (path.circle [0 0] 100) 25)',
+		'(path.offset (path.ellipse [0 0] [100 40] 30) 25)',
+		'(path.offset (path.rect [0 0] [100 60]) 25)',
+	]
+	const pathOf = (src: string) => (evaluate(parse(src), env).value as { path: Parameters<typeof nearestOn>[0] }).path
+
+	it.each(SHAPES)('is on the outline of %s', src => {
+		expect(nearestOn(pathOf(src), handleOf(src).at as unknown as [number, number])!.distance).toBeLessThan(0.1)
+	})
+
+	it.each(SHAPES)('faces along the normal of what %s comes from', src => {
+		const handle = handleOf(src)
+		const inner = src.slice('(path.offset '.length, src.lastIndexOf(' '))
+		const source = pathOf(inner)
+		const near = nearestOn(source, handle.at as unknown as [number, number])!
+		const radians = (handle.angle! * Math.PI) / 180
+		const [tx, ty] = tangentOf(source, near.location)
+		expect(Math.abs(tx * Math.cos(radians) + ty * Math.sin(radians))).toBeLessThan(0.01)
+	})
+
+	it('changes by how far along that it goes, whichever way it is dragged', () => {
+		const src = `(path.offset ${CURVE} 25)`
+		const handle = handleOf(src)
+		const radians = (handle.angle! * Math.PI) / 180
+		const [{ value }] = handle.to(
+			[handle.at![0] + Math.cos(radians) * 10 - Math.sin(radians) * 50, handle.at![1] + Math.sin(radians) * 10 + Math.cos(radians) * 50],
+			handle.at!
+		) as [{ value: number }]
+		expect(value).toBeCloseTo(35)
+	})
+
+	it('goes half as far for a stroke, either side', () => {
+		const handle = handleOf('(path.offsetStroke (path.circle [0 0] 100) 40)')
+		expect(Math.hypot(handle.at![0], handle.at![1])).toBeCloseTo(120)
+	})
+
+	it('has nothing to go out from, on an empty path', () => {
+		expect(gripAt(parse('{c = (path.offset (path.polygon) 5)}'), env, ROW)!.handles).toEqual([])
 	})
 })
 

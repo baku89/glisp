@@ -15,6 +15,14 @@ export const SHAPE_ICONS = {
 } as const
 
 const FUNCTION_ICONS: Readonly<Record<string, string>> = {
+	'path.unite': 'mdi:vector-union',
+	'path.roundCorners': 'tabler:border-radius',
+	'path.mirror': 'mdi:reflect-horizontal',
+	'path.reflect': 'mdi:flip-horizontal',
+	'path.dash': 'mdi:vector-polyline-minus',
+	'path.subtract': 'mdi:vector-difference-ba',
+	'path.intersect': 'mdi:vector-intersection',
+	'path.exclude': 'mdi:vector-difference',
 	...Object.fromEntries(Object.entries(SHAPE_ICONS).map(([name, icon]) => [`path.${name}`, icon])),
 	'path.ellipseFromFoci': SHAPE_ICONS.ellipse,
 	'path.d': 'ph:path',

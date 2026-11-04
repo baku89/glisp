@@ -31,6 +31,7 @@ import {
 	drawn,
 	drawnFrom,
 	gripAt,
+	rowsInside,
 	linked,
 	nameFor,
 	nearestSnap,
@@ -46,6 +47,7 @@ import {
 	rowsWithin,
 	type Anchor,
 	hiddenShapesOf,
+	pathOfRow,
 	sceneOf,
 	type Shape,
 	type ShapeTool,
@@ -85,6 +87,7 @@ const emit = defineEmits<{
 }>()
 
 const FRAME_ALPHA = 0.4
+const SOURCE_ALPHA = 0.5
 const GRID_DOT = 2
 const GRID_DOT_ALPHA = 0.18
 const GRID_LINE_ALPHA = 0.06
@@ -493,7 +496,7 @@ function drawHandle(
 		context.stroke(DIAMOND)
 	} else if (handle.kind === 'offset') {
 		// Along the outline, either side of it: reached for, they point the two ways it can go.
-		const bent = active ? (dragged ? 1 : hoverBend.value) : 0
+		const bent = handle.along || (active && dragged) ? 1 : active ? hoverBend.value : 0
 		const out = OFFSET_GAP + bent * OFFSET_BEND
 		const reach = OFFSET_REACH + bent * (OFFSET_BENT_REACH - OFFSET_REACH)
 		context.rotate(facing(handle.angle ?? 0))
@@ -776,8 +779,15 @@ function draw(): void {
 
 	context.strokeStyle = accent
 	context.lineWidth = 1
+	// What it is made from is faint, and not dashed, to be told from what shows how it is held.
+	context.globalAlpha = SOURCE_ALPHA
+	for (const path of grip.value?.sources ?? []) context.stroke(pathOnScreen(path))
+	context.globalAlpha = 1
 	context.setLineDash(DASH)
 	for (const path of grip.value?.guides ?? []) context.stroke(pathOnScreen(path))
+	for (const { path, transform } of innerSelected.value) {
+		context.stroke(pathOnScreen(path, gripView(transform)))
+	}
 	// What is selected but hidden has only this to it, as it is not drawn.
 	for (const shape of hiddenSelected.value) {
 		if (isOutlined(shape.draw)) context.stroke(pathOnScreen(shape.value as Path, view.value))
@@ -924,6 +934,48 @@ watchEffect(() => {
 useResizeObserver($canvas, ([entry]) => {
 	if (entry) size.value = [entry.contentRect.width, entry.contentRect.height]
 })
+
+/** What of the rows selected is not drawn itself, being something a path is made from. */
+const innerSelected = computed(() =>
+	taken.value.flatMap(row => {
+		if (scene.value.some(shape => shape.row === row)) return []
+		const found = pathOfRow(props.document.root.value, props.document.env.value, row)
+		return found === null ? [] : [{ row, ...found }]
+	})
+)
+
+const isOnPath = (path: Path, transform: Mat, x: number, y: number, within = false): boolean => {
+	const context = $canvas.value?.getContext('2d')
+	if (!context) return false
+	context.save()
+	context.setTransform(1, 0, 0, 1, 0, 0)
+	context.lineWidth = HIT_WIDTH
+	const onCanvas = pathOnScreen(path, gripView(transform))
+	const hit =
+		context.isPointInStroke(onCanvas, x, y) || (within && context.isPointInPath(onCanvas, x, y))
+	context.restore()
+	return hit
+}
+
+/** The row to take hold of at a place on screen: what is selected inside of a path, or the path. */
+function rowHeldAt(x: number, y: number): string | null {
+	const inner = innerSelected.value.find(({ path, transform }) => isOnPath(path, transform, x, y))
+	return inner?.row ?? shapeAt(x, y)?.row ?? null
+}
+
+/** What was selected before the clicks that a double click is, the first of which selects. */
+let beforeClicks: readonly string[] = []
+let lastPress = -Infinity
+const CLICKS_WITHIN_MS = 500
+
+/** Goes one path further into what is there, to all that it is made from. */
+function onDoubleClick(event: MouseEvent): void {
+	const { offsetX: x, offsetY: y } = event
+	const held = rowHeldAt(x, y)
+	if (held === null) return
+	const next = rowsInside(props.document.root.value, props.document.env.value, held, beforeClicks)
+	if (next.length > 0) emit('select', next)
+}
 
 /** The shape at a place on screen, the last drawn first. */
 function shapeAt(x: number, y: number): Shape | null {
@@ -1091,6 +1143,8 @@ function onPointerDown(event: PointerEvent): void {
 	held.value = null
 	// The middle button is the ZUI's.
 	if (event.button !== 0) return
+	if (event.timeStamp - lastPress > CLICKS_WITHIN_MS) beforeClicks = props.selected
+	lastPress = event.timeStamp
 	const { offsetX: x, offsetY: y } = event
 	$canvas.value?.setPointerCapture(event.pointerId)
 
@@ -1156,7 +1210,8 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
-	const shape = shapeAt(x, y)
+	const heldRow = rowHeldAt(x, y)
+	const shape = heldRow === null ? null : { row: heldRow }
 	if (shape !== null) {
 		const already = taken.value.includes(shape.row)
 		const rows = event.shiftKey
@@ -1667,6 +1722,7 @@ useEventListener(window, 'pointerup', event => {
 			ref="$canvas"
 			:style="{ cursor }"
 			@pointerdown="onPointerDown"
+			@dblclick="onDoubleClick"
 			@contextmenu.prevent="emit('menu', $event.clientX, $event.clientY, shapeAt($event.offsetX, $event.offsetY)?.row ?? null)"
 			@pointermove="onPointerMove"
 			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null)"
