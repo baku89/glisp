@@ -120,9 +120,13 @@ const kindHint = computed(() => {
 		? sourceOf(bare)
 		: (view.value.title ?? undefined)
 })
-const kindPressable = computed(
-	() => referenceTarget.value !== null || view.value.slots.length > 0
+const expandable = computed(
+	() =>
+		children.value.length > 0 ||
+		view.value.append !== null ||
+		view.value.missing.length > 0
 )
+const kindPressable = computed(() => referenceTarget.value !== null || expandable.value)
 
 // A reference can be pulled out to another row, like After Effects' pick whip.
 const linker = inject(LINKER, null)
@@ -364,9 +368,7 @@ watch(
 		:label="view.label ?? entry.label"
 		:icon="icon"
 		:hint="hint"
-		:expandable="
-			children.length > 0 || view.append !== null || view.missing.length > 0
-		"
+		:expandable="expandable"
 		:renamable="renamable"
 		:emphasized="isFunction"
 		:sortHandle="entry.sort !== undefined"
@@ -452,6 +454,7 @@ watch(
 				:parentPath="path"
 				:missing="view.missing"
 				:append="view.append"
+				:noAddRow="bareKind === 'let' && view.slots.length > 0"
 				:read="read"
 				:show="show"
 				@change="update"
