@@ -7,8 +7,9 @@
  * returns. A parameter whose type says what it is for goes first: `[0 0]` is only a
  * vector, but where a point is wanted, that is what it is.
  *
- * An icon is what Tweeq's `Icon` takes: an Iconify name such as `mdi:ruler`, or
- * `fill:` and the `d` of a path in a 24×24 box.
+ * An icon is what Tweeq's `Icon` takes: an Iconify name such as `mdi:ruler`,
+ * `fill:` or `stroke:` and the `d` of a path in a 24×24 box, or that `d` in colors
+ * of its own, as `paint:fill|stroke|d`.
  *
  * `@glisp/lang` knows nothing about icons, so `withIcons` adds a frame with
  * them over the prelude. It is an ordinary frame: a program can shadow any of it.

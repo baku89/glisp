@@ -383,7 +383,10 @@ export const isPath = (value: unknown): value is PathValue => value instanceof P
 /** How much of an icon's 24 a shape takes up, leaving room for its line. */
 const ICON_EXTENT = 18
 
-/** A path's own shape, fit into an icon, or null if it is not a path with a size. */
+/**
+ * A path's own shape, fit into an icon, in the colors it is painted, or null if it is not
+ * a path with a size. How wide its line is does not come along, as the shape is not to scale.
+ */
 export function iconOfPath(value: unknown): string | null {
 	const drawn = isStyled(value) ? value.path : value
 	if (!isPath(drawn)) return null
@@ -400,7 +403,12 @@ export function iconOfPath(value: unknown): string | null {
 		12 - (scale * (left + right)) / 2,
 		12 - (scale * (top + bottom)) / 2,
 	]
-	return `stroke:${toD(transform(path, fit))}`
+	const d = toD(transform(path, fit))
+	const paint = isStyled(value) ? value.paint : NO_PAINT
+	const stroke = paint.width > 0 ? paint.stroke : 'none'
+	return paint.fill === 'none' && stroke === 'none'
+		? `stroke:${d}`
+		: `paint:${paint.fill}|${stroke}|${d}`
 }
 
 export const pathType = said(

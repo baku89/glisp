@@ -94,6 +94,21 @@ describe('iconOfPath', () => {
 		expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(9)
 	})
 
+	it('is in the colors it is painted', () => {
+		const rect = '(path.rect [0 0] [10 10])'
+		const d = icon(rect)!.slice('stroke:'.length)
+		expect(icon(`(style ${rect} fill="#ff0000")`)).toBe(`paint:#ff0000|none|${d}`)
+		expect(icon(`(style ${rect} stroke="#00ff00")`)).toBe(`paint:none|#00ff00|${d}`)
+		expect(icon(`(style ${rect} fill="#ff0000" stroke="#00ff00")`)).toBe(`paint:#ff0000|#00ff00|${d}`)
+	})
+
+	it('has no line where one has no width, and an outline where nothing is painted', () => {
+		const rect = '(path.rect [0 0] [10 10])'
+		const d = icon(rect)!.slice('stroke:'.length)
+		expect(icon(`(style ${rect} fill="#ff0000" stroke="#00ff00" width=0)`)).toBe(`paint:#ff0000|none|${d}`)
+		expect(icon(`(style ${rect})`)).toBe(`stroke:${d}`)
+	})
+
 	it('is nothing for what is not a path, or has no size', () => {
 		expect(iconOfPath(1)).toBeNull()
 		expect(icon('(: 1 path)')).toBeNull()
@@ -965,7 +980,7 @@ describe('painting', () => {
 	it('is nothing a path knows about', () => {
 		const styled = evaluate(parse('(style (path.rect [0 0] [1 1]) "#ff0000" "none" 0)'), env).value
 		expect(isPath(styled)).toBe(false)
-		expect(iconOfPath(styled)).toMatch(/^stroke:/)
+		expect(iconOfPath(styled)).toMatch(/^paint:#ff0000\|none\|M/)
 	})
 
 	it('is looked past, to inspect what is in it', () => {
