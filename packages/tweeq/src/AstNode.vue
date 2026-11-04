@@ -134,6 +134,8 @@ const titled = inject(TITLED, false)
 const roomFor = (count: number): NumbersFit =>
 	numbersFit(count, Math.max(0, (tree?.valueWidth.value ?? 0) - (translatable.value ? PAD_WIDTH : 0)))
 const fit = computed(() => roomFor(view.value.slots.length))
+/** Whether its numbers are there to read as they change, on its row or the rows of them. */
+const numbersInView = computed(() => inline.value || open.value || roomFor(2) !== 'stacked')
 // Numbers have ways of making room, where anything else goes by how much it needs.
 const inline = computed(
 	() =>
@@ -431,6 +433,7 @@ watch(
 			<InputTranslate
 				v-if="translatable"
 				:modelValue="placeValue as [number, number]"
+				:showOverlayLabel="!numbersInView"
 				@update:modelValue="solver?.solve(ast, $event)"
 			/>
 			<div v-if="inline" ref="$anchor" class="inline-anchor">
