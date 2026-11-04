@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, isHidden, UNIT, UNSET } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isHidden, readByName, UNIT, UNSET } from '@glisp/lang'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputGroup } from 'tweeq/InputGroup'
 import { InputNumber } from 'tweeq/InputNumber'
@@ -58,7 +58,8 @@ const view = computed(() =>
 const result = computed(() =>
 	view.value.editor !== null || !hasValue(ast.value)
 		? null
-		: props.read(ast.value, props.entry.env)
+		: // What it would come to: `#_` is shown as such, and the value is still worth seeing.
+			props.read(readByName(ast.value), props.entry.env)
 )
 const problem = computed(() =>
 	problemOf(ast.value, props.entry.env, props.entry.expected, props.read)

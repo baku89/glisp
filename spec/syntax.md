@@ -485,13 +485,17 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 
 ### Hiding — `#_`
 
-`#_expr` says that an expression is not output. It is metadata, as `@` is, so it changes no value, and what refers to it still gets its value. What not being output means is up to a host: a canvas does not draw it, and since nothing then asks for what nobody else refers to, that is not even worked out.
+`#_expr` bypasses an expression where it stands: it stays in the program, and is edited and checked as ever, but comes to `()` without being worked out, which a typed slot turns into its default. What refers to it, by a name or a path, still gets its value.
 
 <!-- test -->
 ```glisp
+(+ 1 #_(+ 2 3) 4)                        ;; → 5
 {a = #_10 (+ a 1)}                       ;; → 11
 {a = ^{label: "A"} #_@10 (+ a 1)}        ;; → 11
+{v = [1 #_2] ./v/1}                      ;; → 2
 ```
+
+A binding is where something is defined rather than used, so `#_` there has no effect on its value, and a host takes it as not being output: a canvas does not draw it, and since nothing then asks for what nobody else refers to, that is not even worked out.
 
 `#_` goes before `@` when printed, and joins other metadata. `#_#_a` is a syntax error. It stays where it is written, and does not go along with a type. `#` followed by anything else is kept for what may come, such as colors.
 
@@ -589,7 +593,7 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `=>`          | function literal                                       |
 | `^{...}`      | metadata attachment                                    |
 | `~`           | work out within one expansion step                     |
-| `#_`          | hide: this is not output, for a host to go by          |
+| `#_`          | bypass: comes to `()` where it stands, and is not output |
 | `@`           | pin: leave as it is when working backward from a value |
 | `...`         | spread / variadic                                      |
 | `_`           | top type                                               |

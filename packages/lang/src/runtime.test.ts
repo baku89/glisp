@@ -505,4 +505,14 @@ describe('Runtime — metadata', () => {
 		const reference = after(via(1), via(2), 'a')
 		expect([reference.first, reference.value]).toEqual([1, 2])
 	})
+
+	it('recomputes for #_, and not for what it bypasses', () => {
+		const on = after('{a = (+ 1 2)}', '{a = #_(+ 1 2)}', 'a')
+		expect(on.first).toBe(3)
+		const k = (n: number) => `{k = ${n} a = [#_k 1]}`
+		const inside = after(k(1), k(2), 'a')
+		expect(inside.computed).toBe(0)
+		const bound = (d: string) => `{b = ${d} a = (+ b 1)}`
+		expect(after(bound('1'), bound('#_1'), 'a').computed).toBe(0)
+	})
 })

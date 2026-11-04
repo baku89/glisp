@@ -1287,7 +1287,11 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 			return fail(ast, env, 'spread used outside a list-building context')
 
 		case 'meta': {
-			// A parallel layer, of which evaluation reads only a type's `default`.
+			// A parallel layer, of which evaluation reads only `#_`, which comes to
+			// nothing where it stands, and a type's `default`.
+			if (ast.metadata.get(HIDDEN) !== undefined) {
+				return { value: UNIT, diagnostics: [] }
+			}
 			const result = evaluate(ast.expr, env)
 			if (!isTypeValue(result.value)) return result
 			const { type, diagnostics } = withDefaultFrom(
@@ -1355,9 +1359,28 @@ export function pushLetFrame(ast: AST & { bindings: ReadonlyArray<readonly [stri
 	for (const [name, valueAST] of ast.bindings) {
 		// self-referential: each binding is evaluated in the frame that
 		// already contains all its sibling bindings.
-		map.set(name, { ast: valueAST, env: frame })
+		map.set(name, { ast: readByName(valueAST), env: frame })
 	}
 	return frame
+}
+
+const readByNameMemo: WeakMap<AST, AST> = new WeakMap()
+
+/**
+ * What a reference reads of `ast`: `#_` bypasses an expression where it stands, and
+ * not for what refers to it. The same node each time, so that it can be cached.
+ */
+export function readByName(ast: AST): AST {
+	if (ast.kind !== 'meta' || ast.metadata.get(HIDDEN) === undefined) return ast
+	const known = readByNameMemo.get(ast)
+	if (known !== undefined) return known
+	const others = ast.metadata.fields.filter(f => 'kind' in f || f[0] !== HIDDEN)
+	const read =
+		others.length === 0
+			? ast.expr
+			: new MetaASTClass(new RecordASTClass(others, ast.metadata.optional), ast.expr)
+	readByNameMemo.set(ast, read)
+	return read
 }
 
 /**
@@ -2187,7 +2210,7 @@ function evalPath(
 	const target = pathTarget(segments, env)
 	return 'message' in target
 		? fail(source, env, target.message)
-		: evaluate(target.ast, target.env)
+		: evaluate(readByName(target.ast), target.env)
 }
 
 /**

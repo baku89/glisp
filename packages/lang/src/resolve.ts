@@ -35,6 +35,7 @@ import {
 	type SymAST,
 	withoutMeta,
 	type MetaAST,
+	HIDDEN,
 } from './types.js'
 
 /** Call heads dispatched by name, which never refer to a binding. */
@@ -80,9 +81,12 @@ const evaluatedRefsCache: WeakMap<AST, FreeRefs> = new WeakMap()
 
 /**
  * What `ast` needs for its value: `freeRefs`, apart from what only metadata refers
- * to. Of metadata, evaluation reads a `default`, from inside the metadata's record.
+ * to, and what `#_` bypasses. Of metadata, evaluation reads a `default`, from inside
+ * the metadata's record.
  */
 export function evaluatedRefs(ast: AST): FreeRefs {
+	// What `#_` bypasses is not worked out, so it needs nothing.
+	if (ast.kind === 'meta' && ast.metadata.get(HIDDEN) !== undefined) return NO_REFS
 	const cached = evaluatedRefsCache.get(ast)
 	if (cached !== undefined) return cached
 	const refs = computeFreeRefs(ast, evaluatedRefs, meta => {

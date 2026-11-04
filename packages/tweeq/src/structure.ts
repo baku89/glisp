@@ -1154,6 +1154,7 @@ export function canSolve(slot: Slot, value: unknown): boolean {
 				(slot.ast.kind === 'meta' ? slot.ast.expr : slot.ast).kind !== 'vec')) &&
 		isExpression(slot.ast) &&
 		!isPinned(slot.ast) &&
+		!isHidden(slot.ast) &&
 		slot.display === undefined &&
 		slot.role !== 'function'
 	)

@@ -5,6 +5,7 @@ import { callParameters, infer, resolveTypeSlot } from './infer.js'
 import { Runtime } from './runtime.js'
 import { Session } from './session.js'
 import { print } from './print.js'
+import { solve } from './solve.js'
 import {
 	access,
 	call,
@@ -1463,5 +1464,52 @@ describe('members of a type', () => {
 	it('survive what metadata does to the type', () => {
 		const said = resolveTypeSlot(parse('^{min: 0} pair'), env)!
 		expect(said.members?.zero).toEqual([0, 0])
+	})
+})
+
+describe('#_', () => {
+	const env = buildPrelude()
+	const run = (src: string) => evaluate(parse(src), env).value
+
+	it('comes to nothing where it stands, which a slot takes as its default', () => {
+		expect(run('#_1')).toBe(UNIT)
+		expect(run('[1 #_2 3]')).toEqual([1, UNIT, 3])
+		expect(run('(+ 1 #_(+ 2 3) 4)')).toBe(5)
+		expect(run('(* 2 #_3)')).toBe(2)
+		expect(run('{f = (=> (x: number): number (+ x 1)) (f #_5)}')).toBe(1)
+		expect(run('{a = 1 #_a}')).toBe(UNIT)
+	})
+
+	it('is not worked out', () => {
+		let calls = 0
+		const counted = makeTypedFn([], lit(0) && (evaluate(parse('number'), env).value as TypeValue), () => ++calls)
+		const scope: Env = {
+			ast: new LetAST([], null),
+			parent: env,
+			bindings: new Map([['counted', { ast: host(counted), env: null }]]),
+		}
+		evaluate(parse('(+ 1 #_(counted))'), scope)
+		expect(calls).toBe(0)
+	})
+
+	it('leaves what refers to it its value', () => {
+		expect(run('{a = #_10 (+ a 1)}')).toBe(11)
+		expect(run('{a = ^{label: "A"} #_@10 (+ a 1)}')).toBe(11)
+		expect(run('{a = #_10 b = a b}')).toBe(10)
+		expect(run('{a = #_10 ./a}')).toBe(10)
+		expect(run('{v = [1 #_2] ./v/1}')).toBe(2)
+	})
+
+	it('stops working backward, where it stands', () => {
+		const root = parse('{a = 1 r = [#_a 2]}') as LetAST
+		const { ast } = solve(root, env, root.bindings[1]![1], [5, 2])
+		expect(ast).toBeNull()
+		const named = parse('{a = #_1 r = (+ a @1)}') as LetAST
+		expect(print(solve(named, env, named.bindings[1]![1], 10).ast!)).toBe('{a = #_9 r = (+ a @1)}')
+	})
+
+	it('is still checked', () => {
+		expect(check(parse('(+ 1 #_"a")'), env)).not.toEqual([])
+		expect(check(parse('{a = 1 #_nope}'), env)).not.toEqual([])
 	})
 })

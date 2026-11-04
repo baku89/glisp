@@ -10,7 +10,7 @@
  * Spec: spec/eval.md — Working backward
  */
 
-import { isPinned, lit } from './build.js'
+import { isHidden, isPinned, lit } from './build.js'
 import { desugar } from './desugar.js'
 import {
 	enterNode,
@@ -105,6 +105,7 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 					? new Map([[ast, wanted]])
 					: stop(ast, at, 'cannot hold that type of value')
 			case 'meta':
+				if (isHidden(ast)) return stop(ast, at, 'bypassed')
 				return isPinned(ast)
 					? stop(ast, at, 'pinned')
 					: next(ast.expr, at, wanted)

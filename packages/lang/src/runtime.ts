@@ -37,7 +37,7 @@ import {
 } from './eval.js'
 import { desugar } from './desugar.js'
 import { evaluatedRefs, type FreePath } from './resolve.js'
-import { type AST, type Env, SpreadAST, UNIT, withoutMeta } from './types.js'
+import { type AST, type Env, HIDDEN, SpreadAST, UNIT, withoutMeta } from './types.js'
 
 export interface RuntimeOptions {
 	/** Cached results to keep across edits. Older ones are evicted first. */
@@ -331,8 +331,8 @@ class SignatureStore implements EvalStore {
 			case 'spread':
 				return `... ${id(ast.expr)}`
 			case 'meta':
-				// Of metadata, evaluation reads only a `default`.
-				return `meta ${id(ast.expr)} ${
+				// Of metadata, evaluation reads only `#_` and a `default`.
+				return `meta ${ast.metadata.get(HIDDEN) === undefined ? '' : '#_ '}${id(ast.expr)} ${
 					ast.metadata.get('default') === undefined
 						? ''
 						: id(ast.metadata.get('default')!)

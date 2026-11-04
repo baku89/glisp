@@ -451,8 +451,8 @@ A plain `evaluate` memoizes on `(AST instance, env instance)`. Replacing a node 
 signature(node, env) = (content of node, signature of each thing it refers to)
 ```
 
-- **Content** is the structure, ignoring identity, trivia, and metadata other than `default`, which is the only metadata evaluation reads. So changing a `label` recomputes nothing, and neither does changing what only metadata refers to, reformatting, or reparsing unchanged text.
-- **What a node refers to** comes from `evaluatedRefs`, which is `freeRefs` apart from what only metadata refers to, with each name and path resolved in `env`. A dependency that fails to resolve contributes that fact.
+- **Content** is the structure, ignoring identity, trivia, and metadata other than `#_` and `default`, which are the only metadata evaluation reads. So changing a `label` recomputes nothing, and neither does changing what only metadata refers to, reformatting, or reparsing unchanged text.
+- **What a node refers to** comes from `evaluatedRefs`, which is `freeRefs` apart from what only metadata refers to and what `#_` bypasses, with each name and path resolved in `env`. A dependency that fails to resolve contributes that fact.
 - **Bindings can form cycles.** A strongly connected component gets one signature for the group as a whole. A cycle of function literals is ordinary recursion. A cycle through anything else is a value depending on itself, whose result depends on where the cycle was entered, so neither it nor anything depending on it is cached.
 
 This has the following consequences for a host:
