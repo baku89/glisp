@@ -182,16 +182,17 @@ const pathOf = (slot: Slot): string =>
 		icon="mdi:plus"
 		@select="emit('change', argument.add())"
 	/>
-	<ParameterTreeItem
-		v-if="append && !noAddRow"
-		:label="`Add ${append.label}`"
-		icon="mdi:plus"
-		@select="addOneMore"
-	>
-		<template #labelEnd>
-			<AstGapAdd @add="addOneMore" />
-		</template>
-	</ParameterTreeItem>
+	<div v-if="append && !noAddRow" class="add-row">
+		<ParameterTreeItem
+			:label="`Add ${append.label}`"
+			icon="mdi:plus"
+			@select="addOneMore"
+		>
+			<template #labelEnd>
+				<AstGapAdd @add="addOneMore" />
+			</template>
+		</ParameterTreeItem>
+	</div>
 </template>
 
 <style scoped>
@@ -204,5 +205,19 @@ const pathOf = (slot: Slot): string =>
 .end :deep(.AstGapAdd) {
 	top: 0;
 	left: 0;
+}
+/* It has no value to make room for, so its label goes on into that column. */
+.add-row {
+	display: contents;
+}
+.add-row :deep(.TqParameter) {
+	grid-template-columns: minmax(0, 1fr);
+}
+.add-row :deep(.TqParameter > .input) {
+	display: none;
+}
+/* The space a top row has above it, which it would lose for being first in this. */
+.add-row:not(:first-child) :deep(.TqParameter.top) {
+	margin-top: calc(var(--tq-gap-control) - var(--tq-gap-related));
 }
 </style>
