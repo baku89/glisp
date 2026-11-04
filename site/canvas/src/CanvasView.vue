@@ -410,10 +410,16 @@ function draw(): void {
 	const accent = color('--tq-color-accent')
 	const paper = color('--tq-color-background')
 
+	const isMarked = ({ row }: Shape): boolean =>
+		props.selected.includes(row) || row === hovered.value
+	const drawPoint = (shape: Shape): void => {
+		const [px, py] = toScreen(shape.value as Vec, view.value)
+		context.beginPath()
+		context.arc(px, py, 2.5, 0, Math.PI * 2)
+		context.fill()
+	}
+
 	for (const shape of scene.value) {
-		const isMarked = props.selected.includes(shape.row) || shape.row === hovered.value
-		context.strokeStyle = isMarked ? accent : shape.draw === 'path' ? ink : guide
-		context.fillStyle = context.strokeStyle
 		if (shape.draw === 'path') {
 			const onScreenPath = pathOnScreen(shape.value as Path, view.value)
 			const { paint } = shape
@@ -439,16 +445,27 @@ function draw(): void {
 					context.lineDashOffset = 0
 				}
 			}
-			if (paint === undefined || isMarked) {
-				context.strokeStyle = isMarked ? accent : ink
-				context.lineWidth = shape.row === hovered.value ? 2 : 1.5
+			if (paint === undefined && !isMarked(shape)) {
+				context.strokeStyle = ink
+				context.lineWidth = 1.5
 				context.stroke(onScreenPath)
 			}
+		} else if (shape.draw === 'point' && !isMarked(shape)) {
+			context.fillStyle = guide
+			drawPoint(shape)
+		}
+	}
+
+	// What is selected or about to be shows over everything drawn, whatever order that is in.
+	context.strokeStyle = accent
+	context.fillStyle = accent
+	for (const shape of scene.value) {
+		if (!isMarked(shape)) continue
+		if (shape.draw === 'path') {
+			context.lineWidth = shape.row === hovered.value ? 2 : 1.5
+			context.stroke(pathOnScreen(shape.value as Path, view.value))
 		} else if (shape.draw === 'point') {
-			const [px, py] = toScreen(shape.value as Vec, view.value)
-			context.beginPath()
-			context.arc(px, py, 2.5, 0, Math.PI * 2)
-			context.fill()
+			drawPoint(shape)
 		}
 	}
 
