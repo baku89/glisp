@@ -284,8 +284,9 @@ export function nearestSnap(
 }
 
 /**
- * `drawn`, with where it starts referring to what it snapped to, which is then its top
- * left, or its center: a rect goes whichever way it was drawn, and an ellipse out from it.
+ * `drawn`, with where it starts referring to what it snapped to, which is then its origin,
+ * or its center. An ellipse goes out from there. A rect's origin is its top left, and its
+ * size is never less than nothing, so one drawn up or left of there has no reference.
  */
 export function drawnFrom(
 	root: LetAST,
@@ -297,9 +298,8 @@ export function drawnFrom(
 	even: boolean,
 	step = FINEST
 ): LetAST {
-	// A square has one size, so it can only go out from there along the diagonal.
 	const [dx, dy] = [to[0] - snap.at[0], to[1] - snap.at[1]]
-	const anchored = canRefer(snap) && !(tool === 'rect' && even && dx * dy < 0)
+	const anchored = canRefer(snap) && !(tool === 'rect' && (dx < 0 || dy < 0))
 	const next = drawn(root, name, tool, snap.at, to, even, step, anchored)
 	if (!anchored) return next
 	const source = `binding:${name}/arg0`

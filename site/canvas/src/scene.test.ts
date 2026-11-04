@@ -315,8 +315,8 @@ describe('what a vector is made of', () => {
 
 	it('has arrows, for a size', () => {
 		expect(elements('(path.rect [0 0] [1 2])', 1)).toEqual([
-			['Width', { leftIcon: 'ph:arrows-horizontal' }],
-			['Height', { leftIcon: 'ph:arrows-vertical' }],
+			['Width', { min: 0, leftIcon: 'ph:arrows-horizontal' }],
+			['Height', { min: 0, leftIcon: 'ph:arrows-vertical' }],
 		])
 	})
 
@@ -328,9 +328,9 @@ describe('what a vector is made of', () => {
 	})
 
 	it('has a chain for a size, and not for a point', () => {
-		const [topLeft, rectSize] = viewOf(parse('(path.rect [0 0] [1 2])'), env).slots
+		const [origin, rectSize] = viewOf(parse('(path.rect [0 0] [1 2])'), env).slots
 		expect(isSizeInput(rectSize!.expected)).toBe(true)
-		expect(isSizeInput(topLeft!.expected)).toBe(false)
+		expect(isSizeInput(origin!.expected)).toBe(false)
 	})
 })
 
@@ -346,9 +346,9 @@ describe('what a row is called, to read', () => {
 	})
 
 	it('is a parameter as words, keeping what code calls it', () => {
-		const [topLeft] = slots('(path.rect [0 0] [1 1])')
-		expect(titleOf(topLeft!)).toBe('Top Left')
-		expect(topLeft!.label).toBe('topLeft')
+		const [origin] = slots('(path.rect [0 0] [1 1])')
+		expect(titleOf(origin!)).toBe('Origin')
+		expect(origin!.label).toBe('origin')
 	})
 
 	it('is the label, if it was given one', () => {
@@ -368,7 +368,7 @@ describe('what heads an inspector', () => {
 	const root = parse('{r = (path.rect [0 0] [1 1]) n = 1}')
 
 	it('is its name, and the function it is a call of', () => {
-		expect(inspectionOf(root, env, 'binding:r')).toEqual({ name: 'r', fn: 'path.rect', outer: null })
+		expect(inspectionOf(root, env, 'binding:r')).toEqual({ name: 'r', fn: 'Rectangle', outer: null })
 		expect(inspectionOf(root, env, 'binding:n')).toEqual({ name: 'n', fn: null, outer: null })
 	})
 
@@ -389,10 +389,11 @@ describe('several rows at once', () => {
 
 	it('have what they say to each argument', () => {
 		expect(inspected.fn).toBe('path.rect')
-		expect(inspected.args.map(a => a.label)).toEqual(['Top Left', 'Size'])
+		expect(inspected.label).toBe('Rectangle')
+		expect(inspected.args.map(a => a.label)).toEqual(['Origin', 'Size'])
 		expect(field(1, 0).values).toEqual([10, 30])
 		expect(field(1, 0).label).toBe('Width')
-		expect(field(1, 0).options).toEqual({ leftIcon: 'ph:arrows-horizontal' })
+		expect(field(1, 0).options).toEqual({ min: 0, leftIcon: 'ph:arrows-horizontal' })
 		expect(isMixed(field(1, 0).values)).toBe(true)
 		expect(isMixed(field(1, 1).values)).toBe(false)
 	})
@@ -531,7 +532,10 @@ describe('snapping', () => {
 		const start = points.find(p => p.target === 'binding:c/arg0')!
 		const drawnAs = (tool: 'rect' | 'ellipse', to: Vec, even = false) =>
 			print(drawnFrom(root, env, 'x', tool, start, to, even).bindings.at(-1)![1])
-		expect(drawnAs('rect', [90, 90])).toBe('(path.rect ../c/center [-10 -10])')
+		expect(drawnAs('rect', [130, 120])).toBe('(path.rect ../c/center [30 20])')
+		expect(drawnAs('rect', [90, 90])).toBe('(path.rect [90 90] [10 10])')
+		expect(drawnAs('rect', [130, 90])).toBe('(path.rect [100 90] [30 10])')
+		expect(drawnAs('rect', [90, 90], true)).toBe('(path.square [90 90] 10)')
 		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse ../c/center [20 30])')
 		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle ../c/center 30)')
 	})
@@ -548,7 +552,7 @@ describe('snapping', () => {
 
 		it('is worked out from them', () => {
 			expect(refers([10, 10])).toMatchObject({ center: [10, 10] })
-			expect(refers([10, 10]).code).toContain('(+ ../../../r/topLeft/0 ../../../r/size/0)')
+			expect(refers([10, 10]).code).toContain('(+ ../../../r/origin/0 ../../../r/size/0)')
 			expect(refers([5, 5]).center).toEqual([5, 5])
 			expect(refers([10, 0]).center).toEqual([10, 0])
 			expect(refers([110, 100]).center).toEqual([110, 100])
@@ -563,7 +567,7 @@ describe('snapping', () => {
 
 		it('has a handle dragged to it refer too', () => {
 			const next = linked(root, env, 'binding:c', 0, at([10, 10]))!
-			expect(print(next)).toContain('(path.circle [(+ ../../../r/topLeft/0 ../../../r/size/0)')
+			expect(print(next)).toContain('(path.circle [(+ ../../../r/origin/0 ../../../r/size/0)')
 			expect(gripAt(next, env, 'binding:c')!.handles.at(-1)!.at).toEqual([10, 10])
 		})
 
@@ -588,7 +592,7 @@ describe('snapping', () => {
 		})
 
 		it('does not, for what already refers to it', () => {
-			const around = parse('{c = (path.circle ../r/topLeft 10) r = (path.rect [0 0] [10 10])}')
+			const around = parse('{c = (path.circle ../r/origin 10) r = (path.rect [0 0] [10 10])}')
 			expect(linked(around, env, 'binding:r', 0, { at: [0, 0], target: 'binding:c/arg0', label: '' })).toBeNull()
 		})
 
@@ -706,12 +710,12 @@ describe('a square', () => {
 		expect(gripAt(next, env, 'binding:x')!.handles.at(-1)!.at).toEqual([30, 30])
 	})
 
-	it('refers from where it starts, along the diagonal, and not otherwise', () => {
+	it('refers from where it starts, out toward the bottom right, and not otherwise', () => {
 		const root = parse('{c = (path.circle [100 100] 10)}') as LetAST
 		const center = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [100, 100], 1)!
 		const drawnAs = (to: Vec) => print(drawnFrom(root, env, 'x', 'rect', center, to, true).bindings.at(-1)![1])
 		expect(drawnAs([130, 120])).toBe('(path.square ../c/center 30)')
-		expect(drawnAs([70, 80])).toBe('(path.square ../c/center -30)')
+		expect(drawnAs([70, 80])).toBe('(path.square [70 70] 30)')
 		expect(drawnAs([130, 80])).toBe('(path.square [100 70] 30)')
 	})
 })
@@ -1121,7 +1125,7 @@ describe('what cannot be worked out', () => {
 	})
 
 	it('can be drawn, snapped to and moved all the same', () => {
-		const root = parse('{c = (path.circle [(+ ../../../gone/topLeft/0 1) ../../gone/topLeft/1] 10)}')
+		const root = parse('{c = (path.circle [(+ ../../../gone/origin/0 1) ../../gone/origin/1] 10)}')
 		expect(sceneOf(root, env)).toHaveLength(1)
 		expect(snapPointsOf(root, env, sceneOf(root, env)).length).toBeGreaterThan(0)
 		expect(gripAt(root, env, row)!.move!([1, 2])).toHaveLength(1)

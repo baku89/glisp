@@ -62,6 +62,10 @@ export interface MultiArgument {
 export interface MultiInspection {
 	/** The function they are all calls of. */
 	readonly fn: string
+	/** What that function is called on screen. */
+	readonly label: string | null
+	/** What that function says its icon is. */
+	readonly icon: string | null
 	readonly doc: string | null
 	readonly args: readonly MultiArgument[]
 }
@@ -100,6 +104,8 @@ function argsOf(root: AST, env: Env, path: string) {
 	const view = viewOf(call, last.env)
 	return {
 		fn: print(call.head),
+		label: view.head?.label ?? null,
+		icon: view.head?.icon ?? null,
 		doc: view.head?.doc ?? null,
 		slots: view.slots.filter(slot => slot.key.startsWith('arg')),
 	}
@@ -164,7 +170,7 @@ export function inspectRows(
 			},
 		]
 	})
-	return { fn: first.fn, doc: first.doc, args }
+	return { fn: first.fn, label: first.label, icon: first.icon, doc: first.doc, args }
 }
 
 function elementTitle(slot: Slot, element: number): string | null {

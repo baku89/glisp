@@ -10,6 +10,7 @@ import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import AstCodePopup from './AstCodePopup.vue'
 import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
+import FunctionAbout from './FunctionAbout.vue'
 import { multiSelectHostOf } from './multiInputs'
 import { copiedRows, pastedRows, reach, withoutNearest, withoutRows, withParent } from './rowsClipboard'
 import {
@@ -41,6 +42,8 @@ const props = defineProps<{
 	compact?: boolean
 	/** An icon for what a row comes to, over the one its type has. */
 	iconOfValue?: (value: unknown) => string | null
+	/** A function's icon, by how its head is written, over what it says of itself. */
+	iconOfFunction?: (fn: string) => string | null
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
 	/** What rows are on a clipboard, if not their code, for what is outside of this. */
@@ -229,6 +232,11 @@ const inspected = computed(() => {
 		alone: view.slots.length === 0 && view.missing.length === 0 && view.append === null,
 		doc: view.head?.doc ?? own.doc ?? null,
 	}
+})
+
+const inspectedFnIcon = computed(() => {
+	const head = inspected.value?.view.head
+	return head ? (props.iconOfFunction?.(print(head.ast)) ?? head.icon ?? null) : null
 })
 
 /** The row inspected, or what holds it if it is alone, has changed, and so what is around. */
@@ -460,7 +468,11 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			<!-- What a host has to say of it too, in rows that share this selection. -->
 			<slot />
 			<template v-if="inspected !== null">
-				<p v-if="inspected.doc !== null" class="inspector-doc">{{ inspected.doc }}</p>
+				<FunctionAbout
+					:label="inspected.view.head?.label ?? null"
+					:doc="inspected.doc"
+					:icon="inspectedFnIcon"
+				/>
 				<ParameterTree name="glisp.inspector" :labelWidth="110">
 					<AstSlots
 						:key="inspect ?? ''"
@@ -549,12 +561,6 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 }
 .AstEditor.inspector .tree {
 	flex: 0 1 auto;
-}
-.inspector-doc {
-	margin-bottom: var(--tq-gap-control);
-	padding-inline: 3px;
-	line-height: 1.4;
-	color: var(--tq-color-text-mute);
 }
 /* Names alone: the value's column goes, with what resizes it. */
 .layers :deep(.TqParameterGrid.grid) {

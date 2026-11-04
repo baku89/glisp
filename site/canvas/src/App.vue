@@ -5,11 +5,10 @@ import {
 	AstMultiInspector,
 	AstProgramCode,
 	inspectionOf,
-	inspectRows,
-	Repl,
 	useGlispDocument,
 } from '@glisp/tweeq'
 import { copiedRows } from '@glisp/tweeq/rowsClipboard'
+import { renameBindingAt } from '@glisp/tweeq/structure'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
@@ -25,8 +24,10 @@ import { computed, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import CanvasView from './CanvasView.vue'
 import { exportSvg, openFile, saveFile } from './files'
 import FloatPanel from './FloatPanel.vue'
+import { iconOfFunction } from './functionIcons'
 import { iconOfPath, withGraphics } from './graphics'
 import PaintControls from './PaintControls.vue'
+import RowName from './RowName.vue'
 import {
 	type Arrange,
 	arranged,
@@ -34,6 +35,8 @@ import {
 	boundsOfRows,
 	drawnRows,
 	grouped,
+	nameOfRow,
+	rowCalled,
 	ungrouped,
 	viewToFit,
 } from './rows'
@@ -57,6 +60,16 @@ const EXAMPLE = `{
 // The program stays across reloads, as source, in this browser.
 const STORAGE_KEY = 'glisp.canvas.source'
 
+/**
+ * A program as written now, from what was written before: `style` was once a member of
+ * `path`, and what a rectangle starts from was once its `topLeft`.
+ */
+const fromBefore = (source: string): string =>
+	source
+		.replaceAll('(path.style ', '(style ')
+		.replaceAll('/topLeft', '/origin')
+		.replaceAll('topLeft=', 'origin=')
+
 const readsBack = (source: string): boolean => {
 	try {
 		return parse(source).kind === 'let'
@@ -68,8 +81,7 @@ const readsBack = (source: string): boolean => {
 function stored(): string | null {
 	try {
 		const source = localStorage.getItem(STORAGE_KEY)
-		// `style` was once a member of `path`, for programs kept from then.
-		const kept = source?.replaceAll('(path.style ', '(style ') ?? null
+		const kept = source === null ? null : fromBefore(source)
 		return kept !== null && readsBack(kept) ? kept : null
 	} catch {
 		return null
@@ -134,7 +146,6 @@ const PROJECT_TABS = [
 const projectTab = useAppConfigStore().ref<'layers' | 'code'>('glisp.canvas.project.tab', 'layers')
 // What was kept before the REPL had a panel of its own.
 if (!PROJECT_TABS.some(({ name }) => name === projectTab.value)) projectTab.value = 'layers'
-const replOpen = useAppConfigStore().ref('glisp.canvas.repl.open', true)
 const inspectorOpen = useAppConfigStore().ref('glisp.canvas.inspector.open', true)
 
 const programOf = (root: { kind: string }): LetAST | null =>
@@ -145,7 +156,7 @@ let fileHandle: FileSystemFileHandle | null = null
 
 function readProgramText(text: string): void {
 	try {
-		const next = programOf(parse(text.replaceAll('(path.style ', '(style ')))
+		const next = programOf(parse(fromBefore(text)))
 		if (next !== null) document.setRoot(new LetAST(next.bindings, null))
 	} catch {
 		// What cannot be read leaves what is there.
@@ -206,7 +217,7 @@ const FIT_MARGIN = 32
 function freeArea(): Area {
 	const [width, height] = $canvas.value?.size() ?? [0, 0]
 	const left = projectOpen.value ? projectWidth.value : TAB_WIDTH
-	const right = inspectorOpen.value || replOpen.value ? inspectorWidth.value : TAB_WIDTH
+	const right = inspectorOpen.value ? inspectorWidth.value : TAB_WIDTH
 	return [left + FIT_MARGIN, FIT_MARGIN, width - right - FIT_MARGIN, height - FIT_MARGIN]
 }
 
@@ -267,17 +278,22 @@ const selectedName = computed(() => {
 		: (inspectionOf(document.root.value, document.env.value, row)?.name ?? null)
 })
 
+const renamed = (row: string, name: string) =>
+	renameBindingAt(document.root.value, document.env.value, row, name)
+
+function renameRow(row: string, name: string): void {
+	const next = renamed(row, name)
+	if (!(next instanceof LetAST)) return
+	document.setRoot(next)
+	if (selected.value.includes(row)) {
+		selectOnCanvas(selected.value.map(it => (it === row ? rowCalled(row, name) : it)))
+	}
+}
+
 const inspection = computed(() =>
 	inspected.value === null
 		? null
 		: inspectionOf(document.root.value, document.env.value, inspected.value)
-)
-
-/** The function that several rows are all calls of, if they are. */
-const sharedFn = computed(() =>
-	selected.value.length > 1
-		? (inspectRows(document.root.value, document.env.value, insideRows.value)?.fn ?? null)
-		: null
 )
 
 useActionsStore().register([
@@ -376,7 +392,6 @@ useActionsStore().register([
 			{ id: 'view_zoom_out', label: 'Zoom Out', icon: 'mdi:magnify-minus-outline', bind: 'command+-', perform: () => $canvas.value?.zoomBy(1 / ZOOM_STEP) },
 			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => (projectOpen.value = !projectOpen.value) },
 			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => (inspectorOpen.value = !inspectorOpen.value) },
-			{ id: 'view_repl', label: 'Toggle REPL', icon: 'ph:terminal', perform: () => (replOpen.value = !replOpen.value) },
 		],
 	},
 	{
@@ -467,7 +482,6 @@ function selectInTree(row: string | null): void {
 				<FloatPanel
 					v-model:open="inspectorOpen"
 					name="glisp.canvas.inspector"
-					fit
 					data-selects-rows
 					side="right"
 					label="Inspector"
@@ -485,17 +499,29 @@ function selectInTree(row: string | null): void {
 							<Icon icon="ph:arrow-up-left" />
 						</button>
 						<span class="panel-title">
+							<Icon class="panel-icon" icon="ph:sliders-horizontal" />
 							<template v-if="inspection">
-								<span class="name">{{ selectedName }}</span>
-								<span v-if="inspection.fn" class="fn">{{ inspection.fn }}</span>
+								<RowName
+									:key="selected[0]"
+									:row="selected[0]!"
+									:label="selectedName ?? ''"
+									:source="nameOfRow(selected[0]!)"
+									:can="(row, name) => renamed(row, name) !== null"
+									@rename="renameRow"
+								/>
 							</template>
 							<template v-else-if="selected.length > 1">
 								<span class="name">{{ selected.length }} selected</span>
-								<span v-if="sharedFn" class="fn">{{ sharedFn }}</span>
 							</template>
+							<span v-else class="name">Inspector</span>
 						</span>
 					</template>
-					<AstMultiInspector v-if="selected.length > 1" :document="document" :rows="insideRows">
+					<AstMultiInspector
+						v-if="selected.length > 1"
+						:document="document"
+						:rows="insideRows"
+						:iconOfFunction="iconOfFunction"
+					>
 						<PaintControls :document="document" :rows="selected" />
 					</AstMultiInspector>
 					<AstEditor
@@ -503,33 +529,10 @@ function selectInTree(row: string | null): void {
 						:document="document"
 						:inspect="inspected"
 						:iconOfValue="iconOfPath"
+						:iconOfFunction="iconOfFunction"
 					>
 						<PaintControls v-if="selected.length > 0" :document="document" :rows="selected" />
 					</AstEditor>
-				</FloatPanel>
-				<FloatPanel
-					v-model:open="replOpen"
-					name="glisp.canvas.repl"
-					side="right"
-					label="REPL"
-					icon="ph:terminal"
-					:width="320"
-					:bottomHeight="240"
-				>
-					<template #header>
-						<span class="panel-title">
-							<span class="name">REPL</span>
-						</span>
-					</template>
-					<div class="tab-content repl" data-selects-rows>
-						<Repl
-							:session="document.session"
-							historyKey="glisp.canvas.history"
-							noClear
-							noFocus
-							@change="document.sync()"
-						/>
-					</div>
 				</FloatPanel>
 				<div class="tools" data-selects-rows>
 					<button
@@ -573,15 +576,13 @@ function selectInTree(row: string | null): void {
 	min-width: 0;
 	white-space: nowrap;
 }
+.panel-icon {
+	flex: none;
+}
 .panel-title .name {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	font-weight: 600;
-}
-.panel-title .fn {
-	overflow: hidden;
-	color: var(--tq-color-text-mute);
-	text-overflow: ellipsis;
 }
 .outer {
 	display: grid;
@@ -615,11 +616,14 @@ function selectInTree(row: string | null): void {
 	font-weight: 600;
 }
 .tab-content {
-	height: 100%;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
 }
-.tab-content.repl {
-	box-sizing: border-box;
-	padding-right: calc(var(--tq-pane-padding) - 2px);
+.tab-content > :deep(*) {
+	flex: 1 1 auto;
+	min-height: 0;
 }
 .problem-dot {
 	width: 6px;

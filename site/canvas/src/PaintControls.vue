@@ -12,6 +12,7 @@ import { isMixed } from '@glisp/tweeq/multiRows'
 import { capitalCase, enumIconsOf } from '@glisp/tweeq/structure'
 
 import { LINE_CAPS, LINE_JOINS, lineCapType, lineJoinType, NO_PAINT, type Paint } from './graphics'
+import NoPaint from './NoPaint.vue'
 import { paintAt, withPaint } from './scene'
 
 const props = defineProps<{
@@ -66,6 +67,9 @@ const setNumbers = (key: 'width' | 'miterLimit' | 'dashOffset', values: readonly
 
 const DEFAULT_COLOR = '#000000'
 const DEFAULT_WIDTH = 1
+
+const addStroke = (): void =>
+	set({ stroke: DEFAULT_COLOR, width: paint.value.width || DEFAULT_WIDTH })
 
 const capIcons = enumIconsOf(lineCapType) ?? undefined
 const joinIcons = enumIconsOf(lineJoinType) ?? undefined
@@ -149,10 +153,13 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			</ParameterTreeItem>
 			<ParameterTreeItem
 				v-else
+				class="absent"
 				label="Fill"
-				icon="mdi:plus"
+				icon="ph:paint-bucket"
 				@select="set({ fill: DEFAULT_COLOR })"
-			/>
+			>
+				<NoPaint label="Fill" @click="set({ fill: DEFAULT_COLOR })" />
+			</ParameterTreeItem>
 			<ParameterTreeItem
 				v-if="paint.stroke !== 'none'"
 				v-model:open="lineOpen"
@@ -250,10 +257,13 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			</ParameterTreeItem>
 			<ParameterTreeItem
 				v-else
+				class="absent"
 				label="Stroke"
-				icon="mdi:plus"
-				@select="set({ stroke: DEFAULT_COLOR, width: paint.width || DEFAULT_WIDTH })"
-			/>
+				icon="ph:line-segment"
+				@select="addStroke"
+			>
+				<NoPaint label="Stroke" @click="addStroke" />
+			</ParameterTreeItem>
 		</ParameterTree>
 	</div>
 </template>
@@ -263,6 +273,10 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	margin-bottom: var(--tq-gap-control);
 	padding-bottom: var(--tq-gap-control);
 	border-bottom: 1px solid var(--tq-color-border);
+}
+.absent :deep(.icon),
+.absent :deep(.name) {
+	color: var(--tq-color-text-mute);
 }
 .field {
 	display: flex;

@@ -3,9 +3,12 @@ import { Icon } from 'tweeq/Icon'
 import { useAppConfigStore } from 'tweeq/stores/appConfig'
 import { computed, ref, useTemplateRef } from 'vue'
 
+import { draggedHeight, type Height } from './floatHeight'
+
 /**
  * What floats over the canvas from one edge, so with a border on the other three
- * sides. It is the one thing, a tab that grows into a panel and goes back.
+ * sides. It is the one thing, a tab that grows into a panel and goes back. It is as tall
+ * as what is in it, until it has been made otherwise.
  */
 const props = defineProps<{
 	/** What its size is kept under. */
@@ -15,34 +18,34 @@ const props = defineProps<{
 	icon: string
 	/** How wide it opens, until it has been made otherwise. */
 	width: number
-	/** As tall as what is in it, until it has been made otherwise. */
-	fit?: boolean
-	/** Comes up from the bottom corner, as tall as this until made otherwise. */
-	bottomHeight?: number
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
 
 const MIN_WIDTH = 200
-const MIN_HEIGHT = 160
+const MIN_HEIGHT = 64
 const MARGIN = 16
 
 const config = useAppConfigStore()
 const width = config.ref(`${props.name}.width`, props.width)
-/** As tall as there is room for, until it has been made otherwise. */
-const height = config.ref<number | null>(`${props.name}.height`, props.bottomHeight ?? null)
-const fromBottom = computed(() => props.bottomHeight !== undefined)
+const height = config.ref<Height>(`${props.name}.fixedHeight`, null)
 
 const $root = useTemplateRef<HTMLElement>('$root')
 const resizing = ref(false)
+const snapped = ref(false)
 
 const style = computed(() => ({
 	'--panel-width': `${width.value}px`,
-	'--panel-height':
-		height.value === null
-			? `calc(100% - ${MARGIN * 2}px)`
-			: `min(${height.value}px, calc(100% - ${MARGIN * 2}px))`,
+	'--panel-height': height.value === null ? 'auto' : `${height.value}px`,
 }))
+
+/** Takes off what holds it to the height it has, only long enough to read what that leaves. */
+function natural(root: HTMLElement): number {
+	root.classList.add('measuring')
+	const measured = root.offsetHeight
+	root.classList.remove('measuring')
+	return measured
+}
 
 function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	const root = $root.value
@@ -54,6 +57,7 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	const start = root.getBoundingClientRect()
 	const parent = root.parentElement!.getBoundingClientRect()
 	const toward = props.side === 'left' ? 1 : -1
+	const fit = axes.y ? natural(root) : 0
 	resizing.value = true
 
 	const onMove = (move: PointerEvent) => {
@@ -62,14 +66,15 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 			width.value = Math.round(Math.min(Math.max(wanted, MIN_WIDTH), parent.width - MARGIN))
 		}
 		if (axes.y) {
-			const wanted = start.height + (move.clientY - clientY) * (fromBottom.value ? -1 : 1)
-			height.value = Math.round(
-				Math.min(Math.max(wanted, MIN_HEIGHT), parent.height - MARGIN * 2)
-			)
+			const wanted = Math.round(start.height + move.clientY - clientY)
+			const dragged = draggedHeight(wanted, parent.height - MARGIN * 2, fit, MIN_HEIGHT)
+			height.value = dragged.height
+			snapped.value = dragged.snapped
 		}
 	}
 	const onUp = () => {
 		resizing.value = false
+		snapped.value = false
 		handle.removeEventListener('pointermove', onMove)
 		handle.removeEventListener('pointerup', onUp)
 		handle.removeEventListener('pointercancel', onUp)
@@ -84,7 +89,7 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	<aside
 		ref="$root"
 		class="FloatPanel"
-		:class="[side, { open, resizing, 'from-bottom': fromBottom, fitting: fit && height === null }]"
+		:class="[side, { open, resizing, fitting: height === null }]"
 		:style="style"
 	>
 		<button
@@ -110,7 +115,12 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 		</div>
 		<template v-if="open">
 			<div class="edge side" data-selects-rows @pointerdown="resize($event, { x: true })" />
-			<div class="edge bottom" data-selects-rows @pointerdown="resize($event, { y: true })" />
+			<div
+				class="edge bottom"
+				:class="{ snapped }"
+				data-selects-rows
+				@pointerdown="resize($event, { y: true })"
+			/>
 			<div
 				class="edge corner"
 				data-selects-rows
@@ -127,73 +137,47 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	--tab-height: 112px;
 	position: absolute;
 	top: 16px;
+	display: flex;
+	flex-direction: column;
 	overflow: hidden;
+	box-sizing: border-box;
 	width: var(--tab-width);
 	height: var(--tab-height);
 	border: 1px solid var(--tq-color-border);
 	background: var(--tq-color-surface);
 	backdrop-filter: blur(var(--tq-popup-blur));
-	box-shadow: 0 0 20px 0 var(--tq-color-shadow);
+	box-shadow: var(--tq-shadow-popup);
+	interpolate-size: allow-keywords;
 	transition:
 		width var(--ease),
 		height var(--ease);
 }
 .FloatPanel.left {
 	left: 0;
+	align-items: flex-start;
 	border-left: none;
 	border-radius: 0 var(--tq-radius-pane) var(--tq-radius-pane) 0;
 }
 .FloatPanel.right {
 	right: 0;
+	align-items: flex-end;
 	border-right: none;
 	border-radius: var(--tq-radius-pane) 0 0 var(--tq-radius-pane);
 }
 .FloatPanel.open {
+	max-height: calc(100% - 32px);
 	width: var(--panel-width);
 	height: var(--panel-height);
 }
-.FloatPanel.from-bottom {
-	top: auto;
-	bottom: 16px;
-}
-.from-bottom .tab,
-.from-bottom .body {
-	top: auto;
-	bottom: 0;
-}
-.from-bottom .edge.bottom {
-	top: 0;
-	bottom: auto;
-}
-.from-bottom .edge.corner {
-	top: 0;
-	bottom: auto;
-}
-.from-bottom.right .edge.corner {
-	cursor: nwse-resize;
-}
-.from-bottom.left .edge.corner {
-	cursor: nesw-resize;
-}
-/* It takes as much as it has in it, as far as there is room. */
-.FloatPanel.open.fitting {
-	display: flex;
-	flex-direction: column;
+/* What it would come to, with nothing holding it. */
+.FloatPanel.open.measuring {
+	max-height: none;
 	height: auto;
-	max-height: var(--panel-height);
-	interpolate-size: allow-keywords;
+	transition: none;
 }
-.fitting .body {
-	position: static;
-	flex: 0 1 auto;
-	min-height: 0;
-	height: auto;
-}
-.fitting .content {
-	flex: 0 1 auto;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
+.FloatPanel.measuring .body,
+.FloatPanel.measuring .content {
+	flex: none;
 }
 /* It goes by the pointer, rather than following it. */
 .FloatPanel.resizing {
@@ -225,6 +209,9 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	left: 0;
 	height: 6px;
 	cursor: ns-resize;
+}
+.edge.bottom.snapped {
+	border-bottom: 2px solid var(--tq-color-accent);
 }
 .edge.corner {
 	bottom: 0;
@@ -275,23 +262,30 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 }
 /* As wide as it will be, so that nothing inside reflows as it grows. */
 .body {
-	position: absolute;
-	top: 0;
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
+	min-height: 0;
 	width: var(--panel-width);
-	height: 100%;
 	opacity: 0;
-	transition: opacity var(--ease);
+	scale: 0.96;
+	transition:
+		opacity var(--ease),
+		scale var(--ease);
 }
+/* It goes in toward where it folds away to, the corner that the tab is in. */
 .left .body {
-	left: 0;
+	transform-origin: left top;
 }
 .right .body {
-	right: 0;
+	transform-origin: right top;
+}
+.fitting .body {
+	flex: 0 1 auto;
 }
 .open .body {
 	opacity: 1;
+	scale: 1;
 }
 .header {
 	display: flex;
@@ -300,6 +294,13 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	align-items: center;
 	justify-content: space-between;
 	padding: 6px 6px 0;
+}
+/* It is on the side that it folds away to. */
+.left .toggle {
+	order: -1;
+}
+.left .header {
+	justify-content: flex-start;
 }
 .toggle {
 	display: grid;
@@ -317,13 +318,22 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	background: var(--tq-color-input-hover);
 	color: var(--tq-color-text);
 }
+.fitting .content {
+	flex: 0 1 auto;
+}
 .content {
-	flex: 1;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	overflow: hidden;
 	min-height: 0;
 	padding: var(--tq-pane-padding);
 	/* The bar has the padding on this side for itself, whether it is there or not, and
 	stays off the edge. */
 	padding-right: 2px;
+}
+.content > :deep(*) {
+	min-height: 0;
 }
 .content :deep(.TqScrollArea) {
 	scrollbar-gutter: stable;

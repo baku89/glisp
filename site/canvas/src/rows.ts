@@ -164,3 +164,14 @@ export function viewToFit(
 		areaTop + areaHeight / 2 - (zoom * (top + bottom)) / 2,
 	]
 }
+
+/** The name of the binding that a row is, if it is one. */
+export function nameOfRow(row: string): string | null {
+	const key = row.split('/').at(-1)!
+	return key.startsWith(BINDING) ? key.slice(BINDING.length) : null
+}
+
+/** The row of the same binding, once it has been called `name`. */
+export function rowCalled(row: string, name: string): string {
+	return [...row.split('/').slice(0, -1), BINDING + name].join('/')
+}

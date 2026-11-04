@@ -173,10 +173,10 @@ Metadata on the element types of a tuple is for showing one of its elements: `ti
 
 ### What it does
 
-A function that comes with a type, as a member, has no binding to write `^{doc}` on. `withDoc` says what it does, for a host to show.
+A function that comes with a type, as a member, has no binding to write `^{doc}` or `^{label}` on. `withDoc` says what it does, and what to call it, for a host to show.
 
 ```ts
-withMembers(path, { circle: withDoc(makeCircle, 'A circle, around `center`.') })
+withMembers(path, { rect: withDoc(makeRect, 'A rectangle from its `origin`.', 'Rectangle') })
 ```
 
 A word in backticks stands for a parameter, as it does in a `doc`.

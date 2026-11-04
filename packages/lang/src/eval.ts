@@ -852,9 +852,13 @@ export function withExpansion<F extends TypedHostFn>(
 	return fn
 }
 
-/** Say what a host function does, for a function that no `^{doc}` can be written on. */
-export function withDoc<F extends TypedHostFn>(fn: F, doc: string): F {
+/**
+ * Say what a host function does, and what to call it, for a function that no `^{doc}` or
+ * `^{label}` can be written on.
+ */
+export function withDoc<F extends TypedHostFn>(fn: F, doc: string, label?: string): F {
 	Object.defineProperty(fn, 'doc', { value: doc })
+	if (label !== undefined) Object.defineProperty(fn, 'label', { value: label })
 	return fn
 }
 

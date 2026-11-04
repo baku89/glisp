@@ -87,7 +87,7 @@ withMembers(vec2, {
 })
 
 /** A number that has a part to play in a vector, which says so where it is shown. */
-const part = (fields: readonly (readonly [string, string])[]): TypeValue =>
+const part = (fields: readonly (readonly [string, string | number])[]): TypeValue =>
 	withTypeMeta(number, new RecordAST(fields.map(([key, text]) => [key, lit(text)] as const)))
 
 /** Not every vec2 is a point: a size is not to be drawn. */
@@ -115,10 +115,12 @@ const size = withTypeMeta(
 		part([
 			['title', 'Width'],
 			['fieldIcon', 'ph:arrows-horizontal'],
+			['min', 0],
 		]),
 		part([
 			['title', 'Height'],
 			['fieldIcon', 'ph:arrows-vertical'],
+			['min', 0],
 		]),
 	]),
 	new RecordAST([
@@ -126,6 +128,9 @@ const size = withTypeMeta(
 		['icon', lit('ph:frame-corners')],
 	])
 )
+
+/** How long the side of something is. */
+const sideType = part([['min', 0]])
 
 const mat2d = makeTupleType([number, number, number, number, number, number])
 const makeTranslation = makeTypedFn(
@@ -150,10 +155,10 @@ const multiply = makeTypedFn(
 	mat2d
 )
 withMembers(mat2d, {
-	translate: withDoc(makeTranslation, 'A matrix that moves `by` this much.'),
-	rotate: withDoc(makeRotation, 'A matrix that turns by `angle`, in degrees, around the origin.'),
-	scale: withDoc(makeScaling, 'A matrix that scales `by` this much each way, from the origin.'),
-	mul: withDoc(multiply, 'One matrix after another, the last applied first.'),
+	translate: withDoc(makeTranslation, 'A matrix that moves `by` this much.', 'Translation'),
+	rotate: withDoc(makeRotation, 'A matrix that turns by `angle`, in degrees, around the origin.', 'Rotation'),
+	scale: withDoc(makeScaling, 'A matrix that scales `by` this much each way, from the origin.', 'Scaling'),
+	mul: withDoc(multiply, 'One matrix after another, the last applied first.', 'Multiply'),
 })
 
 /**
@@ -309,13 +314,13 @@ const makeRect = withExpansion(
 	makeTypedFn(
 		[point, size],
 		pathType,
-		(topLeft, extent) =>
-			new PathValue(rectangle(topLeft as Vec, add(topLeft as Vec, extent as Vec))),
-		['topLeft', 'size']
+		(origin, extent) =>
+			new PathValue(rectangle(origin as Vec, add(origin as Vec, extent as Vec))),
+		['origin', 'size']
 	),
-	([topLeft, size], { value }) => {
-		if (topLeft === undefined || size === undefined) return null
-		const [left, top] = value(topLeft) as Vec
+	([origin, size], { value }) => {
+		if (origin === undefined || size === undefined) return null
+		const [left, top] = value(origin) as Vec
 		const [width, height] = value(size) as Vec
 		const [right, bottom] = [left + width, top + height]
 		return callOf('polygon', [
@@ -328,18 +333,18 @@ const makeRect = withExpansion(
 )
 const makeSquare = withExpansion(
 	makeTypedFn(
-		[point, number],
+		[point, sideType],
 		pathType,
-		(topLeft, side) =>
+		(origin, side) =>
 			new PathValue(
-				rectangle(topLeft as Vec, add(topLeft as Vec, [side as number, side as number]))
+				rectangle(origin as Vec, add(origin as Vec, [side as number, side as number]))
 			),
-		['topLeft', 'size']
+		['origin', 'size']
 	),
-	([topLeft, side]) =>
-		topLeft === undefined || side === undefined
+	([origin, side]) =>
+		origin === undefined || side === undefined
 			? null
-			: callOf('rect', [topLeft, new VecAST([side, side])])
+			: callOf('rect', [origin, new VecAST([side, side])])
 )
 const makeLine = withExpansion(
 	makeTypedFn(
@@ -514,14 +519,14 @@ const makeInverted = withInverse(
 	}
 )
 withMembers(colorType, {
-	rgb: withDoc(makeRgb, 'A color from how much `red`, `green` and `blue` it has, from 0 to 1.'),
-	hsl: withDoc(makeHsl, 'A color from its `hue` in degrees, and `saturation` and `lightness` from 0 to 1.'),
-	gray: withDoc(makeGray, 'A gray, from black at 0 to white at 1.'),
-	alpha: withDoc(makeAlpha, 'A `color`, as see-through as `alpha` says, from 0 to 1.'),
-	mix: withDoc(mixed, 'What `a` and `b` come to together, as far from `a` as `ratio` says.'),
-	brighten: withDoc(makeBrighter, 'A `color`, lighter by how much it looks.'),
-	darken: withDoc(makeDarker, 'A `color`, darker by how much it looks.'),
-	invert: withDoc(makeInverted, 'The opposite of a `color`.'),
+	rgb: withDoc(makeRgb, 'A color from how much `red`, `green` and `blue` it has, from 0 to 1.', 'RGB'),
+	hsl: withDoc(makeHsl, 'A color from its `hue` in degrees, and `saturation` and `lightness` from 0 to 1.', 'HSL'),
+	gray: withDoc(makeGray, 'A gray, from black at 0 to white at 1.', 'Gray'),
+	alpha: withDoc(makeAlpha, 'A `color`, as see-through as `alpha` says, from 0 to 1.', 'Alpha'),
+	mix: withDoc(mixed, 'What `a` and `b` come to together, as far from `a` as `ratio` says.', 'Mix'),
+	brighten: withDoc(makeBrighter, 'A `color`, lighter by how much it looks.', 'Brighten'),
+	darken: withDoc(makeDarker, 'A `color`, darker by how much it looks.', 'Darken'),
+	invert: withDoc(makeInverted, 'The opposite of a `color`.', 'Invert'),
 })
 
 const styledType = said(
@@ -584,21 +589,22 @@ const makeStyled = withDoc(
 		PAINT_KEYS
 	),
 	'A `path`, with what it is filled with, and how its line is drawn: its color and `width`, its ends (`cap`), its corners (`join`, as far as `miterLimit`), and its `dash`, begun `dashOffset` along.',
+	'Style'
 )
 
 withMembers(pathType, {
-	d: withDoc(makeD, 'A path from its data, as an SVG path has it.'),
-	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.'),
-	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` each way.'),
-	rect: withDoc(makeRect, 'A rectangle from its `topLeft`, of this `size`.'),
-	square: withDoc(makeSquare, 'A square from its `topLeft`, with sides of this `size`.'),
-	line: withDoc(makeLine, 'A straight line from `start` to `end`.'),
-	polyline: withDoc(makePolyline, 'Straight lines through each of the points, in turn.'),
-	polygon: withDoc(makePolygon, 'Straight lines through each of the points, and back.'),
-	ngon: withDoc(makeNgon, 'A regular polygon around `center`, with as many sides as `sides`.'),
-	arc: withDoc(makeArc, 'Part of a circle around `center`, from the angle `start` to `end`, in degrees.'),
-	cubic: withDoc(makeCubic, 'A curve from `start` to `end`, drawn toward `control1` and `control2`.'),
-	transform: withDoc(makeTransformed, 'The same `path`, moved, turned and scaled `by` a matrix.'),
+	d: withDoc(makeD, 'A path from its data, as an SVG path has it.', 'Path Data'),
+	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.', 'Circle'),
+	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` each way.', 'Ellipse'),
+	rect: withDoc(makeRect, 'A rectangle from its `origin`, of this `size`.', 'Rectangle'),
+	square: withDoc(makeSquare, 'A square from its `origin`, with sides of this `size`.', 'Square'),
+	line: withDoc(makeLine, 'A straight line from `start` to `end`.', 'Line'),
+	polyline: withDoc(makePolyline, 'Straight lines through each of the points, in turn.', 'Polyline'),
+	polygon: withDoc(makePolygon, 'Straight lines through each of the points, and back.', 'Polygon'),
+	ngon: withDoc(makeNgon, 'A regular polygon around `center`, with as many sides as `sides`.', 'Regular Polygon'),
+	arc: withDoc(makeArc, 'Part of a circle around `center`, from the angle `start` to `end`, in degrees.', 'Arc'),
+	cubic: withDoc(makeCubic, 'A curve from `start` to `end`, drawn toward `control1` and `control2`.', 'Cubic Curve'),
+	transform: withDoc(makeTransformed, 'The same `path`, moved, turned and scaled `by` a matrix.', 'Transform'),
 })
 
 /** What an argument would have to be, `route` going down through calls to it. */
@@ -1016,8 +1022,8 @@ const makers = new Map<unknown, Maker>([
 	],
 	[
 		makeRect,
-		([topLeft, size]) => {
-			const s = topLeft as Vec
+		([origin, size]) => {
+			const s = origin as Vec
 			const e = add(s, size as Vec)
 			const middle: Vec = [(s[0] + e[0]) / 2, (s[1] + e[1]) / 2]
 			const moved = (delta: Vec): Change[] => [change(0, add(s, delta))]
@@ -1062,8 +1068,8 @@ const makers = new Map<unknown, Maker>([
 	],
 	[
 		makeSquare,
-		([topLeft, side]) => {
-			const s = topLeft as Vec
+		([origin, side]) => {
+			const s = origin as Vec
 			const size = side as number
 			const e = add(s, [size, size])
 			const middle: Vec = [s[0] + size / 2, s[1] + size / 2]

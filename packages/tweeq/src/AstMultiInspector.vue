@@ -2,6 +2,8 @@
 import { type MenuItem } from 'tweeq/Menu'
 import { Parameter, ParameterTree } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
+
+import FunctionAbout from './FunctionAbout.vue'
 import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
 import { computed, provide, ref, shallowRef } from 'vue'
 
@@ -23,6 +25,8 @@ import { SELECTION, type Selection, useDeleteInInspector } from './selection'
 const props = defineProps<{
 	document: GlispDocument
 	rows: readonly string[]
+	/** A function's icon, by how its head is written, over what it says of itself. */
+	iconOfFunction?: (fn: string) => string | null
 }>()
 
 provide(MULTI_SELECT_HOST, multiSelectHostOf(props.document))
@@ -88,7 +92,11 @@ const extractItems = (field: MultiField): MenuItem[] =>
 		<!-- What a host has to say of them too, in rows of its own. -->
 		<slot />
 		<template v-if="inspection">
-		<p v-if="inspection.doc !== null" class="doc">{{ inspection.doc }}</p>
+		<FunctionAbout
+			:label="inspection.label"
+			:doc="inspection.doc"
+			:icon="iconOfFunction?.(inspection.fn) ?? inspection.icon"
+		/>
 		<ParameterTree name="glisp.inspector" :labelWidth="110">
 			<Parameter v-for="arg in inspection.args" :key="arg.label" :label="arg.label">
 				<div class="fields">
@@ -120,12 +128,6 @@ const extractItems = (field: MultiField): MenuItem[] =>
 .tree {
 	margin: -1px;
 	padding: 3px;
-}
-.doc {
-	margin-bottom: var(--tq-gap-control);
-	padding-inline: 3px;
-	line-height: 1.4;
-	color: var(--tq-color-text-mute);
 }
 .fields {
 	display: flex;

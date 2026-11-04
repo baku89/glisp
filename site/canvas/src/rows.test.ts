@@ -2,7 +2,16 @@ import { buildPrelude, type Env, type LetAST, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
-import { arranged, boundsOfRows, drawnRows, grouped, ungrouped, viewToFit } from './rows'
+import {
+	arranged,
+	boundsOfRows,
+	drawnRows,
+	grouped,
+	nameOfRow,
+	rowCalled,
+	ungrouped,
+	viewToFit,
+} from './rows'
 
 const env: Env = withGraphics(buildPrelude())
 const program = '{a = 1 b = 2 c = 3 d = 4}'
@@ -94,5 +103,20 @@ describe('fitting', () => {
 	it('does not go in forever', () => {
 		const [zoom] = viewToFit([[0, 0], [0, 0]], [0, 0, 100, 100])
 		expect(zoom).toBe(8)
+	})
+})
+
+describe('the name of a row', () => {
+	it('is there for a binding, however deep', () => {
+		expect(nameOfRow('binding:c')).toBe('c')
+		expect(nameOfRow('binding:g/binding:c')).toBe('c')
+	})
+
+	it('is not there for what is not a binding', () => {
+		expect(nameOfRow('binding:c/arg:0')).toBe(null)
+	})
+
+	it('changes only the last part of the row', () => {
+		expect(rowCalled('binding:g/binding:c', 'd')).toBe('binding:g/binding:d')
 	})
 })

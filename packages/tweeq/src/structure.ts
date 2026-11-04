@@ -565,9 +565,6 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 
 	const definition =
 		ast.head.kind === 'sym' ? metadataOf(ast.head.name, env) : null
-	const title =
-		textOf(definition?.get('label')) ??
-		(ast.head.kind === 'sym' ? ast.head.name : print(ast.head))
 	const inside = enterNode(ast, env)
 	const hasSpread = ast.args.some(arg => arg.kind === 'spread')
 	const parameters = hasSpread ? null : callParameters(ast, inside)
@@ -594,6 +591,10 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 	const doc =
 		textOf(definition?.get('doc')) ??
 		(isTypedHostFn(headValue) ? ((headValue as { doc?: string }).doc ?? null) : null)
+	const title =
+		textOf(definition?.get('label')) ??
+		(isTypedHostFn(headValue) ? (headValue as { label?: string }).label : undefined) ??
+		(ast.head.kind === 'sym' ? ast.head.name : print(ast.head))
 	const slots: Slot[] = []
 	const missing: MissingArgument[] = []
 

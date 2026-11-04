@@ -115,14 +115,15 @@ function revert(): void {
 	min-height: 0;
 	font-family: var(--tq-font-code);
 }
+/* From what is written, which is the only height that the field has of its own. */
 .code {
-	flex: 1;
+	flex: 1 1 auto;
 	min-height: 0;
 }
 /* The panel is the editor, so the field has no box of its own. */
 .AstProgramCode :deep(.TqInputCode),
 .AstProgramCode :deep(.TqInputCode:focus-within) {
-	height: 100%;
+	max-height: none;
 	background: none;
 	box-shadow: none;
 }
