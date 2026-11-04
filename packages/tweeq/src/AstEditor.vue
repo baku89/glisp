@@ -366,7 +366,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 				:disabled="!document.canRedo.value"
 				@click="document.redo()"
 			/>
-			<InputButton icon="mdi:plus" label="Add" subtle @click="addBinding" />
+			<InputButton v-if="!layers" icon="mdi:plus" label="Add" subtle @click="addBinding" />
 			<span ref="$envButton" class="env-button">
 				<InputButton
 					icon="mdi:code-braces"
