@@ -16,6 +16,7 @@ export const SHAPE_ICONS = {
 
 const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	...Object.fromEntries(Object.entries(SHAPE_ICONS).map(([name, icon]) => [`path.${name}`, icon])),
+	'path.ellipseFromFoci': SHAPE_ICONS.ellipse,
 	'path.d': 'ph:path',
 	'path.line': 'ph:line-segment',
 	'path.polyline': 'ph:line-segments',

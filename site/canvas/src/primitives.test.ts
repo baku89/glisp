@@ -498,3 +498,71 @@ describe('what a pen is drawing, having had its controls taken hold of', () => {
 		expect(anchorsAlong(anchors, pathOf('(path.polyline [0 0] [1 1] [2 2])'))).toBe(anchors)
 	})
 })
+
+describe('an ellipse that is turned', () => {
+	const gripOfSrc = (src: string) => gripAt(parse(`{c = ${src}}`), env, ROW)!
+
+	it('lies as it did, with nothing said', () => {
+		const [right, bottom] = gripOfSrc('(path.ellipse [0 0] [20 10])').handles
+		expect(right!.at).toEqual([20, 0])
+		expect(bottom!.at).toEqual([0, 10])
+	})
+
+	it('has its handles along its own axes', () => {
+		const [right, bottom] = gripOfSrc('(path.ellipse [0 0] [20 10] 90)').handles
+		expect(right!.at![0]).toBeCloseTo(0)
+		expect(right!.at![1]).toBeCloseTo(20)
+		expect(bottom!.at![0]).toBeCloseTo(-10)
+		expect(bottom!.at![1]).toBeCloseTo(0)
+		expect(right!.to([0, 35], right!.at!)[0]!.value).toEqual([expect.closeTo(35), expect.anything()])
+	})
+
+	it('is turned by a direction handle, even where nothing has said it yet', () => {
+		const root = parse('{c = (path.ellipse [0 0] [20 10])}')
+		const handle = gripAt(root, env, ROW)!.handles.find(h => h.kind === 'direction')!
+		expect(handle.pivot).toEqual([0, 0])
+		const { ast } = changed(root, env, ROW, handle.to([0, 60], handle.at!))
+		expect(print(ast!)).toBe('{c = (path.ellipse [0 0] [20 10] 90)}')
+		const [{ value }] = handle.to([30, 28], handle.at!, { even: true }) as [{ value: number }]
+		expect(value).toBe(45)
+	})
+
+	it('can be said where its sides are by its numbers only if it is not turned', () => {
+		const coded = (src: string) => gripOfSrc(src).snaps!.points!.filter(p => p.code !== undefined).length
+		expect(coded('(path.ellipse [0 0] [20 10])')).toBe(4)
+		expect(coded('(path.ellipse [0 0] [20 10] 30)')).toBe(0)
+	})
+
+	it('leaves a superellipse, whose third is its shape, unturned', () => {
+		const grip = gripOfSrc('(path.superellipse [0 0] [20 10] 2)')
+		expect(grip.handles.some(h => h.kind === 'direction')).toBe(false)
+		expect(grip.marks!.filter(m => m.route[0] === 2)).toHaveLength(1)
+		expect(grip.guides).toEqual([])
+	})
+})
+
+describe('an ellipse from its foci', () => {
+	const SRC = '(path.ellipseFromFoci [30 50] [70 50] [50 20])'
+
+	it('draws, and can be taken hold of by all three', () => {
+		expect(evaluate(parse(SRC), env).diagnostics).toEqual([])
+		const grip = gripAt(parse(`{c = ${SRC}}`), env, ROW)!
+		expect(grip.handles.map(h => h.place)).toEqual([0, 1, 2])
+		expect(grip.guides).toHaveLength(2)
+		expect(grip.move!([1, 2])).toHaveLength(3)
+	})
+
+	it('goes on to an ellipse, of the same shape', () => {
+		const [first, second] = expandLadder(parse('(path.ellipseFromFoci [20 30] [70 60] [50 20])'), env)
+		expect(print(second!)).toMatch(/^\(path\.ellipse \[45 45\] \[/)
+		const numbers = (ast: AST) => iconOfPath(evaluate(ast, env).value)!.match(/-?[\d.]+/g)!.map(Number)
+		const expected = numbers(first!)
+		numbers(second!).forEach((n, i) => expect(n).toBeCloseTo(expected[i]!, 6))
+	})
+
+	it('is a circle with one focus, and flat through a point between', () => {
+		for (const src of ['(path.ellipseFromFoci [0 0] [0 0] [5 0])', '(path.ellipseFromFoci [0 0] [10 0] [5 0])', '(path.ellipseFromFoci [0 0] [0 0] [0 0])']) {
+			expect(evaluate(parse(src), env).diagnostics).toEqual([])
+		}
+	})
+})

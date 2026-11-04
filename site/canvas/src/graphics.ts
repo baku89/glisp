@@ -42,6 +42,7 @@ import {
 	circle,
 	cubicBezier,
 	ellipse,
+	ellipseFromFoci,
 	fan,
 	line,
 	polygon,
@@ -291,11 +292,40 @@ const makeD = makeTypedFn(
 )
 
 /** The rungs: each shape is said in terms of the more general one it is a case of. */
-const makeEllipse = makeTypedFn(
-	[point, size],
-	pathType,
-	(center, radius) => new PathValue(ellipse(center as Vec, radius as Vec)),
-	['center', 'radius']
+const makeEllipse = withOptional(
+	makeTypedFn(
+		[point, size, angleType],
+		pathType,
+		(center, radius, angle) =>
+			new PathValue(ellipse(center as Vec, radius as Vec, Number.isFinite(angle) ? (angle as number) : 0)),
+		['center', 'radius', 'angle']
+	),
+	['angle']
+)
+/** Where an ellipse is, by its foci: pave says, and it goes on from there as an ellipse. */
+const ellipseOfFoci = (focus1: Vec, focus2: Vec, through: Vec) => {
+	const path = ellipseFromFoci(focus1, focus2, through)
+	const { args } = (path as unknown as { curves: readonly Curve[] }).curves[0]!.vertices[0]!
+	const [radius, angle] = args as unknown as [Vec, number]
+	return { path, radius, angle, center: [(focus1[0] + focus2[0]) / 2, (focus1[1] + focus2[1]) / 2] as Vec }
+}
+const makeEllipseFromFoci = withExpansion(
+	makeTypedFn(
+		[point, point, point],
+		pathType,
+		(focus1, focus2, through) =>
+			new PathValue(ellipseOfFoci(focus1 as Vec, focus2 as Vec, through as Vec).path),
+		['focus1', 'focus2', 'through']
+	),
+	([focus1, focus2, through], { value }) => {
+		if (focus1 === undefined || focus2 === undefined || through === undefined) return null
+		const { center, radius, angle } = ellipseOfFoci(
+			value(focus1) as Vec,
+			value(focus2) as Vec,
+			value(through) as Vec
+		)
+		return callOf('ellipse', [toAst(center, null), toAst(radius, null), toAst(angle, null)])
+	}
 )
 const makeCircle = withExpansion(
 	makeTypedFn(
@@ -716,7 +746,8 @@ const makeStyled = withDoc(
 withMembers(pathType, {
 	d: withDoc(makeD, 'A path from its data, as an SVG path has it.', 'Path Data'),
 	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.', 'Circle'),
-	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` each way.', 'Ellipse'),
+	ellipseFromFoci: withDoc(makeEllipseFromFoci, 'An ellipse around `focus1` and `focus2`, going `through` a point, which says how large it is, as an ellipse is where the distances to its foci come to the same.', 'Ellipse from Foci'),
+	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` along each of its axes, turned by `angle`, in degrees.', 'Ellipse'),
 	rect: withDoc(makeRect, 'A rectangle from its `origin`, of this `size`.', 'Rectangle'),
 	square: withDoc(makeSquare, 'A square from its `origin`, with sides of this `size`.', 'Square'),
 	line: withDoc(makeLine, 'A straight line from `start` to `end`.', 'Line'),
@@ -1278,43 +1309,73 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	],
 	[
 		makeEllipse,
-		([center, radius]) => {
+		([center, radius, turned]) => {
 			const c = center as Vec
 			const [rx, ry] = radius as Vec
+			const first = finiteAngle(turned)
+			// Exactly where it is, unturned, as most are.
+			const on = (x: number, y: number): Vec => {
+				if (first === 0) return [c[0] + x, c[1] + y]
+				const [cos, sin] = toward(first, 1)
+				return [c[0] + x * cos - y * sin, c[1] + x * sin + y * cos]
+			}
+			const across = (to: Vec, axis: number): number => {
+				const [x, y] = toward(first + axis, 1)
+				return Math.abs((to[0] - c[0]) * x + (to[1] - c[1]) * y)
+			}
+			const facing = on(rx + NGON_RING, 0)
+			// Saying where a side is by its numbers goes only for one that is not turned.
+			const side = (name: string): { code?: PlaceCode } =>
+				first === 0 ? { code: ELLIPSE_SIDES[name]! } : {}
 			return {
 				marks: [
-					...pointMarks([0], [c[0], c[1] - ry]),
-					{ route: [1], index: 0, at: [c[0] + rx, c[1]], side: 'right' },
-					{ route: [1], index: 1, at: [c[0], c[1] + ry], side: 'below' },
+					...pointMarks([0], on(0, -ry)),
+					{ route: [1], index: 0, at: on(rx, 0), side: 'right' },
+					{ route: [1], index: 1, at: on(0, ry), side: 'below' },
+					{ route: [2], at: facing, side: 'right' },
 				],
 				handles: [
 					{
 						kind: 'arrow',
 						name: 'right',
-						at: [c[0] + rx, c[1]],
-						angle: 0,
-						to: to => [change(1, [Math.abs(to[0] - c[0]), UNSET])],
+						at: on(rx, 0),
+						angle: first,
+						to: to => [change(1, [across(to, 0), UNSET])],
 					},
 					{
 						kind: 'arrow',
 						name: 'bottom',
-						at: [c[0], c[1] + ry],
-						angle: 90,
-						to: to => [change(1, [UNSET, Math.abs(to[1] - c[1])])],
+						at: on(0, ry),
+						angle: first + 90,
+						to: to => [change(1, [UNSET, across(to, 90)])],
+					},
+					{
+						kind: 'direction',
+						at: facing,
+						pivot: c,
+						angle: first,
+						to: (to, _, how) => [change(2, angleHeld(c, first, to, how))],
 					},
 					{ kind: 'translate', name: 'center', place: 0, at: c, to: to => [change(0, to)] },
 				],
-				guides: [],
+				guides: [line(on(rx, 0), facing)],
 				snaps: {
 					points: [
-						{ at: [c[0] + rx, c[1]], name: 'right', code: ELLIPSE_SIDES['right']! },
-						{ at: [c[0], c[1] + ry], name: 'bottom', code: ELLIPSE_SIDES['bottom']! },
-						{ at: [c[0] - rx, c[1]], name: 'left', code: ELLIPSE_SIDES['left']! },
-						{ at: [c[0], c[1] - ry], name: 'top', code: ELLIPSE_SIDES['top']! },
+						{ at: on(rx, 0), name: 'right', ...side('right') },
+						{ at: on(0, ry), name: 'bottom', ...side('bottom') },
+						{ at: on(-rx, 0), name: 'left', ...side('left') },
+						{ at: on(0, -ry), name: 'top', ...side('top') },
 					],
 				},
 				move: delta => [change(0, add(c, delta))],
 			}
+		},
+	],
+	[
+		makeEllipseFromFoci,
+		args => {
+			const [focus1, focus2, through] = args as [Vec, Vec, Vec]
+			return pointsGrip(args as Vec[], [line(focus1, through), line(focus2, through)])
 		},
 	],
 	[
@@ -1716,14 +1777,22 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 		([center, radius, shape], inner, proportional) => {
 			const c = center as Vec
 			const [rx, ry] = radius as Vec
-			const box = makers.get(makeEllipse)!([c, radius], inner, proportional)
+			const { handles: all, marks: said, guides: _turning, ...box } = makers.get(makeEllipse)!(
+				[c, radius],
+				inner,
+				proportional
+			)
+			// It does not turn, and what would be its angle is its shape.
+			const handles = all.filter(({ kind }) => kind !== 'direction')
+			const marks = said!.filter(({ route }) => route[0] !== 2)
 			const held = Number.isNaN(shape) ? 2 : (shape as number)
 			// How far out it is on the way to a corner, which is all that a shape says.
 			const out = 2 ** (-1 / 2 ** held)
 			const at: Vec = [c[0] + rx * out, c[1] + ry * out]
 			return {
 				...box,
-				marks: [...box.marks!, { route: [2], at, side: 'right' }],
+				guides: [],
+				marks: [...marks, { route: [2], at, side: 'right' }],
 				handles: [
 					{
 						kind: 'arrow',
@@ -1737,7 +1806,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 							return [change(2, Math.log2(-Math.LN2 / Math.log(along)))]
 						},
 					},
-					...box.handles,
+					...handles,
 				],
 			}
 		},

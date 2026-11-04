@@ -950,7 +950,7 @@ describe('grips', () => {
 
 	it('pull an ellipse one way at a time', () => {
 		const source = '{c = (path.ellipse [0 0] [10 20])}'
-		expect(kinds(source)).toEqual(['arrow', 'arrow', 'translate'])
+		expect(kinds(source)).toEqual(['arrow', 'arrow', 'direction', 'translate'])
 		expect(pulled(source, 0, [30, 99])).toBe('{c = (path.ellipse [0 0] [30 20])}')
 		expect(pulled(source, 1, [99, 40])).toBe('{c = (path.ellipse [0 0] [10 40])}')
 	})
