@@ -1,43 +1,78 @@
 import { fileURLToPath } from 'node:url'
 
 import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import glsl from 'vite-plugin-glsl'
-import { VitePWA } from 'vite-plugin-pwa'
+import { type ManifestOptions, VitePWA } from 'vite-plugin-pwa'
 
 const source = (name: string) =>
 	fileURLToPath(new URL(`../../dev_modules/${name}/src$1`, import.meta.url))
 
+const manifest = {
+	name: 'Glisp / Canvas',
+	short_name: 'Canvas',
+	description: 'A vector drawing app, whose drawing is a program',
+	display: 'standalone',
+	display_override: ['window-controls-overlay', 'standalone'],
+	theme_color: '#1473e6',
+	background_color: '#ffffff',
+	icons: [
+		{ src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+		{ src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+		{ src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+	],
+	file_handlers: [
+		{
+			action: '/canvas/',
+			accept: { 'application/x-glisp-canvas': ['.canvas.glisp'] },
+		},
+	],
+} satisfies Partial<ManifestOptions>
+
+/**
+ * The dev server can be installed as an app too. A manifest is all that takes,
+ * so unlike VitePWA's dev mode this registers no service worker, and what is
+ * being edited is always what runs.
+ */
+function installableInDev(): Plugin {
+	const url = '/canvas/manifest.webmanifest'
+	return {
+		name: 'canvas:installable-in-dev',
+		apply: 'serve',
+		configureServer(server) {
+			server.middlewares.use(url, (_req, res) => {
+				res.setHeader('Content-Type', 'application/manifest+json')
+				res.end(
+					JSON.stringify({
+						...manifest,
+						name: 'Glisp / Canvas (dev)',
+						short_name: 'Canvas dev',
+						start_url: '/canvas/',
+						scope: '/canvas/',
+					})
+				)
+			})
+		},
+		transformIndexHtml: () => [
+			{ tag: 'link', attrs: { rel: 'manifest', href: url }, injectTo: 'head' },
+		],
+	}
+}
+
 export default defineConfig({
 	base: '/canvas/',
+	// Paused for now: an edit shows only after reloading the page by hand.
+	server: { hmr: false },
 	plugins: [
 		vue(),
 		glsl(),
+		installableInDev(),
 		VitePWA({
 			registerType: 'autoUpdate',
 			injectRegister: 'auto',
 			// Not in dev, where it would answer with code older than what is being edited.
 			devOptions: { enabled: false },
-			manifest: {
-				name: 'Glisp / Canvas',
-				short_name: 'Canvas',
-				description: 'A vector drawing app, whose drawing is a program',
-				display: 'standalone',
-				display_override: ['window-controls-overlay', 'standalone'],
-				theme_color: '#1473e6',
-				background_color: '#ffffff',
-				icons: [
-					{ src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-					{ src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-					{ src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-				],
-				file_handlers: [
-					{
-						action: '/canvas/',
-						accept: { 'application/x-glisp-canvas': ['.canvas.glisp'] },
-					},
-				],
-			},
+			manifest,
 			workbox: {
 				// Monaco's workers are large, and it is all needed to work offline.
 				maximumFileSizeToCacheInBytes: 100 * 1024 * 1024,
