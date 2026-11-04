@@ -9,9 +9,9 @@ const repo = 'baku89/glisp'
 
 export default defineUserConfig({
 	title: 'Glisp',
-	base: '/glisp/',
+	base: '/lang/',
 	head: [
-		['link', { rel: 'icon', href: '/glisp/logo.svg' }],
+		['link', { rel: 'icon', href: '/lang/logo.svg' }],
 		['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
 		[
 			'link',
@@ -27,7 +27,7 @@ export default defineUserConfig({
 		],
 	],
 	theme: defaultTheme({
-		docsDir: 'site',
+		docsDir: 'site/lang',
 		docsBranch: 'lang-2026',
 		logo: '/logo.svg',
 		repo,
@@ -84,7 +84,7 @@ export default defineUserConfig({
 					{
 						find: /^tweeq(\/.*)?$/,
 						replacement: fileURLToPath(
-							new URL('../../dev_modules/tweeq/src$1', import.meta.url)
+							new URL('../../../dev_modules/tweeq/src$1', import.meta.url)
 						),
 					},
 				],

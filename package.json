@@ -6,16 +6,16 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "site",
+    "site/*",
     "dev_modules/tweeq"
   ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && npm run typecheck -w site",
+    "typecheck": "tsc --noEmit && npm run typecheck -w site/lang",
     "repl": "npm run start -w @glisp/repl",
-    "dev": "npm run dev -w site",
-    "build": "npm run build -w site"
+    "dev": "npm run dev -w site/lang",
+    "build": "npm run build -w site/lang"
   },
   "license": "MIT",
   "author": "Baku Hashimoto <mail@baku89.com>",

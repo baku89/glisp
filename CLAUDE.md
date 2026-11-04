@@ -8,7 +8,8 @@ A language made to be embedded in creative software: the same program is edited 
 - `packages/lang`: the language, `@glisp/lang`. No dependencies. Its prelude has labels and docs for people to read, but how anything looks, such as icons, belongs to a host.
 - `packages/repl`: the terminal REPL. Logic in `core.ts`, `editor.ts`, `screen.ts`; `tui.ts` is the thin part that touches the terminal.
 - `packages/tweeq`: edit an AST directly through Tweeq widgets, with a REPL beside it. The mapping from AST to GUI is pure (`structure.ts`, `repl.ts`), and the Vue components are thin.
-- `site`: the website, in English, with the guide and the playground.
+- `site/lang`: the language's website, in English, with the guide and the playground, at `/lang/`.
+- `site/canvas`: the drawing app, at `/canvas`, which is the point of all this. Not started yet.
 - `dev_modules/tweeq`: Tweeq, as a submodule, used from source.
 
 Hosts depend on `@glisp/lang`, and it depends on nothing. Keep it that way.
@@ -35,6 +36,6 @@ npm run dev         # the website
 npm run build
 ```
 
-- Spec and implementation change together. `spec.test.ts` runs the marked examples in `spec/` and `site/guide.md`.
+- Spec and implementation change together. `spec.test.ts` runs the marked examples in `spec/` and `site/lang/guide.md`.
 - Mark an example block with `<!-- test -->` above it when every `;; → value` in it should hold.
 - The author writes the notes this design came from at baku89.com (`Glisp文法` and others). When they disagree with `spec/`, ask which one stands.

@@ -43,7 +43,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site/.vuepress/dist
+          path: site/lang/.vuepress/dist
 
   deploy:
     name: Deploy

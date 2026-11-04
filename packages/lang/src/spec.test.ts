@@ -12,7 +12,7 @@ const FILES = [
 	'spec/syntax.md',
 	'spec/types.md',
 	'spec/eval.md',
-	'site/guide.md',
+	'site/lang/guide.md',
 ]
 
 const MARKED_BLOCK = /<!-- test -->\s*```glisp\n([\s\S]*?)```/g

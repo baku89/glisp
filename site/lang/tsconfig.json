@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "jsx": "preserve",
     "lib": [
@@ -13,10 +13,10 @@
     ],
     "paths": {
       "tweeq": [
-        "../dev_modules/tweeq/src"
+        "../../dev_modules/tweeq/src"
       ],
       "tweeq/*": [
-        "../dev_modules/tweeq/src/*"
+        "../../dev_modules/tweeq/src/*"
       ]
     },
     "exactOptionalPropertyTypes": false
