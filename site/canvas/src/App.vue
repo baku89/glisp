@@ -10,7 +10,7 @@ import {
 import { combined, type Filter, filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
-import { useEventListener, useMediaQuery } from '@vueuse/core'
+import { useElementSize, useEventListener, useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
@@ -33,6 +33,9 @@ import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
 import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
 import { iconOfPath, inkOn, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
+import ToolPanel from './ToolPanel.vue'
+import { loadedSource, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
+import IsolationBar from './IsolationBar.vue'
 import RowName from './RowName.vue'
 import {
 	pickedRows,
@@ -51,7 +54,7 @@ import {
 	withBackground,
 	withGridToggled,
 } from './rows'
-import { backgroundOf, gridCall, gridOf, isOfCanvasAt, paintedRow, pathOfRow, rowsPaintedBy, withPaintOfRows, withLayersFromOrder } from './scene'
+import { backgroundOf, gridCall, gridOf, isOfCanvasAt, paintAt, paintedRow, pathOfRow, rowsPaintedBy, valueOfRow, withPaintOfRows, withLayersFromOrder } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -187,17 +190,54 @@ const TOOLS = [
 	{ name: 'fan', label: 'Fan', icon: SHAPE_ICONS.fan },
 	{ name: 'spiral', label: 'Spiral', icon: SHAPE_ICONS.spiral },
 	{ name: 'clothoid', label: 'Clothoid', icon: SHAPE_ICONS.clothoid },
+	{ name: 'spray', label: 'Spray', icon: 'ph:spray-bottle' },
+	{ name: 'arcStrip', label: 'Arc Strip', icon: 'ph:wave-sine' },
+	{ name: 'triangleStrip', label: 'Triangle Strip', icon: 'ph:triangle' },
+	{ name: 'radial', label: 'Radial Lines', icon: 'ph:asterisk' },
+	{ name: 'dubins', label: 'Dubins Path', icon: 'ph:path' },
 ] as const
 const tool = ref<(typeof TOOLS)[number]['name']>('select')
 
 /** What is on the bar at first: the rest is there behind its dots, until it is wanted. */
 const FIRST_TOOLS: Arrangement = {
 	shown: ['select', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
-	stowed: ['star', 'roundRect', 'superellipse', 'capsule', 'fan', 'spiral', 'clothoid'],
+	stowed: [
+		'star',
+		'roundRect',
+		'superellipse',
+		'capsule',
+		'fan',
+		'spiral',
+		'clothoid',
+		'spray',
+		'arcStrip',
+		'triangleStrip',
+		'radial',
+		'dubins',
+	],
 }
 const toolsKept = useAppConfigStore().ref<Partial<Arrangement> | null>('glisp.canvas.tools', null)
 const toolArrangement = computed(() => arrangedTools(toolsKept.value, FIRST_TOOLS))
 const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
+
+/** What tools make things from, which stays with the app whatever the program is. */
+const toolSource = useAppConfigStore().ref<string | null>('glisp.canvas.tool.attributes', null)
+const toolDocument = useGlispDocument(loadedSource(toolSource.value), { env: withGraphics })
+watch(toolDocument.root, root => (toolSource.value = sourceOfAttributes(root)))
+const toolAttributes = computed(() => ({
+	paint: paintOfAttributes(toolDocument.root.value, toolDocument.env.value),
+	shape: shapeAttributesOf(toolDocument.root.value, toolDocument.env.value),
+}))
+const toolPanelOpen = useAppConfigStore().ref('glisp.canvas.tool.open', true)
+/** The project stops short of what is under it on that edge. */
+const $toolPanel = useTemplateRef<InstanceType<typeof ToolPanel>>('$toolPanel')
+const { height: toolPanelHeight } = useElementSize(
+	() => $toolPanel.value?.$el as HTMLElement | undefined,
+	undefined,
+	{ box: 'border-box' }
+)
+const belowProject = computed(() => ({ '--taken-below': `${toolPanelHeight.value + 32}px` }))
+const toolInHand = computed(() => TOOLS.find(({ name }) => name === tool.value)!)
 
 /** A drag says its numbers exactly, and they can be typed once it is let go of. */
 const dimensionsOn = useAppConfigStore().ref('glisp.canvas.dimensions', false)
@@ -361,11 +401,17 @@ const keptRow = ref<string | null>(null)
 const about = computed(() => rowsAbout(selected.value, keptRow.value))
 /** What is picked out in the inspector of what it is about. */
 const pickedOut = computed(() => (about.value === selected.value ? [] : selected.value))
+/** How the one thing selected is painted, for a tool to take that, if one thing is. */
+const paintOfSelected = computed(() =>
+	paintable.value.length === 1 ? paintAt(document.root.value, document.env.value, paintable.value[0]!) : null
+)
 const paintable = computed(() =>
 	about.value.flatMap(row => rowsPaintedBy(document.root.value, document.env.value, row)).filter(row => {
 		const [root, env] = [document.root.value, document.env.value]
 		// A part of what a row is written as, such as a number, has no fill or line unless it is a path.
 		const isPart = !row.split('/').every(key => /^(binding|element):/.test(key))
+		// What holds many, each with a color of its own, has nothing to say of them as one.
+		if (Array.isArray(valueOfRow(root, env, row))) return false
 		return !isOfCanvasAt(root, env, row) && (!isPart || pathOfRow(root, env, row) !== null)
 	})
 )
@@ -885,6 +931,7 @@ actions.register([
 			{ id: 'view_zoom_out', label: 'Zoom Out', icon: 'mdi:magnify-minus-outline', bind: 'command+-', perform: () => $canvas.value?.zoomBy(1 / ZOOM_STEP) },
 			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => (projectOpen.value = !projectOpen.value) },
 			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => (inspectorOpen.value = !inspectorOpen.value) },
+			{ id: 'view_tool', label: 'Toggle Tool Options', icon: 'ph:palette', perform: () => (toolPanelOpen.value = !toolPanelOpen.value) },
 			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', bind: 'd', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
 			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
 			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGrid('dots') },
@@ -959,6 +1006,7 @@ function selectInTree(row: string | null): void {
 					:selected="selected"
 					:origin="origin"
 					:drawing="drawing"
+					:attributes="toolAttributes"
 					:dimensions="dimensionsOn"
 					:snapping="snappingOn"
 					:grid="grid"
@@ -987,6 +1035,7 @@ function selectInTree(row: string | null): void {
 					v-model:open="projectOpen"
 					name="glisp.canvas.project"
 					side="left"
+					:style="belowProject"
 					label="Project"
 					icon="ph:tree-view"
 					:width="PROJECT_WIDTH"
@@ -1099,6 +1148,15 @@ function selectInTree(row: string | null): void {
 						<PaintControls v-if="paintable.length > 0" :document="document" :rows="paintable" />
 					</AstEditor>
 				</FloatPanel>
+				<ToolPanel
+					ref="$toolPanel"
+					v-model:open="toolPanelOpen"
+					:document="toolDocument"
+					:tool="tool"
+					:label="tool === 'select' ? 'Tool Options' : toolInHand.label"
+					:icon="toolInHand.icon"
+					:paintOfSelected="paintOfSelected"
+				/>
 				<ToolBar
 					:tools="toolsOnBar"
 					:active="tool"

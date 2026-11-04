@@ -26,6 +26,8 @@ import {
 	toAst,
 	VecAST,
 	withDoc,
+	randomAt,
+	seedType,
 	withExpansion,
 	withInverse,
 	withMembers,
@@ -41,6 +43,7 @@ import { merge } from 'pave/path/compound'
 import { transform } from 'pave/path/modifiers'
 import {
 	arc,
+	arcByPoints,
 	capsule,
 	empty,
 	circle,
@@ -56,6 +59,7 @@ import {
 	roundRect,
 	star,
 } from 'pave/path/primitives'
+import { dubins } from 'pave/path/dubins'
 import { clothoid, spiral } from 'pave/path/spirals'
 import { superellipse } from 'pave/path/superellipse'
 import { exclude, intersect, subtract, unite } from 'pave/path/boolean'
@@ -1166,7 +1170,111 @@ withMembers(rectType, {
 	new: withDoc(makeArea, 'An area from its `origin`, of this `size`, such as a page to export.', 'Area'),
 })
 
+// -----------------------------------------------------------------------------
+// What the brushes draw, each of which comes to the same however often it is worked out
+// -----------------------------------------------------------------------------
+
+const placesType = makeTupleType([], point)
+const rowsOfNumbers = makeTupleType([], makeTupleType([], number))
+const manyStyled = makeTupleType([], styledType)
+
+const lerped = (a: number, b: number, t: number): number => a + (b - a) * t
+const merged = (paths: readonly Path[]): PathValue =>
+	new PathValue(paths.length === 0 ? empty : merge([...paths]))
+
+const makeArcStrip = makeTypedFn(
+	[placesType],
+	pathType,
+	places => {
+		const all = places as Vec[]
+		if (all.length === 2) return merged([line(all[0]!, all[1]!)])
+		return merged(all.slice(2).map((end, i) => arcThrough(all[i]!, all[i + 1]!, end)))
+	},
+	['places']
+)
+
+/** An arc from `start` through `by` to `end`, or a line for those all in one line. */
+function arcThrough(start: Vec, by: Vec, end: Vec): Path {
+	const turned = (by[0] - start[0]) * (end[1] - start[1]) - (by[1] - start[1]) * (end[0] - start[0])
+	return Math.abs(turned) < 1e-6 ? line(start, end) : arcByPoints(start, by, end)
+}
+
+const makeRadial = makeTypedFn(
+	[point, rowsOfNumbers],
+	pathType,
+	(center, lines) => {
+		const [x, y] = center as Vec
+		return merged(
+			(lines as number[][]).map(([angle = 0, from = 0, to = 0]) => {
+				const [dx, dy] = [Math.cos((angle * Math.PI) / 180), Math.sin((angle * Math.PI) / 180)]
+				return line([x + dx * from, y + dy * from], [x + dx * to, y + dy * to])
+			})
+		)
+	},
+	['center', 'lines']
+)
+
+const makeDubinsChain = makeTypedFn(
+	[rowsOfNumbers, numberOf(20)],
+	pathType,
+	(stops, radius) => {
+		const all = stops as number[][]
+		return merged(
+			all.slice(1).map((stop, i) => {
+				// As tightly as the stop it is leaving says, or else as all of them do.
+				const [ax = 0, ay = 0, aAngle = 0, aRadius = radius as number] = all[i]!
+				const [bx = 0, by = 0, bAngle = 0] = stop
+				return dubins([ax, ay], aAngle, [bx, by], bAngle, Math.max(aRadius, 1e-3))
+			})
+		)
+	},
+	['stops', 'radius']
+)
+
+const painted = (path: Path, fill: string): StyledValue =>
+	new StyledValue(new PathValue(path), { ...NO_PAINT, fill })
+
+const makeSpray = withDoc(
+	makeTypedFn(
+		[placesType, seedType, numberOf(5), numberOf(20), numberOf(40), colorType, colorType],
+		manyStyled,
+		(places, seed, smallest, largest, scatter, fill, fill2) =>
+			(places as Vec[]).map(([x, y], i) => {
+				const random = (what: string): number => randomAt([seed as never, what], i)
+				const s = scatter as number
+				// Evenly over a disc, so that it is as far as a circle says in any direction.
+				const out = Math.sqrt(random('out')) * s
+				const around = random('around') * Math.PI * 2
+				const at: Vec = [x + Math.cos(around) * out, y + Math.sin(around) * out]
+				const radius = lerped(smallest as number, largest as number, random('radius'))
+				return painted(circle(at, radius), mixed(fill, fill2, random('color')) as string)
+			}),
+		['places', 'seed', 'smallest', 'largest', 'scatter', 'fill', 'fill2']
+	),
+	'Dots scattered within `scatter` of each of `places`, as `seed` has it, between `smallest` and `largest`, and between the colors `fill` and `fill2`.',
+	'Spray'
+)
+
+const makeTriangleStrip = withDoc(
+	makeTypedFn(
+		[placesType, seedType, colorType, colorType],
+		manyStyled,
+		(places, seed, fill, fill2) => {
+			const all = places as Vec[]
+			return all.slice(2).map((c, i) =>
+				painted(polygon(all[i]!, all[i + 1]!, c), mixed(fill, fill2, randomAt(seed, i)) as string)
+			)
+		},
+		['places', 'seed', 'fill', 'fill2']
+	),
+	'A triangle of each three of `places` in a row, as `seed` has it between the colors `fill` and `fill2`.',
+	'Triangle Strip'
+)
+
 withMembers(pathType, {
+	arcStrip: withDoc(makeArcStrip, 'An arc through each three of `places` in a row.', 'Arc Strip'),
+	radial: withDoc(makeRadial, 'Lines out from `center`: each of `lines` is its angle, and how far along that it starts and ends.', 'Radial Lines'),
+	dubinsChain: withDoc(makeDubinsChain, 'The shortest way between each two of `stops`, each an x, a y, the way it is going, and how tightly it can turn on the way from there, or else as tightly as `radius`.', 'Dubins Chain'),
 	bounds: withDoc(makeBounds, 'The area that `path` just fits in.', 'Bounds'),
 	offset: withDoc(makeOffset, 'The outline of `path`, this `distance` out from it, or in, if that is below 0, going around corners by `join`.', 'Offset'),
 	offsetStroke: withDoc(makeOffsetStroke, 'The outline of a line along `path`, this `width`, ending by `cap` and going around corners by `join`.', 'Offset Stroke'),
@@ -1754,6 +1862,17 @@ const pointsGrip = (
 	move: delta => points.map((at, i) => change(i, add(at, delta))),
 })
 
+/** Take hold of what has all of its places in one vector, as its first argument. */
+const placesGrip = (places: readonly Vec[]): Grip => ({
+	handles: places.map((at, i) => ({
+		kind: 'point',
+		at,
+		to: (to: Vec) => [change(0, places.map((other, j) => (j === i ? to : other)))],
+	})),
+	guides: [],
+	move: delta => [change(0, places.map(at => add(at, delta)))],
+})
+
 /** Take hold of a matrix written out, by its axes, its corner, and a ring to turn it. */
 function matrixGrip(m: Mat, arg: number): Grip {
 	const [a, b, c, d, tx, ty] = m
@@ -2181,6 +2300,58 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				lines: [{ from: start, to: end, name: 'line' }],
 			})
 			return { ...grip, handles: evenEnds(grip.handles, start, end) }
+		},
+	],
+	[makeArcStrip, args => placesGrip(args[0] as Vec[])],
+	[makeTriangleStrip, args => placesGrip(args[0] as Vec[])],
+	// As many places as a pointer went through, which is not something to take hold of one by one.
+	[makeSpray, args => ({ ...placesGrip(args[0] as Vec[]), handles: [] })],
+	[
+		makeRadial,
+		args => {
+			const center = args[0] as Vec
+			return {
+				handles: [{ kind: 'point', place: 0, at: center, to: (to: Vec) => [change(0, to)] }],
+				guides: [],
+				move: delta => [change(0, add(center, delta))],
+			}
+		},
+	],
+	[
+		makeDubinsChain,
+		args => {
+			const stops = args[0] as number[][]
+			const usual = args[1] as number
+			const atOf = ([x = 0, y = 0]: number[]): Vec => [x, y]
+			const movedTo = ([, , angle = 0, ...rest]: number[], [x, y]: Vec): number[] => [x, y, angle, ...rest]
+			const tipOf = (stop: number[]): Vec => {
+				const radians = ((stop[2] ?? 0) * Math.PI) / 180
+				const reach = stop[3] ?? usual
+				const [x, y] = atOf(stop)
+				return [x + Math.cos(radians) * reach, y + Math.sin(radians) * reach]
+			}
+			const withStop = (i: number, next: number[]): Change[] => [
+				change(0, stops.map((other, j) => (j === i ? next : other))),
+			]
+			return {
+				handles: stops.flatMap((stop, i): Handle[] => {
+					const at = atOf(stop)
+					const angle = stop[2] ?? 0
+					return [
+						// It turns toward where it is taken, and how far that is is how tightly it goes on from there.
+						{
+							kind: 'direction',
+							at: tipOf(stop),
+							pivot: at,
+							angle,
+							to: (to, _, how) => withStop(i, [at[0], at[1], angleHeld(at, angle, to, how), Math.max(dist(at, to), 1e-3)]),
+						},
+						{ kind: 'point', at, to: to => withStop(i, movedTo(stop, to)) },
+					]
+				}),
+				guides: stops.map(stop => line(atOf(stop), tipOf(stop))),
+				move: delta => [change(0, stops.map(stop => movedTo(stop, add(atOf(stop), delta))))],
+			}
 		},
 	],
 	[makePolyline, args => pointsGrip(args as Vec[], [], { lines: linesThrough(args as Vec[], false) })],
@@ -3021,6 +3192,8 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 	percent: percentType,
 	color: colorType,
 	style: makeStyled,
+	spray: makeSpray,
+	triangleStrip: makeTriangleStrip,
 	background: makeBackground,
 	grid: makeGrid,
 	vec2,

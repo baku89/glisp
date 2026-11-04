@@ -128,8 +128,6 @@ export type ShapeTool =
 	| 'spiral'
 	| 'clothoid'
 
-/** How many sides a polygon starts with. */
-const NGON_SIDES = 5
 /** How far apart the directions are that a shape is drawn toward, if it is drawn evenly. */
 const DRAWN_ANGLE_STEP = 45
 
@@ -146,14 +144,30 @@ export function evenlyFrom(from: Vec, to: Vec): Vec {
 	return [from[0] + Math.cos(radians) * reach, from[1] + Math.sin(radians) * reach]
 }
 /** What a shape starts as, that its drag does not say, in proportion to what it does. */
-const STAR_INNER = 0.45
-const ROUND_CORNER = 0.2
-const CAPSULE_RADIUS = 0.25
-const FAN_INNER = 0.5
-const FAN_SPREAD = 45
-const SPIRAL_TURNS = 3
-/** It comes to have turned this far, in radians, at the end. */
-const CLOTHOID_TURN = 3
+export const SHAPE_ATTRIBUTES = {
+	/** How many sides a polygon or a star has. */
+	sides: 5,
+	starInner: 0.45,
+	corner: 0.2,
+	capsuleRadius: 0.25,
+	fanInner: 0.5,
+	fanSpread: 45,
+	spiralTurns: 3,
+	/** It comes to have turned this far, in radians, at the end. */
+	clothoidTurn: 3,
+	exponent: 2,
+	/** How far from where a pencil went its curve can be, on screen, to be simpler for it. */
+	smoothness: 2.5,
+	/** Whether what a pencil draws is filled, as well as being a line. */
+	pencilFill: false,
+	dubinsRadius: 20,
+	sprayMinRadius: 5,
+	sprayMaxRadius: 20,
+	sprayJitter: 40,
+	/** The other color of what is mixed from two, of which the first is the fill. */
+	fill2: '#f9faf9',
+}
+export type ShapeAttributes = typeof SHAPE_ATTRIBUTES
 
 /**
  * As finely as a pointer can say anything, at this zoom and on this screen: a power of
@@ -439,14 +453,15 @@ export function drawnFrom(
 	to: Vec,
 	even: boolean,
 	step = FINEST,
-	fromCenter = false
+	fromCenter = false,
+	shape: ShapeAttributes = SHAPE_ATTRIBUTES
 ): LetAST {
 	const [dx, dy] = [to[0] - snap.at[0], to[1] - snap.at[1]]
 	const fromCorner = tool === 'rect' || tool === 'roundRect'
 	// What is drawn out both ways does not start at what it snapped to, if it has an end.
 	const elsewhere = fromCenter && (fromCorner || tool === 'capsule')
 	const anchored = canRefer(snap) && !elsewhere && !(fromCorner && (dx < 0 || dy < 0))
-	const next = drawn(root, name, tool, snap.at, to, even, step, anchored, fromCenter)
+	const next = drawn(root, name, tool, snap.at, to, even, step, anchored, fromCenter, shape)
 	const source = `binding:${name}/arg0`
 	if (!anchored) {
 		// Its origin is not what it snapped to, but it is as far from that as it is big.
@@ -460,7 +475,7 @@ export function drawnFrom(
 		return offset?.kind === 'let' ? offset : next
 	}
 	const result = referred(next, env, source, snap)
-	return result?.kind === 'let' ? result : drawn(root, name, tool, snap.at, to, even, step, false, fromCenter)
+	return result?.kind === 'let' ? result : drawn(root, name, tool, snap.at, to, even, step, false, fromCenter, shape)
 }
 
 /** How much of the program cannot be worked out, row by row. */
@@ -561,7 +576,8 @@ export function drawn(
 	step = FINEST,
 	anchored = false,
 	/** It goes out both ways from `from`, which is then its middle. */
-	fromCenter = false
+	fromCenter = false,
+	shape: ShapeAttributes = SHAPE_ATTRIBUTES
 ): LetAST {
 	const rounded = (n: number) => roundedTo(n, step)
 	const written = ([x, y]: Vec): string => `[${rounded(x)} ${rounded(y)}]`
@@ -585,21 +601,21 @@ export function drawn(
 	const turned = rounded(heading) === 0 ? '' : ` ${rounded(heading)}`
 	const source =
 		tool === 'ngon'
-			? `(path.ngon ${written(from)} ${rounded(reach)} ${NGON_SIDES}${turned})`
+			? `(path.ngon ${written(from)} ${rounded(reach)} ${shape.sides}${turned})`
 			: tool === 'star'
-			? `(path.star ${written(from)} ${rounded(reach)} ${rounded(reach * STAR_INNER)} ${NGON_SIDES}${turned})`
+			? `(path.star ${written(from)} ${rounded(reach)} ${rounded(reach * shape.starInner)} ${shape.sides}${turned})`
 			: tool === 'capsule'
-			? `(path.capsule ${written(fromCenter ? mirrored(capsuleEnd) : from)} ${written(capsuleEnd)} ${rounded(reach * CAPSULE_RADIUS)})`
+			? `(path.capsule ${written(fromCenter ? mirrored(capsuleEnd) : from)} ${written(capsuleEnd)} ${rounded(reach * shape.capsuleRadius)})`
 			: tool === 'fan'
-			? `(path.fan ${written(from)} ${rounded(reach * FAN_INNER)} ${rounded(reach)} ${rounded(heading - FAN_SPREAD)} ${rounded(heading + FAN_SPREAD)})`
+			? `(path.fan ${written(from)} ${rounded(reach * shape.fanInner)} ${rounded(reach)} ${rounded(heading - shape.fanSpread)} ${rounded(heading + shape.fanSpread)})`
 			: tool === 'spiral'
-			? `(path.spiral ${written(from)} 0 ${rounded(reach)} ${SPIRAL_TURNS})`
+			? `(path.spiral ${written(from)} 0 ${rounded(reach)} ${shape.spiralTurns})`
 			: tool === 'clothoid'
-			? `(path.clothoid ${written(from)} ${rounded(heading)} ${rounded(reach)} 0 ${reach === 0 ? 0 : Number(((2 * CLOTHOID_TURN) / reach).toPrecision(3))})`
+			? `(path.clothoid ${written(from)} ${rounded(heading)} ${rounded(reach)} 0 ${reach === 0 ? 0 : Number(((2 * shape.clothoidTurn) / reach).toPrecision(3))})`
 			: tool === 'roundRect'
-			? `(path.roundRect ${written(anchored ? from : corner)} ${written(anchored ? size2 : size)} ${rounded(Math.min(size[0], size[1]) * ROUND_CORNER)})`
+			? `(path.roundRect ${written(anchored ? from : corner)} ${written(anchored ? size2 : size)} ${rounded(Math.min(size[0], size[1]) * shape.corner)})`
 			: tool === 'superellipse'
-			? `(path.superellipse ${written(anchored ? from : center)} ${written(anchored ? [Math.abs(end[0] - from[0]), Math.abs(end[1] - from[1])] : [size[0] / 2, size[1] / 2])} 2)`
+			? `(path.superellipse ${written(anchored ? from : center)} ${written(anchored ? [Math.abs(end[0] - from[0]), Math.abs(end[1] - from[1])] : [size[0] / 2, size[1] / 2])} ${shape.exponent})`
 			: anchored && tool === 'rect' && even
 			? `(path.square ${written(from)} ${rounded(size2[0])})`
 			: tool === 'rect' && even
@@ -779,7 +795,7 @@ export function penKind(anchors: readonly Anchor[], closed: boolean): PenKind {
 }
 
 /** `kind` with the first number that `root` has not got yet. */
-function nameOfKind(root: LetAST, kind: string): string {
+export function nameOfKind(root: LetAST, kind: string): string {
 	const taken = new Set(root.bindings.map(([name]) => name))
 	let n = 1
 	while (taken.has(`${kind}${n}`)) n++
@@ -831,20 +847,32 @@ export function pencilled(
 	closesWithin: number
 ): { ast: LetAST; name: string } | null {
 	const [first] = points
-	const last = points.at(-1)
-	if (first === undefined || last === undefined) return null
-	const length = points.reduce(
+	if (first === undefined || points.at(-1) === undefined || lengthOf(points) === 0) return null
+	const closed = pencilCloses(points, closesWithin)
+	const through = (closed ? points.slice(0, -1) : points) as [number, number][]
+	return pencilledAs(root, fit(through, { tolerance, closed }))
+}
+
+const lengthOf = (points: readonly Vec[]): number =>
+	points.reduce(
 		(sum, at, i) => (i === 0 ? 0 : sum + Math.hypot(at[0] - points[i - 1]![0], at[1] - points[i - 1]![1])),
 		0
 	)
-	if (length === 0) return null
-	const closed =
+
+/** Whether a stroke through `points` ends where it began, having gone somewhere in between. */
+export function pencilCloses(points: readonly Vec[], closesWithin: number): boolean {
+	const [first] = points
+	const last = points.at(-1)
+	if (first === undefined || last === undefined) return false
+	return (
 		Math.hypot(last[0] - first[0], last[1] - first[1]) <= closesWithin &&
-		length > closesWithin * PENCIL_CLOSES_OVER
-	const through = (closed ? points.slice(0, -1) : points) as [number, number][]
-	const d = toD(fit(through, { tolerance, closed })).replace(/-?\d+\.\d+(?:e-?\d+)?/g, n =>
-		String(roundedTo(Number(n), FINEST))
+		lengthOf(points) > closesWithin * PENCIL_CLOSES_OVER
 	)
+}
+
+/** `root`, with a stroke of a pencil that has come to be the curve `path`. */
+export function pencilledAs(root: LetAST, path: Path): { ast: LetAST; name: string } {
+	const d = toD(path).replace(/-?\d+\.\d+(?:e-?\d+)?/g, n => String(roundedTo(Number(n), FINEST)))
 	const name = nameOfKind(root, 'pencil')
 	return { ast: withLayerAdded(root, name, parse(`(path.d "${d}")`)), name }
 }

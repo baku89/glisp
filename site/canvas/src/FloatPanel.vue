@@ -19,6 +19,8 @@ const props = defineProps<{
 	icon: string
 	/** How wide it opens, until it has been made otherwise. */
 	width: number
+	/** It sits at the end of its edge, growing up from there, as tall as what is in it. */
+	fromBottom?: boolean
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -91,7 +93,7 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	<aside
 		ref="$root"
 		class="FloatPanel"
-		:class="[side, { open, resizing, fitting: height === null }]"
+		:class="[side, { open, resizing, fitting: fromBottom || height === null, 'from-bottom': fromBottom }]"
 		:style="style"
 	>
 		<EdgeSurface :edge="side" />
@@ -121,12 +123,14 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 		<template v-if="open">
 			<div class="edge side" data-selects-rows @pointerdown="resize($event, { x: true })" />
 			<div
+				v-if="!fromBottom"
 				class="edge bottom"
 				:class="{ snapped }"
 				data-selects-rows
 				@pointerdown="resize($event, { y: true })"
 			/>
 			<div
+				v-if="!fromBottom"
 				class="edge corner"
 				data-selects-rows
 				@pointerdown="resize($event, { x: true, y: true })"
@@ -155,6 +159,11 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 		width var(--ease),
 		height var(--ease);
 }
+.FloatPanel.from-bottom {
+	/* As far up as the curve into the edge takes. */
+	top: auto;
+	bottom: var(--edge-fillet);
+}
 .FloatPanel.left {
 	left: 0;
 	border-left: none;
@@ -166,7 +175,8 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	border-radius: var(--tq-radius-pane) 0 0 var(--tq-radius-pane);
 }
 .FloatPanel.open {
-	max-height: calc(100% - var(--edge-fillet) - 24px);
+	/* Up to what is below it on that edge, or else short of the end of it. */
+	max-height: calc(100% - var(--edge-fillet) - var(--taken-below, 24px));
 	width: var(--panel-width);
 	height: var(--panel-height);
 }
@@ -261,6 +271,10 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 	cursor: pointer;
 	transition: opacity var(--ease);
 }
+.from-bottom .tab {
+	top: auto;
+	bottom: 0;
+}
 .left .tab {
 	left: 0;
 }
@@ -300,6 +314,9 @@ function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
 }
 .right .body {
 	transform-origin: right top;
+}
+.from-bottom .body {
+	transform-origin: left bottom;
 }
 .fitting .body {
 	flex: 0 1 auto;

@@ -14,6 +14,7 @@ import { capitalCase, enumIconsOf, parseSource } from '@glisp/tweeq/structure'
 
 import { LINE_CAPS, LINE_JOINS, lineCapType, lineJoinType, NO_PAINT, type Paint } from './graphics'
 import NoPaint from './NoPaint.vue'
+import PaintSwatches from './PaintSwatches.vue'
 import { paintArgument, paintReferringTo, paintSource, paintWritten, withPaintThrough } from './paintArguments'
 import { paintAt, withPaint } from './scene'
 
@@ -21,6 +22,8 @@ const props = defineProps<{
 	document: GlispDocument
 	/** What it paints, all of them at once, saying so where they differ. */
 	rows: readonly string[]
+	/** The two squares say the colors, with nothing else to say of them. */
+	compact?: boolean
 }>()
 
 const paints = computed<ReadonlyArray<{ row: string; paint: Paint }>>(() =>
@@ -85,6 +88,22 @@ const DEFAULT_WIDTH = 1
 
 const addStroke = (): void =>
 	set({ stroke: DEFAULT_COLOR, width: paint.value.width || DEFAULT_WIDTH })
+
+/** What a color to a line comes with: a line of no width is not there to see. */
+const strokeWithWidth = (stroke: string, width: number): Partial<Paint> =>
+	stroke === 'none' || width > 0 ? { stroke } : { stroke, width: DEFAULT_WIDTH }
+
+const setStroke = (stroke: string): void =>
+	setEach(paints.value.map(({ row }) => row), i => strokeWithWidth(stroke, paints.value[i]!.paint.width))
+
+/** Each with the color of its fill as its line, and the other way, as they are, none included. */
+const swap = (): void => {
+	const was = paints.value
+	setEach(was.map(({ row }) => row), i => {
+		const { fill, stroke, width } = was[i]!.paint
+		return { fill: stroke, ...strokeWithWidth(fill, width) }
+	})
+}
 
 /** Pressing what is not there adds it, while opening its menu is only that. */
 const addBy = (event: MouseEvent, add: () => void): void => {
@@ -290,10 +309,21 @@ useEventListener(
 
 <template>
 	<div class="PaintControls" data-selects-rows>
-		<h3 class="heading">Style</h3>
-		<ParameterTree name="glisp.inspector" :labelWidth="110">
+		<div class="head">
+			<h3 class="heading">Style</h3>
+			<PaintSwatches
+				:fill="paint.fill"
+				:stroke="paint.stroke"
+				:mixedFill="mixed('fill')"
+				:mixedStroke="mixed('stroke')"
+				@update:fill="set({ fill: $event })"
+				@update:stroke="setStroke"
+				@swap="swap"
+			/>
+		</div>
+		<ParameterTree :name="compact ? 'glisp.canvas.tool' : 'glisp.inspector'" :labelWidth="compact ? 140 : 110">
 			<ParameterTreeItem
-				v-if="paint.fill !== 'none'"
+				v-if="!compact && paint.fill !== 'none'"
 				label="Fill"
 				icon="ph:paint-bucket"
 				:selected="isSelected('fill')"
@@ -306,7 +336,7 @@ useEventListener(
 				</div>
 			</ParameterTreeItem>
 			<ParameterTreeItem
-				v-else
+				v-else-if="!compact"
 				class="absent"
 				label="Fill"
 				icon="ph:paint-bucket"
@@ -318,15 +348,15 @@ useEventListener(
 			<ParameterTreeItem
 				v-if="paint.stroke !== 'none'"
 				v-model:open="lineOpen"
-				label="Stroke"
-				icon="ph:line-segment"
+				:label="compact ? 'Stroke Options' : 'Stroke'"
+				:icon="compact ? 'ph:sliders-horizontal' : 'ph:line-segment'"
 				expandable
-				:selected="isSelected('stroke')"
-				:menuItems="menuOf('stroke')"
-				@select="select('stroke')"
+				:selected="!compact && isSelected('stroke')"
+				:menuItems="menuOf(compact ? 'width' : 'stroke')"
+				@select="compact ? addBy($event, () => (lineOpen = !lineOpen)) : select('stroke')"
 			>
 				<div class="field">
-					<div class="color" :class="{ mixed: mixed('stroke') }" data-takes-reference @focusin="select('stroke')">
+					<div v-if="!compact" class="color" :class="{ mixed: mixed('stroke') }" data-takes-reference @focusin="select('stroke')">
 						<InputColor
 							alpha
 							:modelValue="paint.stroke"
@@ -336,7 +366,7 @@ useEventListener(
 					</div>
 					<div class="width" data-takes-reference @focusin="select('width')">
 						<MixedNumber
-							leftIcon="ph:line-weight"
+							leftIcon="mdi:format-line-weight"
 							:values="valuesOf('width')"
 							:items="menuOf('width')"
 							:min="0"
@@ -423,7 +453,7 @@ useEventListener(
 				</template>
 			</ParameterTreeItem>
 			<ParameterTreeItem
-				v-else
+				v-else-if="!compact"
 				class="absent"
 				label="Stroke"
 				icon="ph:line-segment"
@@ -443,8 +473,14 @@ useEventListener(
 	padding-top: var(--tq-gap-control);
 	border-top: 1px solid var(--tq-color-border);
 }
+.head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin-bottom: var(--tq-gap-related);
+}
 .heading {
-	margin: 0 0 var(--tq-gap-related);
+	margin: 0;
 	padding-inline: 3px;
 	font: inherit;
 	font-weight: 600;
@@ -485,5 +521,8 @@ useEventListener(
 }
 .field > .width {
 	flex: 0 0 76px;
+}
+.field > .width:only-child {
+	flex: 1;
 }
 </style>

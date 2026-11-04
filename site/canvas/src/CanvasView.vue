@@ -16,7 +16,7 @@ import {
 	withPointRemoved,
 	withPointsClosed,
 } from './modulate'
-import { otherControl, type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec, inkOn, onlyShapes } from './graphics'
+import { otherControl, type Change, type Grip, type Handle, type Mat, NO_PAINT, type Paint, type Path, type Vec, inkOn, onlyShapes } from './graphics'
 import { type GridKind, gridPositions, offAxis } from './grid'
 import { rowsAbout, viewBetween } from './rows'
 import {
@@ -54,6 +54,8 @@ import {
 	pathOfRow,
 	sceneOf,
 	type Shape,
+	SHAPE_ATTRIBUTES,
+	type ShapeAttributes,
 	type ShapeTool,
 	type SnapPoint,
 	snapPointsOf,
@@ -61,12 +63,18 @@ import {
 	facesWhenDrawn,
 	placesTakenBy,
 	anchorsAlong,
+	nameOfKind,
+	pencilCloses,
 	pencilled,
+	pencilledAs,
 	rowsOfHandle,
 	isOutlined,
 	canRefer,
 	penKind,
 } from './scene'
+import { BRUSHES, type Brush, type BrushContext, brushed, type BrushName, type Guides, isBrush } from './brushes'
+import { fitFurther, NOTHING_SETTLED, pathOfFit, type PencilFit, samplesOf, type Steady, steadied } from './pencilFit'
+import { paintOfLine, withPaintDrawn } from './toolAttributes'
 
 const props = defineProps<{
 	document: GlispDocument
@@ -75,7 +83,9 @@ const props = defineProps<{
 	/** Where the program's origin is on screen, until the view has been moved. */
 	origin: readonly [number, number]
 	/** What a press does, if it draws. */
-	drawing?: ShapeTool | 'pen' | 'pencil' | null
+	drawing?: ShapeTool | 'pen' | 'pencil' | BrushName | null
+	/** What it draws from, of which what it draws has a copy. */
+	attributes?: { readonly paint: Paint; readonly shape: ShapeAttributes }
 	/** A drag says its numbers exactly, and they can be typed once it is let go of. */
 	dimensions?: boolean
 	/** What is laid over the canvas to see by. */
@@ -142,11 +152,24 @@ const linking = shallowRef<SnapPoint | null>(null)
  * comes out of it is not a part of the path until there is somewhere for that to go.
  */
 const penPulled = shallowRef<{ readonly at: Vec; readonly out: Vec; readonly into?: Vec } | null>(null)
-/** Where a pencil has been, until it is let go of and comes to be a curve. */
+/** Where a pencil has been, and the program it is being drawn on, until it is let go of. */
 const pencilStroke = shallowRef<readonly Vec[] | null>(null)
-/** How far on screen a pencil goes before that is somewhere else, and how far from the curve it can be. */
+let pencilBase: LetAST | null = null
+let pencilFit: PencilFit = NOTHING_SETTLED
+let pencilSteady: Steady | null = null
+/** A brush while it is in the middle of something, which can take any number of presses. */
+let brush: { readonly def: Brush; state: unknown; readonly base: LetAST } | null = null
+const brushGuides = shallowRef<Guides | null>(null)
+/** Where the pointer is, for a brush that shows how far around it reaches. */
+const brushPointer = shallowRef<Vec | null>(null)
+/** Where the pointer really is, which is ahead of the stroke by what steadying it holds back. */
+let pencilTip: Vec | null = null
+/** How far on screen a pencil goes before that is somewhere else. */
 const PENCIL_STEP = 1
-const PENCIL_TOLERANCE = 2.5
+const BRUSH_SEEDS = 1_000_000
+/** How long on screen the stretch still changing can be, at most: all that ever moves behind a pencil. */
+const PENCIL_LONGEST = 100
+const PENCIL_LONGEST_PER_SMOOTHNESS = 20
 /** The corners, on screen, of a range being drawn. */
 const range = shallowRef<{ from: Vec; to: Vec } | null>(null)
 /** How much finer than a pixel what a handle changes is, where that is small. */
@@ -887,17 +910,40 @@ function draw(): void {
 
 	drawReadout(context, ink, color('--tq-color-text-mute'), color('--tq-color-border'), paper)
 
-	if (pencilStroke.value !== null) {
+	const reachOfBrush = isBrush(props.drawing) ? BRUSHES[props.drawing].reach?.(brushContext()) : undefined
+	if (brushPointer.value !== null && reachOfBrush !== undefined) {
+		const [x, y] = toScreen(brushPointer.value, view.value)
 		context.lineWidth = 1
 		context.lineJoin = 'round'
 		context.lineCap = 'round'
 		context.strokeStyle = accent
 		context.beginPath()
-		for (const at of pencilStroke.value) {
-			const [px, py] = toScreen(at, view.value)
-			context.lineTo(px, py)
-		}
+		context.arc(x, y, reachOfBrush * view.value[0], 0, Math.PI * 2)
 		context.stroke()
+	}
+
+	if (brushGuides.value !== null) {
+		const { points = [], lines = [], arrows = [] } = brushGuides.value
+		context.lineWidth = 1
+		context.strokeStyle = accent
+		context.fillStyle = accent
+		context.setLineDash(DASH)
+		for (const [from, to] of lines) {
+			const [ax, ay] = toScreen(from, view.value)
+			const [bx, by] = toScreen(to, view.value)
+			context.beginPath()
+			context.moveTo(ax, ay)
+			context.lineTo(bx, by)
+			context.stroke()
+		}
+		context.setLineDash([])
+		// As what is selected has them, being what they will be once it is done.
+		for (const at of points) {
+			drawHandle(context, { kind: 'point', at, to: () => [] }, false, accent, paper)
+		}
+		for (const { at, angle } of arrows) {
+			drawHandle(context, { kind: 'direction', at, angle, to: () => [] }, false, accent, paper)
+		}
 	}
 
 	if (penLine.value !== null) {
@@ -978,6 +1024,9 @@ watchEffect(() => {
 		evenLine.value,
 		penPulled.value,
 		pencilStroke.value,
+		brushGuides.value,
+		brushPointer.value,
+		props.attributes,
 		scene.value,
 		background.value,
 		props.grid,
@@ -1156,6 +1205,7 @@ let pressed:
 	| { kind: 'pen'; from: Vec; at?: Vec }
 	| { kind: 'closing'; from: Vec; first: Anchor; at?: Vec }
 	| { kind: 'pencil'; points: readonly SnapPoint[] }
+	| { kind: 'brush' }
 	| {
 			kind: 'draw'
 			tool: ShapeTool
@@ -1243,9 +1293,18 @@ function onPointerDown(event: PointerEvent): void {
 	} else if (props.drawing === 'pen') {
 		penDown(x, y, event.metaKey || event.ctrlKey, event.shiftKey)
 		return
+	} else if (isBrush(props.drawing)) {
+		pressBrush(props.drawing, x, y)
+		return
 	} else if (props.drawing === 'pencil') {
 		const points = snapPoints()
 		pencilStroke.value = [snapAt(points, x, y)?.at ?? fromScreen(x, y)]
+		pencilBase = props.document.root.value
+		pencilFit = NOTHING_SETTLED
+		pencilSteady = steadied(null, [x, y], event.timeStamp, pencilSmoothness())
+		pencilTip = null
+		// All of it, however many times it is written on the way, undoes as one.
+		props.document.hold()
 		pressed = { kind: 'pencil', points }
 		return
 	} else if (props.drawing) {
@@ -1333,6 +1392,17 @@ function onPointerDown(event: PointerEvent): void {
 	range.value = { from: [x, y], to: [x, y] }
 }
 
+/** With a copy of how what is drawn is painted, in the row just drawn as `name`. */
+const painted = (root: LetAST, name: string): LetAST =>
+	props.attributes
+		? withPaintDrawn(root, props.document.env.value, name, props.attributes.paint)
+		: root
+
+const paintedLine = (root: LetAST, name: string, filled: boolean): LetAST =>
+	props.attributes
+		? withPaintDrawn(root, props.document.env.value, name, paintOfLine(props.attributes.paint, filled))
+		: root
+
 /** What it comes to, as far as it has got, and it is what is selected, whatever that is. */
 function writePen(closed: boolean): void {
 	if (pen === null) return
@@ -1342,7 +1412,7 @@ function writePen(closed: boolean): void {
 			? { at: last.at, out: last.out, ...(last.into === undefined ? {} : { into: last.into }) }
 			: null
 	const { ast, name } = penned(pen.base, props.document.env.value, pen.anchors, closed)
-	props.document.setRoot(ast)
+	props.document.setRoot(paintedLine(ast, name, closed))
 	if (name !== pen.name) emit('select', [`binding:${name}`])
 	pen.name = name
 }
@@ -1517,21 +1587,88 @@ function pullPen(x: number, y: number, broken: boolean, uneven: boolean, even: b
 	writePen(false)
 }
 
+const pencilSmoothness = (): number => (props.attributes?.shape ?? SHAPE_ATTRIBUTES).smoothness
+const pencilTolerance = (): number => pencilSmoothness() / view.value[0]
+
+const writePencilled = (next: { ast: LetAST; name: string } | null): void =>
+	props.document.setRoot(
+		next === null
+			? pencilBase!
+			: paintedLine(next.ast, next.name, props.attributes?.shape.pencilFill ?? false)
+	)
+
+/** What the stroke comes to, as far as it has got, as it will be drawn: it is there from the first. */
+function writePencil(stroke: readonly Vec[], tip?: Vec): void {
+	if (pencilBase === null || stroke.length < 2) return
+	pencilFit = fitFurther(
+		pencilFit,
+		stroke,
+		pencilTolerance(),
+		Math.max(PENCIL_LONGEST, pencilSmoothness() * PENCIL_LONGEST_PER_SMOOTHNESS) / view.value[0]
+	)
+	writePencilled(pencilledAs(pencilBase, pathOfFit(pencilFit, stroke, tip)))
+}
+
 /** That is the stroke, as a curve, which is left unselected for there to be another. */
 function finishPencil(end: SnapPoint | null): void {
-	const stroke = pencilStroke.value
+	const was = pencilStroke.value
+	if (was !== null && pencilBase !== null) {
+		// It goes all the way to where it was let go of, which what steadied it had not caught up with.
+		const last = end?.at ?? pencilTip
+		const stroke = last === null ? was : [...was, last]
+		// Only coming back to where it began is more than going on from what has settled.
+		if (pencilCloses(stroke, SNAP_REACH / view.value[0])) {
+			writePencilled(pencilled(pencilBase, stroke, pencilTolerance(), SNAP_REACH / view.value[0]))
+		} else {
+			writePencil(stroke)
+		}
+	}
+	const drew = was !== null && props.document.root.value !== pencilBase
 	pencilStroke.value = null
-	if (stroke === null) return
-	const zoom = view.value[0]
-	const next = pencilled(
-		props.document.root.value,
-		end === null ? stroke : [...stroke.slice(0, -1), end.at],
-		PENCIL_TOLERANCE / zoom,
-		SNAP_REACH / zoom
-	)
-	if (next === null) return
-	props.document.setRoot(next.ast)
-	emit('select', [])
+	pencilBase = null
+	props.document.release()
+	if (drew) emit('select', [])
+}
+
+const brushContext = (): BrushContext => ({
+	paint: props.attributes?.paint ?? NO_PAINT,
+	shape: props.attributes?.shape ?? SHAPE_ATTRIBUTES,
+	zoom: view.value[0],
+})
+
+/** What the brush comes to, as far as it has got, with what there is to go by. */
+function writeBrush(final: boolean): void {
+	if (brush === null) return
+	const { def, state, base } = brush
+	props.document.setRoot(brushed(base, props.document.env.value, def, state, brushContext(), final))
+	brushGuides.value = final ? null : def.guides(state, brushContext())
+}
+
+function pressBrush(name: BrushName, x: number, y: number): void {
+	if (brush === null) {
+		const def = BRUSHES[name] as Brush
+		const base = props.document.root.value
+		// All of it, over however many presses, undoes as one. Its seed is chosen here, as an edit
+		// is, and is only a number in the program from then on.
+		props.document.hold()
+		brush = { def, base, state: def.start(Math.floor(Math.random() * BRUSH_SEEDS)) }
+	}
+	brush.state = brush.def.press(brush.state, fromScreen(x, y), brushContext())
+	pressed = { kind: 'brush' }
+	writeBrush(false)
+}
+
+/** That is all of it, with nothing left following the pointer, or else it never was. */
+function finishBrush(): void {
+	if (brush === null) return
+	writeBrush(true)
+	const { base, def } = brush
+	const drew = props.document.root.value !== base
+	if (!drew) props.document.rewind(base)
+	brush = null
+	brushGuides.value = null
+	props.document.release()
+	emit('select', drew && def.selectedAfter ? [`binding:${nameOfKind(base, def.kind)}`] : [])
 }
 
 /** That is the path, as far as it went. With only one place, it is no path at all. */
@@ -1547,12 +1684,23 @@ function finishPen(): void {
 }
 
 watch(() => props.drawing, finishPen)
+watch(
+	() => props.drawing,
+	() => {
+		finishBrush()
+		brushPointer.value = null
+	}
+)
 // Going off to something else in the middle of a stroke is leaving it undrawn.
 watch(
 	() => props.drawing,
 	() => {
+		if (pressed?.kind !== 'pencil') return
+		pressed = null
 		pencilStroke.value = null
-		if (pressed?.kind === 'pencil') pressed = null
+		if (pencilBase !== null) props.document.rewind(pencilBase)
+		pencilBase = null
+		props.document.release()
 	}
 )
 
@@ -1561,10 +1709,11 @@ useEventListener(
 	window,
 	'keydown',
 	(event: KeyboardEvent) => {
-		if (event.key !== 'Enter' || (pen === null && extending === null) || typing(event)) return
+		if (event.key !== 'Enter' || (pen === null && extending === null && brush === null) || typing(event)) return
 		event.stopPropagation()
 		event.preventDefault()
 		finishPen()
+		finishBrush()
 	},
 	{ capture: true }
 )
@@ -1645,11 +1794,15 @@ function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): vo
 		even && facesWhenDrawn(tool)
 			? [toScreen(start, view.value), toScreen(evenlyFrom(start, to), view.value)]
 			: null
+	const shape = props.attributes?.shape
 	props.document.setRoot(
-		// Command has it only be the same value, for now, rather than refer to that.
-		snap === null || valueOnly
-			? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep(), false, fromCenter)
-			: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep(), fromCenter)
+		painted(
+			// Command has it only be the same value, for now, rather than refer to that.
+			snap === null || valueOnly
+				? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep(), false, fromCenter, shape)
+				: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep(), fromCenter, shape),
+			name
+		)
 	)
 	if (name !== pressed.name) emit('select', [`binding:${name}`])
 	pressed.name = name
@@ -1679,6 +1832,18 @@ function onPointerMove(event: PointerEvent): void {
 			hoverPen(x, y, event.shiftKey, event.metaKey || event.ctrlKey)
 			return
 		}
+		if (isBrush(props.drawing)) {
+			hovered.value = null
+			hoveredHandle.value = null
+			penLine.value = null
+			cursor.value = 'crosshair'
+			brushPointer.value = fromScreen(x, y)
+			if (brush !== null) {
+				brush.state = brush.def.move(brush.state, fromScreen(x, y))
+				writeBrush(false)
+			}
+			return
+		}
 		if (props.drawing) {
 			hovered.value = null
 			hoveredHandle.value = null
@@ -1703,11 +1868,21 @@ function onPointerMove(event: PointerEvent): void {
 		return
 	}
 	switch (pressed.kind) {
+		case 'brush': {
+			if (brush === null) break
+			brushPointer.value = fromScreen(x, y)
+			for (const sample of samplesOf(event, $canvas.value!.getBoundingClientRect())) {
+				brush.state = brush.def.drag(brush.state, fromScreen(sample.at[0], sample.at[1]))
+			}
+			writeBrush(false)
+			break
+		}
 		case 'pencil': {
 			const stroke = [...(pencilStroke.value ?? [])]
-			const said = event.getCoalescedEvents?.() ?? []
-			for (const { offsetX, offsetY } of said.length > 0 ? said : [event]) {
-				const at = fromScreen(offsetX, offsetY)
+			for (const sample of samplesOf(event, $canvas.value!.getBoundingClientRect())) {
+				pencilSteady = steadied(pencilSteady, sample.at as Vec, sample.time, pencilSmoothness())
+				pencilTip = fromScreen(sample.at[0], sample.at[1])
+				const at = fromScreen(pencilSteady.at[0], pencilSteady.at[1])
 				const before = stroke.at(-1)
 				const far = PENCIL_STEP / view.value[0]
 				if (before === undefined || Math.hypot(at[0] - before[0], at[1] - before[1]) >= far) {
@@ -1715,6 +1890,7 @@ function onPointerMove(event: PointerEvent): void {
 				}
 			}
 			pencilStroke.value = stroke
+			writePencil(stroke, pencilTip ?? undefined)
 			snapMark.value = snapAt(pressed.points, x, y)
 			break
 		}
@@ -1814,6 +1990,11 @@ useEventListener(window, 'pointerup', event => {
 	}
 	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : 'default'
 	if (pressed?.kind === 'pencil') finishPencil(snapMark.value)
+	if (pressed?.kind === 'brush' && brush !== null) {
+		brush.state = brush.def.release(brush.state, fromScreen(event.offsetX, event.offsetY))
+		if (brush.def.oneStroke) finishBrush()
+		else writeBrush(false)
+	}
 	// That is how it comes back, and it is done.
 	if (pressed?.kind === 'closing') {
 		penPulled.value = null
@@ -1868,7 +2049,7 @@ useEventListener(window, 'pointerup', event => {
 			@dblclick="onDoubleClick"
 			@contextmenu.prevent="emit('menu', $event.clientX, $event.clientY, shapeAt($event.offsetX, $event.offsetY)?.row ?? null)"
 			@pointermove="onPointerMove"
-			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null)"
+			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null), (brushPointer = null)"
 			@auxclick.prevent
 		/>
 		<Dimensions
