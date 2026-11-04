@@ -835,10 +835,14 @@ withMembers(colorType, {
 	invert: withDoc(makeInverted, 'The opposite of a `color`.', 'Invert'),
 })
 
-const styledType = said(
-	makeType('styled', isStyled, new StyledValue(pathType.default as PathValue, NO_PAINT)),
-	'path',
-	'mdi:vector-curve'
+const styledType = withTypeMeta(
+	said(
+		makeType('styled', isStyled, new StyledValue(pathType.default as PathValue, NO_PAINT)),
+		'path',
+		'mdi:vector-curve'
+	),
+	// What wants a path and is pointed at one of these refers to the one that is in it.
+	new RecordAST([['holds', lit('path')]])
 )
 /** An enum of how a line is drawn, each value saying what its icon is. */
 const enumOf = (icons: Readonly<Record<string, string>>): TypeValue => {

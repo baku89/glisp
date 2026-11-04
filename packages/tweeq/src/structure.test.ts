@@ -1229,6 +1229,34 @@ describe('helpers', () => {
 	})
 })
 
+describe('referenceAt, of the shortest way to say it', () => {
+	const linked = (src: string, source: string, target: string) =>
+		print(referenceAt(parse(src), env, source, target)!)
+
+	it('is a name where a name means it', () => {
+		expect(linked('{a = 1 b = 0}', 'binding:b', 'binding:a')).toBe('{a = 1 b = a}')
+	})
+
+	it('is from the root when that is shorter than climbing', () => {
+		expect(linked('{a = [1 2] b = [[0]]}', 'binding:b/0/0', 'binding:a/1')).toBe(
+			'{a = [1 2] b = [[/a/1]]}'
+		)
+	})
+
+	it('is relative when that is shorter than coming from the root', () => {
+		expect(
+			linked('{group = {a = [1 2] b = 0}}', 'binding:group/binding:b', 'binding:group/binding:a/1')
+		).toBe('{group = {a = [1 2] b = ./a/1}}')
+	})
+})
+
+describe('moveBinding, of what is referred to from the root', () => {
+	it('has it go on reaching there', () => {
+		const next = moveBinding(parse('{g = {x = 0} a = [1] b = [[/a/0]]}'), env, 'binding:a', 'binding:g', 'inside')!
+		expect(print(next)).toBe('{g = {x = 0 a = [1]} b = [[/g/a/0]]}')
+	})
+})
+
 describe('referenceAt', () => {
 	const linked = (src: string, source: string, target: string) => {
 		const next = referenceAt(parse(src), env, source, target)
@@ -1242,17 +1270,17 @@ describe('referenceAt', () => {
 	})
 
 	it('refers by a path to what has no name there', () => {
-		expect(linked('{z = {a = 1} q = 0}', 'binding:q', 'binding:z/binding:a')).toBe('{z = {a = 1} q = ./z/a}')
-		expect(linked('{z = {x: 1} q = 0}', 'binding:q', 'binding:z/field:x')).toBe('{z = {x: 1} q = ./z/x}')
-		expect(linked('{z = [1 2] q = 0}', 'binding:q', 'binding:z/1')).toBe('{z = [1 2] q = ./z/1}')
+		expect(linked('{z = {a = 1} q = 0}', 'binding:q', 'binding:z/binding:a')).toBe('{z = {a = 1} q = /z/a}')
+		expect(linked('{z = {x: 1} q = 0}', 'binding:q', 'binding:z/field:x')).toBe('{z = {x: 1} q = /z/x}')
+		expect(linked('{z = [1 2] q = 0}', 'binding:q', 'binding:z/1')).toBe('{z = [1 2] q = /z/1}')
 		expect(linked('{a = 1 q = {a = 2 r = 0}}', 'binding:q/binding:r', 'binding:a')).toBe(
-			'{a = 1 q = {a = 2 r = ../a}}'
+			'{a = 1 q = {a = 2 r = /a}}'
 		)
 	})
 
 	it('refers to an element of what a call is given, and from one', () => {
 		const next = referenceAt(parse('{f = (=> (p: _): _ p) a = (f [3 4]) b = (f [0 0]) b}'), env, 'binding:b/arg0/0', 'binding:a/arg0/1')!
-		expect(print(next)).toContain('b = (f [../../a/p/1 0])')
+		expect(print(next)).toContain('b = (f [/a/p/1 0])')
 		expect(evaluate(next, env).value).toEqual([4, 0])
 	})
 
@@ -1281,7 +1309,7 @@ describe('what a call is not yet given', () => {
 
 	it('can refer to something, where it comes to be said', () => {
 		const next = missingReferringTo(parse(program), env, 'binding:y', 'b', 'binding:x/kw:b')!
-		expect(print(next)).toContain('y = (f 2 b=../x/b)')
+		expect(print(next)).toContain('y = (f 2 b=/x/b)')
 	})
 
 	it('can be written', () => {
@@ -1346,8 +1374,8 @@ describe('writtenReference', () => {
 	})
 
 	it('is a path from the top to anything further in', () => {
-		expect(written('{a = [1 2]}', 'binding:a/1')).toBe('./a/1')
-		expect(written('{f = (=> (p: _): _ p) a = (f [3 4])}', 'binding:a/arg0/1')).toBe('./a/p/1')
+		expect(written('{a = [1 2]}', 'binding:a/1')).toBe('/a/1')
+		expect(written('{f = (=> (p: _): _ p) a = (f [3 4])}', 'binding:a/arg0/1')).toBe('/a/p/1')
 	})
 
 	it('comes to it, as code at the top of the program', () => {

@@ -3,7 +3,7 @@
  * the order they are drawn in, and groups, which are let-blocks with no Return.
  */
 
-import { type AST, type Env, evaluate, isHidden, LetAST, readByName } from '@glisp/lang'
+import { type AST, type Env, evaluate, isHidden, LetAST, readByName, withPathsMoved } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import { viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
@@ -157,7 +157,10 @@ export function grouped(
 		if (i === at) return [[name, new LetAST(members, null)]]
 		return names.has(binding[0]) ? [] : [binding]
 	})
-	const ast = new LetAST(bindings, root.body)
+	const ast = members.reduce<AST>(
+		(moved, [member]) => withPathsMoved(moved, env, [member], [name, member]),
+		new LetAST(bindings, root.body)
+	) as LetAST
 	return errorsIn(ast, env) > errorsIn(root, env) ? null : { ast, row: `${BINDING}${name}` }
 }
 
@@ -176,6 +179,7 @@ export function ungrouped(
 	if (!root.bindings.some(isGroup)) return null
 	const taken = new Set(root.bindings.filter(b => !isGroup(b)).map(([name]) => name))
 	const freed: string[] = []
+	const moves: (readonly [readonly string[], readonly string[]])[] = []
 	const bindings = root.bindings.flatMap((binding): (readonly [string, AST])[] => {
 		if (!isGroup(binding)) return [binding]
 		const members = (binding[1] as LetAST).bindings
@@ -183,10 +187,14 @@ export function ungrouped(
 		for (const [name] of members) {
 			taken.add(name)
 			freed.push(`${BINDING}${name}`)
+			moves.push([[binding[0], name], [name]])
 		}
 		return [...members]
 	})
-	const ast = new LetAST(bindings, root.body)
+	const ast = moves.reduce<AST>(
+		(moved, [from, to]) => withPathsMoved(moved, env, from, to),
+		new LetAST(bindings, root.body)
+	) as LetAST
 	return freed.length === 0 || errorsIn(ast, env) > errorsIn(root, env)
 		? null
 		: { ast, rows: freed }

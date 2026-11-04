@@ -622,7 +622,7 @@ describe('drawn out from the center', () => {
 		const snap = snapPointsOf(from, env, sceneOf(from, env)).find(p => p.target === 'binding:o/arg0')!
 		const source = (tool: ShapeTool) =>
 			print(drawnFrom(from, env, 'x', tool, snap, [80, 70], false, 0.01, true).bindings.at(-1)![1])
-		expect(source('ellipse')).toMatch(/^\(path\.ellipse \.\.\/o\/center \[30 20\]\)$/)
+		expect(source('ellipse')).toMatch(/^\(path\.ellipse \/o\/center \[30 20\]\)$/)
 		expect(source('rect')).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 20\)\] \[60 40\]\)$/)
 	})
 })
@@ -833,7 +833,7 @@ describe('a place that no argument says', () => {
 		expect(snap, `${src} has a ${name} to refer to`).toBeDefined()
 		const next = drawnFrom(root, env, 'x', 'ellipse', snap!, [500, 500], false)
 		const written = print(next.bindings.at(-1)![1])
-		expect(written).toMatch(/\.\.\/o\//)
+		expect(written).toMatch(/\/o\//)
 		const centerOf = (ast: AST) => {
 			const grip = gripAt(ast, env, 'binding:x')!
 			return grip.handles.find(h => h.name === 'center')!.at!
@@ -886,7 +886,7 @@ describe('a place that no argument says', () => {
 		it('stays on the place it snapped to, drawn up from a corner', () => {
 			const { snap, next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [260, -30])
 			const written = print(next.bindings.at(-1)![1])
-			expect(written).toMatch(/\.\.\/o\//)
+			expect(written).toMatch(/\/o\//)
 			expect(evaluate(next, env).diagnostics).toEqual([])
 			expect(cornerOf(next)).toEqual([snap.at[0], snap.at[1] - 50])
 			const moved = parse(print(next).replace('[10 20] [200 60]', '[10 20] [300 90]')) as LetAST
@@ -919,7 +919,7 @@ describe('a place that no argument says', () => {
 
 		it('is the same for a rect with round corners', () => {
 			const { next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [260, -30], 'roundRect')
-			expect(print(next.bindings.at(-1)![1])).toMatch(/\.\.\/o\//)
+			expect(print(next.bindings.at(-1)![1])).toMatch(/\/o\//)
 			expect(evaluate(next, env).diagnostics).toEqual([])
 		})
 	})
@@ -947,7 +947,7 @@ describe('a place that no argument says', () => {
 		const snap = snapPointsOf(root, env, sceneOf(root, env)).filter(p => p.label === 'vertex' && p.code !== undefined)[2]!
 		const handle = gripAt(root, env, ROW)!.handles.find(h => h.place === 1)!
 		const { ast } = changed(root, env, ROW, handle.to(snap.at, handle.at!))
-		expect(print(linked(ast!, env, ROW, 1, snap)!)).toMatch(/path\.line p \[.*\.\.\/o\//)
+		expect(print(linked(ast!, env, ROW, 1, snap)!)).toMatch(/path\.line p \[.*\/o\//)
 	})
 
 	it('is only a value at the end of a clothoid, which no code can say', () => {

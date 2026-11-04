@@ -31,6 +31,8 @@ import {
 	parse,
 	PathAST,
 	pathTarget,
+	shortestPath,
+	withPathsMoved,
 	pin,
 	print,
 	pushLetFrame,
@@ -41,6 +43,7 @@ import {
 	toAst,
 	argFits,
 	type TypeValue,
+	typeFits,
 	UNIT,
 	unhide,
 	unpin,
@@ -1226,7 +1229,9 @@ export function moveBinding(
 	if (removed === null || value === undefined) return null
 	const moving = value
 
-	return editAt(removed, env, intoPath, node =>
+	const fromLevels = levelsTo(root, env, from)?.levels
+	const intoLevels = intoPath.length === 0 ? [] : levelsTo(root, env, intoPath)?.levels
+	const moved = editAt(removed, env, intoPath, node =>
 		editLet(node, bindings => {
 			if (!sameLet && bindings.some(([bound]) => bound === name)) return null
 			const at =
@@ -1240,6 +1245,9 @@ export function moveBinding(
 			return next
 		})
 	)
+	return moved === null || sameLet || fromLevels === undefined || intoLevels === undefined
+		? moved
+		: withPathsMoved(moved, env, fromLevels, [...intoLevels, name])
 }
 
 /**
@@ -1266,6 +1274,36 @@ export function renameBindingAt(
 }
 
 const bareOf = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
+
+/**
+ * The row of what `expected` can take, of what is at `parts`: a type can say, by `holds`,
+ * which parameter of a call to it has what it is made from, as a style has a path. There is
+ * no taking one thing as another: it is what is in there that is referred to. `parts` if
+ * nothing in there fits either.
+ */
+function heldFor(
+	expected: TypeValue | null,
+	parts: readonly string[],
+	walk: (parts: readonly string[]) => { slot: Slot } | null
+): readonly string[] {
+	if (expected === null) return parts
+	let at = parts
+	for (;;) {
+		const here = walk(at)?.slot
+		if (here === undefined) return parts
+		const type = infer(here.ast, here.env)
+		if (type === null) return parts
+		if (typeFits(type, expected)) return at
+		const held = textOf(type.meta?.get('holds'))
+		const call = bareOf(here.ast)
+		if (held === null || call.kind !== 'call') return parts
+		const index = callParameters(call, enterNode(call, here.env))?.names.indexOf(held) ?? -1
+		const keys = [`kw:${held}`, `arg${index}`]
+		const slot = viewOf(here.ast, here.env).slots.find(({ key }) => keys.includes(key))
+		if (slot === undefined) return parts
+		at = [...at, slot.key]
+	}
+}
 
 /** The row at `parts`, and the names and indices a path goes through to reach it. */
 function levelsTo(
@@ -1315,14 +1353,16 @@ export function referenceAt(
 ): AST | null {
 	const split = (path: string) => path.split('/').filter(part => part !== '')
 	const from = split(source)
-	const to = split(target)
-	if (from.length === 0 || to.length === 0) return null
+	const picked = split(target)
+	if (from.length === 0 || picked.length === 0) return null
 	if (`${source}/`.startsWith(`${target}/`)) return null
 
 	const walk = (parts: readonly string[]) => levelsTo(root, env, parts)
 	const sourceAt = walk(from)
+	if (sourceAt === null) return null
+	const to = heldFor(sourceAt.slot.expected, picked, walk)
 	const targetAt = walk(to)
-	if (sourceAt === null || targetAt === null) return null
+	if (targetAt === null) return null
 	const wanted = targetAt.slot.ast
 	const here = sourceAt.slot.env
 
@@ -1339,10 +1379,15 @@ export function referenceAt(
 			...new Array<string>(from.length - 1 - common).fill('..'),
 			...targetAt.levels.slice(shared.length),
 		]
-		const landed = pathTarget(segments, here)
-		return 'message' in landed || bareOf(landed.ast) !== bareOf(wanted)
-			? null
-			: new PathAST(segments)
+		const lands = (path: PathAST) => {
+			const landed = pathTarget(path.segments, here)
+			return !('message' in landed) && bareOf(landed.ast) === bareOf(wanted)
+		}
+		const [first, ...others] = [
+			new PathAST(segments),
+			new PathAST(['/', ...targetAt.levels]),
+		].filter(lands)
+		return first === undefined ? null : shortestPath(first, ...others)
 	}
 	const next = reference()
 	if (next === null) return null
@@ -1387,15 +1432,15 @@ export function missingReferringTo(
 }
 
 /**
- * What refers to the row at `path` from the top of `root`, written out, as there is no
- * path from nowhere in particular. Null if nothing can reach it.
+ * What refers to the row at `path` from the top of `root`, written out, so that it comes
+ * to the same wherever it goes. Null if nothing can reach it.
  */
 export function writtenReference(root: AST, env: Env, path: string): string | null {
 	const levels = levelsTo(root, env, path.split('/').filter(part => part !== ''))?.levels
 	if (levels === undefined) return null
 	const [only] = levels
 	return print(
-		levels.length === 1 && typeof only === 'string' ? new SymAST(only) : new PathAST(levels)
+		levels.length === 1 && typeof only === 'string' ? new SymAST(only) : new PathAST(['/', ...levels])
 	)
 }
 

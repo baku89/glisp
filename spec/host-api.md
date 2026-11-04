@@ -256,6 +256,19 @@ isBindingName('a')              // whether a name can be a binding's
 
 `renameBindingIn` also follows paths from elsewhere in `root`, and what is unchanged stays `===`. A path that reaches the block through a call's argument by position is left as written, since following it needs the call's signature, and then reports an error.
 
+Putting a node into a call moves it a level down, and paths count levels, so they have to follow too:
+
+```ts
+withPathsInto(root, env, call)  // `call`, in `root`, has just been put where its first argument was
+withoutCall(root, env, call)    // `root` with `call` replaced by its first argument
+```
+
+Either way, a path comes to what it came to: `a/center` becomes `a/path/center` once `a` is in a call with a first parameter `path`, and what climbs out of the node climbs one level more. A name stays a name wherever what the call comes to is taken too, and otherwise, given as an argument that wants something else, goes to what is held, as `../a/path`; `withoutCall` has it be a name again. A path to anything else of a call that is taken away has nothing left to lead to, and stays as written. A path from the root stays one, and has no levels to make up for.
+
+A host evaluates what it edits against `session.hostEnv`, not `session.env`, which holds the let-block as it was: there, a path from the root would start at that.
+
+A host making a reference writes the shortest of what reaches it: a name, then a relative path, then a path from the root, the earlier one if they are as short (`shortestPath`). An edit moving a binding to another let-block tells `withPathsMoved(root, env, from, to)`, so that paths from the root go on reaching it.
+
 ## Working backward
 
 ```ts

@@ -199,3 +199,14 @@ describe('rowsAbout', () => {
 		expect(rowsAbout([], 'binding:l')).toEqual([])
 	})
 })
+
+describe('grouping what is referred to from the root', () => {
+	const program = '{a = [1 2] b = [[/a/1]] c = 0}'
+
+	it('has it go on reaching it, in the group and out of it again', () => {
+		const { ast } = grouped(parse(program) as LetAST, env, ['binding:a'])!
+		expect(print(ast)).toBe('{group1 = {a = [1 2]} b = [[/group1/a/1]] c = 0}')
+		const out = ungrouped(ast, env, ['binding:group1'])!
+		expect(print(out.ast)).toBe(program)
+	})
+})

@@ -160,7 +160,7 @@ describe('the numbers of a shape just drawn', () => {
 		}
 		const root = drawnFrom(from, env, 'c', 'rect', snap, [80, 90], false)
 		const { dimensions, first } = dimensionsDrawn(root, env, ROW)
-		expect(print(root)).toContain('../o/center')
+		expect(print(root)).toContain('/o/center')
 		expect(said(dimensions)).toEqual(['Width 30', 'Height 40'])
 		expect(first).toBe(0)
 	})

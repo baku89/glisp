@@ -1,12 +1,12 @@
-import { buildPrelude, check, type Env, evaluate, parse, print, type TypedHostFn } from '@glisp/lang'
+import { type AST, buildPrelude, check, type Env, evaluate, LetAST, parse, print, Session, type TypedHostFn } from '@glisp/lang'
 import { filtersFor, wrappedAt } from '@glisp/tweeq/filters'
-import { isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
+import { isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, referenceAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 import { describe, expect, it } from 'vitest'
 
 import { type PathValue, withGraphics } from './graphics'
-import { changed, gripAt, gripOfRows, innerPathsOf, pathOfRow, rowsInside } from './scene'
+import { changed, gripAt, gripOfRows, innerPathsOf, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, withPaint } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const grip = (src: string) => gripAt(parse(`{c = ${src}}`), env, 'binding:c')!
@@ -327,6 +327,23 @@ describe('what else goes around a path', () => {
 	})
 })
 
+describe('changing only how a path is painted', () => {
+	it('leaves the path as it was, not worked out again', () => {
+		const session = new Session(env)
+		const painted = (fill: string) =>
+			session.setAst(
+				new LetAST(
+					(parse(`{u = (style (path.unite ${RECT} ${CIRCLE}) fill="${fill}")}`) as LetAST).bindings,
+					null
+				)
+			)
+		painted('#ff0000')
+		const before = pathOfRow(session.ast(), session.env, 'binding:u')
+		painted('#00ff00')
+		expect(before).not.toBeNull()
+		expect(pathOfRow(session.ast(), session.env, 'binding:u')!.path).toBe(before!.path)
+	})
+})
 describe('what is copied by a matrix', () => {
 	const pieces = (src: string): number =>
 		(evaluate(parse(src), env).value as PathValue).path.curves.length
@@ -427,6 +444,126 @@ describe('what is copied by a matrix', () => {
 	})
 })
 
+describe('painting what refers to the corners of what is also painted', () => {
+	/** Two polygons, and a line from a corner of one to a corner of the other. */
+	const joined = (): AST => {
+		const root = parse(
+			'{a = (path.ngon [0 0] 50 5 10) b = (path.ngon [200 0] 50 5 70) l = (path.line [60 0] [140 0])}'
+		)
+		const snaps = snapPointsOf(root, env, sceneOf(root, env))
+		const corner = (row: string) => snaps.find(({ code }) => code?.of === row)!
+		return linked(linked(root, env, 'binding:l', 0, corner('binding:a'))!, env, 'binding:l', 1, corner('binding:b'))!
+	}
+	const drawnOf = (root: AST, row: string) => toD(pathOfRow(root, env, row)!.path)
+	const errors = (root: AST) => check(root, env).filter(({ level }) => level === 'error')
+	const painted = (root: AST, rows: readonly string[], stroke: string): AST =>
+		rows.reduce((program, row) => withPaint(program, env, row, { stroke }), root)
+	const ROWS = ['binding:a', 'binding:b', 'binding:l']
+
+	it('keeps the line where it is, in whichever order they are painted', () => {
+		const root = joined()
+		for (const rows of [ROWS, [...ROWS].reverse(), ['binding:l'], ['binding:a']]) {
+			const next = painted(root, rows, '#000000')
+			expect(errors(next)).toEqual([])
+			expect(drawnOf(next, 'binding:l')).toBe(drawnOf(root, 'binding:l'))
+		}
+	})
+
+	it('comes back to what was written once it is no longer painted', () => {
+		const root = joined()
+		expect(print(painted(painted(root, ROWS, '#000000'), ROWS, 'none'))).toBe(print(root))
+	})
+
+	it('has the line follow what is moved, as before', () => {
+		const next = painted(joined(), ROWS, '#000000')
+		const moved = changed(next, env, 'binding:a', gripAt(next, env, 'binding:a')!.move!([10, 0])).ast!
+		expect(drawnOf(moved, 'binding:l')).not.toBe(drawnOf(next, 'binding:l'))
+		expect(errors(moved)).toEqual([])
+	})
+})
+
+describe('putting a filter around what is referred to', () => {
+	it('leaves what refers to its center where it was', () => {
+		const root = parse('{a = (path.circle [10 0] 5) p = (path.circle ./a/center 2)}')
+		const filter = filtersFor([evaluate(parse('(path.circle [0 0] 1)'), env).value], env).find(({ name }) => name === 'path.offset')!
+		const next = wrappedAt(root, env, 'binding:a', filter)!
+		expect(check(next, env).filter(({ level }) => level === 'error')).toEqual([])
+		expect(toD(pathOfRow(next, env, 'binding:p')!.path)).toBe(toD(pathOfRow(root, env, 'binding:p')!.path))
+	})
+})
+
+describe('what wants a path, of what has a style', () => {
+	const STYLED = '(style (path.circle [0 0] 5) fill="#ff0000")'
+	const errors = (root: AST) => check(root, env).filter(({ level }) => level === 'error')
+	const picked = (src: string, source: string, target: string) => {
+		const next = referenceAt(parse(src), env, source, target)!
+		expect(errors(next)).toEqual([])
+		return print(next)
+	}
+
+	it('refers to the path in it when one is picked', () => {
+		expect(picked(`{a = ${STYLED} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
+			'o = (path.offset /a/path 5)'
+		)
+	})
+
+	it('finds it however a style is given it', () => {
+		const given = '(style fill="#ff0000" path=(path.circle [0 0] 5))'
+		expect(picked(`{a = ${given} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
+			'o = (path.offset /a/path 5)'
+		)
+	})
+
+	it('still refers by name to a path with no style, or where any value will do', () => {
+		expect(picked(`{a = ${RECT} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
+			'o = (path.offset a 5)'
+		)
+		expect(picked(`{a = ${STYLED} o = 0}`, 'binding:o', 'binding:a')).toContain('o = a')
+	})
+
+	it('goes no further in than a style, to what only happens to fit', () => {
+		const next = referenceAt(parse(`{a = ${CIRCLE} p = (path.circle [0 0] 1)}`), env, 'binding:p/arg0', 'binding:a')!
+		expect(print(next)).toContain('p = (path.circle a 1)')
+	})
+
+	describe('once what is referred to by name is given one', () => {
+		const SRC = `{a = ${RECT} o = (path.offset a 5) u = (path.unite ${CIRCLE} a) same = a}`
+		const styled = () => withPaint(parse(SRC), env, 'binding:a', { fill: '#ff0000' })
+
+		it('goes to the path in it, drawing as it did', () => {
+			const next = styled()
+			expect(print(next)).toContain('o = (path.offset /a/path 5)')
+			expect(print(next)).toContain('/a/path)')
+			expect(errors(next)).toEqual([])
+			for (const row of ['binding:o', 'binding:u']) {
+				expect(toD(pathOfRow(next, env, row)!.path)).toBe(toD(pathOfRow(parse(SRC), env, row)!.path))
+			}
+		})
+
+		it('leaves a name where it can be what it is', () => {
+			expect(print(styled())).toContain('same = a')
+		})
+
+		it('is by name again when the style is gone', () => {
+			expect(print(withPaint(styled(), env, 'binding:a', { fill: 'none' }))).toBe(print(parse(SRC)))
+		})
+
+		it('can still be taken hold of through the path', () => {
+			const next = styled()
+			const held = gripAt(next, env, 'binding:o')!
+			expect(held.sources).toHaveLength(1)
+			const moved = changed(next, env, 'binding:o', held.move!([1, 0])).ast!
+			expect(errors(moved)).toEqual([])
+			expect(print(moved)).toContain('(path.rect [1 0] [10 10])')
+		})
+	})
+
+	it('leaves a name to what a filter comes to, which fits as well', () => {
+		const root = parse(`{a = ${RECT} o = (path.offset a 5)}`)
+		const filter = filtersFor([evaluate(parse(RECT), env).value], env).find(({ name }) => name === 'path.offset')!
+		expect(print(wrappedAt(root, env, 'binding:a', filter)!)).toContain('o = (path.offset a 5)')
+	})
+})
 describe('what a matrix goes around', () => {
 	const applied = (src: string, [x, y]: readonly [number, number]) => {
 		const m = evaluate(parse(src), env).value as number[]

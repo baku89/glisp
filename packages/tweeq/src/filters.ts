@@ -18,6 +18,7 @@ import {
 	toAst,
 	type TypedHostFn,
 	type TypeValue,
+	withPathsInto,
 } from '@glisp/lang'
 
 import { reach, withParent } from './rowsClipboard'
@@ -139,7 +140,7 @@ export function wrappedAt(root: AST, env: Env, path: string, filter: Filter): AS
 	const { ast } = slot
 	const call = callOf(filter, [ast.kind === 'meta' ? ast.expr : ast], slot.env)
 	const next = ast.kind === 'meta' ? new MetaAST(ast.metadata, call) : call
-	return withParent(chain, slot.replace(next))
+	return withPathsInto(withParent(chain, slot.replace(next)), env, call)
 }
 
 /**

@@ -19,6 +19,7 @@ import {
 	lookupBareName,
 	MetaAST,
 	parse,
+	pathTarget,
 	print,
 	readByName,
 	solve,
@@ -28,6 +29,8 @@ import {
 	UNSET,
 	unwrapLazy,
 	callParameters,
+	withoutCall,
+	withPathsInto,
 } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import {
@@ -236,12 +239,14 @@ export function withPaint(root: AST, env: Env, row: string, part: Partial<Paint>
 				? (node.kwargs?.get(key) ?? node.args[i + 1])
 				: undefined
 	const nothing = { ...old, ...part }
-	const next =
-		nothing.fill === 'none' && nothing.stroke === 'none'
-			? path
-			: styleOf(path, Object.fromEntries(PAINT_KEYS.map((key, i) => [key, arg(key, i)])))
+	if (nothing.fill === 'none' && nothing.stroke === 'none') {
+		return styled ? (withoutCall(root, env, node) ?? root) : root
+	}
+	const next = styleOf(path, Object.fromEntries(PAINT_KEYS.map((key, i) => [key, arg(key, i)])))
 	const kept = last.ast.kind === 'meta' ? new MetaAST(last.ast.metadata, next) : next
-	return withParent(reached.chain, last.replace(kept))
+	const edited = withParent(reached.chain, last.replace(kept))
+	// What is in a style already stays where it is, with or without being said more of.
+	return styled ? edited : withPathsInto(edited, env, next)
 }
 
 /**
@@ -458,12 +463,16 @@ export const canRefer = (snap: SnapPoint): boolean => snap.target !== null || sn
 
 /**
  * Code with references in place of where it says `\0n\0`, each going out as many more
- * levels as it is inside of, as a path is relative to where it is.
+ * levels as it is inside of, unless it is from the root, as a path is otherwise relative
+ * to where it is.
  */
 function withinCode(written: string, parts: readonly string[]): string {
 	let depth = 0
 	return written.replace(/[([]|[)\]]|\0(\d+)\0/g, (token, part: string | undefined) => {
-		if (part !== undefined) return `${'../'.repeat(depth)}${parts[Number(part)]}`
+		if (part !== undefined) {
+			const reference = parts[Number(part)]!
+			return reference.startsWith('/') ? reference : `${'../'.repeat(depth)}${reference}`
+		}
 		depth += token === '(' || token === '[' ? 1 : -1
 		return token
 	})
@@ -860,13 +869,18 @@ function drawnIn(root: AST, env: Env, hidden = false): Shape[] {
 	return visit(viewOf(root, env).slots, '', false)
 }
 
-/** What a name comes to, in the program, however many names away. */
+/** What a name comes to, in the program, however many names away, or a path to a call. */
 function follow(start: AST, startEnv: Env): { node: AST; env: Env } | null {
 	let node = start
 	let env = startEnv
-	for (let reached = bare(node); reached.kind === 'sym'; reached = bare(node)) {
-		const target = lookupBareName(reached.name, env)
-		if (target === null || target.ast === node) return null
+	for (let reached = bare(node); reached.kind === 'sym' || reached.kind === 'path'; reached = bare(node)) {
+		const target =
+			reached.kind === 'sym' ? lookupBareName(reached.name, env) : pathTarget(reached.segments, env)
+		if (target === null || 'message' in target || target.ast === node) {
+			return reached.kind === 'sym' ? null : { node, env }
+		}
+		// Where else a path goes is a place of its own, which is itself what can be held.
+		if (reached.kind === 'path' && bare(target.ast).kind !== 'call') return { node, env }
 		node = target.ast
 		env = target.env
 	}

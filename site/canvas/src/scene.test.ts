@@ -349,14 +349,14 @@ describe('the pen', () => {
 			const circle = parse('{c = (path.circle [100 100] 10)}') as LetAST
 			const center = nearestSnap(snapPointsOf(circle, env, sceneOf(circle, env)), [100, 100], 1)!
 			const { ast } = penned(circle, env, [{ at: [100, 100], snap: center }, { at: [0, 0] }], false)
-			expect(print(ast.bindings.at(-1)![1])).toBe('(path.line ../c/center [0 0])')
+			expect(print(ast.bindings.at(-1)![1])).toBe('(path.line /c/center [0 0])')
 			const curve = penned(
 				circle,
 				env,
 				[{ at: [0, 0], out: [1, 0] }, { at: [100, 100], snap: center }],
 				false
 			)
-			expect(print(curve.ast.bindings.at(-1)![1])).toContain('[100 100] ../c/center)')
+			expect(print(curve.ast.bindings.at(-1)![1])).toContain('[100 100] /c/center)')
 		})
 
 		it('has only the value, as a path has no place to refer from', () => {
@@ -636,7 +636,7 @@ describe('snapping', () => {
 
 	it('has a rect refer to the center it was drawn from', () => {
 		const next = drawnFrom(root, env, 'x', 'rect', points.find(p => p.target === 'binding:c/arg0')!, [130, 120], false)
-		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect ../c/center [30 20])')
+		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect /c/center [30 20])')
 		const [, , shape] = sceneOf(next, env)
 		expect(gripAt(next, env, shape!.row)!.handles[0]!.at).toEqual([100, 110])
 	})
@@ -649,20 +649,20 @@ describe('snapping', () => {
 
 	it('has a polygon refer from its center, whichever way it goes', () => {
 		const next = drawnFrom(root, env, 'x', 'ngon', points.find(p => p.target === 'binding:c/arg0')!, [90, 90], false)
-		expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.ngon \.\.\/c\/center /)
+		expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.ngon \/c\/center /)
 	})
 
 	it('refers from there, whichever way it was drawn', () => {
 		const start = points.find(p => p.target === 'binding:c/arg0')!
 		const drawnAs = (tool: 'rect' | 'roundRect' | 'ellipse', to: Vec, even = false) =>
 			print(drawnFrom(root, env, 'x', tool, start, to, even).bindings.at(-1)![1])
-		expect(drawnAs('rect', [130, 120])).toBe('(path.rect ../c/center [30 20])')
+		expect(drawnAs('rect', [130, 120])).toBe('(path.rect /c/center [30 20])')
 		expect(drawnAs('rect', [90, 90])).toMatch(/^\(path\.rect \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] \[10 10\]\)$/)
 		expect(drawnAs('rect', [130, 90])).toMatch(/^\(path\.rect \[\S*c\/center\/0 \(- \S*c\/center\/1 10\)\] \[30 10\]\)$/)
 		expect(drawnAs('rect', [90, 90], true)).toMatch(/^\(path\.square \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] 10\)$/)
 		expect(drawnAs('roundRect', [90, 90])).toMatch(/^\(path\.roundRect \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] \[10 10\] /)
-		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse ../c/center [20 30])')
-		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle ../c/center 30)')
+		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse /c/center [20 30])')
+		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle /c/center 30)')
 	})
 
 	describe('what no one argument says', () => {
@@ -677,7 +677,7 @@ describe('snapping', () => {
 
 		it('is worked out from them', () => {
 			expect(refers([10, 10])).toMatchObject({ center: [10, 10] })
-			expect(refers([10, 10]).code).toContain('(+ ../../../r/origin/0 ../../../r/size/0)')
+			expect(refers([10, 10]).code).toContain('(+ /r/origin/0 /r/size/0)')
 			expect(refers([5, 5]).center).toEqual([5, 5])
 			expect(refers([10, 0]).center).toEqual([10, 0])
 			expect(refers([110, 100]).center).toEqual([110, 100])
@@ -692,7 +692,7 @@ describe('snapping', () => {
 
 		it('has a handle dragged to it refer too', () => {
 			const next = linked(root, env, 'binding:c', 0, at([10, 10]))!
-			expect(print(next)).toContain('(path.circle [(+ ../../../r/origin/0 ../../../r/size/0)')
+			expect(print(next)).toContain('(path.circle [(+ /r/origin/0 /r/size/0)')
 			expect(gripAt(next, env, 'binding:c')!.handles.at(-1)!.at).toEqual([10, 10])
 		})
 
@@ -709,7 +709,7 @@ describe('snapping', () => {
 
 		it('has what it was dragged to refer to it', () => {
 			const next = linked(root, env, 'binding:r', 0, center)!
-			expect(print(next)).toBe('{c = (path.circle [100 100] 10) r = (path.rect ../c/center [10 10])}')
+			expect(print(next)).toBe('{c = (path.circle [100 100] 10) r = (path.rect /c/center [10 10])}')
 		})
 
 		it('does not, for a place that no row says', () => {
@@ -839,7 +839,7 @@ describe('a square', () => {
 		const root = parse('{c = (path.circle [100 100] 10)}') as LetAST
 		const center = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [100, 100], 1)!
 		const drawnAs = (to: Vec) => print(drawnFrom(root, env, 'x', 'rect', center, to, true).bindings.at(-1)![1])
-		expect(drawnAs([130, 120])).toBe('(path.square ../c/center 30)')
+		expect(drawnAs([130, 120])).toBe('(path.square /c/center 30)')
 		expect(drawnAs([70, 80])).toMatch(/^\(path\.square \[\(- \S*c\/center\/0 30\) \(- \S*c\/center\/1 30\)\] 30\)$/)
 		expect(drawnAs([130, 80])).toMatch(/^\(path\.square \[\S*c\/center\/0 \(- \S*c\/center\/1 30\)\] 30\)$/)
 	})
@@ -995,7 +995,7 @@ describe('painting', () => {
 		const center = points.find(p => p.target !== null)!
 		expect(center.target).toBe('binding:c/arg0/arg0')
 		const next = drawnFrom(painted, env, 'x', 'rect', center, [20, 20], false)
-		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect ../c/path/center [20 20])')
+		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect /c/path/center [20 20])')
 		expect(gripAt(next, env, 'binding:x')!.handles[4]!.at).toEqual([0, 0])
 	})
 
@@ -1242,8 +1242,8 @@ describe('what cannot be worked out', () => {
 	const held = (src: string) => gripAt(parse(src), env, row)!
 
 	it('has a handle where the default is, rather than failing', () => {
-		expect(held('{c = (path.circle [../nope/x 5] 1)}').handles.at(-1)!.at).toEqual([0, 0])
-		expect(held('{c = (path.circle ../nope/center 1)}').handles.at(-1)!.at).toEqual([0, 0])
+		expect(held('{c = (path.circle [/nope/x 5] 1)}').handles.at(-1)!.at).toEqual([0, 0])
+		expect(held('{c = (path.circle /nope/center 1)}').handles.at(-1)!.at).toEqual([0, 0])
 		expect(held('{c = (path.circle [0 0] ../nope)}').handles[0]!.at).toEqual([0, 0])
 		expect(held('{c = (path.rect "x" [1 1])}').handles).toHaveLength(8)
 		expect(held('{c = (path.polyline [../nope 0] [1 1])}').handles).toHaveLength(2)
