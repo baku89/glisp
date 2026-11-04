@@ -114,7 +114,7 @@ export class Session {
 			index === -1
 				? [...bindings, [name, ast] as const]
 				: bindings.map((b, i) => (i === index ? ([name, ast] as const) : b))
-		this.setAst(new LetAST(next, null))
+		this.setAst(new LetAST(next, this.letBlock.body))
 	}
 
 	/**
@@ -137,7 +137,7 @@ export class Session {
 		const bindings = this.letBlock.bindings
 		const next = bindings.filter(([n]) => n !== name)
 		if (next.length === bindings.length) return false
-		this.setAst(new LetAST(next, null))
+		this.setAst(new LetAST(next, this.letBlock.body))
 		return true
 	}
 

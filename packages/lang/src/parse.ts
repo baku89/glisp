@@ -423,14 +423,25 @@ class Parser {
 	private vectorForm(): AST {
 		this.advance() // '['
 		const elements: AST[] = []
+		const bindings: [string, AST][] = []
 		while (this.peek().kind !== ']') {
 			if (this.peek().kind === 'eof') {
 				throw this.error(this.peek(), 'unterminated `[`')
 			}
+			// `name = expr` says what the name is and that it goes here, as `{name = expr [name]}`.
+			if (this.peek().kind === 'identifier' && this.peek(1).kind === '=') {
+				const at = this.peek().start
+				const name = this.advance().value as string
+				elements.push(this.stamp(at, sym(name)))
+				this.advance() // '='
+				bindings.push([name, this.expression()])
+				continue
+			}
 			elements.push(this.expression())
 		}
 		this.advance() // ']'
-		return vec(...elements)
+		// What was written is the block's. The vector inside it is not what was written.
+		return bindings.length === 0 ? vec(...elements) : letBlock(bindings, vec(...elements))
 	}
 
 	// --- {...} — record / let-block ------------------------------------------
@@ -518,7 +529,16 @@ class Parser {
 					'a let-block may have at most one trailing expression'
 				)
 			}
+			const opensVector = this.peek().kind === '['
 			body = this.expression()
+			// A vector's names are bound with the rest of the block: order means nothing, here or there.
+			if (opensVector && body.kind === 'let') {
+				const inner = body
+				if (!inner.bindings.some(([name]) => bindings.some(([bound]) => bound === name))) {
+					bindings.push(...inner.bindings.map(([name, value]): [string, AST] => [name, value]))
+					body = inner.body
+				}
+			}
 		}
 		this.advance() // '}'
 		// `{()}` is how an empty let-block is written: it has no body, as `{a = 1}` has none.

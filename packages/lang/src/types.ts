@@ -332,7 +332,27 @@ export class LetAST extends ASTNode {
 		super()
 	}
 
+	/** What is bound where its vector holds it, written there, as `{x = 1 [a = 2 x]}`. */
+	private printedWithVector(): string | null {
+		if (this.body?.kind !== 'vec') return null
+		const unplaced = new Map(this.bindings)
+		if (unplaced.size !== this.bindings.length) return null
+		const parts = this.body.elements.map(element => {
+			const value = element.kind === 'sym' ? unplaced.get(element.name) : undefined
+			if (element.kind !== 'sym' || value === undefined) return element.print()
+			unplaced.delete(element.name)
+			return `${element.name} = ${value.print()}`
+		})
+		if (unplaced.size === this.bindings.length) return null
+		const vector = `[${parts.join(' ')}]`
+		if (unplaced.size === 0) return vector
+		const rest = [...unplaced].map(([name, value]) => `${name} = ${value.print()}`)
+		return `{${[...rest, vector].join(' ')}}`
+	}
+
 	override printStructural(): string {
+		const withVector = this.printedWithVector()
+		if (withVector !== null) return withVector
 		const parts: string[] = []
 		for (const [name, expr] of this.bindings) {
 			parts.push(`${name} = ${expr.print()}`)

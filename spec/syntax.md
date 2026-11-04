@@ -126,6 +126,16 @@ Empty `()` is the unit value.
 
 A vector is a value of type `[...T]` for some element type `T`.
 
+An element can be given a name where it is, which the rest of the vector can refer to in any order. `[a = 1 b = (+ a 1) 3]` is another way to write `{a = 1 b = (+ a 1) [a b 3]}`, and nothing but a way to write it: the value is an ordinary vector, with no names in it. As the last thing in a block, its names are bound with the rest of the block, so `{x = 1 [a = x]}` is `{x = 1 a = x [a]}`. What a block binds and its vector holds prints where the vector holds it.
+
+<!-- test -->
+```glisp
+[a = 1 b = (+ a 1) 3]          ;; → [1 2 3]
+[b = (+ a 1) a = 1]            ;; → [2 1]
+[a = 1 a]                      ;; → [1 1]
+{x = 2 [a = (* x 2)]}          ;; → [4]
+```
+
 ### Accessor — `.`
 
 Member access on records, vectors and types. The right of `.` is a literal name (for records, becomes a string key) or an integer (for vectors, becomes an index); the left is any expression that evaluates to one of them. A type's members are [what goes with it](./types.md#members), as `vec2.add`.
@@ -215,6 +225,16 @@ The block contents determine the kind:
 {()}                           ;; empty let-block → unit
 {x: 10  a = 20}                ;; ❌ syntax error
 {a = 10 (foo) (+ a 1)}         ;; ❌ syntax error: only one trailing bare expression allowed
+```
+
+#### Order
+
+A let-block is a graph of what refers to what, and the order of its bindings means nothing: a binding can refer to one written after it, and writing them in another order changes no value. What has an order is a vector.
+
+<!-- test -->
+```glisp
+{a = b  b = 1  a}              ;; → 1
+{b = 1  a = b  a}              ;; → 1
 ```
 
 #### Duplicate names
