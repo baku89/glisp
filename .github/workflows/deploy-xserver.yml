@@ -1,0 +1,101 @@
+name: Deploy to Xserver
+
+# glisp.app is on Xserver, and all of this goes to two folders there. What else is there stays
+# as it is, which the old version at /commit:e7fbaae/ and its commits.json need it to.
+#
+# Secrets: SSH_HOST, SSH_PORT, SSH_USER, SSH_PRIVATE_KEY, and SSH_PATH, which is
+# /home/<server id>/glisp.app/public_html.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xserver
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Get ready to connect
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          # Without a path it would all go to the home directory of the server.
+          for name in SSH_HOST SSH_PORT SSH_USER SSH_PATH SSH_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then echo "::error::$name is empty"; exit 1; fi
+          done
+          case "$SSH_PATH" in
+            /home/*/glisp.app/public_html) ;;
+            *) echo "::error::SSH_PATH has to be /home/<server id>/glisp.app/public_html"; exit 1 ;;
+          esac
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: See that nothing else would be replaced
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+        run: |
+          # Only what this put there has the mark. Anything else in those two is not this one's to replace.
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" sh -s -- "$SSH_PATH" <<'REMOTE'
+          cd "$1" || { echo "No such folder on the server"; exit 1; }
+          for folder in canvas lang; do
+            if [ -e "$folder" ] && [ ! -e "$folder/.deployed-by-glisp" ]; then
+              echo "$folder is already there, and did not come from this"
+              exit 1
+            fi
+          done
+          REMOTE
+
+      - name: Upload
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+        run: |
+          # All of it arrives before any of it is swapped in, so a page never asks for what is gone.
+          upload() {
+            touch "$1/.deployed-by-glisp"
+            rsync -az --delete-after --delay-updates \
+              -e "ssh -i $HOME/.ssh/deploy_key -p $SSH_PORT" \
+              "$1/" "$SSH_USER@$SSH_HOST:$SSH_PATH/$2/"
+          }
+          upload site/canvas/dist canvas
+          upload site/lang/.vuepress/dist lang
+
+      - name: Leave no key behind
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
