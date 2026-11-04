@@ -72,10 +72,10 @@ const props = defineProps<{
 	dimensions?: boolean
 	/** What is laid over the canvas to see by. */
 	grid?: GridKind
-}>()
-
 	/** A drag or a drawing goes to what it comes near. */
 	snapping?: boolean
+}>()
+
 const emit = defineEmits<{
 	select: [rows: readonly string[]]
 	/** A right click, and the row of what it was on, if anything. */
