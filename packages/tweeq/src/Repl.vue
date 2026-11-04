@@ -17,7 +17,11 @@ import {
 	type Token,
 } from './repl'
 
-const props = defineProps<{ session: Session }>()
+const props = defineProps<{
+	session: Session
+	/** Where what was entered is kept across reloads, if anywhere. */
+	historyKey?: string
+}>()
 
 /** The session has changed, by what was run here. */
 const emit = defineEmits<{ change: [] }>()
@@ -41,7 +45,26 @@ const entries = ref<Entry[]>([])
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 const $scroll = useTemplateRef<{ $el: HTMLElement }>('$scroll')
 let nextId = 0
-const history = new InputHistory()
+const history = new InputHistory(readHistory())
+
+function readHistory(): readonly string[] {
+	if (props.historyKey === undefined) return []
+	try {
+		const kept: unknown = JSON.parse(localStorage.getItem(props.historyKey) ?? '[]')
+		return Array.isArray(kept) ? kept.filter(e => typeof e === 'string') : []
+	} catch {
+		return []
+	}
+}
+
+function writeHistory(): void {
+	if (props.historyKey === undefined) return
+	try {
+		localStorage.setItem(props.historyKey, JSON.stringify(history.kept()))
+	} catch {
+		// With nowhere to keep it, it lasts as long as the page.
+	}
+}
 
 function onMount(instance: monaco.editor.IStandaloneCodeEditor): void {
 	editor = instance
@@ -160,6 +183,7 @@ function run(): void {
 	if (source === '') return
 	if (!source.startsWith(':') && !session.isComplete(source)) return
 	history.push(source)
+	writeHistory()
 	const result = dispatch(source)
 	// `:clear` empties the list, and is not worth an entry in it.
 	if (source !== ':clear') entries.value.push({ id: nextId++, source, result })

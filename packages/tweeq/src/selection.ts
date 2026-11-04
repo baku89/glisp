@@ -11,6 +11,8 @@ export interface Selection {
 	/** Go into what it comes to, if that is a number, or into what it is written as. */
 	readonly editValue?: () => void
 	readonly editExpression?: () => void
+	/** Put this in its place, as what is pasted. */
+	readonly paste?: (next: AST) => void
 }
 
 /** How a row renames the binding it shows, which takes the whole program. */
@@ -33,6 +35,8 @@ export const SOLVER: InjectionKey<BackwardSolver> = Symbol('glisp-solver')
 export interface Linker {
 	can(source: string, target: string): boolean
 	link(source: string, target: string): void
+	/** The row a reference has been copied of, to paste as a reference to it. */
+	readonly copied: ShallowRef<string | null>
 }
 
 export const LINKER: InjectionKey<Linker> = Symbol('glisp-linker')

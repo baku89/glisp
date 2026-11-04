@@ -210,6 +210,7 @@ const label = (value: unknown): string =>
 	<div
 		ref="$root"
 		class="value"
+		:data-path="path"
 		:class="{
 			expression: !isCallee && isExpression(ast),
 			callee: isCallee,
@@ -320,6 +321,10 @@ const label = (value: unknown): string =>
 }
 .callee :deep(.TqInputTextBase:hover) {
 	background: var(--tq-color-input-hover);
+}
+.value.link-target {
+	border-radius: var(--tq-radius-input);
+	box-shadow: 0 0 0 2px var(--tq-color-accent);
 }
 .value.error {
 	--tq-color-text: var(--tq-color-error);

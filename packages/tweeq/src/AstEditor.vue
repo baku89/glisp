@@ -12,6 +12,7 @@ import { type GlispDocument } from './document'
 import { LINKER, RENAMER, REVEALER, SELECTION, type Selection, SOLVER } from './selection'
 import {
 	moveBinding,
+	parseSource,
 	referenceAt,
 	referenceTargetOf,
 	renameBindingAt,
@@ -80,6 +81,7 @@ const linked = (source: string, target: string): AST | null =>
 	referenceAt(props.document.root.value, props.document.env.value, source, target)
 
 provide(LINKER, {
+	copied: shallowRef<string | null>(null),
 	can: (source, target) => linked(source, target) !== null,
 	link(source, target) {
 		const next = linked(source, target)
@@ -154,6 +156,17 @@ useEventListener(window, 'pointerdown', (event: PointerEvent) => {
 	const target = event.target as Element | null
 	if (target?.closest('.TqParameterTreeItem .row, [popover]')) return
 	selection.value = null
+})
+
+// Pasting into a row, as code, whether it was copied as a value or as an expression.
+useEventListener(window, 'paste', (event: ClipboardEvent) => {
+	const target = event.target as HTMLElement | null
+	if (target?.closest?.('input, textarea, [contenteditable]')) return
+	if (selection.value?.paste === undefined) return
+	event.preventDefault()
+	const next = parseSource(event.clipboardData?.getData('text') ?? '')
+	if (next === null) unsolved.value = 'what is on the clipboard cannot be read as code'
+	else selection.value.paste(next)
 })
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
@@ -260,7 +273,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			v-if="unsolved !== null || document.diagnostics.value.length > 0"
 			class="problems"
 		>
-			<li v-if="unsolved !== null">Cannot change that value: {{ unsolved }}</li>
+			<li v-if="unsolved !== null">Cannot do that: {{ unsolved }}</li>
 			<li v-for="(problem, i) in document.diagnostics.value" :key="i">
 				{{ problem.message }}
 			</li>

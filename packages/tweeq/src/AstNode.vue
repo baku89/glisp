@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, isPinned } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isPinned, MetaAST } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
@@ -13,7 +13,15 @@ import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
 import { LINKER, RENAMER, REVEALER, SELECTION } from './selection'
-import { actionsOf, fitsInline, kindIconOf, type Slot, sourceOf, viewOf } from './structure'
+import {
+	actionsOf,
+	fitsInline,
+	kindIconOf,
+	parseSource,
+	type Slot,
+	sourceOf,
+	viewOf,
+} from './structure'
 
 const props = defineProps<{
 	entry: Slot
@@ -127,18 +135,42 @@ let hovered: Element | null = null
 let endWhip: (() => void) | null = null
 onBeforeUnmount(() => endWhip?.())
 
-function setHovered(row: Element | null): void {
-	hovered?.classList.remove('drop-target')
-	hovered = row
-	hovered?.classList.add('drop-target')
+// Stopping on a closed row opens it, so that what is inside can be reached.
+const OPEN_ON_HOVER_MS = 500
+let hoveredRow: Element | null = null
+let openTimer: ReturnType<typeof setTimeout> | undefined
+
+function openOnHover(row: Element | null): void {
+	if (row === hoveredRow) return
+	hoveredRow = row
+	clearTimeout(openTimer)
+	const toggle = row?.querySelector<HTMLElement>('.row:not(.open) > button.toggle')
+	if (toggle) openTimer = setTimeout(() => toggle.click(), OPEN_ON_HOVER_MS)
 }
 
-/** The row under the pointer that this could refer to, and what it is called. */
+function setHovered(target: Element | null): void {
+	hovered?.classList.remove('drop-target', 'link-target')
+	hovered = target
+	hovered?.classList.add(
+		hovered.classList.contains('TqParameterTreeItem') ? 'drop-target' : 'link-target'
+	)
+}
+
+/**
+ * What is under the pointer that this could refer to, and where it is: an element
+ * side by side with others in its row, if on one, or else the row.
+ */
 function linkableAt(x: number, y: number): { row: Element; path: string } | null {
-	const row = window.document.elementFromPoint(x, y)?.closest('.TqParameterTreeItem')
-	const target = row?.querySelector('.row .row-path')?.getAttribute('data-path')
-	if (!row || target == null || !linker?.can(props.path, target)) return null
-	return { row, path: target }
+	const under = window.document.elementFromPoint(x, y)
+	const row = under?.closest('.TqParameterTreeItem')
+	const rowPath = row?.querySelector('.row .row-path')?.getAttribute('data-path')
+	const field = under?.closest('.value[data-path]')
+	const fieldPath = field?.getAttribute('data-path')
+	if (field && fieldPath != null && fieldPath !== rowPath && linker?.can(props.path, fieldPath)) {
+		return { row: field, path: fieldPath }
+	}
+	if (!row || rowPath == null || !linker?.can(props.path, rowPath)) return null
+	return { row, path: rowPath }
 }
 
 function onKindPress(event: PointerEvent): void {
@@ -152,8 +184,14 @@ function onKindPress(event: PointerEvent): void {
 	const onMove = (move: PointerEvent) => {
 		if (!whipped && Math.hypot(move.clientX - startX, move.clientY - startY) < 4) return
 		whipped = true
+		window.document.body.classList.add('glisp-linking')
 		whip.value = { x1, y1, x2: move.clientX, y2: move.clientY }
 		setHovered(linkableAt(move.clientX, move.clientY)?.row ?? null)
+		openOnHover(
+			window.document
+				.elementFromPoint(move.clientX, move.clientY)
+				?.closest('.TqParameterTreeItem') ?? null
+		)
 	}
 	const onUp = (up: PointerEvent) => {
 		const landed = whipped ? linkableAt(up.clientX, up.clientY) : null
@@ -168,6 +206,8 @@ function onKindPress(event: PointerEvent): void {
 		window.removeEventListener('pointerup', onUp)
 		window.removeEventListener('keydown', onKey)
 		setHovered(null)
+		openOnHover(null)
+		window.document.body.classList.remove('glisp-linking')
 		whip.value = null
 		endWhip = null
 	}
@@ -211,6 +251,7 @@ function select(): void {
 				: {}),
 		editValue: () => $value.value?.editValue?.(),
 		editExpression,
+		paste,
 		evaluate(id) {
 			const action = actionsOf(props.entry).find(a => a.id === id)
 			if (action === undefined) return
@@ -220,12 +261,54 @@ function select(): void {
 	}
 }
 
-const slotMenu = computed(() =>
-	slotMenuItems(props.entry, (parent, action) => {
+/** Put `next` in place of what is here, leaving what is said about it. */
+function paste(next: AST): void {
+	update(ast.value.kind === 'meta' ? new MetaAST(ast.value.metadata, next) : next)
+}
+
+async function pasteFromClipboard(): Promise<void> {
+	const next = parseSource(await navigator.clipboard.readText())
+	if (next !== null) paste(next)
+}
+
+// As Houdini copies a parameter, to paste as a reference to it.
+const referenceItems = computed<MenuItem[]>(() => {
+	if (linker === null || isFunction.value) return []
+	const copied = linker.copied.value
+	return [
+		{
+			label: 'Paste',
+			icon: 'mdi:clipboard-text-outline',
+			bindIcon: ['⌘', 'V'],
+			perform: () => void pasteFromClipboard(),
+		},
+		{
+			label: 'Copy Reference',
+			icon: 'mdi:link-variant',
+			perform: () => (linker.copied.value = props.path),
+		},
+		...(copied !== null && linker.can(props.path, copied)
+			? [
+					{
+						label: 'Paste Reference',
+						icon: 'mdi:link-variant-plus',
+						perform: () => linker.link(props.path, copied),
+					},
+				]
+			: []),
+	]
+})
+
+const slotMenu = computed(() => {
+	const items = slotMenuItems(props.entry, (parent, action) => {
 		if (action.opens) open.value = true
 		emit('change', parent)
 	})
-)
+	// With the other copies, ahead of what deletes it, if anything does.
+	const end = items.findIndex(item => 'label' in item && item.label === 'Delete')
+	items.splice(end < 0 ? items.length : end - 1, 0, ...referenceItems.value)
+	return items
+})
 
 // What the value's own field offers by itself, and the row offers on its behalf.
 const menuItems = computed<MenuItem[]>(() => [
@@ -289,7 +372,7 @@ watch(
 		@select="select"
 		@nameClick="isFunction && (editingCode = true)"
 	>
-		<div v-if="inline" ref="$anchor" class="inline">
+		<div v-if="inline" ref="$anchor" class="inline-anchor">
 			<AstInline
 				:slots="view.slots"
 				:parentPath="path"
@@ -379,7 +462,7 @@ watch(
 </template>
 
 <style scoped>
-.inline {
+.inline-anchor {
 	display: grid;
 	min-width: 0;
 }
@@ -405,8 +488,10 @@ watch(
 	top: 50%;
 	right: 0;
 	left: 0;
-	height: 1px;
-	background: var(--tq-color-accent);
+	height: 2px;
+	border-radius: 1px;
+	background: var(--tq-color-text-subtle);
+	transform: translateY(-50%);
 }
 .gap-add > * {
 	position: absolute;
@@ -415,8 +500,8 @@ watch(
 	width: 12px;
 	height: 12px;
 	border-radius: 50%;
-	color: var(--tq-color-on-accent);
-	background: var(--tq-color-accent);
+	color: var(--tq-color-background);
+	background: var(--tq-color-text-subtle);
 	transform: translate(-50%, -50%);
 }
 .whip {
@@ -475,5 +560,13 @@ watch(
 }
 .kind.reference:hover {
 	opacity: 0.8;
+}
+</style>
+
+<style>
+/* Not while something else is being done with the rows. */
+.glisp-linking .gap-add,
+.TqParameterTree.dragging .gap-add {
+	display: none;
 }
 </style>

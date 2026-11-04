@@ -501,11 +501,24 @@ export function segmentsOf(tokens: readonly Token[]): OutputSegment[] {
 // -----------------------------------------------------------------------------
 
 /** What has been entered, to go back through as a shell does. */
+const MAX_HISTORY = 500
+
 export class InputHistory {
-	private readonly entries: string[] = []
+	private readonly entries: string[]
 	/** Position in `entries`, or its length while on what is being written. */
-	private index = 0
+	private index: number
 	private draft = ''
+
+	/** With what was entered before, oldest first, as `kept` gives it. */
+	constructor(entries: readonly string[] = []) {
+		this.entries = entries.slice(-MAX_HISTORY)
+		this.index = this.entries.length
+	}
+
+	/** What is worth keeping, oldest first, for the next time. */
+	kept(): readonly string[] {
+		return this.entries.slice(-MAX_HISTORY)
+	}
 
 	/** Remember `text`, unless it just repeats the last entry, and go back to the end. */
 	push(text: string): void {

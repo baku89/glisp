@@ -63,6 +63,21 @@ describe('InputHistory', () => {
 		return history
 	}
 
+	it('starts from what was entered before', () => {
+		const history = new InputHistory(filled().kept())
+		expect(history.previous('')).toBe('b')
+		expect(history.previous('')).toBe('a')
+		expect(history.next()).toBe('b')
+		expect(history.next()).toBe('')
+	})
+
+	it('keeps only so many', () => {
+		const many = Array.from({ length: 600 }, (_, i) => `${i}`)
+		const history = new InputHistory(many)
+		expect(history.kept()).toHaveLength(500)
+		expect(history.previous('')).toBe('599')
+	})
+
 	it('goes back, and stops at the oldest', () => {
 		const history = filled()
 		expect(history.previous('')).toBe('b')

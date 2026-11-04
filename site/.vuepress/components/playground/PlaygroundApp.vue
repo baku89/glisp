@@ -85,7 +85,11 @@ useMutationObserver(window.document.documentElement, followSite, {
 			>
 				<template #first>
 					<section class="repl">
-						<Repl :session="document.session" @change="document.sync()" />
+						<Repl
+							:session="document.session"
+							historyKey="glisp.playground.history"
+							@change="document.sync()"
+						/>
 					</section>
 				</template>
 				<template #second>
