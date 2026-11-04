@@ -17,6 +17,7 @@ import {
 	withPointsClosed,
 } from './modulate'
 import { type Change, type Grip, type Handle, type Mat, NO_PAINT, type Path, type Vec, inkOn, onlyShapes } from './graphics'
+import { type GridKind, gridPositions, offAxis } from './grid'
 import {
 	changed,
 	type Dimension,
@@ -64,9 +65,16 @@ const props = defineProps<{
 	drawing?: ShapeTool | 'pen' | null
 	/** A drag says its numbers exactly, and they can be typed once it is let go of. */
 	dimensions?: boolean
+	/** What is laid over the canvas to see by. */
+	grid?: GridKind
 }>()
 
 const emit = defineEmits<{ select: [rows: readonly string[]] }>()
+
+const GRID_DOT = 2
+const GRID_DOT_ALPHA = 0.18
+const GRID_LINE_ALPHA = 0.06
+const GRID_AXIS_ALPHA = 0.35
 
 const VIEW_KEY = 'glisp.canvas.view'
 const VIEW_SAVE_MS = 200
@@ -566,6 +574,45 @@ function draw(): void {
 	const accent = color('--tq-color-accent')
 	const paper = color('--tq-color-background')
 
+	if (props.grid === 'dots' || props.grid === 'lines') {
+		const [zoom, , , , offsetX, offsetY] = view.value
+		const xs = offAxis(gridPositions(zoom, offsetX, width), offsetX)
+		const ys = offAxis(gridPositions(zoom, offsetY, height), offsetY)
+		context.beginPath()
+		if (props.grid === 'dots') {
+			for (const x of xs) {
+				for (const y of ys) context.rect(x - GRID_DOT / 2, y - GRID_DOT / 2, GRID_DOT, GRID_DOT)
+			}
+			context.fillStyle = ink
+			context.globalAlpha = GRID_DOT_ALPHA
+			context.fill()
+		} else {
+			for (const x of xs) {
+				context.moveTo(x, 0)
+				context.lineTo(x, height)
+			}
+			for (const y of ys) {
+				context.moveTo(0, y)
+				context.lineTo(width, y)
+			}
+			context.strokeStyle = ink
+			context.lineWidth = 1
+			context.globalAlpha = GRID_LINE_ALPHA
+			context.stroke()
+		}
+		// The axes, through the program's origin, for telling where that is from anywhere.
+		context.beginPath()
+		context.moveTo(offsetX, 0)
+		context.lineTo(offsetX, height)
+		context.moveTo(0, offsetY)
+		context.lineTo(width, offsetY)
+		context.strokeStyle = ink
+		context.lineWidth = 1
+		context.globalAlpha = GRID_AXIS_ALPHA
+		context.stroke()
+		context.globalAlpha = 1
+	}
+
 	const isMarked = ({ row }: Shape): boolean =>
 		props.selected.includes(row) || row === hovered.value
 	const drawPoint = (shape: Shape): void => {
@@ -696,6 +743,7 @@ watchEffect(() => {
 		evenLine.value,
 		scene.value,
 		background.value,
+		props.grid,
 		grip.value,
 		view.value,
 		size.value,

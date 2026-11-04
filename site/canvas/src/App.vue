@@ -26,6 +26,7 @@ import { exportSvg, openFile, saveFile } from './files'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import { iconOfPath, inkOn, withGraphics } from './graphics'
+import type { GridKind } from './grid'
 import PaintControls from './PaintControls.vue'
 import RowName from './RowName.vue'
 import {
@@ -129,6 +130,12 @@ const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
 
 /** A drag says its numbers exactly, and they can be typed once it is let go of. */
 const dimensionsOn = useAppConfigStore().ref('glisp.canvas.dimensions', false)
+
+/** What is laid over the canvas to see by, which is of this browser and not of the program. */
+const grid = useAppConfigStore().ref<GridKind>('glisp.canvas.grid', 'dots')
+const toggleGrid = (kind: GridKind): void => {
+	grid.value = grid.value === kind ? 'none' : kind
+}
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	const target = event.target as HTMLElement | null
@@ -433,6 +440,8 @@ useActionsStore().register([
 			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => (projectOpen.value = !projectOpen.value) },
 			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => (inspectorOpen.value = !inspectorOpen.value) },
 			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
+			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGrid('dots') },
+			{ id: 'view_grid', label: 'Toggle Grid', icon: 'ph:grid-four', perform: () => toggleGrid('lines') },
 		],
 	},
 	{
@@ -472,6 +481,7 @@ function selectInTree(row: string | null): void {
 					:origin="origin"
 					:drawing="drawing"
 					:dimensions="dimensionsOn"
+					:grid="grid"
 					@select="selectOnCanvas"
 				/>
 				<FloatPanel
