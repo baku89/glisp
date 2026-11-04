@@ -7,6 +7,7 @@ import { vTooltip } from 'tweeq/Tooltip'
 import { computed, inject, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
+import AstGapAdd from './AstGapAdd.vue'
 import AstInline from './AstInline.vue'
 import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
@@ -410,17 +411,7 @@ watch(
 
 		<template #labelEnd>
 			<span class="row-path" :data-path="path" hidden />
-			<button
-				v-if="insertBefore"
-				class="gap-add"
-				type="button"
-				aria-label="Add Here"
-				@click.stop="insertBefore"
-				@dblclick.stop
-				@pointerdown.stop
-			>
-				<Icon icon="mdi:plus" />
-			</button>
+			<AstGapAdd v-if="insertBefore" @add="insertBefore" />
 			<button
 				v-if="pinned"
 				v-tooltip="'Unpin'"
@@ -473,44 +464,6 @@ watch(
 .inline-anchor {
 	display: grid;
 	min-width: 0;
-}
-/* In the gap above the row, and there when reached for, so it moves nothing. */
-.gap-add {
-	position: absolute;
-	top: calc(var(--tq-gap-related) * -1);
-	right: 0;
-	left: calc((var(--depth) + 1) * var(--indent));
-	z-index: 2;
-	height: var(--tq-gap-related);
-	cursor: pointer;
-	opacity: 0;
-	transition: opacity var(--tq-hover-transition-duration);
-}
-.gap-add:hover,
-.gap-add:focus-visible {
-	opacity: 1;
-}
-.gap-add::before {
-	content: '';
-	position: absolute;
-	top: 50%;
-	right: 0;
-	left: 0;
-	height: 2px;
-	border-radius: 1px;
-	background: var(--tq-color-text-subtle);
-	transform: translateY(-50%);
-}
-.gap-add > * {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	width: 12px;
-	height: 12px;
-	border-radius: 50%;
-	color: var(--tq-color-background);
-	background: var(--tq-color-text-subtle);
-	transform: translate(-50%, -50%);
 }
 .whip {
 	position: fixed;
@@ -568,13 +521,5 @@ watch(
 }
 .kind.reference:hover {
 	opacity: 0.8;
-}
-</style>
-
-<style>
-/* Not while something else is being done with the rows. */
-.glisp-linking .gap-add,
-.TqParameterTree.dragging .gap-add {
-	display: none;
 }
 </style>

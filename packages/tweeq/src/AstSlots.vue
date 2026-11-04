@@ -5,6 +5,7 @@ import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject } from 'vue'
 
 import AstCase from './AstCase.vue'
+import AstGapAdd from './AstGapAdd.vue'
 import AstNode from './AstNode.vue'
 import { REVEALER } from './selection'
 import { fitsInline, type MissingArgument, moveBetween, type NodeView, type Slot } from './structure'
@@ -181,5 +182,25 @@ const pathOf = (slot: Slot): string =>
 		:label="`Add ${append.label}`"
 		icon="mdi:plus"
 		@select="addOneMore"
-	/>
+	>
+		<template #labelEnd>
+			<AstGapAdd @add="addOneMore" />
+		</template>
+	</ParameterTreeItem>
+	<div v-if="append && noAddRow" class="end">
+		<AstGapAdd @add="addOneMore" />
+	</div>
 </template>
+
+<style scoped>
+/* Below the last row, where there is no row to hang it on. */
+.end {
+	position: relative;
+	grid-column: 1 / -1;
+	height: var(--tq-gap-related);
+}
+.end :deep(.AstGapAdd) {
+	top: 0;
+	left: 0;
+}
+</style>
