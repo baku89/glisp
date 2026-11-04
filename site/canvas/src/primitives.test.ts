@@ -99,10 +99,30 @@ describe('taking hold of them', () => {
 		const root = parse(`{c = ${src}}`)
 		const grip = gripAt(root, env, ROW)!
 		const corner = grip.handles.at(-1)!
-		expect(corner.at).toEqual([12, 12])
-		expect(corner.to([17, 17], corner.at!)).toEqual([{ route: [2], value: 5 }])
+		const [ax, ay] = corner.at!
+		expect(Math.hypot(ax, ay)).toBeCloseTo(6)
+		expect(ax).toBeCloseTo(ay)
+		const [{ value }] = corner.to([ax + 1, ay + 1], corner.at!) as [{ value: number }]
+		expect(value).toBeCloseTo(1 / (1 - Math.SQRT1_2))
 		expect(corner.to([90, 90], corner.at!)).toEqual([{ route: [2], value: 20 }])
 		expect(corner.to([0, 0], corner.at!)).toEqual([{ route: [2], value: 0 }])
+	})
+
+	it('holds how round a corner is on the curve of it, and goes along with the hand', () => {
+		const corner = gripAt(parse('{c = (path.roundRect [0 0] [200 200] 60)}'), env, ROW)!.handles.at(-1)!
+		const [ax, ay] = corner.at!
+		expect(Math.hypot(ax - 60, ay - 60)).toBeCloseTo(60)
+		expect(ax).toBeCloseTo(ay)
+		const r = 80
+		const along = r * (1 - Math.SQRT1_2)
+		const [{ value }] = corner.to([along, along], corner.at!) as [{ value: number }]
+		expect(value).toBeCloseTo(r)
+	})
+
+	it('is on the curve however small a corner it is usual to round', () => {
+		const corner = gripAt(parse('{c = (path.roundRect [0 0] [200 200] 16)}'), env, ROW)!.handles.at(-1)!
+		const [ax, ay] = corner.at!
+		expect(Math.hypot(ax - 16, ay - 16)).toBeCloseTo(16)
 	})
 
 	it('keeps what a rect can do on a rect with round corners', () => {

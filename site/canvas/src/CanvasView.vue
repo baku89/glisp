@@ -1040,12 +1040,17 @@ function shapeAt(x: number, y: number): Shape | null {
 function handleAt(x: number, y: number): number | null {
 	const handles = grip.value?.handles ?? []
 	const context = $canvas.value?.getContext('2d')
+	// The nearest, and of those in the same place, what comes last.
+	let nearest: number | null = null
+	let away = HANDLE_RADIUS + 3
 	for (let i = handles.length - 1; i >= 0; i--) {
 		const { at } = handles[i]!
 		if (at === undefined) continue
 		const [hx, hy] = toScreen(at)
-		if (Math.hypot(hx - x, hy - y) <= HANDLE_RADIUS + 3) return i
+		const distance = Math.hypot(hx - x, hy - y)
+		if (distance < away || (nearest === null && distance === away)) [nearest, away] = [i, distance]
 	}
+	if (nearest !== null) return nearest
 	if (!context) return null
 	context.save()
 	context.setTransform(1, 0, 0, 1, 0, 0)

@@ -1599,6 +1599,12 @@ const ELLIPSE_FACING = 40
 /** How far out a handle stays from what it is measured from, so as to be taken apart from it. */
 const HANDLE_CLEAR = 12
 
+/** How far in along each side the middle of a round corner is, for each of its radius. */
+const ARC_IN = 1 - Math.SQRT1_2
+
+/** How near to its corner what rounds it comes, for each to be taken hold of on its own side. */
+const ROUND_CLEAR = 6
+
 /** How far out from `c` something is, by an arrow that way, which stays clear of `c`. */
 const radiusHandle = (arg: number, c: Vec, angle: number, radius: number): Handle => {
 	const at = add(c, toward(angle, Math.max(radius, HANDLE_CLEAR)))
@@ -2352,7 +2358,8 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			const r = Math.min(outward(radius), most)
 			const x = Math.sign(width) || 1
 			const y = Math.sign(height) || 1
-			const held = Math.min(Math.max(r, HANDLE_CLEAR), most)
+			// On the curve of the first corner, unless that would be on the corner itself.
+			const held = Math.min(Math.max(r * ARC_IN, ROUND_CLEAR * Math.SQRT1_2), most)
 			const at: Vec = [s[0] + x * held, s[1] + y * held]
 			return {
 				...box,
@@ -2368,7 +2375,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						inward: true,
 						to: to => {
 							const by = ((to[0] - at[0]) * x + (to[1] - at[1]) * y) / 2
-							return [change(2, Math.min(most, Math.max(0, r + by)))]
+							return [change(2, Math.min(most, Math.max(0, r + by / ARC_IN)))]
 						},
 					},
 				],
