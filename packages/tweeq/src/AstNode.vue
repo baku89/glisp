@@ -5,7 +5,7 @@ import { InputTranslate } from 'tweeq/InputTranslate'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { vTooltip } from 'tweeq/Tooltip'
-import { computed, inject, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, provide, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
 import AstGapAdd from './AstGapAdd.vue'
@@ -14,10 +14,16 @@ import AstSlots from './AstSlots.vue'
 import AstValue from './AstValue.vue'
 import { iconOf } from './icons'
 import { editMenuItems, slotMenuItems } from './menu'
-import { ALSO_SELECTED, LINKER, OPEN_ROW, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
+import { ALSO_SELECTED, LINKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
+	canSolve,
+	elementAt,
 	fitsInline,
+	isProportional,
+	isSizeInput,
+	keepingRatio,
+	type KeptRatio,
 	problemOf,
 	titleOf,
 	isTranslatable,
@@ -26,6 +32,7 @@ import {
 	type Slot,
 	sourceOf,
 	viewOf,
+	withProportional,
 } from './structure'
 
 const props = defineProps<{
@@ -126,6 +133,29 @@ const fits = (count: number): boolean =>
 const inline = computed(
 	() => bareKind.value === 'vec' && !open.value && fits(view.value.slots.length)
 )
+
+// A size has a chain across its width and height, to have them go together.
+const sized = computed(() => {
+	const value = placeValue.value
+	return (
+		isSizeInput(props.entry.expected) &&
+		!isFunction.value &&
+		Array.isArray(value) &&
+		value.length === 2 &&
+		(inline.value || (solver !== null && canSolve(props.entry, value) && fits(2)))
+	)
+})
+const proportional = computed(() => isProportional(ast.value, props.entry.env))
+let kept: KeptRatio | null = null
+const outerKeeper = inject(RATIO_KEEPER, null)
+provide(RATIO_KEEPER, (path, value) => {
+	const index = proportional.value && isSizeInput(props.entry.expected) ? elementAt(props.path, path) : null
+	const now = placeValue.value
+	if (index === null || !Array.isArray(now)) return outerKeeper?.(path, value) ?? false
+	kept = keepingRatio(kept, now as number[], index, value)
+	solver?.solve(ast.value, kept.wrote, props.path)
+	return true
+})
 
 // What kind of expression it is goes at the end of the label, so that the values
 // line up, whatever comes to them.
@@ -438,6 +468,18 @@ watch(
 				@change="emit('change', $event)"
 			/>
 			<div v-else ref="$anchor" />
+			<button
+				v-if="sized"
+				class="chain"
+				:class="{ proportional }"
+				type="button"
+				aria-label="Keep Proportions"
+				:aria-pressed="proportional"
+				@click.stop="update(withProportional(ast, entry.env, !proportional))"
+				@dblclick.stop
+			>
+				<Icon :icon="proportional ? 'ph:link-simple-horizontal' : 'ph:link-simple-horizontal-break'" />
+			</button>
 		</div>
 		<AstCodePopup
 			v-if="editingCode"
@@ -523,9 +565,38 @@ watch(
 	opacity: 1;
 }
 .value-row {
+	position: relative;
 	display: flex;
 	gap: var(--tq-gap-related);
 	min-width: 0;
+}
+/* Across where the width ends and the height begins, which makes way for it. */
+.value-row > .chain {
+	position: absolute;
+	top: 0;
+	left: 50%;
+	z-index: 1;
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: var(--tq-input-height);
+	height: var(--tq-input-height);
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--tq-color-text-subtle);
+	cursor: pointer;
+	transform: translateX(-50%) scale(0.8);
+}
+.value-row > .chain:hover {
+	color: var(--tq-color-text-mute);
+}
+.value-row > .chain.proportional {
+	color: var(--tq-color-accent);
+}
+.value-row:has(> .chain) :deep(.TqInputNumber:not(:first-child) .icon.left),
+.value-row:has(> .chain) :deep(.value + .value .icon.left) {
+	left: calc(var(--tq-input-height) * 0.3);
 }
 .value-row > :not(.TqInputTranslate) {
 	flex: 1;

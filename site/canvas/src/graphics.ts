@@ -108,16 +108,19 @@ const point = withTypeMeta(
 )
 
 /** How far something goes each way. */
-const size = makeTupleType([
-	part([
-		['title', 'Width'],
-		['fieldIcon', 'ph:arrows-horizontal'],
+const size = withTypeMeta(
+	makeTupleType([
+		part([
+			['title', 'Width'],
+			['fieldIcon', 'ph:arrows-horizontal'],
+		]),
+		part([
+			['title', 'Height'],
+			['fieldIcon', 'ph:arrows-vertical'],
+		]),
 	]),
-	part([
-		['title', 'Height'],
-		['fieldIcon', 'ph:arrows-vertical'],
-	]),
-])
+	new RecordAST([['input', lit('size')]])
+)
 
 const mat2d = makeTupleType([number, number, number, number, number, number])
 const makeTranslation = makeTypedFn(

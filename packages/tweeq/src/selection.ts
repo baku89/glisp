@@ -36,6 +36,14 @@ export interface BackwardSolver {
 
 export const SOLVER: InjectionKey<BackwardSolver> = Symbol('glisp-solver')
 
+/**
+ * How a number asks to come to a value along with the others of its vector, if they
+ * are kept in ratio. If they are not, it says so, and the number goes on by itself.
+ */
+export type RatioKeeper = (path: string, value: number) => boolean
+
+export const RATIO_KEEPER: InjectionKey<RatioKeeper> = Symbol('glisp-ratio-keeper')
+
 /** How a row comes to refer to another, which takes the whole program. */
 export interface Linker {
 	can(source: string, target: string): boolean

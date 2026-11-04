@@ -2,7 +2,7 @@ import { buildPrelude, check, evaluate, host, isPinned, meta, parse, print, Sess
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { actionsOf, canSolve, numberOptionsAt, referenceAt, defaultFor, hasValue, isExpression, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { actionsOf, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, defaultFor, hasValue, isExpression, isProportional, withProportional, expressionFromField, fitsInline, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -444,6 +444,68 @@ describe('expressionFromField', () => {
 	it('starts empty where there is no text', () => {
 		expect(expressionFromField(null)).toBe('')
 		expect(expressionFromField(field('on', null))).toBe('')
+	})
+})
+
+describe('keepingRatio', () => {
+	it('has the others follow', () => {
+		expect(keepingRatio(null, [100, 50], 0, 200).wrote).toEqual([200, 100])
+		expect(keepingRatio(null, [100, 50], 1, 10).wrote).toEqual([20, 10])
+	})
+
+	it('comes back from 0 with the ratio it had', () => {
+		const down = keepingRatio(null, [100, 50], 0, 0)
+		expect(down.wrote).toEqual([0, 0])
+		expect(keepingRatio(down, down.wrote, 0, 30).wrote).toEqual([30, 15])
+	})
+
+	it('goes by what the numbers are, once something else has changed them', () => {
+		const first = keepingRatio(null, [100, 50], 0, 200)
+		expect(keepingRatio(first, [10, 10], 0, 20).wrote).toEqual([20, 20])
+	})
+
+	it('leaves the others where there is no ratio to go by', () => {
+		expect(keepingRatio(null, [0, 50], 0, 10).wrote).toEqual([10, 50])
+	})
+})
+
+describe('proportional', () => {
+	const toggled = (src: string, on: boolean) => print(withProportional(parse(src), env, on))
+	const atS = parse('{s = ^{proportional: true} [100 50] s}')
+
+	it('is what a node says of itself', () => {
+		expect(isProportional(parse('^{proportional: true} [100 50]'), env)).toBe(true)
+		expect(isProportional(parse('[100 50]'), env)).toBe(false)
+		expect(isProportional(parse('^{proportional: false} [100 50]'), env)).toBe(false)
+	})
+
+	it('comes along from what is referred to', () => {
+		expect(isProportional(atS, env)).toBe(true)
+	})
+
+	it('is written on the node, and joins what it says already', () => {
+		expect(toggled('[100 50]', true)).toBe('^{proportional: true} [100 50]')
+		expect(toggled('^{label: "L"} [100 50]', true)).toBe('^{label: "L" proportional: true} [100 50]')
+		expect(toggled('@[100 50]', true)).toBe('^{proportional: true} @[100 50]')
+	})
+
+	it('leaves nothing behind when it is taken off', () => {
+		expect(toggled('^{proportional: true} [100 50]', false)).toBe('[100 50]')
+		expect(toggled('^{label: "L" proportional: true} [100 50]', false)).toBe('^{label: "L"} [100 50]')
+	})
+
+	it('changes no value', () => {
+		const src = '^{proportional: true} [100 50]'
+		expect(evaluate(parse(src), env).value).toEqual([100, 50])
+	})
+})
+
+describe('elementAt', () => {
+	it('is only an element of that vector itself', () => {
+		expect(elementAt('c/arg1', 'c/arg1/1')).toBe(1)
+		expect(elementAt('c/arg1', 'c/arg1')).toBe(null)
+		expect(elementAt('c/arg1', 'c/arg1/0/arg0')).toBe(null)
+		expect(elementAt('c/arg1', 'c/arg10/0')).toBe(null)
 	})
 })
 

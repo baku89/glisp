@@ -16,7 +16,7 @@ import {
 	merged,
 	withValuesAt,
 } from '@glisp/tweeq/multiRows'
-import { capitalCase, inspectionOf, isTranslatable, titleOf, viewOf } from '@glisp/tweeq/structure'
+import { capitalCase, inspectionOf, isSizeInput, isTranslatable, titleOf, viewOf } from '@glisp/tweeq/structure'
 import { describe, expect, it } from 'vitest'
 
 import { iconOfPath, isPath, PathValue, type Vec, withGraphics } from './graphics'
@@ -315,6 +315,12 @@ describe('what a vector is made of', () => {
 		const [, rectSize] = viewOf(parse('(path.rect [0 0] [1 2])'), env).slots
 		expect(isTranslatable(center!.expected)).toBe(true)
 		expect(isTranslatable(rectSize!.expected)).toBe(false)
+	})
+
+	it('has a chain for a size, and not for a point', () => {
+		const [topLeft, rectSize] = viewOf(parse('(path.rect [0 0] [1 2])'), env).slots
+		expect(isSizeInput(rectSize!.expected)).toBe(true)
+		expect(isSizeInput(topLeft!.expected)).toBe(false)
 	})
 })
 

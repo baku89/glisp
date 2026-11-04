@@ -15,7 +15,7 @@ import AstCodePopup from './AstCodePopup.vue'
 import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import type { Place } from './multiRows'
-import { SOLVER } from './selection'
+import { RATIO_KEEPER, SOLVER } from './selection'
 import {
 	canSolve,
 	expressionFromField,
@@ -166,6 +166,7 @@ function onFieldKey(event: KeyboardEvent): void {
 // What comes out of an expression is a number like any other. Editing it changes
 // what it comes from, and what it is written as is gone into on purpose.
 const solver = inject(SOLVER, null)
+const keepRatio = inject(RATIO_KEEPER, null)
 const solvable = computed(
 	() => solver !== null && canSolve(props.entry, result.value?.value)
 )
@@ -187,6 +188,7 @@ const solvableNumbers = computed(() => {
 })
 function solveElement(index: number, next: number): void {
 	const numbers = solvableNumbers.value
+	if (keepRatio?.(`${props.path}/${index}`, next)) return
 	if (numbers !== null) {
 		// The others can follow along, as what they come from may be the same.
 		solver?.solve(ast.value, numbers.map((_, i) => (i === index ? next : UNSET)), props.path)
@@ -248,7 +250,7 @@ const label = (value: unknown): string =>
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
 			:multiSelectData="place"
-			@update:modelValue="update(withLiteral(ast, $event))"
+			@update:modelValue="keepRatio?.(path, $event) || update(withLiteral(ast, $event))"
 		/>
 		<InputNumber
 			v-else-if="solvableNumber"
@@ -257,7 +259,7 @@ const label = (value: unknown): string =>
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
 			:multiSelectData="place"
-			@update:modelValue="solver?.solve(ast, $event, path)"
+			@update:modelValue="keepRatio?.(path, $event) || solver?.solve(ast, $event, path)"
 		/>
 		<InputGroup v-else-if="solvableNumbers !== null">
 			<InputNumber

@@ -20,6 +20,7 @@ import {
 	expand,
 	hide,
 	infer,
+	lit,
 	isHidden,
 	isPinned,
 	isTypeValue,
@@ -221,6 +222,71 @@ export function elementOptionsOf(expected: TypeValue | null, index: number): Num
 /** Whether what `expected` is can also be taken hold of as a place, by a pad. */
 export const isTranslatable = (expected: TypeValue | null): boolean =>
 	textOf(expected?.meta?.get('input')) === 'translate'
+
+/** Whether what `expected` is goes by a width and a height, which can be kept in ratio. */
+export const isSizeInput = (expected: TypeValue | null): boolean =>
+	textOf(expected?.meta?.get('input')) === 'size'
+
+const PROPORTIONAL = 'proportional'
+
+/** Whether the numbers of what `ast` comes to go together, by its own say or its type's. */
+export function isProportional(ast: AST, env: Env): boolean {
+	const said = infer(ast, env)?.meta?.get(PROPORTIONAL)
+	return said?.kind === 'lit' && said.value === true
+}
+
+/**
+ * `ast` with its numbers going together or not. It says so only if it has to: to stop
+ * what it refers to from having them go together, and otherwise not at all.
+ */
+export function withProportional(ast: AST, env: Env, on: boolean): AST {
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	const fields =
+		ast.kind === 'meta'
+			? ast.metadata.fields.filter(f => 'kind' in f || f[0] !== PROPORTIONAL)
+			: []
+	const optional = ast.kind === 'meta' ? ast.metadata.optional : undefined
+	const wrapped = (all: typeof fields): AST =>
+		all.length === 0 ? bare : new MetaAST(new RecordAST(all, optional), bare)
+	const without = wrapped(fields)
+	return isProportional(without, env) === on
+		? without
+		: wrapped([...fields, [PROPORTIONAL, lit(on)]])
+}
+
+/** Which element of the vector at `parent` is at `path`, if one is. */
+export function elementAt(parent: string, path: string): number | null {
+	const rest = path.startsWith(`${parent}/`) ? path.slice(parent.length + 1) : ''
+	return /^\d+$/.test(rest) ? Number(rest) : null
+}
+
+/** What the numbers of a vector were in ratio to, and what that last made of them. */
+export interface KeptRatio {
+	readonly basis: readonly number[]
+	readonly wrote: readonly number[]
+}
+
+/**
+ * The numbers of a vector with the one at `index` come to `value` and the others
+ * following. They go by where they were before this began, for as long as nothing else
+ * has changed them, so that going through 0 or rounding does not lose the ratio. What
+ * is 0 says nothing of a ratio, so the others then stay as they are.
+ */
+export function keepingRatio(
+	kept: KeptRatio | null,
+	now: readonly number[],
+	index: number,
+	value: number
+): KeptRatio {
+	const same =
+		kept !== null &&
+		kept.wrote.length === now.length &&
+		kept.wrote.every((number, i) => number === now[i])
+	const basis = same ? kept.basis : now
+	const from = basis[index] ?? 0
+	const by = from === 0 ? 1 : value / from
+	return { basis, wrote: basis.map((number, i) => (i === index ? value : number * by)) }
+}
 
 /**
  * What a slot's number field goes by: what its position wants, and over that what
