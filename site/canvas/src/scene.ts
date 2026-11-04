@@ -1048,10 +1048,57 @@ export interface PlacedDimension {
 const POINTER_OFFSET = 14
 const STACKED_BY = 26
 
+/** Whether what a handle says goes outside of it: it moves an outline, or pulls a length. */
+export const saysOutside = ({ kind, name }: Handle): boolean =>
+	kind === 'offset' || kind === 'arrow' || (kind === 'point' && name === 'vertex')
+
+/**
+ * Where the numbers of a handle being dragged go: by the one of its `kind` nearest the
+ * pointer, which is the one taken hold of, on the side of it that is away from the shape.
+ * The rest of an outline is what an offset is away from, as a ring has a side toward the
+ * center that is just as much outside of it, and otherwise it is the center, if it has one.
+ */
+function outsideOfHandle(
+	grip: Grip & { readonly transform: Mat },
+	kind: Handle['kind'],
+	[pointerX, pointerY]: Vec,
+	onScreen: (at: Vec, transform: Mat) => Vec
+): { at: Vec; side: DimensionSide } | null {
+	const placed = (handles: readonly Handle[]) =>
+		handles.flatMap(handle =>
+			handle.at === undefined ? [] : [{ handle, at: onScreen(handle.at, grip.transform) }]
+		)
+	const saying = placed(grip.handles.filter(saysOutside))
+	const ofKind = saying.filter(({ handle }) => handle.kind === kind)
+	const [first] = ofKind
+	if (first === undefined) return null
+	const distance = ([x, y]: Vec) => Math.hypot(x - pointerX, y - pointerY)
+	const { handle, at } = ofKind.reduce((a, b) => (distance(b.at) < distance(a.at) ? b : a), first)
+	const around = kind === 'offset' ? ofKind : saying
+	const center = kind === 'offset' ? undefined : placed(grip.handles.filter(h => h.kind === 'translate'))[0]?.at
+	const from: Vec = center ?? [
+		around.reduce((sum, o) => sum + o.at[0], 0) / around.length,
+		around.reduce((sum, o) => sum + o.at[1], 0) / around.length,
+	]
+	const away: Vec = [at[0] - from[0], at[1] - from[1]]
+	let along = away
+	if (handle.angle !== undefined) {
+		const radians = (handle.angle * Math.PI) / 180
+		const [localX, localY] = handle.at!
+		const [tipX, tipY] = onScreen([localX + Math.cos(radians), localY + Math.sin(radians)], grip.transform)
+		along = [tipX - at[0], tipY - at[1]]
+	}
+	const way = away[0] * along[0] + away[1] * along[1] < 0 ? -1 : 1
+	const [x, y] = [along[0] * way, along[1] * way]
+	const side = Math.abs(x) >= Math.abs(y) ? (x < 0 ? 'left' : 'right') : y < 0 ? 'above' : 'below'
+	return { at, side }
+}
+
 /**
  * The numbers at `places`, each by the part of the shape it belongs to, as it is in
  * `root`, so that it goes along with what it says. What has no such part, as a matrix
- * written out has not, is stacked by the pointer.
+ * written out has not, is stacked by the pointer. Those of a handle of the `outsideOf`
+ * kind being dragged go outside of it instead.
  */
 export function placedDimensions(
 	root: AST,
@@ -1059,10 +1106,16 @@ export function placedDimensions(
 	row: string,
 	places: readonly DimensionPlace[],
 	[pointerX, pointerY]: Vec,
-	onScreen: (at: Vec, transform: Mat) => Vec
+	onScreen: (at: Vec, transform: Mat) => Vec,
+	outsideOf: Handle['kind'] | null = null
 ): PlacedDimension[] {
 	const grip = gripAt(root, env, row)
+	const outside =
+		outsideOf !== null && grip
+			? outsideOfHandle(grip, outsideOf, [pointerX, pointerY], onScreen)
+			: null
 	let stacked = 0
+	let outsideAfter = 0
 	const placed: PlacedDimension[] = []
 	for (const place of places) {
 		const dimension = dimensionAt(root, env, row, place)
@@ -1075,9 +1128,13 @@ export function placedDimensions(
 			placed.push({ dimensions: [dimension], at, side: 'corner' })
 			continue
 		}
-		const at = onScreen(mark.at, grip.transform)
-		const { side } = mark
 		const last = placed.at(-1)
+		// A number of another part goes clear of the one before, as it is by the same handle.
+		if (outside && last && last.dimensions[0]!.route.join() !== place.route.join()) outsideAfter++
+		const at: Vec = outside
+			? [outside.at[0], outside.at[1] + (outside.side === 'above' ? -1 : 1) * STACKED_BY * outsideAfter]
+			: onScreen(mark.at, grip.transform)
+		const side = outside?.side ?? mark.side
 		const together =
 			last !== undefined &&
 			last.side === side &&

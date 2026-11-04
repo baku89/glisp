@@ -34,6 +34,7 @@ import {
 	nearestSnap,
 	penned,
 	placedDimensions,
+	saysOutside,
 	readoutOf,
 	roundedChanges,
 	roundedTo,
@@ -199,6 +200,8 @@ const held = shallowRef<{
 	places: readonly Dimension[]
 	/** Where it is beside, in the program's coordinates, to stay there as the view moves. */
 	at: Vec
+	/** The kind of handle dragged, if what it says goes outside of it. */
+	outsideOf: Handle['kind'] | null
 	first: number
 	editing: boolean
 	/** The program as the drag left it, to go back to. */
@@ -210,22 +213,29 @@ let typed: AST | null = null
 const heldDimensions = computed(() => {
 	const { root, env } = props.document
 	if (held.value === null) return []
-	const { row, places, at } = held.value
+	const { row, places, at, outsideOf } = held.value
 	return placedDimensions(
 		root.value,
 		env.value,
 		row,
 		places,
 		toScreen(at, view.value),
-		(place, mat) => toScreen(place, gripView(mat))
+		(place, mat) => toScreen(place, gripView(mat)),
+		outsideOf
 	)
 })
 
-function hold(row: string, places: readonly Dimension[], [x, y]: Vec, first = 0): void {
+function hold(
+	row: string,
+	places: readonly Dimension[],
+	[x, y]: Vec,
+	first = 0,
+	outsideOf: Handle['kind'] | null = null
+): void {
 	held.value =
 		places.length === 0
 			? null
-			: { row, places, at: fromScreen(x, y), first, editing: false, base: props.document.root.value }
+			: { row, places, at: fromScreen(x, y), outsideOf, first, editing: false, base: props.document.root.value }
 }
 
 function typeDimension(dimension: Dimension, value: number): void {
@@ -1135,7 +1145,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 					symmetric,
 				})
 			: []
-	hold(row, numbers, at)
+	hold(row, numbers, at, 0, saysOutside(handle) ? handle.kind : null)
 	readout.value =
 		next.ast === null || numbers.length > 0
 			? null

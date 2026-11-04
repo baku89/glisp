@@ -232,6 +232,88 @@ describe('where each number goes', () => {
 		).toEqual(['514,514 corner', '514,540 corner'])
 	})
 
+	describe('of an offset being dragged', () => {
+		const rect = '{c = (path.rect [0 0] [100 50])}'
+		const dragged = (src: string, pointer: Vec, places: readonly { route: number[]; index?: number }[]) =>
+			placedDimensions(parse(src), env, ROW, places, pointer, at => at, 'offset').map(
+				({ dimensions, at, side }) =>
+					`${dimensions.map(({ label }) => label).join('+')} ${at.join()} ${side}`
+			)
+		const width = [{ route: [1], index: 0 }]
+		const height = [{ route: [1], index: 1 }]
+
+		it('is outside of the side of a rect that was taken', () => {
+			expect(dragged(rect, [0, 25], width)).toEqual(['Width 0,25 left'])
+			expect(dragged(rect, [100, 25], width)).toEqual(['Width 100,25 right'])
+			expect(dragged(rect, [50, 0], height)).toEqual(['Height 50,0 above'])
+			expect(dragged(rect, [50, 50], height)).toEqual(['Height 50,50 below'])
+		})
+
+		it('goes out from the ring of a fan, each way, wherever the fan points', () => {
+			const fan = '{c = (path.fan [0 0] 20 60 180 180)}'
+			expect(dragged(fan, [-20, 0], [{ route: [1] }])[0]).toMatch(/ right$/)
+			expect(dragged(fan, [-60, 0], [{ route: [2] }])[0]).toMatch(/ left$/)
+		})
+
+		it('is out along the handle, with only the one', () => {
+			expect(dragged('{c = (path.circle [0 0] 5)}', [5, 0], [{ route: [1] }])).toEqual([
+				'Radius 5,0 right',
+			])
+		})
+	})
+
+	describe('of a length being pulled', () => {
+		const pulled = (
+			src: string,
+			kind: 'arrow' | 'point',
+			pointer: Vec,
+			places: readonly { route: number[]; index?: number }[]
+		) =>
+			placedDimensions(parse(src), env, ROW, places, pointer, at => at, kind).map(
+				({ side }) => side
+			)
+
+		it('is out from the center of a polygon, whichever way its corner points', () => {
+			const at = (angle: number) => `{c = (path.ngon [0 0] 50 5 ${angle})}`
+			expect(pulled(at(0), 'point', [50, 0], [{ route: [1] }])).toEqual(['right'])
+			expect(pulled(at(90), 'point', [0, 50], [{ route: [1] }])).toEqual(['below'])
+			expect(pulled(at(180), 'point', [-50, 0], [{ route: [1] }])).toEqual(['left'])
+			expect(pulled(at(-90), 'point', [0, -50], [{ route: [1] }])).toEqual(['above'])
+		})
+
+		it('stacks what else a corner says, rather than over the first', () => {
+			const placed = placedDimensions(
+				parse('{c = (path.ngon [0 0] 50 5 0)}'),
+				env,
+				ROW,
+				[{ route: [1] }, { route: [3] }],
+				[50, 0],
+				at => at,
+				'point'
+			)
+			expect(placed.map(({ at, side }) => `${at.join()} ${side}`)).toEqual([
+				'50,0 right',
+				'50,26 right',
+			])
+		})
+
+		it('is out from the center, for the notch of a star as well', () => {
+			const star = '{c = (path.star [0 0] 100 40 4 90)}'
+			expect(pulled(star, 'arrow', [-28, 28], [{ route: [2] }])).toEqual(['left'])
+		})
+
+		it('is on the side of the axis that it pulls along', () => {
+			const ellipse = '{c = (path.ellipse [0 0] [50 30])}'
+			expect(pulled(ellipse, 'arrow', [50, 0], [{ route: [1], index: 0 }])).toEqual(['right'])
+			expect(pulled(ellipse, 'arrow', [0, 30], [{ route: [1], index: 1 }])).toEqual(['below'])
+		})
+
+		it('is off the corner, for what rounds it', () => {
+			const round = '{c = (path.roundRect [0 0] [100 50] 10)}'
+			expect(pulled(round, 'arrow', [12, 12], [{ route: [2] }])).toEqual(['left'])
+		})
+	})
+
 	it('is the side it says, inside of the room there is', () => {
 		const room: Vec = [1000, 800]
 		const size: Vec = [60, 20]
