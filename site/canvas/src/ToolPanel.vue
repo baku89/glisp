@@ -91,7 +91,7 @@ const take = (paint: Paint): void =>
 					/>
 				</ParameterTreeItem>
 			</ParameterTree>
-			<PaintControls compact :document="document" :rows="[PAINT_ROW]" />
+			<PaintControls treeName="glisp.canvas.tool" :labelWidth="140" :document="document" :rows="[PAINT_ROW]" />
 		</ScrollArea>
 	</FloatPanel>
 </template>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { AST } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
-import { InputColor } from 'tweeq/InputColor'
 import { InputEnum } from 'tweeq/InputEnum'
 import { InputString } from 'tweeq/InputString'
 import { type MenuItem } from 'tweeq/Menu'
@@ -13,18 +12,21 @@ import { isMixed } from '@glisp/tweeq/multiRows'
 import { capitalCase, enumIconsOf, parseSource } from '@glisp/tweeq/structure'
 
 import { LINE_CAPS, LINE_JOINS, lineCapType, lineJoinType, NO_PAINT, type Paint } from './graphics'
-import NoPaint from './NoPaint.vue'
 import PaintSwatches from './PaintSwatches.vue'
 import { paintArgument, paintReferringTo, paintSource, paintWritten, withPaintThrough } from './paintArguments'
 import { paintAt, withPaint } from './scene'
 
-const props = defineProps<{
-	document: GlispDocument
-	/** What it paints, all of them at once, saying so where they differ. */
-	rows: readonly string[]
-	/** The two squares say the colors, with nothing else to say of them. */
-	compact?: boolean
-}>()
+const props = withDefaults(
+	defineProps<{
+		document: GlispDocument
+		/** What it paints, all of them at once, saying so where they differ. */
+		rows: readonly string[]
+		/** The tree it lines up with, in the panel it is in. */
+		treeName?: string
+		labelWidth?: number
+	}>(),
+	{ treeName: 'glisp.inspector', labelWidth: 110 }
+)
 
 const paints = computed<ReadonlyArray<{ row: string; paint: Paint }>>(() =>
 	props.rows.map(row => ({
@@ -83,11 +85,7 @@ function set(part: Partial<Paint>): void {
 const setNumbers = (key: 'width' | 'miterLimit' | 'dashOffset', values: readonly number[]): void =>
 	setEach(lined.value.map(({ row }) => row), i => ({ [key]: values[i]! }))
 
-const DEFAULT_COLOR = '#000000'
 const DEFAULT_WIDTH = 1
-
-const addStroke = (): void =>
-	set({ stroke: DEFAULT_COLOR, width: paint.value.width || DEFAULT_WIDTH })
 
 /** What a color to a line comes with: a line of no width is not there to see. */
 const strokeWithWidth = (stroke: string, width: number): Partial<Paint> =>
@@ -321,58 +319,24 @@ useEventListener(
 				@swap="swap"
 			/>
 		</div>
-		<ParameterTree :name="compact ? 'glisp.canvas.tool' : 'glisp.inspector'" :labelWidth="compact ? 140 : 110">
-			<ParameterTreeItem
-				v-if="!compact && paint.fill !== 'none'"
-				label="Fill"
-				icon="ph:paint-bucket"
-				:selected="isSelected('fill')"
-				:menuItems="menuOf('fill')"
-				@select="select('fill')"
-			>
-				<div class="color" :class="{ mixed: mixed('fill') }" data-takes-reference @focusin="select('fill')">
-					<InputColor alpha :modelValue="paint.fill" @update:modelValue="set({ fill: $event })" />
-					<span v-if="mixed('fill')" class="multiple">Mixed</span>
-				</div>
-			</ParameterTreeItem>
-			<ParameterTreeItem
-				v-else-if="!compact"
-				label="Fill"
-				icon="ph:paint-bucket"
-				:menuItems="referenceMenuOf('fill')"
-				@select="addBy($event, () => set({ fill: DEFAULT_COLOR }))"
-			>
-				<span class="paint-absent" hidden />
-				<NoPaint label="Fill" @click="set({ fill: DEFAULT_COLOR })" />
-			</ParameterTreeItem>
+		<ParameterTree :name="treeName" :labelWidth="labelWidth">
 			<ParameterTreeItem
 				v-if="paint.stroke !== 'none'"
 				v-model:open="lineOpen"
-				:label="compact ? 'Stroke Options' : 'Stroke'"
-				:icon="compact ? 'ph:sliders-horizontal' : 'ph:line-segment'"
+				label="Stroke"
+				icon="ph:sliders-horizontal"
 				expandable
-				:selected="!compact && isSelected('stroke')"
-				:menuItems="menuOf(compact ? 'width' : 'stroke')"
-				@select="compact ? addBy($event, () => (lineOpen = !lineOpen)) : select('stroke')"
+				:menuItems="menuOf('width')"
+				@select="addBy($event, () => (lineOpen = !lineOpen))"
 			>
-				<div class="field">
-					<div v-if="!compact" class="color" :class="{ mixed: mixed('stroke') }" data-takes-reference @focusin="select('stroke')">
-						<InputColor
-							alpha
-							:modelValue="paint.stroke"
-							@update:modelValue="set({ stroke: $event })"
-						/>
-						<span v-if="mixed('stroke')" class="multiple">Mixed</span>
-					</div>
-					<div class="width" data-takes-reference @focusin="select('width')">
-						<MixedNumber
-							leftIcon="mdi:format-line-weight"
-							:values="valuesOf('width')"
-							:items="menuOf('width')"
-							:min="0"
-							@update:values="setNumbers('width', $event)"
-						/>
-					</div>
+				<div class="width" data-takes-reference @focusin="select('width')">
+					<MixedNumber
+						leftIcon="mdi:format-line-weight"
+						:values="valuesOf('width')"
+						:items="menuOf('width')"
+						:min="0"
+						@update:values="setNumbers('width', $event)"
+					/>
 				</div>
 				<template #children>
 					<ParameterTreeItem
@@ -452,16 +416,6 @@ useEventListener(
 					</ParameterTreeItem>
 				</template>
 			</ParameterTreeItem>
-			<ParameterTreeItem
-				v-else-if="!compact"
-				label="Stroke"
-				icon="ph:line-segment"
-				:menuItems="referenceMenuOf('stroke')"
-				@select="addBy($event, addStroke)"
-			>
-				<span class="paint-absent" hidden />
-				<NoPaint label="Stroke" @click="addStroke" />
-			</ParameterTreeItem>
 		</ParameterTree>
 	</div>
 </template>
@@ -484,45 +438,5 @@ useEventListener(
 	padding-inline: 3px;
 	font: inherit;
 	font-weight: 600;
-}
-:global(.TqParameterTreeItem:has(.paint-absent) > .label .icon),
-:global(.TqParameterTreeItem:has(.paint-absent) > .label .name) {
-	color: var(--tq-color-text-mute);
-}
-.field {
-	display: flex;
-	gap: var(--tq-gap-related);
-	min-width: 0;
-}
-.field > :deep(*) {
-	min-width: 0;
-}
-.color {
-	position: relative;
-	flex: 1;
-	min-width: 0;
-}
-/* Saying only that they differ, in place of a color code that is any one of them. */
-.color.mixed :deep(.color-code textarea:not(:focus)) {
-	color: transparent;
-}
-.color.mixed:has(.color-code textarea:focus) .multiple {
-	visibility: hidden;
-}
-.multiple {
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	left: calc(var(--tq-input-height) * 1.25);
-	display: flex;
-	align-items: center;
-	color: var(--tq-color-text-mute);
-	pointer-events: none;
-}
-.field > .width {
-	flex: 0 0 76px;
-}
-.field > .width:only-child {
-	flex: 1;
 }
 </style>
