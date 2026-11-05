@@ -795,6 +795,8 @@ useEventListener(
 	(event: KeyboardEvent) => {
 		const command = slotCommandOfKey(event)
 		if (command !== 'step' && command !== 'all') return
+		// On a Mac, Control+E goes to the end of the line, in anything that is typed in.
+		if (/mac|ipod|iphone|ipad/i.test(navigator.userAgent) && !event.metaKey) return
 		if (!(event.target as Element | null)?.closest?.('.AstProgramCode')) return
 		event.preventDefault()
 		event.stopPropagation()
