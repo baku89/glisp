@@ -186,6 +186,7 @@ const NOT_FILTERS: ReadonlySet<string> = new Set(['style', 'solid'])
 
 const TOOLS = [
 	{ name: 'select', label: 'Select', key: 'v', icon: 'ph:cursor-fill' },
+	{ name: 'points', label: 'Edit Points', key: 'a', icon: 'ph:cursor' },
 	{ name: 'pen', label: 'Pen', key: 'p', icon: 'ph:pen-nib' },
 	{ name: 'pencil', label: 'Pencil', key: 'b', icon: 'ph:pencil-simple' },
 	{ name: 'rect', label: 'Rectangle', key: 'r', icon: SHAPE_ICONS.rect },
@@ -208,7 +209,7 @@ const tool = ref<(typeof TOOLS)[number]['name']>('select')
 
 /** What is on the bar at first: the rest is there behind its dots, until it is wanted. */
 const FIRST_TOOLS: FirstTools = {
-	shown: ['select', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
+	shown: ['select', 'points', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
 	stowed: [
 		'star',
 		'roundRect',
@@ -226,7 +227,7 @@ const FIRST_TOOLS: FirstTools = {
 }
 const toolsKept = useAppConfigStore().ref<unknown>('glisp.canvas.tools', null)
 const toolArrangement = computed(() => arrangedTools(toolsKept.value, FIRST_TOOLS))
-const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
+const drawing = computed(() => (tool.value === 'select' || tool.value === 'points' ? null : tool.value))
 
 /** What tools make things from, which stays with the app whatever the program is. */
 const toolSource = useAppConfigStore().ref<string | null>('glisp.canvas.tool.attributes', null)
@@ -1301,6 +1302,7 @@ function selectInTree(row: string | null): void {
 					:picking="pickingFor !== null"
 					:origin="origin"
 					:drawing="drawing"
+					:byPoints="tool === 'points'"
 					:attributes="toolAttributes"
 					:dimensions="dimensionsOn"
 					:snapping="snappingOn"
@@ -1448,7 +1450,7 @@ function selectInTree(row: string | null): void {
 					v-model:open="toolPanelOpen"
 					:document="toolDocument"
 					:tool="tool"
-					:label="tool === 'select' ? 'Tool Options' : toolInHand.label"
+					:label="tool === 'select' || tool === 'points' ? 'Tool Options' : toolInHand.label"
 					:icon="toolInHand.icon"
 					:paintOfSelected="paintOfSelected"
 				/>
@@ -1509,6 +1511,15 @@ function selectInTree(row: string | null): void {
 	padding-bottom: 96px;
 	pointer-events: none;
 	box-shadow: inset 0 0 0 3px var(--tq-color-accent);
+}
+.file-drop.window {
+	background: color-mix(in srgb, var(--tq-color-accent) 12%, transparent);
+}
+.file-drop-says {
+	padding: 6px 12px;
+	border-radius: var(--tq-radius-input);
+	background: var(--tq-color-accent);
+	color: var(--tq-color-on-accent);
 }
 /* The tabs go from the name of the app up to the zoom, so there is no middle to keep clear. */
 .title-bar.title-bar {

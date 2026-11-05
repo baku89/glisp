@@ -1163,7 +1163,8 @@ describe('grips', () => {
 
 		it('is taken by its vertices', () => {
 			const source = '{c = (path.d "M 0,0 L 10,0")}'
-			expect(kinds(source)).toEqual(['point', 'point'])
+			// And what is between them, for the tool that goes by those.
+			expect(kinds(source)).toEqual(['point', 'point', 'offset'])
 			expect(pulled(source, 1, [5, 5])).toBe('[c = (path.d "M 0,0 L 5,5")]')
 		})
 
@@ -1184,7 +1185,7 @@ describe('grips', () => {
 
 			it('is taken by what controls it too, with lines to them', () => {
 				const grip = gripAt(parse(source), env, row)!
-				expect(grip.handles.map(h => h.at)).toEqual([[0, 0], [1, 0], [2, 0], [3, 0]])
+				expect(grip.handles.filter(h => !h.segment).map(h => h.at)).toEqual([[0, 0], [1, 0], [2, 0], [3, 0]])
 				expect(grip.guides).toHaveLength(2)
 			})
 

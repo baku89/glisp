@@ -59,6 +59,7 @@ import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
 
 import type { GraphPaperValue } from './graphics'
+import { isGuideOfPoints } from './graphics'
 import type { GraphPaperKind } from './graphPaper'
 
 import {
@@ -1545,6 +1546,236 @@ export function withGuideHandles(
 }
 
 /**
+ * `gripped` for a tool that goes by the points of a path, with only what is for that, or for one
+ * that goes by the whole of things, with none of it. The rest is in the way of each.
+ */
+export function gripOfPointsOrNot<G extends { grip: Grip; rowOf: readonly string[] }>(gripped: G | null, ofPoints: boolean): G | null {
+	if (gripped === null) return null
+	const handles = gripped.grip.handles.map((handle, i) => ({ handle, row: gripped.rowOf[i]! }))
+	const kept = handles.filter(({ handle }) => (handle.ofPoints === true) === ofPoints)
+	// What is between the points goes under them, for them to be seen and to be reached for.
+	const inOrder = [...kept.filter(({ handle }) => handle.segment), ...kept.filter(({ handle }) => !handle.segment)]
+	return {
+		...gripped,
+		grip: {
+			...gripped.grip,
+			handles: inOrder.map(({ handle }) => handle),
+			guides: gripped.grip.guides.filter(guide => isGuideOfPoints(guide) === ofPoints),
+		},
+		rowOf: inOrder.map(({ row }) => row),
+	}
+}
+
+/** `gripped` for a tool that draws, which goes on from the points of a path, and has no use for what is between them. */
+export function gripWithoutSegments<G extends { grip: Grip; rowOf: readonly string[] }>(gripped: G | null): G | null {
+	if (gripped === null) return null
+	const kept = gripped.grip.handles.map(handle => handle.segment === undefined)
+	return {
+		...gripped,
+		grip: { ...gripped.grip, handles: gripped.grip.handles.filter((_, i) => kept[i]) },
+		rowOf: gripped.rowOf.filter((_, i) => kept[i]),
+	}
+}
+
+/** Some of the points and segments of a row, as `Handle.vertex` and `Handle.segment` call them. */
+export interface PartsOfRow {
+	readonly row: string
+	readonly parts: readonly string[]
+}
+
+/** The corners around `chosen`, going by the points that there are of them. Null if that is nothing. */
+function boxOfParts(grips: readonly { handles: readonly Handle[]; parts: readonly string[] }[]): readonly [Vec, Vec] | null {
+	const places = grips.flatMap(({ handles, parts }) =>
+		handles.flatMap(({ vertex, segment, ends, at }): Vec[] => {
+			if (vertex !== undefined && parts.includes(vertex) && at !== undefined) return [at]
+			return segment !== undefined && parts.includes(segment) && ends ? [...ends] : []
+		})
+	)
+	if (places.length === 0) return null
+	return [
+		[Math.min(...places.map(([x]) => x)), Math.min(...places.map(([, y]) => y))],
+		[Math.max(...places.map(([x]) => x)), Math.max(...places.map(([, y]) => y))],
+	]
+}
+
+/** What has them go where `map` says, of each row, by a handle that can say so. */
+function changesOfParts(
+	grips: readonly { row: string; handles: readonly Handle[]; parts: readonly string[] }[],
+	map: (at: Vec) => Vec
+): Change[] {
+	return grips.flatMap(({ row, handles, parts }) => {
+		const handle = handles.find(({ vertex, segment }) => parts.includes(vertex ?? segment ?? ''))
+		if (handle === undefined) return []
+		return handle.to([0, 0], [0, 0], { mapping: { parts, map } }).map(change => ({ ...change, row }))
+	})
+}
+
+/**
+ * `gripped`, for a tool that goes by points, with the box around those of them that are `chosen`,
+ * to scale and turn them by, if there is more than one place to go around.
+ */
+export function withBoxOfParts<G extends { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] }>(
+	gripped: G | null,
+	chosen: readonly PartsOfRow[]
+): (G & { readonly around: readonly [Vec, Vec] | null }) | null {
+	if (gripped === null) return null
+	const none = { ...gripped, around: null }
+	const [first] = chosen
+	if (first === undefined || gripped.grip.transform.join() !== IDENTITY.join()) return none
+	const grips = chosen.map(({ row, parts }) => ({
+		row,
+		parts,
+		handles: gripped.grip.handles.filter((_, i) => gripped.rowOf[i] === row),
+	}))
+	const around = boxOfParts(grips)
+	if (around === null) return none
+	const [[left, top], [right, bottom]] = around
+	if (left === right && top === bottom) return none
+	const answer: BoxAnswer = {
+		even: false,
+		scaled: (x, y, [ax, ay]) => changesOfParts(grips, ([px, py]) => [ax + (px - ax) * x, ay + (py - ay) * y]),
+		turned: (by, [ax, ay]) => {
+			const [cos, sin] = [Math.cos((by * Math.PI) / 180), Math.sin((by * Math.PI) / 180)]
+			return changesOfParts(grips, ([px, py]) => [ax + (px - ax) * cos - (py - ay) * sin, ay + (px - ax) * sin + (py - ay) * cos])
+		},
+	}
+	const box = boxHandlesOf(around, answer).map(handle => ({ ...handle, across: true }))
+	const turning = turningAll(around, answer)
+	const turners = turning ? cornerTurners(around, 0, turning) : []
+	const added = [...box, ...turners]
+	return {
+		...gripped,
+		around,
+		grip: { ...gripped.grip, handles: [...gripped.grip.handles, ...added] },
+		rowOf: [...gripped.rowOf, ...added.map(() => first.row)],
+	}
+}
+
+/** As fine as what comes of a number typed is written, for what is worked out not to show how. */
+const TYPED_STEP = 1e-6
+
+/** What the numbers of a box are said of: all of some rows, or only some parts of them. */
+export type Measured = { readonly rows: readonly string[] } | { readonly parts: readonly PartsOfRow[] }
+
+const partsWithHandles = (root: AST, env: Env, parts: readonly PartsOfRow[]) =>
+	parts.map(({ row, parts: own }) => ({ row, parts: own, handles: gripAt(root, env, row)?.handles ?? [] }))
+
+/** The corners around what is `measured`. Null if there is nothing there to go by. */
+export function boxMeasured(root: AST, env: Env, measured: Measured): readonly [Vec, Vec] | null {
+	if ('parts' in measured) return boxOfParts(partsWithHandles(root, env, measured.parts))
+	const box = boundsOfRows(sceneOf(root, env), measured.rows)
+	if (box !== null) return box
+	// One place alone has nothing around it, and is still somewhere.
+	const [only] = sceneOf(root, env).filter(({ row }) => measured.rows.includes(row))
+	return only?.draw === 'point' ? [only.value as Vec, only.value as Vec] : null
+}
+
+/** Whether what is `measured` can go by a size, as what is only one place cannot be, and what cannot be scaled. */
+export function hasSizeMeasured(root: AST, env: Env, measured: Measured): boolean {
+	const box = boxMeasured(root, env, measured)
+	if (box === null || (box[0][0] === box[1][0] && box[0][1] === box[1][1])) return false
+	return 'parts' in measured || gripOfRows(root, env, measured.rows)?.grip.box !== undefined
+}
+
+/**
+ * `root`, with what is `measured` having its box at `x` `y`, of `width` by `height`. What is 0 across
+ * goes no other way than where it is. What can only go by one scale goes by the one of them that says.
+ */
+export function withBoxMeasured(
+	root: AST,
+	env: Env,
+	measured: Measured,
+	[x, y, width, height]: readonly [number, number, number, number]
+): AST | null {
+	const box = boxMeasured(root, env, measured)
+	if (box === null) return null
+	const [[left, top], [right, bottom]] = box
+	const [wasWidth, wasHeight] = [right - left, bottom - top]
+	const scaleX = wasWidth === 0 ? 1 : width / wasWidth
+	const scaleY = wasHeight === 0 ? 1 : height / wasHeight
+	if ('parts' in measured) {
+		const changes = changesOfParts(partsWithHandles(root, env, measured.parts), ([px, py]) => [x + (px - left) * scaleX, y + (py - top) * scaleY])
+		return changes.length === 0 ? null : changed(root, env, measured.parts[0]!.row, roundedChanges(changes, TYPED_STEP)).ast
+	}
+	let next: AST | null = root
+	const [first] = measured.rows
+	if (first === undefined) return null
+	if (scaleX !== 1 || scaleY !== 1) {
+		const answer = gripOfRows(next, env, measured.rows)?.grip.box
+		if (answer === undefined) return null
+		const one = scaleX !== 1 ? scaleX : scaleY
+		const scaled = answer.even ? answer.scaled(one, one, [left, top]) : answer.scaled(scaleX, scaleY, [left, top])
+		next = changed(next, env, first, roundedChanges(scaled, TYPED_STEP)).ast
+	}
+	const moved: Vec = [x - left, y - top]
+	if (moved[0] === 0 && moved[1] === 0) return next
+	for (const row of measured.rows.flatMap(row => rowsPaintedBy(root, env, row))) {
+		if (next === null) return null
+		const move = gripAt(next, env, row)?.move
+		if (move !== undefined) next = changed(next, env, row, roundedChanges(move(moved), TYPED_STEP)).ast
+	}
+	return next
+}
+
+const SAME_NUMBER = 1e-4
+
+/** Which of X, Y, width and height are any different in `after` from `before`, as those are all that a drag is about. */
+export function numbersDifferent(before: readonly [Vec, Vec], after: readonly [Vec, Vec]): number[] {
+	const numbers = ([[left, top], [right, bottom]]: readonly [Vec, Vec]): number[] => [left, top, right - left, bottom - top]
+	const was = numbers(before)
+	return numbers(after).flatMap((value, i) => (Math.abs(value - was[i]!) > SAME_NUMBER ? [i] : []))
+}
+
+/**
+ * How far across and down a box is what stayed where it was, from `before` to `after`: what a size
+ * is said from, when a side has been pulled. The middle, if both ways went, as they do with OPT.
+ */
+export function whatStayed([[left, top], [right, bottom]]: readonly [Vec, Vec], [[l, t], [r, b]]: readonly [Vec, Vec]): Vec {
+	const along = (from: number, to: number, a: number, c: number): number => {
+		const [movedFrom, movedTo] = [Math.abs(a - from) > SAME_NUMBER, Math.abs(c - to) > SAME_NUMBER]
+		return movedFrom && movedTo ? 0.5 : movedFrom ? 1 : 0
+	}
+	return [along(left, right, l, r), along(top, bottom, t, b)]
+}
+
+/**
+ * The box with its corner `corner` of the way across and down at `to`, what `stays` of the way
+ * staying where it is, for those to be what it goes by: it goes no further than to nothing.
+ */
+export function boxWithCornerAt(
+	[[left, top], [right, bottom]]: readonly [Vec, Vec],
+	corner: Vec,
+	stays: Vec,
+	to: Vec
+): [number, number, number, number] {
+	const along = (from: number, size: number, c: number, s: number, at: number): [number, number] => {
+		const fixed = from + s * size
+		const next = Math.max((at - fixed) / (c - s), 0)
+		return [fixed - s * next, next]
+	}
+	const [x, width] = along(left, right - left, corner[0], stays[0], to[0])
+	const [y, height] = along(top, bottom - top, corner[1], stays[1], to[1])
+	return [x, y, width, height]
+}
+
+/** What is called, of the points of each of `rows`, for those from `a` to `b` on the canvas. */
+export function pointsWithin(root: AST, env: Env, rows: readonly string[], a: Vec, b: Vec): { readonly row: string; readonly points: readonly string[] }[] {
+	const [left, right] = a[0] < b[0] ? [a[0], b[0]] : [b[0], a[0]]
+	const [top, bottom] = a[1] < b[1] ? [a[1], b[1]] : [b[1], a[1]]
+	return rows.flatMap(row => {
+		const grip = gripAt(root, env, row)
+		if (grip === null) return []
+		const [ma, mb, mc, md, me, mf] = grip.transform
+		const points = grip.handles.flatMap(({ vertex, at }) => {
+			if (vertex === undefined || at === undefined) return []
+			const [x, y] = [ma * at[0] + mc * at[1] + me, mb * at[0] + md * at[1] + mf]
+			return x >= left && x <= right && y >= top && y <= bottom ? [vertex] : []
+		})
+		return points.length === 0 ? [] : [{ row, points }]
+	})
+}
+
+/**
  * What several say to a box around all of them, if all of them have something to say, each
  * change being of the row it comes from. It goes along the canvas, as they need not go along
  * each other, so that what goes along its own axes can only go by one scale.
@@ -1989,8 +2220,9 @@ export const dimensionsMoved = (
 	root: AST,
 	env: Env,
 	row: string,
-	changes: readonly Change[]
-): Dimension[] => (changes.length === 1 ? dimensionsOf(root, env, row, changes) : [])
+	changes: readonly Change[],
+	before?: AST
+): Dimension[] => (changes.length === 1 ? dimensionsOf(root, env, row, changes, before) : [])
 
 export function dimensionsDrawn(
 	root: AST,

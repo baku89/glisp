@@ -2,7 +2,7 @@ import type { TypeValue } from '@glisp/lang'
 import type { AST } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import type { MenuItem } from 'tweeq/Menu'
-import type { InjectionKey, ShallowRef } from 'vue'
+import { type InjectionKey, onBeforeUnmount, type ShallowRef } from 'vue'
 
 /** The slot selected in an editor, and how to delete it, if it can go. */
 export interface Selection {
@@ -24,6 +24,38 @@ export interface Selection {
 	}
 }
 
+/** What a host has that is to go before any row does, if there is anything. */
+const hostDeletes = new Set<() => boolean>()
+
+/** Whether a host had something to delete, with which that key has done all it does. */
+function deletedByHost(event: KeyboardEvent): boolean {
+	if (![...hostDeletes].some(deletes => deletes())) return false
+	// Whichever of these got to it first, which is whichever was mounted first.
+	event.stopImmediatePropagation()
+	event.preventDefault()
+	return true
+}
+
+/**
+ * The delete key, for what a host has selected of its own, before any row. `deletes` says whether
+ * there was any of that, and only has it go if the key is not being typed with.
+ */
+export function useHostDelete(deletes: () => boolean): void {
+	hostDeletes.add(deletes)
+	onBeforeUnmount(() => hostDeletes.delete(deletes))
+	useEventListener(
+		window,
+		'keydown',
+		(event: KeyboardEvent) => {
+			if (event.key !== 'Delete' && event.key !== 'Backspace') return
+			const target = event.target as HTMLElement | null
+			if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
+			deletedByHost(event)
+		},
+		{ capture: true }
+	)
+}
+
 /**
  * Deleting is about the row selected in an inspector, while there is one, rather than
  * what is selected elsewhere. A row that cannot go leaves it to `removeNearest`, if it is
@@ -39,10 +71,11 @@ export function useDeleteInInspector(
 		'keydown',
 		(event: KeyboardEvent) => {
 			if (event.key !== 'Delete' && event.key !== 'Backspace') return
-			const selected = selection.value
-			if (!isInspector() || selected === null) return
 			const target = event.target as HTMLElement | null
 			if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
+			if (deletedByHost(event)) return
+			const selected = selection.value
+			if (!isInspector() || selected === null) return
 			event.stopPropagation()
 			event.preventDefault()
 			selection.value = null

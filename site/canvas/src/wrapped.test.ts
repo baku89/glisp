@@ -8,11 +8,11 @@ import { actionsOf, isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, 
 import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
 import { transform } from 'pave/path/modifiers'
-import { toD } from 'pave/path/svg'
+import { fromD, toD } from 'pave/path/svg'
 import { describe, expect, it } from 'vitest'
 
 import { BOX_ANSWERS, type PathValue, withGraphics } from './graphics'
-import { boundsOfRows, boxHandlesOf, changed, gripAt, gripOfRows, innerPathsOf, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
+import { boundsOfRows, boxHandlesOf, changed, gripAt, boxMeasured, gripOfPointsOrNot, gripOfRows, hasSizeMeasured, innerPathsOf, boxWithCornerAt, numbersDifferent, pointsWithin, whatStayed, withBoxMeasured, withBoxOfParts, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const grip = (src: string) => gripAt(parse(`{c = ${src}}`), env, 'binding:c')!
@@ -1518,3 +1518,237 @@ describe('repeating along a path', () => {
 		expect(filtersFor(values, env).map(({ name }) => name)).toContain('path.repeatAlong')
 	})
 })
+
+describe('the points of a path', () => {
+	const d = (data: string) => `(path.d "${data}")`
+	const gripOf = (data: string) => gripAt(parse(`{c = ${d(data)}}`), env, 'binding:c')!
+	const pointsOf = (data: string) => gripOf(data).handles.filter(({ vertex }) => vertex !== undefined)
+	const gone = (data: string, removing: readonly string[]) => {
+		const [first] = pointsOf(data)
+		const [change] = first!.to(first!.at!, first!.at!, { removing })
+		return change === undefined ? null : (change.value as string)
+	}
+
+	it('are not there for the tool that goes by the whole of things, and are all there is for the one that goes by them', () => {
+		const data = 'M0,0 C10,0 10,10 20,10 L30,0'
+		const root = parse(`{c = (style ${d(data)} fill="#000")}`)
+		const held = gripOfRows(root, env, ['binding:c'])!
+		const whole = gripOfPointsOrNot(held, false)!
+		expect(whole.grip.handles).toEqual([])
+		expect(whole.grip.guides).toEqual([])
+		expect(whole.rowOf).toEqual([])
+		const points = gripOfPointsOrNot(held, true)!
+		expect(points.grip.handles.filter(({ vertex }) => vertex !== undefined)).toHaveLength(3)
+		expect(points.grip.handles.filter(({ control }) => control)).toHaveLength(2)
+		expect(points.grip.guides).toHaveLength(2)
+		expect(points.rowOf).toHaveLength(7)
+	})
+
+	it('still has the box around it, without its points', () => {
+		const root = parse(`{c = ${d('M0,0 L10,0 L10,10')}}`)
+		const shapes = sceneOf(root, env)
+		const boxed = withBoxHandles(gripOfPointsOrNot(gripOfRows(root, env, ['binding:c']), false), shapes, ['binding:c'])!
+		expect(boxed.grip.handles.filter(({ corner }) => corner)).toHaveLength(4)
+	})
+
+	it('goes, with those either side of it joined by a line', () => {
+		expect(gone('M0,0 L10,0 L10,10', ['0:1'])).toBe('M 0,0 L 10,10')
+	})
+
+	it('goes from the start or the end of what is open', () => {
+		expect(gone('M0,0 L10,0 L10,10', ['0:0'])).toBe('M 10,0 L 10,10')
+		expect(gone('M0,0 L10,0 L10,10', ['0:2'])).toBe('M 0,0 L 10,0')
+	})
+
+	it('goes round what is closed, from its first as from any other', () => {
+		expect(gone('M0,0 L10,0 L10,10 L0,10 Z', ['0:0'])).toBe('M 10,0 L 10,10 L 0,10 Z')
+		expect(gone('M0,0 L10,0 L10,10 L0,10 Z', ['0:2'])).toBe('M 0,0 L 10,0 L 0,10 Z')
+	})
+
+	it('leaves a curve going out of the one before and into the one after', () => {
+		expect(gone('M0,0 C1,1 2,2 3,3 C4,4 5,5 6,6', ['0:1'])).toBe('M 0,0 C 1,1 5,5 6,6')
+		expect(gone('M0,0 L3,3 C4,4 5,5 6,6', ['0:1'])).toBe('M 0,0 C 0,0 5,5 6,6')
+		expect(gone('M0,0 C1,1 2,2 3,3 L6,6', ['0:1'])).toBe('M 0,0 C 1,1 6,6 6,6')
+	})
+
+	it('goes several at once, and leaves out what is left with too little to be anything', () => {
+		expect(gone('M0,0 L1,0 L2,0 L3,0', ['0:1', '0:2'])).toBe('M 0,0 L 3,0')
+		expect(gone('M0,0 L1,0 M5,5 L6,6 L7,7', ['0:0'])).toBe('M 5,5 L 6,6 L 7,7')
+		expect(gone('M0,0 L1,0 L2,2 Z', ['0:0'])).toBe('M 1,0 L 2,2')
+	})
+
+	it('has nothing to do where that is all there is', () => {
+		expect(gone('M0,0 L1,0', ['0:0'])).toBeNull()
+	})
+
+	const anchors = (data: string) => gripOf(data).handles.filter(({ vertex }) => vertex !== undefined)
+	const segments = (data: string) => gripOf(data).handles.filter(({ segment }) => segment !== undefined)
+	const written = (changes: readonly { value: unknown }[]) => changes[0]!.value as string
+
+	it('go together, each by as far as it has been taken, with what controls them', () => {
+		const [first] = anchors('M0,0 C1,0 2,0 3,0 L9,9')
+		const moved = first!.to([10, 0], [0, 0], { moving: ['0:0', '0:1'] })
+		expect(written(moved)).toBe('M 10,0 C 11,0 12,0 13,0 L 9,9')
+	})
+
+	it('has a segment between each of them, under them, going round what is closed', () => {
+		expect(segments('M0,0 L1,0 L1,1').map(({ segment }) => segment)).toEqual(['segment 0:1', 'segment 0:2'])
+		expect(segments('M0,0 L1,0 L1,1 Z').map(({ segment }) => segment)).toEqual(['segment 0:0', 'segment 0:1', 'segment 0:2'])
+		const root = parse(`{c = ${d('M0,0 L1,0')}}`)
+		const { handles } = gripOfPointsOrNot(gripOfRows(root, env, ['binding:c']), true)!.grip
+		expect(handles.findIndex(({ segment }) => segment)).toBeLessThan(handles.findIndex(({ vertex }) => vertex))
+	})
+
+	it('moves both ends of a straight segment', () => {
+		const [segment] = segments('M0,0 L10,0 L10,10')
+		expect(written(segment!.to([5, 7], [5, 0]))).toBe('M 0,7 L 10,7 L 10,10')
+	})
+
+	it('moves the ends of the segment that closes it', () => {
+		const [closing] = segments('M0,0 L10,0 L10,10 Z')
+		expect(written(closing!.to([5, 7], [5, 5]))).toBe('M 0,2 L 10,0 L 10,12 Z')
+	})
+
+	it('bends a curved segment, where it was taken going to where it is pulled and its ends staying', () => {
+		const data = 'M0,0 C0,10 10,10 10,0'
+		const [segment] = segments(data)
+		// Its middle is at [5 7.5].
+		const value = written(segment!.to([5, 17.5], [5, 7.5]))
+		expect(value.startsWith('M 0,0 C ')).toBe(true)
+		expect(value.endsWith(' 10,0')).toBe(true)
+		const [[, , , bottom]] = [bounds(fromD(value)).flat()]
+		expect(bottom).toBeCloseTo(17.5, 1)
+	})
+
+	it('goes as a segment, leaving apart what it was between', () => {
+		expect(gone('M0,0 L1,0 L2,0 L3,0', ['segment 0:2'])).toBe('M 0,0 L 1,0 M 2,0 L 3,0')
+		expect(gone('M0,0 L1,0 L2,0', ['segment 0:1'])).toBe('M 1,0 L 2,0')
+	})
+
+	it('opens what is closed, from the segment that went', () => {
+		expect(gone('M0,0 L1,0 L1,1 Z', ['segment 0:1'])).toBe('M 1,0 L 1,1 L 0,0')
+		expect(gone('M0,0 L1,0 L1,1 Z', ['segment 0:0'])).toBe('M 0,0 L 1,0 L 1,1')
+	})
+
+	it('are found by where they are on the canvas, for each row', () => {
+		const root = parse(`{a = ${d('M0,0 L10,0 L10,10')} b = ${d('M100,100 L105,105')} c = (path.rect [0 0] [5 5])}`)
+		expect(pointsWithin(root, env, ['binding:a', 'binding:b', 'binding:c'], [-1, -1], [10, 5])).toEqual([{ row: 'binding:a', points: ['0:0', '0:1'] }])
+		expect(pointsWithin(root, env, ['binding:a', 'binding:b'], [110, 110], [8, 8])).toEqual([
+			{ row: 'binding:a', points: ['0:2'] },
+			{ row: 'binding:b', points: ['0:0', '0:1'] },
+		])
+	})
+
+	describe('in a box', () => {
+		const held = (data: string, parts: readonly string[]) => {
+			const root = parse(`{c = ${d(data)}}`)
+			return { root, ...withBoxOfParts(gripOfPointsOrNot(gripOfRows(root, env, ['binding:c']), true), [{ row: 'binding:c', parts }])! }
+		}
+		const SQUARE = 'M0,0 C0,-5 10,-5 10,0 L10,10 L0,10 Z'
+
+		it('goes around those chosen, by where they are, and not what controls them', () => {
+			expect(held(SQUARE, ['0:0', '0:1']).around).toEqual([[0, 0], [10, 0]])
+			expect(held(SQUARE, ['segment 0:2']).around).toEqual([[10, 0], [10, 10]])
+		})
+
+		it('has nothing around only one place', () => {
+			const { around, grip } = held(SQUARE, ['0:1'])
+			expect(around).toBeNull()
+			expect(grip.handles.some(({ corner }) => corner)).toBe(false)
+		})
+
+		it('scales those chosen and what controls them, and leaves the rest', () => {
+			const { grip } = held(SQUARE, ['0:0', '0:1'])
+			const side = grip.handles.find(({ name, at }) => name === 'box' && at![0] === 10 && at![1] === 0)!
+			expect(side.to([20, 0], side.at!)[0]!.value).toBe('M 0,0 C 0,-5 20,-5 20,0 L 10,10 L 0,10 Z')
+		})
+
+		it('turns those chosen around its middle', () => {
+			const { grip } = held('M0,0 L10,0 L5,5', ['0:0', '0:1'])
+			const turner = grip.handles.find(({ outsideCorner }) => outsideCorner)!
+			const value = turner.to([turner.pivot![0], turner.pivot![1] + 10], turner.at!)[0]!.value as string
+			expect(value.endsWith('L 5,5')).toBe(true)
+			expect(value).not.toBe('M 0,0 L 10,0 L 5,5')
+		})
+	})
+
+	describe('by their numbers', () => {
+		const SRC = `{a = ${d('M0,0 L10,0 L10,20')} b = ${d('M100,100 L110,100')}}`
+		const root = parse(SRC)
+		const dOf = (ast: AST | null, name: string) => print((ast as LetAST).bindings.find(([bound]) => bound === name)![1])
+
+		it('are of the box around some of them', () => {
+			const parts = [{ row: 'binding:a', parts: ['0:0', '0:1'] }]
+			expect(boxMeasured(root, env, { parts })).toEqual([[0, 0], [10, 0]])
+			expect(hasSizeMeasured(root, env, { parts })).toBe(true)
+			expect(dOf(withBoxMeasured(root, env, { parts }, [5, 7, 20, 0]), 'a')).toBe('(path.d "M 5,7 L 25,7 L 10,20")')
+		})
+
+		it('are only where it is, of one', () => {
+			const parts = [{ row: 'binding:a', parts: ['0:1'] }]
+			expect(hasSizeMeasured(root, env, { parts })).toBe(false)
+			expect(dOf(withBoxMeasured(root, env, { parts }, [3, 4, 0, 0]), 'a')).toBe('(path.d "M 0,0 L 3,4 L 10,20")')
+		})
+
+		it('go across rows', () => {
+			const parts = [{ row: 'binding:a', parts: ['0:0'] }, { row: 'binding:b', parts: ['0:1'] }]
+			const next = withBoxMeasured(root, env, { parts }, [10, 10, 220, 200])
+			expect(dOf(next, 'a')).toBe('(path.d "M 10,10 L 10,0 L 10,20")')
+			expect(dOf(next, 'b')).toBe('(path.d "M 100,100 L 230,210")')
+		})
+
+		it('are of what a whole row comes to, scaled and moved', () => {
+			const rows = ['binding:a']
+			expect(boxMeasured(root, env, { rows })).toEqual([[0, 0], [10, 20]])
+			expect(hasSizeMeasured(root, env, { rows })).toBe(true)
+			expect(dOf(withBoxMeasured(root, env, { rows }, [1, 2, 20, 40]), 'a')).toBe('(path.d "M 1,2 L 21,2 L 21,42")')
+		})
+
+		it('are only those that a drag has changed', () => {
+			const box = [[0, 0], [10, 20]] as const
+			expect(numbersDifferent(box, [[5, 0], [15, 20]])).toEqual([0])
+			expect(numbersDifferent(box, [[0, 5], [10, 25]])).toEqual([1])
+			expect(numbersDifferent(box, [[5, 5], [15, 25]])).toEqual([0, 1])
+			expect(numbersDifferent(box, [[0, 0], [30, 20]])).toEqual([2])
+			expect(numbersDifferent(box, [[-5, 0], [10, 20]])).toEqual([0, 2])
+			expect(numbersDifferent(box, box)).toEqual([])
+		})
+
+		it('say what stayed where it was, when a side is pulled', () => {
+			const box = [[0, 0], [10, 20]] as const
+			expect(whatStayed(box, [[0, 0], [30, 20]])).toEqual([0, 0])
+			expect(whatStayed(box, [[-5, 0], [10, 20]])).toEqual([1, 0])
+			expect(whatStayed(box, [[0, -5], [10, 20]])).toEqual([0, 1])
+			expect(whatStayed(box, [[-5, 0], [15, 20]])).toEqual([0.5, 0])
+		})
+
+		it('put a corner where it is said, the one across from it staying', () => {
+			const box = [[0, 0], [10, 20]] as const
+			expect(boxWithCornerAt(box, [1, 1], [0, 0], [30, 40])).toEqual([0, 0, 30, 40])
+			expect(boxWithCornerAt(box, [0, 0], [1, 1], [-5, 5])).toEqual([-5, 5, 15, 15])
+			expect(boxWithCornerAt(box, [0, 1], [1, 0], [2, 8])).toEqual([2, 0, 8, 8])
+			// As far as nothing, and no further.
+			expect(boxWithCornerAt(box, [1, 1], [0, 0], [-3, 40])).toEqual([0, 0, 0, 40])
+			// Around its middle, with OPT.
+			expect(boxWithCornerAt(box, [1, 0], [0.5, 1], [15, 0])).toEqual([-5, 0, 20, 20])
+		})
+
+		it('come to what was typed, and not to all but that', () => {
+			const box = parse(`{a = ${d('M500,300 L760,300 L760,560 L500,560 Z')}}`)
+			const next = withBoxMeasured(box, env, { rows: ['binding:a'] }, [500, 300, 300, 260])
+			expect(dOf(next, 'a')).toBe('(path.d "M 500,300 L 800,300 L 800,560 L 500,560 Z")')
+		})
+
+		it('are of several rows together', () => {
+			const rows = ['binding:a', 'binding:b']
+			const next = withBoxMeasured(root, env, { rows }, [0, 0, 55, 50])
+			expect(dOf(next, 'b')).toBe('(path.d "M 50,50 L 55,50")')
+		})
+	})
+
+	it('still moves by a point, and takes what controls it along', () => {
+		const [, second] = pointsOf('M0,0 C1,0 2,0 3,0')
+		expect(second!.to([3, 10], second!.at!)[0]!.value).toBe('M 0,0 C 1,0 2,10 3,10')
+	})
+})
+

@@ -1811,6 +1811,12 @@ export interface HandleDrag {
 	readonly even?: boolean
 	/** A control's other side stays in line with it, however long it was. */
 	readonly smooth?: boolean
+	/** It is not moved: these of the vertices of what it is of go, as `Handle.vertex` calls them. */
+	readonly removing?: readonly string[]
+	/** All of these of the parts of what it is of go along with it, however far it has been taken. */
+	readonly moving?: readonly string[]
+	/** It is not moved: these of the parts of what it is of go to where `map` says of each place. */
+	readonly mapping?: { readonly parts: readonly string[]; readonly map: (at: Vec) => Vec }
 }
 
 /** A place on a canvas to take hold of a call by. */
@@ -1877,6 +1883,14 @@ export interface Handle {
 	readonly parts?: readonly (readonly number[])[]
 	/** It pulls what goes through somewhere else, and is not on it, as a curve's controls are. */
 	readonly control?: boolean
+	/** It is one of the points of a path's data, for the tool that goes by those, and what it is called there. */
+	readonly vertex?: string
+	/** It is a line or a curve between two points of a path, and what that is called there. */
+	readonly segment?: string
+	/** The two points it is between, if it is that. */
+	readonly ends?: readonly [Vec, Vec]
+	/** It is for the tool that goes by a path's points, and is in the way of all else. */
+	readonly ofPoints?: boolean
 	/** It does not end up where it is taken to, so it is not to refer to what it snapped to. */
 	readonly constrained?: boolean
 	/** What has to change, for it to be at `to`, having been taken at `from`. */
@@ -2086,6 +2100,120 @@ const shiftVertex = (vertex: Vertex, delta: Vec): Vertex => ({
 		: {}),
 })
 
+/** The lines out to a curve's controls, which go with its points. */
+const GUIDES_OF_POINTS = new WeakSet<Path>()
+export const isGuideOfPoints = (guide: Path): boolean => GUIDES_OF_POINTS.has(guide)
+
+/** What is called a line or a curve between two points of a path, which is the one going into `curve:vertex`. */
+const segmentCalled = (c: number, v: number): string => `segment ${c}:${v}`
+
+/** A curve cut at each of its segments that are gone, into what is left between them. */
+function curvesLeftOf(vertices: readonly Vertex[], closed: boolean, c: number, gone: readonly string[]): { readonly at: readonly number[]; readonly closed: boolean }[] {
+	const count = vertices.length
+	const cuts = vertices.flatMap((_, v) => (gone.includes(segmentCalled(c, v)) ? [v] : []))
+	const all = vertices.map((_, v) => v)
+	if (cuts.length === 0) return [{ at: all, closed }]
+	// What goes round begins again at the first of them, and the rest of it is as what does not.
+	const start = closed ? cuts[0]! : 0
+	const order = all.map(i => (i + start) % count)
+	const pieces: number[][] = [[]]
+	for (const v of order) {
+		// What is open has nothing going into its first, however that is said.
+		if (cuts.includes(v) && pieces.at(-1)!.length > 0) pieces.push([])
+		pieces.at(-1)!.push(v)
+	}
+	return pieces.map(at => ({ at, closed: false }))
+}
+
+/**
+ * `path` without what is called in `gone`: vertices as `curve:vertex`, their neighbors joined as near
+ * to how they went as they can be, as a curve goes on out of the one before and into the one after,
+ * and segments, which leave what they were between apart. Null if that would leave nothing of it.
+ */
+export function withoutVertices(path: Path, gone: readonly string[]): Path | null {
+	const curves = (path as unknown as { curves: readonly Curve[] }).curves
+	const next = curves.flatMap((curve, c) =>
+		curvesLeftOf(curve.vertices, curve.closed, c, gone).flatMap(({ at, closed }) => {
+			const vertices = at.map(v => curve.vertices[v]!)
+			const isGone = (i: number): boolean => gone.includes(`${c}:${at[i]}`)
+			const kept = vertices.flatMap((vertex, v) => {
+				if (isGone(v)) return []
+				// What it now comes from, and how the first of what is gone left that.
+				let first = v
+				for (let i = v - 1; i >= 0 && isGone(i); i--) first = i
+				if (closed && first === 0) for (let i = vertices.length - 1; i > v && isGone(i); i--) first = i
+				if (first === v || (!closed && first === 0)) return [vertex]
+				const before = vertices[(first - 1 + vertices.length) % vertices.length]!
+				const left = vertices[first]!
+				if (vertex.command !== 'C' && left.command !== 'C') return [vertex]
+				if (vertex.command !== 'C' && vertex.command !== 'L') return [vertex]
+				return [
+					{
+						...vertex,
+						command: 'C',
+						args: [
+							left.command === 'C' && left.args ? left.args[0]! : before.point,
+							vertex.command === 'C' && vertex.args ? vertex.args[1]! : vertex.point,
+						],
+					},
+				]
+			})
+			// A point is not anything drawn, and it takes three to go round.
+			if (kept.length < 2) return []
+			return [{ vertices: kept, closed: closed && kept.length > 2 }]
+		})
+	)
+	return next.length === 0 ? null : ({ curves: next } as unknown as Path)
+}
+
+/** `path`, with what is called in `moving` going where `map` says: a segment is the two points it is between, and a point takes what controls it along. */
+function withPartsMapped(path: Path, moving: readonly string[], map: (at: Vec) => Vec): Path {
+	const curves = (path as unknown as { curves: readonly Curve[] }).curves
+	return {
+		curves: curves.map(({ vertices, closed }, c) => {
+			const count = vertices.length
+			const before = (v: number): number => (v > 0 ? v - 1 : closed ? count - 1 : -1)
+			const going = new Set(
+				vertices.flatMap((_, v) => [
+					...(moving.includes(`${c}:${v}`) || moving.includes(segmentCalled(c, v)) ? [v] : []),
+					...(moving.includes(segmentCalled(c, v)) ? [before(v)] : []),
+				])
+			)
+			return {
+				vertices: vertices.map((vertex, v) => {
+					const own = going.has(v)
+					const { args } = vertex
+					return {
+						...vertex,
+						point: own ? map(vertex.point) : vertex.point,
+						...(vertex.command === 'C' && args
+							? { args: [going.has(before(v)) ? map(args[0]!) : args[0]!, own ? map(args[1]!) : args[1]!] }
+							: {}),
+					}
+				}),
+				closed,
+			}
+		}),
+	} as unknown as Path
+}
+
+const STEPS_ALONG_A_CURVE = 48
+
+/** How far along a curve its nearest to `to` is, kept from its ends, which are not for it to move. */
+function alongCurve(from: Vec, control1: Vec, control2: Vec, end: Vec, to: Vec): number {
+	let best = 0.5
+	let away = Infinity
+	for (let i = 1; i < STEPS_ALONG_A_CURVE; i++) {
+		const t = i / STEPS_ALONG_A_CURVE
+		const [a, b, c, d] = [(1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t ** 2, t ** 3]
+		const x = a * from[0] + b * control1[0] + c * control2[0] + d * end[0]
+		const y = a * from[1] + b * control1[1] + c * control2[1] + d * end[1]
+		const distance = Math.hypot(x - to[0], y - to[1])
+		if (distance < away) [best, away] = [t, distance]
+	}
+	return best
+}
+
 /**
  * Take hold of a path's data, by its vertices and what controls its curves, as they
  * are all there is to say about it. A vertex takes its controls along.
@@ -2100,7 +2228,9 @@ function gripOfD(path: Path): Grip {
 			const previous = vertices[v - 1] ?? (closed ? vertices.at(-1) : undefined)
 			if (command === 'C' && args?.length === 2 && previous !== undefined) {
 				const [control1, control2] = args as readonly [Vec, Vec]
-				guides.push(line(previous.point, control1), line(at, control2))
+				const lines = [line(previous.point, control1), line(at, control2)]
+				for (const guide of lines) GUIDES_OF_POINTS.add(guide)
+				guides.push(...lines)
 				args.forEach((control, a) => {
 					// What it comes out of, and the control on the other side of that, if any.
 					const anchor = a === 0 ? previous.point : at
@@ -2110,6 +2240,7 @@ function gripOfD(path: Path): Grip {
 						kind: 'point',
 						name: 'control',
 						control: true,
+						ofPoints: true,
 						at: control,
 						pivot: anchor,
 						to: (to, _, how) => {
@@ -2139,9 +2270,17 @@ function gripOfD(path: Path): Grip {
 			handles.push({
 				kind: 'point',
 				name: 'anchor',
+				ofPoints: true,
+				vertex: `${c}:${v}`,
 				at,
-				to: to =>
-					whole(
+				to: (to, _, how) => {
+					if (how?.removing) {
+						const left = withoutVertices(path, how.removing)
+						return left === null ? [] : whole(left)
+					}
+					if (how?.mapping) return whole(withPartsMapped(path, how.mapping.parts, how.mapping.map))
+					if (how?.moving) return whole(withPartsMapped(path, how.moving, place => add(place, sub(to, at))))
+					return whole(
 						withVertices(path, c, all => {
 							const delta = sub(to, at)
 							const next = (v + 1) % all.length
@@ -2162,7 +2301,56 @@ function gripOfD(path: Path): Grip {
 									: vertex
 							})
 						})
-					),
+					)
+				},
+			})
+		})
+	})
+	curves.forEach(({ vertices, closed }, c) => {
+		vertices.forEach((vertex, v) => {
+			const previous = vertices[v - 1] ?? (closed ? vertices.at(-1) : undefined)
+			if (previous === undefined) return
+			const called = segmentCalled(c, v)
+			const { args } = vertex
+			const isCurve = vertex.command === 'C' && args?.length === 2
+			handles.push({
+				kind: 'offset',
+				name: 'segment',
+				ofPoints: true,
+				segment: called,
+				ends: [previous.point, vertex.point],
+				path: {
+					curves: [{ vertices: [{ point: previous.point, command: 'L' }, vertex], closed: false }],
+				} as unknown as Path,
+				to: (to, from, how) => {
+					if (how?.removing) {
+						const left = withoutVertices(path, how.removing)
+						return left === null ? [] : whole(left)
+					}
+					if (how?.mapping) return whole(withPartsMapped(path, how.mapping.parts, how.mapping.map))
+					const delta = sub(to, from)
+					if (how?.moving || !isCurve) return whole(withPartsMapped(path, how?.moving ?? [called], at => add(at, delta)))
+					// So that where it was taken goes where it is pulled, by as little as each control can.
+					const [control1, control2] = args as readonly [Vec, Vec]
+					const t = alongCurve(previous.point, control1, control2, vertex.point, from)
+					const [b1, b2] = [3 * (1 - t) ** 2 * t, 3 * (1 - t) * t ** 2]
+					const by = b1 * b1 + b2 * b2
+					return whole(
+						withVertices(path, c, all =>
+							all.map((other, i) =>
+								i === v
+									? {
+											...other,
+											args: [
+												add(control1, [(delta[0] * b1) / by, (delta[1] * b1) / by]),
+												add(control2, [(delta[0] * b2) / by, (delta[1] * b2) / by]),
+											],
+										}
+									: other
+							)
+						)
+					)
+				},
 			})
 		})
 	})
@@ -2294,7 +2482,7 @@ function turnedBy(arg: number, c: Vec, angle: number, from: number): { handle: H
 }
 
 /** As far from `c` as `to` is, at the nearest of the angles that go evenly. */
-const evenFrom = (c: Vec, to: Vec): Vec =>
+export const evenFrom = (c: Vec, to: Vec): Vec =>
 	add(c, toward(Math.round(degrees(sub(to, c)) / ANGLE_STEP) * ANGLE_STEP, dist(c, to)))
 
 /** The two ends of something, each going by even angles around the other. */
@@ -3767,6 +3955,7 @@ makers.set(makeKaleidoscopeTile, (args, inner, proportional, free) => {
 		move: all.every(grip => grip?.move !== undefined) ? movingAll(all) : undefined,
 	}
 })
+
 
 makers.set(makeShadow, showingPath(([path, by]) => {
 	const center = middleOf(pathOf(path))

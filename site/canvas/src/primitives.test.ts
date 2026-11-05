@@ -359,7 +359,7 @@ describe('what is still a handle, with a tool in hand', () => {
 			[3, false],
 		])
 		const d = gripAt(parse('{c = (path.d "M0 0C1 1 2 2 3 3")}'), env, ROW)!
-		expect(d.handles.map(h => [h.name, onlyShapes(h)])).toEqual([
+		expect(d.handles.filter(h => !h.segment).map(h => [h.name, onlyShapes(h)])).toEqual([
 			['anchor', false],
 			['control', true],
 			['control', true],

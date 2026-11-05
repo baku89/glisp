@@ -16,7 +16,7 @@ import {
 	withPointRemoved,
 	withPointsClosed,
 } from './modulate'
-import { otherControl, type Change, type AxesValue, type Grip, type GraphPaperValue, type Handle, type Mat, NO_PAINT, type Paint, type Path, type Vec, inkOn, onlyShapes } from './graphics'
+import { evenFrom, otherControl, type Change, type AxesValue, type Grip, type GraphPaperValue, type Handle, type Mat, NO_PAINT, type Paint, type Path, type Vec, inkOn, onlyShapes } from './graphics'
 import { dotTile, graphPaperPositions, graphPaperStep } from './graphPaper'
 import { rowsAbout, viewBetween } from './rows'
 import {
@@ -82,12 +82,25 @@ import {
 	isOutlined,
 	lineOfShape,
 	withGuideHandles,
+	withBoxOfParts,
+	boxMeasured,
+	hasSizeMeasured,
+	withBoxMeasured,
+	numbersDifferent,
+	whatStayed,
+	boxWithCornerAt,
+	type Measured,
+	type PartsOfRow,
+	gripOfPointsOrNot,
+	gripWithoutSegments,
+	pointsWithin,
 	canRefer,
 	penKind,
 } from './scene'
 import { BRUSHES, type Brush, type BrushContext, brushed, type BrushName, type Guides, isBrush } from './brushes'
 import { fitFurther, NOTHING_SETTLED, pathOfFit, type PencilFit, samplesOf, type Steady, steadied } from './pencilFit'
 import { paintOfLine, withPaintDrawn } from './toolAttributes'
+import { useHostDelete } from '@glisp/tweeq'
 
 const props = defineProps<{
 	document: GlispDocument
@@ -99,6 +112,8 @@ const props = defineProps<{
 	origin: readonly [number, number]
 	/** What a press does, if it draws. */
 	drawing?: ShapeTool | 'pen' | 'pencil' | BrushName | null
+	/** What is taken hold of is the points of a path, and not the whole of anything. */
+	byPoints?: boolean
 	/** What it draws from, of which what it draws has a copy. */
 	attributes?: { readonly paint: Paint; readonly shape: ShapeAttributes }
 	/** A drag says its numbers exactly, and they can be typed once it is let go of. */
@@ -214,6 +229,7 @@ const roundedPlace = (x: number, y: number): Vec => {
 /** A way to take something, to see what it takes with it. */
 const TRIAL: Vec = [37.3, 41.9]
 const add = (a: Vec, b: Vec): Vec => [a[0] + b[0], a[1] + b[1]]
+const sub = (a: Vec, b: Vec): Vec => [a[0] - b[0], a[1] - b[1]]
 
 /** The rows that would come out differently, for what is at `row` to change like this. */
 function changedBy(row: string, changes: readonly Change[], root?: AST): Set<string> {
@@ -318,14 +334,50 @@ const held = shallowRef<{
 	editing: boolean
 	/** The program as the drag left it, to go back to. */
 	base: AST
+	/** The numbers are those of the box around this, there being none written to say them. */
+	measured?: Measured
+	/** Which of those, as what a drag has not changed is nothing it is about. */
+	shown?: readonly number[]
+	/** A size goes from this much across and down the box, as it does from a side pulled, with where it is following. */
+	stays?: Vec
+	/** The numbers are of this corner of it, the way across and down, as it is what has been pulled. */
+	corner?: Vec
 } | null>(null)
 /** What was last typed came to this, which is not someone else having changed it. */
 let typed: AST | null = null
 
+/** The numbers of the box around what is `measured`, as they are now, each by what it says. */
+function numbersMeasured(measured: Measured, corner?: Vec): Dimension[] {
+	const { root, env } = props.document
+	const box = boxMeasured(root.value, env.value, measured)
+	if (box === null) return []
+	const [[left, top], [right, bottom]] = box
+	const hasSize = corner === undefined && hasSizeMeasured(root.value, env.value, measured)
+	const said: (readonly [string, number])[] = corner
+		? [['X', left + corner[0] * (right - left)], ['Y', top + corner[1] * (bottom - top)]]
+		: [['X', left], ['Y', top]]
+	if (hasSize) said.push(['W', right - left], ['H', bottom - top])
+	return said.map(([label, value], index): Dimension => ({
+		route: [],
+		index,
+		label,
+		value: Number(value.toFixed(4)),
+		options: {},
+		length: said.length,
+	}))
+}
+
 const heldDimensions = computed(() => {
 	const { root, env } = props.document
 	if (held.value === null) return []
-	const { row, places, at, outsideOf } = held.value
+	const { row, places, at, outsideOf, measured, shown, corner } = held.value
+	if (measured !== undefined) {
+		const dimensions = numbersMeasured(measured, corner).filter(({ index }) => shown?.includes(index!) ?? true)
+		const box = boxMeasured(root.value, env.value, measured)
+		return box === null || dimensions.length === 0
+			? []
+			: [{ dimensions, at: toScreen(box[1], view.value), side: 'corner' as const }]
+	}
 	return placedDimensions(
 		root.value,
 		env.value,
@@ -355,8 +407,77 @@ function hold(
 			: { row, places, at: fromScreen(x, y), outsideOf, drawn, first, editing: false, base: props.document.root.value }
 }
 
+/** Saying the numbers of the box around what is `measured`, for lack of any written ones. */
+function holdMeasured(measured: Measured, row: string, [x, y]: Vec, before: AST, pulled: 'side' | Vec | null = null): void {
+	beforeExpression = null
+	const { root, env } = props.document
+	const [was, now] = [boxMeasured(before, env.value, measured), boxMeasured(root.value, env.value, measured)]
+	const different = was === null || now === null ? [] : numbersDifferent(was, now)
+	const corner = pulled !== null && pulled !== 'side' ? pulled : undefined
+	const stayed = was !== null && now !== null ? whatStayed(was, now) : ([0, 0] as Vec)
+	// Pulling a side is about how big it is, and pulling a corner about where that is: the rest comes of those.
+	const cornerOf = ([[left, top], [right, bottom]]: readonly [Vec, Vec], [cx, cy]: Vec): number[] => [left + cx * (right - left), top + cy * (bottom - top)]
+	const shown =
+		corner && was !== null && now !== null
+			? cornerOf(now, corner).flatMap((value, i) => (Math.abs(value - cornerOf(was, corner)[i]!) > 1e-4 ? [i] : []))
+			: pulled === 'side'
+				? different.filter(index => index >= 2)
+				: different
+	if (shown.length === 0) {
+		held.value = null
+		return
+	}
+	held.value = {
+		shown,
+		...(pulled === 'side' ? { stays: stayed } : {}),
+		// What stays is the corner across from it, unless both have gone, as with OPT.
+		...(corner
+			? { corner, stays: [stayed[0] === 0.5 ? 0.5 : 1 - corner[0], stayed[1] === 0.5 ? 0.5 : 1 - corner[1]] as Vec }
+			: {}),
+		row,
+		places: [],
+		at: fromScreen(x, y),
+		outsideOf: null,
+		drawn: false,
+		first: 0,
+		editing: false,
+		base: props.document.root.value,
+		measured,
+	}
+}
+
 function typeDimension(dimension: Dimension, value: number): void {
 	if (held.value === null) return
+	const { measured, corner, stays } = held.value
+	if (measured !== undefined && corner !== undefined && stays !== undefined) {
+		const box = boxMeasured(held.value.base, props.document.env.value, measured)
+		const numbers = numbersMeasured(measured, corner).map(({ value }) => value)
+		const [x = 0, y = 0] = numbers.map((it, i) => (i === dimension.index ? value : it))
+		const next = box && withBoxMeasured(held.value.base, props.document.env.value, measured, boxWithCornerAt(box, corner, stays, [x, y]))
+		if (!next) return
+		typed = next
+		commit({ ast: next, problem: null })
+		return
+	}
+	if (measured !== undefined) {
+		const numbers = numbersMeasured(measured).map(({ value }) => value)
+		const [x = 0, y = 0, width, height] = numbers.map((it, i) => (i === dimension.index ? value : it))
+		const { root, env } = props.document
+		// From where it was let go of, for a number on its way to being typed to have no lasting effect.
+		const boxBefore = boxMeasured(held.value.base, env.value, measured)
+		const [wide, tall] = boxBefore ? [boxBefore[1][0] - boxBefore[0][0], boxBefore[1][1] - boxBefore[0][1]] : [0, 0]
+		const [newWidth, newHeight] = [width ?? wide, height ?? tall]
+		const [stayX, stayY] = held.value.stays ?? [null, null]
+		const placed: [number, number] = [
+			stayX === null || boxBefore === null ? x : boxBefore[0][0] + stayX * (wide - newWidth),
+			stayY === null || boxBefore === null ? y : boxBefore[0][1] + stayY * (tall - newHeight),
+		]
+		const next = withBoxMeasured(held.value.base, env.value, measured, [...placed, newWidth, newHeight])
+		if (next === null || next === root.value) return
+		typed = next
+		commit({ ast: next, problem: null })
+		return
+	}
 	// A number in place of what it was worked out from is that gone, not that changed.
 	if (dimension.expression) {
 		typeExpression(dimension, String(value))
@@ -371,6 +492,7 @@ function typeDimension(dimension: Dimension, value: number): void {
 
 function typeExpression(dimension: Dimension, text: string): string | null {
 	if (held.value === null) return null
+	if (held.value.measured !== undefined) return 'This goes by a number.'
 	const { root, env } = props.document
 	const place = `${dimension.route}/${dimension.index}`
 	if (beforeExpression?.place !== place) beforeExpression = { place, ast: root.value }
@@ -410,6 +532,8 @@ const cursor = ref('default')
 const problem = ref<string | null>(null)
 
 const HANDLE_RADIUS = 5
+const VERTEX_HALF = 4
+const CONTROL_RADIUS = 3.5
 const PEN_CONTROL_RADIUS = 3
 /** How far out from a handle the paper goes, each way, to be seen over the color of a shape. */
 const HANDLE_EDGE = 1.5
@@ -445,10 +569,25 @@ const insideIsolated = computed(() => {
 })
 
 /** The handles of all that is selected, and whose each of them is. */
-const gripped = computed(() =>
-	withGuideHandles(
+/** The points and segments of what is selected that have been chosen, by row, for what is done to them next. */
+const chosenPoints = shallowRef<readonly string[]>([])
+const partsChosen = computed((): PartsOfRow[] => {
+	const rows = [...new Set(chosenPoints.value.map(rowOfChosen))]
+	return rows.map(row => ({
+		row,
+		parts: chosenPoints.value.filter(key => rowOfChosen(key) === row).map(partOfChosen),
+	}))
+})
+
+/** What a tool that draws needs of a path's points is what it finds to go on from, so it has them all. */
+const grippedAtAll = computed(() => {
+	const all = gripOfRows(props.document.root.value, props.document.env.value, taken.value)
+	return props.drawing ? gripWithoutSegments(all) : gripOfPointsOrNot(all, props.byPoints === true)
+})
+const gripped = computed((): (NonNullable<typeof grippedAtAll.value> & { readonly around?: readonly [Vec, Vec] | null }) | null =>
+	props.byPoints ? withBoxOfParts(grippedAtAll.value, partsChosen.value) : withGuideHandles(
 		withBoxHandles(
-			gripOfRows(props.document.root.value, props.document.env.value, taken.value),
+			grippedAtAll.value,
 			[...scene.value, ...hiddenSelected.value],
 			taken.value,
 			boxTurn.value
@@ -463,6 +602,8 @@ const gripped = computed(() =>
 const grip = computed(() => gripped.value?.grip ?? null)
 /** The corners of the box around what is selected, which goes with one that has a way it is turned. */
 const selectedBox = computed(() => {
+	// With a tool that goes by points, the only box is the one around those.
+	if (props.byPoints) return gripped.value?.around ? cornersOfBox(gripped.value.around, 0) : null
 	const angle = grip.value?.box?.angle ?? 0
 	const box = boundsOfRows([...scene.value, ...hiddenSelected.value], taken.value, angle)
 	return box === null ? null : cornersOfBox(box, angle)
@@ -720,12 +861,15 @@ function drawHandle(
 		}
 		context.lineWidth = 1
 		context.beginPath()
-		if (handle.corner) {
+		if (handle.vertex !== undefined) {
+			// What a path goes through is square, as what only pulls it from a distance is not.
+			context.rect(-VERTEX_HALF, -VERTEX_HALF, VERTEX_HALF * 2, VERTEX_HALF * 2)
+		} else if (handle.corner) {
 			// A point at a corner says which way out the corner is, which is square with the box it is of.
 			context.rotate(facing(handle.kind === 'point' ? (handle.angle ?? 45) - 45 : 0))
 			context.rect(-CORNER_HALF, -CORNER_HALF, CORNER_HALF * 2, CORNER_HALF * 2)
 		} else {
-			context.arc(0, 0, HANDLE_RADIUS, 0, Math.PI * 2)
+			context.arc(0, 0, handle.control ? CONTROL_RADIUS : HANDLE_RADIUS, 0, Math.PI * 2)
 		}
 		edged()
 		context.fill()
@@ -1086,7 +1230,7 @@ function draw(): void {
 		drawHandle(
 			context,
 			handle,
-			dragged === null ? i === hoveredHandle.value : i === dragged,
+			(dragged === null ? i === hoveredHandle.value : i === dragged) || isChosenAt(i),
 			i === dragged && linking.value !== null ? expression : accent,
 			paper,
 			i === dragged
@@ -1462,6 +1606,56 @@ function rowOfBoxAt(x: number, y: number, adding: boolean): string | null {
 	return px >= left && px <= right && py >= top && py <= bottom ? taken.value[0]! : null
 }
 
+const chosenKey = (row: string, part: string): string => `${row}\n${part}`
+const rowOfChosen = (key: string): string => key.slice(0, key.lastIndexOf('\n'))
+const partOfChosen = (key: string): string => key.slice(key.lastIndexOf('\n') + 1)
+const partOf = ({ vertex, segment }: Handle): string | undefined => vertex ?? segment
+const isChosenAt = (i: number): boolean => {
+	const part = partOf(grip.value!.handles[i]!)
+	return part !== undefined && chosenPoints.value.includes(chosenKey(gripped.value!.rowOf[i]!, part))
+}
+// Only as far as what they are of goes, as a press on something inside comes to a new list of the same.
+watch([taken, () => props.byPoints], () => {
+	chosenPoints.value = props.byPoints ? chosenPoints.value.filter(key => taken.value.includes(rowOfChosen(key))) : []
+})
+
+/** A handle to go by for each row with something chosen, as it is what can say so of them all, and what. */
+function chosenByRow(): { row: string; handle: Handle; parts: readonly string[] }[] {
+	return partsChosen.value.flatMap(({ row, parts }) => {
+		const all = grippedAtAll.value
+		const at = all?.rowOf.findIndex((owner, i) => {
+			const part = partOf(all.grip.handles[i]!)
+			return owner === row && part !== undefined && parts.includes(part)
+		}) ?? -1
+		return at < 0 ? [] : [{ row, handle: all!.grip.handles[at]!, parts }]
+	})
+}
+
+/** The first of what is chosen, if a press inside of the box around it is to take hold of it all. */
+function chosenInsideBox(x: number, y: number, adding: boolean): number | null {
+	const around = gripped.value?.around
+	if (!props.byPoints || adding || !around) return null
+	const [px, py] = fromScreen(x, y)
+	const [[left, top], [right, bottom]] = around
+	if (px < left || px > right || py < top || py > bottom) return null
+	const at = grip.value!.handles.findIndex((_, i) => isChosenAt(i))
+	return at < 0 ? null : at
+}
+
+// Those go, if there are any, and not what they are of.
+useHostDelete(() => {
+	if (!props.byPoints) return false
+	const going = chosenByRow()
+	const [first] = going
+	if (first === undefined) return false
+	const changes = going.flatMap(({ row, handle, parts }) =>
+		handle.to(handle.at ?? [0, 0], handle.at ?? [0, 0], { removing: parts }).map(change => ({ ...change, row }))
+	)
+	commit(apply(first.row, changes))
+	chosenPoints.value = []
+	return true
+})
+
 /** How far a press has to go to be a move, so that a click does not nudge anything. */
 const MOVE_THRESHOLD = 3
 
@@ -1484,6 +1678,8 @@ let pressed:
 			base: AST
 			/** How far round the box was, when it was taken hold of. */
 			boxTurn: number
+			/** What goes with it, of several points or segments chosen. */
+			together: ReturnType<typeof chosenByRow> | null
 			/** What it can snap to, none of which is in itself. */
 			points: readonly SnapPoint[]
 	  }
@@ -1505,7 +1701,7 @@ let pressed:
 			snap: SnapPoint | null
 			drawing: boolean
 	  }
-	| { kind: 'range'; base: readonly string[]; last: readonly string[] }
+	| { kind: 'range'; base: readonly string[]; last: readonly string[]; chosen: readonly string[] }
 	| {
 			kind: 'move'
 			row: string
@@ -1617,7 +1813,7 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
-	const hit = shaping ?? handleAt(x, y)
+	const hit = shaping ?? handleAt(x, y) ?? chosenInsideBox(x, y, event.shiftKey)
 	// SHIFT on what is a guide is selecting one more or one less, as it is on anything drawn,
 	// and only goes on being about the handle where that means something of its own.
 	const isChoosing =
@@ -1633,7 +1829,20 @@ function onPointerDown(event: PointerEvent): void {
 		grip.value!.handles[hit]!.place === 'self' &&
 		taken.value.includes(gripped.value!.rowOf[hit]!)
 	const index = isChoosing || isOneOfSeveral ? null : hit
-	if (index !== null && grip.value !== null) {
+	if (props.byPoints) {
+		// A press on a part is choosing it, and one that was already stays so, to be dragged.
+		const part = hit === null ? undefined : partOf(grip.value!.handles[hit]!)
+		const key = part === undefined ? undefined : chosenKey(gripped.value!.rowOf[hit!]!, part)
+		const chosen = chosenPoints.value
+		if (key === undefined) {
+			if (hit === null && !event.shiftKey) chosenPoints.value = []
+		} else if (event.shiftKey) {
+			chosenPoints.value = chosen.includes(key) ? chosen.filter(it => it !== key) : [...chosen, key]
+		} else if (!chosen.includes(key)) {
+			chosenPoints.value = [key]
+		}
+	}
+	if (index !== null && grip.value !== null && (!props.byPoints || !event.shiftKey)) {
 		const handle = grip.value.handles[index]!
 		const owner = gripped.value!.rowOf[index]!
 		if (handle.kind === 'button') {
@@ -1657,6 +1866,7 @@ function onPointerDown(event: PointerEvent): void {
 			at: null,
 			base: props.document.root.value,
 			boxTurn: boxTurn.value,
+			together: props.byPoints && chosenPoints.value.length > 1 && partOf(handle) !== undefined ? chosenByRow() : null,
 			points:
 				grip.value.transform.join() === '1,0,0,1,0,0' && handle.at !== undefined
 					? snapPoints(
@@ -1668,6 +1878,15 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
+	// What is reached for is what is drawn, however far in, and it stays where it is.
+	if (props.byPoints) {
+		if (hit !== null) return
+		const row = shapeAt(x, y)?.row
+		if (row !== undefined) {
+			if (row !== taken.value[0] || taken.value.length > 1) emit('select', [row])
+			return
+		}
+	}
 	// What was pressed is what the handle is of, whatever else goes through the same place.
 	const heldRow = isChoosing || isOneOfSeveral ? gripped.value!.rowOf[hit]! : (rowHeldAt(x, y) ?? rowOfBoxAt(x, y, event.shiftKey))
 	const shape = heldRow === null ? null : { row: heldRow }
@@ -1708,7 +1927,7 @@ function onPointerDown(event: PointerEvent): void {
 
 	const base = event.shiftKey ? taken.value : []
 	if (!event.shiftKey && taken.value.length > 0) emit('select', [])
-	pressed = { kind: 'range', base, last: base }
+	pressed = { kind: 'range', base, last: base, chosen: event.shiftKey ? chosenPoints.value : [] }
 	range.value = { from: [x, y], to: [x, y] }
 }
 
@@ -2062,7 +2281,16 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	)
 	snapMark.value = snap
 
-	const changes = handle.to(snap?.at ?? wanted, from, { symmetric, even, smooth: valueOnly })
+	// Across, up and down or at 45 degrees from where it was, with SHIFT, as a control has already.
+	const pulledTo = even && partOf(handle) !== undefined ? evenFrom(handle.at ?? from, snap?.at ?? wanted) : (snap?.at ?? wanted)
+	const changes = pressed.together
+		? pressed.together.flatMap(({ row: of, handle: other, parts }) => {
+				// How far it has gone from where it was, as each goes from where it is.
+				const delta = sub(pulledTo, handle.at ?? from)
+				const was = other.at ?? from
+				return other.to(add(was, delta), was, { moving: parts }).map(change => ({ ...change, row: of }))
+			})
+		: handle.to(pulledTo, from, { symmetric, even, smooth: valueOnly })
 	if (handle.turnOf) boxTurn.value = pressed.boxTurn + handle.turnOf(snap?.at ?? wanted, { even })
 	const finest = handle.fine ? pointerStep() / FINE_BY : pointerStep()
 	const rounded = roundedChanges(changes, finest)
@@ -2081,16 +2309,34 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	const now = draggedHandle.value === null ? undefined : grip.value?.handles[draggedHandle.value]?.at
 	const pivot = symmetric ? (handle.middle ?? handle.pivot) : handle.pivot
 	evenLine.value = even && pivot !== undefined && now !== undefined ? [toScreen(pivot), toScreen(now)] : null
+	const isSide = handle.name === 'box' && handle.grip === true
+	// Whoever's it is, as what a corner is about is where it goes, even of what says its size.
+	const isBoxCorner = handle.corner === true && handle.at !== undefined
 	const numbers =
-		props.dimensions && next.ast !== null && !handle.across
+		props.dimensions && next.ast !== null && !handle.across && !pressed.together && !isSide && !isBoxCorner
 			? dimensionsHeld(next.ast, props.document.env.value, row, handle, rounded, base, snap?.at ?? wanted, {
 					symmetric,
 				})
 			: []
-	hold(row, numbers, at, 0, saysOutside(handle) ? handle.kind : null)
+	// With nothing written for it to say, it is the box that has numbers.
+	const measured: Measured | null =
+		!props.dimensions || next.ast === null || numbers.length > 0
+			? null
+			: props.byPoints
+				? partsChosen.value.length > 0 ? { parts: partsChosen.value } : null
+				: { rows: taken.value }
+	if (measured !== null) {
+		const wasBox = isBoxCorner ? boxMeasured(base, props.document.env.value, measured) : null
+		const cornerPulled: Vec | null =
+			wasBox && handle.at
+				? [Math.abs(handle.at[0] - wasBox[1][0]) < Math.abs(handle.at[0] - wasBox[0][0]) ? 1 : 0, Math.abs(handle.at[1] - wasBox[1][1]) < Math.abs(handle.at[1] - wasBox[0][1]) ? 1 : 0]
+				: null
+		holdMeasured(measured, row, at, base, isSide ? 'side' : cornerPulled)
+	}
+	else hold(row, numbers, at, 0, saysOutside(handle) ? handle.kind : null)
 	// Exact numbers are for when they have been asked for.
 	readout.value =
-		!props.dimensions || next.ast === null || numbers.length > 0 || handle.across
+		!props.dimensions || next.ast === null || numbers.length > 0 || handle.across || pressed.together || measured !== null
 			? null
 			: {
 					at,
@@ -2252,7 +2498,8 @@ function onPointerMove(event: PointerEvent): void {
 			if (!pressed.moving && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
 			pressed.moving = true
 			hovered.value = null
-			const [toX, toY] = snappedMove(pressed.own, pressed.others, pressed.from, [x, y])
+			const snappedTo = snappedMove(pressed.own, pressed.others, pressed.from, [x, y])
+			const [toX, toY] = event.shiftKey ? evenFrom(pressed.from, snappedTo) : snappedTo
 			let next: ReturnType<typeof apply> = {
 				ast: props.document.root.value,
 				problem: null,
@@ -2267,11 +2514,12 @@ function onPointerMove(event: PointerEvent): void {
 				next = apply(row, changes, next.ast)
 				// Of several, each has numbers of its own, which are not any one thing to type.
 				if (props.dimensions && pressed.rows.length === 1 && next.ast !== null) {
-					moved = { row, numbers: dimensionsMoved(next.ast, props.document.env.value, row, changes) }
+					moved = { row, numbers: dimensionsMoved(next.ast, props.document.env.value, row, changes, pressed.base) }
 				}
 			}
 			commit(next)
-			if (moved !== null) hold(moved.row, moved.numbers, [x, y])
+			if (moved !== null && moved.numbers.length > 0) hold(moved.row, moved.numbers, [x, y])
+			else if (props.dimensions && next.ast !== null) holdMeasured({ rows: taken.value }, pressed.row, [x, y], pressed.base)
 			break
 		}
 		case 'range': {
@@ -2284,6 +2532,19 @@ function onPointerMove(event: PointerEvent): void {
 			)
 			const { root, env } = props.document
 			const { base } = pressed
+			if (props.byPoints) {
+				// What it goes round is the points themselves, of whatever they are of, however far in.
+				const found = pointsWithin(root.value, env.value, within, fromScreen(from[0], from[1]), fromScreen(x, y))
+				chosenPoints.value = [
+					...new Set([...pressed.chosen, ...found.flatMap(({ row, points }) => points.map(part => chosenKey(row, part)))]),
+				]
+				const rows = [...new Set([...base, ...found.map(({ row }) => row)])]
+				if (rows.join() !== pressed.last.join()) {
+					pressed.last = rows
+					emit('select', rows)
+				}
+				break
+			}
 			const takenWithin = within.map(row => rowTakenAt(root.value, env.value, row, base, isolated.value))
 			const rows = [...new Set([...base, ...takenWithin])]
 			if (rows.join() !== pressed.last.join()) {
