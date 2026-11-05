@@ -5,6 +5,7 @@ import { InputRotary } from 'tweeq/InputRotary'
 import { InputTranslate } from 'tweeq/InputTranslate'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
+import { useMultiSelectStore } from 'tweeq/stores/multiSelect'
 import { vTooltip } from 'tweeq/Tooltip'
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, useTemplateRef, watch } from 'vue'
 
@@ -358,12 +359,14 @@ const children = computed(() => {
 		: [view.value.head, ...view.value.slots]
 })
 
+const multiSelect = useMultiSelectStore()
 const alsoSelected = inject(ALSO_SELECTED, null)
 // What is selected inside of a row that is closed has nowhere else to be seen.
 const selected = computed(() => {
 	const also = alsoSelected?.() ?? []
 	return (
 		selection.value?.path === props.path ||
+		(!layers && multiSelect.allSelectedWithin($labelEnd.value?.closest('.TqParameterTreeItem'))) ||
 		also.includes(props.path) ||
 		(!open.value && also.some(row => row.startsWith(`${props.path}/`)))
 	)
@@ -377,7 +380,18 @@ const isIsolated = computed(() =>
 
 const picker = inject(ROW_PICKER, null)
 function pick(event: MouseEvent): void {
+	const label = event.target as Element
+	const item = layers || label.closest?.('.value') ? null : label.closest?.('.TqParameterTreeItem')
+	const along = event.metaKey || event.ctrlKey
+	// Picked out from among those selected, it is no longer selected.
+	if (item && along && multiSelect.allSelectedWithin(item)) {
+		multiSelect.selectWithin(item, 'along')
+		if (selection.value?.path === props.path) selection.value = null
+		return
+	}
 	if (picker?.(props.path, event) !== false) select()
+	// A parameter being selected is what it has being selected, to do all that can be done to those.
+	if (item) multiSelect.selectWithin(item, event.shiftKey ? 'through' : along ? 'along' : 'only')
 }
 
 function select(): void {

@@ -8,6 +8,7 @@ import type { MultiSelectCommand, MultiSelectHost } from 'tweeq/stores/multiSele
 import type { GlispDocument } from './document'
 import {
 	canExtractAt,
+	differingExpressionsAt,
 	extractedAt,
 	isMixed,
 	type Merge,
@@ -17,6 +18,7 @@ import {
 	nameFor,
 	type Place,
 	valuesAt,
+	withReferencesFrom,
 	withValuesAt,
 } from './multiRows'
 
@@ -37,6 +39,34 @@ const isLiteral = (value: unknown): value is Literal =>
 const placesOf = (data: unknown): readonly Place[] =>
 	Array.isArray(data) ? (data as Place[]) : data ? [data as Place] : []
 
+/** What can be done to places with something other than a value written there: moving it. */
+function expressionCommands(document: GlispDocument, places: readonly Place[]): MultiSelectCommand[] {
+	if (!differingExpressionsAt(document.root.value, document.env.value, places)) return []
+	const refer = (from: readonly Place[]): string | void => {
+		const { ast, problem } = withReferencesFrom(document.root.value, document.env.value, places, from)
+		if (problem !== null) return problem
+		if (ast?.kind === 'let') document.setRoot(ast)
+	}
+	const to = (one: Place): string | void => refer(places.map(() => one))
+	return [
+		{
+			...(places.length === 2
+				? { label: 'Swap', icon: 'material-symbols:swap-vert' }
+				: { label: 'Rotate', icon: 'material-symbols:rotate-right' }),
+			// Each has what the one before it had, and the first what the last had.
+			perform: () => refer(places.map((_, i) => places.at(i - 1)!)),
+		},
+		{
+			label: 'Merge',
+			icon: 'mdi:call-merge',
+			children: [
+				{ label: MERGE_LABELS.first, perform: () => to(places[0]!) },
+				{ label: MERGE_LABELS.last, perform: () => to(places.at(-1)!) },
+			],
+		},
+	]
+}
+
 /** What can be done to the places, as commands that edit the document. */
 export function commandsAt(
 	document: GlispDocument,
@@ -45,10 +75,12 @@ export function commandsAt(
 	const root = document.root.value
 	const env = document.env.value
 	const values = valuesAt(root, env, places)
+	if (places.length >= 2 && values !== null && !values.every(isLiteral)) {
+		return expressionCommands(document, places)
+	}
 	if (
 		places.length < 2 ||
 		values === null ||
-		!values.every(isLiteral) ||
 		new Set(values.map(value => typeof value)).size > 1
 	) {
 		return []

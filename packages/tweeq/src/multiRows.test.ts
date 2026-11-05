@@ -1,4 +1,4 @@
-import { buildPrelude, parse, print } from '@glisp/lang'
+import { buildPrelude, evaluate, LetAST, parse, PathAST, print } from '@glisp/lang'
 import { describe, expect, it, vi } from 'vitest'
 
 import { useGlispDocument } from './document'
@@ -106,6 +106,101 @@ describe('commands on what is selected', () => {
 		expect(merge!.children!.map(c => c.label)).toEqual(['First', 'Last'])
 		merge!.children![1]!.perform()
 		expect(print(document.root.value)).toBe('{a = "y" b = "y"}')
+	})
+
+	describe('of what refers to something', () => {
+		const LINES = 'p = [1 2] q = [3 4]'
+		const slots = [at('binding:a/0'), at('binding:b/0')]
+		const perform = (source: string, label: string, places = slots) => {
+			const document = useGlispDocument(source)
+			const command = commandsAt(document, places).find(c => c.label === label)!
+			return { document, problem: command.perform!() }
+		}
+
+		it('rotate more than two, each going on to the next', () => {
+			const source = `{${LINES} r = [5 6] a = [p] b = [q] c = [r]}`
+			const { document, problem } = perform(source, 'Rotate', [...slots, at('binding:c/0')])
+			expect(problem).toBeUndefined()
+			expect(print(document.root.value)).toBe(`{${LINES} r = [5 6] a = [r] b = [p] c = [q]}`)
+		})
+
+		it('move a call as well, with what it refers to meaning the same', () => {
+			const { document, problem } = perform(`{${LINES} a = [[p 0]] b = [q]}`, 'Swap')
+			expect(problem).toBeUndefined()
+			expect(print(document.root.value)).toBe(`{${LINES} a = [q] b = [[p 0]]}`)
+		})
+
+		it('say why, and change nothing, for a call that means something else from there', () => {
+			const source = `{${LINES} a = [[p 0]] b = {p = [5 6] c = [q]}}`
+			const { document, problem } = perform(source, 'Swap', [at('binding:a/0'), at('binding:b/binding:c/0')])
+			expect(problem).toEqual(expect.any(String))
+			expect(print(document.root.value)).toBe(source)
+		})
+
+		it('swap two, and merge any number', () => {
+			const two = `{${LINES} a = [p] b = [q]}`
+			expect(commandsAt(useGlispDocument(two), slots).map(c => c.label)).toEqual(['Swap', 'Merge'])
+			const three = `{${LINES} a = [p] b = [q] c = [q]}`
+			expect(commandsAt(useGlispDocument(three), [...slots, at('binding:c/0')]).map(c => c.label)).toEqual(['Rotate', 'Merge'])
+		})
+
+		it('are nothing for what already refers to one thing, or is not a reference', () => {
+			expect(commandsAt(useGlispDocument(`{${LINES} a = [p] b = [p]}`), slots)).toEqual([])
+			expect(commandsAt(useGlispDocument(`{${LINES} a = [p] b = (path.reverse [q])}`), slots)).toEqual([])
+		})
+
+		it('leave one that comes to a number to what numbers have', () => {
+			const document = useGlispDocument('{w = 1 h = 2 a = w b = h}')
+			expect(commandsAt(document, [at('binding:a'), at('binding:b')]).map(c => c.label)).toEqual(['Merge', 'Extract Parameter'])
+		})
+
+		it('swap as one thing to undo', () => {
+			const now = vi.spyOn(performance, 'now').mockReturnValue(10_000)
+			const source = `{${LINES} a = [p] b = [q]}`
+			const { document } = perform(source, 'Swap')
+			expect(print(document.root.value)).toBe(`{${LINES} a = [q] b = [p]}`)
+			document.undo()
+			expect(print(document.root.value)).toBe(source)
+			now.mockRestore()
+		})
+
+		it('merge onto the first or the last', () => {
+			const document = useGlispDocument(`{${LINES} a = [p] b = [q]}`)
+			const merge = commandsAt(document, slots).find(c => c.label === 'Merge')!
+			merge.children![1]!.perform()
+			expect(print(document.root.value)).toBe(`{${LINES} a = [q] b = [q]}`)
+		})
+
+		it('keep what is said of the place itself', () => {
+			const { document } = perform(`{${LINES} a = [#_p] b = [q]}`, 'Swap')
+			expect(print(document.root.value)).toBe(`{${LINES} a = [#_q] b = [p]}`)
+		})
+
+		it('still mean the same when a name means something else from there', () => {
+			const source = `{${LINES} a = [p] b = {p = [5 6] c = [q]}}`
+			const places = [at('binding:a/0'), at('binding:b/binding:c/0')]
+			const { document, problem } = perform(source, 'Swap', places)
+			expect(problem).toBeUndefined()
+			const { value } = evaluate(document.root.value, env)
+			expect(value).toBeDefined()
+			const next = print(document.root.value)
+			expect(next).toContain('a = [q]')
+			expect(next).not.toContain('c = [p]')
+		})
+
+		it('say why, and change nothing, for what would go around in a circle', () => {
+			const source = '{x = [y] y = [z] z = [w] w = [1 2]}'
+			const { document, problem } = perform(source, 'Swap', [at('binding:x/0'), at('binding:z/0')])
+			expect(problem).toEqual(expect.any(String))
+			expect(print(document.root.value)).toBe(source)
+		})
+
+		it('say why, and change nothing, for what does not fit', () => {
+			const source = '{f = (=> (v: [number number]): _ v) p = [1 2] c = [1 2 3] a = (f p) b = [c]}'
+			const { document, problem } = perform(source, 'Swap', [at('binding:a/arg0'), at('binding:b/0')])
+			expect(problem).toEqual(expect.any(String))
+			expect(print(document.root.value)).toBe(source)
+		})
 	})
 
 	it('pull out, as one thing to undo', () => {

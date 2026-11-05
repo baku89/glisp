@@ -9,9 +9,13 @@ import {
 	type AST,
 	type Env,
 	evaluate,
+	freeRefs,
 	infer,
 	LetAST,
 	lit,
+	lookupBareName,
+	MetaAST,
+	pathTarget,
 	print,
 	solve,
 	SymAST,
@@ -29,6 +33,9 @@ import {
 	numberOptionsAt,
 	nameOfType,
 	type NumberOptions,
+	problemOf,
+	referenceAt,
+	referenceTargetOf,
 	type Slot,
 	writtenAsType,
 	textOf,
@@ -215,6 +222,85 @@ export function valuesAt(
 		values.push(place.element === null ? value : (value as unknown[])[place.element])
 	}
 	return values
+}
+
+/** What a name or a path comes to from `env`, or null if it is neither or comes to nothing. */
+function landingOf(ast: AST, env: Env): AST | null {
+	const written = bare(ast)
+	if (written.kind === 'sym') return lookupBareName(written.name, env)?.ast ?? null
+	if (written.kind !== 'path') return null
+	const landed = pathTarget(written.segments, env)
+	return 'message' in landed ? null : landed.ast
+}
+
+/**
+ * Whether what is at each of the places is the same thing to each, as what is written can only
+ * be moved between them as such: null if any of them is a value, written out or not there.
+ */
+export function differingExpressionsAt(
+	root: AST,
+	env: Env,
+	places: readonly Place[]
+): boolean | null {
+	const seen = new Set<AST | string>()
+	for (const place of places) {
+		const slot = place.element === null ? slotAt(root, env, place) : undefined
+		if (slot === undefined || !isExpression(slot.ast)) return null
+		seen.add(landingOf(slot.ast, slot.env) ?? print(bare(slot.ast)))
+	}
+	return seen.size > 1
+}
+
+/**
+ * The program with each of the places having what `from` at the same index has, all as they are
+ * in `root`, as one change. A name that does not mean the same from there is written so that it
+ * does, and if that cannot be, goes around in a circle or does not fit, nothing changes.
+ */
+export function withReferencesFrom(
+	root: AST,
+	env: Env,
+	places: readonly Place[],
+	from: readonly Place[]
+): { ast: AST | null; problem: string | null } {
+	const gone = { ast: null, problem: 'that is no longer there' }
+	const written: AST[] = []
+	for (const [i, place] of places.entries()) {
+		const slot = slotAt(root, env, place)
+		const source = slotAt(root, env, from[i]!)
+		if (slot === undefined || source === undefined) return gone
+		const landing = landingOf(source.ast, source.env)
+		const kind = bare(source.ast).kind
+		if (kind !== 'sym' && kind !== 'path') {
+			const names = freeRefs(bare(source.ast)).names
+			const same = [...names].every(name => lookupBareName(name, slot.env)?.ast === lookupBareName(name, source.env)?.ast)
+			if (!same) return { ast: null, problem: `${print(bare(source.ast))} does not mean the same from there` }
+			written.push(bare(source.ast))
+			continue
+		}
+		if (landing !== null && landingOf(source.ast, slot.env) === landing) {
+			written.push(bare(source.ast))
+			continue
+		}
+		const target = referenceTargetOf(root, env, from[i]!.path)
+		const moved = target === null ? null : referenceAt(root, env, place.path, target)
+		const reference = moved && slotAt(moved, env, place)
+		if (!reference) return { ast: null, problem: `${print(bare(source.ast))} cannot be reached from there` }
+		written.push(bare(reference.ast))
+	}
+	let next = root
+	for (const [i, place] of places.entries()) {
+		const reached = reach(next, env, place.path)
+		const slot = reached?.chain.at(-1)
+		if (!reached || !slot) return gone
+		const { ast } = slot
+		next = withParent(reached.chain, slot.replace(ast.kind === 'meta' ? new MetaAST(ast.metadata, written[i]!) : written[i]!))
+	}
+	for (const place of places) {
+		const slot = slotAt(next, env, place)
+		const problem = slot ? problemOf(slot.ast, slot.env, slot.expected, evaluate) : gone.problem
+		if (problem !== null) return { ast: null, problem }
+	}
+	return { ast: next, problem: null }
 }
 
 /** The program with each of the places coming to its value in `values`. */

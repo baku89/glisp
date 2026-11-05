@@ -15,6 +15,7 @@ import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
 import AstLongText from './AstLongText.vue'
+import AstShownField from './AstShownField.vue'
 import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import type { Place } from './multiRows'
@@ -98,9 +99,27 @@ const summary = computed(
 		summaryOf(infer(readByName(ast.value), props.entry.env))
 )
 
+/** Only a name or a path, which is what there is to say of it, whatever it comes to. */
+const refers = computed(() => {
+	const { kind } = ast.value.kind === 'meta' ? ast.value.expr : ast.value
+	return (kind === 'sym' || kind === 'path') && props.entry.display === undefined
+})
+
+/** There being nothing else to edit it as. */
+const onlyRefers = computed(
+	() =>
+		refers.value &&
+		view.value.editor === null &&
+		solvedEditor.value === null &&
+		!hasNumber.value &&
+		!solvableBoolean.value &&
+		solvableNumbers.value === null
+)
+
 /** What the field shows while it is not being edited. */
 const shown = computed(() => {
 	if (props.entry.display !== undefined) return props.entry.display
+	if (onlyRefers.value) return sourceOf(ast.value)
 	if (summary.value !== null) return summary.value
 	const value = result.value?.value
 	if (result.value === null || typeof value === 'function') {
@@ -189,7 +208,8 @@ function onFieldKey(event: KeyboardEvent): void {
 	}
 	if (event.key === 'Escape') typedExpression = null
 	// A click only selects what is shown by what it is a call of, and this goes into it.
-	if (headInField.value !== null && !editing.value && (event.key === 'Enter' || event.key === 'F2')) {
+	const onlyShown = headInField.value !== null || onlyRefers.value
+	if (onlyShown && !editing.value && (event.key === 'Enter' || event.key === 'F2' || event.key === '=')) {
 		event.preventDefault()
 		event.stopPropagation()
 		;(event.target as HTMLElement).blur()
@@ -476,6 +496,22 @@ const label = (value: unknown): string =>
 			:inlinePosition="inlinePosition"
 			@edit="editExpression"
 		/>
+		<AstShownField
+			v-else-if="place !== undefined"
+			:source="sourceOf(ast)"
+			:place="place"
+			:pressEdits="headInField === null && !onlyRefers"
+			:font="isNumber ? 'numeric' : isString || summary !== null || headInField !== null ? undefined : 'monospace'"
+			:leftIcon="headIcon"
+			:align="isNumber ? 'center' : undefined"
+			:inlinePosition="inlinePosition"
+			:menuItems="fieldMenu"
+			@edit="editExpression"
+			@press="headInField !== null ? emit('select', $event) : onlyRefers ? undefined : editExpression()"
+		>
+			<span class="shown">{{ headInField?.label ?? shown }}</span>
+			<span v-if="upToNow !== null" class="up-to-now">{{ upToNow }}</span>
+		</AstShownField>
 		<InputTextBase
 			v-else
 			:modelValue="sourceOf(ast)"
