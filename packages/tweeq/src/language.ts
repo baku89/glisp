@@ -2,7 +2,6 @@
  * Glisp as a language for Monaco.
  */
 
-import { format, formatRange } from '@glisp/lang'
 import * as monaco from 'monaco-editor'
 
 import { LINE_START, type LineState, tokenizeLine } from './highlight'
@@ -38,25 +37,6 @@ class GlispState implements monaco.languages.IState {
 	}
 }
 
-/** `range` of what is in `model` laid out anew, or nothing if it cannot be read yet. */
-function formatted(model: monaco.editor.ITextModel, range: monaco.IRange): monaco.languages.TextEdit[] {
-	const source = model.getValue()
-	const whole = model.getFullModelRange()
-	try {
-		if (monaco.Range.equalsRange(range, whole)) return [{ range: whole, text: format(source) }]
-		const edit = formatRange(
-			source,
-			model.getOffsetAt(monaco.Range.getStartPosition(range)),
-			model.getOffsetAt(monaco.Range.getEndPosition(range))
-		)
-		if (edit === null) return []
-		const [from, to] = [model.getPositionAt(edit.from), model.getPositionAt(edit.to)]
-		return [{ range: monaco.Range.fromPositions(from, to), text: edit.text }]
-	} catch {
-		return []
-	}
-}
-
 let registered = false
 
 /** Register the language, once. Monaco's registry is global. */
@@ -79,19 +59,6 @@ export function registerGlisp(): void {
 			{ open: '{', close: '}' },
 			{ open: '"', close: '"' },
 		],
-	})
-
-	monaco.languages.registerDocumentFormattingEditProvider(GLISP, {
-		provideDocumentFormattingEdits: model => formatted(model, model.getFullModelRange()),
-	})
-	monaco.languages.registerDocumentRangeFormattingEditProvider(GLISP, {
-		provideDocumentRangeFormattingEdits: (model, range) => formatted(model, range),
-	})
-	// What is selected, if anything is, is what is meant.
-	monaco.editor.addKeybindingRule({
-		keybinding: monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF,
-		command: 'editor.action.formatSelection',
-		when: `editorTextFocus && editorHasSelection && editorLangId == ${GLISP}`,
 	})
 
 	monaco.languages.setTokensProvider(GLISP, {
