@@ -581,6 +581,16 @@ const inspection = computed(() =>
 
 const actions = useActionsStore()
 
+/** What this was built from, at the end of a menu, to tell which it is that is running. */
+const COMMIT: string = import.meta.env.VITE_COMMIT
+actions.setMenuExtras('file', [
+	{
+		label: `Copy Commit ID (${COMMIT})`,
+		icon: 'mdi:source-commit',
+		perform: () => void navigator.clipboard.writeText(COMMIT),
+	},
+])
+
 const selection = computed(() =>
 	selectedOf(document.root.value, document.env.value, selected.value)
 )
@@ -1189,6 +1199,7 @@ function selectInTree(row: string | null): void {
 				<template #right>
 					<InputNumber
 						class="zoom"
+						leftIcon="mdi:magnify"
 						:modelValue="zoom"
 						:display="asPercent"
 						:min="MIN_ZOOM"
@@ -1423,7 +1434,7 @@ function selectInTree(row: string | null): void {
 	min-width: 0;
 }
 .zoom {
-	width: 4.5em;
+	width: 6em;
 }
 
 .stage {

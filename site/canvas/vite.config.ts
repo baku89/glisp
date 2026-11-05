@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 import vue from '@vitejs/plugin-vue'
@@ -7,6 +8,15 @@ import { type ManifestOptions, VitePWA } from 'vite-plugin-pwa'
 
 // Pages serves this repository under a path of its own, which the deploy says.
 const base = `${process.env.SITE_BASE ?? ''}/canvas/`
+
+/** What is being built, for the app to say. */
+const commit = (): string => {
+	try {
+		return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim()
+	} catch {
+		return 'unknown'
+	}
+}
 
 const source = (name: string) =>
 	fileURLToPath(new URL(`../../dev_modules/${name}/src$1`, import.meta.url))
@@ -67,6 +77,7 @@ function installableInDev(): Plugin {
 
 export default defineConfig({
 	base,
+	define: { 'import.meta.env.VITE_COMMIT': JSON.stringify(commit()) },
 	// Paused for now: an edit shows only after reloading the page by hand.
 	server: { hmr: false },
 	plugins: [
