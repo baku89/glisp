@@ -1,18 +1,30 @@
 <script setup lang="ts">
+import { useEventListener } from '@vueuse/core'
 import type { IconSequence } from 'bndr-js'
 import { Icon } from 'tweeq/Icon'
 import { Popover } from 'tweeq/Popover'
 import { vTooltip } from 'tweeq/Tooltip'
-import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef } from 'vue'
+import { computed, ref, shallowRef, useTemplateRef } from 'vue'
 
-import EdgeSurface from './EdgeSurface.vue'
 import {
 	type Arrangement,
+	type Bar,
+	barPlaceAt,
 	distanceFrom,
-	isThrown,
+	type Drop,
+	dropAmong,
+	foldered,
+	MAIN_BAR,
+	mergedBars,
+	movedBar,
 	placed,
-	slotAt,
+	separated,
+	shownInFolder,
+	shownOf,
+	type Slot,
 	stowedAway,
+	toolsOf,
+	withColumns,
 } from './toolbar'
 
 interface Tool {
@@ -34,304 +46,561 @@ const emit = defineEmits<{
 
 /** A press does nothing but press, until it has gone this far. */
 const DRAG_FROM = 4
-/** A tool and the gap to the next, as `.tool` and `.tools` have them. */
+/** How near a bar what is being held has to come, to mean that bar. */
+const NEAR_BAR = 12
+/** A tool and the gap to the next, as `.tool` and `.sortable` have them. */
 const PITCH = 34
-/** How long ago the pointer is looked back at, to tell how fast it is going. */
-const SPEED_OVER = 80
-const FLIGHT = 200
-/** How far off the bar something being held is shown as coming off. */
-const OFF_WHILE_HELD = 24
 
-const $bar = useTemplateRef<HTMLElement>('$bar')
-const $tools = useTemplateRef<HTMLElement>('$tools')
-const $dots = useTemplateRef<HTMLElement>('$dots')
+const $root = useTemplateRef<HTMLElement>('$root')
+const dots = shallowRef<HTMLElement | null>(null)
+const setDots = (element: unknown): void => {
+	dots.value = element as HTMLElement | null
+}
 
 const byName = computed(() => new Map(props.tools.map(tool => [tool.name, tool])))
-const open = ref(false)
+const stowedOpen = ref(false)
+/** The folder whose tools are showing, and what they come out of. */
+const flyout = shallowRef<{ readonly tools: readonly string[]; readonly from: HTMLElement } | null>(null)
 
-interface Hold {
-	readonly name: string
-	readonly pointer: number
-	readonly start: readonly [number, number]
-	/** Where in the tool it was taken, for it to stay under the pointer. */
-	readonly grab: readonly [number, number]
-	moved: boolean
-	/** How far it was from the bar, lately, and when. */
-	trail: { readonly distance: number; readonly at: number }[]
-}
-let hold: Hold | null = null
+const barElement = (id: string): HTMLElement | null =>
+	$root.value?.parentElement?.querySelector<HTMLElement>(`[data-bar="${id}"]`) ?? null
 
-/** What is being dragged, where it is now, and which place on the bar it is over. */
-const dragging = shallowRef<{
-	readonly name: string
+const stage = (): HTMLElement => $root.value!.parentElement!
+
+const cellsOf = (id: string): HTMLElement[] => [
+	...(barElement(id)?.querySelectorAll<HTMLElement>('[data-slot]') ?? []),
+]
+
+/** What letting go of what is being held would do. */
+type Target =
+	| { readonly kind: 'stow' }
+	| { readonly kind: 'bar'; readonly bar: string; readonly drop: Drop }
+	| { readonly kind: 'off' }
+
+/** What is being held, with what it would do, for showing that. */
+const heldTool = shallowRef<{
+	readonly slot: Slot
 	readonly x: number
 	readonly y: number
-	readonly slot: number | null
+	readonly target: Target
 } | null>(null)
-/** What was let go of, on its way behind the dots. */
-const flying = shallowRef<{
-	readonly name: string
-	readonly x: number
-	readonly y: number
-	readonly gone: boolean
-} | null>(null)
+const movingBar = shallowRef<{ readonly id: string; readonly into: string | null } | null>(null)
 
-/** The bar as it would be if it were let go of now. */
-const shown = computed(() => {
-	const drag = dragging.value
-	const { arrangement } = props
-	if (drag === null) return arrangement.shown
-	return drag.slot === null
-		? arrangement.shown.filter(name => name !== drag.name)
-		: placed(arrangement, drag.name, drag.slot).shown
+/** Where a tool would go, between two others. */
+const caret = computed(() => {
+	const held = heldTool.value
+	if (held?.target.kind !== 'bar' || held.target.drop.kind !== 'at') return null
+	const bar = props.arrangement.bars.find(({ id }) => held.target.kind === 'bar' && id === held.target.bar)
+	if (bar === undefined) return null
+	const cells = cellsOf(bar.id)
+	const origin = stage().getBoundingClientRect()
+	const { index } = held.target.drop
+	const standing = isStanding(bar)
+	const before = cells[index]?.getBoundingClientRect()
+	const after = cells[index - 1]?.getBoundingClientRect()
+	const cell = before ?? after
+	if (cell === undefined) return null
+	const onAfter = before === undefined
+	return standing
+		? {
+				left: cell.left - origin.left,
+				top: (onAfter ? cell.bottom + 1 : cell.top - 1) - origin.top - 1,
+				width: cell.width,
+				height: 2,
+			}
+		: {
+				left: (onAfter ? cell.right + 1 : cell.left - 1) - origin.left - 1,
+				top: cell.top - origin.top,
+				width: 2,
+				height: cell.height,
+			}
 })
-const stowed = computed(() => props.arrangement.stowed)
 
-const offTheBar = computed(() => dragging.value !== null && dragging.value.slot === null)
+const isStanding = (bar: Bar): boolean => bar.columns === 1
 
-/** What is in use from behind the dots, which they then show instead. */
-const activeStowed = computed(() =>
-	stowed.value.includes(props.active) ? byName.value.get(props.active) : undefined
-)
-
-function press(event: PointerEvent, name: string): void {
-	if (event.button !== 0) return
-	const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-	hold = {
-		name,
-		pointer: event.pointerId,
-		start: [event.clientX, event.clientY],
-		grab: [event.clientX - rect.left, event.clientY - rect.top],
-		moved: false,
-		trail: [],
-	}
-}
-
-const barBox = () => $bar.value!.getBoundingClientRect()
-
-/** Which place on the bar a pointer is over, or none if it is off it, or at the dots. */
-function slotFor(x: number, y: number, name: string): number | null {
-	if (distanceFrom(x, y, barBox()) >= OFF_WHILE_HELD) return null
-	const dots = $dots.value!.getBoundingClientRect()
-	if (x >= dots.left) return null
-	const count = props.arrangement.shown.filter(other => other !== name).length + 1
-	const left = $tools.value!.getBoundingClientRect().left
-	return slotAt(x, left, PITCH, count)
-}
-
-function move(event: PointerEvent): void {
-	if (hold === null || event.pointerId !== hold.pointer) return
-	const [x, y] = [event.clientX, event.clientY]
-	if (!hold.moved) {
-		if (Math.hypot(x - hold.start[0], y - hold.start[1]) < DRAG_FROM) return
-		hold.moved = true
-		open.value = false
-		$bar.value?.setPointerCapture(event.pointerId)
-	}
-	const now = event.timeStamp
-	hold.trail = [
-		...hold.trail.filter(({ at }) => now - at <= SPEED_OVER),
-		{ distance: distanceFrom(x, y, barBox()), at: now },
-	]
-	dragging.value = { name: hold.name, x, y, slot: slotFor(x, y, hold.name) }
-}
-
-/** How fast it was leaving the bar when let go of, which is not at all if it had stopped. */
-function leavingSpeed(trail: Hold['trail'], now: number): number {
-	// While it is still over the bar it is not leaving, however fast it goes.
-	const recent = trail.filter(({ at, distance }) => now - at <= SPEED_OVER && distance > 0)
-	const [first] = recent
-	const last = recent.at(-1)
-	if (first === undefined || last === undefined || last.at === first.at) return 0
-	return (last.distance - first.distance) / (last.at - first.at)
-}
-
-let justDragged = false
-let flight: ReturnType<typeof setTimeout> | undefined
-
-function stow(name: string, x: number, y: number): void {
-	const dots = $dots.value!.getBoundingClientRect()
-	const [left, top] = [x - (hold?.grab[0] ?? 0), y - (hold?.grab[1] ?? 0)]
-	flying.value = { name, x: left, y: top, gone: false }
-	requestAnimationFrame(() => {
-		if (flying.value !== null) flying.value = { name, x: dots.left, y: dots.top, gone: true }
-	})
-	clearTimeout(flight)
-	flight = setTimeout(() => (flying.value = null), FLIGHT)
-	emit('update:arrangement', stowedAway(props.arrangement, name))
-}
-
-function release(event: PointerEvent): void {
-	if (hold === null || event.pointerId !== hold.pointer) return
-	const drag = dragging.value
-	if (drag !== null) {
-		justDragged = true
-		// A click comes after this, on what it was let go of over.
-		setTimeout(() => (justDragged = false))
-		const [x, y] = [event.clientX, event.clientY]
-		const distance = distanceFrom(x, y, barBox())
-		const dots = $dots.value!.getBoundingClientRect()
-		const onDots = distanceFrom(x, y, dots) === 0
-		const wasThere = props.arrangement.shown.includes(drag.name)
-		const thrown = onDots || isThrown(distance, leavingSpeed(hold.trail, event.timeStamp))
-		if (thrown) {
-			if (wasThere) stow(drag.name, x, y)
-		} else if (drag.slot !== null) {
-			emit('update:arrangement', placed(props.arrangement, drag.name, drag.slot))
-		} else if (!wasThere) {
-			// Let go of just short of the bar, it comes to the end. What was on it stays where it was.
-			emit('update:arrangement', placed(props.arrangement, drag.name, props.arrangement.shown.length))
+function targetAt(x: number, y: number, slot: Slot): Target {
+	if (dots.value !== null && distanceFrom(x, y, dots.value.getBoundingClientRect()) === 0) return { kind: 'stow' }
+	for (const bar of [...props.arrangement.bars].reverse()) {
+		const element = barElement(bar.id)
+		if (element === null) continue
+		if (distanceFrom(x, y, element.getBoundingClientRect()) >= NEAR_BAR) continue
+		const boxes = cellsOf(bar.id).map(cell => cell.getBoundingClientRect())
+		const drop = dropAmong(boxes, x, y, isStanding(bar))
+		// A place does not go into itself.
+		if (drop.kind === 'into' && toolsOf(bar.slots[drop.index]!).some(name => toolsOf(slot).includes(name))) {
+			return { kind: 'bar', bar: bar.id, drop: { kind: 'at', index: drop.index } }
 		}
+		return { kind: 'bar', bar: bar.id, drop }
 	}
-	dragging.value = null
-	hold = null
+	return { kind: 'off' }
 }
 
-function cancel(): void {
-	dragging.value = null
-	hold = null
+/** Follows the pointer from a press, as a drag once it has gone far enough. */
+function follow(
+	event: PointerEvent,
+	handlers: {
+		readonly begin: () => void
+		readonly move: (move: PointerEvent) => void
+		readonly end: (done: boolean) => void
+		readonly press?: () => void
+	}
+): void {
+	if (event.button !== 0) return
+	const { clientX, clientY, pointerId } = event
+	let moved = false
+	const onMove = (move: PointerEvent) => {
+		if (move.pointerId !== pointerId) return
+		if (!moved) {
+			if (Math.hypot(move.clientX - clientX, move.clientY - clientY) < DRAG_FROM) return
+			moved = true
+			stage().setPointerCapture(pointerId)
+			handlers.begin()
+		}
+		handlers.move(move)
+	}
+	const finish = (done: boolean) => {
+		window.removeEventListener('pointermove', onMove)
+		window.removeEventListener('pointerup', onUp)
+		window.removeEventListener('pointercancel', onCancel)
+		if (!moved) return
+		handlers.end(done)
+		// A click comes after this, on what was only being held.
+		const swallow = (click: Event) => click.stopImmediatePropagation()
+		window.addEventListener('click', swallow, { capture: true, once: true })
+		setTimeout(() => window.removeEventListener('click', swallow, { capture: true }))
+	}
+	const onUp = (up: PointerEvent) => {
+		if (up.pointerId === pointerId) finish(true)
+	}
+	const onCancel = (cancel: PointerEvent) => {
+		if (cancel.pointerId === pointerId) finish(false)
+	}
+	window.addEventListener('pointermove', onMove)
+	window.addEventListener('pointerup', onUp)
+	window.addEventListener('pointercancel', onCancel)
 }
 
-function click(name: string): void {
-	if (justDragged) return
+function pressSlot(event: PointerEvent, slot: Slot): void {
+	follow(event, {
+		begin() {
+			stowedOpen.value = false
+			flyout.value = null
+		},
+		move({ clientX: x, clientY: y }) {
+			heldTool.value = { slot, x, y, target: targetAt(x, y, slot) }
+		},
+		end(done) {
+			const held = heldTool.value
+			heldTool.value = null
+			if (done && held !== null) letGo(held)
+		},
+	})
+}
+
+function letGo({ slot, x, y, target }: NonNullable<typeof heldTool.value>): void {
+	const { arrangement } = props
+	if (target.kind === 'stow') {
+		emit('update:arrangement', stowedAway(arrangement, slot))
+	} else if (target.kind === 'bar') {
+		const bar = arrangement.bars.find(({ id }) => id === target.bar)!
+		emit(
+			'update:arrangement',
+			target.drop.kind === 'at'
+				? placed(arrangement, slot, bar.id, target.drop.index)
+				: foldered(arrangement, slot, toolsOf(bar.slots[target.drop.index]!)[0]!)
+		)
+	} else {
+		const origin = stage().getBoundingClientRect()
+		const place = barPlaceAt(
+			x - origin.left,
+			y - origin.top,
+			{ width: PITCH + GRIP_WIDTH, height: PITCH + 12 },
+			{ width: origin.width, height: origin.height }
+		)
+		emit('update:arrangement', separated(arrangement, slot, place))
+	}
+}
+
+/** A bar's handle and the padding around it, more or less, for what is about to be one. */
+const GRIP_WIDTH = 28
+
+function pressBar(event: PointerEvent, bar: Bar): void {
+	const element = event.currentTarget as HTMLElement
+	const box = element.closest('[data-bar]')!.getBoundingClientRect()
+	const grab = [event.clientX - (box.left + box.right) / 2, event.clientY - (box.top + box.bottom) / 2] as const
+	follow(event, {
+		begin() {
+			stowedOpen.value = false
+			flyout.value = null
+			movingBar.value = { id: bar.id, into: null }
+		},
+		move({ clientX, clientY }) {
+			const origin = stage().getBoundingClientRect()
+			const own = barElement(bar.id)!.getBoundingClientRect()
+			const place = barPlaceAt(
+				clientX - grab[0] - origin.left,
+				clientY - grab[1] - origin.top,
+				{ width: own.width, height: own.height },
+				{ width: origin.width, height: origin.height }
+			)
+			emit('update:arrangement', movedBar(props.arrangement, bar.id, place))
+			const into =
+				bar.id === MAIN_BAR
+					? undefined
+					: props.arrangement.bars.find(other => {
+							if (other.id === bar.id) return false
+							const box = barElement(other.id)?.getBoundingClientRect()
+							return box !== undefined && distanceFrom(clientX, clientY, box) < NEAR_BAR
+						})
+			movingBar.value = { id: bar.id, into: into?.id ?? null }
+		},
+		end(done) {
+			const moving = movingBar.value
+			movingBar.value = null
+			if (!done || moving?.into == null) return
+			const into = props.arrangement.bars.find(({ id }) => id === moving.into)!
+			emit('update:arrangement', mergedBars(props.arrangement, bar.id, into.id, into.slots.length))
+		},
+	})
+}
+
+/** Changes how many tools go across, by how far the corner is dragged. */
+function pressShape(event: PointerEvent, bar: Bar): void {
+	event.stopPropagation()
+	const from = bar.columns ?? bar.slots.length
+	// It grows on both sides if nothing holds it at one.
+	const k = bar.wall === 'left' ? 1 : bar.wall === 'right' ? -1 : 2
+	const { clientX } = event
+	follow(event, {
+		begin() {},
+		move(move) {
+			const columns = from + Math.round(((move.clientX - clientX) * k) / PITCH)
+			emit('update:arrangement', withColumns(props.arrangement, bar.id, columns))
+		},
+		end() {},
+	})
+}
+
+/** A tool goes into use, and the folder it is in opens, if it is already what is in use. */
+function clickSlot(event: MouseEvent, slot: Slot): void {
+	const shown = shownOf(slot, props.active)
+	if (typeof slot !== 'string' && shown === props.active) {
+		openFlyout(event.currentTarget as HTMLElement, slot)
+		return
+	}
+	emit('select', shown)
+}
+
+function openFlyout(from: HTMLElement, slot: Slot): void {
+	const open = flyout.value
+	flyout.value = open?.from === from ? null : { tools: toolsOf(slot), from }
+}
+
+function pick(name: string): void {
 	emit('select', name)
+	emit('update:arrangement', shownInFolder(props.arrangement, name))
+	flyout.value = null
 }
 
 function clickStowed(name: string): void {
-	if (justDragged) return
 	emit('select', name)
-	open.value = false
+	stowedOpen.value = false
 }
 
-onBeforeUnmount(() => clearTimeout(flight))
+useEventListener(window, 'blur', () => (flyout.value = null))
 
 const tooltipOf = ({ tooltip: { content, shortcut } }: Tool) => ({
 	content,
 	...(shortcut === undefined ? {} : { shortcut: [...shortcut] }),
 })
+
+const barStyle = (bar: Bar) => ({
+	left: bar.wall === 'right' ? 'auto' : `${bar.x * 100}%`,
+	right: bar.wall === 'right' ? '0' : 'auto',
+	top: bar.wall === 'bottom' ? 'auto' : `${bar.y * 100}%`,
+	bottom: bar.wall === 'bottom' ? '0' : 'auto',
+	translate: `${bar.wall === 'left' || bar.wall === 'right' ? '0' : '-50%'} ${
+		bar.wall === 'top' || bar.wall === 'bottom' ? '0' : '-50%'
+	}`,
+	'--columns': bar.columns ?? bar.slots.length,
+})
+
+const flyoutPlacement = computed(() => {
+	const wall = props.arrangement.bars.find(bar =>
+		flyout.value !== null && bar.slots.some(slot => toolsOf(slot).includes(flyout.value!.tools[0]!))
+	)?.wall
+	return wall === 'left' ? 'right' : wall === 'right' ? 'left' : wall === 'top' ? 'bottom' : 'top'
+})
+
 const ghost = computed(() => {
-	const drag = dragging.value
-	if (drag !== null) {
-		return {
-			icon: byName.value.get(drag.name)?.icon,
-			style: { left: `${drag.x - (hold?.grab[0] ?? 0)}px`, top: `${drag.y - (hold?.grab[1] ?? 0)}px` },
-			off: offTheBar.value,
-			gone: false,
-		}
-	}
-	const flown = flying.value
-	if (flown === null) return null
+	const held = heldTool.value
+	if (held === null) return null
 	return {
-		icon: byName.value.get(flown.name)?.icon,
-		style: { left: `${flown.x}px`, top: `${flown.y}px` },
-		off: true,
-		gone: flown.gone,
+		icon: byName.value.get(shownOf(held.slot, props.active))?.icon,
+		off: held.target.kind === 'off',
+		style: { left: `${held.x - 16}px`, top: `${held.y - 16}px` },
 	}
 })
+
+const isHeld = (slot: Slot): boolean =>
+	heldTool.value !== null && toolsOf(heldTool.value.slot).join() === toolsOf(slot).join()
+
+const isInto = (bar: Bar, index: number): boolean => {
+	const target = heldTool.value?.target
+	return target?.kind === 'bar' && target.bar === bar.id && target.drop.kind === 'into' && target.drop.index === index
+}
 </script>
 
 <template>
+	<div ref="$root" class="anchor" />
 	<div
-		ref="$bar"
+		v-for="bar in arrangement.bars"
+		:key="bar.id"
 		class="tools"
+		:class="[
+			bar.wall ? `on-${bar.wall}` : 'floating',
+			{
+				standing: bar.columns === 1,
+				moving: movingBar?.id === bar.id,
+				'taking-in': movingBar?.into === bar.id,
+			},
+		]"
+		:style="barStyle(bar)"
+		:data-bar="bar.id"
 		data-selects-rows
-		@pointermove="move"
-		@pointerup="release"
-		@pointercancel="cancel"
 	>
-		<EdgeSurface edge="bottom" />
-		<div ref="$tools" class="sortable">
-			<TransitionGroup name="tool">
-				<button
-					v-for="name in shown"
-					:key="name"
-					v-tooltip="tooltipOf(byName.get(name)!)"
-					class="tool"
-					:class="{ active: active === name, held: dragging?.name === name }"
-					:aria-label="byName.get(name)!.tooltip.content"
-					:aria-pressed="active === name"
-					@pointerdown="press($event, name)"
-					@click="click(name)"
-				>
-					<Icon :icon="byName.get(name)!.icon" />
-				</button>
-			</TransitionGroup>
-		</div>
 		<button
-			ref="$dots"
-			v-tooltip="{ content: 'More Tools' }"
-			class="tool"
-			:class="{ active: activeStowed !== undefined, ready: offTheBar }"
-			aria-label="More Tools"
-			:aria-expanded="open"
-			@click="open = !open"
+			v-tooltip="{ content: 'Move Toolbar' }"
+			class="grip"
+			aria-label="Move Toolbar"
+			@pointerdown="pressBar($event, bar)"
 		>
-			<Icon :icon="activeStowed?.icon ?? 'ph:dots-three-vertical-bold'" />
+			<Icon icon="ph:dots-six-vertical-bold" />
 		</button>
-		<slot />
-		<Popover
-			v-model:open="open"
-			:reference="$dots"
-			placement="top"
-			:offset="{ mainAxis: 12 }"
-		>
-			<div class="stowed">
-				<button
-					v-for="name in stowed"
-					:key="name"
-					v-tooltip="tooltipOf(byName.get(name)!)"
-					class="tool"
-					:class="{ active: active === name }"
-					:aria-label="byName.get(name)!.tooltip.content"
-					:aria-pressed="active === name"
-					@pointerdown="press($event, name)"
-					@pointermove="move"
-					@pointerup="release"
-					@click="clickStowed(name)"
-				>
-					<Icon :icon="byName.get(name)!.icon" />
-				</button>
-				<p v-if="stowed.length === 0" class="hint">Throw a tool off the bar to keep it here.</p>
-			</div>
-		</Popover>
+		<div class="sortable">
+			<button
+				v-for="(slot, index) in bar.slots"
+				:key="toolsOf(slot).join()"
+				v-tooltip="tooltipOf(byName.get(shownOf(slot, active))!)"
+				class="tool"
+				:class="{
+					active: toolsOf(slot).includes(active),
+					folder: typeof slot !== 'string',
+					held: isHeld(slot),
+					into: isInto(bar, index),
+				}"
+				data-slot
+				:aria-label="byName.get(shownOf(slot, active))!.tooltip.content"
+				:aria-pressed="toolsOf(slot).includes(active)"
+				@pointerdown="pressSlot($event, slot)"
+				@click="clickSlot($event, slot)"
+				@contextmenu.prevent="typeof slot !== 'string' && openFlyout($event.currentTarget as HTMLElement, slot)"
+			>
+				<Icon :icon="byName.get(shownOf(slot, active))!.icon" />
+			</button>
+		</div>
+		<template v-if="bar.id === MAIN_BAR">
+			<button
+				:ref="setDots"
+				v-tooltip="{ content: 'More Tools' }"
+				class="tool"
+				:class="{
+					active: arrangement.stowed.includes(active),
+					ready: heldTool?.target.kind === 'stow',
+				}"
+				aria-label="More Tools"
+				:aria-expanded="stowedOpen"
+				@click="stowedOpen = !stowedOpen"
+			>
+				<Icon
+					:icon="
+						arrangement.stowed.includes(active)
+							? byName.get(active)!.icon
+							: 'ph:dots-three-vertical-bold'
+					"
+				/>
+			</button>
+			<slot />
+			<Popover
+				v-if="dots"
+				v-model:open="stowedOpen"
+				:reference="dots"
+				placement="top"
+				:offset="{ mainAxis: 12 }"
+			>
+				<div class="stowed">
+					<button
+						v-for="name in arrangement.stowed"
+						:key="name"
+						v-tooltip="tooltipOf(byName.get(name)!)"
+						class="tool"
+						:class="{ active: active === name, held: isHeld(name) }"
+						:aria-label="byName.get(name)!.tooltip.content"
+						:aria-pressed="active === name"
+						@pointerdown="pressSlot($event, name)"
+						@click="clickStowed(name)"
+					>
+						<Icon :icon="byName.get(name)!.icon" />
+					</button>
+					<p v-if="arrangement.stowed.length === 0" class="hint">Drop a tool here to keep it out of the way.</p>
+				</div>
+			</Popover>
+		</template>
+		<button
+			v-if="bar.slots.length > 1"
+			v-tooltip="{ content: 'Change Shape' }"
+			class="shape"
+			aria-label="Change Shape"
+			@pointerdown="pressShape($event, bar)"
+		/>
 	</div>
-	<div
-		v-if="ghost !== null"
-		class="tool ghost"
-		:class="{ off: ghost.off, gone: ghost.gone }"
-		:style="ghost.style"
+	<Popover
+		v-if="flyout"
+		:open="true"
+		:reference="flyout.from"
+		:placement="flyoutPlacement"
+		:offset="{ mainAxis: 12 }"
+		@update:open="$event || (flyout = null)"
 	>
+		<div class="stowed" :style="{ gridTemplateColumns: `repeat(${Math.min(4, flyout.tools.length)}, 32px)` }">
+			<button
+				v-for="name in flyout.tools"
+				:key="name"
+				v-tooltip="tooltipOf(byName.get(name)!)"
+				class="tool"
+				:class="{ active: active === name, held: isHeld(name) }"
+				:aria-label="byName.get(name)!.tooltip.content"
+				:aria-pressed="active === name"
+				@pointerdown="pressSlot($event, name)"
+				@click="pick(name)"
+			>
+				<Icon :icon="byName.get(name)!.icon" />
+			</button>
+		</div>
+	</Popover>
+	<div v-if="caret" class="caret" :style="{ left: `${caret.left}px`, top: `${caret.top}px`, width: `${caret.width}px`, height: `${caret.height}px` }" />
+	<div v-if="ghost" class="tool ghost" :class="{ off: ghost.off }" :style="ghost.style">
 		<Icon v-if="ghost.icon" :icon="ghost.icon" />
 	</div>
 </template>
 
 <style scoped>
+.anchor {
+	display: none;
+}
 .tools {
 	--padding: 6px;
 	--radius: 6px;
-	position: absolute;
-	bottom: 0;
-	left: 50%;
-	translate: -50% 0;
-	display: flex;
-	gap: 2px;
-	padding: var(--padding);
-	border: 1px solid transparent;
-	border-bottom: none;
 	/* Around the same centers as the corners of the buttons in it. */
 	--corner: calc(var(--radius) + var(--padding) + 1px);
-	border-radius: var(--corner) var(--corner) 0 0;
+	position: absolute;
+	z-index: 40;
+	display: flex;
+	gap: 2px;
+	align-items: flex-start;
+	padding: var(--padding);
+	border: 1px solid transparent;
+	border-radius: var(--corner);
 	isolation: isolate;
 	touch-action: none;
 	user-select: none;
 }
+.tools.standing {
+	flex-direction: column;
+}
+/* Behind what is in it, as a blur only sees through to the canvas from outside of anything
+else that blurs. */
+.tools::before {
+	content: '';
+	position: absolute;
+	inset: -1px;
+	z-index: -1;
+	box-sizing: border-box;
+	border: 1px solid var(--tq-color-border);
+	border-radius: inherit;
+	background: var(--tq-color-surface);
+	backdrop-filter: blur(var(--tq-popup-blur));
+	box-shadow: var(--tq-shadow-popup);
+	pointer-events: none;
+}
+/* On a wall, it goes straight into it. */
+.on-bottom {
+	border-bottom-right-radius: 0;
+	border-bottom-left-radius: 0;
+}
+.on-bottom::before {
+	border-bottom: none;
+}
+.on-top {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+.on-top::before {
+	border-top: none;
+}
+.on-left {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+.on-left::before {
+	border-left: none;
+}
+.on-right {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+.on-right::before {
+	border-right: none;
+}
+/* While it is moved, it says so of the wall it would be on, as a panel does. */
+.moving {
+	z-index: 61;
+}
+.moving.on-bottom::before {
+	border-bottom: 3px solid var(--tq-color-accent);
+}
+.moving.on-top::before {
+	border-top: 3px solid var(--tq-color-accent);
+}
+.moving.on-left::before {
+	border-left: 3px solid var(--tq-color-accent);
+}
+.moving.on-right::before {
+	border-right: 3px solid var(--tq-color-accent);
+}
+.taking-in::before {
+	outline: 2px solid var(--tq-color-accent);
+}
+.grip {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 16px;
+	height: 32px;
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--tq-color-text-mute);
+	font-size: 12px;
+	cursor: grab;
+}
+.standing .grip {
+	width: 32px;
+	height: 16px;
+	rotate: 90deg;
+}
+.moving .grip {
+	cursor: grabbing;
+}
 .sortable {
-	display: flex;
+	display: grid;
+	grid-template-columns: repeat(var(--columns), 32px);
 	gap: 2px;
 }
 .tool,
 :slotted(.tool) {
 	--radius: 6px;
+	position: relative;
 	display: grid;
 	place-items: center;
 	width: 32px;
@@ -352,19 +621,64 @@ const ghost = computed(() => {
 	background: var(--tq-color-accent);
 	color: var(--tq-color-on-accent, white);
 }
-.tool.ready {
+/* That there is more in it, in the corner, as a tool group has it. */
+.tool.folder::after {
+	content: '';
+	position: absolute;
+	right: 2px;
+	bottom: 2px;
+	border-width: 0 0 5px 5px;
+	border-style: solid;
+	border-color: transparent transparent currentColor;
+}
+.tool.ready,
+.tool.into {
 	outline: 2px solid var(--tq-color-accent);
 	outline-offset: -2px;
 }
 .tool.held {
-	visibility: hidden;
+	opacity: 0.25;
 }
-.tool-move {
-	transition: transform 0.15s ease;
+.standing :slotted(.tools-divider) {
+	width: 20px;
+	height: 1px;
+	margin-block: 4px;
+	margin-inline: 6px;
+}
+.shape {
+	position: absolute;
+	top: -1px;
+	right: -1px;
+	width: 12px;
+	height: 12px;
+	padding: 0;
+	border: none;
+	border-radius: 0 var(--corner) 0 0;
+	background: none;
+	cursor: ew-resize;
+	opacity: 0;
+}
+.on-right .shape {
+	right: auto;
+	left: -1px;
+	border-radius: var(--corner) 0 0 0;
+}
+.tools:hover .shape {
+	opacity: 1;
+	background: linear-gradient(to bottom left, var(--tq-color-accent) 50%, transparent 50%);
+}
+.on-right:hover .shape {
+	background: linear-gradient(to bottom right, var(--tq-color-accent) 50%, transparent 50%);
+}
+.caret {
+	position: absolute;
+	z-index: 62;
+	background: var(--tq-color-accent);
+	pointer-events: none;
 }
 .ghost {
 	position: fixed;
-	z-index: 10;
+	z-index: 63;
 	border-radius: 6px;
 	background: var(--tq-color-surface);
 	box-shadow: var(--tq-shadow-popup);
@@ -372,16 +686,7 @@ const ghost = computed(() => {
 	cursor: grabbing;
 }
 .ghost.off {
-	opacity: 0.6;
-}
-.ghost.gone {
-	opacity: 0;
-	scale: 0.5;
-	transition:
-		left 0.2s ease-in,
-		top 0.2s ease-in,
-		opacity 0.2s ease-in,
-		scale 0.2s ease-in;
+	outline: 1px solid var(--tq-color-border);
 }
 .stowed {
 	display: grid;

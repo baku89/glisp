@@ -38,6 +38,7 @@ import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
 import { iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
+import { alone } from './panelLayout'
 import { PANEL_DOCK, usePanelLayout } from './usePanelLayout'
 import { withPaintsSwapped } from './paintArguments'
 import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
@@ -79,7 +80,7 @@ import {
 } from './selection'
 import { bindingsOfSvg, programInFile, svgOfProgram, svgOfRows } from './svg'
 import ToolBar from './ToolBar.vue'
-import { type Arrangement, arranged as arrangedTools } from './toolbar'
+import { arranged as arrangedTools, type FirstTools } from './toolbar'
 
 initTweeq('app.glisp.canvas', { accentColor: '#1473e6' })
 
@@ -206,7 +207,7 @@ const TOOLS = [
 const tool = ref<(typeof TOOLS)[number]['name']>('select')
 
 /** What is on the bar at first: the rest is there behind its dots, until it is wanted. */
-const FIRST_TOOLS: Arrangement = {
+const FIRST_TOOLS: FirstTools = {
 	shown: ['select', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
 	stowed: [
 		'star',
@@ -223,7 +224,7 @@ const FIRST_TOOLS: Arrangement = {
 		'dubins',
 	],
 }
-const toolsKept = useAppConfigStore().ref<Partial<Arrangement> | null>('glisp.canvas.tools', null)
+const toolsKept = useAppConfigStore().ref<unknown>('glisp.canvas.tools', null)
 const toolArrangement = computed(() => arrangedTools(toolsKept.value, FIRST_TOOLS))
 const drawing = computed(() => (tool.value === 'select' ? null : tool.value))
 
@@ -236,12 +237,21 @@ const toolAttributes = computed(() => ({
 	shape: shapeAttributesOf(toolDocument.root.value, toolDocument.env.value),
 }))
 const toolPanelOpen = useAppConfigStore().ref('glisp.canvas.tool.open', true)
+const PROJECT_PANEL = 'glisp.canvas.project'
+const CODE_PANEL = 'glisp.canvas.code'
+const INSPECTOR_PANEL = 'glisp.canvas.inspector'
 /** Where the panels are, which they go by, and which is kept across reloads. */
 const $stage = useTemplateRef<HTMLElement>('$stage')
 const panels = usePanelLayout($stage, 'glisp.canvas.panels', [
-	{ panels: ['glisp.canvas.project'], side: 'left', inset: 0, y: 0, full: false },
-	{ panels: ['glisp.canvas.inspector'], side: 'right', inset: 0, y: 0, full: false },
-	{ panels: ['glisp.canvas.tool'], side: 'left', inset: 0, y: 'bottom', full: false },
+	{
+		groups: [{ tabs: [PROJECT_PANEL, CODE_PANEL], active: PROJECT_PANEL }],
+		side: 'left',
+		inset: 0,
+		y: 0,
+		full: false,
+	},
+	{ groups: [alone(INSPECTOR_PANEL)], side: 'right', inset: 0, y: 0, full: false },
+	{ groups: [alone('glisp.canvas.tool')], side: 'left', inset: 0, y: 'bottom', full: false },
 ])
 provide(PANEL_DOCK, panels)
 const panelJoining = panels.joining
@@ -295,13 +305,9 @@ const origin = [
 	ORIGIN_MARGIN,
 ] as const
 
-const PROJECT_TABS = [
-	{ name: 'layers', label: 'Project', icon: 'ph:tree-view' },
-	{ name: 'code', label: 'Code', icon: 'ph:code' },
-] as const
-const projectTab = useAppConfigStore().ref<'layers' | 'code'>('glisp.canvas.project.tab', 'layers')
-// What was kept before the REPL had a panel of its own.
-if (!PROJECT_TABS.some(({ name }) => name === projectTab.value)) projectTab.value = 'layers'
+/** Code goes by the room it is given, rather than by how much of it there is. */
+const CODE_HEIGHT = 480
+const codeOpen = useAppConfigStore().ref('glisp.canvas.code.open', projectOpen.value)
 const inspectorOpen = useAppConfigStore().ref('glisp.canvas.inspector.open', true)
 
 const programOf = (root: { kind: string }): LetAST | null =>
@@ -426,7 +432,7 @@ function setSolid(): void {
 	if (root === null) return
 	const { ast, row } = withSolid(root, document.env.value, theme.colorBackground)
 	setProgram(ast, [row])
-	inspectorOpen.value = true
+	panels.show(INSPECTOR_PANEL)
 }
 
 function group(): void {
@@ -458,15 +464,14 @@ function fit(rows?: readonly string[]): void {
 
 const ZOOM_STEP = 1.5
 /** The editor is there once it has been asked for, and stays, with what is written in it. */
-const codeOpened = ref(projectTab.value === 'code')
-watch(projectTab, tab => {
-	if (tab === 'code') codeOpened.value = true
+const codeOpened = ref(false)
+watchEffect(() => {
+	if (panels.isShown(CODE_PANEL)) codeOpened.value = true
 })
 const codeHasProblem = ref(false)
 
 function showCode(): void {
-	projectOpen.value = true
-	projectTab.value = 'code'
+	panels.show(CODE_PANEL)
 }
 
 const selected = ref<readonly string[]>([])
@@ -1114,9 +1119,10 @@ actions.register([
 			},
 			{ id: 'view_zoom_in', label: 'Zoom In', icon: 'mdi:magnify-plus-outline', bind: 'command+=', perform: () => $canvas.value?.zoomBy(ZOOM_STEP) },
 			{ id: 'view_zoom_out', label: 'Zoom Out', icon: 'mdi:magnify-minus-outline', bind: 'command+-', perform: () => $canvas.value?.zoomBy(1 / ZOOM_STEP) },
-			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => (projectOpen.value = !projectOpen.value) },
-			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => (inspectorOpen.value = !inspectorOpen.value) },
-			{ id: 'view_tool', label: 'Toggle Tool Options', icon: 'ph:palette', perform: () => (toolPanelOpen.value = !toolPanelOpen.value) },
+			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => panels.toggle(PROJECT_PANEL) },
+			{ id: 'view_code', label: 'Toggle Code', icon: 'ph:code', perform: () => panels.toggle(CODE_PANEL) },
+			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => panels.toggle(INSPECTOR_PANEL) },
+			{ id: 'view_tool', label: 'Toggle Tool Options', icon: 'ph:palette', perform: () => panels.toggle('glisp.canvas.tool') },
 			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', bind: 'd', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
 			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
 			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGraphPaper('dots') },
@@ -1331,33 +1337,12 @@ function selectInTree(row: string | null): void {
 				</Popover>
 				<FloatPanel
 					v-model:open="projectOpen"
-					name="glisp.canvas.project"
+					:name="PROJECT_PANEL"
 					:width="PROJECT_WIDTH"
 					label="Project"
 					icon="ph:tree-view"
 				>
-					<template #header>
-						<div class="tabs" role="tablist">
-							<button
-								v-for="{ name, label, icon } in PROJECT_TABS"
-								:key="name"
-								class="tab"
-								:class="{ active: projectTab === name }"
-								role="tab"
-								:aria-selected="projectTab === name"
-								@click="projectTab = name"
-							>
-								<Icon :icon="icon" />
-								{{ label }}
-								<span
-									v-if="name === 'code' && codeHasProblem"
-									class="problem-dot"
-									aria-label="This cannot be read"
-								/>
-							</button>
-						</div>
-					</template>
-					<div v-show="projectTab === 'layers'" class="tab-content">
+					<div class="tab-content">
 						<AstEditor
 							ref="$editor"
 							:document="document"
@@ -1378,7 +1363,17 @@ function selectInTree(row: string | null): void {
 							@pasted="selectOnCanvas"
 						/>
 					</div>
-					<div v-if="codeOpened" v-show="projectTab === 'code'" class="tab-content">
+				</FloatPanel>
+				<FloatPanel
+					v-model:open="codeOpen"
+					:name="CODE_PANEL"
+					:width="PROJECT_WIDTH"
+					:height="CODE_HEIGHT"
+					:alert="codeHasProblem ? 'This cannot be read' : null"
+					label="Code"
+					icon="ph:code"
+				>
+					<div v-if="codeOpened" class="tab-content">
 						<AstProgramCode
 							ref="$code"
 							:document="document"
@@ -1390,7 +1385,7 @@ function selectInTree(row: string | null): void {
 				</FloatPanel>
 				<FloatPanel
 					v-model:open="inspectorOpen"
-					name="glisp.canvas.inspector"
+					:name="INSPECTOR_PANEL"
 					:width="320"
 					data-selects-rows
 					label="Inspector"
@@ -1460,10 +1455,12 @@ function selectInTree(row: string | null): void {
 				<div
 					v-if="panelJoining"
 					class="panel-joining"
+					:class="panelJoining.kind"
 					:style="{
 						left: `${panelJoining.left}px`,
 						top: `${panelJoining.top}px`,
 						width: `${panelJoining.width}px`,
+						height: panelJoining.kind === 'tab' ? `${panelJoining.height}px` : undefined,
 					}"
 				/>
 				<ToolBar
@@ -1525,9 +1522,6 @@ function selectInTree(row: string | null): void {
 }
 
 .stage {
-	/* How round the curves are by which what comes out of an edge of the window goes into it.
-	Its own corners are its own, going around what is in it. */
-	--edge-fillet: 14px;
 	position: relative;
 	height: 100%;
 }
@@ -1541,16 +1535,16 @@ function selectInTree(row: string | null): void {
 .panel-joining {
 	position: absolute;
 	z-index: 50;
-	height: 3px;
-	margin-top: -1px;
 	background: var(--tq-color-accent);
 	pointer-events: none;
 }
-.tabs {
-	display: flex;
-	gap: 2px;
+.panel-joining.stack {
+	height: 3px;
+	margin-top: -1px;
 }
-.tab,
+.panel-joining.tab {
+	opacity: 0.3;
+}
 .panel-title {
 	display: flex;
 	gap: var(--tq-gap-related);
@@ -1587,21 +1581,6 @@ function selectInTree(row: string | null): void {
 	background: var(--tq-color-input-hover);
 	color: var(--tq-color-text);
 }
-.tab {
-	border: none;
-	border-radius: var(--tq-radius-input);
-	background: none;
-	color: var(--tq-color-text-mute);
-	cursor: pointer;
-}
-.tab:hover {
-	color: var(--tq-color-text);
-}
-.tab.active {
-	background: var(--tq-color-input);
-	color: var(--tq-color-text);
-	font-weight: 600;
-}
 .tab-content {
 	display: flex;
 	flex: 1 1 auto;
@@ -1611,12 +1590,6 @@ function selectInTree(row: string | null): void {
 .tab-content > :deep(*) {
 	flex: 1 1 auto;
 	min-height: 0;
-}
-.problem-dot {
-	width: 6px;
-	height: 6px;
-	border-radius: 50%;
-	background: var(--tq-color-error);
 }
 .tools-divider {
 	align-self: center;
