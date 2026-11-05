@@ -44,13 +44,10 @@ const take = (paint: Paint): void =>
 	<FloatPanel
 		v-model:open="open"
 		name="glisp.canvas.tool"
-		side="left"
-		fromBottom
 		:width="280"
 		label="Tool Options"
 		icon="ph:palette"
 		data-selects-rows
-		class="ToolPanel"
 	>
 		<template #header>
 			<span class="title">
@@ -97,10 +94,6 @@ const take = (paint: Paint): void =>
 </template>
 
 <style scoped>
-/* What it is under stays clear of it, and it does not go up to the top of the window. */
-.ToolPanel {
-	--taken-below: 40%;
-}
 .title {
 	display: flex;
 	gap: 6px;

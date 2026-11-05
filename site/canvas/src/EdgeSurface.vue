@@ -2,6 +2,13 @@
 defineProps<{
 	/** The edge of the window that it comes out of. */
 	edge: 'left' | 'right' | 'bottom'
+	/** It has come off that edge, so all the way around it is a line. */
+	floating?: boolean
+	/** Where another goes on from it, with a line between and no curve. */
+	joinedAbove?: boolean
+	joinedBelow?: boolean
+	/** Where it goes on to the end of the window, with no line and no curve. */
+	flushBottom?: boolean
 }>()
 </script>
 
@@ -12,11 +19,26 @@ defineProps<{
 		it, and are all here together as a blur only sees through to the canvas from outside of
 		anything else that blurs.
 	-->
-	<div class="EdgeSurface" :class="edge" aria-hidden="true">
+	<div
+		class="EdgeSurface"
+		:class="[
+			edge,
+			{
+				floating,
+				'joined-above': joinedAbove,
+				'joined-below': joinedBelow,
+				'flush-bottom': flushBottom,
+			},
+		]"
+		aria-hidden="true"
+	>
 		<div class="fill" />
 		<div class="line" />
-		<div class="fillet first" />
-		<div class="fillet last" />
+		<div v-if="joinedAbove" class="seam" />
+		<template v-if="!floating">
+			<div v-if="!joinedAbove" class="fillet first" />
+			<div v-if="!joinedBelow && !flushBottom" class="fillet last" />
+		</template>
 	</div>
 </template>
 
@@ -38,6 +60,9 @@ defineProps<{
 }
 .EdgeSurface.bottom {
 	bottom: 0;
+}
+.EdgeSurface.floating {
+	inset: -1px;
 }
 .fill,
 .line {
@@ -68,6 +93,31 @@ defineProps<{
 .bottom .line {
 	border-bottom: none;
 	clip-path: inset(0 0 var(--r) 0);
+}
+.floating .line {
+	border: 1px solid var(--tq-color-border);
+	clip-path: none;
+}
+.flush-bottom .line {
+	border-bottom: none;
+}
+/* What is next to it casts nothing onto it. */
+.joined-above .fill {
+	clip-path: inset(0 -64px -64px -64px);
+}
+.joined-below .fill {
+	clip-path: inset(-64px -64px 0 -64px);
+}
+.joined-above.joined-below .fill {
+	clip-path: inset(0 -64px 0 -64px);
+}
+.seam {
+	position: absolute;
+	top: 0;
+	right: 0;
+	left: 0;
+	height: 1px;
+	background: var(--tq-color-border);
 }
 /* A square outside of it, with a circle out of it that touches both it and the edge. */
 .fillet {

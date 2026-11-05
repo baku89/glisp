@@ -11,7 +11,7 @@ import {
 import { combined, type Filter, filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
-import { useElementSize, useEventListener, useMediaQuery } from '@vueuse/core'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
 import { Icon } from 'tweeq/Icon'
@@ -24,7 +24,7 @@ import { InputNumber, scaledBy } from 'tweeq/InputNumber'
 import { TitleBar } from 'tweeq/TitleBar'
 import { vTooltip } from 'tweeq/Tooltip'
 import { initTweeq } from 'tweeq/useTweeq'
-import { computed, nextTick, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
+import { computed, nextTick, provide, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
 import CanvasView from './CanvasView.vue'
 import { exportSvg } from './files'
@@ -38,6 +38,7 @@ import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
 import { iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
+import { PANEL_DOCK, usePanelLayout } from './usePanelLayout'
 import { withPaintsSwapped } from './paintArguments'
 import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
 import IsolationBar from './IsolationBar.vue'
@@ -234,14 +235,15 @@ const toolAttributes = computed(() => ({
 	shape: shapeAttributesOf(toolDocument.root.value, toolDocument.env.value),
 }))
 const toolPanelOpen = useAppConfigStore().ref('glisp.canvas.tool.open', true)
-/** The project stops short of what is under it on that edge. */
-const $toolPanel = useTemplateRef<InstanceType<typeof ToolPanel>>('$toolPanel')
-const { height: toolPanelHeight } = useElementSize(
-	() => $toolPanel.value?.$el as HTMLElement | undefined,
-	undefined,
-	{ box: 'border-box' }
-)
-const belowProject = computed(() => ({ '--taken-below': `${toolPanelHeight.value + 32}px` }))
+/** Where the panels are, which they go by, and which is kept across reloads. */
+const $stage = useTemplateRef<HTMLElement>('$stage')
+const panels = usePanelLayout($stage, 'glisp.canvas.panels', [
+	{ panels: ['glisp.canvas.project'], side: 'left', inset: 0, y: 0, full: false },
+	{ panels: ['glisp.canvas.inspector'], side: 'right', inset: 0, y: 0, full: false },
+	{ panels: ['glisp.canvas.tool'], side: 'left', inset: 0, y: 'bottom', full: false },
+])
+provide(PANEL_DOCK, panels)
+const panelJoining = panels.joining
 const toolInHand = computed(() => TOOLS.find(({ name }) => name === tool.value)!)
 
 /** A drag says its numbers exactly, and they can be typed once it is let go of. */
@@ -286,7 +288,6 @@ const PROJECT_WIDTH = 280
 const ORIGIN_MARGIN = 32
 /** The top left of what the project leaves showing, and a little in from there. */
 const projectWidth = useAppConfigStore().ref('glisp.canvas.project.width', PROJECT_WIDTH)
-const inspectorWidth = useAppConfigStore().ref('glisp.canvas.inspector.width', 320)
 const TAB_WIDTH = 32
 const origin = [
 	(projectOpen.value ? projectWidth.value : TAB_WIDTH) + ORIGIN_MARGIN,
@@ -385,8 +386,8 @@ const FIT_MARGIN = 32
 /** What is free of the panels that are open. */
 function freeArea(): Area {
 	const [width, height] = $canvas.value?.size() ?? [0, 0]
-	const left = projectOpen.value ? projectWidth.value : TAB_WIDTH
-	const right = inspectorOpen.value ? inspectorWidth.value : TAB_WIDTH
+	const left = panels.taken('left')
+	const right = panels.taken('right')
 	return [left + FIT_MARGIN, FIT_MARGIN, width - right - FIT_MARGIN, height - FIT_MARGIN]
 }
 
@@ -1125,7 +1126,7 @@ useEventListener(
 	window,
 	'pointerdown',
 	(event: PointerEvent) => {
-		const item = (event.target as Element | null)?.closest?.('.FloatPanel.left .TqParameterTreeItem')
+		const item = (event.target as Element | null)?.closest?.('[data-panel="glisp.canvas.project"] .TqParameterTreeItem')
 		const row = item?.querySelector('.row-path')?.getAttribute('data-path')
 		dragged = row == null ? null : { row, x: event.clientX, y: event.clientY }
 	},
@@ -1220,7 +1221,7 @@ function selectInTree(row: string | null): void {
 			</TitleBar>
 		</template>
 		<template #default>
-			<div class="stage">
+			<div ref="$stage" class="stage">
 				<CanvasView
 					ref="$canvas"
 					class="canvas"
@@ -1267,8 +1268,6 @@ function selectInTree(row: string | null): void {
 				<FloatPanel
 					v-model:open="projectOpen"
 					name="glisp.canvas.project"
-					side="left"
-					:style="belowProject"
 					:width="PROJECT_WIDTH"
 					label="Project"
 					icon="ph:tree-view"
@@ -1328,7 +1327,6 @@ function selectInTree(row: string | null): void {
 				<FloatPanel
 					v-model:open="inspectorOpen"
 					name="glisp.canvas.inspector"
-					side="right"
 					:width="320"
 					data-selects-rows
 					label="Inspector"
@@ -1388,13 +1386,21 @@ function selectInTree(row: string | null): void {
 					</AstEditor>
 				</FloatPanel>
 				<ToolPanel
-					ref="$toolPanel"
 					v-model:open="toolPanelOpen"
 					:document="toolDocument"
 					:tool="tool"
 					:label="tool === 'select' ? 'Tool Options' : toolInHand.label"
 					:icon="toolInHand.icon"
 					:paintOfSelected="paintOfSelected"
+				/>
+				<div
+					v-if="panelJoining"
+					class="panel-joining"
+					:style="{
+						left: `${panelJoining.left}px`,
+						top: `${panelJoining.top}px`,
+						width: `${panelJoining.width}px`,
+					}"
 				/>
 				<ToolBar
 					:tools="toolsOnBar"
@@ -1454,6 +1460,15 @@ function selectInTree(row: string | null): void {
 	position: absolute;
 	top: calc(-1 * var(--titlebar-area-height));
 	height: calc(100% + var(--titlebar-area-height));
+}
+/* Where a panel being held would join others. */
+.panel-joining {
+	position: absolute;
+	z-index: 50;
+	height: 3px;
+	margin-top: -1px;
+	background: var(--tq-color-accent);
+	pointer-events: none;
 }
 .tabs {
 	display: flex;
