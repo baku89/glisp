@@ -1015,6 +1015,10 @@ export function cornerTurners(
 ): Handle[] {
 	const pivot = turning.pivot!
 	const facing = turning.angle ?? 0
+	const fromCorner = (to: Vec, by: number): Vec => {
+		const [x, y] = turnedBy([to[0] - pivot[0], to[1] - pivot[1]], by)
+		return [pivot[0] + x, pivot[1] + y]
+	}
 	return WAYS.flatMap(wx =>
 		WAYS.flatMap((wy): Handle[] => {
 			if (wx === 0 || wy === 0) return []
@@ -1027,9 +1031,11 @@ export function cornerTurners(
 					outsideCorner: true,
 					at,
 					angle: (Math.atan2(wy, wx) * 180) / Math.PI + angle,
+					...(turning.turnOf === undefined
+						? {}
+						: { turnOf: (to: Vec, how?: HandleDrag) => turning.turnOf!(fromCorner(to, by), how) }),
 					to(to, from, how) {
-						const [x, y] = turnedBy([to[0] - pivot[0], to[1] - pivot[1]], by)
-						return turning.to([pivot[0] + x, pivot[1] + y], from, how)
+						return turning.to(fromCorner(to, by), from, how)
 					},
 				},
 			]
@@ -1106,12 +1112,18 @@ function turningAll([[left, top], [right, bottom]]: readonly [Vec, Vec], box: Bo
 export function withBoxHandles<G extends { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] }>(
 	held: G | null,
 	shapes: readonly Shape[],
-	rows: readonly string[]
+	rows: readonly string[],
+	/** How far round what is selected has been turned, where nothing written says that. */
+	turn = 0
 ): G | null {
 	const [row, other] = rows
-	const answer = held?.grip.box
-	if (held === null || row === undefined || answer === undefined) return held
+	const said = held?.grip.box
+	if (held === null || row === undefined || said === undefined) return held
 	if (held.grip.transform.join() !== IDENTITY.join()) return held
+	const hasItsOwn = other === undefined && held.grip.handles.some(({ rotates, pivot }) => rotates && pivot !== undefined)
+	// Along axes that are turned, one scale each way would not be what it looks like.
+	const answer: BoxAnswer =
+		said.angle === undefined && !hasItsOwn && turn % 360 !== 0 ? { ...said, angle: turn, even: true } : said
 	const around = boundsOfRows(shapes, rows, answer.angle ?? 0)
 	if (around === null) return held
 	const own = held.grip.handles.flatMap(({ at }) => (at === undefined ? [] : [at]))
@@ -1131,6 +1143,7 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 		...held,
 		grip: {
 			...held.grip,
+			box: answer,
 			handles: [...handles, ...turners, ...held.grip.handles.filter((_, i) => kept[i])],
 			guides: held.grip.guides.filter(guide => guide !== turning?.heldOn),
 		},

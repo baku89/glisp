@@ -166,8 +166,14 @@ const keptRow = defineModel<string | null>('keptRow', { default: null })
 const isolation = defineModel<readonly string[]>('isolation', { default: () => [] })
 const isolated = computed(() => isolation.value.at(-1) ?? null)
 const taken = computed(() => rowsAbout(props.selected, keptRow.value))
-watch(taken, rows => {
+/**
+ * How far round what is selected has been turned, where nothing written says that. It is only
+ * how the box around it is seen, and it lasts for as long as those stay selected.
+ */
+const boxTurn = shallowRef(0)
+watch(taken, (rows, before) => {
 	if (rows[0] !== keptRow.value) keptRow.value = null
+	if (rows.join() !== before.join()) boxTurn.value = 0
 })
 /** Two places on screen on the line that something going by even angles is on. */
 const evenLine = shallowRef<readonly [Vec, Vec] | null>(null)
@@ -448,7 +454,8 @@ const gripped = computed(() =>
 		withBoxHandles(
 			gripOfRows(props.document.root.value, props.document.env.value, taken.value),
 			[...scene.value, ...hiddenSelected.value],
-			taken.value
+			taken.value,
+			boxTurn.value
 		),
 		props.document.root.value,
 		props.document.env.value,
@@ -460,7 +467,7 @@ const gripped = computed(() =>
 const grip = computed(() => gripped.value?.grip ?? null)
 /** The corners of the box around what is selected, which goes with one that has a way it is turned. */
 const selectedBox = computed(() => {
-	const angle = taken.value.length === 1 ? (grip.value?.box?.angle ?? 0) : 0
+	const angle = grip.value?.box?.angle ?? 0
 	const box = boundsOfRows([...scene.value, ...hiddenSelected.value], taken.value, angle)
 	return box === null ? null : cornersOfBox(box, angle)
 })
@@ -1422,6 +1429,8 @@ let pressed:
 			at: Vec | null
 			/** The program as it was, for it not to go on from a reference it let go of. */
 			base: AST
+			/** How far round the box was, when it was taken hold of. */
+			boxTurn: number
 			/** What it can snap to, none of which is in itself. */
 			points: readonly SnapPoint[]
 	  }
@@ -1594,6 +1603,7 @@ function onPointerDown(event: PointerEvent): void {
 			offset: [at[0] - from[0], at[1] - from[1]],
 			at: null,
 			base: props.document.root.value,
+			boxTurn: boxTurn.value,
 			points:
 				grip.value.transform.join() === '1,0,0,1,0,0' && handle.at !== undefined
 					? snapPoints(
@@ -2000,6 +2010,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	snapMark.value = snap
 
 	const changes = handle.to(snap?.at ?? wanted, from, { symmetric, even, smooth: valueOnly })
+	if (handle.turnOf) boxTurn.value = pressed.boxTurn + handle.turnOf(snap?.at ?? wanted, { even })
 	const finest = handle.fine ? pointerStep() / FINE_BY : pointerStep()
 	const rounded = roundedChanges(changes, finest)
 	const next = apply(row, rounded, base)
