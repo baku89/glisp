@@ -37,7 +37,8 @@ import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
 import { iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
-import { loadedSource, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
+import { withPaintsSwapped } from './paintArguments'
+import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
 import IsolationBar from './IsolationBar.vue'
 import RowName from './RowName.vue'
 import {
@@ -684,6 +685,13 @@ watch(
 	}
 )
 
+/** Of what is selected, or with nothing selected, of what the tools draw with. */
+function swapPaints(): void {
+	const [painted, rows] = selected.value.length > 0 ? [document, paintable.value] : [toolDocument, [PAINT_ROW]]
+	const next = withPaintsSwapped(painted.root.value, painted.env.value, rows)
+	if (next.kind === 'let' && next !== painted.root.value) painted.setRoot(next)
+}
+
 /** Does `act` to the rows it was given, which are then what is selected, if they were not. */
 const onRows =
 	(act: () => unknown) =>
@@ -993,6 +1001,7 @@ actions.register([
 			...(['step', 'all', 'pin', 'hide'] as const).map(slotAction),
 			{ id: 'object_isolate', label: 'Isolate', icon: 'mdi:target', params: [rowsParam], perform: onRows(() => isolateRow(selected.value[0]!)) },
 			{ id: 'object_exit_isolation', label: 'Exit Isolation', icon: 'mdi:arrow-collapse-up', perform: () => $canvas.value?.leaveIsolated() },
+			{ id: 'object_swap_paint', label: 'Swap Fill and Stroke', icon: 'mdi:swap-horizontal', bind: 'shift+x', perform: swapPaints },
 			{ id: 'object_group', label: 'Group', icon: 'mdi:group', bind: 'command+g', params: [rowsParam], perform: onRows(() => group()) },
 			{ id: 'object_ungroup', label: 'Ungroup', icon: 'mdi:ungroup', bind: 'command+shift+g', params: [{ name: 'groups', type: ungroupableType, many: true }], perform: onRows(ungroup) },
 		],

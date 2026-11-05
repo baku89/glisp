@@ -8,7 +8,7 @@ import { type AST, type Env, print, solve, toAst } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import { isExpression, referenceAt, viewOf } from '@glisp/tweeq/structure'
 
-import { type Paint, PAINT_KEYS } from './graphics'
+import { NO_PAINT, type Paint, PAINT_KEYS } from './graphics'
 import { paintAt, withPaint } from './scene'
 
 const bare = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
@@ -46,6 +46,26 @@ export function withPaintThrough(root: AST, env: Env, row: string, part: Partial
 		program = solved ?? withPaint(program, env, row, { [key]: value })
 	}
 	return program
+}
+
+const DEFAULT_WIDTH = 1
+
+/** What a color to a line comes with: a line of no width is not there to see. */
+export const strokeWithWidth = (stroke: string, width: number): Partial<Paint> =>
+	stroke === 'none' || width > 0 ? { stroke } : { stroke, width: DEFAULT_WIDTH }
+
+/**
+ * `root`, with each of `rows` having the color of its fill as its line and the other way, as they
+ * are, none included. What there is comes first, for there never to be neither, which is no style
+ * at all, and would be the end of what else it says.
+ */
+export function withPaintsSwapped(root: AST, env: Env, rows: readonly string[]): AST {
+	return [...new Set(rows)].reduce((program, row) => {
+		const { fill, stroke, width } = paintAt(program, env, row) ?? NO_PAINT
+		if (fill === stroke) return program
+		const line = strokeWithWidth(fill, width)
+		return withPaintThrough(program, env, row, fill === 'none' ? { fill: stroke, ...line } : { ...line, fill: stroke })
+	}, root)
 }
 
 /** What `row` says of `key` as code, which is what it comes to if it does not say. */

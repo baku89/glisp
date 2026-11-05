@@ -13,7 +13,7 @@ import { capitalCase, enumIconsOf, parseSource } from '@glisp/tweeq/structure'
 
 import { LINE_CAPS, LINE_JOINS, lineCapType, lineJoinType, NO_PAINT, type Paint } from './graphics'
 import PaintSwatches from './PaintSwatches.vue'
-import { paintArgument, paintReferringTo, paintSource, paintWritten, withPaintThrough } from './paintArguments'
+import { paintArgument, paintReferringTo, paintSource, paintWritten, strokeWithWidth, withPaintsSwapped, withPaintThrough } from './paintArguments'
 import { paintAt, withPaint } from './scene'
 
 const props = withDefaults(
@@ -85,22 +85,12 @@ function set(part: Partial<Paint>): void {
 const setNumbers = (key: 'width' | 'miterLimit' | 'dashOffset', values: readonly number[]): void =>
 	setEach(lined.value.map(({ row }) => row), i => ({ [key]: values[i]! }))
 
-const DEFAULT_WIDTH = 1
-
-/** What a color to a line comes with: a line of no width is not there to see. */
-const strokeWithWidth = (stroke: string, width: number): Partial<Paint> =>
-	stroke === 'none' || width > 0 ? { stroke } : { stroke, width: DEFAULT_WIDTH }
-
 const setStroke = (stroke: string): void =>
 	setEach(paints.value.map(({ row }) => row), i => strokeWithWidth(stroke, paints.value[i]!.paint.width))
 
-/** Each with the color of its fill as its line, and the other way, as they are, none included. */
 const swap = (): void => {
-	const was = paints.value
-	setEach(was.map(({ row }) => row), i => {
-		const { fill, stroke, width } = was[i]!.paint
-		return { fill: stroke, ...strokeWithWidth(fill, width) }
-	})
+	const { root, env } = props.document
+	setProgram(withPaintsSwapped(root.value, env.value, props.rows))
 }
 
 /** Pressing what is not there adds it, while opening its menu is only that. */

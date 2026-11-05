@@ -3,7 +3,7 @@ import { parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
-import { paintArgument, paintReferringTo, paintSource, paintWritten, withPaintThrough } from './paintArguments'
+import { paintArgument, paintReferringTo, paintSource, paintWritten, withPaintsSwapped, withPaintThrough } from './paintArguments'
 import { paintAt } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
@@ -85,5 +85,46 @@ describe('withPaintThrough', () => {
 	it('writes what is only a value, or not said at all', () => {
 		const next = print(withPaintThrough(parse(referring), env, 'binding:a', { fill: '#0000ff', cap: 'round' }))
 		expect(next).toContain('a = (style (path.rect [0 0] [1 1]) fill="#0000ff" width=3 cap="round")')
+	})
+})
+
+describe('withPaintsSwapped', () => {
+	const swapped = (body: string, rows = ['binding:a']) => {
+		const next = withPaintsSwapped(parse(`{${body}}`), env, rows)
+		return (row = 'binding:a') => paintAt(next, env, row)
+	}
+
+	it('gives each the color of the other', () => {
+		const paint = swapped(`a = (style ${shape} fill="#ff0000" stroke="#0000ff")`)()
+		expect(paint?.fill).toBe('#0000ff')
+		expect(paint?.stroke).toBe('#ff0000')
+	})
+
+	it('takes none along, keeping what else it says of a line', () => {
+		const paint = swapped(`a = (style ${shape} fill="#ff0000" width=3 cap="round")`)()
+		expect(paint?.fill).toBe('none')
+		expect(paint?.stroke).toBe('#ff0000')
+		expect(paint?.width).toBe(3)
+		expect(paint?.cap).toBe('round')
+		const back = swapped(`a = (style ${shape} stroke="#ff0000" width=3)`)()
+		expect(back?.fill).toBe('#ff0000')
+		expect(back?.stroke).toBe('none')
+		expect(back?.width).toBe(3)
+	})
+
+	it('gives a line that had no width one to be seen by', () => {
+		expect(swapped(`a = (style ${shape} fill="#ff0000" width=0)`)()?.width).toBe(1)
+	})
+
+	it('does each of several by itself, and one only once', () => {
+		const program = `a = (style ${shape} fill="#ff0000") b = (style ${shape} stroke="#00ff00")`
+		const paint = swapped(program, ['binding:a', 'binding:b', 'binding:a'])
+		expect(paint('binding:a')?.stroke).toBe('#ff0000')
+		expect(paint('binding:b')?.fill).toBe('#00ff00')
+	})
+
+	it('leaves what has neither as it is', () => {
+		const root = parse(`{a = (style ${shape} fill="none" width=3)}`)
+		expect(withPaintsSwapped(root, env, ['binding:a'])).toBe(root)
 	})
 })
