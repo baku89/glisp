@@ -427,6 +427,7 @@ useEventListener(
 	margin: 0;
 	padding-inline: 3px;
 	font: inherit;
-	font-weight: 600;
+	/* A part of what is in the panel, as its parameters are, and not a title of the panel. */
+	color: var(--tq-color-text-mute);
 }
 </style>
