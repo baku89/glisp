@@ -1930,6 +1930,8 @@ export interface BoxAnswer {
 	turned?(degrees: number, about: Vec): readonly Change[]
 	/** Turning it around its own middle would come to the same, as with a circle. */
 	readonly round?: boolean
+	/** It speaks for several rows, as what is selected or what is in a group, each change saying of which. */
+	readonly across?: boolean
 }
 
 /**

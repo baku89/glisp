@@ -1117,11 +1117,12 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 	/** How far round what is selected has been turned, where nothing written says that. */
 	turn = 0
 ): G | null {
-	const [row, other] = rows
+	const [row] = rows
 	const said = held?.grip.box
 	if (held === null || row === undefined || said === undefined) return held
 	if (held.grip.transform.join() !== IDENTITY.join()) return held
-	const hasItsOwn = other === undefined && held.grip.handles.some(({ rotates, pivot }) => rotates && pivot !== undefined)
+	const several = said.across === true
+	const hasItsOwn = !several && held.grip.handles.some(({ rotates, pivot }) => rotates && pivot !== undefined)
 	// Along axes that are turned, one scale each way would not be what it looks like.
 	const answer: BoxAnswer =
 		said.angle === undefined && !hasItsOwn && turn % 360 !== 0 ? { ...said, angle: turn, even: true } : said
@@ -1130,14 +1131,13 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 	const own = held.grip.handles.flatMap(({ at }) => (at === undefined ? [] : [at]))
 	// Where it has one of its own already, that says more than a box can.
 	const handles = boxHandlesOf(around, answer)
-		.map(handle => (other === undefined ? handle : { ...handle, across: true }))
+		.map(handle => (several ? { ...handle, across: true } : handle))
 		.filter(({ at }) => !own.some(place => Math.hypot(place[0] - at![0], place[1] - at![1]) < SAME_PLACE))
 	// What turns it goes to the corners of the box, and what it was held out on goes with it.
-	const turning =
-		other === undefined
-			? (held.grip.handles.find(({ rotates, pivot }) => rotates && pivot !== undefined) ??
-				(answer.round ? undefined : (turningAll(around, answer) ?? undefined)))
-			: (turningAll(around, answer) ?? undefined)
+	const turning = several
+		? (turningAll(around, answer) ?? undefined)
+		: (held.grip.handles.find(({ rotates, pivot }) => rotates && pivot !== undefined) ??
+			(answer.round ? undefined : (turningAll(around, answer) ?? undefined)))
 	const turners = turning ? cornerTurners(around, answer.angle ?? 0, turning) : []
 	const kept = held.grip.handles.map(handle => handle !== turning)
 	return {
@@ -1556,6 +1556,7 @@ function boxOfRows(grips: readonly { row: string; grip: Grip }[]): { box: BoxAns
 		changes.map(change => ({ ...change, row }))
 	return {
 		box: {
+			across: true,
 			even: answers.some(({ box }) => box.even || (box.angle ?? 0) !== 0),
 			scaled: (x, y, about) => answers.flatMap(({ row, box }) => ofRow(row, box.scaled(x, y, about))),
 			...(answers.every(({ box }) => box.turned !== undefined)
@@ -1570,21 +1571,39 @@ function boxOfRows(grips: readonly { row: string; grip: Grip }[]): { box: BoxAns
 
 /**
  * How `rows` can be taken hold of at once: the handles of all of them, and whose each is. Null
- * if they have no coordinates in common to put those in, as they can then only be moved.
+ * if they have no coordinates in common to put those in, as they can then only be moved. A group
+ * goes as one, so that what is in it says what the box can do, and shows no handles of its own.
  */
 export function gripOfRows(
 	root: AST,
 	env: Env,
 	rows: readonly string[]
 ): { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] } | null {
+	const hasGroup = rows.some(row => holdsRows(root, env, row))
+	let wholly = true
 	const grips = rows.flatMap(row => {
-		const grip = gripAt(root, env, row)
-		return grip === null ? [] : [{ row, grip }]
+		const isGroup = holdsRows(root, env, row)
+		return (isGroup ? rowsPaintedBy(root, env, row) : [row]).flatMap(part => {
+			const grip = gripAt(root, env, part)
+			if (grip === null) {
+				// Something that cannot be scaled with the rest would be left behind by the box.
+				wholly = false
+				return []
+			}
+			return [
+				{
+					row: part,
+					grip: isGroup
+						? { transform: grip.transform, handles: [], guides: [], ...(grip.box ? { box: grip.box } : {}) }
+						: grip,
+				},
+			]
+		})
 	})
 	const [first, second] = grips
 	if (first === undefined) return null
 	const rowOf = grips.flatMap(({ row, grip }) => grip.handles.map(() => row))
-	if (second === undefined) return { grip: first.grip, rowOf }
+	if (second === undefined && !hasGroup) return { grip: first.grip, rowOf }
 	const transform = first.grip.transform
 	if (grips.some(({ grip }) => grip.transform.join() !== transform.join())) return null
 	const sources = grips.flatMap(({ grip }) => grip.sources ?? [])
@@ -1594,7 +1613,7 @@ export function gripOfRows(
 			handles: grips.flatMap(({ grip }) => grip.handles),
 			guides: grips.flatMap(({ grip }) => grip.guides),
 			...(sources.length > 0 ? { sources } : {}),
-			...boxOfRows(grips),
+			...(wholly ? boxOfRows(grips) : {}),
 		},
 		rowOf,
 	}

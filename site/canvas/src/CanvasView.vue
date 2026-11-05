@@ -1413,9 +1413,9 @@ function commit(next: ReturnType<typeof apply>): void {
 	if (next.ast?.kind === 'let' && next.ast !== root.value) props.document.setRoot(next.ast)
 }
 
-/** What is selected, if a press is inside of the box that goes around several of it, to move them all. */
+/** What is selected, if a press is inside of the box that goes around several of it or a group, to move them all. */
 function rowOfBoxAt(x: number, y: number, adding: boolean): string | null {
-	if (adding || taken.value.length < 2 || grip.value?.box === undefined) return null
+	if (adding || !grip.value?.box?.across) return null
 	const box = boundsOfRows([...scene.value, ...hiddenSelected.value], taken.value)
 	if (box === null) return null
 	const [px, py] = fromScreen(x, y)
