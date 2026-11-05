@@ -57,6 +57,7 @@ import {
 	rowsAbout,
 	ungrouped,
 	viewToFit,
+	withFileDropped,
 	withSolid,
 	withAxesToggled,
 	withGraphPaperToggled,
@@ -349,6 +350,65 @@ launching.launchQueue?.setConsumer(async ({ files: [handle] }) => {
 	await files.openFrom({ text: await file.text(), name: file.name, handle })
 })
 
+/** What a file being pulled in would do, where it is now: be added to what is drawn, or open by itself. */
+const fileDrop = ref<'canvas' | 'window' | null>(null)
+const carriesFile = (event: DragEvent): boolean => event.dataTransfer?.types.includes('Files') === true
+const isReadable = ({ name }: File): boolean => /\.(svg|glisp)$/i.test(name)
+
+useEventListener(window, 'dragover', (event: DragEvent) => {
+	if (!carriesFile(event)) return
+	// Or else the browser would go to the file, and away from this.
+	event.preventDefault()
+	fileDrop.value = $canvas.value?.isAt(event.clientX, event.clientY) ? 'canvas' : 'window'
+})
+useEventListener(window, 'dragleave', (event: DragEvent) => {
+	if (event.relatedTarget === null) fileDrop.value = null
+})
+useEventListener(window, 'drop', (event: DragEvent) => {
+	if (!carriesFile(event)) return
+	event.preventDefault()
+	fileDrop.value = null
+	const { clientX, clientY } = event
+	const onCanvas = $canvas.value?.isAt(clientX, clientY) === true
+	// Only while it is being dropped can any of this be asked.
+	const dropped = [...(event.dataTransfer?.items ?? [])].flatMap(item => {
+		const file = item.kind === 'file' ? item.getAsFile() : null
+		if (file === null || !isReadable(file)) return []
+		const asked = item as DataTransferItem & { getAsFileSystemHandle?(): Promise<FileSystemHandle | null> }
+		return [{ file, handle: onCanvas ? null : asked.getAsFileSystemHandle?.() }]
+	})
+	void (async () => {
+		if (onCanvas) {
+			const place = $canvas.value?.placeAt(clientX, clientY)
+			if (place !== undefined) await addFiles(dropped.map(({ file }) => file), place)
+			return
+		}
+		for (const { file, handle } of dropped) {
+			const opened = await handle?.catch(() => null)
+			await files.openFrom({
+				text: await file.text(),
+				name: file.name,
+				handle: opened?.kind === 'file' ? (opened as FileSystemFileHandle) : null,
+			})
+		}
+	})()
+})
+
+/** Files, as one more thing each in what is drawn, at a place. It is all one edit. */
+async function addFiles(dropped: readonly File[], place: Vec): Promise<void> {
+	const texts = await Promise.all(dropped.map(file => file.text()))
+	let root = programOf(document.root.value)
+	const rows: string[] = []
+	dropped.forEach((file, i) => {
+		const reading = readFile(texts[i]!)
+		const added = root && reading && withFileDropped(root, document.env.value, reading.root, file.name, place)
+		if (!added) return
+		root = added.ast
+		rows.push(added.row)
+	})
+	if (rows.length > 0) setProgram(root, rows)
+}
+
 function setProgram(next: LetAST | null, rows?: readonly string[]): void {
 	if (next === null) return
 	document.setRoot(next)
@@ -459,6 +519,7 @@ const $editor = useTemplateRef<{
 	duplicate(text: string): void
 }>('$editor')
 const $canvas = useTemplateRef<{
+	isAt(clientX: number, clientY: number): boolean
 	placeAt(clientX: number, clientY: number): Vec
 	glideTo(next: mat2d): void
 	zoomBy(factor: number): void
@@ -1222,6 +1283,9 @@ function selectInTree(row: string | null): void {
 		</template>
 		<template #default>
 			<div ref="$stage" class="stage">
+				<div v-if="fileDrop !== null" class="file-drop" :class="fileDrop">
+					<span class="file-drop-says">{{ fileDrop === 'canvas' ? 'Add to this drawing' : 'Open as a new file' }}</span>
+				</div>
 				<CanvasView
 					ref="$canvas"
 					class="canvas"
@@ -1437,6 +1501,18 @@ function selectInTree(row: string | null): void {
 </template>
 
 <style scoped>
+/* Over all of it, and in the way of nothing, as what is under it is what says where it goes. */
+.file-drop {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	padding-bottom: 96px;
+	pointer-events: none;
+	box-shadow: inset 0 0 0 3px var(--tq-color-accent);
+}
 /* The tabs go from the name of the app up to the zoom, so there is no middle to keep clear. */
 .title-bar.title-bar {
 	grid-template-columns: minmax(0, 1fr) 0 min-content;

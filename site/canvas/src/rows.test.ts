@@ -16,8 +16,10 @@ import {
 	withSolid,
 	viewBetween,
 	viewToFit,
+	withFileDropped,
 } from './rows'
 import { layersOf } from '@glisp/tweeq/structure'
+import { sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const program = '[a = 1 b = 2 c = 3 d = 4]'
@@ -300,5 +302,55 @@ describe('withSolid', () => {
 
 	it('brings it out of being hidden', () => {
 		expect(given('{bg = #_(solid "#ff0000")}').source).toBe('[bg = (solid "#ff0000")]')
+	})
+})
+
+describe('a file dropped on the canvas', () => {
+	const program = (src: string) => parse(src) as LetAST
+	const ROOT = program('{radius = 5 [c = (path.circle [0 0] radius)]}')
+	const middleOf = (root: LetAST, row: string): number[] => {
+		const [[left, top], [right, bottom]] = boundsOfRows(root, env, [row])!
+		return [(left + right) / 2, (top + bottom) / 2]
+	}
+
+	it('is one row in front of all else, with its middle where it was dropped', () => {
+		const file = program('{[a = (path.rect [0 0] [10 20])]}')
+		const { ast, row } = withFileDropped(ROOT, env, file, 'box.svg', [100, 200])!
+		expect(row).toBe('binding:box1')
+		expect(layersOf(ast)[0]).toBe('box1')
+		expect(middleOf(ast, row)).toEqual([100, 200])
+	})
+
+	it('keeps several things together, and their names to themselves', () => {
+		const file = program('{radius = 50 [c = (path.circle [0 0] radius) d = (path.rect [0 0] [1 1])]}')
+		const { ast, row } = withFileDropped(ROOT, env, file, 'other.glisp.svg', [300, 300])!
+		expect(layersOf(ast)).toEqual(['other1', 'c'])
+		const [[left], [right]] = boundsOfRows(ast, env, ['binding:c'])!
+		expect(right - left).toBeCloseTo(10)
+		const [[l], [r]] = boundsOfRows(ast, env, [`${row}/binding:c`])!
+		expect(r - l).toBeCloseTo(100)
+		const [x, y] = middleOf(ast, row)
+		expect(x).toBeCloseTo(300)
+		expect(y).toBeCloseTo(300)
+	})
+
+	it('leaves behind what goes on and on', () => {
+		const file = program('{[a = (path.rect [0 0] [10 20]) graphPaper1 = (graphPaper "dots") axes1 = (axes) solid1 = (solid "#fff")]}')
+		const { ast, row } = withFileDropped(ROOT, env, file, 'a.svg', [0, 0])!
+		expect(sceneOf(ast, env).filter(({ draw }) => draw === 'solid')).toEqual([])
+		expect(print(ast)).toContain(row.replace('binding:', ''))
+		expect(print(ast)).not.toContain('graphPaper')
+	})
+
+	it('has nothing to add where nothing is drawn', () => {
+		expect(withFileDropped(ROOT, env, program('{[solid1 = (solid "#fff")]}'), 'a.svg', [0, 0])).toBeNull()
+	})
+
+	it('is called by the file, as far as it can be', () => {
+		const file = program('{[a = (path.rect [0 0] [10 20])]}')
+		const named = (name: string) => withFileDropped(ROOT, env, file, name, [0, 0])!.row
+		expect(named('dataset_linked_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg')).toBe('binding:dataset_linked1')
+		expect(named('My Logo (2).svg')).toBe('binding:My_Logo_21')
+		expect(named('123.svg')).toBe('binding:drawing1')
 	})
 })

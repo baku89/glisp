@@ -4,13 +4,13 @@
  */
 
 import { AS_SOURCE, type AST, type Env, CallAST, enterNode, evaluate, hide, infer, isHidden, LetAST, lit, MetaAST, print, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
-import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
+import { reach, withoutRows, withParent } from '@glisp/tweeq/rowsClipboard'
 import { isGroup, layersOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import { GraphPaperValue, type Path, type Vec } from './graphics'
 import type { GraphPaperKind } from './graphPaper'
-import { drawOf, isVecOfDrawn, labelOfRow, rowWorkedOn, axesCall, axesRowsIn, solidCall, solidRowsIn, graphPaperCall, graphPaperOf, graphPaperRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
+import { changed, drawOf, gripAt, isVecOfDrawn, labelOfRow, rowWorkedOn, axesCall, axesRowsIn, solidCall, solidRowsIn, graphPaperCall, graphPaperOf, graphPaperRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
 
 const BINDING = 'binding:'
 
@@ -95,6 +95,63 @@ const errorsIn = (root: AST, env: Env): number =>
 						.length)
 		)
 	}, 0)
+
+/** What to call what came from a file, without what such a file says of how it was made. */
+const nameFromFile = (fileName: string): string => {
+	const stem = fileName
+		.replace(/(\.glisp)?(\.svg)?$/i, '')
+		.replace(/\.canvas$/i, '')
+		.replace(/_\d+dp_.*$/, '')
+		.replace(/[^A-Za-z0-9_]+/g, '_')
+		.replace(/^[^A-Za-z]+|_+$/g, '')
+		.slice(0, MOST_NAME)
+	return stem === '' ? 'drawing' : stem
+}
+const MOST_NAME = 24
+
+/**
+ * `root`, with what is in `file` as one more thing in front of all else, its middle at `place`.
+ * It is one row, inside of which its names mean what they meant, whatever `root` calls its own.
+ * What goes on and on is left behind, being what `root` has of its own. Null if nothing else is drawn.
+ */
+export function withFileDropped(
+	root: LetAST,
+	env: Env,
+	file: LetAST,
+	fileName: string,
+	place: Vec
+): { readonly ast: LetAST; readonly row: string } | null {
+	const canvasWide = [solidRowsIn, graphPaperRowsIn, axesRowsIn].flatMap(rowsIn => [
+		...rowsIn(file, env, false),
+		...rowsIn(file, env, true),
+	])
+	const kept = withoutRows(file, env, [...new Set(canvasWide.map(({ row }) => row))]) as LetAST
+	if (!sceneOf(kept, env).some(({ draw }) => isOutlined(draw))) return null
+
+	const [only] = kept.bindings
+	const value = only !== undefined && kept.bindings.length === 1 ? only[1] : kept
+	const name = freeName(root, nameFromFile(fileName))
+	const row = `binding:${name}`
+	const added = withLayerAdded(root, name, value)
+	const box = boundsOfRows(added, env, [row])
+	if (box === null) return { ast: added, row }
+	const [[left, top], [right, bottom]] = box
+	const by = [place[0] - (left + right) / 2, place[1] - (top + bottom) / 2].map(n => Math.round(n * 100) / 100)
+	return { ast: movedRow(added, env, row, by as unknown as Vec), row }
+}
+
+/** `root`, with what is at `row` moved, or each of what it holds if it cannot say so as a whole. */
+function movedRow(root: LetAST, env: Env, row: string, by: Vec): LetAST {
+	const move = gripAt(root, env, row)?.move
+	if (move !== undefined) {
+		const { ast } = changed(root, env, row, move(by))
+		return ast instanceof LetAST ? ast : root
+	}
+	const inner = reach(root, env, row)?.chain.at(-1)?.ast
+	const block = inner?.kind === 'meta' ? inner.expr : inner
+	if (block?.kind !== 'let') return root
+	return layersOf(block).reduce((next, name) => movedRow(next, env, `${row}/${BINDING}${name}`, by), root)
+}
 
 /** A name that `root` does not have yet. */
 export function freeName(root: LetAST, stem: string): string {

@@ -524,6 +524,10 @@ defineExpose({
 		const box = canvas.getBoundingClientRect()
 		return rowOfShapeAt(clientX - box.left, clientY - box.top)
 	},
+	/** Whether a place on the screen is the canvas itself, and not what floats over it. */
+	isAt(clientX: number, clientY: number): boolean {
+		return window.document.elementFromPoint(clientX, clientY) === $canvas.value
+	},
 	/** Where a place on the screen is in what is drawn. */
 	placeAt(clientX: number, clientY: number): Vec {
 		const box = $canvas.value?.getBoundingClientRect()
