@@ -48,6 +48,7 @@ import {
 	SOLVER,
 	TITLED,
 	useDeleteInInspector,
+	FUNCTION_ICON,
 	VALUE_ICON,
 } from './selection'
 import {
@@ -201,6 +202,7 @@ function copyReference(path: string): boolean {
 }
 
 provide(VALUE_ICON, value => props.iconOfValue?.(value) ?? null)
+provide(FUNCTION_ICON, fn => props.iconOfFunction?.(fn) ?? null)
 provide(HOST_KEY, event => props.hostKey?.(event) ?? false)
 if (props.valuePicker) provide(VALUE_PICKER, props.valuePicker)
 if (props.commandsFor) provide(COMMANDS_FOR, path => props.commandsFor!(path))
@@ -645,7 +647,13 @@ useEventListener(
 		const selected = selection.value
 		const command = slotCommandOfKey(event)
 		const writes = event.key === '=' && !event.metaKey && !event.ctrlKey && !event.altKey
-		if (!isInspector.value || (command === null && !writes) || event.defaultPrevented) return
+		// As the menu says of it. A button has its own use for Enter.
+		const renames =
+			(event.key === 'Enter' || event.key === 'F2') &&
+			!event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey &&
+			selected?.rename !== undefined &&
+			!(event.target as HTMLElement | null)?.closest?.('button')
+		if (!isInspector.value || (command === null && !writes && !renames) || event.defaultPrevented) return
 		const target = event.target as HTMLElement | null
 		// A lock has nothing to do with what is being typed, and is of whatever has the focus.
 		const field = command !== null && command !== 'hide' && target !== null && !target.closest?.('.AstCodePopup, .monaco-editor')
@@ -663,7 +671,8 @@ useEventListener(
 		if (target?.closest?.('input, textarea, [contenteditable], .monaco-editor')) return
 		event.stopPropagation()
 		event.preventDefault()
-		if (command === null) selected.editExpression?.()
+		if (renames) selected.rename?.()
+		else if (command === null) selected.editExpression?.()
 		else selected.evaluate?.(command)
 	},
 	{ capture: true }

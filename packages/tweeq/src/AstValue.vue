@@ -19,7 +19,7 @@ import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import type { Place } from './multiRows'
 import { displayedAs } from './numberField'
-import { HOST_KEY, LOCKED, RATIO_KEEPER, SOLVER } from './selection'
+import { FUNCTION_ICON, HOST_KEY, LOCKED, RATIO_KEEPER, SOLVER } from './selection'
 import {
 	canSolve,
 	editorOfValue,
@@ -62,6 +62,8 @@ const props = defineProps<{
 const emit = defineEmits<{
 	/** A new parent: what this slot's edit makes of the node holding it. */
 	change: [parent: AST]
+	/** Pressed where there is nothing to do but to have its row selected. */
+	select: [event: MouseEvent]
 }>()
 
 const ast = computed(() => props.entry.ast)
@@ -186,6 +188,14 @@ function onFieldKey(event: KeyboardEvent): void {
 		return
 	}
 	if (event.key === 'Escape') typedExpression = null
+	// A click only selects what is shown by what it is a call of, and this goes into it.
+	if (headInField.value !== null && !editing.value && (event.key === 'Enter' || event.key === 'F2')) {
+		event.preventDefault()
+		event.stopPropagation()
+		;(event.target as HTMLElement).blur()
+		editExpression()
+		return
+	}
 	const { kind } = view.value.editor ?? {}
 	// A string can begin with `=`, whatever it comes from.
 	const takesCode = solvable.value && solvedEditor.value?.kind !== 'string'
@@ -273,6 +283,24 @@ const hasNumber = computed(
 	() => view.value.editor?.kind === 'number' || solvableNumber.value
 )
 
+/**
+ * What it is a call of, if the field has nothing better to say of it than that: a value it can
+ * show or be edited as is more to the point, and leaves that to a row of its own.
+ */
+const headInField = computed(() => {
+	const { head, editor } = view.value
+	if (head === null || props.entry.display !== undefined || editor !== null) return null
+	if (solvedEditor.value !== null || solvableNumbers.value !== null || isUnit.value) return null
+	const value = result.value?.value
+	return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean' ? null : head
+})
+const iconOfFunction = inject(FUNCTION_ICON, null)
+const headIcon = computed(() => {
+	const head = headInField.value
+	if (head === null || props.bare) return undefined
+	return iconOfFunction?.(sourceOf(head.ast)) ?? head.icon ?? undefined
+})
+
 const $root = useTemplateRef<HTMLElement>('$root')
 
 function editValue(): void {
@@ -295,6 +323,7 @@ const fieldMenu = computed<MenuItem[]>(() => [...editItems.value, ...props.menuI
 defineExpose({
 	editValue: computed(() => (hasNumber.value && !locked.value ? editValue : null)),
 	editExpression,
+	headInField,
 })
 
 // What each input stands for, so that what is selected can be edited as one.
@@ -318,8 +347,8 @@ const label = (value: unknown): string =>
 			locked,
 			error: problem !== null,
 		}"
-		v-tooltip="problem ?? undefined"
-		:title="problem === null && (summary === null || isExpression(ast)) ? sourceOf(ast) : undefined"
+		v-tooltip="problem ?? headInField?.doc ?? undefined"
+		:title="problem === null && !headInField?.doc && (summary === null || isExpression(ast)) ? sourceOf(ast) : undefined"
 		@keydown.capture="onFieldKey"
 	>
 		<InputSeed
@@ -450,16 +479,17 @@ const label = (value: unknown): string =>
 		<InputTextBase
 			v-else
 			:modelValue="sourceOf(ast)"
-			:font="isNumber ? 'numeric' : isString || summary !== null ? undefined : 'monospace'"
+			:font="isNumber ? 'numeric' : isString || summary !== null || headInField !== null ? undefined : 'monospace'"
+			:leftIcon="headIcon"
 			:align="isNumber ? 'center' : undefined"
 			:inlinePosition="inlinePosition"
 			ignoreInput
 			:menuItems="fieldMenu"
-			@click="editExpression"
-			@focus="editExpression"
+			@click="headInField === null ? editExpression() : emit('select', $event)"
+			@focus="headInField === null && editExpression()"
 		>
 			<template #inactiveContent>
-				<span class="shown">{{ shown }}</span>
+				<span class="shown">{{ headInField?.label ?? shown }}</span>
 				<span v-if="upToNow !== null" class="up-to-now">{{ upToNow }}</span>
 			</template>
 		</InputTextBase>

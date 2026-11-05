@@ -113,6 +113,10 @@ export const COMMANDS_FOR: InjectionKey<(path: string) => MenuItem[]> =
 export const VALUE_ICON: InjectionKey<(value: unknown) => string | null> =
 	Symbol('glisp-value-icon')
 
+/** An icon for a function, by how its head is written, if a host has one. */
+export const FUNCTION_ICON: InjectionKey<(fn: string) => string | null> =
+	Symbol('glisp-function-icon')
+
 /** Whether this is a list of what there is, where only a group opens. */
 /** How a host has a value chosen by pointing at something, for what can be pointed at. */
 export interface ValuePicker {

@@ -117,6 +117,7 @@ const $item = useTemplateRef<{ scrollIntoView(): void }>('$item')
 const $value = useTemplateRef<{
 	editValue: (() => void) | null
 	editExpression(): void
+	headInField: Slot | null
 }>('$value')
 
 const bareKind = computed(() =>
@@ -344,7 +345,10 @@ const children = computed(() => {
 			return slot === null ? [] : [slot]
 		})
 	}
-	return view.value.head === null ? view.value.slots : [view.value.head, ...view.value.slots]
+	// What it is a call of is said on its own row, if its field does not say.
+	return view.value.head === null || $value.value?.headInField
+		? view.value.slots
+		: [view.value.head, ...view.value.slots]
 })
 
 const alsoSelected = inject(ALSO_SELECTED, null)
@@ -378,7 +382,9 @@ function select(): void {
 			? { rename: () => (renaming.value = true) }
 			: isFunction.value
 				? { rename: () => (editingCode.value = true) }
-				: {}),
+				: $value.value?.headInField
+					? { rename: editExpression }
+					: {}),
 		editValue: () => $value.value?.editValue?.(),
 		editExpression,
 		paste,
@@ -480,7 +486,6 @@ watch(
 		:closedGuide="bareKind === 'call'"
 		:menuItems="menuItems"
 		@select="pick"
-		@nameClick="isFunction && (editingCode = true)"
 	>
 		<div
 			class="value-row"
@@ -522,6 +527,7 @@ watch(
 				:read="read"
 				:show="show"
 				@change="emit('change', $event)"
+				@select="pick"
 			/>
 			<div v-else ref="$anchor" />
 			<button
@@ -552,7 +558,7 @@ watch(
 		</div>
 		<AstCodePopup
 			v-if="editingCode"
-			:reference="layers ? $labelEnd : ($anchor ?? $labelEnd)"
+			:reference="layers || isFunction ? $labelEnd : ($anchor ?? $labelEnd)"
 			:ast="ast"
 			@change="update"
 			@close="editingCode = false"
@@ -560,6 +566,7 @@ watch(
 
 		<template #labelEnd>
 			<span ref="$labelEnd" class="label-end" />
+			<span v-if="isFunction" class="row-function" hidden />
 			<span v-if="entry.absent" class="row-absent" hidden />
 			<span v-if="hidden" class="row-hidden" hidden />
 			<span v-else class="row-path" :data-path="path" hidden />
@@ -643,6 +650,24 @@ watch(
 	border-radius: var(--tq-radius-input);
 	outline: 1px solid var(--tq-color-accent);
 	outline-offset: -1px;
+}
+/* What a call is of heads what it is given, across the whole row, there being no value to show. */
+:global(.TqParameterTreeItem:has(.row-function) > .label) {
+	grid-column: 1 / -1;
+}
+:global(.TqParameterTreeItem:has(.row-function) > .input) {
+	position: absolute;
+	width: 0;
+	height: 0;
+}
+:global(.TqParameterTreeItem:has(.row-function):not(.selected)::before) {
+	content: '';
+	position: absolute;
+	inset: 0 0 0 calc(var(--depth) * var(--indent));
+	z-index: -1;
+	border-radius: var(--tq-radius-input);
+	background: var(--tq-color-info-soft);
+	pointer-events: none;
 }
 /* There when reached for, or when it is what the row being selected would do. */
 /* Taking no room from the name, until it is what is reached for. */
@@ -768,6 +793,8 @@ watch(
 }
 /* What comes after it is together, at the end of the label column, whatever the label's length. */
 .label-end {
+	/* As tall as the row, for what opens from it to open from below it. */
+	align-self: stretch;
 	margin-right: auto;
 }
 .end {
