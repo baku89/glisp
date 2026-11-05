@@ -226,12 +226,13 @@ describe('dubinsChain', () => {
 		expect(spray.selectedAfter).toBeFalsy()
 	})
 
-	it('draws differently for a different radius', () => {
-		const path = (radius: number) =>
+	it('turns on the way to a stop as tightly as that stop says, not the one it left', () => {
+		const path = (first: number, second: number) =>
 			JSON.stringify(
-				sceneOf(parse(`{[a = (path.dubinsChain [[[0 0] 0 ${radius}] [[0 200] 180]] 20)]}`), env)[0]!.value
+				sceneOf(parse(`{[a = (path.dubinsChain [[[0 0] 0 ${first}] [[0 200] 180 ${second}]] 20)]}`), env)[0]!.value
 			)
-		expect(path(30)).not.toBe(path(90))
+		expect(path(30, 40)).not.toBe(path(30, 90))
+		expect(path(30, 40)).toBe(path(90, 40))
 	})
 
 	it('is nothing with one place', () => {

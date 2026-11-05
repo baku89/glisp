@@ -1656,7 +1656,7 @@ withMembers(rectType, {
 
 const placesType = makeTupleType([], point)
 
-/** Where a Dubins path stops on the way, the way it goes on from there, and how tightly if it says. */
+/** Where a Dubins path stops on the way, the way it goes through there, and how tightly it came there if it says. */
 type DubinsStop = readonly [Vec, number, number?]
 const dubinsStopsType = makeTupleType(
 	[],
@@ -1702,10 +1702,10 @@ const makeDubinsChain = makeTypedFn(
 		const all = (stops as DubinsStop[]).map(flatStop)
 		return merged(
 			all.slice(1).map((stop, i) => {
-				// As tightly as the stop it is leaving says, or else as all of them do.
-				const [ax = 0, ay = 0, aAngle = 0, aRadius = radius as number] = all[i]!
-				const [bx = 0, by = 0, bAngle = 0] = stop
-				return dubins([ax, ay], aAngle, [bx, by], bAngle, Math.max(aRadius, 1e-3))
+				// As tightly as the stop it is coming to says, or else as all of them do.
+				const [ax = 0, ay = 0, aAngle = 0] = all[i]!
+				const [bx = 0, by = 0, bAngle = 0, bRadius = radius as number] = stop
+				return dubins([ax, ay], aAngle, [bx, by], bAngle, Math.max(bRadius, 1e-3))
 			})
 		)
 	},
@@ -1754,7 +1754,7 @@ const makeTriangleStrip = withDoc(
 
 withMembers(pathType, {
 	arcStrip: withDoc(makeArcStrip, 'An arc through each three of `places` in a row.', 'Arc Strip'),
-	dubinsChain: withDoc(makeDubinsChain, 'The shortest way between each two of `stops`, each a place, the way it is going, and how tightly it can turn on the way from there, or else as tightly as `radius`.', 'Dubins Chain'),
+	dubinsChain: withDoc(makeDubinsChain, 'The shortest way between each two of `stops`, each a place, the way it is going, and how tightly it can turn on the way to there, or else as tightly as `radius`.', 'Dubins Chain'),
 	bounds: withDoc(makeBounds, 'The area that `path` just fits in.', 'Bounds'),
 	offset: withDoc(makeOffset, 'The outline of `path`, this `distance` out from it, or in, if that is below 0, going around corners by `join`.', 'Offset'),
 	offsetStroke: withDoc(makeOffsetStroke, 'The outline of a line along `path`, this `width`, ending by `cap` and going around corners by `join`.', 'Offset Stroke'),
@@ -3088,7 +3088,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					const at = atOf(stop)
 					const angle = stop[2] ?? 0
 					return [
-						// It turns toward where it is taken, and how far that is is how tightly it goes on from there.
+						// It turns toward where it is taken, and how far that is is how tightly it comes to there.
 						{
 							kind: 'direction',
 							at: tipOf(stop),

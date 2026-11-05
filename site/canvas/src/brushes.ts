@@ -238,7 +238,7 @@ interface DubinsStop {
 	readonly at: Vec
 	/** The way it is going there, in degrees. */
 	readonly angle: number
-	/** How tightly it can turn on the way from there. Without one, it is what the tool says. */
+	/** How tightly it can turn on the way to there. Without one, it is what the tool says. */
 	readonly radius?: number
 }
 
