@@ -31,6 +31,7 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.reflect': 'mdi:flip-horizontal',
 	'path.kaleidoscope': 'ph:flower',
 	'path.kaleidoscopeTile': 'ph:checkerboard',
+	'path.pixelate': 'ph:grid-four',
 	'path.dash': 'mdi:vector-polyline-minus',
 	'path.subtract': 'mdi:vector-difference-ba',
 	'path.intersect': 'mdi:vector-intersection',

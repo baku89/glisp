@@ -70,6 +70,7 @@ import { convexHull } from 'pave/path/hull'
 import { kaleidoscope, kaleidoscopeTile, mirror, reflect } from 'pave/path/mirror'
 import { chamfer, fillet, flatten, reverse, subdivide, zigzag } from 'pave/path/modifiers'
 import { blend, blendSeries, repeatAlong, type RepeatAlongOptions } from 'pave/path/layout'
+import { pixelate, type PixelateAnchors, type PixelateMode } from 'pave/path/pixelate'
 import { raycast } from 'pave/path/raycast'
 import { shadow, shadowFrom } from 'pave/path/shadow'
 import { normal } from 'pave/path/location'
@@ -1402,6 +1403,45 @@ const makeBulge = withInitial(
 		return [middle, reach * 1.5]
 	}
 )
+/** Which cells a shape fills: those it gets into, those it has the center of, or those it covers. */
+const pixelateModeType = enumOf({
+	center: 'ph:crosshair',
+	overlap: 'ph:selection-all',
+	full: 'ph:square-fill',
+})
+/** Where the outline of the cells has anchors: where it turns, or at every cell along it too. */
+const pixelateAnchorsType = enumOf({
+	corners: 'ph:corners-out',
+	cells: 'ph:dots-nine',
+})
+const makePixelate = withInitial(
+	withOptional(
+		makeTypedFn(
+			[pathType, withDefault(rectType, new RectValue([0, 0], [10, 10])), pixelateModeType, pixelateAnchorsType],
+			pathType,
+			(path, cell, mode, anchors) => {
+				try {
+					return new PathValue(
+						pixelate(pathOf(path), cornersOf(cell as RectValue) as [Vec, Vec], {
+							mode: (mode ?? 'center') as PixelateMode,
+							anchors: (anchors ?? 'corners') as PixelateAnchors,
+						})
+					)
+				} catch {
+					// A cell with no size, or too small for how far the shape goes, which it may be on the way to.
+					return path
+				}
+			},
+			['path', 'cell', 'mode', 'anchors']
+		),
+		['mode', 'anchors']
+	),
+	(path: unknown) => {
+		const [[left, top], [right, bottom]] = bounds(pathOf(path))
+		const side = Math.max(right - left, bottom - top) / 16 || 10
+		return [new CallAST(parse('rect.new'), [toAst([left, top], null), toAst([side, side], null)])]
+	}
+)
 const makeDash = withOptional(
 	makeTypedFn(
 		[pathType, withDefault(makeTupleType([], number), [10, 5]), withDefault(number, 0)],
@@ -1728,6 +1768,7 @@ withMembers(pathType, {
 	wave: withDoc(makeWave, 'The `path`, moved by a wave of this `amplitude` and `wavelength`.', 'Wave'),
 	twirl: withDoc(makeTwirl, 'The `path`, turned around `center` by `angle` in degrees, less so out to `radius`.', 'Twirl'),
 	bulge: withDoc(makeBulge, 'The `path`, pushed out from `center` by `strength`, less so out to `radius`.', 'Bulge'),
+	pixelate: withDoc(makePixelate, 'The `path` as cells of a grid, which is `cell` repeated on all sides. Each `mode` fills different ones: those with their center inside (`center`), those it gets into at all (`overlap`), or those wholly inside (`full`). The outline has `anchors` only where it turns (`corners`), or at every cell along it (`cells`).', 'Pixelate'),
 	dash: withDoc(makeDash, 'The parts of `path` that a line with this `pattern` of dashes and gaps would draw.', 'Dash'),
 	subdivide: withDoc(makeSubdivide, 'The same `path`, with each segment made into `division` of them.', 'Subdivide'),
 	flatten: withDoc(makeFlatten, 'The `path` in straight lines, as close to it as `tolerance`.', 'Flatten'),
@@ -3956,6 +3997,18 @@ makers.set(makeKaleidoscopeTile, (args, inner, proportional, free) => {
 	}
 })
 
+// The cell is a rectangle like any other, and a whole picture moves with its grid, cell for cell.
+makers.set(makePixelate, (args, inner, proportional, free) => {
+	const [shape, cell] = [inner(0), inner(1)]
+	const all = [shape, cell]
+	return {
+		...showingPath(() => ({
+			guides: [outlineOf(args[1] as RectValue), ...(cell?.guides ?? [])],
+			handles: cell?.handles ?? [],
+		}))(args, inner, proportional, free),
+		move: all.every(grip => grip?.move !== undefined) ? movingAll(all) : undefined,
+	}
+})
 
 makers.set(makeShadow, showingPath(([path, by]) => {
 	const center = middleOf(pathOf(path))
@@ -4303,6 +4356,8 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 		(_, inner) =>
 			answeredTogether([inner(0)?.box, inner(1)?.box, inner(2)?.box], { even: true, keepsAxes: false, turns: false }),
 	],
+	// A grid scales any way with what it is of, and stays upright, as what it says is a row and a column.
+	[makePixelate, (_, inner) => answeredTogether([inner(0)?.box, inner(1)?.box], { keepsAxes: false, turns: false })],
 	[makeArea, fromOrigin],
 	[makeOffset, inProportion(makeOffset, { lengths: [1], keepsAxes: true })],
 	[makeOffsetStroke, inProportion(makeOffsetStroke, { lengths: [1], keepsAxes: true })],

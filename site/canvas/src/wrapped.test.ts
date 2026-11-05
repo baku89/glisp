@@ -516,6 +516,8 @@ describe('what else goes around a path', () => {
 		`(path.wave ${Q} 2 10)`,
 		`(path.twirl ${Q} [20 10] 30 90)`,
 		`(path.bulge ${Q} [20 10] 30 0.5)`,
+		`(path.pixelate ${Q} (rect.new [0 0] [10 10]))`,
+		`(path.pixelate ${Q} (rect.new [0 0] [10 10]) "overlap" "cells")`,
 		`(path.dash ${Q} [5 5])`,
 		`(path.subdivide ${Q} 2)`,
 		`(path.flatten ${Q} 1)`,
@@ -564,6 +566,38 @@ describe('what else goes around a path', () => {
 		const { value, diagnostics } = evaluate(next, env)
 		expect(diagnostics).toEqual([])
 		expect(value).not.toBeUndefined()
+	})
+
+	it('starts pixelating with a cell at the corner of what it turns into cells', () => {
+		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.pixelate')!
+		const next = wrappedAt(parse(`{c = ${Q}}`), env, 'binding:c', filter)!
+		expect(print(next)).toContain('(rect.new [0 0] [2.5 2.5])')
+		expect(evaluate(next, env).diagnostics).toEqual([])
+	})
+
+	it('fills the cells that the mode says, with anchors where it says', () => {
+		const circle = '(path.circle [20 20] 13)'
+		const cell = '(rect.new [0 0] [10 10])'
+		const d = (args: string) => toD((ofFilter(`(path.pixelate ${circle} ${cell} ${args})`).value as PathValue).path)
+		expect(d('')).toBe(d('"center" "corners"'))
+		expect(d('"overlap"')).not.toBe(d('"center"'))
+		expect(d('"full"')).not.toBe(d('"center"'))
+		expect(d('"center" "cells"').length).toBeGreaterThan(d('"center" "corners"').length)
+	})
+
+	it('leaves a path as it is while its cell has no size, or is too small for it', () => {
+		const same = toD((ofFilter(Q).value as PathValue).path)
+		const of = (cell: string) => toD((ofFilter(`(path.pixelate ${Q} ${cell})`).value as PathValue).path)
+		expect(of('(rect.new [0 0] [0 10])')).toBe(same)
+		expect(of('(rect.new [0 0] [0.001 0.001])')).toBe(same)
+	})
+
+	it('holds a cell by the handles of a rectangle, and moves the picture with its grid', () => {
+		const src = `(path.pixelate ${Q} (rect.new [0 0] [10 10]))`
+		const held = grip(src)
+		expect(held.handles.some(({ corner }) => corner)).toBe(true)
+		const moved = changed(parse(`{c = ${src}}`), env, 'binding:c', held.move!([3, 4]))
+		expect(print(moved.ast!)).toContain('(path.pixelate (path.rect [3 4] [40 20]) (rect.new [3 4] [10 10]))')
 	})
 
 	it('makes twice as many of a thing as there are mirrors', () => {
