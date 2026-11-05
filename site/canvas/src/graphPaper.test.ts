@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest'
 
-import { graphPaperPositions, graphPaperStep } from './graphPaper'
+import { dotTile, graphPaperPositions, graphPaperStep } from './graphPaper'
+
+describe('dotTile', () => {
+	it('is whole pixels, that come to exactly the gap', () => {
+		for (const [gap, ratio] of [[2.125, 1], [2.125, 2], [7.3, 2], [15.9, 1.5]] as const) {
+			const { pixels, scale } = dotTile(gap, ratio)!
+			expect(Number.isInteger(pixels)).toBe(true)
+			expect(pixels * scale).toBeCloseTo(gap, 9)
+		}
+	})
+
+	it('is at least a pixel, however close they are', () => {
+		expect(dotTile(0.4, 1)!.pixels).toBe(1)
+	})
+
+	it('is not there for dots far apart, which are few', () => {
+		expect(dotTile(20, 2)).toBeNull()
+		expect(dotTile(20, 1)).not.toBeNull()
+	})
+})
 
 describe('graphPaperStep', () => {
 	it('goes by 1, 2 and 10, no closer on screen than can be told apart, and never far', () => {

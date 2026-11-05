@@ -17,7 +17,7 @@ import {
 	withPointsClosed,
 } from './modulate'
 import { otherControl, type Change, type AxesValue, type Grip, type GraphPaperValue, type Handle, type Mat, NO_PAINT, type Paint, type Path, type Vec, inkOn, onlyShapes } from './graphics'
-import { graphPaperPositions } from './graphPaper'
+import { dotTile, graphPaperPositions, graphPaperStep } from './graphPaper'
 import { rowsAbout, viewBetween } from './rows'
 import {
 	changed,
@@ -884,6 +884,29 @@ function draw(): void {
 		context.stroke()
 	}
 
+	/** Dots as one tile repeated, so that it costs the same however many there are, with one at `x` and `y`. */
+	const dotPattern = (
+		dotColor: string,
+		dot: number,
+		gap: number,
+		{ pixels, scale }: { readonly pixels: number; readonly scale: number },
+		x: number,
+		y: number
+	): CanvasPattern | null => {
+		const tile = window.document.createElement('canvas')
+		tile.width = tile.height = pixels
+		const drawing = tile.getContext('2d')
+		if (drawing === null) return null
+		// A color that cannot be read is not drawn, as with `paintWith`.
+		drawing.fillStyle = 'transparent'
+		drawing.fillStyle = dotColor
+		const across = dot / scale
+		drawing.fillRect((pixels - across) / 2, (pixels - across) / 2, across, across)
+		const pattern = context.createPattern(tile, 'repeat')
+		pattern?.setTransform(new DOMMatrix([scale, 0, 0, scale, x - gap / 2, y - gap / 2]))
+		return pattern
+	}
+
 	const drawGraphPaper = ({ kind, color: paperColor, width: paperWidth, origin, step, adaptive }: GraphPaperValue): void => {
 		if (paperWidth <= 0) return
 		const [zoom, , , , viewX, viewY] = view.value
@@ -893,7 +916,23 @@ function draw(): void {
 		context.lineWidth = paperWidth
 		context.beginPath()
 		if (kind === 'dots') {
+			const [firstX, firstY] = [xs[0], ys[0]]
+			if (firstX === undefined || firstY === undefined) return
 			const dot = paperWidth * 2
+			const gap = graphPaperStep(zoom, step, adaptive) * zoom
+			// Touching, they are all one color.
+			if (dot >= gap) {
+				context.fillRect(0, 0, width, height)
+				return
+			}
+			const tile = dotTile(gap, ratio)
+			const pattern = tile && dotPattern(paperColor, dot, gap, tile, firstX, firstY)
+			if (pattern) {
+				context.fillStyle = pattern
+				context.fillRect(0, 0, width, height)
+				paintWith(paperColor)
+				return
+			}
 			for (const x of xs) {
 				for (const y of ys) context.rect(x - dot / 2, y - dot / 2, dot, dot)
 			}

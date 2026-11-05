@@ -27,6 +27,18 @@ export function graphPaperStep(zoom: number, step = PAPER_STEP, adaptive = true)
 	return step * scale
 }
 
+/** As many pixels as a tile goes up to. Dots further apart are few enough to draw, and stay sharper for it. */
+const MOST_TILE_PIXELS = 32
+
+/**
+ * The tile that dots `gap` apart on screen repeat as, at `ratio` pixels to one on screen: a whole
+ * number of pixels, and what scales that to exactly `gap`. Null, if they are too far apart for one.
+ */
+export function dotTile(gap: number, ratio: number): { readonly pixels: number; readonly scale: number } | null {
+	const pixels = Math.max(1, Math.round(gap * ratio))
+	return pixels > MOST_TILE_PIXELS ? null : { pixels, scale: gap / pixels }
+}
+
 /**
  * Where they are on screen, along an axis `length` long whose origin is at `offset`. Nothing,
  * if they would come too close to tell apart.
