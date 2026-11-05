@@ -5,17 +5,19 @@
  * becomes bindings.
  */
 
-import { type AST, type Env, LetAST, lit, parse, print, SymAST, toAst, VecAST } from '@glisp/lang'
+import { type AST, buildPrelude, type Env, LetAST, lex, lit, lookupBareName, parse, print, SymAST, toAst, VecAST } from '@glisp/lang'
 import { readProgram, sourceOfProgram } from '@glisp/tweeq/programSource'
 import { copiedRows } from '@glisp/tweeq/rowsClipboard'
 import Color from 'colorjs.io'
 import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 
-import { type AxesValue, cornersOf, type GraphPaperValue, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf, toHex } from './graphics'
+import { type AxesValue, cornersOf, type GraphPaperValue, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf, toHex, withGraphics } from './graphics'
 import { paintedIn } from './scene'
 
 const NAMESPACE = 'https://glisp.app/canvas'
+/** What already has a name, which an element from elsewhere is not to take from it. */
+const NAMED = withGraphics(buildPrelude())
 const STROKE_WIDTH = 1.5
 const MARGIN = 2
 
@@ -191,7 +193,8 @@ const numberIn = (attributes: Record<string, string>, name: string): number => {
 }
 
 const pointsIn = (attributes: Record<string, string>): string[] => {
-	const numbers = (attributes['points'] ?? '').match(/-?[\d.]+(?:e-?\d+)?/gi)?.map(Number) ?? []
+	// As tersely as it can be written, where `1.5.5` is two of them, and `1-2` is too.
+	const numbers = (attributes['points'] ?? '').match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)?.map(Number) ?? []
 	return Array.from({ length: Math.floor(numbers.length / 2) }, (_, i) =>
 		`[${numbers[i * 2]} ${numbers[i * 2 + 1]}]`
 	)
@@ -201,8 +204,13 @@ const pointsIn = (attributes: Record<string, string>): string[] => {
 function bindingOf(element: string, attributes: Record<string, string>): readonly [string, string] | null {
 	const n = (name: string) => numberIn(attributes, name)
 	switch (element) {
-		case 'rect':
-			return ['rect', `(path.rect [${n('x')} ${n('y')}] [${n('width')} ${n('height')}])`]
+		case 'rect': {
+			// Either says it of both, and as far as a side goes. One radius is as near as it comes to two.
+			const radius = Math.min(n('rx') || n('ry'), n('width') / 2, n('height') / 2)
+			return radius > 0
+				? ['rect', `(path.roundRect [${n('x')} ${n('y')}] [${n('width')} ${n('height')}] ${radius})`]
+				: ['rect', `(path.rect [${n('x')} ${n('y')}] [${n('width')} ${n('height')}])`]
+		}
 		case 'circle':
 			return ['circle', `(path.circle [${n('cx')} ${n('cy')}] ${n('r')})`]
 		case 'ellipse':
@@ -375,7 +383,12 @@ function lineAttributes({ cap, join, dash, dashOffset, miterLimit }: Paint): str
 	return said.map(([name, value, fallback]) => (value === fallback ? '' : ` ${name}="${value}"`)).join('')
 }
 
-const isIdentifier = (name: string): boolean => /^[A-Za-z_][\w-]*$/.test(name)
+/** Whether what an element is called can be what it is called here, with what it would hide. */
+function isFreeName(name: string, taken: ReadonlySet<string>): boolean {
+	if (!/^[A-Za-z_][\w-]*$/.test(name) || taken.has(name) || lookupBareName(name, NAMED) !== null) return false
+	const [token, end] = lex(name)
+	return token?.kind === 'identifier' && token.text === name && end?.kind === 'eof'
+}
 
 /**
  * What an SVG on the clipboard is as bindings, or null if it is not one. The code in it,
@@ -421,6 +434,8 @@ export function bindingsOfSvg(text: string): string | null {
 	}
 	const inside: Open[] = []
 	const counts = new Map<string, number>()
+	const names = new Set([...shown.matchAll(/\bid\s*=\s*["']([^"']*)["']/g)].map(([, id]) => id!))
+	const used = new Set<string>()
 	const lines: string[] = []
 	for (const [, closing, name, rest, selfClosed] of shown.matchAll(/<(\/?)([A-Za-z][\w:-]*)\b([^>]*?)(\/?)>/g)) {
 		const tag = name!.toLowerCase()
@@ -448,12 +463,17 @@ export function bindingsOfSvg(text: string): string | null {
 		const [kind, shape] = binding
 		const expression = painted(shape, down, opacity, gradients)
 		const id = attributes['id']
-		if (id !== undefined && isIdentifier(id)) {
+		if (id !== undefined && isFreeName(id, used)) {
+			used.add(id)
 			lines.push(`${id} = ${expression}`)
 			continue
 		}
-		const count = (counts.get(kind) ?? 0) + 1
+		// Past what anything else here is called, whichever of them comes first.
+		let count = counts.get(kind) ?? 0
+		do count++
+		while (!isFreeName(`${kind}${count}`, used) || names.has(`${kind}${count}`))
 		counts.set(kind, count)
+		used.add(`${kind}${count}`)
 		lines.push(`${kind}${count} = ${expression}`)
 	}
 	// What comes later in an SVG is in front, and what is in front comes first here.

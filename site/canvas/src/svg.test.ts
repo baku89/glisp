@@ -1,9 +1,10 @@
 import { buildPrelude, type Env, evaluate, LetAST, print } from '@glisp/lang'
 import { parse } from './program.testing'
 import { copiedRows, pastedArguments, pastedRows } from '@glisp/tweeq/rowsClipboard'
+import { bounds } from 'pave/path/metrics'
 import { describe, expect, it } from 'vitest'
 
-import { isPath, RectValue, withGraphics } from './graphics'
+import { isPath, type Path, RectValue, withGraphics } from './graphics'
 import { exportedRows } from './rows'
 import { sceneOf, withLayersFromOrder } from './scene'
 import { bindingsOfSvg, programInFile, svgOfProgram, svgOfRows } from './svg'
@@ -96,6 +97,49 @@ describe('bindingsOfSvg', () => {
 		const root = parse('{r = 10 c = (path.circle [0 0] r) a = (< 1 2)}')
 		const svg = svgOfRows(root, env, ['binding:c', 'binding:a'])!
 		expect(bindingsOfSvg(svg)).toBe('c = (path.circle [0 0] r)\na = (< 1 2)')
+	})
+
+	const shapesOf = (svg: string) => {
+		const reading = programInFile(svg)!
+		const root = withLayersFromOrder(parse(reading.source) as LetAST, env)
+		return sceneOf(root, env).filter(({ draw }) => draw === 'path')
+	}
+
+	it('draws an icon as such files have them, with its lines written as tersely as can be', () => {
+		const [shape] = shapesOf(
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#1f1f1f"><path d="M5,20q-0.83,0-1.41-0.59T3,18V4Q3,3.17 3.59,2.59T5,2H19ZM7,16H8.1V10H7v4Z"/></svg>'
+		)
+		const [[left, top], [right, bottom]] = bounds(shape!.value as Path)
+		expect(left).toBeCloseTo(3)
+		expect(top).toBeCloseTo(2)
+		expect(right).toBeCloseTo(19)
+		expect(bottom).toBeCloseTo(20)
+		expect(shape!.paint?.fill).toBe('#1f1f1f')
+	})
+
+	it('reads points as tersely as they can be written', () => {
+		expect(bindingsOfSvg('<svg><polyline fill="none" points="1.5.5-2-3,1e1 4"/></svg>')).toBe(
+			'polyline1 = (path.polyline [1.5 0.5] [-2 -3] [10 4])'
+		)
+	})
+
+	it('rounds a rectangle, by either radius and no further than a side goes', () => {
+		expect(bindingsOfSvg('<svg><rect fill="none" width="10" height="20" rx="3"/></svg>')).toBe('rect1 = (path.roundRect [0 0] [10 20] 3)')
+		expect(bindingsOfSvg('<svg><rect fill="none" width="10" height="20" ry="30"/></svg>')).toBe('rect1 = (path.roundRect [0 0] [10 20] 5)')
+	})
+
+	it('keeps what it is drawn with from being hidden by what an element is called', () => {
+		const svg = `<svg>
+			<path id="path" fill="none" d="M0 0 L1 1"/>
+			<path id="style" fill="red" d="M0 0 L1 1"/>
+			<path id="true" fill="none" d="M0 0 L1 1"/>
+			<path id="twin" fill="none" d="M0 0 L1 1"/>
+			<path id="twin" fill="none" d="M0 0 L1 1"/>
+			<path id="path5" fill="none" d="M0 0 L1 1"/>
+		</svg>`
+		const written = bindingsOfSvg(svg)!
+		expect(written.split('\n').map(line => line.split(' = ')[0]).reverse()).toEqual(['path1', 'path2', 'path3', 'twin', 'path4', 'path5'])
+		expect(shapesOf(svg)).toHaveLength(6)
 	})
 
 	it('is nothing for what is not an SVG', () => {
