@@ -6,6 +6,7 @@
 
 import {
 	type AST,
+	callParameters,
 	CallAST,
 	check,
 	type Env,
@@ -27,7 +28,9 @@ import {
 	type TypeValue,
 	VecAST,
 	withOptional,
+	withoutMeta,
 	withPathsInto,
+	withPathsMoved,
 } from '@glisp/lang'
 
 import { reach, withParent } from './rowsClipboard'
@@ -206,12 +209,28 @@ function heldAs(body: AST | null, names: readonly string[], as: string): AST | n
 	)
 }
 
+type Levels = readonly (string | number)[]
+
+/** What a path says to go from `holder` to `node`, being it or an argument of it, if it can. */
+function levelsWithin(holder: AST, node: AST, frame: Env): Levels | null {
+	const bare = withoutMeta(holder)
+	if (bare === node) return []
+	if (bare.kind !== 'call') return null
+	const index = bare.args.findIndex(arg => withoutMeta(arg) === node)
+	const parameters = index === -1 ? null : callParameters(bare, frame)
+	if (parameters === null) return null
+	const name = parameters.names[index]
+	if (name !== undefined) return [name]
+	return parameters.variadicName === undefined ? null : [parameters.variadicName, index - parameters.names.length]
+}
+
 /**
  * `root` with the bindings `names` given to `filter`, each as `given`, in place of the last of
- * them and called what the first is, as `wrappedAt` leaves a name where it was. Null if one is not
- * there, if what is given refers to one, as it would then be referring to itself, or if that
- * leaves more wrong than there was: something else needed one that is gone, or what was given is
- * not what it takes. What it comes to goes through `around`, for what else a host has it be.
+ * them and called what the first is, as `wrappedAt` leaves a name where it was. A path from the
+ * root to what is given goes on to it, there. Null if one is not there, if what is given refers
+ * to one by name or climbs out of itself, as neither says the same from there, or if that leaves
+ * more wrong than there was: something else needed one that is gone, or what was given is not
+ * what it takes. What it comes to goes through `around`, for what else a host has it be.
  */
 export function combined(
 	root: LetAST,
@@ -225,13 +244,27 @@ export function combined(
 	const bound = new Set(root.bindings.map(([name]) => name))
 	if (as === undefined || !names.every(name => bound.has(name))) return null
 	const inside = given.map(ast => (ast.kind === 'meta' ? ast.expr : ast))
-	if (inside.some(ast => names.some(name => freeRefs(ast).names.has(name)))) return null
-	const call = around(callOf(filter, inside, env))
+	const refersOut = (ast: AST): boolean => {
+		const refs = freeRefs(ast)
+		return names.some(name => refs.names.has(name)) || refs.paths.some(({ up }) => up !== Infinity)
+	}
+	if (inside.some(refersOut)) return null
+	const made = callOf(filter, inside, env)
+	const call = around(made)
 	const at = root.bindings.reduce((last, [name], i) => (names.includes(name) ? i : last), 0)
 	const bindings = root.bindings.flatMap((binding, i): (readonly [string, AST])[] => {
 		if (i === at) return [[as, call]]
 		return names.includes(binding[0]) ? [] : [binding]
 	})
-	const ast = new LetAST(bindings, heldAs(root.body, names, as))
+	const placed = new LetAST(bindings, heldAs(root.body, names, as))
+	const before = pushLetFrame(root, env)
+	const after = pushLetFrame(placed, env)
+	const ast = names.reduce<AST>((moved, name, i) => {
+		const value = root.bindings.find(([bound]) => bound === name)?.[1]
+		const from = value && levelsWithin(value, inside[i]!, before)
+		const into = levelsWithin(call, made, after)
+		const to = levelsWithin(made, inside[i]!, after)
+		return from && into && to ? withPathsMoved(moved, env, [name, ...from], [as, ...into, ...to]) : moved
+	}, placed) as LetAST
 	return errorsIn(ast, env) > errorsIn(root, env) ? null : ast
 }

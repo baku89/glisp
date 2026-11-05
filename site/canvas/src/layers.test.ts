@@ -1,13 +1,13 @@
-import { type AST, buildPrelude, LetAST, parse, print, renameBinding } from '@glisp/lang'
+import { type AST, buildPrelude, evaluate, LetAST, parse, print, renameBinding } from '@glisp/lang'
 import { combined, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { layersOf, moveBinding, viewOf, withLayerAdded } from '@glisp/tweeq/structure'
-import { pastedRows, withoutRows } from '@glisp/tweeq/rowsClipboard'
+import { pastedRows, reach, withoutRows } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
 import { allPaintedRows, arranged, crumbsOf, grouped, ungrouped, withSolid, withGraphPaperToggled } from './rows'
 import { svgOfRows } from './svg'
-import { canIsolate, changed, diveAt, gripAt, isGroupRow, isOutside, labelOfRow, paintAt, rowsListedIn, rowInGroup, rowsPaintedBy, rowsToTake, rowTakenAt, sceneOf, valueOfRow, withLayersFromOrder, withPaint } from './scene'
+import { canIsolate, changed, diveAt, gripAt, isGroupRow, isOutside, labelOfRow, paintAt, rowsListedIn, rowInGroup, rowsPaintedBy, rowsToTake, rowTakenAt, sceneOf, valueOfRow, paintedRow, withLayersFromOrder, withPaint, withPaintOfRows } from './scene'
 import { bounds } from 'pave/path/metrics'
 import type { Path } from './graphics'
 
@@ -187,6 +187,56 @@ describe('what is put around what is drawn', () => {
 		expect(next).not.toBeNull()
 		expect(layersOf(next!)).toEqual(['a', 'b'])
 		expect(sceneOf(next!, env)).toHaveLength(2)
+	})
+
+	describe('of which one goes by a path to another', () => {
+		const NGON = '(path.ngon [0 0] 100 3 @-30)'
+		const on = (source: string) => {
+			const root = parse(source) as LetAST
+			return (...names: string[]) => {
+				const rows = names.map(name => `binding:${name}`)
+				const given = rows.map(row => reach(root, env, paintedRow(root, env, row))!.chain.at(-1)!.ast)
+				const values = rows.map(row => valueOfRow(root, env, row))
+				const by = (name: string) => filter(values, name)
+				return (name: string) =>
+					combined(root, env, names, given, by(name), call => withPaintOfRows(root, env, rows, call))
+			}
+		}
+		const problems = (ast: AST) => evaluate(ast, env).diagnostics.map(({ message }) => message)
+		const styled = `[
+			ngon = (style ${NGON} fill="#000000")
+			dots = (style (path.unite (path.circle /ngon/path/center 10) (path.circle [/ngon/path/radius 0] 10)) fill="#000000")
+			other = (path.circle /dots/path/a/center 1)
+		]`
+
+		it('goes on going there, whichever is the subject', () => {
+			for (const [names, center] of [
+				[['ngon', 'dots'], '/ngon/path/subject/center'],
+				[['dots', 'ngon'], '/dots/path/tool/center'],
+			] as const) {
+				const next = on(styled)(...names)('path.subtract')
+				expect(next).not.toBeNull()
+				expect(print(next!)).toContain(`(path.circle ${center} 10)`)
+				expect(problems(next!)).toEqual([])
+			}
+		})
+
+		it('has what referred to one from elsewhere follow it', () => {
+			const next = on(styled)('ngon', 'dots')('path.subtract')!
+			expect(print(next)).toContain('other = (path.circle /ngon/path/tool/a/center 1)')
+			expect(problems(next)).toEqual([])
+		})
+
+		it('goes by a number, past those that have a name', () => {
+			const next = on(`[a = ${NGON} b = ${NGON} c = ${NGON} d = (path.circle /c/center 1)]`)('a', 'b', 'c')('path.unite')!
+			expect(print(next)).toContain('d = (path.circle /a/others/0/center 1)')
+			expect(problems(next)).toEqual([])
+		})
+
+		it('is nothing if a path climbs out of what is given', () => {
+			const climbing = `[a = ${NGON} b = (path.circle ../a/center 1)]`
+			expect(on(climbing)('a', 'b')('path.subtract')).toBeNull()
+		})
 	})
 })
 
