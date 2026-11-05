@@ -31,7 +31,7 @@ import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import { defaultFor, referenceAt, withLayerAdded } from '@glisp/tweeq/structure'
 
 import { isPath, isStyled, type Vec } from './graphics'
-import { freeName, withBackground, withGrid } from './rows'
+import { freeName, withAxesAdded, withGraphPaperAdded, withSolidAdded } from './rows'
 import { paintedIn } from './scene'
 
 export interface Addable {
@@ -143,11 +143,12 @@ function withGuide(root: LetAST, env: Env, name: string, code: string, rows: rea
 
 /** What says something of the canvas, of which there is one to see, wherever it is asked for. */
 const OF_CANVAS: readonly Addable[] = [
-	{ name: 'background', label: 'Background', group: 'Canvas', alone: true },
-	{ name: 'grid', label: 'Grid', group: 'Canvas', alone: true },
+	{ name: 'solid', label: 'Solid', group: 'Canvas', alone: true },
+	{ name: 'graphPaper', label: 'Graph Paper', group: 'Canvas', alone: true },
+	{ name: 'axes', label: 'Axes', group: 'Canvas', alone: true },
 ]
-/** What a background is at first, until it is chosen. */
-const BACKGROUND = '#ffffff'
+/** What a solid is at first, until it is chosen. */
+const SOLID_COLOR = '#ffffff'
 
 const groupOf = ({ name, fn }: Filter): string => {
 	if (name in SHAPES) return 'Shapes'
@@ -298,8 +299,9 @@ export function withAdded(
 			const rows = selected.filter(row => points.has(row)).slice(0, guide.places ?? 0)
 			return { ast: withGuide(root, env, called, guide.code(x, y, rows.length), rows), row: `binding:${called}` }
 		}
-		if (name === 'background') return withBackground(root, env, BACKGROUND)
-		if (name === 'grid') return withGrid(root, env)
+		if (name === 'solid') return withSolidAdded(root, SOLID_COLOR)
+		if (name === 'graphPaper') return withGraphPaperAdded(root, env)
+		if (name === 'axes') return withAxesAdded(root, env)
 	}
 	const filter = closure === undefined ? functionsIn(env).find(other => other.name === name) : undefined
 	if (closure === undefined && filter === undefined) return null

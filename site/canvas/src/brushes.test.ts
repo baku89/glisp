@@ -154,7 +154,7 @@ describe('dubinsChain', () => {
 	it('goes the way it was pulled, and turns as tightly as it was pulled far', () => {
 		const state = go(dubinsChain, [...pull([0, 0], [50, 0]), ...pull([200, 100], [200, 130])])
 		const { source, shapes } = row(dubinsChain, state)
-		expect(source).toContain('[[0 0 0 50] [200 100 90 30]]')
+		expect(source).toContain('[[[0 0] 0 50] [[200 100] 90 30]]')
 		expect(shapes).toHaveLength(1)
 		expect((shapes[0]!.value as { curves: unknown[] }).curves.length).toBeGreaterThan(0)
 	})
@@ -162,17 +162,17 @@ describe('dubinsChain', () => {
 	it('has what the tool says for a click, and goes on the way it came', () => {
 		const state = go(dubinsChain, [...click([0, 0]), ...click([100, 100])])
 		const { source } = row(dubinsChain, state)
-		expect(source).toContain(`[[0 0 0] [100 100 45]] ${SHAPE_ATTRIBUTES.dubinsRadius})`)
+		expect(source).toContain(`[[[0 0] 0] [[100 100] 45]] ${SHAPE_ATTRIBUTES.dubinsRadius})`)
 	})
 
 	it('has a click go on as tightly as the last that was pulled', () => {
 		const state = go(dubinsChain, [...pull([0, 0], [50, 0]), ...click([100, 0])])
-		expect(row(dubinsChain, state).source).toContain('[100 0 0 50]')
+		expect(row(dubinsChain, state).source).toContain('[[100 0] 0 50]')
 	})
 
 	it('takes a press that hardly moved for a click', () => {
 		const state = go(dubinsChain, [...click([0, 0]), ...pull([100, 0], [101, 1])])
-		expect(row(dubinsChain, state).source).toContain('[[0 0 0] [100 0 0]]')
+		expect(row(dubinsChain, state).source).toContain('[[[0 0] 0] [[100 0] 0]]')
 	})
 
 	it('has an arrow at the end of each direction, as far out as it turns', () => {
@@ -214,7 +214,7 @@ describe('dubinsChain', () => {
 	it('draws differently for a different radius', () => {
 		const path = (radius: number) =>
 			JSON.stringify(
-				sceneOf(parse(`{[a = (path.dubinsChain [[0 0 0 ${radius}] [0 200 180]] 20)]}`), env)[0]!.value
+				sceneOf(parse(`{[a = (path.dubinsChain [[[0 0] 0 ${radius}] [[0 200] 180]] 20)]}`), env)[0]!.value
 			)
 		expect(path(30)).not.toBe(path(90))
 	})
@@ -247,23 +247,23 @@ describe('what a brush has drawn', () => {
 	})
 
 	it('moves a stop of a Dubins path, going the way it was going', () => {
-		const grip = gripOf('(path.dubinsChain [[0 0 90] [100 0 45 30]] 20)')
+		const grip = gripOf('(path.dubinsChain [[[0 0] 90] [[100 0] 45 30]] 20)')
 		const place = grip.handles.filter(handle => handle.kind === 'point')[1]!
-		expect(place.to([5, 5], [100, 0])).toEqual([{ route: [0], value: [[0, 0, 90], [5, 5, 45, 30]] }])
-		expect(grip.move!([1, 1])).toEqual([{ route: [0], value: [[1, 1, 90], [101, 1, 45, 30]] }])
+		expect(place.to([5, 5], [100, 0])).toEqual([{ route: [0], value: [[[0, 0], 90], [[5, 5], 45, 30]] }])
+		expect(grip.move!([1, 1])).toEqual([{ route: [0], value: [[[1, 1], 90], [[101, 1], 45, 30]] }])
 	})
 
 	it('turns a Dubins path by the end of a line that says which way, and how tightly', () => {
-		const grip = gripOf('(path.dubinsChain [[0 0 0] [100 0 90 30]] 20)')
+		const grip = gripOf('(path.dubinsChain [[[0 0] 0] [[100 0] 90 30]] 20)')
 		const tips = grip.handles.filter(handle => handle.kind === 'direction')
 		// One that says nothing goes by what the whole does, and the other by its own.
 		expect(tips.map(tip => tip.at)).toEqual([[20, 0], [expect.closeTo(100), expect.closeTo(30)]])
 		expect(tips[0]!.pivot).toEqual([0, 0])
 		expect(grip.guides).toHaveLength(2)
-		const [{ value }] = tips[0]!.to([0, 50], [20, 0]) as [{ value: number[][] }]
-		expect(value[0]![0]).toBe(0)
-		expect(value[0]![2]).toBeCloseTo(90)
-		expect(value[0]![3]).toBeCloseTo(50)
-		expect(value[1]).toEqual([100, 0, 90, 30])
+		const [{ value }] = tips[0]!.to([0, 50], [20, 0]) as [{ value: [number[], number, number][] }]
+		expect(value[0]![0][0]).toBe(0)
+		expect(value[0]![1]).toBeCloseTo(90)
+		expect(value[0]![2]).toBeCloseTo(50)
+		expect(value[1]).toEqual([[100, 0], 90, 30])
 	})
 })

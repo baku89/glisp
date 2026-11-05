@@ -16,15 +16,15 @@ import {
 	withPointRemoved,
 	withPointsClosed,
 } from './modulate'
-import { otherControl, type Change, type Grip, type Handle, type Mat, NO_PAINT, type Paint, type Path, type Vec, inkOn, onlyShapes } from './graphics'
-import { type GridKind, gridPositions, offAxis } from './grid'
+import { otherControl, type Change, type AxesValue, type Grip, type GraphPaperValue, type Handle, type Mat, NO_PAINT, type Paint, type Path, type Vec, inkOn, onlyShapes } from './graphics'
+import { graphPaperPositions } from './graphPaper'
 import { rowsAbout, viewBetween } from './rows'
 import {
 	changed,
 	type Dimension,
 	dimensionChanges,
 	dimensionsHeld,
-	backgroundOf,
+	solidOf,
 	dimensionsDrawn,
 	dimensionsMoved,
 	dimensionsOf,
@@ -61,6 +61,7 @@ import {
 	withBoxHandles,
 	hiddenShapesOf,
 	pathOfRow,
+	paintedIn,
 	sceneOf,
 	type Shape,
 	SHAPE_ATTRIBUTES,
@@ -102,8 +103,6 @@ const props = defineProps<{
 	attributes?: { readonly paint: Paint; readonly shape: ShapeAttributes }
 	/** A drag says its numbers exactly, and they can be typed once it is let go of. */
 	dimensions?: boolean
-	/** What is laid over the canvas to see by. */
-	grid?: GridKind
 	/** A drag or a drawing goes to what it comes near. */
 	snapping?: boolean
 	/** Where something is about to be added, to say so while it is being chosen. */
@@ -126,10 +125,6 @@ const POINT_HIGHLIGHT_RADIUS = 14
 /** How much there is to see of what is outside of what is isolated. */
 const OUTSIDE_ALPHA = 0.25
 const UNPAINTED_ALPHA = 0.25
-const GRID_DOT = 2
-const GRID_DOT_ALPHA = 0.18
-const GRID_LINE_ALPHA = 0.06
-const GRID_AXIS_ALPHA = 0.35
 
 const VIEW_KEY = 'glisp.canvas.view'
 const VIEW_SAVE_MS = 200
@@ -430,10 +425,11 @@ const RANGE_OPACITY = 0.1
 const BOX_ALPHA = 0.6
 
 const scene = computed(() => sceneOf(props.document.root.value, props.document.env.value))
+const layers = computed(() => paintedIn(props.document.root.value, props.document.env.value))
 const hiddenSelected = computed(() =>
 	hiddenShapesOf(props.document.root.value, props.document.env.value, taken.value)
 )
-const background = computed(() => backgroundOf(props.document.root.value, props.document.env.value))
+const solid = computed(() => solidOf(props.document.root.value, props.document.env.value))
 
 const gripOfRow = (row: string) =>
 	gripAt(props.document.root.value, props.document.env.value, row)
@@ -624,7 +620,7 @@ function drawHandle(
 		const width = context.lineWidth
 		const alpha = context.globalAlpha
 		// Of what it is seen over: what the program says is behind everything, or else the window.
-		context.strokeStyle = background.value ?? paper
+		context.strokeStyle = solid.value ?? paper
 		context.lineWidth = width + HANDLE_EDGE * 2
 		context.globalAlpha = alpha * HANDLE_EDGE_ALPHA
 		if (path) context.stroke(path)
@@ -855,28 +851,48 @@ function draw(): void {
 	context.setTransform(ratio, 0, 0, ratio, 0, 0)
 	context.clearRect(0, 0, width, height)
 
-	if (background.value !== null) {
-		context.fillStyle = background.value
-		context.fillRect(0, 0, width, height)
-	}
-
-	// The theme's text is for the theme's background, not for the one the program says.
-	const ink = background.value === null ? color('--tq-color-text') : inkOn(background.value)
+	// The theme's text is for the theme's background, not for the color the program fills it with.
+	const ink = solid.value === null ? color('--tq-color-text') : inkOn(solid.value)
 	const accent = color('--tq-color-accent')
 	const expression = color('--tq-color-info')
 	const paper = color('--tq-color-background')
 
-	if (props.grid === 'dots' || props.grid === 'lines') {
-		const [zoom, , , , offsetX, offsetY] = view.value
-		const xs = offAxis(gridPositions(zoom, offsetX, width), offsetX)
-		const ys = offAxis(gridPositions(zoom, offsetY, height), offsetY)
+	// A color that cannot be read is not drawn, rather than leaving the one that came before.
+	const paintWith = (with_: string): void => {
+		context.fillStyle = 'transparent'
+		context.strokeStyle = 'transparent'
+		context.fillStyle = with_
+		context.strokeStyle = with_
+	}
+
+	const drawAxes = ({ origin, color: axesColor, width: axesWidth }: AxesValue): void => {
+		if (axesWidth <= 0) return
+		const [zoom, , , , viewX, viewY] = view.value
+		const x = viewX + origin[0] * zoom
+		const y = viewY + origin[1] * zoom
+		paintWith(axesColor)
+		context.lineWidth = axesWidth
 		context.beginPath()
-		if (props.grid === 'dots') {
+		context.moveTo(x, 0)
+		context.lineTo(x, height)
+		context.moveTo(0, y)
+		context.lineTo(width, y)
+		context.stroke()
+	}
+
+	const drawGraphPaper = ({ kind, color: paperColor, width: paperWidth, origin, step, adaptive }: GraphPaperValue): void => {
+		if (paperWidth <= 0) return
+		const [zoom, , , , viewX, viewY] = view.value
+		const xs = graphPaperPositions(zoom, viewX + origin[0] * zoom, width, step, adaptive)
+		const ys = graphPaperPositions(zoom, viewY + origin[1] * zoom, height, step, adaptive)
+		paintWith(paperColor)
+		context.lineWidth = paperWidth
+		context.beginPath()
+		if (kind === 'dots') {
+			const dot = paperWidth * 2
 			for (const x of xs) {
-				for (const y of ys) context.rect(x - GRID_DOT / 2, y - GRID_DOT / 2, GRID_DOT, GRID_DOT)
+				for (const y of ys) context.rect(x - dot / 2, y - dot / 2, dot, dot)
 			}
-			context.fillStyle = ink
-			context.globalAlpha = GRID_DOT_ALPHA
 			context.fill()
 		} else {
 			for (const x of xs) {
@@ -887,22 +903,8 @@ function draw(): void {
 				context.moveTo(0, y)
 				context.lineTo(width, y)
 			}
-			context.strokeStyle = ink
-			context.lineWidth = 1
-			context.globalAlpha = GRID_LINE_ALPHA
 			context.stroke()
 		}
-		// The axes, through the program's origin, for telling where that is from anywhere.
-		context.beginPath()
-		context.moveTo(offsetX, 0)
-		context.lineTo(offsetX, height)
-		context.moveTo(0, offsetY)
-		context.lineTo(width, offsetY)
-		context.strokeStyle = ink
-		context.lineWidth = 1
-		context.globalAlpha = GRID_AXIS_ALPHA
-		context.stroke()
-		context.globalAlpha = 1
 	}
 
 	const isHovered = (row: string): boolean => hovered.value !== null && isWithin(row, hovered.value)
@@ -915,9 +917,17 @@ function draw(): void {
 		context.fill()
 	}
 
-	for (const shape of scene.value) {
+	// From the back, whatever it is: what fills all of the canvas is covered like anything else.
+	for (const shape of layers.value) {
 		context.globalAlpha = isOutside(shape.row, isolation.value) ? OUTSIDE_ALPHA : 1
-		if (shape.draw === 'path') {
+		if (shape.draw === 'solid') {
+			paintWith(shape.value as string)
+			context.fillRect(0, 0, width, height)
+		} else if (shape.draw === 'graphPaper') {
+			drawGraphPaper(shape.value as GraphPaperValue)
+		} else if (shape.draw === 'axes') {
+			drawAxes(shape.value as AxesValue)
+		} else if (shape.draw === 'path') {
 			const onScreenPath = pathOnScreen(shape.value as Path, view.value)
 			const { paint } = shape
 			if (paint !== undefined) {
@@ -1183,8 +1193,8 @@ watchEffect(() => {
 		brushPointer.value,
 		props.attributes,
 		scene.value,
-		background.value,
-		props.grid,
+		solid.value,
+		layers.value,
 		grip.value,
 		view.value,
 		size.value,

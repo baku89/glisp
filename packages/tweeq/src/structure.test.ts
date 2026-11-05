@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetA
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { slotAlong, slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { holdsRows, slotAlong, slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -1614,5 +1614,14 @@ describe('slotAlong', () => {
 
 	it('is nothing where there is no way', () => {
 		expect(slotAlong(root, env, ['arg0', 'nope'])).toBeNull()
+	})
+})
+
+describe('holdsRows', () => {
+	it('is what holds vectors, and not what only holds numbers', () => {
+		expect(holdsRows([[0, 0], 90])).toBe(true)
+		expect(holdsRows([[0, 0], [1, 1]])).toBe(true)
+		expect(holdsRows([0, 90])).toBe(false)
+		expect(holdsRows(3)).toBe(false)
 	})
 })

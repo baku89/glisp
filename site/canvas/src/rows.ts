@@ -3,13 +3,14 @@
  * that of the vector the program comes to, and groups, which are vectors of their own.
  */
 
-import { type AST, type Env, CallAST, enterNode, evaluate, infer, isHidden, LetAST, MetaAST, print, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
+import { AS_SOURCE, type AST, type Env, CallAST, enterNode, evaluate, hide, infer, isHidden, LetAST, lit, MetaAST, print, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import { isGroup, layersOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
-import type { Path, Vec } from './graphics'
-import { drawOf, isVecOfDrawn, labelOfRow, rowWorkedOn, backgroundCall, backgroundOf, backgroundRowsIn, gridCall, gridOf, gridRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
+import { GraphPaperValue, type Path, type Vec } from './graphics'
+import type { GraphPaperKind } from './graphPaper'
+import { drawOf, isVecOfDrawn, labelOfRow, rowWorkedOn, axesCall, axesRowsIn, solidCall, solidRowsIn, graphPaperCall, graphPaperOf, graphPaperRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
 
 const BINDING = 'binding:'
 
@@ -127,74 +128,87 @@ function rowSaying(
 const elementCount = (root: LetAST): number =>
 	root.body?.kind === 'vec' ? root.body.elements.length : 0
 
-/** The place right in front of the background, which is behind all else, or else the very back. */
-function inFrontOfBackground(root: LetAST, env: Env): number {
+/** The place a new graph paper goes: right in front of a solid, which it could not be seen behind, or else the very back. */
+function inFrontOfSolid(root: LetAST, env: Env): number {
 	if (root.body?.kind !== 'vec') return 0
-	const behind = new Set(backgroundRowsIn(root, env, false).map(({ row }) => row))
+	const behind = new Set(solidRowsIn(root, env, false).map(({ row }) => row))
 	const found = root.body.elements.findIndex(e => e.kind === 'sym' && behind.has(`${BINDING}${e.name}`))
 	return found < 0 ? root.body.elements.length : found
 }
 
+/** `root` with another solid of `color`, at the very back, and the row that says it. */
+export function withSolidAdded(root: LetAST, color: string): { ast: LetAST; row: string } {
+	const name = freeName(root, 'solid')
+	return { ast: withLayerAdded(root, name, solidCall(color), elementCount(root)), row: `${BINDING}${name}` }
+}
+
 /**
- * `root` with a background to choose the color of, and the row that says it: the row that says
- * so already, which comes out of being hidden, and a new one at the top of `color` if there is
- * none. One that says there is none comes to say `color` too, or there would be nothing to see.
+ * `root` with a solid to choose the color of, and the row that says it: the row that says so
+ * already, which comes out of being hidden, and a new one of `color` if there is none.
  */
-export function withBackground(
+export function withSolid(
 	root: LetAST,
 	env: Env,
 	color: string
 ): { ast: LetAST; row: string } {
-	const row = rowSaying(root, env, backgroundRowsIn)
+	const row = rowSaying(root, env, solidRowsIn)
 	const reached = row === undefined ? null : reach(root, env, row)
 	const last = reached?.chain.at(-1)
-	if (row === undefined || !reached || !last) {
-		const name = freeName(root, 'background')
-		return {
-			ast: withLayerAdded(root, name, backgroundCall(color), elementCount(root)),
-			row: `${BINDING}${name}`,
-		}
-	}
-	const shown = unhide(last.ast)
-	const next = backgroundOf(withParent(reached.chain, last.replace(shown)), env) === null
-		? backgroundCall(color)
-		: shown
-	return { ast: withParent(reached.chain, last.replace(next)) as LetAST, row }
+	if (row === undefined || !reached || !last) return withSolidAdded(root, color)
+	return { ast: withParent(reached.chain, last.replace(unhide(last.ast))) as LetAST, row }
 }
 
 /**
- * `root`, showing `kind` of a grid, or none if that is what it shows. It is said by the row
- * that says so already, which comes out of being hidden, and by a new one at the top if
- * there is none. A row in something hidden as a whole would say it to no effect.
+ * `root`, showing `kind` of a graph paper, or with it hidden if that is what it shows, so that it
+ * comes back in the color and the width it had. It is said by the row that says so already,
+ * which comes out of being hidden, and by a new one at the top if there is none. A row in
+ * something hidden as a whole would say it to no effect.
  */
-export function withGridToggled(root: LetAST, env: Env, kind: 'dots' | 'lines'): LetAST {
-	const next = gridOf(root, env) === kind ? 'none' : kind
-	const row = rowSaying(root, env, gridRowsIn)
+export function withGraphPaperToggled(root: LetAST, env: Env, kind: GraphPaperKind): LetAST {
+	const row = rowSaying(root, env, graphPaperRowsIn)
 	const reached = row === undefined ? null : reach(root, env, row)
 	const last = reached?.chain.at(-1)
-	return reached && last
-		? (withParent(reached.chain, last.replace(gridCall(next))) as LetAST)
-		: withLayerAdded(root, freeName(root, 'grid'), gridCall(next), inFrontOfBackground(root, env))
+	if (!reached || !last) {
+		return withLayerAdded(root, freeName(root, 'graphPaper'), graphPaperCall(kind), inFrontOfSolid(root, env))
+	}
+	if (graphPaperOf(root, env)?.kind === kind) return withParent(reached.chain, last.replace(hide(last.ast))) as LetAST
+	const said = [...graphPaperRowsIn(root, env, false), ...graphPaperRowsIn(root, env, true)].find(shape => shape.row === row)?.value as GraphPaperValue
+	return withParent(reached.chain, last.replace(ofKind(unhide(last.ast), said, kind))) as LetAST
+}
+
+/** The row `ast`, which comes to `said`, saying `kind`, and as much of the rest as it did. */
+function ofKind(ast: AST, said: GraphPaperValue, kind: GraphPaperKind): AST {
+	if (said.kind === kind) return ast
+	return ast instanceof CallAST && print(ast.head) === 'graphPaper' && !ast.kwargs?.has('kind')
+		? new CallAST(ast.head, [lit(kind), ...ast.args.slice(1)], ast.kwargs)
+		: new GraphPaperValue(kind, said.color, said.width, said.origin, said.step, said.adaptive)[AS_SOURCE]()
 }
 
 /**
- * `root` with a grid that can be seen, and the row that says it: the row that says so
- * already, as there is only the one to see, and a new one at the top if there is none.
+ * `root`, with the axes it has hidden if they show and showing if not, or new ones if it has
+ * none. A row in something hidden as a whole would say it to no effect.
  */
-export function withGrid(root: LetAST, env: Env, kind: 'dots' | 'lines' = 'dots'): { ast: LetAST; row: string } {
-	const row = rowSaying(root, env, gridRowsIn)
+export function withAxesToggled(root: LetAST, env: Env): LetAST {
+	const row = rowSaying(root, env, axesRowsIn)
 	const reached = row === undefined ? null : reach(root, env, row)
 	const last = reached?.chain.at(-1)
-	if (row === undefined || !reached || !last) {
-		const name = freeName(root, 'grid')
-		return {
-			ast: withLayerAdded(root, name, gridCall(kind), inFrontOfBackground(root, env)),
-			row: `${BINDING}${name}`,
-		}
+	if (!reached || !last) return withAxesAdded(root, env).ast
+	return withParent(reached.chain, last.replace(isHidden(last.ast) ? unhide(last.ast) : hide(last.ast))) as LetAST
+}
+
+/** `root` with axes, where a new graph paper would go, and the row that says them. */
+export function withAxesAdded(root: LetAST, env: Env): { ast: LetAST; row: string } {
+	const name = freeName(root, 'axes')
+	return { ast: withLayerAdded(root, name, axesCall(), inFrontOfSolid(root, env)), row: `${BINDING}${name}` }
+}
+
+/** `root` with another graph paper, and the row that says it. */
+export function withGraphPaperAdded(root: LetAST, env: Env, kind: GraphPaperKind = 'dots'): { ast: LetAST; row: string } {
+	const name = freeName(root, 'graphPaper')
+	return {
+		ast: withLayerAdded(root, name, graphPaperCall(kind), inFrontOfSolid(root, env)),
+		row: `${BINDING}${name}`,
 	}
-	const shown = unhide(last.ast)
-	const next = gridOf(withParent(reached.chain, last.replace(shown)), env) === 'none' ? gridCall(kind) : shown
-	return { ast: withParent(reached.chain, last.replace(next)) as LetAST, row }
 }
 
 /**
@@ -444,14 +458,14 @@ export const drawnRows = (root: AST, env: Env): string[] => [
 	...new Set(sceneOf(root, env).map(({ row }) => row)),
 ]
 
-/** The rows of all that is drawn in the end, the background and the grid too. */
+/** The rows of all that is drawn in the end, what goes on and on too. */
 export const allPaintedRows = (root: AST, env: Env): string[] => [
 	...new Set(paintedIn(root, env).map(({ row }) => row)),
 ]
 
 /**
- * What an export of `drawings` has in it, with what is in front first as in a vector: them, and
- * what is behind everything, as it is on the canvas. With no drawings, it is all there is.
+ * What an export of `drawings` has in it: them, and all that goes on and on, each where it is
+ * among the layers as on the canvas. With no drawings, it is all there is.
  */
 export function exportedRows(root: AST, env: Env, drawings: readonly string[]): string[] {
 	const painted = [...paintedIn(root, env)].reverse()

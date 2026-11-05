@@ -14,7 +14,7 @@ describe('what is asked of many rows', () => {
 	const root = parse(`[
 		a = (style (path.circle [0 0] 10) fill="#ff0000")
 		b = (path.rect [0 0] [10 10])
-		g = (grid "dots")
+		g = (graphPaper "dots")
 		h = #_(path.circle [5 5] 10)
 	]`)
 

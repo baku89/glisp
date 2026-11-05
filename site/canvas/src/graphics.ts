@@ -77,6 +77,8 @@ import { offset, offsetStroke } from 'pave/path/offset'
 import { nearest } from 'pave/path/queries'
 import { fromD, toD } from 'pave/path/svg'
 
+import { type GraphPaperKind, PAPER_STEP } from './graphPaper'
+
 const said = (type: TypeValue, draw: string, icon: string): TypeValue =>
 	withTypeMeta(
 		type,
@@ -139,6 +141,25 @@ const percentType = withTypeMeta(
 
 export const POINT_ICON = 'fill:M11.25 3h1.5v6h-1.5zM11.25 15h1.5v6h-1.5zM3 11.25h6v1.5H3zM15 11.25h6v1.5h-6z'
 
+/** How far something goes, which a pad can take hold of, though it is nowhere to be drawn. */
+const translationType = withTypeMeta(
+	makeTupleType([
+		part([
+			['title', 'X'],
+			['fieldIcon', 'char:X'],
+		]),
+		part([
+			['title', 'Y'],
+			['fieldIcon', 'char:Y'],
+		]),
+	]),
+	new RecordAST([
+		['input', lit('translate')],
+		['icon', lit('ph:arrows-out-cardinal')],
+		['name', lit('translation')],
+	])
+)
+
 /** Not every vec2 is a point: a size is not to be drawn. */
 const point = withTypeMeta(
 	said(
@@ -176,17 +197,17 @@ const makeLerp = makeTypedFn(
 
 /** A place moved `by` this much, which comes to a point as well. */
 const makeNudge = makeTypedFn(
-	[point, vec2],
+	[point, translationType],
 	point,
 	(at, by) => add(at as Vec, by as Vec),
 	['point', 'by']
 )
 
 withMembers(vec2, {
-	add: makeTypedFn([vec2, vec2], vec2, (a, b) => Vec2.add(a as Vec, b as Vec), ['a', 'b']),
-	sub: makeTypedFn([vec2, vec2], vec2, (a, b) => Vec2.sub(a as Vec, b as Vec), ['a', 'b']),
+	add: makeTypedFn([translationType, translationType], vec2, (a, b) => Vec2.add(a as Vec, b as Vec), ['a', 'b']),
+	sub: makeTypedFn([translationType, translationType], vec2, (a, b) => Vec2.sub(a as Vec, b as Vec), ['a', 'b']),
 	scale: makeTypedFn(
-		[vec2, number],
+		[translationType, number],
 		vec2,
 		(a, s) => Vec2.scale(a as Vec, s as number),
 		['a', 'by']
@@ -224,24 +245,6 @@ const withDefault = (type: TypeValue, value: unknown): TypeValue => {
 	const plain = Object.create(type.plain ?? type, { default: { value } }) as TypeValue
 	return type.meta ? withTypeMeta(plain, type.meta) : plain
 }
-/** How far a matrix moves things, which a pad can take hold of, though it is nowhere to be drawn. */
-const translationType = withTypeMeta(
-	makeTupleType([
-		part([
-			['title', 'X'],
-			['fieldIcon', 'char:X'],
-		]),
-		part([
-			['title', 'Y'],
-			['fieldIcon', 'char:Y'],
-		]),
-	]),
-	new RecordAST([
-		['input', lit('translate')],
-		['icon', lit('ph:arrows-out-cardinal')],
-		['name', lit('translation')],
-	])
-)
 /** How many times as large each way, shown as a percentage, and going by a ratio as a size does. */
 const scaleType = withTypeMeta(
 	withDefault(
@@ -777,10 +780,7 @@ const colorMeta = new RecordAST([
  * A color is a string, that CSS and SVG would read as one: which it can be told from
  * only by trying, and one that cannot be read is left for them to not draw.
  */
-const colorOf = (fallback: string): TypeValue =>
-	Object.create(withTypeMeta(stringType, colorMeta), {
-		default: { value: fallback },
-	}) as TypeValue
+const colorOf = (fallback: string): TypeValue => withDefault(withTypeMeta(stringType, colorMeta), fallback)
 const colorType = colorOf('#000000')
 /** A color to draw with, which can be no color at all. */
 const paintColor = colorOf('none')
@@ -1616,6 +1616,23 @@ withMembers(rectType, {
 
 const placesType = makeTupleType([], point)
 const rowsOfNumbers = makeTupleType([], makeTupleType([], number))
+
+/** Where a Dubins path stops on the way, the way it goes on from there, and how tightly if it says. */
+type DubinsStop = readonly [Vec, number, number?]
+const dubinsStopsType = makeTupleType(
+	[],
+	makeTupleType(
+		[
+			withTypeMeta(point, new RecordAST([['title', lit('At')]])),
+			withTypeMeta(angleType, new RecordAST([['title', lit('Angle')]])),
+		],
+		withTypeMeta(number, new RecordAST([['title', lit('Radius')]]))
+	)
+)
+/** A stop as what can be worked on: an x, a y, an angle, and a radius if it has one. */
+const flatStop = ([[x, y], angle, ...rest]: DubinsStop): number[] => [x, y, angle, ...(rest as number[])]
+const nestedStop = ([x = 0, y = 0, angle = 0, ...rest]: readonly number[]): DubinsStop =>
+	[[x, y], angle, ...rest] as unknown as DubinsStop
 const manyStyled = makeTupleType([], styledType)
 
 const lerped = (a: number, b: number, t: number): number => a + (b - a) * t
@@ -1655,10 +1672,10 @@ const makeRadial = makeTypedFn(
 )
 
 const makeDubinsChain = makeTypedFn(
-	[rowsOfNumbers, numberOf(20)],
+	[dubinsStopsType, numberOf(20)],
 	pathType,
 	(stops, radius) => {
-		const all = stops as number[][]
+		const all = (stops as DubinsStop[]).map(flatStop)
 		return merged(
 			all.slice(1).map((stop, i) => {
 				// As tightly as the stop it is leaving says, or else as all of them do.
@@ -1714,7 +1731,7 @@ const makeTriangleStrip = withDoc(
 withMembers(pathType, {
 	arcStrip: withDoc(makeArcStrip, 'An arc through each three of `places` in a row.', 'Arc Strip'),
 	radial: withDoc(makeRadial, 'Lines out from `center`: each of `lines` is its angle, and how far along that it starts and ends.', 'Radial Lines'),
-	dubinsChain: withDoc(makeDubinsChain, 'The shortest way between each two of `stops`, each an x, a y, the way it is going, and how tightly it can turn on the way from there, or else as tightly as `radius`.', 'Dubins Chain'),
+	dubinsChain: withDoc(makeDubinsChain, 'The shortest way between each two of `stops`, each a place, the way it is going, and how tightly it can turn on the way from there, or else as tightly as `radius`.', 'Dubins Chain'),
 	bounds: withDoc(makeBounds, 'The area that `path` just fits in.', 'Bounds'),
 	offset: withDoc(makeOffset, 'The outline of `path`, this `distance` out from it, or in, if that is below 0, going around corners by `join`.', 'Offset'),
 	offsetStroke: withDoc(makeOffsetStroke, 'The outline of a line along `path`, this `width`, ending by `cap` and going around corners by `join`.', 'Offset Stroke'),
@@ -2850,7 +2867,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	[
 		makeDubinsChain,
 		args => {
-			const stops = args[0] as number[][]
+			const stops = (args[0] as DubinsStop[]).map(flatStop)
 			const usual = args[1] as number
 			const atOf = ([x = 0, y = 0]: number[]): Vec => [x, y]
 			const movedTo = ([, , angle = 0, ...rest]: number[], [x, y]: Vec): number[] => [x, y, angle, ...rest]
@@ -2861,7 +2878,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				return [x + Math.cos(radians) * reach, y + Math.sin(radians) * reach]
 			}
 			const withStop = (i: number, next: number[]): Change[] => [
-				change(0, stops.map((other, j) => (j === i ? next : other))),
+				change(0, stops.map((other, j) => nestedStop(j === i ? next : other))),
 			]
 			return {
 				handles: stops.flatMap((stop, i): Handle[] => {
@@ -2880,7 +2897,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					]
 				}),
 				guides: stops.map(stop => line(atOf(stop), tipOf(stop))),
-				move: delta => [change(0, stops.map(stop => movedTo(stop, add(atOf(stop), delta))))],
+				move: delta => [change(0, stops.map(stop => nestedStop(movedTo(stop, add(atOf(stop), delta)))))],
 			}
 		},
 	],
@@ -4209,8 +4226,8 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 			scaled: (x, y, about) => [
 				change(
 					0,
-					(args[0] as number[][]).map(([px = 0, py = 0, angle = 0, radius]) => [
-						...scaledPlace([px, py], x, y, about),
+					(args[0] as DubinsStop[]).map(([at, angle, radius]) => [
+						scaledPlace(at, x, y, about),
 						angle,
 						...(radius === undefined ? [] : [radius * x]),
 					])
@@ -4220,8 +4237,8 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 			turned: (degrees, about) => [
 				change(
 					0,
-					(args[0] as number[][]).map(([px = 0, py = 0, angle = 0, ...rest]) => [
-						...turnedPlace([px, py], degrees, about),
+					(args[0] as DubinsStop[]).map(([at, angle, ...rest]) => [
+						turnedPlace(at, degrees, about),
 						angle + degrees,
 						...rest,
 					])
@@ -4313,28 +4330,123 @@ export function withinArg(fn: unknown, arg: number, args: readonly unknown[]): M
 	return null
 }
 
+const SOLID_COLOR = '#ffffff'
+
 /** A color that fills the whole of a canvas, however far it goes. */
-const makeBackground = withDoc(
-	makeTypedFn([paintColor], said(paintColor, 'background', 'ph:paint-bucket'), color => color, ['color']),
-	'Fills the whole of the canvas with a `color`, behind everything drawn.',
-	'Background'
+const makeSolid = withDoc(
+	makeTypedFn([colorOf(SOLID_COLOR)], said(colorOf(SOLID_COLOR), 'solid', 'ph:paint-bucket'), color => color, ['color']),
+	'Fills the whole of the canvas with a `color`, covering what is behind it among the layers.',
+	'Solid'
 )
 
-/** What of a grid a canvas shows, by the same words as what is laid over it. */
-export const gridKindType = enumOf({
+/** What of a graph paper a canvas shows, by the same words as what is laid over it. */
+export const graphPaperKindType = enumOf({
 	dots: 'ph:dots-nine',
 	lines: 'ph:grid-four',
-	none: 'ph:prohibit',
 })
 
-/** What a canvas is seen by, and as much of the project as what is behind it. */
-const makeGrid = withDoc(
-	makeTypedFn([gridKindType], said(gridKindType, 'grid', 'ph:grid-four'), kind => kind, ['kind']),
-	'Lays `dots` or `lines` over the canvas to see by, at the program\'s coordinates. It is not drawn into anything exported.',
-	'Grid'
+/** A gray that can be seen on most backgrounds, and that does not get in the way on them. */
+const PAPER_COLOR = '#80808040'
+const PAPER_WIDTH = 1
+
+/** What is laid over a canvas, and how: `width` is on screen, as how far apart they are is. */
+export class GraphPaperValue {
+	constructor(
+		readonly kind: GraphPaperKind,
+		readonly color: string,
+		readonly width: number,
+		readonly origin: Vec,
+		readonly step: number,
+		readonly adaptive: boolean
+	) {}
+
+	[AS_SOURCE](): AST {
+		const said: Array<[string, AST]> = [
+			...(this.color === PAPER_COLOR ? [] : [['color', lit(this.color)] as [string, AST]]),
+			...(this.width === PAPER_WIDTH ? [] : [['width', lit(this.width)] as [string, AST]]),
+			...(this.origin[0] === 0 && this.origin[1] === 0 ? [] : [['origin', toAst(this.origin, null)] as [string, AST]]),
+			...(this.step === PAPER_STEP ? [] : [['step', lit(this.step)] as [string, AST]]),
+			...(this.adaptive ? [] : [['adaptive', lit(false)] as [string, AST]]),
+		]
+		return new CallAST(parse('graphPaper'), [lit(this.kind)], said.length > 0 ? new Map(said) : undefined)
+	}
+}
+
+const isGraphPaper = (value: unknown): value is GraphPaperValue => value instanceof GraphPaperValue
+
+const graphPaperType = said(
+	makeType('graphPaper', isGraphPaper, new GraphPaperValue('dots', PAPER_COLOR, PAPER_WIDTH, [0, 0], PAPER_STEP, true)),
+	'graphPaper',
+	'ph:grid-four'
 )
 
-/** What shows up on a background of `color`. */
+/** What a canvas is seen by, and as much of the project as what is behind it. */
+const makeGraphPaper = withDoc(
+	withOptional(
+		makeTypedFn(
+			[graphPaperKindType, colorOf(PAPER_COLOR), numberOf(PAPER_WIDTH), withDefault(point, [0, 0]), numberOf(PAPER_STEP), withDefault(booleanType, true)],
+			graphPaperType,
+			(kind, color, width, origin, step, adaptive) =>
+				new GraphPaperValue(
+					kind as GraphPaperKind,
+					color as string,
+					Math.max(0, width as number),
+					origin as Vec,
+					(step as number) > 0 ? (step as number) : PAPER_STEP,
+					adaptive as boolean
+				),
+			['kind', 'color', 'width', 'origin', 'step', 'adaptive']
+		),
+		['color', 'width', 'origin', 'step', 'adaptive']
+	),
+	'Lays `dots` or `lines` over the whole of the canvas, on and on, in a `color` and a `width`, `step` apart from `origin`. If `adaptive`, they are divided further or left out as the view zooms. They are exported as they are at full size, `step` apart.',
+	'Graph Paper'
+)
+
+const AXES_COLOR = '#80808080'
+const AXES_WIDTH = 1
+
+/** The two lines through a place, on and on: `width` is on screen. */
+export class AxesValue {
+	constructor(
+		readonly origin: Vec,
+		readonly color: string,
+		readonly width: number
+	) {}
+
+	[AS_SOURCE](): AST {
+		const said: Array<[string, AST]> = [
+			...(this.origin[0] === 0 && this.origin[1] === 0 ? [] : [['origin', toAst(this.origin, null)] as [string, AST]]),
+			...(this.color === AXES_COLOR ? [] : [['color', lit(this.color)] as [string, AST]]),
+			...(this.width === AXES_WIDTH ? [] : [['width', lit(this.width)] as [string, AST]]),
+		]
+		return new CallAST(parse('axes'), [], said.length > 0 ? new Map(said) : undefined)
+	}
+}
+
+const isAxes = (value: unknown): value is AxesValue => value instanceof AxesValue
+
+const axesType = said(
+	makeType('axes', isAxes, new AxesValue([0, 0], AXES_COLOR, AXES_WIDTH)),
+	'axes',
+	'ph:crosshair-simple'
+)
+
+const makeAxes = withDoc(
+	withOptional(
+		makeTypedFn(
+			[withDefault(point, [0, 0]), colorOf(AXES_COLOR), numberOf(AXES_WIDTH)],
+			axesType,
+			(origin, color, width) => new AxesValue(origin as Vec, color as string, Math.max(0, width as number)),
+			['origin', 'color', 'width']
+		),
+		['origin', 'color', 'width']
+	),
+	'Draws the two lines through `origin`, across the whole of the canvas, on and on, in a `color` and a `width`.',
+	'Axes'
+)
+
+/** What shows up on a solid of `color`. */
 export const inkOn = (color: string): string =>
 	(parsed(color).to('oklch').coords[0] || 0) > 0.6 ? '#000000' : '#ffffff'
 
@@ -4347,8 +4459,9 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 	style: makeStyled,
 	spray: makeSpray,
 	triangleStrip: makeTriangleStrip,
-	background: makeBackground,
-	grid: makeGrid,
+	solid: makeSolid,
+	graphPaper: makeGraphPaper,
+	axes: makeAxes,
 	vec2,
 	point,
 	size,

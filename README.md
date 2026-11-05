@@ -21,7 +21,7 @@ ring = (map (range 0 96) (=> (i: number): _
     (path.radial [400 400]
       (map (range 0 24) (=> (i: number): _ [(* i 15) 70 215])))
     stroke="#ffffff" width=3)
-  bg = (background "#1473e6")
+  bg = (solid "#1473e6")
 ]
 ```
 

@@ -5,7 +5,7 @@ import { pastedRows, withoutRows } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
-import { allPaintedRows, arranged, crumbsOf, grouped, ungrouped, withBackground, withGridToggled } from './rows'
+import { allPaintedRows, arranged, crumbsOf, grouped, ungrouped, withSolid, withGraphPaperToggled } from './rows'
 import { svgOfRows } from './svg'
 import { canIsolate, changed, diveAt, gripAt, isGroupRow, isOutside, labelOfRow, paintAt, rowsListedIn, rowInGroup, rowsPaintedBy, rowsToTake, rowTakenAt, sceneOf, valueOfRow, withLayersFromOrder, withPaint } from './scene'
 import { bounds } from 'pave/path/metrics'
@@ -128,20 +128,20 @@ describe('what is new', () => {
 	})
 })
 
-describe('the background and the grid', () => {
+describe('a solid and a graph paper', () => {
 	const root = (source: string) => parse(source) as LetAST
 	const SHAPE = `a = ${P(1)}`
 
-	it('are behind all else, the background the furthest', () => {
-		const withGrid = withGridToggled(root(`[${SHAPE}]`), env, 'dots')
-		const withBoth = withBackground(withGrid, env, '#ffffff').ast
-		expect(layersOf(withBoth)).toEqual(['a', 'grid1', 'background1'])
-		const other = withGridToggled(withBackground(root(`[${SHAPE}]`), env, '#ffffff').ast, env, 'dots')
-		expect(layersOf(other)).toEqual(['a', 'grid1', 'background1'])
+	it('come in at the back, the solid the furthest', () => {
+		const withGraphPaper = withGraphPaperToggled(root(`[${SHAPE}]`), env, 'dots')
+		const withBoth = withSolid(withGraphPaper, env, '#ffffff').ast
+		expect(layersOf(withBoth)).toEqual(['a', 'graphPaper1', 'solid1'])
+		const other = withGraphPaperToggled(withSolid(root(`[${SHAPE}]`), env, '#ffffff').ast, env, 'dots')
+		expect(layersOf(other)).toEqual(['a', 'graphPaper1', 'solid1'])
 	})
 
-	it('are drawn in the end, behind what is in front of them', () => {
-		const ast = root(`[${SHAPE} g = (grid "dots") bg = (background "#ff0000")]`)
+	it('are drawn in the end, in their place among the layers', () => {
+		const ast = root(`[${SHAPE} g = (graphPaper "dots") bg = (solid "#ff0000")]`)
 		const svg = svgOfRows(ast, env, allPaintedRows(ast, env))!
 		const at = (text: string) => svg.indexOf(text)
 		expect(at('fill="#ff0000"')).toBeGreaterThan(0)
@@ -150,7 +150,7 @@ describe('the background and the grid', () => {
 	})
 
 	it('stay out of what is asked for by name', () => {
-		const ast = root(`[${SHAPE} bg = (background "#ff0000")]`)
+		const ast = root(`[${SHAPE} bg = (solid "#ff0000")]`)
 		expect(svgOfRows(ast, env, ['binding:a'])).not.toContain('#ff0000')
 	})
 })

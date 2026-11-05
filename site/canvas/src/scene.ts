@@ -58,7 +58,8 @@ import { toD } from 'pave/path/svg'
 import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
 
-import type { GridKind } from './grid'
+import type { GraphPaperValue } from './graphics'
+import type { GraphPaperKind } from './graphPaper'
 
 import {
 	type Change,
@@ -1151,8 +1152,8 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 	}
 }
 
-/** What a project says of the canvas it is on, with nothing to take hold of. */
-const NOT_SHAPES: ReadonlySet<string> = new Set(['background', 'grid'])
+/** What goes on and on, so is not found by where it is: it is drawn in its place among the layers, and taken from their list. */
+const NOT_SHAPES: ReadonlySet<string> = new Set(['solid', 'graphPaper', 'axes'])
 
 export const sceneOf = (root: AST, env: Env): Shape[] =>
 	drawnIn(root, env).filter(({ draw }) => !NOT_SHAPES.has(draw))
@@ -1169,33 +1170,42 @@ export const hiddenShapesOf = (root: AST, env: Env, rows: readonly string[]): Sh
 					!NOT_SHAPES.has(draw) && rows.some(path => row === path || row.startsWith(`${path}/`))
 			)
 
-/** The color behind everything, by the last that says so. Null if nothing does, or it is none. */
-export function backgroundOf(root: AST, env: Env): string | null {
+/**
+ * The color of the solid in front of all others, which is what the window goes by and what
+ * things are marked on the canvas to be seen on. Null if there is none.
+ */
+export function solidOf(root: AST, env: Env): string | null {
 	const color = drawnIn(root, env)
-		.filter(({ draw }) => draw === 'background')
+		.filter(({ draw }) => draw === 'solid')
 		.at(-1)?.value
-	return typeof color === 'string' && color !== 'none' ? color : null
+	return typeof color === 'string' ? color : null
 }
 
 /** Whether the row at `row` is said of the canvas, so has no fill or line to give it. */
 export const isOfCanvasAt = (root: AST, env: Env, row: string): boolean =>
 	shapesAtRow(drawnIn(root, env)).get(row)?.some(({ draw }) => NOT_SHAPES.has(draw)) ?? false
 
-export const backgroundRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
-	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'background')
+export const solidRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
+	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'solid')
 
-/** A row of a program that says what color is behind everything. */
-export const backgroundCall = (color: string): AST => parse(`(background ${JSON.stringify(color)})`)
+/** A row of a program that fills the canvas with a color. */
+export const solidCall = (color: string): AST => parse(`(solid ${JSON.stringify(color)})`)
 
-export const gridRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
-	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'grid')
+export const graphPaperRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
+	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'graphPaper')
 
-/** What of a grid the canvas shows, by the last that says so. None if nothing does. */
-export const gridOf = (root: AST, env: Env): GridKind =>
-	(gridRowsIn(root, env, false).at(-1)?.value as GridKind | undefined) ?? 'none'
+/** The graph paper the canvas shows, by the last that says so. Null if nothing does. */
+export const graphPaperOf = (root: AST, env: Env): GraphPaperValue | null =>
+	(graphPaperRowsIn(root, env, false).at(-1)?.value as GraphPaperValue | undefined) ?? null
 
-/** A row of a program that says what of a grid to show. */
-export const gridCall = (kind: GridKind): AST => parse(`(grid ${JSON.stringify(kind)})`)
+/** A row of a program that says what of a graph paper to show. */
+export const graphPaperCall = (kind: GraphPaperKind): AST => parse(`(graphPaper ${JSON.stringify(kind)})`)
+
+export const axesRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
+	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'axes')
+
+/** A row of a program that draws the axes. */
+export const axesCall = (): AST => parse('(axes)')
 
 const drawnMemo = [new WeakMap<AST, WeakMap<object, readonly Shape[]>>(), new WeakMap<AST, WeakMap<object, readonly Shape[]>>()] as const
 const atRowMemo = new WeakMap<readonly Shape[], ReadonlyMap<string, readonly Shape[]>>()
@@ -1280,6 +1290,30 @@ export const paintedIn = (root: AST, env: Env): readonly Shape[] => drawnIn(root
 /** Whether the row at `row` draws something of its own, or would if it were not hidden. */
 export const drawsAt = (root: AST, env: Env, row: string): boolean =>
 	shapesAtRow(drawnIn(root, env)).has(row) || shapesAtRow(drawnIn(root, env, true)).has(row)
+
+/**
+ * Source as it is written now, from when things went by other names: what fills a canvas was a
+ * `background`, what is laid over it a `grid` that could say it had nothing to lay, and a stop
+ * on a Dubins path four numbers in a row. A program with its own of those names keeps them.
+ */
+export function writtenAsNow(source: string): string {
+	const renamed = (text: string, old: string, name: string, hiddenAs: string): string =>
+		new RegExp(`(?<![\\w.-])${old}\\s*=\\s*\\(=>`).test(text)
+			? text
+			: text
+					.replaceAll(`(${old} "none")`, `#_(${name} ${hiddenAs})`)
+					.replaceAll(`(${old} `, `(${name} `)
+					.replaceAll(`(${old})`, `(${name})`)
+	const num = '-?[\\d.]+(?:e-?\\d+)?'
+	const flatRow = new RegExp(`\\[\\s*(${num})\\s+(${num})((?:\\s+${num})*)\\s*\\]`, 'g')
+	return renamed(renamed(source, 'background', 'solid', '"#ffffff"'), 'grid', 'graphPaper', '"dots"')
+		.replaceAll('(path.style ', '(style ')
+		.replaceAll('/topLeft', '/origin')
+		.replaceAll('topLeft=', 'origin=')
+		.replace(/\(path\.dubinsChain\s+\[((?:\s*\[[^[\]()]*\])*)\s*\]/g, (call, rows: string) =>
+			call.replace(rows, rows.replace(flatRow, '[[$1 $2]$3]'))
+		)
+}
 
 /**
  * A program as it is written now, from when what it drew went by the order of its bindings: its

@@ -12,8 +12,7 @@ import Color from 'colorjs.io'
 import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 
-import { cornersOf, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf, toHex } from './graphics'
-import { type GridKind, gridStep } from './grid'
+import { type AxesValue, cornersOf, type GraphPaperValue, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf, toHex } from './graphics'
 import { paintedIn } from './scene'
 
 const NAMESPACE = 'https://glisp.app/canvas'
@@ -52,22 +51,26 @@ const unescaped = (text: string): string =>
 		.replace(/&#39;/g, "'")
 		.replace(/&amp;/g, '&')
 
-const GRID_COLOR = '#999999'
-const DOT_RADIUS = 0.75
-
-/** A grid, as it is at full size, over the area drawn. Its lines are where it has them on the canvas. */
-function gridIn(id: string, kind: GridKind, x: number, y: number, width: number, height: number): string[] {
-	if (kind === 'none') return []
-	const step = gridStep(1)
+/**
+ * A graph paper, as it is at full size, over the area drawn: `step` apart, adaptive or not, as
+ * a file has no zoom to go by. Its lines are where it has them on the canvas.
+ */
+function graphPaperIn(id: string, graphPaper: GraphPaperValue, x: number, y: number, width: number, height: number): string[] {
+	const { step } = graphPaper
 	const mark =
-		kind === 'dots'
-			? `<circle cx="${step / 2}" cy="${step / 2}" r="${DOT_RADIUS}" fill="${GRID_COLOR}" stroke="none"/>`
-			: `<path d="M ${step / 2} 0 V ${step} M 0 ${step / 2} H ${step}" stroke="${GRID_COLOR}" stroke-width="${DOT_RADIUS}"/>`
+		graphPaper.kind === 'dots'
+			? `<circle cx="${step / 2}" cy="${step / 2}" r="${graphPaper.width}"${colorAttributes('fill', graphPaper.color)} stroke="none"/>`
+			: `<path d="M ${step / 2} 0 V ${step} M 0 ${step / 2} H ${step}"${colorAttributes('stroke', graphPaper.color)} stroke-width="${graphPaper.width}"/>`
+	const [originX, originY] = graphPaper.origin
 	return [
-		`  <pattern id="${id}" width="${step}" height="${step}" patternUnits="userSpaceOnUse" patternTransform="translate(${-step / 2} ${-step / 2})">${mark}</pattern>`,
+		`  <pattern id="${id}" width="${step}" height="${step}" patternUnits="userSpaceOnUse" patternTransform="translate(${originX - step / 2} ${originY - step / 2})">${mark}</pattern>`,
 		`  <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="url(#${id})" stroke="none"/>`,
 	]
 }
+
+/** Axes, over the area drawn. */
+const axesIn = ({ origin: [originX, originY], color, width: line }: AxesValue, x: number, y: number, width: number, height: number): string =>
+	`  <path d="M ${originX} ${y} V ${y + height} M ${x} ${originY} H ${x + width}"${colorAttributes('stroke', color)} stroke-width="${line}"/>`
 
 const metadataOf = (code: string): string =>
 	`  <metadata><glisp xmlns="${NAMESPACE}">${escaped(code)}</glisp></metadata>`
@@ -154,11 +157,12 @@ function svgWith(
 	const drawn = painted.flatMap(shape => {
 		const { row, draw, value, paint } = shape
 		const id = row.split('/').at(-1)!.replace(/^binding:/, '')
-		// As far as what is drawn goes, which is all it has to be behind.
-		if (draw === 'background') {
-			return value === 'none' ? [] : [`  <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${escaped(String(value))}" stroke="none"/>`]
+		// As far as what is drawn goes, which is all there is of what goes on and on.
+		if (draw === 'solid') {
+			return [`  <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${escaped(String(value))}" stroke="none"/>`]
 		}
-		if (draw === 'grid') return gridIn(escaped(id), value as GridKind, x, y, width, height)
+		if (draw === 'graphPaper') return graphPaperIn(escaped(id), value as GraphPaperValue, x, y, width, height)
+		if (draw === 'axes') return [axesIn(value as AxesValue, x, y, width, height)]
 		if (!shown.has(shape)) return []
 		const attributes = paint
 			? `${colorAttributes('fill', paint.fill)}${colorAttributes('stroke', paint.stroke)} stroke-width="${paint.width}"${lineAttributes(paint)}`

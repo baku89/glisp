@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, readByName } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, readByName, toAst } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
 import { InputRotary } from 'tweeq/InputRotary'
 import { InputTranslate } from 'tweeq/InputTranslate'
@@ -24,6 +24,7 @@ import {
 	canSolve,
 	elementAt,
 	canStack,
+	holdsRows,
 	numbersFit,
 	type NumbersFit,
 	isGroup,
@@ -136,16 +137,21 @@ const layerLabel = inject(LAYER_LABEL, null)
 const tree = inject(ParameterTreeContextKey, null)
 /** A point's pad, to take it by, and what is left beside it for its numbers. */
 const translatable = computed(
-	() => !props.entry.absent && isTranslatable(props.entry.expected) && Array.isArray(placeValue.value)
+	() => isTranslatable(props.entry.expected) && Array.isArray(placeValue.value)
 )
 const placeValue = computed(
 	() => props.read(readByName(ast.value), props.entry.env).value
 )
 /** An angle's dial, to turn it by, with its number beside it. */
 const turnable = computed(
-	() => !props.entry.absent && isAngleInput(props.entry.expected) && typeof placeValue.value === 'number'
+	() => isAngleInput(props.entry.expected) && typeof placeValue.value === 'number'
 )
 const PAD_WIDTH = 26
+/** Moving a pad or a dial. What is not said yet comes to be said, as there is nothing to solve for. */
+const moveTo = (value: number | readonly [number, number]): void => {
+	if (props.entry.absent) update(toAst(value, null))
+	else solver?.solve(ast.value, value)
+}
 const valuePicker = inject(VALUE_PICKER, null)
 /** What can be chosen by pointing at it has a way to start doing that. */
 const pointable = computed(
@@ -163,6 +169,7 @@ const inline = computed(
 	() =>
 		bareKind.value === 'vec' &&
 		!open.value &&
+		!holdsRows(placeValue.value) &&
 		(fit.value === 'side' || canStack(placeValue.value))
 )
 
@@ -498,14 +505,14 @@ watch(
 				v-if="translatable"
 				:modelValue="placeValue as [number, number]"
 				:showOverlayLabel="!numbersInView"
-				@update:modelValue="solver?.solve(ast, $event)"
+				@update:modelValue="moveTo($event)"
 			/>
 			<!-- 0 is along X, as it is on a canvas, rather than up. -->
 			<InputRotary
 				v-if="turnable"
 				:modelValue="placeValue as number"
 				:angleOffset="0"
-				@update:modelValue="solver?.solve(ast, $event)"
+				@update:modelValue="moveTo($event)"
 			/>
 			<div v-if="inline" ref="$anchor" class="inline-anchor">
 				<AstInline

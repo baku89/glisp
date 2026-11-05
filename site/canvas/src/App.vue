@@ -56,10 +56,11 @@ import {
 	rowsAbout,
 	ungrouped,
 	viewToFit,
-	withBackground,
-	withGridToggled,
+	withSolid,
+	withAxesToggled,
+	withGraphPaperToggled,
 } from './rows'
-import { backgroundOf, canIsolate, diveAt, drawsAt, labelOfRow, rowsListedIn, gridCall, gridOf, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, isOutlined, sceneOf } from './scene'
+import { solidOf, canIsolate, diveAt, drawsAt, labelOfRow, rowsListedIn, axesCall, graphPaperCall, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, writtenAsNow, isOutlined, sceneOf } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -91,7 +92,8 @@ const EXAMPLE = `{
   [
     c = (path.circle [240 200] radius)
     r = (path.rect [360 140] [160 120])
-    grid1 = (grid "dots")
+    axes1 = (axes)
+    graphPaper1 = (graphPaper "dots")
   ]
 }`
 
@@ -120,9 +122,10 @@ const NEW_SKETCH = `{
     ; A name lets the rest of it refer to this, from anywhere.
     plate = (style (path.rect [-200 -200] [400 400]) fill="#f0ece2")
 
-    ; These are drawn in the end too, behind all else.
-    grid1 = (grid "dots")
-    background1 = (background "#ffffff")
+    ; These are layers like the rest: moved to the front, they cover what is behind.
+    axes1 = (axes)
+    graphPaper1 = (graphPaper "dots")
+    solid1 = (solid "#ffffff")
   ]
 }`
 
@@ -136,10 +139,7 @@ const STORAGE_KEY = 'glisp.canvas.source'
  */
 const graphicsEnv = withGraphics(buildPrelude())
 function fromBefore(source: string): string {
-	const written = source
-		.replaceAll('(path.style ', '(style ')
-		.replaceAll('/topLeft', '/origin')
-		.replaceAll('topLeft=', 'origin=')
+	const written = writtenAsNow(source)
 	try {
 		return print(withLayersFromOrder(parse(written), graphicsEnv))
 	} catch {
@@ -179,7 +179,7 @@ watch(document.root, root => {
 
 /** A tool's key is said only here. What runs it and what says so all come from this. */
 /** What takes a path, but is what the inspector says of one, more than something around it. */
-const NOT_FILTERS: ReadonlySet<string> = new Set(['style', 'background'])
+const NOT_FILTERS: ReadonlySet<string> = new Set(['style', 'solid'])
 
 const TOOLS = [
 	{ name: 'select', label: 'Select', key: 'v', icon: 'ph:cursor-fill' },
@@ -251,10 +251,13 @@ const dimensionsOn = useAppConfigStore().ref('glisp.canvas.dimensions', false)
 const snappingOn = useAppConfigStore().ref('glisp.canvas.snapping', true)
 
 /** What is laid over the canvas to see by, as the program says. */
-const grid = computed(() => gridOf(document.root.value, document.env.value))
-const toggleGrid = (kind: 'dots' | 'lines'): void => {
+const toggleAxes = (): void => {
 	const root = document.root.value
-	if (root instanceof LetAST) setProgram(withGridToggled(root, document.env.value, kind))
+	if (root instanceof LetAST) setProgram(withAxesToggled(root, document.env.value))
+}
+const toggleGraphPaper = (kind: 'dots' | 'lines'): void => {
+	const root = document.root.value
+	if (root instanceof LetAST) setProgram(withGraphPaperToggled(root, document.env.value, kind))
 }
 
 const toolKeys = new Set<string>(TOOLS.flatMap(tool => ('key' in tool ? [tool.key] : [])))
@@ -313,7 +316,8 @@ function readFile(text: string): { readonly root: LetAST; readonly whole: boolea
 	}
 }
 
-const blankProgram = (): LetAST => withLayerAdded(new LetAST([], null), 'grid1', gridCall('dots')) as LetAST
+const blankProgram = (): LetAST =>
+	withLayerAdded(withLayerAdded(new LetAST([], null), 'graphPaper1', graphPaperCall('dots')) as LetAST, 'axes1', axesCall(), 0) as LetAST
 
 const files = useFileTabs({
 	document,
@@ -355,11 +359,11 @@ function arrange(how: Arrange): void {
 	if (root) setProgram(arranged(root, selected.value, how))
 }
 
-/** There being a background, with what chooses its color to hand. */
-function setBackground(): void {
+/** There being a solid, with what chooses its color to hand. */
+function setSolid(): void {
 	const root = programOf(document.root.value)
 	if (root === null) return
-	const { ast, row } = withBackground(root, document.env.value, theme.colorBackground)
+	const { ast, row } = withSolid(root, document.env.value, theme.colorBackground)
 	setProgram(ast, [row])
 	inspectorOpen.value = true
 }
@@ -429,17 +433,17 @@ const paintable = computed(() =>
 	})
 )
 
-// A background goes up through the title bar, and the window's own where it has one.
-const background = computed(() => backgroundOf(document.root.value, document.env.value))
+// A solid goes up through the title bar, and the window's own where it has one.
+const solid = computed(() => solidOf(document.root.value, document.env.value))
 const titleBarStyle = computed(() =>
-	background.value === null
+	solid.value === null
 		? undefined
-		: { '--tq-titlebar-background': background.value, color: inkOn(background.value) }
+		: { '--tq-titlebar-background': solid.value, color: inkOn(solid.value) }
 )
 // After the theme, which writes its own background here whenever it changes.
 const themeColorMeta = window.document.querySelector('meta[name="theme-color"]')
 watchEffect(
-	() => themeColorMeta?.setAttribute('content', background.value ?? theme.colorBackground),
+	() => themeColorMeta?.setAttribute('content', solid.value ?? theme.colorBackground),
 	{ flush: 'post' }
 )
 
@@ -1053,9 +1057,10 @@ actions.register([
 			{ id: 'view_tool', label: 'Toggle Tool Options', icon: 'ph:palette', perform: () => (toolPanelOpen.value = !toolPanelOpen.value) },
 			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', bind: 'd', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
 			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
-			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGrid('dots') },
-			{ id: 'view_grid', label: 'Toggle Grid', icon: 'ph:grid-four', perform: () => toggleGrid('lines') },
-			{ id: 'view_background', label: 'Set Background', icon: 'ph:paint-bucket', perform: setBackground },
+			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGraphPaper('dots') },
+			{ id: 'view_lines', label: 'Toggle Lines', icon: 'ph:grid-four', perform: () => toggleGraphPaper('lines') },
+			{ id: 'view_axes', label: 'Toggle Axes', icon: 'ph:crosshair-simple', perform: toggleAxes },
+			{ id: 'view_solid', label: 'Set Solid', icon: 'ph:paint-bucket', perform: setSolid },
 		],
 	},
 	{
@@ -1228,7 +1233,6 @@ function selectInTree(row: string | null): void {
 					:attributes="toolAttributes"
 					:dimensions="dimensionsOn"
 					:snapping="snappingOn"
-					:grid="grid"
 					:addingAt="quickAddAt !== null && quickFillAt === null ? quickAddPlace : null"
 					v-model:keptRow="keptRow"
 					v-model:isolation="isolation"

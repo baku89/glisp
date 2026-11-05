@@ -13,7 +13,7 @@ import {
 	rowCalled,
 	rowsAbout,
 	ungrouped,
-	withBackground,
+	withSolid,
 	viewBetween,
 	viewToFit,
 } from './rows'
@@ -280,29 +280,25 @@ describe('grouping what is referred to from the root', () => {
 	})
 })
 
-describe('withBackground', () => {
+describe('withSolid', () => {
 	const given = (src: string) => {
-		const { ast, row } = withBackground(parse(src) as LetAST, env, '#ffffff')
+		const { ast, row } = withSolid(parse(src) as LetAST, env, '#ffffff')
 		return { source: print(ast), row }
 	}
 
 	it('adds a row at the top, if nothing says it', () => {
 		expect(given('{c = 1}')).toEqual({
-			source: '{c = 1 [background1 = (background "#ffffff")]}',
-			row: 'binding:background1',
+			source: '{c = 1 [solid1 = (solid "#ffffff")]}',
+			row: 'binding:solid1',
 		})
 	})
 
 	it('leaves what says it as it is, to be chosen from', () => {
-		const src = '{bg = (background "#ff0000") c = 1}'
-		expect(given(src)).toEqual({ source: '{c = 1 [bg = (background "#ff0000")]}', row: 'binding:bg' })
+		const src = '{bg = (solid "#ff0000") c = 1}'
+		expect(given(src)).toEqual({ source: '{c = 1 [bg = (solid "#ff0000")]}', row: 'binding:bg' })
 	})
 
 	it('brings it out of being hidden', () => {
-		expect(given('{bg = #_(background "#ff0000")}').source).toBe('[bg = (background "#ff0000")]')
-	})
-
-	it('has it say a color, if it says there is none', () => {
-		expect(given('{bg = (background "none")}').source).toBe('[bg = (background "#ffffff")]')
+		expect(given('{bg = #_(solid "#ff0000")}').source).toBe('[bg = (solid "#ff0000")]')
 	})
 })

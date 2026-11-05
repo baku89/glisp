@@ -6,7 +6,7 @@ import { type PathValue, withGraphics } from './graphics'
 import { filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { addablesIn, fillersAt, matching, withAdded, withFilled } from './quickAdd'
 import { boundsOfRows } from './rows'
-import { boundsOfRows as boxOfRows, drawsAt, gridOf, rowsWithin, sceneOf } from './scene'
+import { boundsOfRows as boxOfRows, drawsAt, graphPaperOf, rowsWithin, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const EMPTY = parse('{a = 1}') as LetAST
@@ -131,7 +131,7 @@ describe('adding it', () => {
 
 	it('has guides and the canvas be rows of their own, not taking what is selected', () => {
 		const alone = all.filter(item => item.alone).map(({ name }) => name)
-		expect(alone).toEqual(expect.arrayContaining(['point', 'line.fromPoints', 'line.at', 'rect.new', 'background', 'grid']))
+		expect(alone).toEqual(expect.arrayContaining(['point', 'line.fromPoints', 'line.at', 'rect.new', 'solid', 'graphPaper', 'axes']))
 		expect(alone).not.toContain('path.circle')
 	})
 
@@ -190,34 +190,29 @@ describe('adding it', () => {
 
 	it('lists the guides and the canvas with nothing asked', () => {
 		const listed = matching(all, '').map(({ name }) => name)
-		for (const name of ['point', 'vec2.lerp', 'line.fromPoints', 'line.at', 'rect.new', 'background', 'grid']) expect(listed).toContain(name)
+		for (const name of ['point', 'vec2.lerp', 'line.fromPoints', 'line.at', 'rect.new', 'solid', 'graphPaper', 'axes']) expect(listed).toContain(name)
 	})
 
-	it('has a background go behind everything, and a grid in front of it', () => {
+	it('has a solid come in at the back, and a graph paper in front of it', () => {
 		const start = parse('[a = (path.circle [0 0] 5)]') as LetAST
-		const behind = withAdded(start, env, 'background', [0, 0])!
-		expect(print(behind.ast)).toMatch(/^\[a = .*background1 = \(background /)
-		expect(behind.row).toBe('binding:background1')
-		const both = withAdded(behind.ast, env, 'grid', [0, 0])!
-		expect(print(both.ast)).toMatch(/^\[a = .*grid1 = \(grid "dots"\) background1 = /)
-		expect(both.row).toBe('binding:grid1')
+		const behind = withAdded(start, env, 'solid', [0, 0])!
+		expect(print(behind.ast)).toMatch(/^\[a = .*solid1 = \(solid /)
+		expect(behind.row).toBe('binding:solid1')
+		const both = withAdded(behind.ast, env, 'graphPaper', [0, 0])!
+		expect(print(both.ast)).toMatch(/^\[a = .*graphPaper1 = \(graphPaper "dots"\) solid1 = /)
+		expect(both.row).toBe('binding:graphPaper1')
 	})
 
-	it('goes to the background or grid there is, rather than another', () => {
-		const start = parse('[g = (grid "lines") b = (background "#000")]') as LetAST
-		expect(withAdded(start, env, 'grid', [0, 0])).toMatchObject({ row: 'binding:g' })
-		expect(print(withAdded(start, env, 'grid', [0, 0])!.ast)).toBe(print(start))
-		expect(print(withAdded(start, env, 'background', [0, 0])!.ast)).toBe(print(start))
-	})
-
-	it('has a grid that says there is none come to say there is one', () => {
-		const start = parse('[g = (grid "none")]') as LetAST
-		expect(gridOf(withAdded(start, env, 'grid', [0, 0])!.ast, env)).toBe('dots')
+	it('adds another solid or graph paper, as it would anything else', () => {
+		const start = parse('[g = (graphPaper "lines") b = (solid "#000")]') as LetAST
+		expect(withAdded(start, env, 'graphPaper', [0, 0])).toMatchObject({ row: 'binding:graphPaper1' })
+		expect(withAdded(start, env, 'solid', [0, 0])).toMatchObject({ row: 'binding:solid1' })
+		expect(print(withAdded(start, env, 'graphPaper', [0, 0])!.ast)).toContain('g = (graphPaper "lines")')
 	})
 
 	it('has a program say something else by that name, which goes first', () => {
-		const own = parse('{grid = (=> (at: point): path (path.circle at 5))}') as LetAST
-		expect(print(withAdded(own, env, 'grid', [1, 2])!.ast)).toContain('(grid [1 2])')
+		const own = parse('{graphPaper = (=> (at: point): path (path.circle at 5))}') as LetAST
+		expect(print(withAdded(own, env, 'graphPaper', [1, 2])!.ast)).toContain('(graphPaper [1 2])')
 	})
 
 	it('is nothing for what is not there', () => {
@@ -256,7 +251,7 @@ describe('what goes in a value of what there is', () => {
 	})
 
 	it('has all there is for a color, where one goes', () => {
-		const here = fillers('[b = (background "#ffffff")]', 'binding:b/arg0')
+		const here = fillers('[b = (solid "#ffffff")]', 'binding:b/arg0')
 		for (const name of ['color.lerp', 'color.mix', 'color.ramp', 'color.from', 'color.oklch', 'color.invert', 'color.complement']) {
 			expect(here).toContain(name)
 		}

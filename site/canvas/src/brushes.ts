@@ -281,7 +281,7 @@ export const dubinsChain: Brush<DubinsState> = {
 			? null
 			: `(path.dubinsChain [${stops
 					.map(({ at: [x, y], angle, radius }) =>
-						`[${[rounded(x), rounded(y), rounded(angle), ...(radius === undefined ? [] : [radius])].join(' ')}]`
+						`[${[`[${rounded(x)} ${rounded(y)}]`, rounded(angle), ...(radius === undefined ? [] : [radius])].join(' ')}]`
 					)
 					.join(' ')}] ${shape.dubinsRadius})`,
 	guides: ({ stops }, context) => ({

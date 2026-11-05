@@ -370,8 +370,8 @@ describe('a program as a file', () => {
 		expect(sceneOf(back, env).map(({ row }) => row)).toEqual(sceneOf(root, env).map(({ row }) => row))
 	})
 
-	it('has the grid and the background behind what is exported, and fits only that', () => {
-		const root = parse('[a = (path.circle [0 0] 1) b = (path.rect [100 100] [1 1]) g = (grid "dots") bg = (background "#ff0000")]')
+	it('has the graph paper and the solid in what is exported, and fits only that', () => {
+		const root = parse('[a = (path.circle [0 0] 1) b = (path.rect [100 100] [1 1]) g = (graphPaper "dots") bg = (solid "#ff0000")]')
 		const file = svgOfRows(root, env, exportedRows(root, env, ['binding:a']))!
 		expect(file).toContain('viewBox="-3 -3 6 6"')
 		expect(file).toContain('id="a"')
@@ -382,8 +382,8 @@ describe('a program as a file', () => {
 		expect(back.bindings.map(([name]) => name)).toEqual(['a', 'g', 'bg'])
 	})
 
-	it('has no grid or background of its own on the clipboard, or if only those are asked for', () => {
-		const root = parse('[a = (path.circle [0 0] 1) g = (grid "dots") bg = (background "#ff0000")]')
+	it('has no graph paper or solid of its own on the clipboard, or if only those are asked for', () => {
+		const root = parse('[a = (path.circle [0 0] 1) g = (graphPaper "dots") bg = (solid "#ff0000")]')
 		expect(svgOfRows(root, env, ['binding:a'])).not.toContain('url(#g)')
 		expect(svgOfRows(root, env, exportedRows(root, env, ['binding:g']))).toBeNull()
 	})

@@ -1770,6 +1770,9 @@ export const canStack = (value: unknown): boolean =>
 	value.length <= MOST_STACKED &&
 	value.every(element => typeof element === 'number')
 
+/** Whether a vector holds others, each with a row of its own to open to, as text in a row would say little. */
+export const holdsRows = (value: unknown): boolean => Array.isArray(value) && value.some(Array.isArray)
+
 /** An icon for what kind of expression a node is, or null if it is not one. */
 export function kindIconOf(ast: AST): string | null {
 	if (!isExpression(ast)) return null
