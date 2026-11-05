@@ -14,6 +14,7 @@ const emit = defineEmits<{
 	select: [id: string]
 	close: [id: string]
 	rename: [id: string, name: string]
+	move: [id: string, to: number]
 	add: []
 }>()
 
@@ -44,6 +45,70 @@ watch(
 	}
 )
 
+const DRAG_AFTER_PX = 4
+const SETTLE_MS = 120
+
+/** Where a tab was taken from, in the strip's own coordinates, which do not change as it scrolls. */
+interface Held {
+	readonly id: string
+	readonly el: HTMLElement
+	readonly pointerId: number
+	readonly fromX: number
+	readonly fromLeft: number
+}
+
+let held: Held | null = null
+const dragged = ref<string | null>(null)
+
+const xAlong = (event: PointerEvent): number => event.clientX + ($tabs.value?.scrollLeft ?? 0)
+
+function take(event: PointerEvent, tab: FileTab): void {
+	if (event.button !== 0 || (event.target as Element).closest('button, input')) return
+	const el = event.currentTarget as HTMLElement
+	el.setPointerCapture(event.pointerId)
+	held = { id: tab.id, el, pointerId: event.pointerId, fromX: xAlong(event), fromLeft: el.offsetLeft }
+}
+
+/** It follows the pointer along the strip, and the others make way once its middle passes theirs. */
+async function drag(event: PointerEvent): Promise<void> {
+	if (held?.pointerId !== event.pointerId || !$tabs.value) return
+	const { id, el, fromX, fromLeft } = held
+	const by = xAlong(event) - fromX
+	if (dragged.value === null && Math.abs(by) < DRAG_AFTER_PX) return
+	dragged.value = id
+
+	const all = [...$tabs.value.querySelectorAll<HTMLElement>('.tab')]
+	const others = all.filter(other => other !== el)
+	const last = all[all.length - 1]!
+	const left = Math.max(all[0]!.offsetLeft, Math.min(fromLeft + by, last.offsetLeft + last.offsetWidth - el.offsetWidth))
+	// From where the pointer has taken it, as held to the strip it could never pass the last.
+	const middle = fromLeft + by + el.offsetWidth / 2
+	const to = others.filter(other => other.offsetLeft + other.offsetWidth / 2 < middle).length
+
+	if (to !== all.indexOf(el)) {
+		const before = others.map(other => other.offsetLeft)
+		emit('move', id, to)
+		await nextTick()
+		others.forEach((other, i) => {
+			const from = before[i]! - other.offsetLeft
+			if (from === 0) return
+			other.animate([{ transform: `translateX(${from}px)` }, { transform: 'none' }], {
+				duration: SETTLE_MS,
+				easing: 'ease-out',
+			})
+		})
+	}
+	el.style.transform = `translateX(${left - el.offsetLeft}px)`
+	el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+
+function drop(): void {
+	if (!held) return
+	held.el.style.transform = ''
+	held = null
+	dragged.value = null
+}
+
 const whereItIs = (tab: FileTab): string =>
 	tab.handle === null ? 'Only in this browser' : `${tab.handle.name}${tab.dirty ? ', not saved' : ''}`
 </script>
@@ -54,15 +119,19 @@ const whereItIs = (tab: FileTab): string =>
 			v-for="tab in tabs"
 			:key="tab.id"
 			class="tab"
-			:class="{ active: tab.id === active }"
+			:class="{ active: tab.id === active, dragged: tab.id === dragged }"
 			role="tab"
 			:aria-selected="tab.id === active"
+			@pointerdown="take($event, tab)"
+			@pointermove="drag"
+			@pointerup="drop"
+			@pointercancel="drop"
 			@click="emit('select', tab.id)"
 			@auxclick.middle="emit('close', tab.id)"
 			@dblclick="startRenaming(tab)"
 		>
 			<span v-tooltip="whereItIs(tab)" class="where">
-				<Icon :icon="tab.handle === null ? 'ph:globe-simple' : 'ph:hard-drive'" />
+				<Icon :icon="tab.handle === null ? 'ph:browser' : 'ph:hard-drive'" />
 			</span>
 			<input
 				v-if="renaming === tab.id"
@@ -120,8 +189,10 @@ from the top of the bar to the bottom, and what has no tab on it still moves the
 bar's, which goes by what the background is, so that it can be seen on any. */
 .tab {
 	position: relative;
-	flex: 0 1 11em;
-	min-width: 6.5em;
+	/* As wide as its name, so that a name is only cut short for being long, never for how many
+	there are: those go along the strip, which scrolls to what is being edited. */
+	flex: none;
+	max-width: 16em;
 	display: flex;
 	align-items: center;
 	gap: 5px;
@@ -137,6 +208,13 @@ bar's, which goes by what the background is, so that it can be seen on any. */
 }
 .tab.active {
 	box-shadow: inset 0 -2px 0 currentColor;
+}
+
+/* Above the others it passes over, which show through it only as a blur. */
+.tab.dragged {
+	z-index: 1;
+	background: color-mix(in srgb, currentColor 12%, transparent);
+	backdrop-filter: blur(12px);
 }
 
 /* Between two that are not it, and not on either side of the one that is. */
@@ -168,14 +246,15 @@ bar's, which goes by what the background is, so that it can be seen on any. */
 }
 
 .name {
-	flex: 1 1 0;
+	flex: 0 1 auto;
 	min-width: 0;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
 }
 .name.editing {
-	width: 0;
+	field-sizing: content;
+	min-width: 1em;
 	padding: 0;
 	border: none;
 	outline: none;

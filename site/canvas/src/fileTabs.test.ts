@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { type FileTab, freeTabName, lossOnClosing, nameOfFile, savedTo, tabAfterClosing, withSource } from './fileTabs'
+import { type FileTab, freeTabName, lossOnClosing, movedTab, nameOfFile, savedTo, sketchName, tabAfterClosing, withSource } from './fileTabs'
 
 const handle = (name: string) => ({ name }) as FileSystemFileHandle
 const tab = (id: string, over: Partial<FileTab> = {}): FileTab => ({
@@ -25,6 +25,25 @@ describe('a tab', () => {
 		expect(freeTabName([], 'untitled')).toBe('untitled')
 		expect(freeTabName([tab('untitled')], 'untitled')).toBe('untitled 2')
 		expect(freeTabName([tab('untitled'), tab('untitled 2')], 'untitled')).toBe('untitled 3')
+	})
+
+	it('starts as the day, and which of that day it is', () => {
+		const day = new Date(2026, 10, 5)
+		expect(sketchName([], day)).toBe('sketch_261105a')
+		expect(sketchName([tab('sketch_261105a')], day)).toBe('sketch_261105b')
+		expect(sketchName([tab('sketch_261105b')], day)).toBe('sketch_261105a')
+		expect(sketchName([tab('sketch_261105a')], new Date(2026, 10, 6))).toBe('sketch_261106a')
+		const whole = [...'abcdefghijklmnopqrstuvwxyz'].map(letter => tab(`sketch_261105${letter}`))
+		expect(sketchName(whole, day)).toBe('sketch_261105z 2')
+	})
+
+	it('can go anywhere along', () => {
+		const ids = (tabs: readonly FileTab[]) => tabs.map(({ id }) => id)
+		const tabs = [tab('a'), tab('b'), tab('c')]
+		expect(ids(movedTab(tabs, 'a', 2))).toEqual(['b', 'c', 'a'])
+		expect(ids(movedTab(tabs, 'c', 0))).toEqual(['c', 'a', 'b'])
+		expect(ids(movedTab(tabs, 'b', 1))).toEqual(['a', 'b', 'c'])
+		expect(movedTab(tabs, 'nothing', 0)).toBe(tabs)
 	})
 
 	it('goes to the next when it closes, or else the one before', () => {

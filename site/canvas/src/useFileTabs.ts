@@ -10,10 +10,9 @@ import { computed, shallowRef, watch } from 'vue'
 
 import { askToStay, loadTabs, readKept, removeKept, saveTabs, writeKept } from './fileStore'
 import { openFile, type OpenedFile, saveFile } from './files'
-import { type FileTab, freeTabName, lossOnClosing, nameOfFile, savedTo, tabAfterClosing, withSource } from './fileTabs'
+import { type FileTab, freeTabName, lossOnClosing, movedTab, nameOfFile, savedTo, sketchName, tabAfterClosing, withSource } from './fileTabs'
 
 const KEEP_AFTER_MS = 300
-const UNTITLED = 'untitled'
 /** Which tab the source that App keeps in localStorage is of, being written the moment it changes. */
 const SOURCE_OF_KEY = 'glisp.canvas.sourceOf'
 
@@ -129,7 +128,7 @@ export function useFileTabs<View>({ document, readFile, writeFile, sourceOf, bla
 		if (stored === null) {
 			// What there was before there were tabs is the first of them.
 			const id = newId()
-			tabs.value = [{ id, name: UNTITLED, handle: null, savedSource: null, dirty: false }]
+			tabs.value = [{ id, name: sketchName([]), handle: null, savedSource: null, dirty: false }]
 			active.value = id
 			rememberSourceOf(id)
 			keep(id, document.root.value)
@@ -156,11 +155,11 @@ export function useFileTabs<View>({ document, readFile, writeFile, sourceOf, bla
 	}
 
 	/** A new tab in this browser, of a program or of nothing yet, as if `leaving` were not there. */
-	async function add(root?: LetAST, name = UNTITLED, leaving?: string): Promise<void> {
+	async function add(root?: LetAST, leaving?: string): Promise<void> {
 		await ready
 		const program = root ?? blank()
 		const others = tabs.value.filter(({ id }) => id !== leaving)
-		const id = await addTab({ name: freeTabName(others, name), handle: null, savedSource: null }, program)
+		const id = await addTab({ name: sketchName(others), handle: null, savedSource: null }, program)
 		if (!root) blanks.set(id, program)
 	}
 
@@ -210,6 +209,11 @@ export function useFileTabs<View>({ document, readFile, writeFile, sourceOf, bla
 		update(id, tab => (tab.handle === null ? { ...tab, name: trimmed } : tab))
 	}
 
+	function move(id: string, to: number): void {
+		tabs.value = movedTab(tabs.value, id, to)
+		remember()
+	}
+
 	const isBlank = (id: string): boolean => {
 		const started = blanks.get(id)
 		if (started === undefined) return false
@@ -224,7 +228,7 @@ export function useFileTabs<View>({ document, readFile, writeFile, sourceOf, bla
 		if (loss !== null && !window.confirm(loss)) return
 		if (id === active.value) {
 			const next = tabAfterClosing(tabs.value, id)
-			if (next === null) await add(undefined, UNTITLED, id)
+			if (next === null) await add(undefined, id)
 			else await goTo(next)
 			if (active.value === id) return
 		}
@@ -239,5 +243,5 @@ export function useFileTabs<View>({ document, readFile, writeFile, sourceOf, bla
 		await goTo(id)
 	}
 
-	return { tabs, active, ready, add, open, openFrom, save, close, rename, switchTo }
+	return { tabs, active, activeTab, ready, add, open, openFrom, save, close, rename, move, switchTo }
 }

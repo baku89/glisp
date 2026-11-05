@@ -115,11 +115,11 @@ export async function saveFile(
 	}
 }
 
-export async function exportSvg(text: string): Promise<void> {
-	if (!picking.showSaveFilePicker) return download('untitled.svg', text, 'image/svg+xml')
+export async function exportSvg(text: string, name: string): Promise<void> {
+	if (!picking.showSaveFilePicker) return download(`${name}.svg`, text, 'image/svg+xml')
 	try {
 		const picked = await picking.showSaveFilePicker({
-			suggestedName: 'untitled.svg',
+			suggestedName: `${name}.svg`,
 			types: [{ description: 'SVG', accept: { 'image/svg+xml': ['.svg'] } }],
 		})
 		await write(picked, text)

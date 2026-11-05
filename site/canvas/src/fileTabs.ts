@@ -21,6 +21,26 @@ const EXTENSIONS = /(\.glisp\.svg|\.canvas\.glisp|\.glisp|\.svg)$/i
 export const nameOfFile = (fileName: string): string =>
 	fileName.replace(EXTENSIONS, '') || fileName
 
+/** What to call something new before anyone has named it: the day, and which of that day it is. */
+export function sketchName(tabs: readonly Pick<FileTab, 'name'>[], today = new Date()): string {
+	const day = [today.getFullYear() % 100, today.getMonth() + 1, today.getDate()]
+		.map(part => String(part).padStart(2, '0'))
+		.join('')
+	const taken = new Set(tabs.map(({ name }) => name))
+	for (const letter of 'abcdefghijklmnopqrstuvwxyz') {
+		if (!taken.has(`sketch_${day}${letter}`)) return `sketch_${day}${letter}`
+	}
+	return freeTabName(tabs, `sketch_${day}z`)
+}
+
+/** The tabs with `id` taken out and put back at `to`. */
+export function movedTab<Tab extends Pick<FileTab, 'id'>>(tabs: readonly Tab[], id: string, to: number): readonly Tab[] {
+	const moving = tabs.find(tab => tab.id === id)
+	if (!moving) return tabs
+	const others = tabs.filter(tab => tab !== moving)
+	return [...others.slice(0, to), moving, ...others.slice(to)]
+}
+
 /** `base`, or if that is taken, the first of `base 2`, `base 3` and so on that is not. */
 export function freeTabName(tabs: readonly Pick<FileTab, 'name'>[], base: string): string {
 	const taken = new Set(tabs.map(({ name }) => name))

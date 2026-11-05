@@ -926,7 +926,7 @@ actions.register([
 				label: 'New Sketch',
 				icon: 'mdi:file-document-edit-outline',
 				perform() {
-					void files.add(parse(NEW_SKETCH) as LetAST, 'sketch')
+					void files.add(parse(NEW_SKETCH) as LetAST)
 				},
 			},
 			{ id: 'file_open', label: 'Open...', icon: 'mdi:folder-open-outline', bind: 'command+o', perform: () => files.open() },
@@ -945,7 +945,7 @@ actions.register([
 					const area = chosen.find(({ value }) => isRect(value))?.value as RectValue | undefined
 					const drawings = chosen.filter(({ value }) => !isRect(value)).map(({ row }) => row)
 					const svg = svgOfRows(root, env, exportedRows(root, env, drawings), area)
-					if (svg !== null) void exportSvg(svg)
+					if (svg !== null) void exportSvg(svg, files.activeTab.value?.name ?? 'sketch')
 				},
 			},
 		],
@@ -1193,6 +1193,7 @@ function selectInTree(row: string | null): void {
 						@select="files.switchTo"
 						@close="files.close"
 						@rename="files.rename"
+						@move="files.move"
 						@add="files.add()"
 					/>
 				</template>
