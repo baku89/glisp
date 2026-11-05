@@ -78,125 +78,75 @@ export interface Token {
  */
 export function lex(src: string): Token[] {
 	const tokens: Token[] = []
-	let pos = 0
+	for (let token = nextToken(src, 0); ; token = nextToken(src, token.end)) {
+		tokens.push(token)
+		if (token.kind === 'eof') return tokens
+	}
+}
 
+/** The offset of what comes first from `start` that is neither whitespace nor a comment. */
+export function skipTrivia(src: string, start: number): number {
+	let pos = start
 	while (pos < src.length) {
 		const ch = src[pos]!
+		if (isWhitespace(ch)) pos++
+		else if (ch === ';') while (pos < src.length && src[pos] !== '\n') pos++
+		else break
+	}
+	return pos
+}
 
-		// whitespace
-		if (isWhitespace(ch)) {
-			pos++
-			continue
-		}
+/** The token that comes first from `start`, for what reads it a piece at a time. */
+export function nextToken(src: string, start: number): Token {
+	const pos = skipTrivia(src, start)
+	if (pos >= src.length) return { kind: 'eof', text: '', start: pos, end: pos }
+	const ch = src[pos]!
 
-		// comment: ; ... to end of line
-		if (ch === ';') {
-			while (pos < src.length && src[pos] !== '\n') pos++
-			continue
-		}
-
-		// `()` is the unit literal — emitted as a single token
-		if (ch === '(' && src[pos + 1] === ')') {
-			tokens.push({ kind: '()', text: '()', start: pos, end: pos + 2, value: UNIT })
-			pos += 2
-			continue
-		}
-
-		// single-character punctuation
-		// `#` alone is kept for what may come, such as colors.
-		const single =
-			ch === '#' && src[pos + 1] === '_'
-				? ({ kind: '#_', text: '#_', start: pos, end: pos + 2 } as const)
-				: singleCharToken(ch, pos)
-		if (single !== null) {
-			tokens.push(single)
-			pos = single.end
-			continue
-		}
-
-		// `=` family: =>, ==, =
-		if (ch === '=') {
-			if (src[pos + 1] === '>') {
-				tokens.push({ kind: '=>', text: '=>', start: pos, end: pos + 2 })
-				pos += 2
-			} else if (src[pos + 1] === '=') {
-				// equality operator as identifier
-				tokens.push({
-					kind: 'identifier',
-					text: '==',
-					start: pos,
-					end: pos + 2,
-					value: '==',
-				})
-				pos += 2
-			} else {
-				tokens.push({ kind: '=', text: '=', start: pos, end: pos + 1 })
-				pos++
-			}
-			continue
-		}
-
-		// `.` family: accessor / path / spread / splice
-		if (ch === '.') {
-			const tok = readDotForms(src, pos)
-			tokens.push(tok)
-			pos = tok.end
-			continue
-		}
-
-		// `/` right before a name or an index begins a path from the root.
-		if (ch === '/' && startsSegmentFromRoot(charAt(src, pos + 1))) {
-			const token = readPathFromDots(src, pos, pos, 1, ['/'])
-			tokens.push(token)
-			pos = token.end
-			continue
-		}
-
-		// Bare `/` is the division operator (a single-character identifier).
-		// Path tokens like `./foo` and `../bar` are captured by the dot-family
-		// branch above before reaching here.
-		if (ch === '/') {
-			tokens.push({
-				kind: 'identifier',
-				text: '/',
-				start: pos,
-				end: pos + 1,
-				value: '/',
-			})
-			pos++
-			continue
-		}
-
-		// string literal
-		if (ch === '"') {
-			const tok = readString(src, pos)
-			tokens.push(tok)
-			pos = tok.end
-			continue
-		}
-
-		// number literal
-		if (isNumberStart(src, pos)) {
-			const tok = readNumber(src, pos)
-			tokens.push(tok)
-			pos = tok.end
-			continue
-		}
-
-		// identifier (or reserved bare token)
-		const char = charAt(src, pos)
-		if (isIdentifierStart(char)) {
-			const tok = readIdentifierOrReserved(src, pos)
-			tokens.push(tok)
-			pos = tok.end
-			continue
-		}
-
-		throw lexError(src, pos, `Unexpected character: ${JSON.stringify(char)}`)
+	// `()` is the unit literal — emitted as a single token
+	if (ch === '(' && src[pos + 1] === ')') {
+		return { kind: '()', text: '()', start: pos, end: pos + 2, value: UNIT }
 	}
 
-	tokens.push({ kind: 'eof', text: '', start: pos, end: pos })
-	return tokens
+	// single-character punctuation
+	// `#` alone is kept for what may come, such as colors.
+	const single =
+		ch === '#' && src[pos + 1] === '_'
+			? ({ kind: '#_', text: '#_', start: pos, end: pos + 2 } as const)
+			: singleCharToken(ch, pos)
+	if (single !== null) return single
+
+	// `=` family: =>, ==, =
+	if (ch === '=') {
+		if (src[pos + 1] === '>') return { kind: '=>', text: '=>', start: pos, end: pos + 2 }
+		// equality operator as identifier
+		if (src[pos + 1] === '=') {
+			return { kind: 'identifier', text: '==', start: pos, end: pos + 2, value: '==' }
+		}
+		return { kind: '=', text: '=', start: pos, end: pos + 1 }
+	}
+
+	// `.` family: accessor / path / spread / splice
+	if (ch === '.') return readDotForms(src, pos)
+
+	// `/` right before a name or an index begins a path from the root.
+	if (ch === '/' && startsSegmentFromRoot(charAt(src, pos + 1))) {
+		return readPathFromDots(src, pos, pos, 1, ['/'])
+	}
+
+	// Bare `/` is the division operator (a single-character identifier).
+	// Path tokens like `./foo` and `../bar` are captured by the dot-family
+	// branch above before reaching here.
+	if (ch === '/') return { kind: 'identifier', text: '/', start: pos, end: pos + 1, value: '/' }
+
+	if (ch === '"') return readString(src, pos)
+
+	if (isNumberStart(src, pos)) return readNumber(src, pos)
+
+	// identifier (or reserved bare token)
+	const char = charAt(src, pos)
+	if (isIdentifierStart(char)) return readIdentifierOrReserved(src, pos)
+
+	throw lexError(src, pos, `Unexpected character: ${JSON.stringify(char)}`)
 }
 
 // -----------------------------------------------------------------------------

@@ -2,7 +2,10 @@
  * Glisp as a language for Monaco.
  */
 
+import { format, formatRange } from '@glisp/lang'
 import * as monaco from 'monaco-editor'
+
+import { LINE_START, type LineState, tokenizeLine } from './highlight'
 
 export const GLISP = 'glisp'
 
@@ -22,6 +25,36 @@ export const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions 
 	occurrencesHighlight: 'off',
 	selectionHighlight: false,
 	stickyScroll: { enabled: false },
+}
+
+class GlispState implements monaco.languages.IState {
+	constructor(readonly line: LineState) {}
+	clone(): GlispState {
+		return this
+	}
+	equals(other: monaco.languages.IState): boolean {
+		const line = (other as GlispState).line
+		return (Object.keys(this.line) as (keyof LineState)[]).every(key => line[key] === this.line[key])
+	}
+}
+
+/** `range` of what is in `model` laid out anew, or nothing if it cannot be read yet. */
+function formatted(model: monaco.editor.ITextModel, range: monaco.IRange): monaco.languages.TextEdit[] {
+	const source = model.getValue()
+	const whole = model.getFullModelRange()
+	try {
+		if (monaco.Range.equalsRange(range, whole)) return [{ range: whole, text: format(source) }]
+		const edit = formatRange(
+			source,
+			model.getOffsetAt(monaco.Range.getStartPosition(range)),
+			model.getOffsetAt(monaco.Range.getEndPosition(range))
+		)
+		if (edit === null) return []
+		const [from, to] = [model.getPositionAt(edit.from), model.getPositionAt(edit.to)]
+		return [{ range: monaco.Range.fromPositions(from, to), text: edit.text }]
+	} catch {
+		return []
+	}
 }
 
 let registered = false
@@ -48,60 +81,29 @@ export function registerGlisp(): void {
 		],
 	})
 
-	monaco.languages.setMonarchTokensProvider(GLISP, {
-		tokenPostfix: '.glisp',
-		keywords: ['=>', '?', '|>', '=', '&'],
-		constants: ['true', 'false'],
-		types: ['number', 'string', 'boolean', 'unit', 'vector', 'enum', 'IO', '_'],
-		tokenizer: {
-			root: [
-				{ include: '@common' },
-				[/\(/, 'delimiter.parenthesis', '@head'],
-				[/[)[\]{}]/, 'delimiter'],
-				[
-					/[^\s()[\]{}";^~@:`]+/,
-					{
-						cases: {
-							'@keywords': 'keyword',
-							'@constants': 'constant.language',
-							'@types': 'type',
-							'~-?\\d+(\\.\\d*)?([eE][-+]?\\d+)?': 'number',
-							'~-?\\.\\d+([eE][-+]?\\d+)?': 'number',
-							'@default': 'identifier',
-						},
-					},
-				],
-			],
-			// What comes first in a call is what it calls.
-			head: [
-				[/\s+/, ''],
-				{ include: '@common' },
-				[
-					/[^\s()[\]{}";^~@:`]+/,
-					{
-						cases: {
-							'@keywords': { token: 'keyword', next: '@pop' },
-							'@default': { token: 'function', next: '@pop' },
-						},
-					},
-				],
-				[/(?=.)/, '', '@pop'],
-			],
-			common: [
-				[/\s+/, ''],
-				[/;.*$/, 'comment'],
-				[/"/, 'string', '@string'],
-				[/\.\.\.(?=\S)/, 'keyword'],
-				[/#_/, 'keyword'],
-				[/[\^~@`:]/, 'keyword'],
-			],
-			string: [
-				[/[^\\"]+/, 'string'],
-				[/\\./, 'string.escape'],
-				[/"/, 'string', '@pop'],
-			],
+	monaco.languages.registerDocumentFormattingEditProvider(GLISP, {
+		provideDocumentFormattingEdits: model => formatted(model, model.getFullModelRange()),
+	})
+	monaco.languages.registerDocumentRangeFormattingEditProvider(GLISP, {
+		provideDocumentRangeFormattingEdits: (model, range) => formatted(model, range),
+	})
+	// What is selected, if anything is, is what is meant.
+	monaco.editor.addKeybindingRule({
+		keybinding: monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF,
+		command: 'editor.action.formatSelection',
+		when: `editorTextFocus && editorHasSelection && editorLangId == ${GLISP}`,
+	})
+
+	monaco.languages.setTokensProvider(GLISP, {
+		getInitialState: () => new GlispState(LINE_START),
+		tokenize(line, state) {
+			const read = tokenizeLine(line, (state as GlispState).line)
+			return {
+				tokens: read.tokens.map(({ start, scope }) => ({ startIndex: start, scopes: scope })),
+				endState: new GlispState(read.state),
+			}
 		},
-	} as monaco.languages.IMonarchLanguage)
+	})
 }
 
 export const PATH_DATA = 'path-data'
