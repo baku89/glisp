@@ -18,7 +18,7 @@ import {
 	rectType,
 	type StyledValue,
 } from './graphics'
-import { nameOfRow } from './rows'
+import { isMadeFromPaths, nameOfRow } from './rows'
 import { holdsRows, valueOfRow } from './scene'
 
 export interface Selected {
@@ -28,6 +28,8 @@ export interface Selected {
 	readonly commands: ReadonlySet<SlotCommand>
 	/** It is a row of its own, and not part of what one is written as. */
 	readonly isRow: boolean
+	/** It is made from a path by a call, which says nothing of what it comes to. */
+	readonly isMadeFromPaths?: boolean
 }
 
 /** A block with nothing to return comes to `()`, so that a group is told by what is written. */
@@ -48,11 +50,15 @@ export const selectedOf = (root: AST, env: Env, rows: readonly string[]): Select
 		value: holdsRows(root, env, row) ? GROUP : valueOfRow(root, env, row),
 		commands: expressionCommandsAt(root, env, row),
 		isRow: row.split('/').every(key => /^(binding|element):/.test(key)),
+		isMadeFromPaths: isMadeFromPaths(root, env, row),
 	}))
 
 export const numberType = evaluate(parse('number'), buildPrelude()).value as TypeValue
 
 export const groupType = makeType('group', value => value === GROUP, GROUP)
+
+/** What ungrouping leaves more of: a group, or what is made from a path. No value says that. */
+export const ungroupableType = makeType('group', () => false, GROUP)
 
 /** What can be drawn, which, as there are no unions of types, says so of itself. */
 export const drawingType = makeType(
@@ -68,7 +74,7 @@ export const exportableType = makeType(
 	value => drawingType.fits(value) || rectType.fits(value),
 	GROUP
 )
-const withinRow: readonly TypeValue[] = [exportableType, drawingType, rectType, pathType, groupType]
+const withinRow: readonly TypeValue[] = [exportableType, drawingType, rectType, pathType, groupType, ungroupableType]
 const withinExportable: readonly TypeValue[] = [drawingType, rectType, pathType, groupType]
 
 /** What one of `SLOT_COMMANDS` applies to. No value says that of itself. */
@@ -83,6 +89,9 @@ const fits = (selected: Selected, type: TypeValue): boolean => {
 	const command = commandOf.get(type)
 	if (command) return selected.commands.has(command)
 	if (type === rowType) return selected.isRow
+	if (type === ungroupableType) {
+		return selected.isRow && (selected.value === GROUP || selected.isMadeFromPaths === true)
+	}
 	if (type === drawingType || type === groupType || type === exportableType) {
 		return selected.isRow && type.fits(selected.value)
 	}

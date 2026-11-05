@@ -61,7 +61,7 @@ describe('a parameter on the clipboard', () => {
 
 	it('is not an SVG', () => {
 		expect(svgOfRows(root, env, ['binding:a/arg1'])).toBeNull()
-		expect(copiedRows(root, env, ['binding:a/arg1'])).toBe('size = [10 20]')
+		expect(copiedRows(root, env, ['binding:a/arg1'])).toBe('size = (: [10 20] size)')
 	})
 
 	it('goes to the parameter of the same name, through what holds it', () => {

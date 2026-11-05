@@ -14,6 +14,7 @@ import AstSlots from './AstSlots.vue'
 import { type GlispDocument } from './document'
 import { sourceOfProgram } from './programSource'
 import FunctionAbout from './FunctionAbout.vue'
+import { iconOf } from './icons'
 import { multiSelectHostOf } from './multiInputs'
 import {
 	copiedRows,
@@ -309,21 +310,35 @@ const inspected = computed(() => {
 		node = slot.ast
 		env = slot.env
 	}
-	const view = viewOf(node, env)
+	// A cast says what it is, and what there is to it is what is in it.
+	const castTo = viewOf(node, env).castTo ?? null
+	const value = castTo === null ? undefined : viewOf(node, env).slots[0]
+	if (value !== undefined) {
+		chain.push(value)
+		node = value.ast
+		env = value.env
+	}
+	const view = viewOf(node, env, value?.expected ?? null)
 	const own = chain.at(-1)!
+	const path = value === undefined ? (props.inspect ?? '') : `${props.inspect}/${value.key}`
 	return {
 		chain,
-		parentPath: parent,
+		path,
+		parentPath: value === undefined ? parent : props.inspect,
 		view,
+		castTo,
+		icon: castTo === null ? null : iconOf(chain.at(-2)!.ast, chain.at(-2)!.env),
 		// With nothing inside it, what there is to see of it is itself.
 		alone: view.slots.length === 0 && view.missing.length === 0 && view.append === null,
-		doc: view.head?.doc ?? own.doc ?? null,
+		doc: view.head?.doc ?? castTo?.doc ?? own.doc ?? null,
 	}
 })
 
 const inspectedFnIcon = computed(() => {
 	const head = inspected.value?.view.head
-	return head ? (props.iconOfFunction?.(print(head.ast)) ?? head.icon ?? null) : null
+	return head
+		? (props.iconOfFunction?.(print(head.ast)) ?? head.icon ?? null)
+		: (inspected.value?.icon ?? null)
 })
 
 /** The row inspected, or what holds it if it is alone, has changed, and so what is around. */
@@ -727,7 +742,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		<ScrollArea class="tree">
 			<template v-if="inspected !== null">
 				<FunctionAbout
-					:label="inspected.view.head?.label ?? null"
+					:label="inspected.view.head?.label ?? inspected.castTo?.label ?? null"
 					:doc="inspected.doc"
 					:icon="inspectedFnIcon"
 				/>
@@ -735,7 +750,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 					<AstSlots
 						:key="inspect ?? ''"
 						:slots="inspected.alone ? [inspected.chain.at(-1)!] : inspected.view.slots"
-						:parentPath="inspected.alone ? inspected.parentPath : (inspect ?? '')"
+						:parentPath="inspected.alone ? inspected.parentPath : inspected.path"
 						:missing="inspected.alone ? [] : inspected.view.missing"
 						:append="inspected.alone ? null : inspected.view.append"
 						:read="document.read"

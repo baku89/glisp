@@ -14,6 +14,7 @@ import {
 	evaluate,
 	host,
 	LetAST,
+	MetaAST,
 	lit,
 	makeTupleType,
 	makeType,
@@ -38,7 +39,7 @@ import {
 import { withInitial } from '@glisp/tweeq/filters'
 import Color from 'colorjs.io'
 import { mat2d as Mat2d, vec2 as Vec2 } from 'linearly'
-import { bounds } from 'pave/path/metrics'
+import { bounds, length as pathLength } from 'pave/path/metrics'
 import { merge } from 'pave/path/compound'
 import { transform } from 'pave/path/modifiers'
 import {
@@ -694,14 +695,29 @@ const makeRoundRect = makeTypedFn(
 		new PathValue(roundRect(origin as Vec, add(origin as Vec, extent as Vec), outward(radius))),
 	['origin', 'size', 'radius']
 )
-const makeSuperellipse = makeTypedFn(
-	[point, size, number],
-	pathType,
-	(center, radius, shape) =>
-		new PathValue(
-			superellipse(center as Vec, radius as Vec, Number.isNaN(shape) ? 2 : (shape as number))
-		),
-	['center', 'radius', 'shape']
+/** How far what is worked out can be from what it should be, on the canvas. */
+const toleranceType = withTypeMeta(
+	withDefault(number, 0.05),
+	new RecordAST([
+		['min', lit(0.001)],
+		['step', lit(0.01)],
+	])
+)
+/** As fine as can be worked out, whatever is said. */
+const toleranceOf = (tolerance: unknown): number => Math.max(finite(tolerance ?? 0.05) || 0.05, 0.001)
+const makeSuperellipse = withOptional(
+	makeTypedFn(
+		[point, size, number, toleranceType],
+		pathType,
+		(center, radius, shape, tolerance) =>
+			new PathValue(
+				superellipse(center as Vec, radius as Vec, Number.isNaN(shape) ? 2 : (shape as number), {
+					tolerance: toleranceOf(tolerance),
+				})
+			),
+		['center', 'radius', 'shape', 'tolerance']
+	),
+	['tolerance']
 )
 const makeFan = makeTypedFn(
 	[point, number, number, angleType, angleType],
@@ -712,12 +728,19 @@ const makeFan = makeTypedFn(
 		),
 	['center', 'innerRadius', 'outerRadius', 'start', 'end']
 )
-const makeSpiral = makeTypedFn(
-	[point, number, number, number],
-	pathType,
-	(center, start, end, turns) =>
-		new PathValue(spiral(center as Vec, outward(start), outward(end), finite(turns))),
-	['center', 'startRadius', 'endRadius', 'turns']
+const makeSpiral = withOptional(
+	makeTypedFn(
+		[point, number, number, number, toleranceType],
+		pathType,
+		(center, start, end, turns, tolerance) =>
+			new PathValue(
+				spiral(center as Vec, outward(start), outward(end), finite(turns), {
+					tolerance: toleranceOf(tolerance),
+				})
+			),
+		['center', 'startRadius', 'endRadius', 'turns', 'tolerance']
+	),
+	['tolerance']
 )
 /** How a clothoid is, as pave can draw it. */
 const clothoidOf = (args: readonly unknown[]): Path =>
@@ -726,13 +749,17 @@ const clothoidOf = (args: readonly unknown[]): Path =>
 		finite(args[1]),
 		outward(args[2]),
 		finite(args[3]),
-		finite(args[4])
+		finite(args[4]),
+		{ tolerance: toleranceOf(args[5]) }
 	)
-const makeClothoid = makeTypedFn(
-	[point, angleType, number, number, number],
-	pathType,
-	(...args) => new PathValue(clothoidOf(args)),
-	['start', 'angle', 'length', 'startCurvature', 'endCurvature']
+const makeClothoid = withOptional(
+	makeTypedFn(
+		[point, angleType, number, number, number, toleranceType],
+		pathType,
+		(...args) => new PathValue(clothoidOf(args)),
+		['start', 'angle', 'length', 'startCurvature', 'endCurvature', 'tolerance']
+	),
+	['tolerance']
 )
 const makeTransformed = makeTypedFn(
 	[pathType, mat2d],
@@ -1053,35 +1080,37 @@ const miterLimitType: TypeValue = { ...number, default: 10 }
 
 const makeOffset = withOptional(
 	makeTypedFn(
-		[pathType, distanceType, lineJoinType, miterLimitType],
+		[pathType, distanceType, lineJoinType, miterLimitType, toleranceType],
 		pathType,
-		(path, distance, join, miterLimit) =>
+		(path, distance, join, miterLimit, tolerance) =>
 			new PathValue(
 				offset((path as PathValue).path, distance as number, {
 					lineJoin: join as CanvasLineJoin,
 					miterLimit: miterLimit as number,
+					tolerance: toleranceOf(tolerance),
 				})
 			),
-		['path', 'distance', 'join', 'miterLimit']
+		['path', 'distance', 'join', 'miterLimit', 'tolerance']
 	),
-	['join', 'miterLimit']
+	['join', 'miterLimit', 'tolerance']
 )
 
 const makeOffsetStroke = withOptional(
 	makeTypedFn(
-		[pathType, distanceType, lineCapType, lineJoinType, miterLimitType],
+		[pathType, distanceType, lineCapType, lineJoinType, miterLimitType, toleranceType],
 		pathType,
-		(path, width, cap, join, miterLimit) =>
+		(path, width, cap, join, miterLimit, tolerance) =>
 			new PathValue(
 				offsetStroke((path as PathValue).path, width as number, {
 					lineCap: cap as CanvasLineCap,
 					lineJoin: join as CanvasLineJoin,
 					miterLimit: miterLimit as number,
+					tolerance: toleranceOf(tolerance),
 				})
 			),
-		['path', 'width', 'cap', 'join', 'miterLimit']
+		['path', 'width', 'cap', 'join', 'miterLimit', 'tolerance']
 	),
-	['cap', 'join', 'miterLimit']
+	['cap', 'join', 'miterLimit', 'tolerance']
 )
 
 const makeBlend = makeTypedFn(
@@ -1218,28 +1247,70 @@ const makeReflect = withInitial(
 	makeTypedFn([pathType, lineOfType], pathType, acrossIt(reflect), ['path', 'line']),
 	lineAlongside
 )
+/** A path to start from, where there is none yet, written as what it is rather than its data. */
+const startingAs = (written: string, path: Path): TypeValue => {
+	const plain = Object.create(pathType.plain ?? pathType, {
+		default: { value: new PathValue(path) },
+		defaultAst: { value: parse(written) },
+	}) as TypeValue
+	return pathType.meta ? withTypeMeta(plain, pathType.meta) : plain
+}
 const lengthOf = (value: number): TypeValue => withDefault(number, value)
-const makeZigzag = makeTypedFn(
-	[pathType, lengthOf(5), lengthOf(20)],
-	pathType,
-	(path, amplitude, wavelength) =>
-		new PathValue(zigzag(pathOf(path), amplitude as number, wavelength as number)),
-	['path', 'amplitude', 'wavelength']
+const booleanType = evaluate(parse('boolean'), buildPrelude()).value as TypeValue
+const makeZigzag = withOptional(
+	makeTypedFn(
+		[pathType, lengthOf(5), lengthOf(20), withDefault(booleanType, false), withDefault(number, 0)],
+		pathType,
+		(path, amplitude, wavelength, smooth, phase) =>
+			new PathValue(
+				zigzag(pathOf(path), amplitude as number, wavelength as number, {
+					smooth: (smooth ?? false) as boolean,
+					phase: (phase ?? 0) as number,
+				})
+			),
+		['path', 'amplitude', 'wavelength', 'smooth', 'phase']
+	),
+	['smooth', 'phase']
 )
-const makeWave = makeTypedFn(
-	[pathType, lengthOf(5), lengthOf(40)],
-	pathType,
-	(path, amplitude, wavelength) =>
-		new PathValue(wave(pathOf(path), amplitude as number, wavelength as number)),
-	['path', 'amplitude', 'wavelength']
+const makeWave = withOptional(
+	makeTypedFn(
+		[
+			pathType,
+			lengthOf(5),
+			lengthOf(40),
+			withDefault(angleType, 0),
+			withDefault(angleType, 0),
+			withDefault(point, [0, 0]),
+			toleranceType,
+		],
+		pathType,
+		(path, amplitude, wavelength, phase, angle, origin, tolerance) =>
+			new PathValue(
+				wave(pathOf(path), amplitude as number, wavelength as number, {
+					phase: (phase ?? 0) as number,
+					angle: (angle ?? 0) as number,
+					origin: (origin ?? [0, 0]) as Vec,
+					tolerance: toleranceOf(tolerance),
+				})
+			),
+		['path', 'amplitude', 'wavelength', 'phase', 'angle', 'origin', 'tolerance']
+	),
+	['phase', 'angle', 'origin', 'tolerance']
 )
 const makeTwirl = withInitial(
-	makeTypedFn(
-		[pathType, point, number, withDefault(angleType, 90)],
-		pathType,
-		(path, center, radius, angle) =>
-			new PathValue(twirl(pathOf(path), center as Vec, radius as number, angle as number)),
-		['path', 'center', 'radius', 'angle']
+	withOptional(
+		makeTypedFn(
+			[pathType, point, number, withDefault(angleType, 90), toleranceType],
+			pathType,
+			(path, center, radius, angle, tolerance) =>
+				new PathValue(
+					twirl(pathOf(path), center as Vec, radius as number, angle as number, {
+						tolerance: toleranceOf(tolerance),
+					})
+				),
+			['path', 'center', 'radius', 'angle', 'tolerance']
+		),
+		['tolerance']
 	),
 	(path: unknown) => {
 		const { middle, reach } = aroundOf(pathOf(path))
@@ -1247,23 +1318,34 @@ const makeTwirl = withInitial(
 	}
 )
 const makeBulge = withInitial(
-	makeTypedFn(
-		[pathType, point, number, withDefault(number, 0.5)],
-		pathType,
-		(path, center, radius, strength) =>
-			new PathValue(bulge(pathOf(path), center as Vec, radius as number, strength as number)),
-		['path', 'center', 'radius', 'strength']
+	withOptional(
+		makeTypedFn(
+			[pathType, point, number, withDefault(number, 0.5), toleranceType],
+			pathType,
+			(path, center, radius, strength, tolerance) =>
+				new PathValue(
+					bulge(pathOf(path), center as Vec, radius as number, strength as number, {
+						tolerance: toleranceOf(tolerance),
+					})
+				),
+			['path', 'center', 'radius', 'strength', 'tolerance']
+		),
+		['tolerance']
 	),
 	(path: unknown) => {
 		const { middle, reach } = aroundOf(pathOf(path))
 		return [middle, reach * 1.5]
 	}
 )
-const makeDash = makeTypedFn(
-	[pathType, withDefault(makeTupleType([], number), [10, 5])],
-	pathType,
-	(path, pattern) => new PathValue(dash(pathOf(path), pattern as number[])),
-	['path', 'pattern']
+const makeDash = withOptional(
+	makeTypedFn(
+		[pathType, withDefault(makeTupleType([], number), [10, 5]), withDefault(number, 0)],
+		pathType,
+		(path, pattern, offset) =>
+			new PathValue(dash(pathOf(path), pattern as number[], { offset: (offset ?? 0) as number })),
+		['path', 'pattern', 'offset']
+	),
+	['offset']
 )
 /** As many times as a matrix can be applied and still be drawn, either way. */
 const MOST_TIMES = 1000
@@ -1335,14 +1417,6 @@ const repeatAlignType = enumOf({
 	center: 'mdi:align-horizontal-center',
 	end: 'mdi:align-horizontal-right',
 })
-/** A path to start from, where there is none yet, written as what it is rather than its data. */
-const startingAs = (written: string, path: Path): TypeValue => {
-	const plain = Object.create(pathType.plain ?? pathType, {
-		default: { value: new PathValue(path) },
-		defaultAst: { value: parse(written) },
-	}) as TypeValue
-	return pathType.meta ? withTypeMeta(plain, pathType.meta) : plain
-}
 const makeRepeatAlong = withOptional(
 	makeTypedFn(
 		[
@@ -1356,11 +1430,12 @@ const makeRepeatAlong = withOptional(
 				])
 			),
 			withDefault(number, 0),
-			withDefault(evaluate(parse('boolean'), buildPrelude()).value as TypeValue, true),
+			withDefault(booleanType, true),
 			repeatAlignType,
+			withTypeMeta(withDefault(number, 0), new RecordAST([['min', lit(0)]])),
 		],
 		pathType,
-		(along, stamp, count, offset, rotate, align) => {
+		(along, stamp, count, offset, rotate, align, spacing) => {
 			const path = pathOf(along)
 			const shape = pathOf(stamp)
 			const [[left, top], [right, bottom]] = bounds(shape)
@@ -1372,15 +1447,19 @@ const makeRepeatAlong = withOptional(
 			return new PathValue(
 				repeatAlong(path, centered, {
 					count: Math.min(Math.round((count ?? 10) as number), MOST_TIMES),
+					// As far as it takes each, of a length that is not too many of them.
+					...(((spacing ?? 0) as number) > 0
+						? { spacing: Math.max(spacing as number, pathLength(path) / MOST_TIMES) }
+						: {}),
 					offset: (offset ?? 0) as number,
 					rotate: (rotate ?? true) as boolean,
 					align: ((align ?? 'auto') === 'auto' ? (closes ? 'start' : 'uniform') : align) as RepeatAlongOptions['align'],
 				})
 			)
 		},
-		['path', 'stamp', 'count', 'offset', 'rotate', 'align']
+		['path', 'stamp', 'count', 'offset', 'rotate', 'align', 'spacing']
 	),
-	['count', 'offset', 'rotate', 'align']
+	['count', 'offset', 'rotate', 'align', 'spacing']
 )
 const makeShadow = makeTypedFn(
 	[pathType, withDefault(translationType, [40, 40])],
@@ -1577,7 +1656,7 @@ withMembers(pathType, {
 	roundCorners: withDoc(makeRoundCorners, 'The same `path`, with its corners rounded by `radius`.', 'Round Corners'),
 	chamfer: withDoc(makeChamfer, 'The same `path`, with its corners cut off `distance` back along each side.', 'Chamfer'),
 	mirror: withDoc(makeMirror, 'The `path`, and what it is across `line`, as one.', 'Mirror'),
-	reflect: withDoc(makeReflect, 'What `path` is across the line from `start` to `end`.', 'Reflect'),
+	reflect: withDoc(makeReflect, 'What `path` is across `line`.', 'Reflect'),
 	zigzag: withDoc(makeZigzag, 'The `path`, going from side to side by `amplitude`, once every `wavelength` along it.', 'Zigzag'),
 	wave: withDoc(makeWave, 'The `path`, moved by a wave of this `amplitude` and `wavelength`.', 'Wave'),
 	twirl: withDoc(makeTwirl, 'The `path`, turned around `center` by `angle` in degrees, less so out to `radius`.', 'Twirl'),
@@ -1624,6 +1703,8 @@ withMembers(pathType, {
 export interface Change {
 	readonly route: readonly number[]
 	readonly value: unknown
+	/** The row it is of, if that is not the one it is applied to, for what goes across several. */
+	readonly row?: string
 }
 
 const change = (arg: number, value: unknown): Change => ({ route: [arg], value })
@@ -1710,8 +1791,15 @@ export interface Handle {
 	readonly grip?: boolean
 	/** It turns something by a corner of the box around it, from outside of that corner, and `at` is the corner. */
 	readonly outsideCorner?: boolean
+	/** It goes across several rows, each change saying of which, with no numbers of any one of them. */
+	readonly across?: boolean
 	/** The line it is held out on, which goes when it does. */
 	readonly heldOn?: Path
+	/**
+	 * How far it turns what is selected, in degrees, if nothing written says how far round that is,
+	 * so that the box around it can go round with it for as long as it stays selected.
+	 */
+	turnOf?(to: Vec, how?: HandleDrag): number
 	/** What it turns around instead, when the other side goes the other way. */
 	readonly middle?: Vec
 	/** It stays where it is, when the rest of a grip is shown somewhere else. */
@@ -1771,6 +1859,10 @@ export interface BoxAnswer {
 	readonly angle?: number
 	/** What has to change, for it to be `x` and `y` times as large along the box, from `about`. */
 	scaled(x: number, y: number, about: Vec): readonly Change[]
+	/** What has to change, for it to be turned by `degrees` around `about`, if that can be said. */
+	turned?(degrees: number, about: Vec): readonly Change[]
+	/** Turning it around its own middle would come to the same, as with a circle. */
+	readonly round?: boolean
 }
 
 /**
@@ -1851,6 +1943,9 @@ export const under = (arg: number, grip: Grip): Grip => {
 					box: {
 						...grip.box,
 						scaled: (x: number, y: number, about: Vec) => lower(grip.box!.scaled(x, y, about)),
+						...(grip.box.turned === undefined
+							? {}
+							: { turned: (by: number, about: Vec) => lower(grip.box!.turned!(by, about)) }),
 					},
 				}),
 		handles: grip.handles.map(handle => ({
@@ -1877,6 +1972,16 @@ export const gripOfPoint = (at: Vec): Grip => ({
 	handles: [{ kind: 'translate', place: 'self', at, to: to => [{ route: [], value: to }] }],
 	guides: [],
 	move: delta => [{ route: [], value: add(at, delta) }],
+	// All there is to it is where it is, wherever that goes.
+	box: {
+		even: false,
+		scaled: (x, y, [ax, ay]) => [{ route: [], value: [ax + (at[0] - ax) * x, ay + (at[1] - ay) * y] }],
+		turned: (by, [ax, ay]) => {
+			const [cos, sin] = [Math.cos((by * Math.PI) / 180), Math.sin((by * Math.PI) / 180)]
+			const [x, y] = [at[0] - ax, at[1] - ay]
+			return [{ route: [], value: [ax + x * cos - y * sin, ay + x * sin + y * cos] }]
+		},
+	},
 })
 
 interface Vertex {
@@ -3386,13 +3491,24 @@ makers.set(makeChamfer, fromCorner)
 
 /** A path as it was, and where it is taken from: a line across it, or the center of a change. */
 const showingPath =
-	(handles: (args: readonly unknown[]) => Pick<Grip, 'handles' | 'guides'> = () => ({ handles: [], guides: [] })): Maker =>
+	(
+		handles: (args: readonly unknown[]) => Pick<Grip, 'handles' | 'guides'> = () => ({ handles: [], guides: [] }),
+		/** The arguments that are places, which it would otherwise change by being moved from. */
+		places: readonly number[] = []
+	): Maker =>
 	(args, inner) => {
 		const shape = inner(0)
 		return {
 			...handles(args),
 			sources: [pathOf(args[0])],
-			...(shape?.move === undefined ? {} : { move: movingAll([shape]) }),
+			...(shape?.move === undefined
+				? {}
+				: {
+						move: (delta: Vec) => [
+							...shape.move!(delta),
+							...places.map(arg => change(arg, add((args[arg] ?? [0, 0]) as Vec, delta))),
+						],
+					}),
 		}
 	}
 
@@ -3465,6 +3581,7 @@ makers.set(makeLineFromPoints, ([from, to]) => {
 				change(1, start),
 			]),
 		],
+		move: delta => [change(0, add(start, delta)), change(1, add(end, delta))],
 	}
 })
 makers.set(makeLineAt, ([through, angle]) => {
@@ -3486,6 +3603,7 @@ makers.set(makeLineAt, ([through, angle]) => {
 			},
 			flipHandle(sub(p, direction), direction, () => [change(1, turned + 180)]),
 		],
+		move: delta => [change(0, add(p, delta))],
 	}
 })
 /** A line that is only written out, as what it comes to has no handles of its own. */
@@ -3500,15 +3618,23 @@ const gripOfLine = ([through, direction]: StraightLine, arg: number): Grip => {
 				change(arg, [through, [-direction[0], -direction[1]]]),
 			]),
 		],
+		move: delta => [change(arg, [add(through, delta), direction])],
 	}
 }
-/** What is across a line has none of its own: only those of how that line comes about. */
+/**
+ * What is across a line has none of its own: only those of how that line comes about.
+ * It moves with its line, as what it comes to would otherwise change rather than move.
+ */
 const acrossLine = (keepsASide: boolean): Maker => (args, inner, proportional, free) => {
 	const own = inner(1) ?? gripOfLine(args[1] as StraightLine, 1)
-	return showingPath(() => ({
-		guides: own.guides,
-		handles: keepsASide ? own.handles : own.handles.filter(({ kind }) => kind !== 'button'),
-	}))(args, inner, proportional, free)
+	const shape = inner(0)
+	return {
+		...showingPath(() => ({
+			guides: own.guides,
+			handles: keepsASide ? own.handles : own.handles.filter(({ kind }) => kind !== 'button'),
+		}))(args, inner, proportional, free),
+		...(shape?.move === undefined ? {} : { move: movingAll([shape, own]) }),
+	}
 }
 makers.set(makeMirror, acrossLine(true))
 makers.set(makeReflect, acrossLine(false))
@@ -3541,11 +3667,11 @@ makers.set(makeShadowFrom, showingPath(([path, light, scale]) => {
 			},
 		],
 	}
-}))
+}, [1]))
 makers.set(makeRay, showingPath(([, from, through]) => ({
 	guides: [lineGuide(from as Vec, sub(through as Vec, from as Vec))],
 	handles: [pointHandle(1, from as Vec), pointHandle(2, through as Vec)],
-})))
+}), [1, 2]))
 
 const aroundCenter = showingPath(([, center, radius]) => ({
 	guides: [circle(center as Vec, radius as number)],
@@ -3553,13 +3679,15 @@ const aroundCenter = showingPath(([, center, radius]) => ({
 		pointHandle(1, center as Vec),
 		radiusHandle(2, center as Vec, 0, radius as number),
 	],
-}))
+}), [1])
 makers.set(makeTwirl, aroundCenter)
 makers.set(makeBulge, aroundCenter)
 
-for (const fn of [makeZigzag, makeWave, makeDash, makeSubdivide, makeFlatten, makeReverse]) {
+for (const fn of [makeZigzag, makeDash, makeSubdivide, makeFlatten, makeReverse]) {
 	makers.set(fn, showingPath())
 }
+// A wave is measured from a place, which the path would otherwise go through the wave from.
+makers.set(makeWave, showingPath(undefined, [5]))
 
 /**
  * A matrix taken hold of where it takes `from`, rather than where it takes the origin, which may
@@ -3659,10 +3787,36 @@ const fromOrigin = (args: readonly unknown[]): BoxAnswer => {
 		scaled: (x, y, about) => [change(0, scaledPlace(args[0] as Vec, x, y, about)), change(1, [width * x, height * y])],
 	}
 }
+/** Where `at` goes, being turned by `degrees` around `about`. */
+const turnedPlace = (at: Vec, degrees: number, [ax, ay]: Vec): Vec => {
+	const [cos, sin] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)]
+	const [x, y] = [at[0] - ax, at[1] - ay]
+	return [ax + x * cos - y * sin, ay + x * sin + y * cos]
+}
+/** Turned by going around, and by saying how far round it is at `angleAt`, if it says. */
+const turningAround =
+	(angleAt?: number) =>
+	(args: readonly unknown[]): Pick<BoxAnswer, 'turned'> => ({
+		turned: (degrees, about) => [
+			change(0, turnedPlace(args[0] as Vec, degrees, about)),
+			...(angleAt === undefined ? [] : [change(angleAt, finite(args[angleAt]) + degrees)]),
+		],
+	})
+/** The same, of what says from how far round it goes to how far round, at `start` and `end`. */
+const turningAroundFrom =
+	(start: number, end: number) =>
+	(args: readonly unknown[]): Pick<BoxAnswer, 'turned'> => ({
+		turned: (degrees, about) => [
+			change(0, turnedPlace(args[0] as Vec, degrees, about)),
+			change(start, finite(args[start]) + degrees),
+			change(end, finite(args[end]) + degrees),
+		],
+	})
 /** Places, each an argument, which is all there is to it. */
 const ofPlaces = (args: readonly unknown[]): BoxAnswer => ({
 	even: false,
 	scaled: (x, y, about) => args.map((at, i) => change(i, scaledPlace(at as Vec, x, y, about))),
+	turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
 })
 /** A center and lengths from it, which have only one scale to go by. */
 const centerAnd = (...lengths: readonly number[]) => (args: readonly unknown[]): BoxAnswer => ({
@@ -3697,24 +3851,168 @@ const alongAxes = (args: readonly unknown[], angle: number): BoxAnswer => {
 	}
 }
 const NOT_BY_A_BOX = (): null => null
+
+type Asked = (args: readonly unknown[], inner: (arg: number) => Grip | null) => BoxAnswer | null
+
+/** How what is made of `answers` goes, being only what they are and `own` besides. */
+const answeredTogether = (
+	answers: readonly (BoxAnswer | undefined)[],
+	{ even = false, keepsAxes = true, own = () => [], ownTurned = () => [], turns = true }: {
+		/** What it does by itself comes out the same only by one scale each way. */
+		even?: boolean
+		/** It lies along what it is made of, so a box along those lies along it. */
+		keepsAxes?: boolean
+		own?: (x: number, about: Vec, y: number) => readonly Change[]
+		/** What it has of its own to turn with what it is made of. */
+		ownTurned?: (degrees: number, about: Vec) => readonly Change[]
+		/** It comes out the same turned, if what it is made of is. */
+		turns?: boolean
+	} = {}
+): BoxAnswer | null => {
+	if (answers.length === 0 || answers.some(answer => answer === undefined)) return null
+	const all = answers as readonly BoxAnswer[]
+	const angles = new Set(all.map(({ angle = 0 }) => angle))
+	const [angle = 0] = angles
+	// One scale is the same along any axes, which is all that those on different ones have in common.
+	const along = angles.size === 1 && (keepsAxes || angle === 0)
+	return {
+		even: even || !along || all.some(answer => answer.even),
+		...(along && angle !== 0 ? { angle } : {}),
+		scaled: (x, y, about) => [
+			...all.flatMap(answer => answer.scaled(x, y, about)),
+			...own(x, about, y),
+		],
+		...(turns && all.every(answer => answer.turned !== undefined)
+			? {
+					turned: (degrees: number, about: Vec) => [
+						...all.flatMap(answer => answer.turned!(degrees, about)),
+						...ownTurned(degrees, about),
+					],
+				}
+			: {}),
+		// What goes along what it is made of is as round, with nothing of its own to be off to a side.
+		...(keepsAxes && all.length === 1 && all[0]!.round ? { round: true } : {}),
+	}
+}
+/** The value at `arg`, or what it is when not said. */
+const spoken = (fn: unknown, args: readonly unknown[], arg: number): unknown =>
+	args[arg] ?? (fn as TypedHostFn).paramTypes?.[arg]?.default
+/** Of a path, having lengths at `lengths` and places at `places`, that it has to keep in proportion. */
+const inProportion =
+	(fn: unknown, { lengths = [], places = [], vectors = [], angles = [], keepsAxes = false }: {
+		lengths?: readonly number[]
+		places?: readonly number[]
+		/** Lengths that go a way, which turn with it. */
+		vectors?: readonly number[]
+		/** How far round something is said to be. */
+		angles?: readonly number[]
+		keepsAxes?: boolean
+	}): Asked =>
+	(args, inner) =>
+		answeredTogether([inner(0)?.box], {
+			even: true,
+			keepsAxes,
+			own: (x, about) => [
+				...places.map(arg => change(arg, scaledPlace(spoken(fn, args, arg) as Vec, x, x, about))),
+				...[...lengths, ...vectors].flatMap(arg => {
+					const value = spoken(fn, args, arg)
+					// What is not said and is nothing stays that way, however large it gets.
+					if (value === 0) return []
+					return [change(arg, Array.isArray(value) ? value.map(n => (n as number) * x) : (value as number) * x)]
+				}),
+			],
+			ownTurned: (degrees, about) => [
+				...places.map(arg => change(arg, turnedPlace(spoken(fn, args, arg) as Vec, degrees, about))),
+				...vectors.map(arg => change(arg, turnedPlace(spoken(fn, args, arg) as Vec, degrees, [0, 0]))),
+				...angles.map(arg => change(arg, finite(spoken(fn, args, arg)) + degrees)),
+			],
+		})
+/** What only goes on from what it is made of, at `paths`, or at any that is a path. */
+const asItsPaths = (paths?: readonly number[]): Asked => (args, inner) =>
+	answeredTogether((paths ?? args.flatMap((arg, i) => (isAPath(arg) ? [i] : []))).map(i => inner(i)?.box))
+/** Across a line, which has to be scaled with what it goes across, however it is written. */
+const acrossAnswer: Asked = (args, inner) => {
+	const line = inner(1)
+	const [through, direction] = args[1] as StraightLine
+	const written: BoxAnswer = {
+		even: true,
+		scaled: (x, _, about) => [change(1, [scaledPlace(through, x, x, about), direction])],
+		turned: (degrees, about) => [
+			change(1, [turnedPlace(through, degrees, about), turnedPlace(direction, degrees, [0, 0])]),
+		],
+	}
+	return answeredTogether([inner(0)?.box, line === null ? written : line.box], { even: true, keepsAxes: false })
+}
+
 /**
  * What each thing that comes to a path says to the box around it. Everything answers, and a test
- * holds it to that: what comes of something else has no size of its own to change, for now.
+ * holds it to that. What comes of something else asks what it comes of, all the way in, and can be
+ * scaled by the box if that can. What it has that goes by a scale of its own only keeps its look by
+ * one scale each way.
  */
-export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => BoxAnswer | null> = new Map<
-	unknown,
-	(args: readonly unknown[]) => BoxAnswer | null
->([
+export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>([
+	[makeLineFromPoints, ofPlaces],
+	[
+		makeLineAt,
+		([through, angle]) => ({
+			even: true,
+			scaled: (x, _, about) => [change(0, scaledPlace(through as Vec, x, x, about))],
+			...turningAround(1)([through, angle]),
+		}),
+	],
+	[makeMirror, acrossAnswer],
+	[makeReflect, acrossAnswer],
+	[makeOffset, inProportion(makeOffset, { lengths: [1], keepsAxes: true })],
+	[makeOffsetStroke, inProportion(makeOffsetStroke, { lengths: [1], keepsAxes: true })],
+	[makeRoundCorners, inProportion(makeRoundCorners, { lengths: [1], keepsAxes: true })],
+	[makeChamfer, inProportion(makeChamfer, { lengths: [1], keepsAxes: true })],
+	[makeZigzag, inProportion(makeZigzag, { lengths: [1, 2], keepsAxes: true })],
+	[makeWave, inProportion(makeWave, { lengths: [1, 2], places: [5], angles: [4] })],
+	[makeDash, inProportion(makeDash, { lengths: [1, 2], keepsAxes: true })],
+	[makeTwirl, inProportion(makeTwirl, { places: [1], lengths: [2] })],
+	[makeBulge, inProportion(makeBulge, { places: [1], lengths: [2] })],
+	[makeShadow, inProportion(makeShadow, { vectors: [1] })],
+	[makeShadowFrom, inProportion(makeShadowFrom, { places: [1] })],
+	[makeRay, inProportion(makeRay, { places: [1, 2] })],
+	...[makeSubdivide, makeFlatten, makeReverse].map(fn => [fn, asItsPaths([0])] as const),
+	...[makeBlend, makeBlendSteps].map(fn => [fn, asItsPaths([0, 1])] as const),
+	...[makeUnite, makeSubtract, makeIntersect, makeExclude, makeConvexHull].map(fn => [fn, asItsPaths()] as const),
+	[makeBounds, (_, inner) => answeredTogether([inner(0)?.box], { keepsAxes: false, turns: false })],
+	[
+		makeRepeatAlong,
+		(args, inner) =>
+			answeredTogether([inner(0)?.box, inner(1)?.box], {
+				even: true,
+				keepsAxes: false,
+				own: x => [3, 6].flatMap(arg => (args[arg] ? [change(arg, (args[arg] as number) * x)] : [])),
+				// What it stamps goes the way the path does, or stays as it is, by what it says.
+				turns: false,
+			}),
+	],
+	[
+		// One scale from a place is one scale from where that place is inside, whatever the matrix is.
+		makeTransformed,
+		([, matrix], inner) => {
+			const within = inner(0)?.box
+			const undo = Mat2d.invert(matrix as Mat) as unknown as Mat | null
+			if (within === undefined || undo === null) return null
+			return {
+				even: true,
+				scaled: (x, _, [ax, ay]) =>
+					within.scaled(x, x, [undo[0] * ax + undo[2] * ay + undo[4], undo[1] * ax + undo[3] * ay + undo[5]]),
+			}
+		},
+	],
 	[makeRect, fromOrigin],
 	[makeRoundRect, fromOrigin],
 	[makeSquare, centerAnd(1)],
-	[makeCircle, centerAnd(1)],
-	[makeEllipse, args => alongAxes(args, (args[2] as number | undefined) ?? 0)],
+	[makeCircle, args => ({ ...centerAnd(1)(args), ...turningAround()(args), round: true })],
+	[makeEllipse, args => ({ ...alongAxes(args, (args[2] as number | undefined) ?? 0), ...turningAround(2)(args) })],
 	[makeSuperellipse, args => alongAxes(args, 0)],
-	[makeNgon, centerAndTurned(3, 1)],
-	[makeStar, centerAndTurned(4, 1, 2)],
-	[makeArc, centerAnd(1)],
-	[makeFan, centerAnd(1, 2)],
+	[makeNgon, args => ({ ...centerAndTurned(3, 1)(args), ...turningAround(3)(args) })],
+	[makeStar, args => ({ ...centerAndTurned(4, 1, 2)(args), ...turningAround(4)(args) })],
+	[makeArc, args => ({ ...centerAnd(1)(args), ...turningAroundFrom(2, 3)(args) })],
+	[makeFan, args => ({ ...centerAnd(1, 2)(args), ...turningAroundFrom(3, 4)(args) })],
 	[makeSpiral, centerAnd(1, 2)],
 	[makeLine, ofPlaces],
 	[makePolyline, ofPlaces],
@@ -3725,6 +4023,7 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => Box
 		args => ({
 			even: false,
 			scaled: (x, y, about) => [change(0, (args[0] as Vec[]).map(at => scaledPlace(at, x, y, about)))],
+			turned: (degrees, about) => [change(0, (args[0] as Vec[]).map(at => turnedPlace(at, degrees, about)))],
 		}),
 	],
 	[
@@ -3734,6 +4033,10 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => Box
 			scaled: (x, y, about) => [
 				change(0, scaledPlace(args[0] as Vec, x, y, about)),
 				change(1, (args[1] as number[][]).map(([angle = 0, from = 0, to = 0]) => [angle, from * x, to * x])),
+			],
+			turned: (degrees, about) => [
+				change(0, turnedPlace(args[0] as Vec, degrees, about)),
+				change(1, (args[1] as number[][]).map(([angle = 0, from = 0, to = 0]) => [angle + degrees, from, to])),
 			],
 		}),
 	],
@@ -3752,6 +4055,16 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => Box
 				),
 				change(1, (args[1] as number) * x),
 			],
+			turned: (degrees, about) => [
+				change(
+					0,
+					(args[0] as number[][]).map(([px = 0, py = 0, angle = 0, ...rest]) => [
+						...turnedPlace([px, py], degrees, about),
+						angle + degrees,
+						...rest,
+					])
+				),
+			],
 		}),
 	],
 	[
@@ -3759,6 +4072,7 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => Box
 		args => ({
 			even: true,
 			scaled: (x, y, about) => args.map((at, i) => change(i, scaledPlace(at as Vec, x, y, about))),
+			turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
 		}),
 	],
 	[
@@ -3770,11 +4084,15 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => Box
 				change(1, scaledPlace(end as Vec, x, y, about)),
 				change(2, (radius as number) * x),
 			],
+			turned: (degrees, about) => [
+				change(0, turnedPlace(start as Vec, degrees, about)),
+				change(1, turnedPlace(end as Vec, degrees, about)),
+			],
 		}),
 	],
 	[
 		makeClothoid,
-		([start, , length, from, to]) => ({
+		([start, angle, length, from, to]) => ({
 			even: true,
 			scaled: (x, y, about) => [
 				change(0, scaledPlace(start as Vec, x, y, about)),
@@ -3782,6 +4100,7 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => Box
 				change(3, (from as number) / x),
 				change(4, (to as number) / x),
 			],
+			...turningAround(1)([start, angle]),
 		}),
 	],
 	[
@@ -3791,13 +4110,16 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, (args: readonly unknown[]) => Box
 			scaled: (x, y, [ax, ay]) => [
 				change(0, toD(transform(fromD(d as string), [x, 0, 0, y, ax * (1 - x), ay * (1 - y)]))),
 			],
+			turned: (degrees, [ax, ay]) => {
+				const [cos, sin] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)]
+				return [
+					change(0, toD(transform(fromD(d as string), [cos, sin, -sin, cos, ax - cos * ax + sin * ay, ay - sin * ax - cos * ay]))),
+				]
+			},
 		}),
 	],
-	...[
-		makeOffset, makeOffsetStroke, makeRoundCorners, makeChamfer, makeMirror, makeReflect, makeZigzag, makeWave,
-		makeTwirl, makeBulge, makeDash, makeSubdivide, makeFlatten, makeReverse, makeConvexHull, makeUnite,
-		makeSubtract, makeIntersect, makeExclude, makeBlend, makeBlendSteps, makeRepeatAlong, makeShadow, makeShadowFrom, makeRay, makeArcStrip, makeRadial, makeDubinsChain, makeTransformed, makeReplicate, makeBounds,
-	].map(fn => [fn, NOT_BY_A_BOX] as const),
+	// Copies go by a matrix that says how far, which would have to say it differently.
+	[makeReplicate, NOT_BY_A_BOX],
 ])
 
 export const gripOf = (
@@ -3807,8 +4129,14 @@ export const gripOf = (
 	proportional: (arg: number) => boolean = () => false,
 	free: (arg: number) => boolean = () => true
 ): Grip | null => {
-	const grip = makers.get(fn)?.(args, inner, proportional, free) ?? null
-	const box = grip === null ? null : (BOX_ANSWERS.get(fn)?.(args) ?? null)
+	// Asked more than once of each, by what is around it, which is not to double with every level.
+	const asked = new Map<number, Grip | null>()
+	const once = (arg: number): Grip | null => {
+		if (!asked.has(arg)) asked.set(arg, inner(arg))
+		return asked.get(arg)!
+	}
+	const grip = makers.get(fn)?.(args, once, proportional, free) ?? null
+	const box = grip === null ? null : (BOX_ANSWERS.get(fn)?.(args, once) ?? null)
 	return box === null ? grip : { ...grip!, box }
 }
 
@@ -3866,10 +4194,28 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 }
 
 /** `parent`, with what a canvas adds. */
+/** What is said of a name, for people to read, as what it is written at and not what it comes to. */
+const ABOUT: Readonly<Record<string, { readonly label: string; readonly doc: string }>> = {
+	point: { label: 'Point', doc: 'A place on the canvas, for other things to go by.' },
+}
+
 export function withGraphics(parent: Env): Env {
 	const bindings = new Map<string, { ast: AST; env: Env }>()
 	for (const [name, value] of Object.entries(BINDINGS)) {
-		bindings.set(name, { ast: host(value), env: null })
+		const about = ABOUT[name]
+		bindings.set(name, {
+			ast:
+				about === undefined
+					? host(value)
+					: new MetaAST(
+							new RecordAST([
+								['label', lit(about.label)],
+								['doc', lit(about.doc)],
+							]),
+							host(value)
+						),
+			env: null,
+		})
 	}
 	return { ast: new LetAST([], null), parent, bindings }
 }

@@ -301,10 +301,22 @@ describe('forms that are not calls', () => {
 		const v = view('(: 20 number)')
 		expect(v.head).toBeNull()
 		expect(v.title).toBeNull()
-		expect(v.slots.map(s => s.label)).toEqual(['Value', 'Type'])
+		expect(v.slots.map(s => s.label)).toEqual(['Number'])
 		expect(v.append).toBeNull()
 		expect(v.missing).toEqual([])
 		expect(kindIconOf(parse('(: 20 number)'))).toBe('mdi:tag-outline')
+	})
+
+	it('says what a cast is, by what it is to', () => {
+		expect(view('(: 20 number)').castTo?.label).toBe('Number')
+		expect(view('(: 20 number)').castTo?.doc).not.toContain('`')
+		expect(view('(: 20 (enum 20 30))').castTo?.label).toBeNull()
+		expect(view('(: 20)').castTo).toBeUndefined()
+	})
+
+	it('calls what is in a cast only what it is cast to, if that has a name', () => {
+		expect(view('(: 20 (enum 20 30))').slots.map(s => s.label)).toEqual(['Value'])
+		expect(view('(: 20)').slots.map(s => s.label)).toEqual(['Value'])
 	})
 
 	it('expects of a cast the type it casts to', () => {

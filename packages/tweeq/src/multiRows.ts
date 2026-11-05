@@ -27,8 +27,10 @@ import {
 	isExpression,
 	mentionsTypeVar,
 	numberOptionsAt,
+	nameOfType,
 	type NumberOptions,
 	type Slot,
+	writtenAsType,
 	textOf,
 	titleOf,
 	viewOf,
@@ -315,6 +317,17 @@ export function extractedAt(
 	})
 	let free = name
 	for (let n = 2; isBound(free, envs); n++) free = `${name}${n}`
+	// With no parameter around it any more, it says for itself what it was to all of them.
+	const written = typeof value === 'object' ? value : lit(value)
+	const whole = places.flatMap(place => {
+		const slot = place.element === null ? slotAt(root, env, place) : undefined
+		return slot === undefined ? [] : [slot]
+	})
+	const typed =
+		whole.length === places.length &&
+		new Set(whole.map(slot => nameOfType(slot.expected, slot.env))).size === 1
+			? writtenAsType(written, whole[0]!.expected, whole[0]!.env)
+			: written
 
 	let next: AST = root
 	for (const { path, element } of places) {
@@ -328,7 +341,7 @@ export function extractedAt(
 	const first = Math.min(...at)
 	const bindings = [
 		...next.bindings.slice(0, first),
-		[free, typeof value === 'object' ? value : lit(value)] as const,
+		[free, typed] as const,
 		...next.bindings.slice(first),
 	]
 	return { ast: new LetAST(bindings, next.body), name: free }

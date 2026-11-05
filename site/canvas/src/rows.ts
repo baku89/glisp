@@ -3,13 +3,13 @@
  * that of the vector the program comes to, and groups, which are vectors of their own.
  */
 
-import { type AST, type Env, evaluate, isHidden, LetAST, MetaAST, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
+import { type AST, type Env, CallAST, enterNode, evaluate, infer, isHidden, LetAST, MetaAST, print, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import { isGroup, layersOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import type { Path, Vec } from './graphics'
-import { isVecOfDrawn, labelOfRow, rowWorkedOn, backgroundCall, backgroundOf, backgroundRowsIn, gridCall, gridOf, gridRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
+import { drawOf, isVecOfDrawn, labelOfRow, rowWorkedOn, backgroundCall, backgroundOf, backgroundRowsIn, gridCall, gridOf, gridRowsIn, isOutlined, paintedIn, sceneOf } from './scene'
 
 const BINDING = 'binding:'
 
@@ -233,6 +233,44 @@ function groupedIn(
  * `root`, with the groups among the rows let go of, what was in them being where they
  * were. Null if none of them is one, or what is in one would no longer come to the same.
  */
+/**
+ * What a call that comes to a path is made from, among what it is given, without the call: each
+ * under the style that was around it, which is what it was drawn by, as what is in it goes for
+ * nothing there. Null if it is made from no path, or is nothing of the kind.
+ */
+function madeFrom(value: AST, env: Env): readonly AST[] | null {
+	const outer = value.kind === 'meta' ? value.expr : value
+	const styled = outer.kind === 'call' && print(outer.head) === 'style' ? outer : null
+	const wrapped = styled === null ? outer : styled.args[0]
+	const call = wrapped?.kind === 'meta' ? wrapped.expr : wrapped
+	if (call?.kind !== 'call' || print(call.head) === 'style') return null
+	const inside = enterNode(call, env)
+	if (drawOf(infer(call, env)) !== 'path') return null
+	const given = [...call.args, ...(call.kwargs?.values() ?? [])]
+	const paths = given.filter(arg => drawOf(infer(arg, inside)) === 'path')
+	if (paths.length === 0) return null
+	return paths.map(path => {
+		if (styled === null) return path
+		const bare = path.kind === 'meta' ? path.expr : path
+		const within = bare.kind === 'call' && print(bare.head) === 'style' ? bare.args[0]! : path
+		return new CallAST(styled.head, [within, ...styled.args.slice(1)], styled.kwargs)
+	})
+}
+
+/** Whether what is at `row` is made from a path, which ungrouping it would leave of it. */
+export function isMadeFromPaths(root: AST, env: Env, row: string): boolean {
+	const slot = slotAlong(root, env, row.split('/'))
+	return slot !== null && slot !== undefined && madeFrom(slot.ast, slot.env) !== null
+}
+
+/** What a row of `value` goes by, as what it is made by. */
+const stemOf = (value: AST): string => {
+	const call = value.kind === 'meta' ? value.expr : value
+	if (call.kind !== 'call') return 'path'
+	const head = print(call.head) === 'style' ? stemOf(call.args[0]!) : print(call.head)
+	return head.slice(head.lastIndexOf('.') + 1)
+}
+
 function ungroupedIn(
 	root: LetAST,
 	env: Env,
@@ -250,12 +288,50 @@ function ungroupedIn(
 		names.has(name) && ((value.kind === 'let' && isGroup(value)) || isVecLetGo(name, value))
 	const isElementFreed = (element: AST, i: number): element is VecAST =>
 		rows.includes(`element:${i}`) && isVecOfDrawn(element, envOf(`element:${i}`))
-	if (!root.bindings.some(isFreed) && !elements.some(isElementFreed)) return null
+	const unwrapped = (name: string, value: AST): readonly AST[] | null =>
+		names.has(name) ? madeFrom(value, envOf(`${BINDING}${name}`)) : null
+	const isElementUnwrapped = (element: AST, i: number): boolean =>
+		rows.includes(`element:${i}`) && madeFrom(element, envOf(`element:${i}`)) !== null
+	if (
+		!root.bindings.some(isFreed) &&
+		!elements.some(isElementFreed) &&
+		!root.bindings.some(([name, value]) => unwrapped(name, value) !== null) &&
+		!elements.some(isElementUnwrapped)
+	) {
+		return null
+	}
 	const taken = new Set(root.bindings.filter(b => !isFreed(b)).map(([name]) => name))
 	const freed: string[] = []
 	const moves: (readonly [readonly string[], readonly string[]])[] = []
 	const heldBy = new Map<string, readonly AST[]>()
 	const bindings = root.bindings.flatMap((binding): (readonly [string, AST])[] => {
+		const inner = isFreed(binding) ? null : unwrapped(binding[0], binding[1])
+		if (inner !== null) {
+			// One of them goes on being what it was, for all that refers to it by name.
+			if (inner.length === 1) {
+				const [only] = inner
+				freed.push(`${BINDING}${binding[0]}`)
+				return [[binding[0], binding[1].kind === 'meta' ? new MetaAST(binding[1].metadata, only!) : only!]]
+			}
+			const bound: (readonly [string, AST])[] = []
+			const held = inner.map(path => {
+				// What is another row is already that row, and has only to be drawn.
+				if (path.kind === 'sym' && root.bindings.some(([name]) => name === path.name)) {
+					freed.push(`${BINDING}${path.name}`)
+					return new SymAST(path.name)
+				}
+				const stem = path.kind === 'sym' ? path.name : stemOf(path)
+				let n = 1
+				while (taken.has(`${stem}${n}`)) n++
+				const name = `${stem}${n}`
+				taken.add(name)
+				freed.push(`${BINDING}${name}`)
+				bound.push([name, path])
+				return new SymAST(name)
+			})
+			heldBy.set(binding[0], held)
+			return bound
+		}
 		if (!isFreed(binding)) return [binding]
 		if (binding[1].kind === 'vec') {
 			heldBy.set(binding[0], binding[1].elements)
@@ -274,12 +350,25 @@ function ungroupedIn(
 	})
 	const held: AST[] = []
 	elements.forEach((element, i) => {
+		const made = isElementFreed(element, i) ? null : isElementUnwrapped(element, i) ? madeFrom(element, envOf(`element:${i}`)) : null
+		if (made !== null) {
+			freed.push(...made.map((_, at) => `element:${held.length + at}`))
+			held.push(...made)
+			return
+		}
 		const inside = isElementFreed(element, i)
 			? element.elements
 			: element.kind === 'sym'
 				? heldBy.get(element.name)
 				: undefined
 		for (const each of inside ?? [element]) {
+			// What is being drawn already is not to be drawn twice for having been made into this.
+			const isDrawn =
+				inside !== undefined &&
+				each.kind === 'sym' &&
+				(held.some(other => other.kind === 'sym' && other.name === each.name) ||
+					elements.some(other => other !== element && other.kind === 'sym' && other.name === each.name))
+			if (isDrawn) continue
 			if (inside !== undefined && each.kind !== 'sym') freed.push(`element:${held.length}`)
 			held.push(each)
 		}

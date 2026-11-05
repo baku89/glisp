@@ -714,7 +714,8 @@ function drawHandle(
 		context.lineWidth = 1
 		context.beginPath()
 		if (handle.corner) {
-			context.rotate(facing(0))
+			// A point at a corner says which way out the corner is, which is square with the box it is of.
+			context.rotate(facing(handle.kind === 'point' ? (handle.angle ?? 45) - 45 : 0))
 			context.rect(-CORNER_HALF, -CORNER_HALF, CORNER_HALF * 2, CORNER_HALF * 2)
 		} else {
 			context.arc(0, 0, HANDLE_RADIUS, 0, Math.PI * 2)
@@ -1382,6 +1383,16 @@ function commit(next: ReturnType<typeof apply>): void {
 	if (next.ast?.kind === 'let' && next.ast !== root.value) props.document.setRoot(next.ast)
 }
 
+/** What is selected, if a press is inside of the box that goes around several of it, to move them all. */
+function rowOfBoxAt(x: number, y: number, adding: boolean): string | null {
+	if (adding || taken.value.length < 2 || grip.value?.box === undefined) return null
+	const box = boundsOfRows([...scene.value, ...hiddenSelected.value], taken.value)
+	if (box === null) return null
+	const [px, py] = fromScreen(x, y)
+	const [[left, top], [right, bottom]] = box
+	return px >= left && px <= right && py >= top && py <= bottom ? taken.value[0]! : null
+}
+
 /** How far a press has to go to be a move, so that a click does not nudge anything. */
 const MOVE_THRESHOLD = 3
 
@@ -1543,7 +1554,14 @@ function onPointerDown(event: PointerEvent): void {
 		hit !== null &&
 		shaping === null &&
 		(!taken.value.includes(gripped.value!.rowOf[hit]!) || grip.value!.handles[hit]!.place === 'self')
-	const index = isChoosing ? null : hit
+	// A place among several selected is one of what is taken hold of, and goes with the rest.
+	const isOneOfSeveral =
+		hit !== null &&
+		shaping === null &&
+		taken.value.length > 1 &&
+		grip.value!.handles[hit]!.place === 'self' &&
+		taken.value.includes(gripped.value!.rowOf[hit]!)
+	const index = isChoosing || isOneOfSeveral ? null : hit
 	if (index !== null && grip.value !== null) {
 		const handle = grip.value.handles[index]!
 		const owner = gripped.value!.rowOf[index]!
@@ -1579,7 +1597,7 @@ function onPointerDown(event: PointerEvent): void {
 	}
 
 	// What was pressed is what the handle is of, whatever else goes through the same place.
-	const heldRow = isChoosing ? gripped.value!.rowOf[hit]! : rowHeldAt(x, y)
+	const heldRow = isChoosing || isOneOfSeveral ? gripped.value!.rowOf[hit]! : (rowHeldAt(x, y) ?? rowOfBoxAt(x, y, event.shiftKey))
 	const shape = heldRow === null ? null : { row: heldRow }
 	if (shape !== null) {
 		const already = taken.value.includes(shape.row)
@@ -1991,7 +2009,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	const pivot = symmetric ? (handle.middle ?? handle.pivot) : handle.pivot
 	evenLine.value = even && pivot !== undefined && now !== undefined ? [toScreen(pivot), toScreen(now)] : null
 	const numbers =
-		props.dimensions && next.ast !== null
+		props.dimensions && next.ast !== null && !handle.across
 			? dimensionsHeld(next.ast, props.document.env.value, row, handle, rounded, base, snap?.at ?? wanted, {
 					symmetric,
 				})
@@ -1999,7 +2017,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	hold(row, numbers, at, 0, saysOutside(handle) ? handle.kind : null)
 	// Exact numbers are for when they have been asked for.
 	readout.value =
-		!props.dimensions || next.ast === null || numbers.length > 0
+		!props.dimensions || next.ast === null || numbers.length > 0 || handle.across
 			? null
 			: {
 					at,

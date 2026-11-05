@@ -281,6 +281,8 @@ export interface NodeView {
 	/** Set if a widget can edit this node directly. */
 	readonly editor: Editor | null
 	readonly slots: ReadonlyArray<Slot>
+	/** What a cast is to, which says what it is, as a call's head does for a function. */
+	readonly castTo?: { readonly label: string | null; readonly doc: string | null }
 	readonly missing: ReadonlyArray<MissingArgument>
 	/** The new node with one more element, for a form that can grow. */
 	readonly append: {
@@ -654,6 +656,62 @@ function isIfElse(args: readonly AST[]): boolean {
 	)
 }
 
+/** What metadata says something is, as it is to be read. */
+const readableDocOf = (metadata: MetaAST['metadata'] | null): string | null => {
+	const doc = textOf(metadata?.get('doc'))
+	return doc === null ? null : readableDoc(doc, capitalCase)
+}
+
+/** What a type goes by where it is seen from, or that of what it says more about. */
+export function nameOfType(type: TypeValue | null, env: Env): string | null {
+	// What has been given a default of its own is another type, that still says what it goes by.
+	const said = textOf(type?.meta?.get('name'))
+	if (said !== null && /^[a-zA-Z_]\w*$/.test(said) && lookupBareName(said, env) !== null) {
+		if (textOf(resolveTypeSlot(new SymAST(said), env)?.meta?.get('name')) === said) return said
+	}
+	for (let t: object | null = type; t !== null && 'typeName' in t; t = Object.getPrototypeOf(t)) {
+		const named = toAst(t, env)
+		// A type with no name to go by is still called something, such as `[...T]`.
+		if (named.kind === 'sym' && lookupBareName(named.name, env) !== null) return named.name
+	}
+	return null
+}
+
+/**
+ * What is written out as what it is of `type`, if it would not otherwise be taken for that: `[1 2]`
+ * goes on being a point only by saying so, once there is no parameter around it to say it for it.
+ */
+export function writtenAsType(value: AST, type: TypeValue | null, env: Env): AST {
+	const written = value.kind === 'meta' ? value.expr : value
+	if (written.kind !== 'lit' && written.kind !== 'vec') return value
+	const name = nameOfType(type, env)
+	if (name === null || nameOfType(infer(value, env), env) === name) return value
+	return new CallAST(new SymAST(':'), [value, new SymAST(name)])
+}
+
+/** What is cast, if `ast` says so of it, as `(: v T)`. */
+const castValueOf = (ast: AST): AST | null => {
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	return bare.kind === 'call' && bare.head.kind === 'sym' && bare.head.name === ':' ? (bare.args[0] ?? null) : null
+}
+
+/** What is cast to what a place already says of it, without saying so again. */
+export function withoutCastTo(type: TypeValue | null, value: AST, env: Env): AST {
+	const inner = castValueOf(value)
+	const bare = value.kind === 'meta' ? value.expr : value
+	const to = bare.kind === 'call' ? bare.args[1] : undefined
+	if (inner === null || to?.kind !== 'sym') return value
+	return nameOfType(type, env) === to.name ? inner : value
+}
+
+/** `ast`, with what is in the cast it is being `inner`, however it was written. */
+function withCastValue(ast: AST, inner: AST): AST {
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	if (bare.kind !== 'call') return ast
+	const call = new CallAST(bare.head, [inner, ...bare.args.slice(1)], bare.kwargs)
+	return ast.kind === 'meta' ? new MetaAST(ast.metadata, call) : call
+}
+
 /** A form's parts, under what they are to it. */
 function viewOfForm(ast: CallAST, env: Env, name: string): NodeView {
 	const inside = enterNode(ast, env)
@@ -671,19 +729,23 @@ function viewOfForm(ast: CallAST, env: Env, name: string): NodeView {
 	const has = (i: number) => i < ast.args.length
 
 	if (name === ':') {
+		// What it is cast to says what control there is, and what that is called: there is
+		// nothing else to it to be taken hold of here, and it can be written otherwise as code.
 		const type = ast.args[1]
+		const expected = type === undefined ? null : resolveTypeSlot(type, inside)
+		const named = type?.kind === 'sym' ? capitalCase(type.name) : null
+		const about = type?.kind === 'sym' ? metadataOf(type.name, inside) : null
 		return {
 			...LEAF,
-			slots: [
-				...(has(0)
-					? [
-							part(0, 'Value', {
-								expected: type === undefined ? null : resolveTypeSlot(type, inside),
-							}),
-						]
-					: []),
-				...(has(1) ? [part(1, 'Type')] : []),
-			],
+			...(type === undefined
+				? {}
+				: {
+						castTo: {
+							label: textOf(about?.get('label')) ?? named,
+							doc: readableDocOf(about),
+						},
+					}),
+			slots: has(0) ? [part(0, named ?? 'Value', { expected })] : [],
 		}
 	}
 
@@ -1831,6 +1893,9 @@ function isSettled(ast: AST, env: Env): boolean {
  * that, all that remains is the value, unless it failed. A name in it stays one until then.
  */
 function steppedOnce(ast: AST, env: Env): AST {
+	// What it is cast to goes on being said, and what there is to work out is what is in it.
+	const cast = castValueOf(ast)
+	if (cast !== null) return isExpression(cast) ? withCastValue(ast, steppedOnce(cast, env)) : ast
 	const next = expand(ast, env)
 	if (next !== ast) return next
 	const bare = ast.kind === 'meta' ? ast.expr : ast
@@ -1865,27 +1930,32 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		actions.push({ label: 'Revert to Default', icon: 'mdi:restore', group: 'edit', apply: revert })
 	}
 
+	const cast = castValueOf(slot.ast)
+	const isOnlyCast = cast !== null && !isExpression(cast)
+	// With no parameter to say what it is, it is for what it comes to to say so.
+	const typeOfIt = (): TypeValue | null => (slot.expected === null ? infer(slot.ast, slot.env) : null)
 	const canStep =
-		bare.kind === 'call' ||
-		((bare.kind === 'sym' || bare.kind === 'path') &&
-			hasValue(slot.ast) &&
-			slot.role !== 'function')
+		!isOnlyCast &&
+		(bare.kind === 'call' ||
+			((bare.kind === 'sym' || bare.kind === 'path') &&
+				hasValue(slot.ast) &&
+				slot.role !== 'function'))
 	if (canStep) {
 		actions.push({
 			...SLOT_COMMANDS.step,
-			apply: () => slot.replace(steppedOnce(slot.ast, slot.env)),
+			apply: () => slot.replace(writtenAsType(steppedOnce(slot.ast, slot.env), typeOfIt(), slot.env)),
 		})
 	}
-	if (isExpression(slot.ast) && hasValue(slot.ast) && slot.role !== 'function') {
+	if (!isOnlyCast && isExpression(slot.ast) && hasValue(slot.ast) && slot.role !== 'function') {
 		actions.push({
 			...SLOT_COMMANDS.all,
 			apply: () => {
-				const { value, diagnostics } = evaluate(slot.ast, slot.env)
+				const worked = cast ?? slot.ast
+				const { value, diagnostics } = evaluate(worked, slot.env)
+				if (diagnostics.some(d => d.level === 'error') || typeof value === 'function') return slot.replace(slot.ast)
+				const written = toAst(value, slot.env)
 				return slot.replace(
-					diagnostics.some(d => d.level === 'error') ||
-						typeof value === 'function'
-						? slot.ast
-						: toAst(value, slot.env)
+					cast === null ? writtenAsType(written, typeOfIt(), slot.env) : withCastValue(slot.ast, written)
 				)
 			},
 		})

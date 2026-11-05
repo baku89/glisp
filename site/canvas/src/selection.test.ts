@@ -3,7 +3,7 @@ import { parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
-import { actionTypesOver, copyableType, drawingType, exportableType, groupType, numberType, pathType, rectType, rowType, selectedOf, slotTypes, valueTextOf } from './selection'
+import { actionTypesOver, copyableType, drawingType, exportableType, groupType, ungroupableType, numberType, pathType, rectType, rowType, selectedOf, slotTypes, valueTextOf } from './selection'
 
 const env: Env = withGraphics(buildPrelude())
 const root = parse(`{
@@ -186,6 +186,29 @@ describe('what is selected, to an action', () => {
 		expect(actionTypes.fits(one('n'), groupType)).toBe(false)
 	})
 
+})
+
+describe('what can be ungrouped', () => {
+	const fitsOf = (src: string, row = 'binding:c') => {
+		const root = parse(src)
+		return actionTypes.fits(selectedOf(root, env, [row])[0]!, ungroupableType)
+	}
+
+	it('is a group, or what is made from a path', () => {
+		expect(fitsOf('{g = {a = (path.rect [0 0] [1 1])}}', 'binding:g')).toBe(true)
+		expect(fitsOf('{c = (path.offset (path.rect [0 0] [1 1]) 5)}')).toBe(true)
+		expect(fitsOf('{c = (style (path.unite (path.rect [0 0] [1 1]) (path.circle [0 0] 1)))}')).toBe(true)
+	})
+
+	it('is not what is made from nothing else', () => {
+		expect(fitsOf('{c = (path.rect [0 0] [1 1])}')).toBe(false)
+		expect(fitsOf('{c = 1}')).toBe(false)
+	})
+
+	it('goes on being a path to all else', () => {
+		const root = parse('{c = (path.offset (path.rect [0 0] [1 1]) 5)}')
+		expect(actionTypes.fits(selectedOf(root, env, ['binding:c'])[0]!, pathType)).toBe(true)
+	})
 })
 
 describe('how particular a type is', () => {

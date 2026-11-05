@@ -217,7 +217,7 @@ function roundedValue(value: unknown, step: number): unknown {
 
 /** What is to change, no finer than `step`. */
 export const roundedChanges = (changes: readonly Change[], step: number): Change[] =>
-	changes.map(({ route, value }) => ({ route, value: roundedValue(value, step) }))
+	changes.map(change => ({ ...change, value: roundedValue(change.value, step) }))
 
 const STYLE = 'style'
 
@@ -926,7 +926,7 @@ const IDENTITY: Mat = [1, 0, 0, 1, 0, 0]
 
 const bare = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
 
-const drawOf = (type: TypeValue | null): string | null =>
+export const drawOf = (type: TypeValue | null): string | null =>
 	textOf(type?.meta?.get('draw'))
 
 /** What in `value` is to be drawn, by what `type` says of it and what it holds. */
@@ -975,9 +975,12 @@ export function boundsOfRows(
 	const intoBox: Mat = [cos, -sin, sin, cos, 0, 0]
 	let box: [Vec, Vec] | null = null
 	for (const { row, draw, value } of shapes) {
-		if (!isOutlined(draw)) continue
+		if (!isOutlined(draw) && draw !== 'point') continue
 		if (!rows.some(of => row === of || row.startsWith(`${of}/`))) continue
-		const [[left, top], [right, bottom]] = bounds(angle === 0 ? (value as Path) : transform(value as Path, intoBox))
+		const [[left, top], [right, bottom]] =
+			draw === 'point'
+				? [turnedBy(value as Vec, -angle), turnedBy(value as Vec, -angle)]
+				: bounds(angle === 0 ? (value as Path) : transform(value as Path, intoBox))
 		if (!Number.isFinite(left) || !Number.isFinite(top)) continue
 		box =
 			box === null
@@ -987,7 +990,8 @@ export function boundsOfRows(
 						[Math.max(box[1][0], right), Math.max(box[1][1], bottom)],
 					]
 	}
-	return box
+	// One place alone has nothing around it.
+	return box !== null && box[0][0] === box[1][0] && box[0][1] === box[1][1] ? null : box
 }
 
 /** The corners of a box along axes turned by `angle`, on the canvas. */
@@ -996,6 +1000,8 @@ export const cornersOfBox = ([[left, top], [right, bottom]]: readonly [Vec, Vec]
 
 /** As small as a box can be scaled, as what has gone to nothing has no way back. */
 const LEAST_SCALE = 1e-3
+/** What an angle goes by, with SHIFT. */
+const TURN_STEP = 45
 const WAYS = [-1, 0, 1] as const
 
 /**
@@ -1074,7 +1080,29 @@ export function boxHandlesOf([[left, top], [right, bottom]]: readonly [Vec, Vec]
 	)
 }
 
-/** The same grip, with the box around one row that it has for it, under what is its own. */
+/** What turns all of what is in a box around its middle, by as far as it is pulled round. */
+function turningAll([[left, top], [right, bottom]]: readonly [Vec, Vec], box: BoxAnswer): Handle | null {
+	const { turned } = box
+	if (turned === undefined) return null
+	const pivot = turnedBy([(left + right) / 2, (top + bottom) / 2], box.angle ?? 0)
+	const turnOf = (to: Vec, how?: HandleDrag): number => {
+		const by = (Math.atan2(to[1] - pivot[1], to[0] - pivot[0]) * 180) / Math.PI
+		return how?.even ? Math.round(by / TURN_STEP) * TURN_STEP : by
+	}
+	return {
+		kind: 'direction',
+		rotates: true,
+		across: true,
+		// Places that go round come to more than a pointer says, and what lines up should stay so.
+		fine: true,
+		pivot,
+		angle: 0,
+		turnOf,
+		to: (to, _, how) => turned(turnOf(to, how), pivot),
+	}
+}
+
+/** The same grip, with the box around what is selected that it has for it, under what is its own. */
 export function withBoxHandles<G extends { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] }>(
 	held: G | null,
 	shapes: readonly Shape[],
@@ -1082,17 +1110,21 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 ): G | null {
 	const [row, other] = rows
 	const answer = held?.grip.box
-	if (held === null || row === undefined || other !== undefined || answer === undefined) return held
+	if (held === null || row === undefined || answer === undefined) return held
 	if (held.grip.transform.join() !== IDENTITY.join()) return held
 	const around = boundsOfRows(shapes, rows, answer.angle ?? 0)
 	if (around === null) return held
 	const own = held.grip.handles.flatMap(({ at }) => (at === undefined ? [] : [at]))
 	// Where it has one of its own already, that says more than a box can.
-	const handles = boxHandlesOf(around, answer).filter(
-		({ at }) => !own.some(place => Math.hypot(place[0] - at![0], place[1] - at![1]) < SAME_PLACE)
-	)
+	const handles = boxHandlesOf(around, answer)
+		.map(handle => (other === undefined ? handle : { ...handle, across: true }))
+		.filter(({ at }) => !own.some(place => Math.hypot(place[0] - at![0], place[1] - at![1]) < SAME_PLACE))
 	// What turns it goes to the corners of the box, and what it was held out on goes with it.
-	const turning = held.grip.handles.find(({ rotates, pivot }) => rotates && pivot !== undefined)
+	const turning =
+		other === undefined
+			? (held.grip.handles.find(({ rotates, pivot }) => rotates && pivot !== undefined) ??
+				(answer.round ? undefined : (turningAll(around, answer) ?? undefined)))
+			: (turningAll(around, answer) ?? undefined)
 	const turners = turning ? cornerTurners(around, answer.angle ?? 0, turning) : []
 	const kept = held.grip.handles.map(handle => handle !== turning)
 	return {
@@ -1448,6 +1480,30 @@ export function withGuideHandles(
 }
 
 /**
+ * What several say to a box around all of them, if all of them have something to say, each
+ * change being of the row it comes from. It goes along the canvas, as they need not go along
+ * each other, so that what goes along its own axes can only go by one scale.
+ */
+function boxOfRows(grips: readonly { row: string; grip: Grip }[]): { box: BoxAnswer } | Record<string, never> {
+	const answers = grips.flatMap(({ row, grip: { box } }) => (box === undefined ? [] : [{ row, box }]))
+	if (answers.length !== grips.length) return {}
+	const ofRow = (row: string, changes: readonly Change[]): Change[] =>
+		changes.map(change => ({ ...change, row }))
+	return {
+		box: {
+			even: answers.some(({ box }) => box.even || (box.angle ?? 0) !== 0),
+			scaled: (x, y, about) => answers.flatMap(({ row, box }) => ofRow(row, box.scaled(x, y, about))),
+			...(answers.every(({ box }) => box.turned !== undefined)
+				? {
+						turned: (by: number, about: Vec) =>
+							answers.flatMap(({ row, box }) => ofRow(row, box.turned!(by, about))),
+					}
+				: {}),
+		},
+	}
+}
+
+/**
  * How `rows` can be taken hold of at once: the handles of all of them, and whose each is. Null
  * if they have no coordinates in common to put those in, as they can then only be moved.
  */
@@ -1473,6 +1529,7 @@ export function gripOfRows(
 			handles: grips.flatMap(({ grip }) => grip.handles),
 			guides: grips.flatMap(({ grip }) => grip.guides),
 			...(sources.length > 0 ? { sources } : {}),
+			...boxOfRows(grips),
 		},
 		rowOf,
 	}
@@ -2133,17 +2190,26 @@ function nodeAt(start: AST, startEnv: Env, route: readonly number[]): AST | null
 	return node
 }
 
-/** `ast`, with the argument that comes next on the call at `route` being `added`, if it does. */
-function withArgument(ast: AST, route: readonly number[], added: AST): AST | null {
+/**
+ * `ast`, with the argument on the call at `route` being `added`: next if it comes next, and by
+ * its name if there are others not said before it.
+ */
+function withArgument(ast: AST, route: readonly number[], added: AST, env: Env): AST | null {
 	const call = bare(ast)
 	const [arg, ...rest] = route
 	if (call.kind !== 'call' || arg === undefined) return null
 	const args = [...call.args]
 	if (rest.length === 0) {
-		if (arg !== args.length) return null
+		if (arg < args.length) return null
+		if (arg > args.length) {
+			const name = callParameters(call, enterNode(call, env))?.names[arg]
+			if (name === undefined) return null
+			const named = new CallAST(call.head, args, new Map([...(call.kwargs ?? []), [name, added]]))
+			return ast.kind === 'meta' ? new MetaAST(ast.metadata, named) : named
+		}
 		args.push(added)
 	} else {
-		const within = args[arg] && withArgument(args[arg], rest, added)
+		const within = args[arg] && withArgument(args[arg], rest, added, env)
 		if (!within) return null
 		args[arg] = within
 	}
@@ -2162,7 +2228,7 @@ function withAddedArgument(
 	const reached = reach(root, env, row)
 	const last = reached?.chain.at(-1)
 	if (!reached || !last) return null
-	const next = withArgument(last.ast, route, toAst(value, null))
+	const next = withArgument(last.ast, route, toAst(value, null), env)
 	return next === null ? null : withParent(reached.chain, last.replace(next))
 }
 
@@ -2177,18 +2243,19 @@ export function changed(
 	changes: readonly Change[]
 ): { ast: AST | null; problem: string | null } {
 	let next = root
-	for (const { route, value } of changes) {
-		const found = rowAt(next, env, row)
+	for (const { route, value, row: elsewhere } of changes) {
+		const of = elsewhere ?? row
+		const found = rowAt(next, env, of)
 		const node = found && nodeAt(found.node, found.env, route)
 		if (!node) {
-			const added = withAddedArgument(next, env, row, route, value)
+			const added = withAddedArgument(next, env, of, route, value)
 			if (added === null) return { ast: null, problem: 'that is no longer there' }
 			next = added
 			continue
 		}
 		const { ast, diagnostics } = solve(next, env, node, value)
 		// A place that can go only one way goes as far as it can: the rest stays.
-		const some = ast ?? partsChanged(next, env, row, route, value)
+		const some = ast ?? partsChanged(next, env, of, route, value)
 		if (some === null) {
 			return { ast: null, problem: diagnostics[0]?.message ?? 'cannot be moved' }
 		}

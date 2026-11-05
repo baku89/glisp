@@ -62,7 +62,7 @@ import {
 	actionTypesOver,
 	copyableType,
 	exportableType,
-	groupType,
+	ungroupableType,
 	drawingType,
 	numberType,
 	pathType,
@@ -994,7 +994,7 @@ actions.register([
 			{ id: 'object_isolate', label: 'Isolate', icon: 'mdi:target', params: [rowsParam], perform: onRows(() => isolateRow(selected.value[0]!)) },
 			{ id: 'object_exit_isolation', label: 'Exit Isolation', icon: 'mdi:arrow-collapse-up', perform: () => $canvas.value?.leaveIsolated() },
 			{ id: 'object_group', label: 'Group', icon: 'mdi:group', bind: 'command+g', params: [rowsParam], perform: onRows(() => group()) },
-			{ id: 'object_ungroup', label: 'Ungroup', icon: 'mdi:ungroup', bind: 'command+shift+g', params: [{ name: 'groups', type: groupType, many: true }], perform: onRows(ungroup) },
+			{ id: 'object_ungroup', label: 'Ungroup', icon: 'mdi:ungroup', bind: 'command+shift+g', params: [{ name: 'groups', type: ungroupableType, many: true }], perform: onRows(ungroup) },
 		],
 	},
 	{

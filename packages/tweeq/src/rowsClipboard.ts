@@ -19,7 +19,15 @@ import {
 } from '@glisp/lang'
 
 import { readProgram } from './programSource'
-import { actionsOf, type Slot, viewOf, type SlotAction, type SlotCommand } from './structure'
+import {
+	actionsOf,
+	type Slot,
+	viewOf,
+	type SlotAction,
+	type SlotCommand,
+	withoutCastTo,
+	writtenAsType,
+} from './structure'
 
 const BINDING = 'binding:'
 
@@ -136,7 +144,7 @@ export function copiedRows(root: AST, env: Env, paths: readonly string[]): strin
 		.flatMap(path => {
 			const last = reach(root, env, path)?.chain.at(-1)
 			const name = last && nameOfSlot(last)
-			return last && name ? [`${name} = ${print(last.ast)}`] : []
+			return last && name ? [`${name} = ${print(writtenAsType(last.ast, last.expected, last.env))}`] : []
 		})
 		.join('\n')
 }
@@ -172,7 +180,7 @@ function placesIn(row: Slot, program: (node: AST) => AST): Place[] {
 					name: slot.parameter,
 					expected: slot.expected,
 					env: slot.env,
-					put: value => within(keepingMeta(slot.ast, value)),
+					put: value => within(keepingMeta(slot.ast, withoutCastTo(slot.expected, value, slot.env))),
 				})
 			}
 			queue.push({ ast: slot.ast, env: slot.env, expected: slot.expected, program: within })

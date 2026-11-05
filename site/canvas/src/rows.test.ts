@@ -91,6 +91,73 @@ describe('ungrouped', () => {
 	})
 })
 
+describe('ungrouped, of what a path is made from', () => {
+	const of = (src: string, row = 'binding:c') => ungrouped(parse(src) as LetAST, env, [row])
+	const R = '(path.rect [0 0] [10 10])'
+	const C = '(path.circle [50 50] 5)'
+
+	it('leaves what is made from one path as that path, by the same name', () => {
+		const result = of(`[c = (path.offset ${R} 5)]`)!
+		expect(print(result.ast)).toBe(`[c = ${R}]`)
+		expect(result.rows).toEqual(['binding:c'])
+	})
+
+	it('takes off only the one', () => {
+		expect(print(of(`[c = (path.roundCorners (path.offset ${R} 5) 3)]`)!.ast)).toBe(`[c = (path.offset ${R} 5)]`)
+	})
+
+	it('has what it was made by and what it was drawn by go on', () => {
+		expect(print(of(`[c = (style (path.offset ${R} 5) fill="#ff0000")]`)!.ast)).toBe(`[c = (style ${R} fill="#ff0000")]`)
+	})
+
+	it('lets all of what is united go, where it was, each by what it is', () => {
+		const result = of(`[b = (path.circle [9 9] 1) c = (path.unite ${R} ${C}) d = (path.circle [8 8] 1)]`)!
+		expect(print(result.ast)).toBe(`[b = (path.circle [9 9] 1) rect1 = ${R} circle1 = ${C} d = (path.circle [8 8] 1)]`)
+		expect(result.rows).toEqual(['binding:rect1', 'binding:circle1'])
+	})
+
+	it('has each of them drawn by what the whole was', () => {
+		expect(print(of(`[c = (style (path.subtract ${R} ${C}) fill="#ff0000")]`)!.ast)).toBe(
+			`[rect1 = (style ${R} fill="#ff0000") circle1 = (style ${C} fill="#ff0000")]`
+		)
+	})
+
+	it('goes for a style that is around what is in it, as that had nothing to say', () => {
+		expect(print(of(`[c = (style (path.offset (style ${R} fill="#00ff00") 5) fill="#ff0000")]`)!.ast)).toBe(
+			`[c = (style ${R} fill="#ff0000")]`
+		)
+	})
+
+	it('draws a row that was only referred to, and makes nothing new of it', () => {
+		const result = of(`{a = ${R} b = ${C} c = (path.unite a b) [c]}`)!
+		expect(print(result.ast)).toBe(`[a = ${R} b = ${C}]`)
+		expect(result.rows).toEqual(['binding:a', 'binding:b'])
+	})
+
+	it('does not draw twice what is being drawn already', () => {
+		expect(print(of(`{a = ${R} b = ${C} c = (path.unite a b) [a c]}`)!.ast)).toBe(`[a = ${R} b = ${C}]`)
+	})
+
+	it('takes what is referred to of one, to be what it was made from', () => {
+		expect(print(of(`{a = ${R} c = (path.offset a 5) [c]}`)!.ast)).toBe(`{a = ${R} [c = a]}`)
+	})
+
+	it('goes for what has no name', () => {
+		expect(print(of(`{k = 1 [(path.unite ${R} ${C})]}`, 'element:0')!.ast)).toBe(`{k = 1 [${R} ${C}]}`)
+	})
+
+	it('leaves what several refer to by a name that would be gone', () => {
+		expect(of(`[c = (path.unite ${R} ${C}) d = (path.offset c 5)]`)).toBeNull()
+	})
+
+	it('is nothing, for what is made from no path', () => {
+		expect(of(`[c = ${R}]`)).toBeNull()
+		expect(of(`[c = (style ${R} fill="#ff0000")]`)).toBeNull()
+		expect(of('[c = (+ 1 2)]')).toBeNull()
+		expect(of(`[c = (path.bounds ${R})]`)).toBeNull()
+	})
+})
+
 describe('fitting', () => {
 	const root = parse('{a = (path.rect [0 0] [10 10]) b = (path.rect [90 40] [10 10])}')
 
