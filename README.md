@@ -17,10 +17,12 @@ ring = (map (range 0 96) (=> (i: number): _
    (+ 400 (* 290 (sin (* i turn))))]))
 [
   dots = (spray ring 7 3 26 44 "#ff4d2e" "#ffd23f")
-  rays = (style
-    (path.radial [400 400]
-      (map (range 0 24) (=> (i: number): _ [(* i 15) 70 215])))
-    stroke="#ffffff" width=3)
+  rays = (map (range 0 24) (=> (i: number): _
+    (style
+      (path.line
+        [(+ 400 (* 70 (cos (* i 4 turn)))) (+ 400 (* 70 (sin (* i 4 turn))))]
+        [(+ 400 (* 215 (cos (* i 4 turn)))) (+ 400 (* 215 (sin (* i 4 turn))))])
+      stroke="#ffffff" width=3)))
   bg = (solid "#1473e6")
 ]
 ```

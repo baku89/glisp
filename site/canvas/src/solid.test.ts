@@ -126,6 +126,13 @@ describe('what was written before', () => {
 		expect(writtenAsNow(own)).toBe(own)
 	})
 
+	it('has lines out from a center come to a group of them, each styled as the whole was', () => {
+		expect(writtenAsNow('(path.radial [10 20] [[0 5 15] [90 0 10]])')).toBe('[line1 = (path.line [15 20] [25 20]) line2 = (path.line [10 20] [10 30])]')
+		expect(writtenAsNow('(style (path.radial [0 0] [[0 1 2]]) stroke="#fff" width=3)')).toBe('[line1 = (style (path.line [1 0] [2 0]) stroke="#fff" width=3)]')
+		const worked = '(path.radial [0 0] (map (range 0 3) f))'
+		expect(writtenAsNow(worked)).toBe(worked)
+	})
+
 	it('has the stops of a Dubins path come to a place and the rest', () => {
 		expect(writtenAsNow('(path.dubinsChain [[0 0 0 50] [200 100.5 -90]] 20)')).toBe('(path.dubinsChain [[[0 0] 0 50] [[200 100.5] -90]] 20)')
 		const already = '(path.dubinsChain [[[0 0] 0] [[1 1] 0]] 20)'

@@ -40,7 +40,6 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.d': 'ph:path',
 	'path.line': 'ph:line-segment',
 	'path.arcStrip': 'ph:wave-sine',
-	'path.radial': 'ph:asterisk',
 	'path.dubinsChain': 'ph:path',
 	spray: 'ph:spray-bottle',
 	triangleStrip: 'ph:triangle',

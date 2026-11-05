@@ -118,7 +118,6 @@ describe('what can be turned as it is written', () => {
 		R,
 		'(path.cubic [0 0] [10 30] [30 30] [40 0])',
 		'(path.arcStrip [[0 0] [10 10] [20 0]])',
-		'(path.radial [5 5] [[0 1 5] [90 1 5]])',
 		'(path.dubinsChain [[[0 0] 0] [[50 50] 0]] 10)',
 		'(path.ellipseFromFoci [0 0] [40 0] [20 10])',
 		'(path.capsule [0 0] [40 20] 5)',
@@ -1223,7 +1222,6 @@ describe('what each thing says to the box around it', () => {
 			`(path.ray ${R} [-20 10] [0 10])`,
 			`(path.transform ${R} [0 1 -1 0 30 5])`,
 			`(path.arcStrip [[0 0] [10 10] [20 0]])`,
-			`(path.radial [5 5] [[0 1 5] [90 1 5]])`,
 			`(path.dubinsChain [[[0 0] 0] [[50 50] 0]] 10)`,
 			`(path.roundCorners (path.mirror (path.mirror ${R} (line.fromPoints [50 0] [50 10])) (line.fromPoints [10 40] [0 40])) 3)`,
 		])('comes out as much larger: %s', src => expectScaled(src))

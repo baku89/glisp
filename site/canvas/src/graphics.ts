@@ -1615,7 +1615,6 @@ withMembers(rectType, {
 // -----------------------------------------------------------------------------
 
 const placesType = makeTupleType([], point)
-const rowsOfNumbers = makeTupleType([], makeTupleType([], number))
 
 /** Where a Dubins path stops on the way, the way it goes on from there, and how tightly if it says. */
 type DubinsStop = readonly [Vec, number, number?]
@@ -1655,21 +1654,6 @@ function arcThrough(start: Vec, by: Vec, end: Vec): Path {
 	const turned = (by[0] - start[0]) * (end[1] - start[1]) - (by[1] - start[1]) * (end[0] - start[0])
 	return Math.abs(turned) < 1e-6 ? line(start, end) : arcByPoints(start, by, end)
 }
-
-const makeRadial = makeTypedFn(
-	[point, rowsOfNumbers],
-	pathType,
-	(center, lines) => {
-		const [x, y] = center as Vec
-		return merged(
-			(lines as number[][]).map(([angle = 0, from = 0, to = 0]) => {
-				const [dx, dy] = [Math.cos((angle * Math.PI) / 180), Math.sin((angle * Math.PI) / 180)]
-				return line([x + dx * from, y + dy * from], [x + dx * to, y + dy * to])
-			})
-		)
-	},
-	['center', 'lines']
-)
 
 const makeDubinsChain = makeTypedFn(
 	[dubinsStopsType, numberOf(20)],
@@ -1730,7 +1714,6 @@ const makeTriangleStrip = withDoc(
 
 withMembers(pathType, {
 	arcStrip: withDoc(makeArcStrip, 'An arc through each three of `places` in a row.', 'Arc Strip'),
-	radial: withDoc(makeRadial, 'Lines out from `center`: each of `lines` is its angle, and how far along that it starts and ends.', 'Radial Lines'),
 	dubinsChain: withDoc(makeDubinsChain, 'The shortest way between each two of `stops`, each a place, the way it is going, and how tightly it can turn on the way from there, or else as tightly as `radius`.', 'Dubins Chain'),
 	bounds: withDoc(makeBounds, 'The area that `path` just fits in.', 'Bounds'),
 	offset: withDoc(makeOffset, 'The outline of `path`, this `distance` out from it, or in, if that is below 0, going around corners by `join`.', 'Offset'),
@@ -2853,17 +2836,6 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	[makeTriangleStrip, args => placesGrip(args[0] as Vec[])],
 	// As many places as a pointer went through, which is not something to take hold of one by one.
 	[makeSpray, args => ({ ...placesGrip(args[0] as Vec[]), handles: [] })],
-	[
-		makeRadial,
-		args => {
-			const center = args[0] as Vec
-			return {
-				handles: [{ kind: 'point', place: 0, at: center, to: (to: Vec) => [change(0, to)] }],
-				guides: [],
-				move: delta => [change(0, add(center, delta))],
-			}
-		},
-	],
 	[
 		makeDubinsChain,
 		args => {
@@ -4203,20 +4175,6 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 			even: false,
 			scaled: (x, y, about) => [change(0, (args[0] as Vec[]).map(at => scaledPlace(at, x, y, about)))],
 			turned: (degrees, about) => [change(0, (args[0] as Vec[]).map(at => turnedPlace(at, degrees, about)))],
-		}),
-	],
-	[
-		makeRadial,
-		args => ({
-			even: true,
-			scaled: (x, y, about) => [
-				change(0, scaledPlace(args[0] as Vec, x, y, about)),
-				change(1, (args[1] as number[][]).map(([angle = 0, from = 0, to = 0]) => [angle, from * x, to * x])),
-			],
-			turned: (degrees, about) => [
-				change(0, turnedPlace(args[0] as Vec, degrees, about)),
-				change(1, (args[1] as number[][]).map(([angle = 0, from = 0, to = 0]) => [angle + degrees, from, to])),
-			],
 		}),
 	],
 	[

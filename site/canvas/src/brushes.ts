@@ -5,10 +5,10 @@
  * One session is one row, however many presses it took, until it is let go of.
  */
 
-import { type Env, type LetAST, parse } from '@glisp/lang'
+import { type AST, type Env, type LetAST, parse, print, toAst } from '@glisp/lang'
 import { withLayerAdded } from '@glisp/tweeq/structure'
 
-import type { Paint, Vec } from './graphics'
+import { type Paint, PAINT_KEYS, styleOf, type Vec } from './graphics'
 import { nameOfKind, type ShapeAttributes } from './scene'
 import { paintOfLine, withPaintDrawn } from './toolAttributes'
 
@@ -148,7 +148,8 @@ export const triangleStrip: Brush<PlacesState & { readonly seed: number }> = {
 }
 
 // -----------------------------------------------------------------------------
-// Lines out from a center that the first press puts down, and a drag moves
+// Lines out from a center that the first press puts down, and a drag moves. What comes of it
+// is a group of lines, like any other: the center is only there to draw them by.
 // -----------------------------------------------------------------------------
 
 interface RadialState {
@@ -166,9 +167,28 @@ const alongFrom = (center: Vec, angle: number, at: Vec): number => {
 }
 const angleFrom = (center: Vec, at: Vec): number => degrees(Math.atan2(at[1] - center[1], at[0] - center[0]))
 
+const pointAlong = ([x, y]: Vec, angle: number, along: number): Vec => {
+	const radians = (angle * Math.PI) / 180
+	return [x + Math.cos(radians) * along, y + Math.sin(radians) * along]
+}
+
+/**
+ * `path` as source, painted as a line is, as a group has no paint of its own to take. With no
+ * color to go by it has no style, and shows as what has no look of its own does.
+ */
+const lineInPaint = (path: string, paint: Paint): string =>
+	paint.stroke === 'none'
+		? path
+		: print(
+				styleOf(
+					parse(path),
+					Object.fromEntries(PAINT_KEYS.map((key): [string, AST] => [key, toAst(paintOfLine(paint, false)[key], null)]))
+				)
+			)
+
 export const radial: Brush<RadialState> = {
 	kind: 'radial',
-	painted: 'line',
+	painted: 'itself',
 	start: () => ({ center: null, settingCenter: false, angle: 0, drawn: [], drawing: null }),
 	press: (state, at) => {
 		if (state.center === null) return { ...state, center: at, settingCenter: true }
@@ -194,11 +214,14 @@ export const radial: Brush<RadialState> = {
 			drawn: from === to ? state.drawn : [...state.drawn, [rounded(state.angle), rounded(from), rounded(to)]],
 		}
 	},
-	source: ({ center, drawn, drawing, angle }) => {
+	source: ({ center, drawn, drawing, angle }, { paint }) => {
 		const all = drawing === null ? drawn : [...drawn, [rounded(angle), rounded(drawing[0]), rounded(drawing[1])]]
-		return center === null || all.length === 0
-			? null
-			: `(path.radial ${place(center)} [${all.map(line => `[${line.join(' ')}]`).join(' ')}])`
+		if (center === null || all.length === 0) return null
+		const lines = all.map(([to, from, end], i) => {
+			const path = `(path.line ${place(pointAlong(center, to, from))} ${place(pointAlong(center, to, end))})`
+			return `line${i + 1} = ${lineInPaint(path, paint)}`
+		})
+		return `[${lines.join(' ')}]`
 	},
 	guides: ({ center, angle }) => {
 		if (center === null) return {}

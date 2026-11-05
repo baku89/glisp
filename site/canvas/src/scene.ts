@@ -1294,7 +1294,8 @@ export const drawsAt = (root: AST, env: Env, row: string): boolean =>
 /**
  * Source as it is written now, from when things went by other names: what fills a canvas was a
  * `background`, what is laid over it a `grid` that could say it had nothing to lay, and a stop
- * on a Dubins path four numbers in a row. A program with its own of those names keeps them.
+ * on a Dubins path four numbers in a row, and lines out from a center a function of their own.
+ * A program with its own of those names keeps them.
  */
 export function writtenAsNow(source: string): string {
 	const renamed = (text: string, old: string, name: string, hiddenAs: string): string =>
@@ -1306,7 +1307,24 @@ export function writtenAsNow(source: string): string {
 					.replaceAll(`(${old})`, `(${name})`)
 	const num = '-?[\\d.]+(?:e-?\\d+)?'
 	const flatRow = new RegExp(`\\[\\s*(${num})\\s+(${num})((?:\\s+${num})*)\\s*\\]`, 'g')
+	// Lines out from a center came to a group of them, each with what the whole was styled by.
+	const rowOfLines = /\[\s*([^\s\][]+)\s+([^\s\][]+)\s+([^\s\][]+)\s*\]/g
+	const round = (n: number): number => Math.round(n * 100) / 100
+	const radial = (x: string, y: string, rows: string, styled: (line: string) => string): string => {
+		const lines = [...rows.matchAll(rowOfLines)].map(([, angle, from, to], i) => {
+			const radians = (Number(angle) * Math.PI) / 180
+			const at = (along: string): string =>
+				`[${round(Number(x) + Math.cos(radians) * Number(along))} ${round(Number(y) + Math.sin(radians) * Number(along))}]`
+			return `line${i + 1} = ${styled(`(path.line ${at(from!)} ${at(to!)})`)}`
+		})
+		return `[${lines.join(' ')}]`
+	}
+	const radialCall = `\\(path\\.radial\\s+\\[\\s*(${num})\\s+(${num})\\s*\\]\\s+\\[((?:\\s*\\[\\s*${num}\\s+${num}\\s+${num}\\s*\\])*)\\s*\\]\\)`
 	return renamed(renamed(source, 'background', 'solid', '"#ffffff"'), 'grid', 'graphPaper', '"dots"')
+		.replace(new RegExp(`\\(style\\s+${radialCall}([^()]*)\\)`, 'g'), (_, x, y, rows, rest) =>
+			radial(x, y, rows, line => `(style ${line}${rest})`)
+		)
+		.replace(new RegExp(radialCall, 'g'), (_, x, y, rows) => radial(x, y, rows, line => line))
 		.replaceAll('(path.style ', '(style ')
 		.replaceAll('/topLeft', '/origin')
 		.replaceAll('topLeft=', 'origin=')

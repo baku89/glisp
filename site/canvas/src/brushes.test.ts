@@ -123,17 +123,32 @@ describe('radial', () => {
 			['drag', [130, 100]],
 			['release', [130, 100]],
 		])
-		expect(row(radial, state).source).toContain('(path.radial [100 100] [[0 30 100]])')
+		expect(row(radial, state).source).toContain('(path.line [130 100] [200 100])')
 	})
 
 	it('keeps to its line, wherever the drag goes', () => {
 		const state = go(radial, [...click([0, 0]), ['press', [100, 0]], ['drag', [150, 90]], ['release', [150, 90]]])
-		expect(row(radial, state).source).toContain('[[0 100 150]]')
+		expect(row(radial, state).source).toContain('(path.line [100 0] [150 0])')
 	})
 
 	it('moves the center by a drag of the first press', () => {
 		const state = go(radial, [['press', [0, 0]], ['drag', [40, 40]], ['release', [40, 40]], ['press', [90, 40]], ['drag', [120, 40]], ['release', [120, 40]]])
-		expect(row(radial, state).source).toContain('(path.radial [40 40]')
+		expect(row(radial, state).source).toContain('(path.line [90 40] [120 40])')
+	})
+
+	it('comes to a group of lines, each painted as a line is, and one row however many there are', () => {
+		const pull = (from: Vec, to: Vec): Step[] => [['press', from], ['drag', to], ['release', to]]
+		const state = go(radial, [...click([0, 0]), ...pull([10, 0], [50, 0]), ...pull([0, 10], [0, 50])])
+		const { ast, shapes } = row(radial, state)
+		expect(ast.bindings).toHaveLength(1)
+		expect(shapes.map(({ row: at }) => at).sort()).toEqual(['binding:radial1/binding:line1', 'binding:radial1/binding:line2'])
+		expect(shapes.every(({ paint }) => paint?.fill === 'none')).toBe(true)
+	})
+
+	it('has no style with no color for its line, to be seen as what has none is', () => {
+		const state = go(radial, [...click([0, 0]), ['press', [10, 0]], ['drag', [50, 0]], ['release', [50, 0]]])
+		const none = brushed(blank, env, radial, state, { ...context, paint: NO_PAINT }, true)
+		expect(print(none.bindings[0]![1])).toBe('[line1 = (path.line [10 0] [50 0])]')
 	})
 
 	it('leaves out a press that went nowhere', () => {
@@ -238,12 +253,6 @@ describe('what a brush has drawn', () => {
 		const grip = gripOf('(spray [[0 0] [10 0]] 3 5 20 40 "#ff0000" "#0000ff")')
 		expect(grip.handles).toEqual([])
 		expect(grip.move!([1, 1])).toEqual([{ route: [0], value: [[1, 1], [11, 1]] }])
-	})
-
-	it('moves radial lines by their center', () => {
-		const grip = gripOf('(path.radial [10 10] [[0 5 20]])')
-		expect(grip.handles.map(handle => handle.at)).toEqual([[10, 10]])
-		expect(grip.move!([1, 0])).toEqual([{ route: [0], value: [11, 10] }])
 	})
 
 	it('moves a stop of a Dubins path, going the way it was going', () => {
