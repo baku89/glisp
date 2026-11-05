@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { print } from '@glisp/lang'
 import * as monaco from 'monaco-editor'
 import { InputButton } from 'tweeq/InputButton'
 import { InputCode } from 'tweeq/InputCode'
 import { computed, nextTick, ref, watch } from 'vue'
 
 import { type GlispDocument } from './document'
-import { EDITOR_OPTIONS, GLISP, registerGlisp } from './language'
+import { EDITOR_OPTIONS, formatIn, GLISP, registerGlisp } from './language'
 import { readProgram, rowsAcross, rowWritten, sourceOfProgram, writtenAt } from './programSource'
 
 const props = defineProps<{
@@ -143,7 +142,7 @@ watch(
 // Whatever can be read shows as it is written, for its result to be watched.
 watch(draft, () => {
 	const current = reading.value
-	if ('ast' in current && print(current.ast) !== print(props.document.root.value)) {
+	if ('ast' in current && sourceOfProgram(current.ast) !== sourceOfProgram(props.document.root.value)) {
 		props.document.setRoot(current.ast)
 	}
 })
@@ -161,7 +160,7 @@ watch(
 // written, or it cannot be read, so as not to lose what was being typed.
 watch(props.document.root, root => {
 	const current = reading.value
-	if ('ast' in current && print(current.ast) !== print(root)) {
+	if ('ast' in current && sourceOfProgram(current.ast) !== sourceOfProgram(root)) {
 		draft.value = sourceOfProgram(root)
 	}
 })
@@ -169,6 +168,15 @@ watch(props.document.root, root => {
 function revert(): void {
 	draft.value = sourceOfProgram(props.document.root.value)
 }
+
+/** Lays out anew what is selected, or all of it if nothing is. */
+function format(): void {
+	if (editor === null) return
+	editor.focus()
+	formatIn(editor)
+}
+
+defineExpose({ format })
 </script>
 
 <template>

@@ -3,22 +3,54 @@
  * that goes unsaid.
  */
 
-import { type AST, type Env, LetAST, parse, print } from '@glisp/lang'
+import { type AST, type Env, lex, LetAST, parse, print } from '@glisp/lang'
 
 import { layersOf, viewOf, type Slot } from './structure'
+
+/** How far in the line that `ast` starts on is, where it was written. */
+function indentWritten({ source }: AST): number | null {
+	if (source === undefined) return null
+	const line = source.text.lastIndexOf('\n', source.start - 1) + 1
+	return /^[ \t]*/.exec(source.text.slice(line, source.start))![0].length
+}
+
+/**
+ * `ast` as written, for a line indented by `indent`: what it goes on with on other lines goes as
+ * far along as that has, as what was written somewhere else would otherwise stay where it was.
+ */
+function printedAt(ast: AST, indent: number): string {
+	const text = print(ast)
+	const was = indentWritten(ast)
+	if (was === null || was === indent || !text.includes('\n')) return text
+	// What is a string only says so, and its lines are what it holds.
+	const inString = lex(text)
+		.filter(({ kind }) => kind === 'string')
+		.map(({ start, end }) => [start, end] as const)
+	let at = 0
+	return text
+		.split('\n')
+		.map((line, i) => {
+			const start = at
+			at += line.length + 1
+			if (i === 0 || line.trim() === '' || inString.some(([from, to]) => from < start && start < to)) return line
+			const kept = /^[ \t]*/.exec(line)![0].length
+			return ' '.repeat(Math.max(kept + indent - was, 0)) + line.slice(kept)
+		})
+		.join('\n')
+}
 
 /** What is only bound, a binding to a line, and then what the program's vector holds, one to a line. */
 export function sourceOfProgram(root: LetAST): string {
 	const held = new Set(layersOf(root))
 	const lines = root.bindings
 		.filter(([name]) => !held.has(name))
-		.map(([name, value]) => `${name} = ${print(value)}`)
+		.map(([name, value]) => `${name} = ${printedAt(value, 0)}`)
 	if (root.body?.kind !== 'vec') return lines.join('\n')
 	const said = new Set<string>()
 	const elements = root.body.elements.map(element => {
-		if (element.kind !== 'sym' || !held.has(element.name) || said.has(element.name)) return print(element)
+		if (element.kind !== 'sym' || !held.has(element.name) || said.has(element.name)) return printedAt(element, 2)
 		said.add(element.name)
-		return `${element.name} = ${print(root.bindings.find(([name]) => name === element.name)![1])}`
+		return `${element.name} = ${printedAt(root.bindings.find(([name]) => name === element.name)![1], 2)}`
 	})
 	return [...lines, elements.length === 0 ? '[]' : `[\n${elements.map(line => `  ${line}`).join('\n')}\n]`].join('\n')
 }

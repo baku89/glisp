@@ -4,6 +4,7 @@ import {
 	AstEditor,
 	AstMultiInspector,
 	AstProgramCode,
+	formatOneExpression,
 	inspectionOf,
 	useGlispDocument,
 } from '@glisp/tweeq'
@@ -442,6 +443,7 @@ watchEffect(
 	{ flush: 'post' }
 )
 
+const $code = useTemplateRef<{ format(): void }>('$code')
 const $editor = useTemplateRef<{
 	reveal(path: string): void
 	deselect(): void
@@ -943,6 +945,19 @@ actions.register([
 		order: 20,
 		icon: 'mdi:pencil-outline',
 		children: [
+			{
+				id: 'edit_format_code',
+				label: 'Format Code',
+				icon: 'mdi:format-align-left',
+				hint: ['⌘', '⇧', 'F'],
+				perform: async () => {
+					// What is open for one thing to be written is what it is about, and nothing else.
+					if (formatOneExpression()) return
+					showCode()
+					await nextTick()
+					$code.value?.format()
+				},
+			},
 			{ id: 'edit_undo', label: 'Undo', icon: 'mdi:undo', perform: () => document.undo() },
 			{ id: 'edit_redo', label: 'Redo', icon: 'mdi:redo', perform: () => document.redo() },
 			{ id: 'edit_cut', label: 'Cut', icon: 'mdi:content-cut', params: [rowsParam], perform: onRows(() => $editor.value?.cut()) },
@@ -1286,6 +1301,7 @@ function selectInTree(row: string | null): void {
 					</div>
 					<div v-if="codeOpened" v-show="projectTab === 'code'" class="tab-content">
 						<AstProgramCode
+							ref="$code"
 							:document="document"
 							:selected="selected"
 							@problem="codeHasProblem = $event"

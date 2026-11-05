@@ -45,6 +45,8 @@ useEventListener(
 	(event: PointerEvent) => {
 		const target = event.target as Element | null
 		if (target?.closest('.AstCodePopup, .monaco-editor')) return
+		// What asks for something to be done to it, which is not going away from it.
+		if (target?.closest('.TqCommandPalette, .TqMenu, .TqTitleBar')) return
 		if (target !== null && props.opener?.contains(target)) return
 		emit('finish')
 	},

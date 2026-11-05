@@ -217,6 +217,8 @@ new IO('description', () => {
 
 `parse(source)` throws `ParseError` or `LexError` on bad syntax. `print(ast)` gives the source back, with its whitespace and comments if it came from `parse`, and with default formatting otherwise.
 
+`format(source, {width?})` lays source out anew, in lines of up to `width` (80) where they can be broken, and `formatRange(source, from, to, {width?})` does so only for the least of what is written that has all of `from` to `to` in it, as `{from, to, text}`, or null if nothing is there. The source need not be one expression, as a program's bindings are not. Only what is between tokens changes, and comments stay. Both throw `ParseError` or `LexError` if its brackets do not go together, and neither takes an AST, which has no comments.
+
 The builders are functions, also collected as `g`:
 
 | Builder                          | Result                       |

@@ -2,6 +2,7 @@
  * Glisp as a language for Monaco.
  */
 
+import { format, formatRange } from '@glisp/lang'
 import * as monaco from 'monaco-editor'
 
 import { LINE_START, type LineState, tokenizeLine } from './highlight'
@@ -37,6 +38,43 @@ class GlispState implements monaco.languages.IState {
 	}
 }
 
+/** As wide as a line can be and not wrap, where `model` is being shown, for what is laid out to stay so. */
+function widthOf(model: monaco.editor.ITextModel): number | undefined {
+	const shown = monaco.editor.getEditors().find(editor => editor.getModel() === model)
+	const columns = shown?.getLayoutInfo().viewportColumn
+	return columns === undefined || columns < 1 ? undefined : Math.min(columns, MOST_WIDTH)
+}
+
+/** `range` of what is in `model` laid out anew, or nothing if it cannot be read yet. */
+function formatted(model: monaco.editor.ITextModel, range: monaco.IRange): monaco.languages.TextEdit[] {
+	const source = model.getValue()
+	const whole = model.getFullModelRange()
+	const options = { width: widthOf(model) }
+	try {
+		if (monaco.Range.equalsRange(range, whole)) return [{ range: whole, text: format(source, options) }]
+		const edit = formatRange(
+			source,
+			model.getOffsetAt(monaco.Range.getStartPosition(range)),
+			model.getOffsetAt(monaco.Range.getEndPosition(range)),
+			options
+		)
+		if (edit === null) return []
+		const [from, to] = [model.getPositionAt(edit.from), model.getPositionAt(edit.to)]
+		return [{ range: monaco.Range.fromPositions(from, to), text: edit.text }]
+	} catch {
+		return []
+	}
+}
+
+/** How long a line gets, however much room there is. */
+const MOST_WIDTH = 80
+
+/** Lays out anew what is selected in `editor`, or all of it if nothing is. */
+export function formatIn(editor: monaco.editor.ICodeEditor): void {
+	const action = editor.getSelection()?.isEmpty() === false ? 'formatSelection' : 'formatDocument'
+	void editor.getAction(`editor.action.${action}`)?.run()
+}
+
 let registered = false
 
 /** Register the language, once. Monaco's registry is global. */
@@ -59,6 +97,27 @@ export function registerGlisp(): void {
 			{ open: '{', close: '}' },
 			{ open: '"', close: '"' },
 		],
+	})
+
+	monaco.languages.registerDocumentFormattingEditProvider(GLISP, {
+		provideDocumentFormattingEdits: model => formatted(model, model.getFullModelRange()),
+	})
+	monaco.languages.registerDocumentRangeFormattingEditProvider(GLISP, {
+		provideDocumentRangeFormattingEdits: (model, range) => formatted(model, range),
+	})
+	// By the key that is there, as what an input method is in the middle of says nothing of it.
+	monaco.editor.onDidCreateEditor(editor => {
+		editor.getContainerDomNode().addEventListener(
+			'keydown',
+			event => {
+				const isFormat = event.code === 'KeyF' && event.shiftKey && !event.altKey && (event.metaKey || event.ctrlKey)
+				if (!isFormat || editor.getModel()?.getLanguageId() !== GLISP) return
+				event.preventDefault()
+				event.stopPropagation()
+				formatIn(editor)
+			},
+			{ capture: true }
+		)
 	})
 
 	monaco.languages.setTokensProvider(GLISP, {
@@ -96,6 +155,19 @@ export function registerPathData(): void {
 	} as monaco.languages.IMonarchLanguage)
 }
 
+/** What is open for one expression to be written, which is what anything asked for now is about. */
+let oneExpression: monaco.editor.IStandaloneCodeEditor | null = null
+
+/** Lays out what is open for one expression to be written, returning whether anything is. */
+export function formatOneExpression(): boolean {
+	if (oneExpression === null) return false
+	if (oneExpression.getModel()?.getLanguageId() === GLISP) {
+		oneExpression.focus()
+		formatIn(oneExpression)
+	}
+	return true
+}
+
 /**
  * Make an editor edit one expression, going on from its end: Cmd+Enter confirms, Esc
  * cancels, and Enter goes on to the next line.
@@ -110,6 +182,10 @@ export function editOneExpression(
 	const range = editor.getModel()?.getFullModelRange()
 	if (range !== undefined) editor.setPosition(range.getEndPosition())
 	editor.focus()
+	oneExpression = editor
+	editor.onDidDispose(() => {
+		if (oneExpression === editor) oneExpression = null
+	})
 	editor.onKeyDown(event => {
 		const cancelling = event.keyCode === monaco.KeyCode.Escape
 		const confirming =
