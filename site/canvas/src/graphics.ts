@@ -67,7 +67,7 @@ import { exclude, intersect, subtract, unite } from 'pave/path/boolean'
 import { dash } from 'pave/path/dash'
 import { bulge, twirl, wave } from 'pave/path/distortions'
 import { convexHull } from 'pave/path/hull'
-import { mirror, reflect } from 'pave/path/mirror'
+import { kaleidoscope, kaleidoscopeTile, mirror, reflect } from 'pave/path/mirror'
 import { chamfer, fillet, flatten, reverse, subdivide, zigzag } from 'pave/path/modifiers'
 import { blend, blendSeries, repeatAlong, type RepeatAlongOptions } from 'pave/path/layout'
 import { raycast } from 'pave/path/raycast'
@@ -1255,6 +1255,71 @@ const startingAs = (written: string, path: Path): TypeValue => {
 	}) as TypeValue
 	return pathType.meta ? withTypeMeta(plain, pathType.meta) : plain
 }
+/** How many mirrors meet, which are at least the one. */
+const mirrorCount = withTypeMeta(
+	withDefault(number, 6),
+	new RecordAST([
+		['min', lit(1)],
+		['step', lit(1)],
+	])
+)
+/** The most mirrors, as what is between them gets too thin to see well before that. */
+const MOST_MIRRORS = 180
+const mirrorsOf = (count: unknown): number =>
+	Math.max(1, Math.min(Math.round(finite(count)), MOST_MIRRORS))
+const makeKaleidoscope = withInitial(
+	withOptional(
+		makeTypedFn(
+			[pathType, point, mirrorCount, angleType],
+			pathType,
+			(path, center, count, angle) =>
+				new PathValue(kaleidoscope(pathOf(path), center as Vec, mirrorsOf(count), finite(angle))),
+			['path', 'center', 'count', 'angle']
+		),
+		['angle']
+	),
+	(path: unknown) => [aroundOf(pathOf(path)).middle]
+)
+/** The corners of a shape that is all straight sides, for a tile to be. */
+const cornersOfTile = (path: Path): Vec[] | null => {
+	const [curve, ...others] = (path as unknown as { curves: readonly Curve[] }).curves
+	if (curve === undefined || others.length > 0 || !curve.closed) return null
+	return curve.vertices.every(({ command }) => command === 'L')
+		? curve.vertices.map(({ point }) => point as unknown as Vec)
+		: null
+}
+const makeKaleidoscopeTile = withInitial(
+	makeTypedFn(
+		[
+			pathType,
+			startingAs('(path.rect [0 0] [100 100])', rectangle([0, 0], [100, 100])),
+			withDefault(rectType, new RectValue([-100, -100], [300, 300])),
+		],
+		pathType,
+		(path, cell, area) => {
+			const corners = cornersOfTile(pathOf(cell))
+			if (corners === null) return path
+			const [from, to] = cornersOf(area as RectValue)
+			try {
+				return new PathValue(kaleidoscopeTile(pathOf(path), corners, [from, to]))
+			} catch {
+				// Not a shape whose reflections fit together, which it may be on the way to.
+				return path
+			}
+		},
+		['path', 'cell', 'area']
+	),
+	(path: unknown) => {
+		const [[left, top], [right, bottom]] = bounds(pathOf(path))
+		const [width, height] = [right - left, bottom - top]
+		// What has no width or no height has as much of one as of the other, for there to be a tile.
+		const [w, h] = [width || height || 100, height || width || 100]
+		return [
+			new CallAST(parse('path.rect'), [toAst([left, top], null), toAst([w, h], null)]),
+			new CallAST(parse('rect.new'), [toAst([left - w, top - h], null), toAst([w * 3, h * 3], null)]),
+		]
+	}
+)
 const lengthOf = (value: number): TypeValue => withDefault(number, value)
 const booleanType = evaluate(parse('boolean'), buildPrelude()).value as TypeValue
 const makeZigzag = withOptional(
@@ -1657,6 +1722,8 @@ withMembers(pathType, {
 	chamfer: withDoc(makeChamfer, 'The same `path`, with its corners cut off `distance` back along each side.', 'Chamfer'),
 	mirror: withDoc(makeMirror, 'The `path`, and what it is across `line`, as one.', 'Mirror'),
 	reflect: withDoc(makeReflect, 'What `path` is across `line`.', 'Reflect'),
+	kaleidoscope: withDoc(makeKaleidoscope, 'What of `path` is in the wedge from `angle` in degrees around `center`, reflected back and forth around it between as many mirrors as `count`.', 'Kaleidoscope'),
+	kaleidoscopeTile: withDoc(makeKaleidoscopeTile, 'What of `path` is in `cell`, reflected back and forth across its sides, as far as it takes to cover `area`. A `cell` is a rectangle, or a triangle of 60-60-60, 45-45-90 or 30-60-90 degrees, the only shapes whose reflections fit together.', 'Kaleidoscope Tile'),
 	zigzag: withDoc(makeZigzag, 'The `path`, going from side to side by `amplitude`, once every `wavelength` along it.', 'Zigzag'),
 	wave: withDoc(makeWave, 'The `path`, moved by a wave of this `amplitude` and `wavelength`.', 'Wave'),
 	twirl: withDoc(makeTwirl, 'The `path`, turned around `center` by `angle` in degrees, less so out to `radius`.', 'Twirl'),
@@ -3639,6 +3706,77 @@ const acrossLine = (keepsASide: boolean): Maker => (args, inner, proportional, f
 makers.set(makeMirror, acrossLine(true))
 makers.set(makeReflect, acrossLine(false))
 
+/** How many mirrors there are, by how far the second of them is from the first, on a ring. */
+const mirrorDial = (arg: number, c: Vec, ring: number, count: number, first: number): Handle => ({
+	kind: 'dia',
+	at: add(c, toward(first + 180 / count, ring)),
+	to: to => {
+		const apart = Math.min(180, Math.max(3, Math.abs(shortest(degrees(sub(to, c)) - first))))
+		return [change(arg, Math.round(180 / apart))]
+	},
+})
+makers.set(makeKaleidoscope, (args, inner, proportional, free) => {
+	const [, center, count, angle] = args
+	const c = center as Vec
+	const mirrors = mirrorsOf(count)
+	const first = finite(angle)
+	const whole = BOX_ANSWERS.get(makeKaleidoscope)?.(args, inner)?.turned
+	// The mirrors alone change what is seen, which turning all of it along with them does not.
+	const turning: Handle[] =
+		whole === undefined
+			? []
+			: [
+					{
+						kind: 'direction',
+						rotates: true,
+						at: add(c, toward(first, GIZMO_SIZE)),
+						pivot: c,
+						angle: first,
+						to: (to, _, how) => whole(angleHeld(c, first, to, how) - first, c),
+					},
+				]
+	return showingPath(
+		() => ({
+			// Only as far as the wedge goes, being what it is that is reflected.
+			guides: [
+				line(c, add(c, toward(first, LINE_REACH))),
+				line(c, add(c, toward(first + 180 / mirrors, LINE_REACH))),
+			],
+			handles: [
+				pointHandle(1, c),
+				{
+					kind: 'direction',
+					at: add(c, toward(first, GIZMO_SIZE)),
+					pivot: c,
+					angle: first,
+					to: (to, _, how) => [change(3, angleHeld(c, first, to, how))],
+				},
+				mirrorDial(2, c, GIZMO_SIZE, mirrors, first),
+				...turning,
+			],
+		}),
+		[1]
+	)(args, inner, proportional, free)
+})
+// A tile is a shape, and what it covers an area, each taken hold of as it is by itself.
+makers.set(makeKaleidoscopeTile, (args, inner, proportional, free) => {
+	const [shape, cell, area] = [inner(0), inner(1), inner(2)]
+	const all = [shape, cell, area]
+	return {
+		...showingPath(() => ({
+			guides: [
+				pathOf(args[1]),
+				outlineOf(args[2] as RectValue),
+				...(cell?.guides ?? []),
+				...(area?.guides ?? []),
+			],
+			handles: [...(cell?.handles ?? []), ...(area?.handles ?? [])],
+		}))(args, inner, proportional, free),
+		// All together or not at all, as moving only some of them changes what is seen.
+		move: all.every(grip => grip?.move !== undefined) ? movingAll(all) : undefined,
+	}
+})
+
 makers.set(makeShadow, showingPath(([path, by]) => {
 	const center = middleOf(pathOf(path))
 	const tip = add(center, by as Vec)
@@ -3962,6 +4100,30 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 	],
 	[makeMirror, acrossAnswer],
 	[makeReflect, acrossAnswer],
+	[
+		makeKaleidoscope,
+		(args, inner) => {
+			const box = inProportion(makeKaleidoscope, { places: [1] })(args, inner)
+			const source = inner(0)?.box?.turned
+			return box === null || source === undefined
+				? box
+				: {
+						...box,
+						turned: (degrees, about) => [
+							...source(degrees, about),
+							change(1, turnedPlace(args[1] as Vec, degrees, about)),
+							change(3, finite(args[3]) + degrees),
+						],
+					}
+		},
+	],
+	// A tile only goes on being one by a scale that is the same each way.
+	[
+		makeKaleidoscopeTile,
+		(_, inner) =>
+			answeredTogether([inner(0)?.box, inner(1)?.box, inner(2)?.box], { even: true, keepsAxes: false, turns: false }),
+	],
+	[makeArea, fromOrigin],
 	[makeOffset, inProportion(makeOffset, { lengths: [1], keepsAxes: true })],
 	[makeOffsetStroke, inProportion(makeOffsetStroke, { lengths: [1], keepsAxes: true })],
 	[makeRoundCorners, inProportion(makeRoundCorners, { lengths: [1], keepsAxes: true })],

@@ -511,6 +511,8 @@ describe('what else goes around a path', () => {
 		`(path.chamfer ${Q} 5)`,
 		`(path.mirror ${Q} (line.fromPoints [40 0] [40 20]))`,
 		`(path.reflect ${Q} (line.fromPoints [40 0] [40 20]))`,
+		`(path.kaleidoscope ${Q} [20 10] 6)`,
+		`(path.kaleidoscopeTile ${Q} (path.rect [0 0] [40 20]) (rect.new [-40 -20] [120 60]))`,
 		`(path.zigzag ${Q} 2 10)`,
 		`(path.wave ${Q} 2 10)`,
 		`(path.twirl ${Q} [20 10] 30 90)`,
@@ -547,6 +549,123 @@ describe('what else goes around a path', () => {
 		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.mirror')!
 		const next = wrappedAt(parse(`{c = ${Q}}`), env, 'binding:c', filter)!
 		expect(print(next)).toContain('(line.fromPoints [40 0] [40 20])')
+	})
+
+	it('starts a kaleidoscope around the middle of what it reflects', () => {
+		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.kaleidoscope')!
+		const next = wrappedAt(parse(`{c = ${Q}}`), env, 'binding:c', filter)!
+		expect(print(next)).toContain('[20 10] 6')
+	})
+
+	it('starts tiling with a tile around what it reflects, and all that is next to that', () => {
+		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.kaleidoscopeTile')!
+		expect(filter.more).toEqual([])
+		const next = wrappedAt(parse(`{c = ${Q}}`), env, 'binding:c', filter)!
+		expect(print(next)).toContain('(path.rect [0 0] [40 20]) (rect.new [-40 -20] [120 60])')
+		const { value, diagnostics } = evaluate(next, env)
+		expect(diagnostics).toEqual([])
+		expect(value).not.toBeUndefined()
+	})
+
+	it('makes twice as many of a thing as there are mirrors', () => {
+		const inWedge = '(path.circle [50 10] 5)'
+		const { curves } = (ofFilter(`(path.kaleidoscope ${inWedge} [0 0] 4)`).value as PathValue).path
+		expect(curves).toHaveLength(8)
+	})
+
+	it('has how many mirrors there are by a dial, and turns by the first of them', () => {
+		const { handles, guides } = grip(`(path.kaleidoscope ${Q} [20 10] 3 30)`)
+		expect(handles.map(({ kind }) => kind)).toEqual(['point', 'direction', 'dia'])
+		expect(guides).toHaveLength(2)
+		const [center, turn, dial] = handles
+		expect(center!.to([1, 2], [20, 10])).toEqual([{ route: [1], value: [1, 2] }])
+		expect(turn!.to([20, 110], turn!.at!)).toEqual([{ route: [3], value: 90 }])
+		// Having gone 45 degrees from the first mirror, which is as far apart as 4 of them are.
+		expect(dial!.to(add2([20, 10], 75), dial!.at!)).toEqual([{ route: [2], value: 4 }])
+	})
+
+	describe('moved or turned as a whole', () => {
+		const SOURCES = [
+			'(path.circle [50 10] 5)',
+			'(path.ngon [60 15] 12 5 10)',
+			'(path.star [60 15] 12 5 5)',
+			'(path.ellipse [60 15] [14 6] 25)',
+			'(path.polygon [40 5] [80 8] [70 30])',
+		]
+		const of = (ast: AST) => (valueOfRow(ast, env, 'binding:c') as PathValue).path
+		const expectSame = (a: PathValue['path'], b: PathValue['path']) => {
+			const [[left, top], [right, bottom]] = bounds(a)
+			const [[l, t], [r, under]] = bounds(b)
+			for (const [x, y] of [[left, l], [top, t], [right, r], [bottom, under]] as const) expect(x).toBeCloseTo(y, 6)
+			expect(a.curves.length).toBe(b.curves.length)
+		}
+
+		it.each(SOURCES)('moves all of a kaleidoscope of %s', source => {
+			const root = parse(`{c = (path.kaleidoscope ${source} [10 20] 3 5)}`)
+			const { ast } = changed(root, env, 'binding:c', gripAt(root, env, 'binding:c')!.move!([30, -40]))
+			expectSame(of(ast!), transform(of(root), [1, 0, 0, 1, 30, -40]))
+		})
+
+		it('moves all of a tiling', () => {
+			const root = parse('{c = (path.kaleidoscopeTile (path.circle [5 5] 8) (path.rect [0 0] [10 10]) (rect.new [1 1] [38 18]))}')
+			const { ast } = changed(root, env, 'binding:c', gripAt(root, env, 'binding:c')!.move!([30, -40]))
+			expectSame(of(ast!), transform(of(root), [1, 0, 0, 1, 30, -40]))
+		})
+
+		it.each(SOURCES)('turns all of a kaleidoscope of %s', source => {
+			const root = parse(`{c = (path.kaleidoscope ${source} [10 20] 3 5)}`)
+			const { ast } = changed(root, env, 'binding:c', gripAt(root, env, 'binding:c')!.box!.turned!(90, [100, 50]))
+			// 90 degrees around [100 50] takes (x, y) to (150 - y, x - 50)
+			expectSame(of(ast!), transform(of(root), [0, 1, -1, 0, 150, -50]))
+		})
+
+		it('has what turns all of it, as well as what turns only the mirrors', () => {
+			const root = parse('{c = (path.kaleidoscope (path.circle [50 10] 5) [0 0] 3 0)}')
+			const { handles } = gripAt(root, env, 'binding:c')!
+			expect(handles.filter(({ kind }) => kind === 'direction').map(({ rotates }) => rotates === true)).toEqual([false, true])
+			const whole = handles.find(({ rotates }) => rotates)!
+			const { ast } = changed(root, env, 'binding:c', whole.to([0, 100], whole.at!))
+			expectSame(of(ast!), transform(of(root), [0, 1, -1, 0, 0, 0]))
+		})
+	})
+
+	it('tiles what is in the tile, and goes as far as the area', () => {
+		const widthOf = (area: string): number => {
+			const [[left], [right]] = bounds(
+				(ofFilter(`(path.kaleidoscopeTile (path.circle [5 5] 2) (path.rect [0 0] [10 10]) ${area})`).value as PathValue).path
+			)
+			return right - left
+		}
+		// Between the first, at 3 to 7, and the last, at 43 to 47
+		expect(widthOf('(rect.new [1 1] [48 8])')).toBeCloseTo(44)
+		expect(widthOf('(rect.new [1 1] [8 8])')).toBeCloseTo(4)
+	})
+
+	it.each([
+		['a triangle that is a third of a turn', '(path.ngon [0 0] 50 3)', 6],
+		['a triangle written out', '(path.polygon [0 0] [50 0] [0 50])', 8],
+	])('can tile with %s', (_, cell, around) => {
+		const [tile] = [cell]
+		const p = (ofFilter(
+			`(path.kaleidoscopeTile (path.circle [8 8] 1) ${tile} (rect.new [-300 -300] [600 600]))`
+		).value as PathValue).path
+		expect(p.curves.length).toBeGreaterThan(around)
+	})
+
+	it.each(['(path.ngon [0 0] 50 5)', '(path.circle [0 0] 50)', '(path.rect [0 0] [0 0])'])(
+		'leaves it as it is, with a tile whose reflections do not fit together, %s',
+		cell => {
+			const { value, diagnostics } = ofFilter(`(path.kaleidoscopeTile ${Q} ${cell} (rect.new [0 0] [100 100]))`)
+			expect(diagnostics).toEqual([])
+			expect(toD((value as PathValue).path)).toBe(toD((ofFilter(Q).value as PathValue).path))
+		}
+	)
+
+	it('has the handles of the tile and of the area', () => {
+		const { handles, sources } = grip(`(path.kaleidoscopeTile ${Q} (path.rect [0 0] [40 20]) (rect.new [-40 -20] [120 60]))`)
+		expect(sources).toHaveLength(1)
+		const routes = new Set(handles.flatMap(handle => (handle.at === undefined ? [] : handle.to(handle.at, handle.at))).map(({ route }) => route[0]))
+		expect([...routes].sort()).toEqual([1, 2])
 	})
 
 	it('starts what goes around a center at the middle of it', () => {

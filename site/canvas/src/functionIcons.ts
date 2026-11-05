@@ -29,6 +29,8 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'line.fromPoints': STRAIGHT_LINE_ICON,
 	'line.at': STRAIGHT_LINE_ICON,
 	'path.reflect': 'mdi:flip-horizontal',
+	'path.kaleidoscope': 'ph:flower',
+	'path.kaleidoscopeTile': 'ph:checkerboard',
 	'path.dash': 'mdi:vector-polyline-minus',
 	'path.subtract': 'mdi:vector-difference-ba',
 	'path.intersect': 'mdi:vector-intersection',
