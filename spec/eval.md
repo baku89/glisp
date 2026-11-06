@@ -215,7 +215,7 @@ Three forms have evaluation semantics that go beyond ordinary function applicati
 
 #### `%` — partial-application desugaring
 
-`%` is rewritten to a function literal by a pre-evaluation pass over the AST. The pass is bottom-up: any node N ∈ {Application, Vector, Record} that directly contains the bare token `%` is replaced with an internal function-literal AST equivalent to
+A node written with `#` is rewritten to a function literal by a pre-evaluation pass over the AST. The pass is bottom-up: each node N ∈ {Application, Vector, Record} with `#` is replaced with an internal function-literal AST equivalent to
 
 ```
 (=> [x: T] [N with all % occurrences replaced by x])
@@ -223,10 +223,10 @@ Three forms have evaluation semantics that go beyond ordinary function applicati
 
 where the parameter type `T` is **inferred from context** during the type-inference pass — typically from how the surrounding expression uses N's value. The desugared literal is *internal*: the source-level rule "every parameter must be named with a type annotation" applies to user-written code, not to AST nodes synthesized by this pass. The inference pass closes the gap by deriving `T`.
 
-Bottom-up order ensures `%` binds to its **smallest** enclosing form. After this pass:
+Bottom-up order ensures `%` binds to the **innermost** `#` around it: by the time a `#` is rewritten, those inside it have no `%` left, and every `%` remaining in N, at any depth, is its own. After this pass:
 
-- The AST contains no remaining bare `%` tokens at expression positions; any leftover `%` (in a type position, parameter list, or record key — see [syntax.md](./syntax.md#partial-application--)) is a syntax error.
-- A function literal `(=> ...)` may legitimately enclose a desugared sub-expression: `(=> [x: number]: R (* x %))` becomes `(=> [x: number]: R (=> [y: number] (* x y)))`, a higher-order result. The outer literal's body now contains an inner literal — both are valid.
+- The AST contains no remaining bare `%` tokens at expression positions; a `%` outside `#`, or in a type position, parameter list, or record key (see [syntax.md](./syntax.md#partial-application--)), is a syntax error.
+- A function literal `(=> ...)` may legitimately enclose a desugared sub-expression: `(=> [x: number]: R #(* x %))` becomes `(=> [x: number]: R (=> [y: number] (* x y)))`, a higher-order result. The outer literal's body now contains an inner literal — both are valid.
 - All subsequent `eval` / `expand` proceeds on a `%`-free AST.
 
 #### `?` — match
@@ -249,8 +249,7 @@ A static check ensures every `resK` has the same type. The result type of the wh
 
 The AST has the shape `(|> input step1 step2 ... stepN)`. After the `%` desugaring pass:
 
-- If `input` is the bare `%`, the desugaring pass has already rewritten the entire form to `(=> [x] (|> x step1 ... stepN))`, so the `|>` evaluation rule below applies inside that closure body.
-- Otherwise, `input` is an ordinary expression and each `stepK` is an ordinary expression evaluating to a function.
+- `input` is an ordinary expression and each `stepK` is an ordinary expression evaluating to a function. `#(|> % step1 ... stepN)` is a function by the `%` pass, and the rule below applies inside its body.
 
 Evaluation:
 

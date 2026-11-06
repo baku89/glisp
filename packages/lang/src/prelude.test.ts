@@ -28,8 +28,8 @@ describe('prelude — identities', () => {
 })
 
 describe('coerce form with %', () => {
-	it('(: % T) is a function that coerces its argument', () => {
-		const r = evaluate(parse('(map ["a" 1] (: % number))'), buildPrelude())
+	it('#(: % T) is a function that coerces its argument', () => {
+		const r = evaluate(parse('(map ["a" 1] #(: % number))'), buildPrelude())
 		expect(r.value).toEqual([0, 1])
 	})
 })
@@ -336,7 +336,7 @@ describe('parameter labels', () => {
 	})
 
 	it('change nothing about the function', () => {
-		const r = evaluate(parse('(map [1 2] (* % 2))'), buildPrelude())
+		const r = evaluate(parse('(map [1 2] #(* % 2))'), buildPrelude())
 		expect(r.value).toEqual([2, 4])
 		expect(r.diagnostics).toEqual([])
 	})

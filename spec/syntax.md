@@ -423,39 +423,39 @@ No separate `if` form is provided.
 ```glisp
 (|> 5 double)              ;; ≡ (double 5)
 (|> 5 double show)         ;; ≡ (show (double 5))
-(|> 5 (+ 2 %))             ;; ≡ ((=> [x] (+ 2 x)) 5) → 7
-(|> 5 (f a % b))           ;; ≡ ((=> [x] (f a x b)) 5) → (f a 5 b)
+(|> 5 #(+ 2 %))             ;; ≡ ((=> [x] (+ 2 x)) 5) → 7
+(|> 5 #(f a % b))           ;; ≡ ((=> [x] (f a x b)) 5) → (f a 5 b)
 ```
 
-When `input` itself is `%`, the entire `|>` form is the function (function composition):
+A pipe written with `#` and `%` as its input is a function of what goes in, as composition is:
 
 ```glisp
-(|> % f g)                 ;; ≡ (=> [x] (g (f x)))   — function composition
-(|> % (+ 2 %))             ;; ≡ (=> [x] (+ 2 x))
-(map (|> % double) xs)     ;; pass (=> [x] (double x)) to map
+#(|> % f g)                ;; ≡ (=> [x] (g (f x)))   — function composition
+(map #(|> % double) xs)    ;; pass (=> [x] (double x)) to map
 ```
 
 ### Partial application — `%`
 
-A bare `%` in any expression turns its **smallest enclosing** `(...)`, `[...]`, or `{...}` into a single-argument function. The argument replaces every occurrence of `%` within that enclosing form.
+`#` before `(...)`, `[...]` or `{...}` makes what it writes a function of one argument, which is every `%` in it. Without `#`, `%` is a syntax error, so what a function is made of is always written where it starts.
 
 ```glisp
-(f % y)              ;; ≡ (=> [x] (f x y))
-(* 2 %)              ;; ≡ (=> [x] (* 2 x))
-(map (* 2 %) xs)     ;; ≡ (map (=> [x] (* 2 x)) xs)
-[% %]                ;; ≡ (=> [x] [x x])
-{a: (+ % 1)}         ;; ≡ {a: (=> [x] (+ x 1))}     — only (+ % 1) is wrapped
-(* % %)              ;; ≡ (=> [x] (* x x))           — same x reused
-(g (f %) (h %))      ;; ≡ (g (=> [x] (f x)) (=> [y] (h y)))   — independent functions
+#(f % y)             ;; ≡ (=> [x] (f x y))
+#(* 2 %)             ;; ≡ (=> [x] (* 2 x))
+(map #(* 2 %) xs)    ;; ≡ (map (=> [x] (* 2 x)) xs)
+#[% %]               ;; ≡ (=> [x] [x x])
+{a: #(+ % 1)}        ;; ≡ {a: (=> [x] (+ x 1))}     — only (+ % 1) is a function
+#(* % %)             ;; ≡ (=> [x] (* x x))           — same x reused
+#(g (f %))           ;; ≡ (=> [x] (g (f x)))         — % at any depth
+(g #(f %) #(h %))    ;; ≡ (g (=> [x] (f x)) (=> [y] (h y)))   — independent functions
 ```
 
-Expansion is bottom-up: the innermost `%` is consumed first, so each `%` belongs to its smallest enclosing `(...)`/`[...]`/`{...}`. Nesting is unambiguous.
+Each `%` belongs to the innermost `#` around it, so `#(f #(g %) %)` is `(=> [x] (f (=> [y] (g y)) x))`. A `#` with no `%` of its own is a syntax error. `#` goes with metadata as `#_` and `@` do: `^{label: "Double"} #(* 2 %)` is a function with a label.
 
-`%` can appear inside the body of a function literal too — it just yields a higher-order result:
+`#` can be in the body of a function literal too — it just yields a higher-order result:
 
 <!-- test -->
 ```glisp
-(=> [x: number]: (=> [y: number]: number) (* x %))
+(=> [x: number]: (=> [y: number]: number) #(* x %))
 ;; ≡ (=> [x: number]: (=> [y: number]: number) (=> [y] (* x y)))
 ;; → number → (number → number)
 ```
@@ -466,12 +466,13 @@ Restrictions on where `%` may appear:
 - **Type positions** (the right of `:`, parameter type slots, return type slots) — `%` is not a type and cannot stand in a type position.
 - **Parameter lists** of `(=> ...)` — `(=> [% : T] ...)` is invalid; parameters must be named identifiers.
 - **Record keys** — `{%: 10}` is invalid; keys must be identifiers.
+- **Outside `#`** — `(* 2 %)` is invalid.
 
-Anywhere else (expression positions inside calls, vectors, records, function bodies), `%` is fine.
+Anywhere else in a `#` (expression positions inside calls, vectors, records, function bodies), `%` is fine.
 
 Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> [a: T b: U]: R ...)` explicitly.
 
-The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 %)` becomes a function via the `%` expansion, then `|>` applies it. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
+The `|>` form interacts with `%` purely through this rule — a step like `#(+ 2 %)` is a function, which `|>` applies. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
 
 ### Coerce — `:`
 
@@ -649,6 +650,7 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `=`           | names an expression, binding the name for what is around it |
 | `=>`          | function literal                                       |
 | `^{...}`      | metadata attachment                                    |
+| `#(...)`      | a function of `%`, as `#[...]` and `#{...}` are         |
 | `~`           | work out within one expansion step                     |
 | `#_`          | bypass: comes to `()` where it stands, and is not output |
 | `@`           | lock: leave as it is when working backward from a value, and in a host until it is unlocked |

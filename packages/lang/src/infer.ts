@@ -876,7 +876,7 @@ function applyFunctionType(
 /**
  * The type of a function literal given what its slot expects. A parameter or
  * return declared `_` takes what is known from the slot and from the body, so
- * `(+ % 1)` given a number is `(=> [number]: number)`.
+ * `#(+ % 1)` given a number is `(=> [number]: number)`.
  */
 function inferLiteralAgainst(
 	fn: FnAST,

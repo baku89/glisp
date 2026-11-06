@@ -88,21 +88,21 @@ describe('infer — the prelude is generic', () => {
 	})
 
 	it('infers the parameter of a function given to map', () => {
-		expect(typeOf('(map [1 2] (+ % 1))')).toBe('[...number]')
+		expect(typeOf('(map [1 2] #(+ % 1))')).toBe('[...number]')
 		expect(typeOf('(map [1 2] (=> [x: _]: _ (+ x 1)))')).toBe('[...number]')
-		expect(typeOf('(map [1 2] [% %])')).toBe('[...[number number]]')
+		expect(typeOf('(map [1 2] #[% %])')).toBe('[...[number number]]')
 	})
 
 	it('types filter and reduce', () => {
-		expect(typeOf('(filter [1 2] (> % 1))')).toBe('[...number]')
+		expect(typeOf('(filter [1 2] #(> % 1))')).toBe('[...number]')
 		expect(typeOf('(reduce [1 2] 0 +)')).toBe('number')
 		expect(typeOf('(reduce [1 2] "" (=> [acc: string x: number]: string acc))')).toBe('string')
 	})
 
 	it('chains through pipes and nested calls', () => {
-		expect(typeOf('(first (map [1 2] (+ % 1)))')).toBe('number')
-		expect(typeOf('(|> [1 2] (map % (+ % 1)) first)')).toBe('number')
-		expect(typeOf('(|> 1 (+ % 1))')).toBe('number')
+		expect(typeOf('(first (map [1 2] #(+ % 1)))')).toBe('number')
+		expect(typeOf('(|> [1 2] #(map % #(+ % 1)) first)')).toBe('number')
+		expect(typeOf('(|> 1 #(+ % 1))')).toBe('number')
 		expect(typeOf('(+ (first [1 2]) 1)')).toBe('number')
 	})
 
@@ -120,7 +120,7 @@ describe('infer — the prelude is generic', () => {
 		expect(problems('(map [1] (=> [x: string]: string x))')).toEqual([
 			'generic T resolved to number earlier but argument here is string',
 		])
-		expect(problems('(filter [1] (+ % 1))')).toEqual([
+		expect(problems('(filter [1] #(+ % 1))')).toEqual([
 			'type mismatch: expected (=> [x: number]: boolean), got (=> [%1: number]: number)',
 		])
 		expect(problems('(+ (first [1]) 1)')).toEqual([])
@@ -372,11 +372,11 @@ describe('check', () => {
 
 	it('reports nothing for well-typed programs', () => {
 		for (const src of [
-			'(map [1 2] (+ % 1))',
+			'(map [1 2] #(+ % 1))',
 			'{f = (=> [n: number]: number (? (< n 1) true 1 _ (* n (f (- n 1))))) (f 3)}',
 			'{e = (=> [n: number]: boolean (o n)) o = (=> [n: number]: boolean (e n)) (e 1)}',
 			'(reduce (range 0 3) 0 +)',
-			'(|> 1 (+ % 1) (* % 2))',
+			'(|> 1 #(+ % 1) #(* % 2))',
 			'{Point = {x: number y: number} (=> [p: Point]: number p.x)}',
 			'{Color = (| "r" "g") (=> [c: Color]: string c)}',
 		]) {

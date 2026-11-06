@@ -128,7 +128,7 @@ describe('Runtime — incremental evaluation', () => {
 
 	it('hits on a separately parsed copy, including %', () => {
 		const rt = new Runtime(prelude)
-		const src = '(map [1 2] (+ % 1))'
+		const src = '(map [1 2] #(+ % 1))'
 		rt.setRoot(parse(src))
 		const before = rt.evaluate().value
 		rt.setRoot(parse(src))

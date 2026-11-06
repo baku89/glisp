@@ -484,6 +484,8 @@ export class SpreadAST extends ASTNode {
 export const PIN = '@'
 /** The key of what `#_` means, which a host takes as not being output. */
 export const HIDDEN = '#_'
+/** The key of what `#` means before a bracket: what is in it is a function of `%`. */
+export const LAMBDA = '#'
 /** The key of the name `name = expr` gives an expression, where it stands. See syntax.md (Names). */
 export const NAME = '='
 
@@ -513,9 +515,9 @@ export class MetaAST extends ASTNode {
 		const has = (key: string) =>
 			fields.some(f => !(f instanceof SpreadAST) && f[0] === key)
 		const name = nameOf(this)
-		const marks = (has(HIDDEN) ? HIDDEN : '') + (has(PIN) ? PIN : '')
+		const marks = (has(HIDDEN) ? HIDDEN : '') + (has(PIN) ? PIN : '') + (has(LAMBDA) ? LAMBDA : '')
 		const others = fields.filter(
-			f => f instanceof SpreadAST || (f[0] !== PIN && f[0] !== HIDDEN && f[0] !== NAME)
+			f => f instanceof SpreadAST || (f[0] !== PIN && f[0] !== HIDDEN && f[0] !== LAMBDA && f[0] !== NAME)
 		)
 		const said = marks === '' && name === null
 		const prefix =

@@ -154,7 +154,7 @@ Like everything else, `?` does not throw. If no clause matches and there's no de
   (=> [n: number]: number (* n n)))   ;; 121
 ```
 
-`(* 2 %)` desugars to `(=> [_0: _]: _ (* 2 _0))`, which is what gets applied to the threaded value at each step.
+`#(* 2 %)` desugars to `(=> [_0: _]: _ (* 2 _0))`, which is what gets applied to the threaded value at each step.
 
 ## Let-blocks
 

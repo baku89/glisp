@@ -39,6 +39,7 @@ export type TokenKind =
 	| '~'
 	| '@'
 	| '#_'
+	| '#'        // before `(`, `[` or `{`: a function of `%`
 	| '...'      // spread
 	| '...~'     // unquote-splice
 	| '.'        // accessor
@@ -108,11 +109,14 @@ export function nextToken(src: string, start: number): Token {
 	}
 
 	// single-character punctuation
-	// `#` alone is kept for what may come, such as colors.
+	// `#` before a bracket makes a function of `%`, and `#` alone is kept for what may come.
+	const next = src[pos + 1]
 	const single =
-		ch === '#' && src[pos + 1] === '_'
+		ch === '#' && next === '_'
 			? ({ kind: '#_', text: '#_', start: pos, end: pos + 2 } as const)
-			: singleCharToken(ch, pos)
+			: ch === '#' && (next === '(' || next === '[' || next === '{')
+				? ({ kind: '#', text: '#', start: pos, end: pos + 1 } as const)
+				: singleCharToken(ch, pos)
 	if (single !== null) return single
 
 	// `=` family: =>, ==, =

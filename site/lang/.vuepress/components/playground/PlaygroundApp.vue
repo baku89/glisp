@@ -17,7 +17,7 @@ const EXAMPLE = `{
   label = "circle"
   round = true
   area = (* pi (** radius 2))
-  sizes = (map [radius (* radius scale)] (* % 2))
+  sizes = (map [radius (* radius scale)] #(* % 2))
   biggest = (reduce sizes 0 max)
 }`
 

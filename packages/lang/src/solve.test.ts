@@ -257,10 +257,10 @@ describe('solve for only part of a value', () => {
 
 describe('solve through map', () => {
 	it('works the function backward for each element', () => {
-		expect(edited('{a = 1 b = 2 r = (map [a b] (* % 2))}', [10, 20])).toBe(
-			'{a = 5 b = 10 r = (map [a b] (* % 2))}'
+		expect(edited('{a = 1 b = 2 r = (map [a b] #(* % 2))}', [10, 20])).toBe(
+			'{a = 5 b = 10 r = (map [a b] #(* % 2))}'
 		)
-		expect(edited('{r = (map [1 2] (* % 2))}', [10, 20])).toBe('{r = (map [5 10] (* % 2))}')
+		expect(edited('{r = (map [1 2] #(* % 2))}', [10, 20])).toBe('{r = (map [5 10] #(* % 2))}')
 	})
 
 	it('goes through a named function, and leaves its literals', () => {
@@ -270,23 +270,23 @@ describe('solve through map', () => {
 	})
 
 	it('goes through what is passed to it, by name or worked out', () => {
-		expect(edited('{a = 1 xs = [a 2] r = (map xs (* % 2))}', [10, 4])).toBe(
-			'{a = 5 xs = [a 2] r = (map xs (* % 2))}'
+		expect(edited('{a = 1 xs = [a 2] r = (map xs #(* % 2))}', [10, 4])).toBe(
+			'{a = 5 xs = [a 2] r = (map xs #(* % 2))}'
 		)
 	})
 
 	it('does one element, and lets the others follow what they share', () => {
 		expect(
-			edited('{a = 40 s = 1.5 r = (map [a (* a s)] (* % 2))}', [200, UNSET])
-		).toBe('{a = 100 s = 1.5 r = (map [a (* a s)] (* % 2))}')
+			edited('{a = 40 s = 1.5 r = (map [a (* a s)] #(* % 2))}', [200, UNSET])
+		).toBe('{a = 100 s = 1.5 r = (map [a (* a s)] #(* % 2))}')
 	})
 
 	it('does not change what the function refers to from outside', () => {
-		expect(edited('{k = 2 r = (map [1] (* % k))}', [10])).toBe('{k = 2 r = (map [5] (* % k))}')
+		expect(edited('{k = 2 r = (map [1] #(* % k))}', [10])).toBe('{k = 2 r = (map [5] #(* % k))}')
 	})
 
 	it('needs the same length, and a function with a way back', () => {
-		expect(edited('{r = (map [1 2] (* % 2))}', [1])).toBeNull()
+		expect(edited('{r = (map [1 2] #(* % 2))}', [1])).toBeNull()
 		expect(edited('{r = (map [1] (=> [x: number]: number 5))}', [6])).toBeNull()
 	})
 })

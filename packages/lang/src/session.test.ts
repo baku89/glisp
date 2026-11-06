@@ -253,7 +253,7 @@ describe('Session — reading by path', () => {
 describe('Session — paths through calls', () => {
 	const session = () => {
 		const s = new Session(buildPrelude())
-		s.exec('x = (first (reverse (map (range 0 3) (+ 1 %))))')
+		s.exec('x = (first (reverse (map (range 0 3) #(+ 1 %))))')
 		s.exec('f = (=> [a: number b: number]: number (+ a b))')
 		s.exec('y = (f 1 b: 2)')
 		return s

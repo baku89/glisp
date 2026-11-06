@@ -43,12 +43,12 @@ circle = (=> [cx: number cy: number r: number]: Shape ...)
 ;; The user's project file then mixes static data and computed values
 {
   size = 200
-  half = (/ size 2 %)
+  half = (/ size 2)
   ^{label: "background"}
   bg   = (rect 0 0 size size)
 
   ^{color: "#ff7b72" label: "dot"}
-  dot  = (circle half half (* 0.2 size %))
+  dot  = (circle half half (* 0.2 size))
 
   [bg dot]
 }

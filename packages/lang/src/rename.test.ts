@@ -66,9 +66,9 @@ describe('renameBinding', () => {
 	})
 
 	it('counts the function that % makes as a level', () => {
-		const before = parse('{a = 5 f = (+ % ../../a) (f 1)}') as LetAST
+		const before = parse('{a = 5 f = #(+ % ../../a) (f 1)}') as LetAST
 		const after = renameBinding(before, 'a', 'z')!
-		expect(print(after)).toBe('{z = 5 f = (+ % ../../z) (f 1)}')
+		expect(print(after)).toBe('{z = 5 f = #(+ % ../../z) (f 1)}')
 		const env = buildPrelude()
 		expect(evaluate(after, env).value).toBe(6)
 		expect(evaluate(before, env).value).toBe(6)

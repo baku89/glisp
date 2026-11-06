@@ -59,12 +59,12 @@ describe('resolve — names', () => {
 	})
 
 	it('resolves the parameter that % desugars to', () => {
-		expect(messages('(map [1] (+ % 1))')).toEqual([])
+		expect(messages('(map [1] #(+ % 1))')).toEqual([])
 	})
 
 	it('does not treat special forms as references', () => {
 		expect(messages('(: 1 number)')).toEqual([])
-		expect(messages('(|> 1 (+ % 1))')).toEqual([])
+		expect(messages('(|> 1 #(+ % 1))')).toEqual([])
 		expect(messages('(? 1 number 2 _ 3)')).toEqual([])
 	})
 
@@ -199,8 +199,8 @@ describe('resolve agrees with evaluate', () => {
 		'[1 ~./0]',
 		'^{label: "x"} [1 ./0]',
 		'(? 1 number 2 _ 3)',
-		'(|> 1 (+ % 1))',
-		'(map [1 2] (* % 2))',
+		'(|> 1 #(+ % 1))',
+		'(map [1 2] #(* % 2))',
 		'[./9]',
 		'{a = 1 ./nope}',
 		'nope',

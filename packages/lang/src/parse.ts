@@ -20,6 +20,7 @@ import {
 	named,
 	hide,
 	isHidden,
+	lambda,
 	isPinned,
 	meta,
 	pin,
@@ -67,7 +68,7 @@ const ELEMENT_END: ReadonlySet<TokenKind> = new Set<TokenKind>([
 const ELEMENT_START: ReadonlySet<TokenKind> = new Set<TokenKind>([
 	'(', '[', '{', '()', '_', '!',
 	'number', 'string', 'boolean', 'identifier', 'pathSegments',
-	'~', '@', '#_', '...', '...~', '^', '=>',
+	'~', '@', '#_', '#', '...', '...~', '^', '=>',
 ])
 
 /**
@@ -118,6 +119,8 @@ class Parser {
 	private pos = 0
 
 	private inSignature = false
+	/** For each `#` being read, innermost last, how many `%` are its own. */
+	private lambdas: number[] = []
 
 	constructor(
 		private readonly tokens: Token[],
@@ -219,6 +222,12 @@ class Parser {
 				return this.stamp(start, sym('!'))
 			case 'identifier':
 				this.advance()
+				if (t.value === '%') {
+					if (this.lambdas.length === 0) {
+						throw this.error(t, '`%` stands only in a function written with `#`, as in `#(* 2 %)`')
+					}
+					this.lambdas[this.lambdas.length - 1]!++
+				}
 				return this.stamp(start, sym(t.value as string))
 			case '?':
 				// Bare `?` is the match special form head.
@@ -253,6 +262,15 @@ class Parser {
 				const expr = this.atom()
 				if (isHidden(expr)) throw this.error(at, 'already hidden')
 				return this.stamp(start, hide(expr))
+			}
+			case '#': {
+				const at = this.advance()
+				this.lambdas.push(0)
+				const expr = this.atom()
+				if (this.lambdas.pop() === 0) {
+					throw this.error(at, 'a function written with `#` is of `%`, which is not in it')
+				}
+				return this.stamp(start, lambda(expr))
 			}
 			case '...':
 				this.advance()

@@ -1,4 +1,4 @@
-import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetAST, makeTupleType, makeTypedFn, meta, parse, print, type RecordAST, Session, solve, type TypeValue, unpin, withTypeMeta } from '@glisp/lang'
+import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetAST, makeTupleType, makeTypedFn, meta, parse, print, type RecordAST, Session, solve, sym, type TypeValue, unpin, withTypeMeta } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
@@ -394,7 +394,7 @@ describe('docs', () => {
 	})
 
 	it('says what a parameter is for', () => {
-		const [items, transform] = view('(map [1] (* % 2))').slots
+		const [items, transform] = view('(map [1] #(* % 2))').slots
 		expect(items?.doc).toBe('The vector to go through.')
 		expect(transform?.doc).toBe('What to make of each element.')
 		expect(view('(+ 1 2)').slots[0]?.doc).toBe('The numbers to add up.')
@@ -794,7 +794,7 @@ describe('moveBinding', () => {
 
 describe('parameter labels', () => {
 	it('come from the definition in the prelude', () => {
-		expect(labels('(map [1] (* % 2))')).toEqual(['Items', 'Transform'])
+		expect(labels('(map [1] #(* % 2))')).toEqual(['Items', 'Transform'])
 		expect(labels('(+ 1 2)')).toEqual(['0', '1'])
 		expect(view('(+ 1 2)').append?.label).toBe('Values')
 		expect(view('(take [1])').missing[0]?.name).toBe('Count')
@@ -833,7 +833,7 @@ describe('parameter labels', () => {
 	})
 
 	it('leave what the call means alone', () => {
-		expect(evaluate(parse('(map [1 2] (* % 2))'), env).value).toEqual([2, 4])
+		expect(evaluate(parse('(map [1 2] #(* % 2))'), env).value).toEqual([2, 4])
 	})
 })
 
@@ -943,7 +943,7 @@ describe('icons', () => {
 		expect(icon('(* 2 3)')).toBe('mdi:pound')
 		expect(icon('"a"')).toBe('mdi:format-quote-close')
 		expect(icon('[1 "a"]')).toBe('mdi:code-brackets')
-		expect(icon('(map [1 2] (* % 2))')).toBe('mdi:code-brackets')
+		expect(icon('(map [1 2] #(* % 2))')).toBe('mdi:code-brackets')
 		expect(icon('(: 3 (refine number 1 (=> [x: number]: boolean (> x 0))))')).toBe(
 			'mdi:pound'
 		)
@@ -1042,14 +1042,14 @@ describe('problemOf', () => {
 	it('does not judge by a slot that is still generic', () => {
 		const session = new Session(env)
 		session.exec('radius = 40')
-		const call = viewOf(parse('(map [radius (* radius 2)] (* % 2))'), session.env)
+		const call = viewOf(parse('(map [radius (* radius 2)] #(* % 2))'), session.env)
 		for (const slot of call.slots) {
 			expect(problemOf(slot.ast, slot.env, slot.expected, read)).toBeNull()
 		}
 	})
 
 	it('finds nothing wrong with what is fine', () => {
-		for (const src of ['1', '(+ 1 2)', '[1 2]', '{a: 1}', '(* % 2)', '(map [1] (* % 2))', '%']) {
+		for (const src of ['1', '(+ 1 2)', '[1 2]', '{a: 1}', '#(* % 2)', '(map [1] #(* % 2))']) {
 			expect(problem(src)).toBeNull()
 		}
 	})
@@ -1148,7 +1148,7 @@ describe('actionsOf', () => {
 	})
 
 	it('offers no value for what has none', () => {
-		const labels = actionsOf({ ...slotOf('[1]'), ast: parse('%') }).map(a => a.label)
+		const labels = actionsOf({ ...slotOf('[1]'), ast: sym('%') }).map(a => a.label)
 		expect(labels).not.toContain('Copy Value')
 		expect(labels).toContain('Copy Expression')
 	})
@@ -1205,9 +1205,9 @@ describe('editing a value that is worked out', () => {
 		expect(canSolve(row('{a = (+ 1 2)}'), 'x')).toBe(false)
 		expect(canSolve(row('{a = (or true false)}'), true)).toBe(true)
 		expect(canSolve(row('{a = true}'), true)).toBe(false)
-		expect(canSolve(row('{a = (map [1 2] (* % 2))}'), [2, 4])).toBe(true)
-		expect(canSolve(row('{a = (map [1 2] (* % 2))}'), [])).toBe(false)
-		expect(canSolve(row('{a = (map ["x"] %)}'), ['x'])).toBe(false)
+		expect(canSolve(row('{a = (map [1 2] #(* % 2))}'), [2, 4])).toBe(true)
+		expect(canSolve(row('{a = (map [1 2] #(* % 2))}'), [])).toBe(false)
+		expect(canSolve(row('{a = #(map ["x"] %)}'), ['x'])).toBe(false)
 		expect(canSolve(row('{x = 1 a = [x x]}'), [1, 1])).toBe(false)
 		expect(canSolve(row('{a = (+ 1 2)}'), Infinity)).toBe(false)
 	})
@@ -1237,7 +1237,8 @@ describe('helpers', () => {
 		expect(hasValue(parse('{a = 1 a}'))).toBe(true)
 		expect(hasValue(parse('{a = 1}'))).toBe(false)
 		expect(hasValue(parse('^{label: "x"} {a = 1}'))).toBe(false)
-		expect(hasValue(parse('%'))).toBe(false)
+		// `%` is a slot of a function written with `#`, and stands for no value of its own
+		expect(hasValue(sym('%'))).toBe(false)
 	})
 
 	it('parses source, or says it cannot', () => {

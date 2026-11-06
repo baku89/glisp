@@ -339,7 +339,7 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 
 - **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else. A slot also takes a literal for what it is, so `"round"` goes in a slot of `(| "round" "butt")` and `"z"` does not. This is true of what is written there, a vector or record of literals included. A name bound to `"round"` is a `string`, which `(: name J)` casts.
 - **Generics are solved at a call**, one argument at a time, by matching types structurally: `(xs: [...T])` given `[1 2]` solves `T` as `number`. A generic seen twice takes whichever of the two types the other fits; if neither does, that is a diagnostic. An unsolved generic is `_`.
-- **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] (+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
+- **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] #(+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
 - **Type constructors can be generic.** In `(=> {F T} [x: (F T)]: T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.
 - **Inside a generic function's body, `T` is opaque**: it fits only itself.
 - **Unions are not inferred**, only written. A vector with no common element type is a vector of `_` when it meets `[...T]`, and clauses of `?` with no type in common are a diagnostic.

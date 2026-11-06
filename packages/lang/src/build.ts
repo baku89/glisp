@@ -26,6 +26,7 @@ import {
 	MetaAST,
 	PathAST,
 	HIDDEN,
+	LAMBDA,
 	NAME,
 	PIN,
 	RecordAST,
@@ -247,6 +248,11 @@ export const isHidden = (ast: AST): boolean =>
 	ast.kind === 'meta' && ast.metadata.get(HIDDEN) !== undefined
 /** `ast` without its `#_`, keeping any other metadata. */
 export const unhide = (ast: AST): AST => unmarked(ast, HIDDEN)
+
+/** `#(...)`, `#[...]` or `#{...}`: what is in it, as a function of `%`. */
+export const lambda = (expr: AST): MetaAST => marked(expr, LAMBDA)
+export const isLambda = (ast: AST): boolean =>
+	ast.kind === 'meta' && ast.metadata.get(LAMBDA) !== undefined
 
 // -----------------------------------------------------------------------------
 // Value builders — Glisp type values

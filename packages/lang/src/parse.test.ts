@@ -291,6 +291,18 @@ describe('parse — functions', () => {
 		expect(parse('(=> {T U} [x: T]: U x)').printStructural()).toBe('(=> {T U} [x: T]: U x)')
 	})
 
+	it('writes a function of `%` with `#`', () => {
+		for (const src of ['#(* 2 %)', '#[% %]', '#{a: %}', '(map xs #(+ % 1))', '#(g #(f %) %)', '#_#(* 2 %)', '^{label: "D"} #(* 2 %)']) {
+			expect(roundTrip(src), src).toBe(src)
+		}
+		expect(() => parse('(* 2 %)')).toThrow(/stands only in a function written with `#`/)
+		expect(() => parse('%')).toThrow(ParseError)
+		expect(() => parse('#(f 1)')).toThrow(/not in it/)
+		expect(() => parse('#(f #(g %))')).toThrow(/not in it/)
+		expect(() => parse('#x')).toThrow()
+		expect(() => parse('# (f %)')).toThrow()
+	})
+
 	it('has its parameters in brackets, and its generics in braces', () => {
 		expect(() => parse('(=> (x: number): number x)')).toThrow(/parameters go in `\[\.\.\.\]`/)
 		expect(() => parse('(=> {T: Show} [x: T]: T x)')).toThrow(/not supported yet/)

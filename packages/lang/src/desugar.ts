@@ -1,10 +1,10 @@
 /**
  * `%` desugaring pass — runs before eval.
  *
- * For any AST node N ∈ {Application, Vector, Record} that *directly*
- * contains a bare `sym('%')`, the entire N is replaced by an internal
- * function-literal AST `(=> [x: _] [N with all % → x])`. The pass is
- * bottom-up so that each `%` belongs to its smallest enclosing form.
+ * A node written with `#`, as `#(f a %)`, `#[% %]` or `#{x: %}`, is replaced
+ * by an internal function-literal AST `(=> [x: _]: _ N)`, with every `%` in N
+ * that is not in another `#` as `x`. The pass is bottom-up so that each `%`
+ * belongs to the innermost `#` around it.
  *
  * Spec: docs/spec/syntax.md — Partial application — `%`
  *      docs/spec/eval.md — `%` — partial-application desugaring
@@ -15,6 +15,7 @@
 
 import {
 	type AST,
+	LAMBDA,
 	AccessAST,
 	CallAST,
 	FnAST,
@@ -44,10 +45,10 @@ export function desugar(ast: AST): AST {
 
 function desugarBottomUp(ast: AST): AST {
 	const transformed = recurseChildren(ast)
-	if (directlyContainsPercent(transformed)) {
-		return wrapWithFn(transformed)
-	}
-	return transformed
+	if (transformed.kind !== 'meta' || transformed.metadata.get(LAMBDA) === undefined) return transformed
+	const fn = wrapWithFn(transformed.expr)
+	const others = transformed.metadata.fields.filter(f => 'kind' in f || f[0] !== LAMBDA)
+	return others.length === 0 ? fn : new MetaAST(new RecordAST(others, transformed.metadata.optional), fn)
 }
 
 function isPercent(ast: AST): boolean {
@@ -55,7 +56,7 @@ function isPercent(ast: AST): boolean {
 }
 
 /** Recurse into children, returning a possibly-new AST with desugared subtrees. */
-function recurseChildren(ast: AST): AST {
+function recurseChildren(ast: AST, desugar: (child: AST) => AST = desugarChild): AST {
 	switch (ast.kind) {
 		case 'lit':
 		case 'host':
@@ -192,99 +193,31 @@ function sameArray<T>(a: ReadonlyArray<T>, b: ReadonlyArray<T>): boolean {
 	return true
 }
 
-/**
- * Does `ast` directly contain a `%` symbol as one of its enumerable
- * children? (Children of `%` themselves don't count — those are handled
- * recursively by `desugar`.)
- */
-function directlyContainsPercent(ast: AST): boolean {
-	switch (ast.kind) {
-		case 'call':
-			if (isPercent(ast.head)) return true
-			for (const a of ast.args) if (isPercent(a)) return true
-			if (ast.kwargs) {
-				for (const v of ast.kwargs.values()) if (isPercent(v)) return true
-			}
-			return false
-		case 'vec':
-			for (const e of ast.elements) if (isPercent(e)) return true
-			return false
-		case 'record':
-			for (const entry of ast.fields) {
-				if (entry instanceof SpreadAST) {
-					if (isPercent(entry.expr)) return true
-				} else {
-					if (isPercent(entry[1])) return true
-				}
-			}
-			return false
-		default:
-			return false
-	}
-}
-
+const desugarChild = (child: AST): AST => desugar(child)
 
 function wrapWithFn(node: AST): FnAST {
 	// The parameter name uses a leading `%` so it can't collide with any
 	// user-written identifier (`%` is reserved as a token, not as part of
 	// an identifier's body when used by itself). It is the same every time,
-	// so the same source desugars to the same content. A nested literal
-	// shadowing it is harmless: `%` only ever refers to its own literal.
+	// so the same source desugars to the same content. A nested `#` shadowing
+	// it is harmless: what is in it has no `%` left, as it was desugared first.
 	const paramName = '%1'
-	const replaced = replacePercent(node, paramName)
 	return new FnAST(
 		[],
 		[{ name: paramName, type: new SymAST('_') }],
 		new SymAST('_'),
-		replaced
+		replacePercent(node, new SymAST(paramName))
 	)
 }
 
-/**
- * Substitute every direct `sym('%')` child of `node` with `sym(paramName)`.
- * Children that are not directly `%` are left alone — those have already
- * been desugared into their own closures.
- */
-function replacePercent(node: AST, paramName: string): AST {
-	const replacement = new SymAST(paramName)
-	switch (node.kind) {
-		case 'call': {
-			const head = isPercent(node.head) ? replacement : node.head
-			const args = node.args.map(a => (isPercent(a) ? replacement : a))
-			let kwargs = node.kwargs
-			if (kwargs !== undefined) {
-				const newKwargs = new Map<string, AST>()
-				for (const [k, v] of kwargs) {
-					newKwargs.set(k, isPercent(v) ? replacement : v)
-				}
-				kwargs = newKwargs
-			}
-			return new CallAST(head, args, kwargs)
-		}
-		case 'vec': {
-			const elements = node.elements.map(e => (isPercent(e) ? replacement : e))
-			return new VecAST(elements)
-		}
-		case 'record': {
-			const fields: RecordEntry[] = []
-			for (const entry of node.fields) {
-				if (entry instanceof SpreadAST) {
-					if (isPercent(entry.expr)) {
-						fields.push(new SpreadAST(replacement))
-					} else {
-						fields.push(entry)
-					}
-				} else {
-					if (isPercent(entry[1])) {
-						fields.push([entry[0], replacement])
-					} else {
-						fields.push(entry)
-					}
-				}
-			}
-			return new RecordAST(fields, node.optional)
-		}
-		default:
-			return node
+/** `node` with each `%` in it as `replacement`, all the way down. */
+function replacePercent(node: AST, replacement: SymAST): AST {
+	if (isPercent(node)) return replacement
+	if (node.kind === 'fn') {
+		// In a function written out, `%` can only be in what it does.
+		if (node.body === null) return node
+		const body = replacePercent(node.body, replacement)
+		return body === node.body ? node : new FnAST(node.generics, node.params, node.returnType, body)
 	}
+	return recurseChildren(node, child => replacePercent(child, replacement))
 }
