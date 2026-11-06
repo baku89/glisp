@@ -14,6 +14,11 @@ const props = defineProps<{
 	place: Place
 	/** Being pressed is to go into what is written, rather than only to select it. */
 	pressEdits?: boolean
+	/**
+	 * What it says while it is selected, if pressing it only selects it: what it shows, rather
+	 * than how it is written, which is gone into on purpose.
+	 */
+	selectedText?: string
 	leftIcon?: string
 	align?: InputAlign
 	font?: InputFont
@@ -61,7 +66,7 @@ function onClick(event: MouseEvent): void {
 	<InputTextBase
 		ref="$input"
 		v-model:focused="focused"
-		:modelValue="source"
+		:modelValue="pressEdits ? source : (selectedText ?? source)"
 		:active="multi.subfocus"
 		:font="font"
 		:leftIcon="leftIcon"

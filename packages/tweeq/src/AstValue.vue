@@ -20,7 +20,7 @@ import InputUnit from './InputUnit.vue'
 import { editMenuItems } from './menu'
 import type { Place } from './multiRows'
 import { displayedAs } from './numberField'
-import { FUNCTION_ICON, HOST_KEY, LOCKED, RATIO_KEEPER, SOLVER } from './selection'
+import { BLANK_FILLER, FUNCTION_ICON, HOST_KEY, LOCKED, RATIO_KEEPER, SOLVER } from './selection'
 import {
 	canSolve,
 	editorOfValue,
@@ -334,6 +334,13 @@ function editExpression(): void {
 	editing.value = true
 }
 
+// Where nothing is, what fits there is chosen, where a host has that, rather than written.
+const fillBlank = inject(BLANK_FILLER, null)
+function onBlank(): void {
+	if (fillBlank === null || locked.value || $root.value === null) editExpression()
+	else fillBlank(props.path, $root.value)
+}
+
 const hostKey = inject(HOST_KEY, undefined)
 const editItems = computed(() =>
 	locked.value ? [] : editMenuItems(hasNumber.value ? editValue : null, editExpression, hostKey)
@@ -494,13 +501,14 @@ const label = (value: unknown): string =>
 			v-else-if="isUnit"
 			:menuItems="fieldMenu"
 			:inlinePosition="inlinePosition"
-			@edit="editExpression"
+			@edit="onBlank"
 		/>
 		<AstShownField
 			v-else-if="place !== undefined"
 			:source="sourceOf(ast)"
 			:place="place"
 			:pressEdits="headInField === null && !onlyRefers"
+			:selectedText="headInField?.label ?? shown"
 			:font="isNumber ? 'numeric' : isString || summary !== null || headInField !== null ? undefined : 'monospace'"
 			:leftIcon="headIcon"
 			:align="isNumber ? 'center' : undefined"

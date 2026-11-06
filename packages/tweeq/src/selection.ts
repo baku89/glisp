@@ -163,6 +163,13 @@ export interface ValuePicker {
 }
 export const VALUE_PICKER: InjectionKey<ValuePicker> = Symbol('glisp-value-picker')
 
+/**
+ * How a host has something chosen to go where nothing is, `()`, from among what fits there,
+ * rather than its being written. `from` is what was pressed, for that to come up by it.
+ */
+export const BLANK_FILLER: InjectionKey<(path: string, from: Element) => void> =
+	Symbol('glisp-blank-filler')
+
 /** Whether what is around a row is locked, and what is in it with it. */
 export const LOCKED: InjectionKey<() => boolean> = Symbol('glisp-locked')
 export const LAYERS: InjectionKey<boolean> = Symbol('glisp-layers')

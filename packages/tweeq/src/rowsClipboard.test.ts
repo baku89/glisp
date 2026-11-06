@@ -1,7 +1,7 @@
 import { buildPrelude, type Env, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
-import { copiedBySlotCommand, copiedRows, pastedArguments, slotCommandAt, slotCommandsAt, withSlotCommand, pastedRows, reach, withoutNearest, withoutRows } from './rowsClipboard'
+import { copiedBySlotCommand, copiedRows, pastedArguments, slotCommandAt, slotCommandsAt, withSlotCommand, pastedRows, reach, withBlanks, withoutNearest, withoutRows } from './rowsClipboard'
 
 const env: Env = buildPrelude()
 
@@ -111,6 +111,30 @@ describe('withoutNearest', () => {
 
 	it('is nothing, for a row that is not there', () => {
 		expect(without('{a = 1}', 'binding:b')).toBeNull()
+	})
+})
+
+describe('withBlanks', () => {
+	const blanked = (src: string, paths: string[]) => {
+		const next = withBlanks(parse(src), env, paths)
+		return next && print(next)
+	}
+
+	it('leaves a needed argument empty, rather than taking away what needs it', () => {
+		expect(blanked('{a = (take [1] 1) b = 2}', ['binding:a/arg0'])).toBe('{a = (take () 1) b = 2}')
+	})
+
+	it('takes out what can go', () => {
+		expect(blanked('{v = [1 2 3]}', ['binding:v/1'])).toBe('{v = [1 3]}')
+	})
+
+	it('keeps what is said of the place', () => {
+		expect(blanked('{a = (take #_[1] 1)}', ['binding:a/arg0'])).toBe('{a = (take #_() 1)}')
+	})
+
+	it('is nothing, for what is already empty or not there', () => {
+		expect(blanked('{a = (take () 1)}', ['binding:a/arg0'])).toBeNull()
+		expect(blanked('{a = 1}', ['binding:b'])).toBeNull()
 	})
 })
 

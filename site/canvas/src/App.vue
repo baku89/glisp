@@ -9,7 +9,7 @@ import {
 	useGlispDocument,
 } from '@glisp/tweeq'
 import { combined, type Filter, filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
-import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
+import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withBlanks, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
@@ -23,6 +23,7 @@ import { Popover } from 'tweeq/Popover'
 import { InputNumber, scaledBy } from 'tweeq/InputNumber'
 import { TitleBar } from 'tweeq/TitleBar'
 import { useToastStore } from 'tweeq/Toast'
+import { useHostDelete } from '@glisp/tweeq'
 import { vTooltip } from 'tweeq/Tooltip'
 import { initTweeq } from 'tweeq/useTweeq'
 import { computed, nextTick, provide, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
@@ -900,6 +901,49 @@ useEventListener(window, 'pointerdown', (event: PointerEvent) => {
 /** Where that was asked for in what is drawn, which is where a shape goes. */
 const quickAddPlace = shallowRef<Vec>([0, 0])
 
+/**
+ * A row picked in the inspector that is a path a shape is made from is that, on the canvas too,
+ * within the shape, which stays what the inspector is about. Another row picked there goes back
+ * to all of the shape.
+ */
+let pickedInInspector = false
+function pickInInspector(row: string | null): void {
+	inspectorRow.value = row
+	const [whole, other] = about.value
+	const [root, env] = [document.root.value, document.env.value]
+	if (row !== null && whole !== undefined && other === undefined && row.startsWith(`${whole}/`) && pathOfRow(root, env, row) !== null) {
+		keptRow.value = whole
+		selected.value = [row]
+		pickedInInspector = true
+		return
+	}
+	if (pickedInInspector && keptRow.value !== null && pickedOut.value.length > 0) selected.value = [keptRow.value]
+	pickedInInspector = false
+}
+
+// Deleting a path that a shape is made from leaves nothing there, rather than taking the shape.
+useHostDelete(() => {
+	if (!pickedInInspector || pickedOut.value.length === 0) return false
+	const next = withBlanks(document.root.value, document.env.value, pickedOut.value)
+	if (next instanceof LetAST) setProgram(next)
+	return true
+})
+
+/** Something chosen for where nothing is, from among what fits there, coming up by it. */
+function fillBlank(path: string, from: Element): void {
+	const { left, bottom } = from.getBoundingClientRect()
+	// A shape goes in the middle of what is seen, there being nowhere on the canvas that was pointed at.
+	quickAddPlace.value = $canvas.value?.placeAt(window.innerWidth / 2, window.innerHeight / 2) ?? [0, 0]
+	quickFillAt.value = path
+	fillingBlank.value = true
+	quickAddAt.value = [left, bottom + 4]
+}
+/** Whether what is being filled is where nothing is, which has nothing to wrap. */
+const fillingBlank = ref(false)
+watch(quickAddAt, at => {
+	if (at === null) fillingBlank.value = false
+})
+
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (event.key !== 'Tab' || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return
 	if (event.defaultPrevented || quickAddAt.value !== null) return
@@ -927,7 +971,9 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 	if (filling !== null) {
 		return program === null
 			? []
-			: fillersAt(program, document.env.value, filling).map(filler => ({
+			: fillersAt(program, document.env.value, filling)
+					.filter(filler => !fillingBlank.value || filler.group !== 'Wrap')
+					.map(filler => ({
 					id: `fill_${filler.value ? 'value_' : ''}${filler.name}`,
 					name: filler.name,
 					label: filler.label,
@@ -1357,7 +1403,7 @@ function selectInTree(row: string | null): void {
 					v-if="quickAddAt !== null"
 					:items="quickAddItems"
 					:at="quickAddAt"
-					:placeholder="quickFillAt === null ? 'Add…' : 'Replace or wrap…'"
+					:placeholder="quickFillAt === null ? 'Add…' : fillingBlank ? 'Fill…' : 'Replace or wrap…'"
 					@close="quickAddAt = null"
 				/>
 				<Popover
@@ -1471,7 +1517,8 @@ function selectInTree(row: string | null): void {
 						:valuePicker="valuePicker"
 						:alsoSelected="pickedOut"
 						:iconOfValue="iconOfPath"
-						@select="inspectorRow = $event"
+						:fillBlank="fillBlank"
+						@select="pickInInspector"
 						@kept="sayKept"
 						:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 						:pasteAs="bindingsOfSvg"

@@ -10,11 +10,13 @@ import {
 	type Env,
 	infer,
 	LetAST,
+	LitAST,
 	lookupBareName,
 	MetaAST,
 	print,
 	SymAST,
 	type TypeValue,
+	UNIT,
 	VecAST,
 } from '@glisp/lang'
 
@@ -112,6 +114,32 @@ export function copiedBySlotCommand(
 		})
 		.join('\n')
 }
+
+/**
+ * The program with each of the rows at `paths` taken out, or, if it is needed where it is, left
+ * empty there: `()`, which a typed slot turns into what it wants, for something to go there
+ * again. Null if nothing changes.
+ */
+export function withBlanks(root: AST, env: Env, paths: readonly string[]): AST | null {
+	let next = root
+	for (const path of paths) {
+		const chain = reach(next, env, path)?.chain
+		const slot = chain?.at(-1)
+		if (!chain || !slot) continue
+		const removed = slot.remove?.()
+		if (removed !== undefined) {
+			next = withParent(chain, removed)
+			continue
+		}
+		const { ast } = slot
+		const bare = ast.kind === 'meta' ? ast.expr : ast
+		if (bare.kind === 'lit' && bare.value === UNIT) continue
+		next = withParent(chain, slot.replace(ast.kind === 'meta' ? new MetaAST(ast.metadata, BLANK) : BLANK))
+	}
+	return next === root ? null : next
+}
+
+const BLANK = new LitAST(UNIT)
 
 /**
  * The program without the row at `path`, or if that cannot go, without the nearest of

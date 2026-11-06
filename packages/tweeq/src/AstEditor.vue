@@ -40,6 +40,7 @@ import {
 	HOST_KEY,
 	LINKER,
 	VALUE_PICKER,
+	BLANK_FILLER,
 	type ValuePicker,
 	OPEN_ROW,
 	RENAMER,
@@ -79,6 +80,8 @@ const props = defineProps<{
 	/** What the app has to offer for the slot at a path, over what is offered here. */
 	/** How a value is chosen by pointing at something, if it can be. */
 	valuePicker?: ValuePicker
+	/** How something is chosen for where nothing is, rather than written there. */
+	fillBlank?: (path: string, from: Element) => void
 	commandsFor?: (path: string) => MenuItem[]
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
@@ -211,6 +214,7 @@ provide(VALUE_ICON, value => props.iconOfValue?.(value) ?? null)
 provide(FUNCTION_ICON, fn => props.iconOfFunction?.(fn) ?? null)
 provide(HOST_KEY, event => props.hostKey?.(event) ?? false)
 if (props.valuePicker) provide(VALUE_PICKER, props.valuePicker)
+if (props.fillBlank) provide(BLANK_FILLER, (path, from) => props.fillBlank?.(path, from))
 if (props.commandsFor) provide(COMMANDS_FOR, path => props.commandsFor!(path))
 
 provide(LINKER, {

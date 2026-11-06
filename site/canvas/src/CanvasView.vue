@@ -1216,6 +1216,13 @@ function draw(): void {
 	for (const { path, transform } of innerSelected.value) {
 		context.stroke(pathOnScreen(path, gripView(transform)))
 	}
+	context.setLineDash([])
+	context.lineWidth = PICKED_WIDTH
+	for (const { path, transform } of pickedPaths.value) {
+		context.stroke(pathOnScreen(path, gripView(transform)))
+	}
+	context.lineWidth = 1
+	context.setLineDash(DASH)
 	// What is selected but hidden has only this to it, as it is not drawn.
 	for (const shape of hiddenSelected.value) {
 		const outline = lineOfShape(shape)
@@ -1364,6 +1371,22 @@ function draw(): void {
 	}
 }
 
+/**
+ * The paths picked out of the row whose handles these are, such as one that a blend is of,
+ * which are selected within it: said as what is selected is, while the row stays what is held.
+ */
+/** How much more a path picked out is than what is around it, which is drawn in the same color. */
+const PICKED_WIDTH = 3
+const pickedPaths = computed(() => {
+	const kept = keptRow.value
+	if (kept === null) return []
+	return props.selected.flatMap(row => {
+		if (!row.startsWith(`${kept}/`)) return []
+		const found = pathOfRow(props.document.root.value, props.document.env.value, row)
+		return found === null ? [] : [found]
+	})
+})
+
 let drawing: number | null = null
 
 /** How far what is being reached for has come to show what it does, from 0 to 1. */
@@ -1404,6 +1427,7 @@ watchEffect(() => {
 		isolation.value,
 		insideIsolated.value,
 		hoveredHandle.value,
+		pickedPaths.value,
 		range.value,
 		penLine.value,
 		snapMark.value,
