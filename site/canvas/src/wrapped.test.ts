@@ -12,7 +12,7 @@ import { fromD, toD } from 'pave/path/svg'
 import { describe, expect, it } from 'vitest'
 
 import { BOX_ANSWERS, type PathValue, withGraphics } from './graphics'
-import { boundsOfRows, boxHandlesOf, changed, gripAt, boxMeasured, gripOfPointsOrNot, gripOfRows, hasSizeMeasured, innerPathsOf, boxWithCornerAt, numbersDifferent, pointsWithin, whatStayed, withBoxMeasured, withBoxOfParts, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
+import { boundsOfRows, boxHandlesOf, changed, gripAt, boxMeasured, gripOfPointsOrNot, gripOfRows, hasSizeMeasured, innerPathsOf, boxWithCornerAt, numbersDifferent, placeOfNumbers, pointsWithin, whatStayed, withBoxMeasured, withBoxOfParts, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const grip = (src: string) => gripAt(parse(`{c = ${src}}`), env, 'binding:c')!
@@ -1771,6 +1771,19 @@ describe('the points of a path', () => {
 			const box = parse(`{a = ${d('M500,300 L760,300 L760,560 L500,560 Z')}}`)
 			const next = withBoxMeasured(box, env, { rows: ['binding:a'] }, [500, 300, 300, 260])
 			expect(dOf(next, 'a')).toBe('(path.d "M 500,300 L 800,300 L 800,560 L 500,560 Z")')
+		})
+
+		it('go by what was pulled', () => {
+			const box = [[0, 0], [10, 20]] as const
+			expect(placeOfNumbers(box, [0, 1], [0, 0], [1, 1])).toEqual({ at: [0, 0], side: 'above' })
+			expect(placeOfNumbers(box, [0, 1], [1, 0], [0, 1])).toEqual({ at: [10, 0], side: 'above' })
+			expect(placeOfNumbers(box, [0, 1], [0, 1], [1, 0])).toEqual({ at: [0, 20], side: 'below' })
+			expect(placeOfNumbers(box, [0, 1], [1, 1], [0, 0])).toEqual({ at: [10, 20], side: 'below' })
+			expect(placeOfNumbers(box, [2], undefined, [1, 0])).toEqual({ at: [0, 10], side: 'left' })
+			expect(placeOfNumbers(box, [2], undefined, [0, 0])).toEqual({ at: [10, 10], side: 'right' })
+			expect(placeOfNumbers(box, [3], undefined, [0, 1])).toEqual({ at: [5, 0], side: 'above' })
+			expect(placeOfNumbers(box, [3], undefined, [0, 0])).toEqual({ at: [5, 20], side: 'below' })
+			expect(placeOfNumbers(box, [0, 1])).toEqual({ at: [10, 20], side: 'corner' })
 		})
 
 		it('are of several rows together', () => {

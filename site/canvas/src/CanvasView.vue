@@ -89,6 +89,7 @@ import {
 	numbersDifferent,
 	whatStayed,
 	boxWithCornerAt,
+	placeOfNumbers,
 	type Measured,
 	type PartsOfRow,
 	gripOfPointsOrNot,
@@ -370,13 +371,13 @@ function numbersMeasured(measured: Measured, corner?: Vec): Dimension[] {
 const heldDimensions = computed(() => {
 	const { root, env } = props.document
 	if (held.value === null) return []
-	const { row, places, at, outsideOf, measured, shown, corner } = held.value
+	const { row, places, at, outsideOf, measured, shown, corner, stays } = held.value
 	if (measured !== undefined) {
 		const dimensions = numbersMeasured(measured, corner).filter(({ index }) => shown?.includes(index!) ?? true)
 		const box = boxMeasured(root.value, env.value, measured)
-		return box === null || dimensions.length === 0
-			? []
-			: [{ dimensions, at: toScreen(box[1], view.value), side: 'corner' as const }]
+		if (box === null || dimensions.length === 0) return []
+		const place = placeOfNumbers(box, dimensions.map(({ index }) => index!), corner, stays)
+		return [{ dimensions, at: toScreen(place.at, view.value), side: place.side }]
 	}
 	return placedDimensions(
 		root.value,

@@ -1739,6 +1739,28 @@ export function whatStayed([[left, top], [right, bottom]]: readonly [Vec, Vec], 
 }
 
 /**
+ * Where the numbers of a box go: by what was pulled, on the side of it that it goes out toward, or
+ * else at its last corner. `shown` is which of X, Y, width and height there are.
+ */
+export function placeOfNumbers(
+	[[left, top], [right, bottom]]: readonly [Vec, Vec],
+	shown: readonly number[],
+	corner?: Vec,
+	stays?: Vec
+): { readonly at: Vec; readonly side: DimensionSide | 'corner' } {
+	if (corner) {
+		return {
+			at: [left + corner[0] * (right - left), top + corner[1] * (bottom - top)],
+			side: corner[1] === 0 ? 'above' : 'below',
+		}
+	}
+	if (stays === undefined) return { at: [right, bottom], side: 'corner' }
+	const [middleX, middleY] = [(left + right) / 2, (top + bottom) / 2]
+	if (shown.includes(2)) return stays[0] === 1 ? { at: [left, middleY], side: 'left' } : { at: [right, middleY], side: 'right' }
+	return stays[1] === 1 ? { at: [middleX, top], side: 'above' } : { at: [middleX, bottom], side: 'below' }
+}
+
+/**
  * The box with its corner `corner` of the way across and down at `to`, what `stays` of the way
  * staying where it is, for those to be what it goes by: it goes no further than to nothing.
  */
