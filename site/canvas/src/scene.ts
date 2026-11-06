@@ -665,10 +665,20 @@ function referred(root: AST, env: Env, source: string, snap: SnapPoint): AST | n
 			const was = said.get(path)
 			if (was !== undefined) return was
 			// Code from no one row says where each part is from the root.
-			const next = referenceAt(root, env, source, of === '' ? path : `${of}/${path}`)
-			const reference = next && reach(next, env, source)?.chain.at(-1)?.ast
-			if (!reference) throw new Error('out of reach')
-			parts.push(print(reference))
+			const to = of === '' ? path : `${of}/${path}`
+			const printed = (target: string): string | null => {
+				const next = referenceAt(root, env, source, target)
+				const reference = next && reach(next, env, source)?.chain.at(-1)?.ast
+				return reference ? print(reference) : null
+			}
+			// A part of what is not written out, as a vector that is a reference, is that much further
+			// along what that refers to, which a path from the root says from anywhere.
+			const element = /^(.*)\/(\d+)$/.exec(to)
+			const whole = element === null ? undefined : reach(root, env, element[1]!)?.chain.at(-1)?.ast
+			const along = whole !== undefined && bare(whole).kind === 'path' ? print(bare(whole)) : null
+			const reference = printed(to) ?? (along !== null && along.startsWith('/') ? `${along}/${element![2]}` : null)
+			if (reference === null) throw new Error('out of reach')
+			parts.push(reference)
 			const placeholder = `\0${parts.length - 1}\0`
 			said.set(path, placeholder)
 			return placeholder
@@ -860,16 +870,29 @@ function numbersGiven(root: AST, env: Env, inside: string): Map<string, number> 
  * Null if nothing can be said so, or it would not come to where it is.
  */
 export function pulledOnto(root: AST, before: AST, env: Env, row: string, handle: Handle, snap: SnapPoint): AST | null {
-	if (!canRefer(snap) || handle.code === undefined) return null
+	if (!canRefer(snap)) return null
 	const grip = gripAt(root, env, row)
 	if (grip === null) return null
 	const inside = grip.within === undefined ? row : `${row}/${grip.within}`
+	// A handle that is only a handle, as a radius is at the right of a circle, goes by the place of
+	// the same name where it was, which says how that is worked out.
+	const code =
+		handle.code ??
+		(handle.at === undefined
+			? undefined
+			: snapPointsOf(before, env, sceneOf(before, env).filter(shape => shape.row === row)).find(
+					point =>
+						point.label === handle.name &&
+						point.code?.of === inside &&
+						Math.hypot(point.at[0] - handle.at![0], point.at[1] - handle.at![1]) < SAME_END
+				)?.code?.make)
+	if (code === undefined) return null
 	const was = numbersGiven(before, env, inside)
 	const now = numbersGiven(root, env, inside)
 	const moved = [...now].flatMap(([path, value]) => (was.get(path) === value ? [] : [path]))
 	if (moved.length === 0) return null
 
-	const next = referredByParts(root, env, inside, handle.code, snap, paths => paths.find(path => moved.includes(path)))
+	const next = referredByParts(root, env, inside, code, snap, paths => paths.find(path => moved.includes(path)))
 	if (next === null) return null
 	const reached = gripAt(next, env, row)?.handles.filter(other => other.name === handle.name && other.at !== undefined)
 	return reached?.some(({ at }) => Math.hypot(at![0] - snap.at[0], at![1] - snap.at[1]) < SAME_END) ? next : null

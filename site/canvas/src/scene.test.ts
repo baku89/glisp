@@ -790,6 +790,30 @@ describe('snapping', () => {
 			expect(radius[0] - center('binding:b')[0]).toBeCloseTo(20)
 		})
 
+		it('or has a radius pulled onto it go by where that is, as the side of a circle is worked out from it', () => {
+			const both = parse('[s = (path.circle [100 0] 10) o = (path.circle [80 0] 40)]')
+			const handle = gripAt(both, env, 'binding:o')!.handles.find(h => h.name === 'right')!
+			const edge = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:o'])), [110, 0], 1)!
+			const pulled = changed(both, env, 'binding:o', handle.to(edge.at, handle.at!)).ast!
+			const next = pulledOnto(pulled, both, env, 'binding:o', handle, edge)!
+			expect(next).not.toBeNull()
+			// The small one grown, the right of the large one is still where the right of the small one is.
+			const grown = parse(print(next).replace('[100 0] 10)', '[100 0] 25)'))
+			const right = gripAt(grown, env, 'binding:o')!.handles.find(h => h.name === 'right')!.at!
+			expect(right[0]).toBeCloseTo(125)
+		})
+
+		it('and a center that is all a reference, as one drawn from another is', () => {
+			const all = parse('[c = (path.circle [80 0] 10) s = (path.circle [100 0] 10) o = (path.circle /c/center: 40)]')
+			const handle = gripAt(all, env, 'binding:o')!.handles.find(h => h.name === 'right')!
+			const edge = nearestSnap(snapPointsOf(all, env, sceneOf(all, env), new Set(['binding:o'])), [110, 0], 1)!
+			const pulled = changed(all, env, 'binding:o', handle.to(edge.at, handle.at!)).ast!
+			const next = pulledOnto(pulled, all, env, 'binding:o', handle, edge)!
+			expect(next).not.toBeNull()
+			const grown = parse(print(next).replace('[100 0] 10)', '[100 0] 25)'))
+			expect(gripAt(grown, env, 'binding:o')!.handles.find(h => h.name === 'right')!.at![0]).toBeCloseTo(125)
+		})
+
 		it('is nothing for what is not moved by one thing that says where it is', () => {
 			expect(moved('(path.line [100 0] [200 0])', 'middle', [150, 0])).toBeNull()
 		})
