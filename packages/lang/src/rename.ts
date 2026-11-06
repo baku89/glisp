@@ -5,6 +5,7 @@
 
 import { desugar } from './desugar.js'
 import { childAt, isKeySegment, keyOfSegment, namedChildrenOf } from './eval.js'
+import { writtenName } from './lex.js'
 import { parse } from './parse.js'
 import {
 	AccessAST,
@@ -22,11 +23,15 @@ import {
 	withoutMeta,
 } from './types.js'
 
-/** Whether `name` can name a binding: it has to read back as that symbol. */
+/**
+ * Whether `name` can name a binding: written, with `\\` where it needs one, it reads back as that
+ * symbol, and a path can go to it. A name that a segment of a path is spelled as, as `..` or
+ * `width:`, cannot be one.
+ */
 export function isBindingName(name: string): boolean {
-	if (name === '%') return false
+	if (name === '%' || name === '/' || name === '..' || name.endsWith(':')) return false
 	try {
-		const ast = parse(name)
+		const ast = parse(writtenName(name))
 		return ast.kind === 'sym' && ast.name === name
 	} catch {
 		return false

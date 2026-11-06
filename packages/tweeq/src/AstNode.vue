@@ -543,7 +543,6 @@ watch(
 		v-model:renaming="renaming"
 		:labelSource="isBinding ? entry.label : (nameOf(ast) ?? '')"
 		:canRename="canRename"
-		renameSpaceAs="_"
 		@rename="rename"
 		:selected="selected"
 		:closedGuide="bareKind === 'call'"

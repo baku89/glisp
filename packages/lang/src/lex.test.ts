@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { lex, LexError } from './lex.js'
+import { lex, LexError, writtenName } from './lex.js'
 import { UNIT } from './types.js'
 
 function kinds(src: string): string[] {
@@ -224,5 +224,68 @@ describe('lex — dot family disambiguation', () => {
 		const t = lex('.../foo')[0]!
 		expect(t.kind).toBe('pathSegments')
 		expect(t.value).toEqual(['..', '..', 'foo'])
+	})
+})
+
+describe('lex — names written with `\\`', () => {
+	const only = (src: string) => {
+		const [token, end] = lex(src)
+		expect(end!.kind).toBe('eof')
+		return token!
+	}
+
+	it('puts what follows `\\` in the name, whatever it is', () => {
+		expect(only('layer\\ 1')).toMatchObject({ kind: 'identifier', value: 'layer 1', text: 'layer\\ 1' })
+		expect(only('a\\:b').value).toBe('a:b')
+		expect(only('\\(x\\)').value).toBe('(x)')
+		expect(only('a\\/b').value).toBe('a/b')
+		expect(only('\\\\').value).toBe('\\')
+		expect(only('\\「見出し\\」').value).toBe('「見出し」')
+	})
+
+	it('has `\\n` as `n`, not a new line', () => {
+		expect(only('a\\n').value).toBe('an')
+	})
+
+	it('makes a name of what would be a number or a literal', () => {
+		expect(only('\\1st')).toMatchObject({ kind: 'identifier', value: '1st' })
+		expect(only('\\true')).toMatchObject({ kind: 'identifier', value: 'true' })
+		expect(only('\\-1')).toMatchObject({ kind: 'identifier', value: '-1' })
+	})
+
+	it('cannot put in what could not be seen, or stands for something else', () => {
+		expect(() => lex('a\\')).toThrow(LexError)
+		expect(() => lex('a\\\nb')).toThrow(LexError)
+		expect(() => lex('\\_')).toThrow(LexError)
+		expect(() => lex('\\%')).toThrow(LexError)
+	})
+
+	it('goes along a path, to a name that is not a segment of one', () => {
+		expect(only('./layer\\ 1/r:')).toMatchObject({ kind: 'pathSegments', value: ['layer 1', 'r:'] })
+		expect(only('./\\1st')).toMatchObject({ value: ['1st'] })
+		expect(() => lex('./a\\:')).toThrow(/cannot go to the name/)
+		expect(() => lex('./\\.\\.')).toThrow(/cannot go to the name/)
+	})
+})
+
+describe('writtenName', () => {
+	it('writes a name as it is when it can be, and with `\\` where it must', () => {
+		expect(writtenName('radius')).toBe('radius')
+		expect(writtenName('>=')).toBe('>=')
+		expect(writtenName('/')).toBe('/')
+		expect(writtenName('layer 1')).toBe('layer\\ 1')
+		expect(writtenName('1st')).toBe('\\1st')
+		expect(writtenName('true')).toBe('\\true')
+		expect(writtenName('-1')).toBe('\\-1')
+		expect(writtenName('a:b')).toBe('a\\:b')
+		expect(writtenName('a.b')).toBe('a\\.b')
+	})
+
+	it('writes what reads back as the same name', () => {
+		for (const name of ['layer 1', '1st', 'true', '-1', 'a:b', '(x)', '#tag', 'a"b', 'x?', '\\', '見出し 1', 'é']) {
+			const [token, end] = lex(writtenName(name))
+			expect(token, name).toMatchObject({ kind: 'identifier', value: name.normalize('NFC') })
+			expect(end!.kind, name).toBe('eof')
+		}
 	})
 })

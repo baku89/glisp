@@ -104,9 +104,11 @@ describe('renameBinding', () => {
 
 	it('wants a binding and a name', () => {
 		expect(rename('{a = 1}', 'b', 'c')).toBeNull()
-		for (const name of ['', '1', '(a)', 'a b', '%', '"a"', 'true']) {
+		for (const name of ['', '%', '_', '..', 'a:', 'a\nb']) {
 			expect(rename('{a = 1}', 'a', name)).toBeNull()
 		}
+		// What is not written as a name otherwise is with `\\`
+		expect(rename('{a = 1}', 'a', '"a"')).toBe('{\\"a\\" = 1}')
 	})
 
 	it('changes nothing for the same name', () => {
@@ -117,6 +119,12 @@ describe('renameBinding', () => {
 	it('takes names of any script', () => {
 		expect(rename('{a = 1 a}', 'a', '半径')).toBe('{半径 = 1 半径}')
 		expect(isBindingName('半径')).toBe(true)
+	})
+
+	it('takes a name of anything, written with `\\`', () => {
+		expect(rename('{a = 1 a}', 'a', 'layer 1')).toBe('{layer\\ 1 = 1 layer\\ 1}')
+		for (const name of ['layer 1', '1st', 'true', 'a.b', '(x)']) expect(isBindingName(name), name).toBe(true)
+		for (const name of ['', '%', '_', '..', 'width:', 'a\nb']) expect(isBindingName(name), name).toBe(false)
 	})
 
 	it('leaves the original alone', () => {

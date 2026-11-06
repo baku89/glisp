@@ -9,6 +9,7 @@ import {
 	letBlock,
 	lit,
 	meta,
+	named,
 	path,
 	record,
 	spread,
@@ -225,5 +226,26 @@ describe('print', () => {
 		expect(print(ast)).toBe(
 			'(=> [n: number]: number {a = (* n 2) (+ a 1)})'
 		)
+	})
+})
+
+describe('names written with `\\`', () => {
+	it('come back as they were written, wherever a name is', () => {
+		for (const src of [
+			'{layer\\ 1 = 10 (+ layer\\ 1 1)}',
+			'{font\\ size: 12 \\1st: 2}',
+			'(f a\\ b: 1)',
+			'r.font\\ size',
+			'./layer\\ 1/r:',
+			'(=> {T\\ U} [a\\ b: number]: number a\\ b)',
+			'[x\\ y = 1 \\true]',
+		]) {
+			expect(parse(src).printStructural(), src).toBe(src)
+		}
+	})
+
+	it('are written for a name a host gives', () => {
+		expect(print(sym('layer 1'))).toBe('layer\\ 1')
+		expect(print(named('Circle 1', lit(1)))).toBe('Circle\\ 1 = 1')
 	})
 })

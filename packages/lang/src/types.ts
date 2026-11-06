@@ -12,6 +12,8 @@
  * builder-style rendering.
  */
 
+import { writtenName } from './lex.js'
+
 // -----------------------------------------------------------------------------
 // Unit
 // -----------------------------------------------------------------------------
@@ -195,9 +197,12 @@ export class SymAST extends ASTNode {
 	}
 
 	override printStructural(): string {
-		return this.name
+		return SYNTAX_SYMBOLS.has(this.name) ? this.name : writtenName(this.name)
 	}
 }
+
+/** What is written as a symbol but is syntax, and stays as it is. */
+const SYNTAX_SYMBOLS: ReadonlySet<string> = new Set(['?', ':', '_', '!', '%'])
 
 /**
  * Application AST. `args` is positional; `kwargs` are keyword arguments
@@ -221,7 +226,7 @@ export class CallAST extends ASTNode {
 		const kw: string[] = []
 		if (this.kwargs) {
 			for (const [k, v] of this.kwargs) {
-				kw.push(`${k}: ${v.print()}`)
+				kw.push(`${writtenName(k)}: ${v.print()}`)
 			}
 		}
 		return `(${[...positional, ...kw].join(' ')})`
@@ -242,7 +247,7 @@ export class AccessAST extends ASTNode {
 	}
 
 	override printStructural(): string {
-		return `${this.target.print()}.${this.key}`
+		return `${this.target.print()}.${typeof this.key === 'string' ? writtenName(this.key) : this.key}`
 	}
 }
 
@@ -309,7 +314,7 @@ export class RecordAST extends ASTNode {
 			} else {
 				const [k, v] = entry
 				const optMark = this.optional?.has(k) ? '?' : ''
-				entries.push(`${k}${optMark}: ${v.print()}`)
+				entries.push(`${writtenName(k)}${optMark}: ${v.print()}`)
 			}
 		}
 		return `{${entries.join(' ')}}`
@@ -335,7 +340,7 @@ export class LetAST extends ASTNode {
 	override printStructural(): string {
 		const parts: string[] = []
 		for (const [name, expr] of this.bindings) {
-			parts.push(`${name} = ${expr.print()}`)
+			parts.push(`${writtenName(name)} = ${expr.print()}`)
 		}
 		if (this.body !== null) {
 			parts.push(this.body.print())
@@ -361,7 +366,7 @@ export interface FnParam {
 function printFnParam(p: FnParam): string {
 	const type = p.type.print()
 	if (p.name === '') return p.variadic ? `...${type}` : type
-	let name = p.name
+	let name = writtenName(p.name)
 	if (p.optional) name += '?'
 	if (p.variadic) name = '...' + name
 	return `${name}: ${type}`
@@ -400,7 +405,7 @@ export class FnAST extends ASTNode {
 	override printStructural(): string {
 		const segments: string[] = ['=>']
 		if (this.generics.length > 0) {
-			segments.push(`{${this.generics.join(' ')}}`)
+			segments.push(`{${this.generics.map(writtenName).join(' ')}}`)
 		}
 		const params = this.params.map(printFnParam).join(' ')
 		segments.push(`[${params}]: ${this.returnType.print()}`)
@@ -437,12 +442,18 @@ export class PathAST extends ASTNode {
 
 	override printStructural(): string {
 		if (this.segments.length === 0) return './'
-		if (this.segments[0] === '/') return '/' + this.segments.slice(1).map(String).join('/')
+		if (this.segments[0] === '/') return '/' + this.segments.slice(1).map(writtenSegment).join('/')
 		const head = this.segments[0] === '..' ? '../' : './'
 		const rest =
 			this.segments[0] === '..' ? this.segments.slice(1) : this.segments
-		return head + rest.map(String).join('/')
+		return head + rest.map(writtenSegment).join('/')
 	}
+}
+
+/** A segment of a path as it is written: `..`, an index, a name, or a key, `name:`. */
+function writtenSegment(segment: '..' | string | number): string {
+	if (typeof segment === 'number' || segment === '..') return String(segment)
+	return segment.endsWith(':') ? `${writtenName(segment.slice(0, -1))}:` : writtenName(segment)
 }
 
 /**
@@ -524,7 +535,7 @@ export class MetaAST extends ASTNode {
 			others.length === 0 && !said
 				? ''
 				: `^${said ? this.metadata.print() : new RecordAST(others, optional).print()} `
-		return `${name === null ? '' : `${name} = `}${prefix}${marks}${this.expr.print()}`
+		return `${name === null ? '' : `${writtenName(name)} = `}${prefix}${marks}${this.expr.print()}`
 	}
 }
 

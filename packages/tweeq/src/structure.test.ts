@@ -850,6 +850,12 @@ describe('renameBindingAt', () => {
 		)
 	})
 
+	it('takes a name with spaces and marks, but not `/`, which divides the path of a row', () => {
+		expect(rename('{a = 1 b = (+ a 1)}', 'binding:a', 'Circle 1')).toBe('{Circle\\ 1 = 1 b = (+ Circle\\ 1 1)}')
+		expect(rename('{a = 1 q = ./a}', 'binding:a', 'x (y)')).toBe('{x\\ \\(y\\) = 1 q = ./x\\ \\(y\\)}')
+		expect(rename('{a = 1}', 'binding:a', 'a/b')).toBeNull()
+	})
+
 	it('reaches a let under metadata', () => {
 		expect(rename('{z = ^{label: "L"} {a = 1}}', 'binding:z/binding:a', 'b')).toBe(
 			'{z = ^{label: "L"} {b = 1}}'

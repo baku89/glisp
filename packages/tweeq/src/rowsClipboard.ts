@@ -20,6 +20,7 @@ import {
 	UNIT,
 	unnamed,
 	VecAST,
+	writtenName,
 } from '@glisp/lang'
 
 import { readProgram } from './programSource'
@@ -177,7 +178,7 @@ export function copiedRows(root: AST, env: Env, paths: readonly string[]): strin
 		.flatMap(path => {
 			const last = reach(root, env, path)?.chain.at(-1)
 			const name = last && nameOfSlot(last)
-			return last && name ? [`${name} = ${print(writtenAsType(last.ast, last.expected, last.env))}`] : []
+			return last && name ? [`${writtenName(name)} = ${print(writtenAsType(last.ast, last.expected, last.env))}`] : []
 		})
 		.join('\n')
 }

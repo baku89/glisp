@@ -3,7 +3,7 @@
  * that goes unsaid.
  */
 
-import { type AST, type Env, lex, LetAST, nameOf, parse, print, unnamed } from '@glisp/lang'
+import { type AST, type Env, lex, LetAST, nameOf, parse, print, unnamed, writtenName } from '@glisp/lang'
 
 import { layersVectorOf, viewOf, type Slot } from './structure'
 
@@ -44,16 +44,16 @@ export function sourceOfProgram(root: LetAST): string {
 	const layered = layersVectorOf(root)
 	const lines = root.bindings
 		.filter(([name]) => layered === null || layered.name !== name)
-		.map(([name, value]) => `${name} = ${printedAt(value, 0)}`)
+		.map(([name, value]) => `${writtenName(name)} = ${printedAt(value, 0)}`)
 	if (layered === null) {
 		return root.body === null ? lines.join('\n') : [...lines, printedAt(root.body, 0)].join('\n')
 	}
 	const elements = layered.vector.elements.map(element => {
 		const name = nameOf(element)
-		return name === null ? printedAt(element, 2) : `${name} = ${printedAt(unnamed(element), 2)}`
+		return name === null ? printedAt(element, 2) : `${writtenName(name)} = ${printedAt(unnamed(element), 2)}`
 	})
 	const vector = elements.length === 0 ? '[]' : `[\n${elements.map(line => `  ${line}`).join('\n')}\n]`
-	return [...lines, layered.name === null ? vector : `${layered.name} = ${vector}`].join('\n')
+	return [...lines, layered.name === null ? vector : `${writtenName(layered.name)} = ${vector}`].join('\n')
 }
 
 export type ProgramReading =

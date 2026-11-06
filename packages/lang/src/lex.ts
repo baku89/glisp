@@ -146,9 +146,9 @@ export function nextToken(src: string, start: number): Token {
 
 	if (isNumberStart(src, pos)) return readNumber(src, pos)
 
-	// identifier (or reserved bare token)
+	// identifier (or reserved bare token), which `\` may start
 	const char = charAt(src, pos)
-	if (isIdentifierStart(char)) return readIdentifierOrReserved(src, pos)
+	if (char === '\\' || isIdentifierStart(char)) return readIdentifierOrReserved(src, pos)
 
 	throw lexError(src, pos, `Unexpected character: ${JSON.stringify(char)}`)
 }
@@ -187,7 +187,7 @@ function isIdentifierChar(ch: string): boolean {
 	if (ch >= 'a' && ch <= 'z') return true
 	if (ch >= 'A' && ch <= 'Z') return true
 	if (ch >= '0' && ch <= '9') return true
-	return IDENT_CHARS.indexOf(ch) >= 0
+	return ch !== '' && IDENT_CHARS.indexOf(ch) >= 0
 }
 
 function isIdentifierStart(ch: string): boolean {
@@ -196,15 +196,60 @@ function isIdentifierStart(ch: string): boolean {
 	return isIdentifierChar(ch)
 }
 
-/** The offset just past the identifier characters starting at `pos`. */
+/** What a `\\` cannot put in a name, as it could not be seen there. */
+const CONTROL = /^\p{Cc}$/u
+
+/**
+ * The offset just past the identifier characters starting at `pos`. `\\` puts the character after
+ * it in, whatever it is, as `layer\\ 1`.
+ */
 function identifierEnd(src: string, start: number): number {
 	let pos = start
 	while (pos < src.length) {
+		if (src[pos] === '\\') {
+			const escaped = charAt(src, pos + 1)
+			if (escaped === '' || CONTROL.test(escaped)) {
+				throw lexError(src, pos, 'a `\\` in a name is followed by what it puts in it')
+			}
+			pos += 1 + escaped.length
+			continue
+		}
 		const char = charAt(src, pos)
 		if (!isIdentifierChar(char)) break
 		pos += char.length
 	}
 	return pos
+}
+
+/** A name as it is written, without the `\\` before what they put in it. */
+function unescapedName(text: string): string {
+	return text.replace(/\\(.)/gsu, '$1').normalize('NFC')
+}
+
+/**
+ * `name` written so that it reads back as that name: as it is, if it can be, and otherwise with
+ * `\\` before each character that would end it or start something else, as `layer\\ 1`, `\\1st`
+ * and `\\true`.
+ */
+export function writtenName(name: string): string {
+	if (readsAsName(name, name)) return name
+	let out = ''
+	let first = true
+	for (const char of name) {
+		out += (first ? isIdentifierStart(char) : isIdentifierChar(char)) ? char : `\\${char}`
+		first = false
+	}
+	if (!readsAsName(out, name) && !out.startsWith('\\')) out = `\\${out}`
+	return out
+}
+
+function readsAsName(text: string, name: string): boolean {
+	try {
+		const token = nextToken(text, 0)
+		return token.kind === 'identifier' && token.value === name && token.end === text.length
+	} catch {
+		return false
+	}
 }
 
 function isDigit(ch: string | undefined): boolean {
@@ -327,7 +372,11 @@ function readPathFromDots(
 
 		const idStart = pos
 		pos = identifierEnd(src, pos)
-		const name = src.slice(idStart, pos).normalize('NFC')
+		const name = unescapedName(src.slice(idStart, pos))
+		// A segment is told from a name by these, and so a path cannot go to a name that is one.
+		if (name.endsWith(':') || name === '..' || name === '/') {
+			throw lexError(src, idStart, `a path cannot go to the name ${JSON.stringify(name)}`)
+		}
 		// `key:` is what fills a slot, a record's field or a call's argument, and not a name.
 		if (src[pos] === ':') {
 			pos++
@@ -351,7 +400,7 @@ function startsSegmentFromRoot(ch: string): boolean {
 }
 
 function isPathSegmentStart(ch: string): boolean {
-	if (ch === '.') return true
+	if (ch === '.' || ch === '\\') return true
 	if (isDigit(ch)) return true
 	return isIdentifierStart(ch)
 }
@@ -457,11 +506,20 @@ function readIdentifierOrReserved(src: string, start: number): Token {
 	// `>=`, `<=`, `!=` extension (the `=` after a comparator is part of one
 	// identifier even though `=` is not in the identifier character set).
 	const last = src[pos - 1]
-	if ((last === '<' || last === '>' || last === '!') && src[pos] === '=') {
+	if ((last === '<' || last === '>' || last === '!') && src[pos - 2] !== '\\' && src[pos] === '=') {
 		pos++
 	}
 
 	const text = src.slice(start, pos)
+
+	// Written with `\\`, it is a name whatever it says, but for what stands for something else.
+	if (text.includes('\\')) {
+		const value = unescapedName(text)
+		if (value === '_' || value === '!' || value === '%') {
+			throw lexError(src, start, `\`${value}\` cannot be a name`)
+		}
+		return { kind: 'identifier', text, start, end: pos, value }
+	}
 
 	switch (text) {
 		case '_':

@@ -8,6 +8,13 @@ describe('a program as code', () => {
 		expect(sourceOfProgram(parse('{a = 1 b = (+ a 1)}') as LetAST)).toBe('a = 1\nb = (+ a 1)')
 	})
 
+	it('writes a name with a space as it reads back', () => {
+		const root = new LetAST([['Circle 1', parse('10')]], null)
+		const source = sourceOfProgram(root)
+		expect(source).toBe('Circle\\ 1 = 10')
+		expect((readProgram(source).ast as LetAST).bindings[0]?.[0]).toBe('Circle 1')
+	})
+
 	it('reads back as it was', () => {
 		const reading = readProgram('a = 1\nb = (+ a 1)')
 		expect('ast' in reading && print(reading.ast)).toBe('{a = 1 b = (+ a 1)}')

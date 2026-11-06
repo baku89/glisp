@@ -1762,6 +1762,8 @@ export function renameBindingAt(
 	path: string,
 	name: string
 ): AST | null {
+	// A row's path is the names on the way to it, between `/`
+	if (name.includes('/')) return null
 	const parts = path.split('/').filter(part => part !== '')
 	const key = parts.at(-1)
 	if (key === undefined) return null

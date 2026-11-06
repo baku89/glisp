@@ -63,6 +63,7 @@ describe('withNamed', () => {
 
 	it('cannot give a name another has where it is', () => {
 		expect(naming('[a = 1 2]', element(1), 'a')).toBeNull()
-		expect(naming('[1 2]', element(0), '1x')).toBeNull()
+		expect(naming('[1 2]', element(0), 'x:')).toBeNull()
+		expect(naming('[1 2]', element(0), '1x')).toBe('[\\1x = 1 2]')
 	})
 })

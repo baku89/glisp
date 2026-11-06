@@ -52,6 +52,19 @@ Allowed characters: alphanumerics and `+ - * < > & | % _ ! $`, and beyond ASCII,
 
 Identifiers are normalized to NFC, so the same name typed two ways is the same name. Non-ASCII spaces, such as the ideographic space, are whitespace.
 
+`\` puts the character after it in a name, whatever it is, so a name can hold spaces and marks, and start with what would otherwise begin a number or a literal. It has no other meaning there: `\n` is `n`. A control character, such as a new line, cannot be put in, and neither can what stands for something else alone, as `\_`, `\!` and `\%` would.
+
+<!-- test -->
+```glisp
+{layer\ 1 = 10
+ \1st = 2
+ \true = 3
+ r = {font\ size: 12}
+ (+ layer\ 1 \1st \true r.font\ size ../layer\ 1)}  ;; → 37
+```
+
+A name is written this way wherever it is: bound, referred to, as a key, a keyword, a parameter, a generic, after `.`, and in a path. A path cannot go to a name that is spelled as a segment of one, `..` or one ending with `:`, and so such a name cannot be bound. A host writes a name it is given with what it needs, as `Circle\ 1`, and shows it without.
+
 Several bare tokens are reserved and cannot stand alone as identifiers; embedded use within an identifier is still fine:
 
 | Bare token | Reserved meaning                            | Embedded example (still valid) |
@@ -63,7 +76,7 @@ Several bare tokens are reserved and cannot stand alone as identifiers; embedded
 | `?`        | match special form (head); optional suffix  | (none, `?` already reserved)   |
 | `/`        | division function; also path separator      | (none, `/` not an identifier char) |
 
-Reserved (not allowed in identifiers): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` and whitespace.
+Reserved (not allowed in identifiers, but with `\` before them): `? : = . / ^ ~ ' \` , ; ( ) [ ] { } # @` and whitespace. `\` itself starts an escape, so `\\` puts it in a name.
 
 `/` is listed in the table for completeness even though it cannot appear inside an identifier; it is also a single-character bare token with reserved bare-form meaning.
 

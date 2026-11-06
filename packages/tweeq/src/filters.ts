@@ -176,6 +176,21 @@ export const filtersFor = (
 const isWritten = (value: unknown): boolean =>
 	typeof value === 'object' && value !== null && typeof (value as { print?: unknown }).print === 'function'
 
+/**
+ * What calls the function `name`: what it reads as, as `path.offset` does, or else the name itself,
+ * which may need `\` to be written, as `my\ shape` does. Read in a call, as `/` alone is otherwise
+ * the root of the program.
+ */
+function headNamed(name: string): AST {
+	try {
+		const call = parse(`(${name})`)
+		if (call.kind === 'call' && call.args.length === 0 && call.kwargs === undefined) return call.head
+	} catch {
+		// Not written as a name, and so it is one with what it holds
+	}
+	return new SymAST(name)
+}
+
 /** A call of `filter` with `given`, the rest of what it needs being what it would be at first. */
 export function callOf({ name, fn }: Filter, given: readonly AST[], env: Env): CallAST {
 	const names = fn.paramNames ?? []
@@ -187,8 +202,7 @@ export function callOf({ name, fn }: Filter, given: readonly AST[], env: Env): C
 		if (i < initial.length) return [isWritten(initial[i]) ? (initial[i] as AST) : toAst(initial[i], env)]
 		return param !== undefined && fn.optional?.has(param) ? [] : [defaultFor(type, env)]
 	})
-	// In a call, as `/` alone is otherwise the root of the program.
-	return new CallAST((parse(`(${name})`) as CallAST).head, [...given, ...rest])
+	return new CallAST(headNamed(name), [...given, ...rest])
 }
 
 const errorsIn = (ast: AST, env: Env): number =>
