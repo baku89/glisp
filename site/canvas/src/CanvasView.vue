@@ -1252,18 +1252,6 @@ function draw(): void {
 		context.restore()
 	}
 
-	for (const [i, handle] of grip.value?.handles.entries() ?? []) {
-		const dragged = draggedHandle.value
-		drawHandle(
-			context,
-			handle,
-			(dragged === null ? i === hoveredHandle.value : i === dragged) || isChosenAt(i),
-			i === dragged && linking.value !== null ? expression : accent,
-			paper,
-			i === dragged
-		)
-	}
-
 	if (evenLine.value !== null) {
 		context.strokeStyle = accent
 		drawExtended(context, evenLine.value[0], evenLine.value[1])
@@ -1287,6 +1275,19 @@ function draw(): void {
 		context.lineTo(width, y)
 		context.stroke()
 		context.restore()
+	}
+
+	// Over the lines that go through them, which would otherwise cross what is filled in them.
+	for (const [i, handle] of grip.value?.handles.entries() ?? []) {
+		const dragged = draggedHandle.value
+		drawHandle(
+			context,
+			handle,
+			(dragged === null ? i === hoveredHandle.value : i === dragged) || isChosenAt(i),
+			i === dragged && linking.value !== null ? expression : accent,
+			paper,
+			i === dragged
+		)
 	}
 
 	drawReadout(context, ink, color('--tq-color-text-mute'), color('--tq-color-border'), paper)
