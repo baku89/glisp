@@ -540,6 +540,52 @@ function circleThrough(a: Vec, b: Vec, c: Vec): { center: Vec; radius: number } 
 	return { center, radius: dist(center, a) }
 }
 
+/** A center and a radius as code, by what a call is given. */
+type RoundCode = (p: (path: string) => string) => { readonly x: string; readonly y: string; readonly r: string }
+
+/** The center of a circle and where it is furthest each way, as places to snap to and to refer to. */
+const roundPlaces = ({ center, radius }: { center: Vec; radius: number }, code: RoundCode) => {
+	const at = (dx: number, dy: number): Vec => [center[0] + dx * radius, center[1] + dy * radius]
+	const side = (sx: '+' | '-' | null, sy: '+' | '-' | null): PlaceCode => p => {
+		const { x, y, r } = code(p)
+		return `[${sx === null ? x : `(${sx} ${x} ${r})`} ${sy === null ? y : `(${sy} ${y} ${r})`}]`
+	}
+	return [
+		{ at: center, name: 'center', code: side(null, null) },
+		{ at: at(1, 0), name: 'right', code: side('+', null) },
+		{ at: at(0, 1), name: 'bottom', code: side(null, '+') },
+		{ at: at(-1, 0), name: 'left', code: side('-', null) },
+		{ at: at(0, -1), name: 'top', code: side(null, '-') },
+	]
+}
+
+/** How far apart two places are, as code. */
+const distanceCode = (ax: string, ay: string, bx: string, by: string): string =>
+	`(sqrt (+ (* (- ${bx} ${ax}) (- ${bx} ${ax})) (* (- ${by} ${ay}) (- ${by} ${ay}))))`
+
+/** The circle with its arguments at either end of a line through its center, as code. */
+const diameterCode: RoundCode = p => {
+	const [ax, ay, bx, by] = [p('arg0/0'), p('arg0/1'), p('arg1/0'), p('arg1/1')]
+	// Half is what the middle is, and not what moving it would change.
+	return {
+		x: `(/ (+ ${ax} ${bx}) @2)`,
+		y: `(/ (+ ${ay} ${by}) @2)`,
+		r: `(/ ${distanceCode(ax, ay, bx, by)} @2)`,
+	}
+}
+
+/** The circle through its three arguments, as code: around where they are all as far from. */
+const throughCode: RoundCode = p => {
+	const [ax, ay, bx, by, cx, cy] = ['arg0/0', 'arg0/1', 'arg1/0', 'arg1/1', 'arg2/0', 'arg2/1'].map(p) as [string, string, string, string, string, string]
+	const square = (x: string, y: string) => `(+ (* ${x} ${x}) (* ${y} ${y}))`
+	const [sa, sb, sc] = [square(ax, ay), square(bx, by), square(cx, cy)]
+	const sum = (...terms: string[]) => terms.reduce((a, b) => `(+ ${a} ${b})`)
+	const d = `(* @2 ${sum(`(* ${ax} (- ${by} ${cy}))`, `(* ${bx} (- ${cy} ${ay}))`, `(* ${cx} (- ${ay} ${by}))`)})`
+	const x = `(/ ${sum(`(* ${sa} (- ${by} ${cy}))`, `(* ${sb} (- ${cy} ${ay}))`, `(* ${sc} (- ${ay} ${by}))`)} ${d})`
+	const y = `(/ ${sum(`(* ${sa} (- ${cx} ${bx}))`, `(* ${sb} (- ${ax} ${cx}))`, `(* ${sc} (- ${bx} ${ax}))`)} ${d})`
+	return { x, y, r: distanceCode(x, y, ax, ay) }
+}
+
 /** What a circle from places comes to, as a circle around its center: the next rung of it. */
 const asCircle = ({ center, radius }: { center: Vec; radius: number }): AST =>
 	callOf('circle', [toAst(center, null), toAst(radius, null)])
@@ -2915,24 +2961,14 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 		makeCircleFromDiameter,
 		args => {
 			const [a, b] = args as [Vec, Vec]
-			const { center } = circleOfDiameter(a, b)
-			return pointsGrip(args as Vec[], [line(a, b)], {
-				points: [
-					{
-						at: center,
-						name: 'center',
-						code: p => `[(/ (+ ${p('arg0/0')} ${p('arg1/0')}) @2) (/ (+ ${p('arg0/1')} ${p('arg1/1')}) @2)]`,
-					},
-				],
-			})
+			return pointsGrip(args as Vec[], [line(a, b)], { points: roundPlaces(circleOfDiameter(a, b), diameterCode) })
 		},
 	],
 	[
 		makeCircleThrough,
 		args => {
 			const [a, b, c] = args as [Vec, Vec, Vec]
-			// Where it goes round, which none of them says, is only a place to line up with.
-			return pointsGrip(args as Vec[], [], { points: [{ at: circleThrough(a, b, c).center, name: 'center' }] })
+			return pointsGrip(args as Vec[], [], { points: roundPlaces(circleThrough(a, b, c), throughCode) })
 		},
 	],
 	[

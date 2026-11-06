@@ -68,7 +68,7 @@ import { contains, intersections } from 'pave/path/queries'
 import { transform } from 'pave/path/modifiers'
 
 import type { GraphPaperValue } from './graphics'
-import { between, less, partsIn, partsOf, type Place, placeOf, pointAt, solvedFor, substituted, valuesOfParts, whereIs, writtenAt } from './place'
+import { between, less, partsIn, partsOf, type Place, placeOf, pointAt, simplified, solvedFor, substituted, valuesOfParts, whereIs, writtenAt } from './place'
 import { isGuideOfPoints } from './graphics'
 import type { GraphPaperKind } from './graphPaper'
 
@@ -674,15 +674,50 @@ export function linked(
 	return reached !== undefined && Math.hypot(reached[0] - snap.at[0], reached[1] - snap.at[1]) < SAME_PLACE ? next : null
 }
 
-/** Where in the row at `row` its call is, and what moving it changes, which says where it is. */
-function callOfRow(root: AST, env: Env, row: string): { inside: string; anchor: string | null } | null {
+/**
+ * Where in the row at `row` its call is, and what moving it changes: the one argument that says
+ * where it is, or else each of those that it goes through, as a circle through three places does.
+ */
+function callOfRow(
+	root: AST,
+	env: Env,
+	row: string
+): { inside: string; anchor: string | null; moving: readonly string[] } | null {
 	const grip = gripAt(root, env, row)
 	if (grip === null) return null
 	const inside = grip.within === undefined ? row : `${row}/${grip.within}`
 	const depth = grip.within === undefined ? 0 : grip.within.split('/').length
-	const moved = grip.move?.([1, 0]) ?? []
-	const route = moved.length === 1 ? moved[0]!.route.slice(depth) : []
-	return { inside, anchor: route.length === 1 ? `arg${route[0]}` : null }
+	const routes = (grip.move?.([1, 0]) ?? []).map(change => change.route.slice(depth))
+	const moving = routes.every(route => route.length === 1) ? routes.map(route => `arg${route[0]}`) : []
+	return { inside, anchor: moving.length === 1 ? moving[0]! : null, moving }
+}
+
+/**
+ * `root`, with each of the places at `moving` in the call at `inside` as far from where `snap` is
+ * as it is from `own`, so that all of it goes with that, as it is: what has no one place that says
+ * where it is, as a circle through three has not, is moved by all of them together.
+ */
+function carriedOnto(root: AST, env: Env, inside: string, moving: readonly string[], own: Place, snap: SnapPoint): AST | null {
+	const target = placeOfSnap(snap)
+	const targetParts = target && partsOf(target)
+	const at = rowAt(root, env, inside)?.env ?? env
+	const from = whereIs(root, env, own, at)
+	const numbers = numbersGiven(root, env, inside)
+	if (target === null || targetParts === null || from === null) return null
+	const offset = (part: AST, by: number): AST => {
+		const rounded = Number(by.toPrecision(12))
+		return by < 0 ? less(part, new LitAST(-rounded)) : simplified(new CallAST(new SymAST('+'), [part, new LitAST(rounded)]))
+	}
+	let next: AST | null = root
+	for (const arg of moving) {
+		const point = [0, 1].map(i => numbers.get(`${arg}/${i}`))
+		if (point.some(n => n === undefined)) return null
+		const ast = new VecAST(targetParts.map((part, i) => offset(part, point[i]! - from[i]!)))
+		next = next && writtenAt(next, env, `${inside}/${arg}`, ast, target.parts)
+	}
+	if (next === null || next === root || errorsIn(next, env) > errorsIn(root, env)) return null
+	const now = whereIs(next, env, own, at)
+	return now !== null && Math.hypot(now[0] - snap.at[0], now[1] - snap.at[1]) < SAME_END ? next : null
 }
 
 /**
@@ -784,8 +819,9 @@ export function movedOnto(root: AST, env: Env, row: string, taken: SnapPoint, sn
 	if (!canRefer(snap)) return null
 	const call = callOfRow(root, env, row)
 	const own = placeTaken(root, env, row, taken, [taken.at, snap.at])
-	if (call === null || call.anchor === null || own === null) return null
-	const { inside, anchor } = call
+	if (call === null || own === null) return null
+	const { inside, anchor, moving } = call
+	if (anchor === null) return moving.length > 1 ? carriedOnto(root, env, inside, moving, own, snap) : null
 	return attached(root, env, inside, own, snap, paths => paths.find(path => path === anchor || path.startsWith(`${anchor}/`)))
 }
 

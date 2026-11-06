@@ -624,6 +624,51 @@ describe('a circle drawn through places', () => {
 		expect(circleOf(moved, 'binding:circle1').center).toEqual([100, 20])
 	})
 
+	describe('has its center and where it is furthest each way, to refer to', () => {
+		const shapes = {
+			'(path.circleFromDiameter [0 0] [100 0])': { center: [50, 0], top: [50, -50], right: [100, 0], bottom: [50, 50], left: [0, 0] },
+			'(path.circleThrough [0 0] [100 0] [50 50])': { center: [50, 0], top: [50, -50], right: [100, 0], bottom: [50, 50], left: [0, 0] },
+		} as Record<string, Record<string, Vec>>
+		/** The place `label` of `c` in `root`. */
+		const placeOf = (root: AST, label: string) =>
+			snapPointsOf(root, env, sceneOf(root, env).filter(s => s.row === 'binding:c')).find(p => p.label === label)!
+
+		for (const [shape, places] of Object.entries(shapes)) {
+			it(`as ${shape} does`, () => {
+				const root = parse(`{c = ${shape}}`)
+				for (const [label, at] of Object.entries(places)) {
+					const place = placeOf(root, label)
+					expect(place.at[0]).toBeCloseTo(at[0])
+					expect(place.at[1]).toBeCloseTo(at[1])
+					expect(place.code).toBeDefined()
+				}
+			})
+
+			it(`and what is put on one of ${shape} goes on being there`, () => {
+				const both = parse(`{c = ${shape} l = (path.line [200 200] [300 300])}`) as LetAST
+				const top = snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:l'])).find(p => p.label === 'top')!
+				const next = linked(both, env, 'binding:l', 0, top)!
+				const moved = parse(print(next).replace('[100 0]', '[200 0]'))
+				const start = gripAt(moved, env, 'binding:l')!.handles.find(h => h.place === 0)!.at!
+				const now = placeOf(moved, 'top').at
+				expect(start[0]).toBeCloseTo(now[0])
+				expect(start[1]).toBeCloseTo(now[1])
+				expect(now).not.toEqual(places.top)
+			})
+		}
+
+		it('and is put on another by any of them, moving with it', () => {
+			const both = parse('{r = (path.rect [0 0] [100 40]) c = (path.circleFromDiameter [80 -20] [120 -20])}')
+			const own = placeOf(both, 'bottom')
+			const corner = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), [100, 0], 1)!
+			const next = movedOnto(both, env, 'binding:c', own, corner)!
+			expect(next).not.toBeNull()
+			const at = placeOf(parse(print(next).replace('[0 0] [100 40]', '[10 5] [100 40]')), 'bottom').at
+			expect(at[0]).toBeCloseTo(110)
+			expect(at[1]).toBeCloseTo(5)
+		})
+	})
+
 	it('comes to a circle around its center, as a step', () => {
 		const stepped = withSlotCommand(parse('[c = (path.circleThrough [0 0] [100 0] [50 50])]'), env, ['binding:c'], 'step')!
 		expect(print(stepped)).toContain('c = (path.circle [50 0] 50)')
@@ -870,10 +915,13 @@ describe('snapping', () => {
 			expect(gripAt(grown, env, 'binding:o')!.handles.find(h => h.name === 'right')!.at![0]).toBeCloseTo(80)
 		})
 
-		it('is nothing for what is not moved by one thing that says where it is', () => {
-			expect(moved('(path.line [100 0] [200 0])', 'middle', [150, 0])).toBeNull()
+		it('or, for what is not moved by one thing that says where it is, by all it goes through, as it is', () => {
+			const middle = moved('(path.line [100 0] [200 0])', 'middle', [150, 0])!
+			expect(middle).not.toBeNull()
+			near(placeIn(middle, 'middle', '[100 40]', '[150 40]'), [150, 0])
+			const ends = gripAt(parse(print(middle).replace('[0 0] [100 40]', '[0 10] [100 40]')), env, 'binding:c')!.handles.map(h => h.at!)
+			expect(Math.hypot(ends[1]![0] - ends[0]![0], ends[1]![1] - ends[0]![1])).toBeCloseTo(100)
 		})
-
 	})
 
 	it('can be somewhere else along the same line, for what goes only one way to get to it', () => {
