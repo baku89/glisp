@@ -638,6 +638,13 @@ describe('snapping', () => {
 			expect(onto('(path.polyline [0 0] [100 0] [100 100])', [99, 37])).toBe('(path.line [(lerp /o/points/1/0 /o/points/2/0 0.37) (lerp /o/points/1/1 /o/points/2/1 0.37)] [300 300])')
 		})
 
+		it('only across, where a level or upright edge would go on, being only lined up with it', () => {
+			// A named argument is reached by its name, whichever way a path says that.
+			expect(onto('(path.rect [0 0] [100 40])', [130, 0.5])).toMatch(/^\(path\.line \[130 \/o\/origin:?\/1\] \[300 300\]\)$/)
+			expect(onto('(path.rect [0 0] [100 40])', [100.5, 60])).toMatch(/^\(path\.line \[\(\+ \/o\/origin:?\/0 \/o\/size:?\/0\) 60\] \[300 300\]\)$/)
+			expect(onto('(path.rect [0 0] [100 40])', [-30, 0.5])).toMatch(/^\(path\.line \[-30 \/o\/origin:?\/1\] \[300 300\]\)$/)
+		})
+
 		it('and where it would go, if it went on', () => {
 			expect(onto('(path.line [0 0] [100 100])', [150, 149])).toBe('(path.line [(lerp /o/start/0 /o/end/0 1.495) (lerp /o/start/1 /o/end/1 1.495)] [300 300])')
 		})

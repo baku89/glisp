@@ -472,9 +472,43 @@ export function alongSnapped(snap: SnapPoint, at: Vec, tolerance: number): SnapP
 	const { at: on, beyond, t } = along(from, to, at)
 	const { label, line, ends } = snap
 	const extra = beyond ? { beyond } : {}
-	return ends === undefined
-		? { at: on, target: null, label, line, ...extra }
-		: { ...onLineBetween(ends, from, to, t, tolerance), label, line, ends, ...extra }
+	if (ends === undefined) return { at: on, target: null, label, line, ...extra }
+	// Where a level or upright line would go on, it is only lined up with: one of where it is.
+	const level = from[1] === to[1] && from[0] !== to[0]
+	const upright = from[0] === to[0] && from[1] !== to[1]
+	if (beyond && (level || upright)) {
+		return { ...inLineWith(ends, t > 1 ? 'to' : 'from', level ? 1 : 0, on, tolerance), label, line, ends, ...extra }
+	}
+	return { ...onLineBetween(ends, from, to, t, tolerance), label, line, ends, ...extra }
+}
+
+/**
+ * `on`, lined up with the end `end` of a line along `axis`, 1 being across: referring to that
+ * end for that, and only being as far along as it is for the other, rounded no more than
+ * `tolerance` across.
+ */
+function inLineWith(
+	ends: NonNullable<SnapPoint['ends']>,
+	end: 'from' | 'to',
+	axis: 0 | 1,
+	on: Vec,
+	tolerance: number
+): { at: Vec; target: null; code: NonNullable<SnapPoint['code']> } {
+	const free = axis === 1 ? 0 : 1
+	const digits = Math.max(0, Math.min(6, Math.ceil(-Math.log10(tolerance / 10))))
+	const along = Number(on[free].toFixed(digits))
+	const at: Vec = axis === 1 ? [along, on[1]] : [on[0], along]
+	return {
+		at,
+		target: null,
+		code: {
+			of: ends.of,
+			make: p => {
+				const lined = elementsOfCode(ends[end](p))[axis]
+				return axis === 1 ? `[${along} ${lined}]` : `[${lined} ${along}]`
+			},
+		},
+	}
 }
 
 /**
