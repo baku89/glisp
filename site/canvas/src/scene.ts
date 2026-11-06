@@ -722,8 +722,40 @@ function callOf(code: string, op: string, first: string): string | null {
 	return code.slice(start.length, -1)
 }
 
+/** The operator and what it is called with, of code that is all one call, split at its top level. */
+function partsOfCall(code: string): string[] | null {
+	if (!code.startsWith('(') || !code.endsWith(')')) return null
+	const parts: string[] = []
+	let depth = 0
+	let start = 1
+	for (let i = 1; i < code.length - 1; i++) {
+		const c = code[i]
+		if (c === '(' || c === '[') depth++
+		else if (c === ')' || c === ']') depth--
+		if (depth < 0) return null
+		if (c === ' ' && depth === 0) {
+			parts.push(code.slice(start, i))
+			start = i + 1
+		}
+	}
+	parts.push(code.slice(start, -1))
+	return depth === 0 ? parts : null
+}
+
+/** `code`, without adding or taking away nothing, as what is left of a place without one of its parts says. */
+function withoutNothing(code: string): string {
+	const parts = partsOfCall(code)
+	if (parts === null || parts.length !== 3) return code
+	const [op, a, b] = parts.map((part, i) => (i === 0 ? part : withoutNothing(part))) as [string, string, string]
+	if (op === '+' && b === '0') return a
+	if (op === '+' && a === '0') return `(+ 0 ${b})`
+	if (op === '-' && b === '0') return a
+	return `(${op} ${a} ${b})`
+}
+
 /** `a` less `b`, saying no more than it has to of nothing. */
-function less(a: string, b: string): string {
+function less(a: string, raw: string): string {
+	const b = withoutNothing(raw)
 	if (b === '0') return a
 	const minus = callOf(b, '-', '0')
 	if (minus !== null) return `(+ ${a} ${minus})`
@@ -775,10 +807,7 @@ export function movedOnto(root: AST, env: Env, row: string, taken: SnapPoint, sn
 			})
 		)
 	}
-	const onto = (p: (path: string) => string): readonly [string, string] =>
-		snap.target !== null
-			? [p(`${snap.target}/0`), p(`${snap.target}/1`)]
-			: elementsOfCode(snap.code!.make(path => p(`${snap.code!.of}/${path}`)))
+	const onto = (p: (path: string) => string): readonly [string, string] => partsOfSnap(snap, p)
 	const make: PlaceCode = p => {
 		const [ox, oy] = offset(p)
 		const [tx, ty] = onto(p)
@@ -800,6 +829,153 @@ export function movedOnto(root: AST, env: Env, row: string, taken: SnapPoint, sn
 		point => point.label === own.label && (point.target === own.target || point.code !== undefined)
 	)
 	return now.some(({ at }) => Math.hypot(at[0] - snap.at[0], at[1] - snap.at[1]) < SAME_END) ? next : null
+}
+
+/** The two parts of where `snap` is, as code, each part saying where it is from the root. */
+const partsOfSnap = (snap: SnapPoint, p: (path: string) => string): readonly [string, string] =>
+	snap.target !== null
+		? [p(`${snap.target}/0`), p(`${snap.target}/1`)]
+		: elementsOfCode(snap.code!.make(path => p(`${snap.code!.of}/${path}`)))
+
+/** The numbers of what a call is given, by the paths that a place's code goes by: `arg1/0`, or `arg2`. */
+function numbersGiven(root: AST, env: Env, inside: string): Map<string, number> {
+	const numbers = new Map<string, number>()
+	const found = rowAt(root, env, inside)
+	const call = found && bare(found.node)
+	if (call?.kind !== 'call') return numbers
+	argsOf(call, found!.env).args.forEach((value, i) => {
+		if (typeof value === 'number') numbers.set(`arg${i}`, value)
+		else if (Array.isArray(value)) value.forEach((part, j) => typeof part === 'number' && numbers.set(`arg${i}/${j}`, part))
+	})
+	return numbers
+}
+
+/**
+ * `root`, in which `handle` of the row at `row` has been pulled, from where it was in `before`,
+ * for it to be on what `snap` is the place of: with what it changed referring to that, so that
+ * it stays on it. A corner of a box, pulled onto another, has its size go by where that is.
+ *
+ * Of the numbers the handle changed, each part of where it is goes by one that it is worked out
+ * from by adding: it is what `snap` is there, less the rest. What else it changed stays as it is.
+ * Null if nothing can be said so, or it would not come to where it is.
+ */
+export function pulledOnto(root: AST, before: AST, env: Env, row: string, handle: Handle, snap: SnapPoint): AST | null {
+	if (!canRefer(snap) || handle.code === undefined) return null
+	const grip = gripAt(root, env, row)
+	if (grip === null) return null
+	const inside = grip.within === undefined ? row : `${row}/${grip.within}`
+	const was = numbersGiven(before, env, inside)
+	const now = numbersGiven(root, env, inside)
+	const moved = [...now].flatMap(([path, value]) => (was.get(path) === value ? [] : [path]))
+	if (moved.length === 0) return null
+
+	const next = referredByParts(root, env, inside, handle.code, snap, paths => paths.find(path => moved.includes(path)))
+	if (next === null) return null
+	const reached = gripAt(next, env, row)?.handles.filter(other => other.name === handle.name && other.at !== undefined)
+	return reached?.some(({ at }) => Math.hypot(at![0] - snap.at[0], at![1] - snap.at[1]) < SAME_END) ? next : null
+}
+
+/**
+ * `root`, in which the place that `code` works out from what the call at `inside` is given is
+ * to go by what `snap` is the place of: each part of it by one of what it is worked out from,
+ * as `pick` chooses among those that part goes by, being what `snap` is there less the rest.
+ * Null if nothing is said so, or it comes to more being wrong.
+ */
+function referredByParts(
+	root: AST,
+	env: Env,
+	inside: string,
+	code: PlaceCode,
+	snap: SnapPoint,
+	pick: (paths: readonly string[]) => string | undefined
+): AST | null {
+	// Which of what it is worked out from each part of it goes by.
+	const said = elementsOfCode(code(path => `\0${path}\0`))
+	let next: AST | null = root
+	for (const axis of [0, 1] as const) {
+		const paths = [...said[axis].matchAll(/\0([^\0]*)\0/g)].map(match => match[1]!)
+		const by = pick(paths)
+		if (by === undefined || next === null) continue
+		const make: PlaceCode = p => {
+			const rest = elementsOfCode(code(path => (path === by ? '0' : p(`${inside}/${path}`))))[axis]
+			return less(partsOfSnap(snap, p)[axis], rest)
+		}
+		next = referred(next, env, `${inside}/${by}`, { at: snap.at, target: null, label: '', code: { of: '', make } })
+	}
+	return next === null || next === root || errorsIn(next, env) > errorsIn(root, env) ? null : next
+}
+
+/**
+ * `root`, in which the row at `row` has just been drawn with its end at what `snap` is the place
+ * of, with the place of it that is there referring to that: as its start does, so that what is
+ * drawn from one thing to another goes on being so. A box drawn from corner to corner has its size
+ * go by the corner it was drawn to.
+ *
+ * A place there that is an argument of its own is that. One that is worked out goes by what it is
+ * worked out from that is written as a number, other than what says where it is, if it can.
+ */
+export function drawnOnto(root: AST, env: Env, row: string, snap: SnapPoint): AST | null {
+	if (!canRefer(snap)) return null
+	const grip = gripAt(root, env, row)
+	if (grip === null) return null
+	const inside = grip.within === undefined ? row : `${row}/${grip.within}`
+	const places = snapPointsOf(root, env, sceneOf(root, env).filter(shape => shape.row === row)).filter(
+		point => canRefer(point) && Math.hypot(point.at[0] - snap.at[0], point.at[1] - snap.at[1]) < SAME_END
+	)
+	// What moving it would change, which is where it is, and is to stay where it was drawn from.
+	const moved = grip.move?.([1, 0]) ?? []
+	const depth = grip.within === undefined ? 0 : grip.within.split('/').length
+	const anchor = moved.length === 1 && moved[0]!.route.length === depth + 1 ? `arg${moved[0]!.route[depth]}` : null
+	const written = (path: string): boolean => {
+		const node = reach(root, env, `${inside}/${path}`)?.chain.at(-1)?.ast
+		return node !== undefined && bare(node).kind === 'lit'
+	}
+	for (const place of places) {
+		const own = new RegExp(`^${inside.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/arg(\\d+)$`).exec(place.target ?? '')?.[1]
+		const next =
+			own !== undefined
+				? linked(root, env, row, Number(own), snap)
+				: place.code !== undefined && place.code.of === inside
+					? referredByParts(root, env, inside, place.code.make, snap, paths => {
+							const free = paths.filter(written)
+							return free.find(path => anchor === null || !path.startsWith(anchor)) ?? free.at(-1)
+						})
+					: null
+		if (next === null) continue
+		const reached = snapPointsOf(next, env, sceneOf(next, env).filter(shape => shape.row === row)).filter(
+			point => point.label === place.label
+		)
+		if (reached.some(({ at }) => Math.hypot(at[0] - snap.at[0], at[1] - snap.at[1]) < SAME_END)) return next
+	}
+	return null
+}
+
+/**
+ * What the rows at `rows` are put on, and what that is put on in turn, among what is drawn: to be
+ * moved along with them, so that moving them is only moving them, and nothing they go by has to
+ * change shape for them to go where they are taken. A shape drawn from the corner of another to
+ * the corner of a third goes with both.
+ *
+ * It is what, moved by itself, has them come out somewhere else as they are written: what refers
+ * to them instead would have to be changed to move, and is left to follow them as it does.
+ */
+export function rowsHeldBy(root: AST, env: Env, rows: ReadonlySet<string>): string[] {
+	const written = (ast: AST, row: string): string | null => {
+		const found = rowAt(ast, env, row)
+		return found === null ? null : print(found.node)
+	}
+	const before = new Map([...rows].map(row => [row, written(root, row)]))
+	const held: string[] = []
+	for (const row of new Set(sceneOf(root, env).map(shape => shape.row))) {
+		if (rows.has(row)) continue
+		const changes = gripAt(root, env, row)?.move?.([1.37, 2.11])
+		if (changes === undefined || changes.length === 0) continue
+		const { ast } = changed(root, env, row, changes)
+		if (ast === null) continue
+		const moved = rowsChanged(root, ast, env)
+		if ([...rows].some(own => moved.has(own) && written(ast, own) === before.get(own))) held.push(row)
+	}
+	return held
 }
 
 /** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */
@@ -2328,7 +2504,11 @@ export function withExpressionAt(
 /** Whether the number at a place is worked out from something else. */
 function isExpressionAt(root: AST, env: Env, row: string, place: DimensionPlace): boolean {
 	const last = reach(root, env, pathOfPlace(row, place))?.chain.at(-1)
-	return last !== undefined && bare(last.ast).kind !== 'lit'
+	if (last !== undefined) return bare(last.ast).kind !== 'lit'
+	// A part of what is not written out, as a vector that is all a reference, is worked out with the rest of it.
+	if (place.index === undefined) return false
+	const whole = reach(root, env, pathOfPlace(row, { route: place.route }))?.chain.at(-1)
+	return whole !== undefined && bare(whole.ast).kind !== 'vec' && bare(whole.ast).kind !== 'lit'
 }
 
 /**

@@ -45,6 +45,9 @@ import {
 	nearestSnap,
 	alongSnapped,
 	movedOnto,
+	pulledOnto,
+	drawnOnto,
+	rowsHeldBy,
 	closingPulled,
 	penGuided,
 	penned,
@@ -283,9 +286,12 @@ function snappedMove(
 		const snap = snapNear(others, moved)
 		if (snap === null) continue
 		const distance = Math.hypot(snap.at[0] - moved[0], snap.at[1] - moved[1])
-		if (best === null || distance < best.distance) {
-			best = { own: point, snap, distance, delta: [snap.at[0] - at[0], snap.at[1] - at[1]] }
-		}
+		// A place on a place before a place on a line, whichever of its places that is, as for one alone.
+		const onLine = snap.line !== undefined
+		const better =
+			best === null ||
+			(onLine === (best.snap.line !== undefined) ? distance < best.distance : !onLine)
+		if (better) best = { own: point, snap, distance, delta: [snap.at[0] - at[0], snap.at[1] - at[1]] }
 	}
 	snapMark.value = best?.snap ?? null
 	return best === null
@@ -1970,7 +1976,9 @@ function onPointerDown(event: PointerEvent): void {
 		// A group has no place of its own, so that moving it is moving all that is drawn in it.
 		const { root, env } = props.document
 		const drawnRows = new Set(rows.flatMap(row => rowsPaintedBy(root.value, env.value, row)))
-		const moving = [...drawnRows].flatMap(row => {
+		// What it is put on goes along, first, for it to be moved without anything having to change shape.
+		const held = rowsHeldBy(root.value, env.value, drawnRows)
+		const moving = [...held, ...drawnRows].flatMap(row => {
 			const found = gripOfRow(row)
 			return found === null ? [] : [{ row, grip: found }]
 		})
@@ -1982,7 +1990,9 @@ function onPointerDown(event: PointerEvent): void {
 			...(() => {
 				const snaps = snapsFor(moving)
 				const near = fromScreen(x, y)
-				return { ...snaps, own: placesTakenBy(snaps.own, near, SNAP_REACH / view.value[0]) }
+				// It lines up by the place it was taken by, or by any of its places, taken by none.
+				const taken = placesTakenBy(snaps.own, near, SNAP_REACH / view.value[0])
+				return { ...snaps, own: taken.length > 0 ? taken : snaps.own }
 			})(),
 			moving: false,
 			collapse: already && !event.shiftKey && rows.length > 1,
@@ -2395,8 +2405,12 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	if (handle.turnOf) boxTurn.value = pressed.boxTurn + handle.turnOf(snap?.at ?? wanted, { even })
 	const { place } = handle
 	let link: SnapPoint | null = null
-	if (next.ast !== null && snap !== null && !valueOnly && !symmetric && !handle.constrained && typeof place === 'number') {
-		const referring = linked(next.ast, props.document.env.value, row, place, snap)
+	if (next.ast !== null && snap !== null && !valueOnly && !symmetric && !handle.constrained) {
+		// Where it is is said by an argument of its own, or worked out from what it changed, as a corner is.
+		const referring =
+			typeof place === 'number'
+				? linked(next.ast, props.document.env.value, row, place, snap)
+				: pulledOnto(next.ast, base, props.document.env.value, row, handle, snap)
 		if (referring !== null) next.ast = referring
 		link = referring === null ? null : snap
 	}
@@ -2463,15 +2477,14 @@ function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): vo
 			? [toScreen(start, view.value), toScreen(evenlyFrom(start, to), view.value)]
 			: null
 	const shape = props.attributes?.shape
-	props.document.setRoot(
-		painted(
-			// Command has it only be the same value, for now, rather than refer to that.
-			snap === null || valueOnly
-				? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep(), false, fromCenter, shape)
-				: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep(), fromCenter, shape),
-			name
-		)
-	)
+	// Command has it only be the same value, for now, rather than refer to that.
+	const started =
+		snap === null || valueOnly
+			? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep(), false, fromCenter, shape)
+			: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep(), fromCenter, shape)
+	// What it is drawn to, it is drawn to as much as from what it starts at.
+	const ended = end === null || valueOnly ? null : drawnOnto(started, env.value, `binding:${name}`, end)
+	props.document.setRoot(painted(ended?.kind === 'let' ? ended : started, name))
 	if (name !== pressed.name) emit('select', [`binding:${name}`])
 	pressed.name = name
 	pressed.drawing = true
@@ -2607,7 +2620,7 @@ function onPointerMove(event: PointerEvent): void {
 				ast: pressed.base,
 				problem: null,
 			}
-			let moved: { row: string; numbers: Dimension[] } | null = null
+			let moved: { row: string; changes: readonly Change[] } | null = null
 			for (const { row, grip: taken } of pressed.rows) {
 				if (next.ast === null || taken.move === undefined) continue
 				const mat = gripView(taken.transform)
@@ -2616,9 +2629,7 @@ function onPointerMove(event: PointerEvent): void {
 				const changes = roundedChanges(taken.move([bx - ax, by - ay]), pointerStep())
 				next = apply(row, changes, next.ast)
 				// Of several, each has numbers of its own, which are not any one thing to type.
-				if (props.dimensions && pressed.rows.length === 1 && next.ast !== null) {
-					moved = { row, numbers: dimensionsMoved(next.ast, props.document.env.value, row, changes, pressed.base) }
-				}
+				if (props.dimensions && pressed.rows.length === 1) moved = { row, changes }
 			}
 			// The place it was taken by, put on another, goes on being there: unless it is only to be as much, with Command.
 			let link: SnapPoint | null = null
@@ -2633,7 +2644,9 @@ function onPointerMove(event: PointerEvent): void {
 			}
 			linking.value = link
 			commit(next)
-			if (moved !== null && moved.numbers.length > 0) hold(moved.row, moved.numbers, [x, y])
+			// As what it now says, with what it was put on, for a number that refers to something to show that it does.
+			const numbers = moved === null || next.ast === null ? [] : dimensionsMoved(next.ast, props.document.env.value, moved.row, moved.changes, pressed.base)
+			if (moved !== null && numbers.length > 0) hold(moved.row, numbers, [x, y])
 			else if (props.dimensions && next.ast !== null) holdMeasured({ rows: taken.value }, pressed.row, [x, y], pressed.base)
 			break
 		}

@@ -210,6 +210,8 @@ describe('typing an expression for a number', () => {
 		const at = (src: string) => dimensionAt(parse(src), env, ROW, width)
 		expect(at('{radius = 40 c = (path.rect [0 0] [radius 50])}')).toMatchObject({ value: 40, expression: true })
 		expect(at('{c = (path.rect [0 0] [10 50])}')).not.toHaveProperty('expression')
+		// Each number of a vector that is all a reference is worked out with it.
+		expect(at('{size = [40 50] c = (path.rect [0 0] size)}')).toMatchObject({ value: 40, expression: true })
 	})
 })
 

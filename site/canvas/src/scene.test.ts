@@ -52,6 +52,9 @@ import {
 	nearestSnap,
 	alongSnapped,
 	movedOnto,
+	pulledOnto,
+	drawnOnto,
+	rowsHeldBy,
 	paintedRow,
 	closingPulled,
 	penGuided,
@@ -708,6 +711,70 @@ describe('snapping', () => {
 			const rect = gripAt(next, env, 'binding:r')!.handles.find(h => h.place === 0)!.at!
 			expect(rect).toEqual([0, 0])
 			near(snapPointsOf(next, env, sceneOf(next, env).filter(s => s.row === 'binding:c')).filter(p => p.label === 'top').map(p => p.at), [100, 0])
+		})
+
+		it('or has a corner pulled onto it stay there, by what pulling it changed', () => {
+			// Each corner of the box at [20 20] [40 40] onto the corner of the rect nearest it, none crossing the other side.
+			const cases: [string, Vec, Vec][] = [
+				['bottom right', [60, 60], [100, 40]],
+				['top right', [60, 20], [100, 0]],
+				['bottom left', [20, 60], [0, 40]],
+			]
+			for (const [name, from, to] of cases) {
+				const both = parse('{r = (path.rect [0 0] [100 40]) c = (path.rect [20 20] [40 40])}')
+				const handle = gripAt(both, env, 'binding:c')!.handles.find(h => h.name === name && h.at![0] === from[0] && h.at![1] === from[1])!
+				const corner = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), to, 1)!
+				const pulled = changed(both, env, 'binding:c', handle.to(corner.at, handle.at!)).ast!
+				const next = pulledOnto(pulled, both, env, 'binding:c', handle, corner)!
+				expect(next).not.toBeNull()
+				// And it goes with the rect.
+				const moved = parse(print(next).replace('[0 0] [100 40]', '[10 5] [100 40]'))
+				const at = gripAt(moved, env, 'binding:c')!.handles.find(h => h.name === name)!.at!
+				expect(at[0]).toBeCloseTo(to[0] + 10)
+				expect(at[1]).toBeCloseTo(to[1] + 5)
+			}
+		})
+
+		it('or what is drawn from one place to another refers to both', () => {
+			const both = parse('{a = (path.rect [0 0] [100 40]) b = (path.rect [200 60] [50 50])}') as LetAST
+			const others = snapPointsOf(both, env, sceneOf(both, env))
+			const from = nearestSnap(others, [100, 0], 1)!
+			const to = nearestSnap(others, [200, 110], 1)!
+			const started = drawnFrom(both, env, 'c', 'rect', from, to.at, false)
+			const ended = drawnOnto(started, env, 'binding:c', to)!
+			expect(ended).not.toBeNull()
+			const corners = (source: string) => {
+				const handles = gripAt(parse(source), env, 'binding:c')!.handles
+				return ['top left', 'bottom right'].map(name => handles.find(h => h.name === name)!.at!)
+			}
+			const program = print(ended)
+			// Each end goes with what it was drawn from, or to.
+			const [start, end] = corners(program.replace('[0 0] [100 40]', '[10 5] [100 40]').replace('[200 60] [50 50]', '[220 70] [50 50]'))
+			expect(start[0]).toBeCloseTo(110)
+			expect(start[1]).toBeCloseTo(5)
+			expect(end[0]).toBeCloseTo(220)
+			expect(end[1]).toBeCloseTo(120)
+		})
+
+		it('goes with what it is on, rather than changing shape, as it is moved', () => {
+			const both = parse('{a = (path.circle [0 0] 10) b = (path.circle [30 0] 20)}')
+			const left = snapPointsOf(both, env, sceneOf(both, env).filter(s => s.row === 'binding:b')).find(p => p.label === 'left' && p.code !== undefined)!
+			const right = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:b'])), [10, 0], 1)!
+			const on = movedOnto(both, env, 'binding:b', left, right)!
+			// What it is on is held by it, and nothing is held by what is on nothing.
+			expect(rowsHeldBy(on, env, new Set(['binding:b']))).toEqual(['binding:a'])
+			expect(rowsHeldBy(on, env, new Set(['binding:a']))).toEqual([])
+			// Moved as a canvas moves it: what it is on first, then itself, each from where it was.
+			const moved = ['binding:a', 'binding:b'].reduce(
+				(next, row) => changed(next, env, row, gripAt(on, env, row)!.move!([5, 7])).ast!,
+				on
+			)
+			const center = (row: string) => gripAt(moved, env, row)!.handles.find(h => h.name === 'center')!.at!
+			expect(center('binding:a')).toEqual([5, 7])
+			expect(center('binding:b')[0]).toBeCloseTo(35)
+			expect(center('binding:b')[1]).toBeCloseTo(7)
+			const radius = gripAt(moved, env, 'binding:b')!.handles.find(h => h.name === 'right')!.at!
+			expect(radius[0] - center('binding:b')[0]).toBeCloseTo(20)
 		})
 
 		it('is nothing for what is not moved by one thing that says where it is', () => {
