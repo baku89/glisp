@@ -642,7 +642,10 @@ function withinCode(written: string, parts: readonly string[]): string {
 	return written.replace(/[([]|[)\]]|\0(\d+)\0/g, (token, part: string | undefined) => {
 		if (part !== undefined) {
 			const reference = parts[Number(part)]!
-			return reference.startsWith('/') ? reference : `${'../'.repeat(depth)}${reference}`
+			if (reference.startsWith('/') || depth === 0) return reference
+			// What is beside it, as another argument of the same call is, is that much further out.
+			const beside = reference.startsWith('./') ? reference.slice('./'.length) : reference
+			return `${'../'.repeat(depth)}${beside}`
 		}
 		depth += token === '(' || token === '[' ? 1 : -1
 		return token
@@ -661,7 +664,8 @@ function referred(root: AST, env: Env, source: string, snap: SnapPoint): AST | n
 		const written = make(path => {
 			const was = said.get(path)
 			if (was !== undefined) return was
-			const next = referenceAt(root, env, source, `${of}/${path}`)
+			// Code from no one row says where each part is from the root.
+			const next = referenceAt(root, env, source, of === '' ? path : `${of}/${path}`)
 			const reference = next && reach(next, env, source)?.chain.at(-1)?.ast
 			if (!reference) throw new Error('out of reach')
 			parts.push(print(reference))
@@ -703,6 +707,99 @@ export function linked(
 	const reached = gripAt(next, env, row)?.handles.find(handle => handle.place === place)?.at
 	// As near as arithmetic comes: what goes round by a circle is not exact at its top.
 	return reached !== undefined && Math.hypot(reached[0] - snap.at[0], reached[1] - snap.at[1]) < SAME_PLACE ? next : null
+}
+
+/** `code` as the one call `(op first rest)` that it is all of, the rest being what it is called with. */
+function callOf(code: string, op: string, first: string): string | null {
+	const start = `(${op} ${first} `
+	if (!code.startsWith(start) || !code.endsWith(')')) return null
+	let depth = 0
+	for (let i = 0; i < code.length; i++) {
+		if (code[i] === '(' || code[i] === '[') depth++
+		else if (code[i] === ')' || code[i] === ']') depth--
+		if (depth === 0 && i < code.length - 1) return null
+	}
+	return code.slice(start.length, -1)
+}
+
+/** `a` less `b`, saying no more than it has to of nothing. */
+function less(a: string, b: string): string {
+	if (b === '0') return a
+	const minus = callOf(b, '-', '0')
+	if (minus !== null) return `(+ ${a} ${minus})`
+	const plus = callOf(b, '+', '0')
+	if (plus !== null) return `(- ${a} ${plus})`
+	return `(- ${a} ${b})`
+}
+
+/**
+ * `root`, in which the row at `row` has been moved for its place `own` to be on what `snap`
+ * is the place of, with what says where it is referring to that, so that `own` stays on it:
+ * a place on what is moved can be put on another, as much as another can be put on it.
+ *
+ * What says where it is is the one argument that moving it changes, and `own` is that, or
+ * worked out from it by adding what it is from there: so it is what `snap` is, less that.
+ * Null if it cannot be said so, or would not come to where it is.
+ */
+export function movedOnto(root: AST, env: Env, row: string, taken: SnapPoint, snap: SnapPoint): AST | null {
+	if (!canRefer(snap)) return null
+	// What is taken hold of there may be only a handle, as a radius is at the right of a circle,
+	// and the place of the same name there says how it is worked out.
+	const own = canRefer(taken)
+		? taken
+		: snapPointsOf(root, env, sceneOf(root, env).filter(shape => shape.row === row)).find(
+				point =>
+					canRefer(point) &&
+					point.label === taken.label &&
+					Math.hypot(point.at[0] - taken.at[0], point.at[1] - taken.at[1]) < SAME_END
+			)
+	if (own === undefined) return null
+	const grip = gripAt(root, env, row)
+	if (grip === null) return null
+	const inside = grip.within === undefined ? row : `${row}/${grip.within}`
+	const depth = grip.within === undefined ? 0 : grip.within.split('/').length
+	const moved = grip.move?.([1, 0]) ?? []
+	const route = moved.length === 1 ? moved[0]!.route.slice(depth) : []
+	if (route.length !== 1) return null
+	const anchor = `arg${route[0]}`
+
+	// How far `own` is from where it is said to be, by the rest of what it is made of.
+	const offset = (p: (path: string) => string): readonly [string, string] => {
+		if (own.target === `${inside}/${anchor}`) return ['0', '0']
+		if (own.code === undefined || own.code.of !== inside) throw new Error('not a place on it')
+		return elementsOfCode(
+			own.code.make(path => {
+				if (path === `${anchor}/0` || path === `${anchor}/1`) return '0'
+				if (path === anchor || path.startsWith(`${anchor}/`)) throw new Error('more of it than where it is')
+				return p(`${inside}/${path}`)
+			})
+		)
+	}
+	const onto = (p: (path: string) => string): readonly [string, string] =>
+		snap.target !== null
+			? [p(`${snap.target}/0`), p(`${snap.target}/1`)]
+			: elementsOfCode(snap.code!.make(path => p(`${snap.code!.of}/${path}`)))
+	const make: PlaceCode = p => {
+		const [ox, oy] = offset(p)
+		const [tx, ty] = onto(p)
+		return `[${less(tx, ox)} ${less(ty, oy)}]`
+	}
+	let made: boolean
+	try {
+		offset(() => '')
+		made = true
+	} catch {
+		made = false
+	}
+	if (!made) return null
+
+	const next = referred(root, env, `${inside}/${anchor}`, { at: snap.at, target: null, label: '', code: { of: '', make } })
+	if (next === null || errorsIn(next, env) > errorsIn(root, env)) return null
+	// It is where it was put, worked out again from what it now says.
+	const now = snapPointsOf(next, env, sceneOf(next, env).filter(shape => shape.row === row)).filter(
+		point => point.label === own.label && (point.target === own.target || point.code !== undefined)
+	)
+	return now.some(({ at }) => Math.hypot(at[0] - snap.at[0], at[1] - snap.at[1]) < SAME_END) ? next : null
 }
 
 /** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */
@@ -2698,8 +2795,16 @@ export function changed(
 	row: string,
 	changes: readonly Change[]
 ): { ast: AST | null; problem: string | null } {
+	// What is written as it is goes first, so that what is worked out from it, as a center can be
+	// from a radius, already comes to what it is to be, rather than what it refers to being changed.
+	const written = (change: Change): boolean => {
+		const found = rowAt(root, env, change.row ?? row)
+		const node = found && nodeAt(found.node, found.env, change.route)
+		return node !== null && isWritten(node, change.value)
+	}
+	const inOrder = [...changes.filter(written), ...changes.filter(change => !written(change))]
 	let next = root
-	for (const { route, value, row: elsewhere } of changes) {
+	for (const { route, value, row: elsewhere } of inOrder) {
 		const of = elsewhere ?? row
 		const found = rowAt(next, env, of)
 		const node = found && nodeAt(found.node, found.env, route)

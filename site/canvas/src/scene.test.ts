@@ -1,4 +1,5 @@
 import {
+	type AST,
 	buildPrelude,
 	type Env,
 	evaluate,
@@ -50,6 +51,7 @@ import {
 	withGuideHandles,
 	nearestSnap,
 	alongSnapped,
+	movedOnto,
 	paintedRow,
 	closingPulled,
 	penGuided,
@@ -657,6 +659,59 @@ describe('snapping', () => {
 			const start = gripAt(moved, env, 'binding:c')!.handles.find(h => h.place === 0)!.at!
 			expect(start[0]).toBeCloseTo(0)
 			expect(start[1]).toBeCloseTo(25)
+		})
+	})
+
+	describe('puts a place on what is moved on another, as much as another on it', () => {
+		/** `shape` moved for its place `label` at `ownAt` to be on the corner of a rect at [100 0], and the program then. */
+		const moved = (shape: string, label: string, ownAt: Vec): AST | null => {
+			const both = parse(`{r = (path.rect [0 0] [100 40]) c = ${shape}}`)
+			const own = snapPointsOf(both, env, sceneOf(both, env).filter(s => s.row === 'binding:c')).find(
+				p => p.label === label && Math.hypot(p.at[0] - ownAt[0], p.at[1] - ownAt[1]) < 1e-6
+			)!
+			const corner = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), [100, 0], 1)!
+			return movedOnto(both, env, 'binding:c', own, corner)
+		}
+		/** Where the place `label` of `c` is in `source`, with `from` written as `to`. */
+		const placeIn = (ast: AST, label: string, from: string, to: string): Vec[] => {
+			const source = parse(print(ast).replace(from, to))
+			return snapPointsOf(source, env, sceneOf(source, env).filter(s => s.row === 'binding:c'))
+				.filter(p => p.label === label)
+				.map(p => p.at)
+		}
+		const near = (places: Vec[], at: Vec) =>
+			expect(places.some(p => Math.hypot(p[0] - at[0], p[1] - at[1]) < 1e-6)).toBe(true)
+
+		it('which stays on it, whatever else of it changes', () => {
+			const top = moved('(path.circle [100 -10] 10)', 'top', [100, -20])!
+			near(placeIn(top, 'top', '] 10)', '] 25)'), [100, 0])
+			const right = moved('(path.circle [90 0] 10)', 'right', [100, 0])!
+			near(placeIn(right, 'right', '] 10)', '] 25)'), [100, 0])
+			const corner = moved('(path.rect [80 -30] [20 30])', 'bottom right', [100, 0])!
+			near(placeIn(corner, 'bottom right', '[20 30]', '[50 5]'), [100, 0])
+		})
+
+		it('and moves with what it is on', () => {
+			const top = moved('(path.circle [100 -10] 10)', 'top', [100, -20])!
+			near(placeIn(top, 'top', '[100 40]', '[150 40]'), [150, 0])
+		})
+
+		it('or is where it says it is, if it is that', () => {
+			const center = moved('(path.circle [100 0] 10)', 'center', [100, 0])!
+			near(placeIn(center, 'center', '[100 40]', '[150 40]'), [150, 0])
+		})
+
+		it('stays on it as it is pulled, with what it is on staying where it is', () => {
+			const top = moved('(path.ellipse [100 -10] [10 10])', 'top', [100, -20])!
+			// Twice as tall, from its top, as the box around it does it.
+			const next = changed(top, env, 'binding:c', gripAt(top, env, 'binding:c')!.box!.scaled(1, 2, [100, 0])).ast!
+			const rect = gripAt(next, env, 'binding:r')!.handles.find(h => h.place === 0)!.at!
+			expect(rect).toEqual([0, 0])
+			near(snapPointsOf(next, env, sceneOf(next, env).filter(s => s.row === 'binding:c')).filter(p => p.label === 'top').map(p => p.at), [100, 0])
+		})
+
+		it('is nothing for what is not moved by one thing that says where it is', () => {
+			expect(moved('(path.line [100 0] [200 0])', 'middle', [150, 0])).toBeNull()
 		})
 	})
 

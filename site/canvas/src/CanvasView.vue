@@ -44,6 +44,7 @@ import {
 	axesThrough,
 	nearestSnap,
 	alongSnapped,
+	movedOnto,
 	closingPulled,
 	penGuided,
 	penned,
@@ -262,28 +263,34 @@ function snapsFor(rows: readonly Moving[]): {
 	}
 }
 
-/** Where to take the pointer to, for the nearest of `own` to be on one of `others`. */
+/**
+ * Where to take the pointer to, for the nearest of `own` to be on one of `others`, and which of
+ * them that is, for it to go on being there.
+ */
 function snappedMove(
 	own: readonly SnapPoint[],
 	others: readonly SnapPoint[],
 	[fromX, fromY]: Vec,
 	[x, y]: Vec
-): Vec {
+): { to: Vec; by: { own: SnapPoint; snap: SnapPoint } | null } {
 	const [ax, ay] = fromScreen(fromX, fromY)
 	const [bx, by] = fromScreen(x, y)
 	const [dx, dy] = [bx - ax, by - ay]
-	let best: { snap: SnapPoint; distance: number; delta: Vec } | null = null
-	for (const { at } of own) {
+	let best: { own: SnapPoint; snap: SnapPoint; distance: number; delta: Vec } | null = null
+	for (const point of own) {
+		const { at } = point
 		const moved: Vec = [at[0] + dx, at[1] + dy]
 		const snap = snapNear(others, moved)
 		if (snap === null) continue
 		const distance = Math.hypot(snap.at[0] - moved[0], snap.at[1] - moved[1])
 		if (best === null || distance < best.distance) {
-			best = { snap, distance, delta: [snap.at[0] - at[0], snap.at[1] - at[1]] }
+			best = { own: point, snap, distance, delta: [snap.at[0] - at[0], snap.at[1] - at[1]] }
 		}
 	}
 	snapMark.value = best?.snap ?? null
-	return best === null ? [x, y] : toScreen([ax + best.delta[0], ay + best.delta[1]], view.value)
+	return best === null
+		? { to: [x, y], by: null }
+		: { to: toScreen([ax + best.delta[0], ay + best.delta[1]], view.value), by: { own: best.own, snap: best.snap } }
 }
 
 /** How near, on screen, a place has to be to be snapped to. */
@@ -2566,12 +2573,14 @@ function onPointerMove(event: PointerEvent): void {
 			if (!pressed.moving && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
 			pressed.moving = true
 			hovered.value = null
-			const snappedTo = snappedMove(pressed.own, pressed.others, pressed.from, [x, y])
+			const { to: snappedTo, by: snappedBy } = snappedMove(pressed.own, pressed.others, pressed.from, [x, y])
 			const [toX, toY] = event.shiftKey ? evenFrom(pressed.from, snappedTo) : snappedTo
 			// Going by even angles is going by where it was, and not by what it was near.
 			if (event.shiftKey) snapMark.value = null
+			// From where it was taken hold of, each time: what it is now may already refer to where
+			// it was put, and working back from that would change what it refers to instead.
 			let next: ReturnType<typeof apply> = {
-				ast: props.document.root.value,
+				ast: pressed.base,
 				problem: null,
 			}
 			let moved: { row: string; numbers: Dimension[] } | null = null
@@ -2587,6 +2596,18 @@ function onPointerMove(event: PointerEvent): void {
 					moved = { row, numbers: dimensionsMoved(next.ast, props.document.env.value, row, changes, pressed.base) }
 				}
 			}
+			// The place it was taken by, put on another, goes on being there: unless it is only to be as much, with Command.
+			let link: SnapPoint | null = null
+			if (snappedBy !== null && !event.shiftKey && !event.metaKey && !event.ctrlKey && next.ast !== null) {
+				const of = snappedBy.own.code?.of ?? snappedBy.own.target ?? ''
+				const row = pressed.rows.find(({ row }) => of === row || of.startsWith(`${row}/`))?.row
+				const onto = row === undefined ? null : movedOnto(next.ast, props.document.env.value, row, snappedBy.own, snappedBy.snap)
+				if (onto !== null) {
+					next = { ...next, ast: onto }
+					link = snappedBy.snap
+				}
+			}
+			linking.value = link
 			commit(next)
 			if (moved !== null && moved.numbers.length > 0) hold(moved.row, moved.numbers, [x, y])
 			else if (props.dimensions && next.ast !== null) holdMeasured({ rows: taken.value }, pressed.row, [x, y], pressed.base)
