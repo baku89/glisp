@@ -43,7 +43,7 @@ import ToolPanel from './ToolPanel.vue'
 import { alone, type Place } from './panelLayout'
 import { PANEL_DOCK, usePanelLayout } from './usePanelLayout'
 import { withPaintsSwapped } from './paintArguments'
-import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
+import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes, withPaintAdded } from './toolAttributes'
 import IsolationBar from './IsolationBar.vue'
 import RowName from './RowName.vue'
 import {
@@ -1065,7 +1065,7 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 					const added = root && withAdded(root, env, name, quickAddPlace.value, selected.value)
 					if (!added) return
 					tool.value = 'select'
-					setProgram(added.ast, [added.row])
+					setProgram(withPaintAdded(added.ast, env, added.row, toolAttributes.value.paint), [added.row])
 				},
 			})),
 	]

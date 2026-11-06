@@ -8,8 +8,8 @@
 import { type AST, type Env, evaluate, LetAST, lit, parse, print, readByName } from '@glisp/lang'
 import { layersOf } from '@glisp/tweeq/structure'
 
-import { NO_PAINT, type Paint } from './graphics'
-import { paintAt, SHAPE_ATTRIBUTES, type ShapeAttributes, withPaint } from './scene'
+import { NO_PAINT, type Paint, PathValue } from './graphics'
+import { paintAt, SHAPE_ATTRIBUTES, type ShapeAttributes, valueOfRow, withPaint } from './scene'
 
 /** The row of it that says how what is drawn is painted. */
 export const PAINT_ROW = 'binding:paint'
@@ -128,4 +128,16 @@ export function withPaintTaken(root: LetAST, env: Env, paint: Paint): LetAST {
 export function withPaintDrawn(root: LetAST, env: Env, name: string, paint: Paint): LetAST {
 	const next = withPaint(root, env, `binding:${name}`, paint)
 	return next.kind === 'let' ? next : root
+}
+
+/**
+ * `root`, with a shape just added as `row` painted as the tools paint what they draw: a line that
+ * is not closed, with no fill, as the pen has it. What is not a shape stays as it is.
+ */
+export function withPaintAdded(root: LetAST, env: Env, row: string, paint: Paint): LetAST {
+	const name = row.startsWith('binding:') && !row.includes('/') ? row.slice('binding:'.length) : null
+	const value = valueOfRow(root, env, row)
+	if (name === null || !(value instanceof PathValue) || value.path.curves.length === 0) return root
+	const closed = value.path.curves.every(curve => curve.closed)
+	return withPaintDrawn(root, env, name, paintOfLine(paint, closed))
 }
