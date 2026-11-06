@@ -22,6 +22,7 @@ import { Menu, type MenuItem } from 'tweeq/Menu'
 import { Popover } from 'tweeq/Popover'
 import { InputNumber, scaledBy } from 'tweeq/InputNumber'
 import { TitleBar } from 'tweeq/TitleBar'
+import { useToastStore } from 'tweeq/Toast'
 import { vTooltip } from 'tweeq/Tooltip'
 import { initTweeq } from 'tweeq/useTweeq'
 import { computed, nextTick, provide, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
@@ -79,7 +80,6 @@ import {
 	valueTextOf,
 } from './selection'
 import { bindingsOfSvg, programInFile, svgOfProgram, svgOfRows } from './svg'
-import KeptNotice from './KeptNotice.vue'
 import ToolBar from './ToolBar.vue'
 import { arranged as arrangedTools, type FirstTools } from './toolbar'
 
@@ -171,21 +171,34 @@ function stored(): string | null {
 
 const document = useGlispDocument(stored() ?? EXAMPLE, { env: withGraphics })
 
-/** What has just been made a value, by what it referred to having been deleted, to say so. */
-const kept = shallowRef<readonly string[] | null>(null)
-/** The program just before that, to go back to, whatever has been done since. */
-let keptFrom: AST | null = null
+const toasts = useToastStore()
+/** What says that what referred to something deleted is now a value, while it does. */
+let keptToast: number | null = null
+/**
+ * That `rows` referred to what has just been deleted and are now what they came to, said out
+ * of the way: with going back to `before`, just before the deleting, whatever is done since,
+ * as a step of its own, for that to be undone too.
+ */
 function sayKept(rows: readonly string[], before: AST): void {
-	kept.value = [...new Set(rows.map(row => /^binding:([^/]+)/.exec(row)?.[1] ?? row))]
-	keptFrom = before
-}
-/** Back to just before it was deleted, as a step of its own, for that to be undone too. */
-function revertKept(): void {
-	kept.value = null
-	// Not more of whatever was done last, which undoing it would take away with it.
-	document.release()
-	if (keptFrom?.kind === 'let') document.setRoot(keptFrom)
-	keptFrom = null
+	const names = [...new Set(rows.map(row => /^binding:([^/]+)/.exec(row)?.[1] ?? row))]
+	const listed = names.length <= 3 ? names.join(', ') : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`
+	if (keptToast !== null) toasts.dismiss(keptToast)
+	keptToast = toasts.show({
+		icon: 'mdi:link-variant-off',
+		tone: 'warning',
+		message: `${listed} referred to what was deleted, and ${names.length === 1 ? 'keeps the value it' : 'keep the values they'} had.`,
+		actions: [
+			{
+				label: 'Revert',
+				tooltip: 'Back to just before it was deleted. This can be undone.',
+				perform: () => {
+					// Not more of whatever was done last, which undoing it would take away with it.
+					document.release()
+					if (before.kind === 'let') document.setRoot(before)
+				},
+			},
+		],
+	})
 }
 
 watch(document.root, root => {
@@ -1310,7 +1323,6 @@ function selectInTree(row: string | null): void {
 		</template>
 		<template #default>
 			<div ref="$stage" class="stage">
-				<KeptNotice :names="kept" @revert="revertKept" @dismiss="kept = null" />
 				<div v-if="fileDrop !== null" class="file-drop" :class="fileDrop">
 					<span class="file-drop-says">{{ fileDrop === 'canvas' ? 'Add to this drawing' : 'Open as a new file' }}</span>
 				</div>
