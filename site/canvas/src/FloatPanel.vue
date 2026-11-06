@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useResizeObserver } from '@vueuse/core'
 import { Icon } from 'tweeq/Icon'
+import { InputButton } from 'tweeq/InputButton'
 import { useAppConfigStore } from 'tweeq/stores/appConfig'
 import { computed, inject, onBeforeUnmount, onMounted, ref, useSlots, useTemplateRef } from 'vue'
 
@@ -316,9 +317,13 @@ function grabHeader(event: PointerEvent): void {
 						</button>
 					</div>
 					<slot v-else name="header" />
-					<button class="toggle" :aria-label="`Minimize ${label}`" @click="dock.setOpen(name, false)">
-						<Icon :icon="minimizeIcon" />
-					</button>
+					<InputButton
+						class="toggle"
+						:icon="minimizeIcon"
+						ghost
+						:aria-label="`Minimize ${label}`"
+						@click="dock.setOpen(name, false)"
+					/>
 				</header>
 				<div
 					v-if="showsTabs && slots.header"
@@ -813,20 +818,7 @@ else that blurs. */
 	background: var(--tq-color-error);
 }
 .toggle {
-	display: grid;
 	flex: none;
-	place-items: center;
-	width: 24px;
-	height: 24px;
-	border: none;
-	border-radius: var(--tq-radius-input);
-	background: none;
-	color: var(--tq-color-text-mute);
-	cursor: pointer;
-}
-.toggle:hover {
-	background: var(--tq-color-input-hover);
-	color: var(--tq-color-text);
 }
 .fitting .content {
 	flex: 0 1 auto;
