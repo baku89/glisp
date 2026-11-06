@@ -86,10 +86,35 @@ describe('commands on what is selected', () => {
 		expect(labels('{a = 1 b = 1}', two)).toEqual(['Extract Parameter'])
 	})
 
-	it('are nothing for values of different kinds, or that are not simple', () => {
+	it('are nothing for values of different kinds, or for one alone', () => {
 		expect(labels('{a = 1 b = "x"}', two)).toEqual([])
-		expect(labels('{a = [1] b = [2]}', two)).toEqual([])
 		expect(labels('{a = 1 b = 2}', [at('binding:a')])).toEqual([])
+	})
+
+	it('swap vectors written out, as a position and a size are both two numbers', () => {
+		expect(labels('{a = [1] b = [2]}', two)).toEqual(['Swap'])
+		expect(labels('{a = [1 2] b = [1 2]}', two)).toEqual([])
+		const document = useGlispDocument('{a = [1 2] b = [3 4]}')
+		const [swap] = commandsAt(document, two)
+		expect(swap!.perform!()).toBeUndefined()
+		expect(print(document.root.value)).toBe('{a = [3 4] b = [1 2]}')
+	})
+
+	it('swap a vector written out with a name for one', () => {
+		const document = useGlispDocument('{p = [1 2] a = p b = [3 4]}')
+		const [swap] = commandsAt(document, two)
+		expect(swap!.label).toBe('Swap')
+		swap!.perform!()
+		expect(print(document.root.value)).toBe('{p = [1 2] a = [3 4] b = p}')
+	})
+
+	it('say why, and change nothing, for vectors that do not fit where the other goes', () => {
+		const source = '{f = (=> (v: [number number]): _ v) a = (f [1 2]) b = [1 2 3]}'
+		const document = useGlispDocument(source)
+		const places = [at('binding:a/arg0'), at('binding:b')]
+		const swap = commandsAt(document, places).find(c => c.label === 'Swap')!
+		expect(swap.perform!()).toEqual(expect.any(String))
+		expect(print(document.root.value)).toBe(source)
 	})
 
 	it('have numbers merge by more than which of them', () => {

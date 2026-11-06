@@ -252,6 +252,21 @@ export function differingExpressionsAt(
 }
 
 /**
+ * Whether anything different is written at the places, whatever it is: a vector written out
+ * as well as a name, as anything can trade places with what it fits. Null if one is not there,
+ * or is a part of what is written.
+ */
+export function differingWrittenAt(root: AST, env: Env, places: readonly Place[]): boolean | null {
+	const seen = new Set<AST | string>()
+	for (const place of places) {
+		const slot = place.element === null ? slotAt(root, env, place) : undefined
+		if (slot === undefined) return null
+		seen.add(landingOf(slot.ast, slot.env) ?? print(bare(slot.ast)))
+	}
+	return seen.size > 1
+}
+
+/**
  * The program with each of the places having what `from` at the same index has, all as they are
  * in `root`, as one change. A name that does not mean the same from there is written so that it
  * does, and if that cannot be, goes around in a circle or does not fit, nothing changes.

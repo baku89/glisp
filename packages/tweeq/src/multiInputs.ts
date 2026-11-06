@@ -10,6 +10,7 @@ import type { GlispDocument } from './document'
 import {
 	canExtractAt,
 	differingExpressionsAt,
+	differingWrittenAt,
 	extractedAt,
 	isMixed,
 	type Merge,
@@ -47,23 +48,40 @@ const placesOf = (data: unknown): readonly Place[] =>
 const kindOf = (value: unknown): string | null =>
 	Array.isArray(value) ? 'vector' : value === null || value === undefined || value === UNIT ? null : typeof value
 
-/** What can be done to places with something other than a value written there: moving it. */
-function expressionCommands(document: GlispDocument, places: readonly Place[]): MultiSelectCommand[] {
-	if (!differingExpressionsAt(document.root.value, document.env.value, places)) return []
-	const refer = (from: readonly Place[]): string | void => {
+/** Each of the places having what is written at the one at the same index of `from`, as one change. */
+const referTo =
+	(document: GlispDocument, places: readonly Place[]) =>
+	(from: readonly Place[]): string | void => {
 		const { ast, problem } = withReferencesFrom(document.root.value, document.env.value, places, from)
 		if (problem !== null) return problem
 		if (ast?.kind === 'let') document.setRoot(ast)
 	}
+
+/** What is written at each going on to the next, and the last to the first. */
+function swapCommand(document: GlispDocument, places: readonly Place[]): MultiSelectCommand {
+	const refer = referTo(document, places)
+	return {
+		...(places.length === 2
+			? { label: 'Swap', icon: 'material-symbols:swap-vert' }
+			: { label: 'Rotate', icon: 'material-symbols:rotate-right' }),
+		// Each has what the one before it had, and the first what the last had.
+		perform: () => refer(places.map((_, i) => places.at(i - 1)!)),
+	}
+}
+
+/** What can be done to places with something other than a value written there: moving it. */
+function expressionCommands(document: GlispDocument, places: readonly Place[]): MultiSelectCommand[] {
+	const root = document.root.value
+	const env = document.env.value
+	if (!differingExpressionsAt(root, env, places)) {
+		// Vectors written out, or one written out and one a name, still trade places, as a
+		// position and a size do, being of the same shape whatever they mean.
+		return differingWrittenAt(root, env, places) ? [swapCommand(document, places)] : []
+	}
+	const refer = referTo(document, places)
 	const to = (one: Place): string | void => refer(places.map(() => one))
 	return [
-		{
-			...(places.length === 2
-				? { label: 'Swap', icon: 'material-symbols:swap-vert' }
-				: { label: 'Rotate', icon: 'material-symbols:rotate-right' }),
-			// Each has what the one before it had, and the first what the last had.
-			perform: () => refer(places.map((_, i) => places.at(i - 1)!)),
-		},
+		swapCommand(document, places),
 		{
 			label: 'Merge',
 			icon: 'mdi:call-merge',
