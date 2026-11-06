@@ -82,7 +82,7 @@ describe('commands on what is selected', () => {
 	const two = [at('binding:a'), at('binding:b')]
 
 	it('merge what differs, and pull out what is the same or differs', () => {
-		expect(labels('{a = 1 b = 2}', two)).toEqual(['Merge', 'Extract Parameter'])
+		expect(labels('{a = 1 b = 2}', two)).toEqual(['Swap', 'Merge', 'Extract Parameter'])
 		expect(labels('{a = 1 b = 1}', two)).toEqual(['Extract Parameter'])
 	})
 
@@ -98,6 +98,32 @@ describe('commands on what is selected', () => {
 		const [swap] = commandsAt(document, two)
 		expect(swap!.perform!()).toBeUndefined()
 		expect(print(document.root.value)).toBe('{a = [3 4] b = [1 2]}')
+	})
+
+	it('swap two fields of several rows each, row by row, rather than passing along all of their places', () => {
+		const document = useGlispDocument('{a = [[1 2] [3 4]] b = [[5 6] [7 8]]}')
+		const fields = [
+			[at('binding:a/0'), at('binding:b/0')],
+			[at('binding:a/1'), at('binding:b/1')],
+		]
+		const [swap] = commandsAt(document, fields.flat(), fields)
+		expect(swap!.label).toBe('Swap')
+		swap!.perform!()
+		expect(print(document.root.value)).toBe('{a = [[3 4] [1 2]] b = [[7 8] [5 6]]}')
+	})
+
+	it('swap and merge numbers of fields of several rows, row by row', () => {
+		const fields = [
+			[at('binding:a/0', 0), at('binding:b/0', 0)],
+			[at('binding:a/1', 0), at('binding:b/1', 0)],
+		]
+		const swapped = useGlispDocument('{a = [[100 100] [120 80]] b = [[300 100] [60 90]]}')
+		commandsAt(swapped, fields.flat(), fields).find(c => c.label === 'Swap')!.perform!()
+		expect(print(swapped.root.value)).toBe('{a = [[120 100] [100 80]] b = [[60 100] [300 90]]}')
+		const merging = useGlispDocument('{a = [[100 100] [120 80]] b = [[300 100] [60 90]]}')
+		const merge = commandsAt(merging, fields.flat(), fields).find(c => c.label === 'Merge')!
+		merge.children!.find(c => c.label === 'First')!.perform()
+		expect(print(merging.root.value)).toBe('{a = [[100 100] [100 80]] b = [[300 100] [300 90]]}')
 	})
 
 	it('swap a vector written out with a name for one', () => {
@@ -119,7 +145,7 @@ describe('commands on what is selected', () => {
 
 	it('have numbers merge by more than which of them', () => {
 		const document = useGlispDocument('{a = 1 b = 3}')
-		const [merge] = commandsAt(document, two)
+		const merge = commandsAt(document, two).find(c => c.label === 'Merge')
 		expect(merge!.children!.map(c => c.label)).toEqual(['First', 'Last', 'Average', 'Min', 'Max'])
 		merge!.children!.find(c => c.label === 'Average')!.perform()
 		expect(print(document.root.value)).toBe('{a = 2 b = 2}')
@@ -127,7 +153,7 @@ describe('commands on what is selected', () => {
 
 	it('have strings merge only as one of them', () => {
 		const document = useGlispDocument('{a = "x" b = "y"}')
-		const [merge] = commandsAt(document, two)
+		const merge = commandsAt(document, two).find(c => c.label === 'Merge')
 		expect(merge!.children!.map(c => c.label)).toEqual(['First', 'Last'])
 		merge!.children![1]!.perform()
 		expect(print(document.root.value)).toBe('{a = "y" b = "y"}')
@@ -144,7 +170,7 @@ describe('commands on what is selected', () => {
 
 		it('rotate more than two, each going on to the next', () => {
 			const source = `{${LINES} r = [5 6] a = [p] b = [q] c = [r]}`
-			const { document, problem } = perform(source, 'Rotate', [...slots, at('binding:c/0')])
+			const { document, problem } = perform(source, 'Pass Along', [...slots, at('binding:c/0')])
 			expect(problem).toBeUndefined()
 			expect(print(document.root.value)).toBe(`{${LINES} r = [5 6] a = [r] b = [p] c = [q]}`)
 		})
@@ -166,7 +192,7 @@ describe('commands on what is selected', () => {
 			const two = `{${LINES} a = [p] b = [q]}`
 			expect(commandsAt(useGlispDocument(two), slots).map(c => c.label)).toEqual(['Swap', 'Merge'])
 			const three = `{${LINES} a = [p] b = [q] c = [q]}`
-			expect(commandsAt(useGlispDocument(three), [...slots, at('binding:c/0')]).map(c => c.label)).toEqual(['Rotate', 'Merge'])
+			expect(commandsAt(useGlispDocument(three), [...slots, at('binding:c/0')]).map(c => c.label)).toEqual(['Pass Along', 'Merge'])
 		})
 
 		it('are nothing for what already refers to one thing, or is not a reference', () => {
@@ -176,7 +202,7 @@ describe('commands on what is selected', () => {
 
 		it('leave one that comes to a number to what numbers have', () => {
 			const document = useGlispDocument('{w = 1 h = 2 a = w b = h}')
-			expect(commandsAt(document, [at('binding:a'), at('binding:b')]).map(c => c.label)).toEqual(['Merge', 'Extract Parameter'])
+			expect(commandsAt(document, [at('binding:a'), at('binding:b')]).map(c => c.label)).toEqual(['Swap', 'Merge', 'Extract Parameter'])
 		})
 
 		it('are nothing for a vector and a number, which are not two of anything', () => {

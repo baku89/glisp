@@ -521,6 +521,20 @@ export function defaultFor(type: TypeValue | null, env: Env): AST {
 	return print(comesTo) === print(literal) ? (parseSource(print(defaultAst)) ?? literal) : literal
 }
 
+/** Whether `ast` is a value written out as it is: a number, a string, a boolean, or a vector of those. */
+const isPlainWritten = (ast: AST): boolean =>
+	ast.kind === 'lit' || (ast.kind === 'vec' && ast.elements.every(isPlainWritten))
+
+/**
+ * What an argument that is added starts as: its default, where that is a number or the like to
+ * go on from, or else `()`, which comes to the default all the same, and does not look like
+ * something that has been given, as an empty path would.
+ */
+export function addedFor(type: TypeValue | null, env: Env): AST {
+	const fallback = defaultFor(type, env)
+	return isPlainWritten(fallback) ? fallback : new LitAST(UNIT)
+}
+
 /** Source text for a node, for the fallback of editing it as code. */
 export function sourceOf(ast: AST): string {
 	return print(ast)
@@ -943,7 +957,7 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 				expected,
 				replace: give,
 			},
-			add: () => give(defaultFor(expected, inside)),
+			add: () => give(addedFor(expected, inside)),
 			give,
 		})
 	})
@@ -974,13 +988,13 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 						add: () =>
 							new CallAST(
 								ast.head,
-								[...ast.args, defaultFor(signature?.(ast.args.length) ?? null, inside)],
+								[...ast.args, addedFor(signature?.(ast.args.length) ?? null, inside)],
 								ast.kwargs
 							),
 						insert: at => {
 							const index = positional.length + at
 							const args = ast.args.slice()
-							args.splice(index, 0, defaultFor(signature?.(index) ?? null, inside))
+							args.splice(index, 0, addedFor(signature?.(index) ?? null, inside))
 							return new CallAST(ast.head, args, ast.kwargs)
 						},
 					},

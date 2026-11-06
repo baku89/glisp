@@ -620,6 +620,26 @@ const gripped = computed((): (NonNullable<typeof grippedAtAll.value> & { readonl
 	)
 )
 const grip = computed(() => gripped.value?.grip ?? null)
+/**
+ * The handles that are what is selected of the rows they are of, such as a parameter picked in
+ * the inspector, as pressing one has that be what is selected: one way as much as the other.
+ */
+const pickedHandles = computed((): ReadonlySet<number> => {
+	const held = gripped.value
+	const parts = props.selected.filter(row => !taken.value.includes(row))
+	if (held === null || parts.length === 0) return new Set()
+	const { root, env } = props.document
+	return new Set(
+		held.grip.handles.flatMap((handle, i) => {
+			const owner = held.rowOf[i]
+			if (owner === undefined) return []
+			const said = rowsOfHandle(root.value, env.value, owner, handle)
+			// All that it changes, and not only some of it, as one that changes more says more than that.
+			const isPicked = said.length > 0 && said.every(row => parts.some(part => row === part || row.startsWith(`${part}/`)))
+			return isPicked ? [i] : []
+		})
+	)
+})
 /** The corners of the box around what is selected, which goes with one that has a way it is turned. */
 const selectedBox = computed(() => {
 	// With a tool that goes by points, the only box is the one around those.
@@ -776,7 +796,9 @@ function drawHandle(
 	active: boolean,
 	accent: string,
 	paper: string,
-	dragged = false
+	dragged = false,
+	/** Selected, which it stays as, rather than only being reached for. */
+	picked = false
 ): void {
 	context.strokeStyle = accent
 	context.lineWidth = active ? HOVER_WIDTH : 1
@@ -827,7 +849,7 @@ function drawHandle(
 		context.stroke(DIAMOND)
 	} else if (handle.kind === 'offset') {
 		// Along the outline, either side of it: reached for, they point the two ways it can go.
-		const bent = handle.along || (active && dragged) ? 1 : active ? hoverBend.value : 0
+		const bent = handle.along || (active && (dragged || picked)) ? 1 : active ? hoverBend.value : 0
 		const out = OFFSET_GAP + bent * OFFSET_BEND
 		const reach = OFFSET_REACH + bent * (OFFSET_BENT_REACH - OFFSET_REACH)
 		context.rotate(facing(handle.angle ?? 0))
@@ -1222,13 +1244,6 @@ function draw(): void {
 	for (const { path, transform } of innerSelected.value) {
 		context.stroke(pathOnScreen(path, gripView(transform)))
 	}
-	context.setLineDash([])
-	context.lineWidth = PICKED_WIDTH
-	for (const { path, transform } of pickedPaths.value) {
-		context.stroke(pathOnScreen(path, gripView(transform)))
-	}
-	context.lineWidth = 1
-	context.setLineDash(DASH)
 	// What is selected but hidden has only this to it, as it is not drawn.
 	for (const shape of hiddenSelected.value) {
 		const outline = lineOfShape(shape)
@@ -1283,10 +1298,11 @@ function draw(): void {
 		drawHandle(
 			context,
 			handle,
-			(dragged === null ? i === hoveredHandle.value : i === dragged) || isChosenAt(i),
+			(dragged === null ? i === hoveredHandle.value : i === dragged) || isChosenAt(i) || pickedHandles.value.has(i),
 			i === dragged && linking.value !== null ? expression : accent,
 			paper,
-			i === dragged
+			i === dragged,
+			pickedHandles.value.has(i)
 		)
 	}
 
@@ -1378,22 +1394,6 @@ function draw(): void {
 	}
 }
 
-/**
- * The paths picked out of the row whose handles these are, such as one that a blend is of,
- * which are selected within it: said as what is selected is, while the row stays what is held.
- */
-/** How much more a path picked out is than what is around it, which is drawn in the same color. */
-const PICKED_WIDTH = 3
-const pickedPaths = computed(() => {
-	const kept = keptRow.value
-	if (kept === null) return []
-	return props.selected.flatMap(row => {
-		if (!row.startsWith(`${kept}/`)) return []
-		const found = pathOfRow(props.document.root.value, props.document.env.value, row)
-		return found === null ? [] : [found]
-	})
-})
-
 let drawing: number | null = null
 
 /** How far what is being reached for has come to show what it does, from 0 to 1. */
@@ -1434,7 +1434,7 @@ watchEffect(() => {
 		isolation.value,
 		insideIsolated.value,
 		hoveredHandle.value,
-		pickedPaths.value,
+		pickedHandles.value,
 		range.value,
 		penLine.value,
 		snapMark.value,

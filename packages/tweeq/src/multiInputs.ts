@@ -57,54 +57,78 @@ const referTo =
 		if (ast?.kind === 'let') document.setRoot(ast)
 	}
 
-/** What is written at each going on to the next, and the last to the first. */
-function swapCommand(document: GlispDocument, places: readonly Place[]): MultiSelectCommand {
+/**
+ * The fields selected, each the places it stands for, one to each row of several that it is a
+ * field of: what goes from one to another goes from the place of a row to that of the same row.
+ * Null if they do not have as many rows as each other.
+ */
+type Fields = readonly (readonly Place[])[]
+const rowsOf = (fields: Fields): number | null => {
+	const rows = fields[0]?.length ?? 0
+	return rows > 0 && fields.every(field => field.length === rows) ? rows : null
+}
+
+/**
+ * What is written in each field going on to the next, and from the last to the first, in each
+ * row: two trade places, and more are passed along, as balls are in juggling.
+ */
+function swapCommand(document: GlispDocument, fields: Fields): MultiSelectCommand | null {
+	if (rowsOf(fields) === null) return null
+	const places = fields.flat()
 	const refer = referTo(document, places)
 	return {
-		...(places.length === 2
+		...(fields.length === 2
 			? { label: 'Swap', icon: 'material-symbols:swap-vert' }
-			: { label: 'Rotate', icon: 'material-symbols:rotate-right' }),
-		// Each has what the one before it had, and the first what the last had.
-		perform: () => refer(places.map((_, i) => places.at(i - 1)!)),
+			: { label: 'Pass Along', icon: 'material-symbols:cycle' }),
+		// Each has what the one before it had, and the first what the last had, row by row.
+		perform: () => refer(fields.flatMap((field, i) => field.map((_, row) => fields.at(i - 1)![row]!))),
 	}
 }
 
 /** What can be done to places with something other than a value written there: moving it. */
-function expressionCommands(document: GlispDocument, places: readonly Place[]): MultiSelectCommand[] {
+function expressionCommands(document: GlispDocument, fields: Fields): MultiSelectCommand[] {
 	const root = document.root.value
 	const env = document.env.value
+	const places = fields.flat()
+	const swap = swapCommand(document, fields)
 	if (!differingExpressionsAt(root, env, places)) {
 		// Vectors written out, or one written out and one a name, still trade places, as a
 		// position and a size do, being of the same shape whatever they mean.
-		return differingWrittenAt(root, env, places) ? [swapCommand(document, places)] : []
+		return swap !== null && differingWrittenAt(root, env, places) ? [swap] : []
 	}
+	if (swap === null) return []
 	const refer = referTo(document, places)
-	const to = (one: Place): string | void => refer(places.map(() => one))
+	// Each row's places all have what that row's place in this field has.
+	const to = (field: readonly Place[]): string | void => refer(fields.flatMap(each => each.map((_, row) => field[row]!)))
 	return [
-		swapCommand(document, places),
+		swap,
 		{
 			label: 'Merge',
 			icon: 'mdi:call-merge',
 			children: [
-				{ label: MERGE_LABELS.first, perform: () => to(places[0]!) },
-				{ label: MERGE_LABELS.last, perform: () => to(places.at(-1)!) },
+				{ label: MERGE_LABELS.first, perform: () => to(fields[0]!) },
+				{ label: MERGE_LABELS.last, perform: () => to(fields.at(-1)!) },
 			],
 		},
 	]
 }
 
-/** What can be done to the places, as commands that edit the document. */
+/**
+ * What can be done to the places, as commands that edit the document. `fields` are the inputs
+ * they are in, if one stands for several, as a field of several rows does: by default, one each.
+ */
 export function commandsAt(
 	document: GlispDocument,
-	places: readonly Place[]
+	places: readonly Place[],
+	fields: Fields = places.map(place => [place])
 ): MultiSelectCommand[] {
 	const root = document.root.value
 	const env = document.env.value
 	const values = valuesAt(root, env, places)
 	// A vector and a number are not two of anything, to swap or to be the same.
 	if (values !== null && new Set(values.map(kindOf).filter(kind => kind !== null)).size > 1) return []
-	if (places.length >= 2 && values !== null && !values.every(isLiteral)) {
-		return expressionCommands(document, places)
+	if (fields.length >= 2 && values !== null && !values.every(isLiteral)) {
+		return expressionCommands(document, fields)
 	}
 	if (
 		places.length < 2 ||
@@ -114,23 +138,47 @@ export function commandsAt(
 		return []
 	}
 	const literals = values as readonly Literal[]
+	const rows = rowsOf(fields)
+	// The value of each place, by the field it is in and the row it is of.
+	const valueAt = (field: number, row: number): Literal => literals[field * rows! + row]!
 
 	// What is not a number can only be one of them.
 	const hows = typeof literals[0] === 'number' ? MERGES : (['first', 'last'] as const)
-	const options = (perform: (value: Literal) => string | void) =>
-		hows.map(how => ({
-			label: MERGE_LABELS[how],
-			perform: () => perform(merged(literals, how)),
-		}))
+	const options = (perform: (how: Merge) => string | void) =>
+		hows.map(how => ({ label: MERGE_LABELS[how], perform: () => perform(how) }))
 
-	const merge = (value: Literal): string | void => {
+	/** Each place having what is in `next`, which is by field and then row as `places` are. */
+	const write = (next: readonly Literal[]): string | void => {
 		const now = document.root.value
-		const misfit = misfitAt(now, env, places, value)
-		if (misfit !== null) return misfit
-		const { ast, problem } = withValuesAt(now, env, places, places.map(() => value))
+		for (const [i, value] of next.entries()) {
+			const misfit = misfitAt(now, env, [places[i]!], value)
+			if (misfit !== null) return misfit
+		}
+		const { ast, problem } = withValuesAt(now, env, places, next)
 		if (problem !== null) return problem
 		if (ast?.kind === 'let') document.setRoot(ast)
 	}
+
+	// Row by row, as each row's places are what are the same thing to it.
+	const merge = (how: Merge): string | void => {
+		if (rows === null) return 'they are not of as many rows as each other'
+		const ofRow = Array.from({ length: rows }, (_, row) => merged(fields.map((_, field) => valueAt(field, row)), how))
+		return write(fields.flatMap(field => field.map((_, row) => ofRow[row]!)))
+	}
+
+	// Each has what the one before it had, and the first what the last had, row by row.
+	const swap: MultiSelectCommand[] =
+		fields.length >= 2 && rows !== null && literals.some(value => value !== literals[0])
+			? [
+					{
+						...(fields.length === 2
+							? { label: 'Swap', icon: 'material-symbols:swap-vert' }
+							: { label: 'Pass Along', icon: 'material-symbols:cycle' }),
+						perform: () =>
+							write(fields.flatMap((field, i) => field.map((_, row) => valueAt((i + fields.length - 1) % fields.length, row)))),
+					},
+				]
+			: []
 
 	const extract = (value: Literal): string | void => {
 		const now = document.root.value
@@ -143,13 +191,18 @@ export function commandsAt(
 
 	const mixed = isMixed(literals)
 	return [
+		...swap,
 		...(mixed
 			? [{ label: 'Merge', icon: 'mdi:call-merge', children: options(merge) }]
 			: []),
 		...(canExtractAt(root, env, places)
 			? [
 					mixed
-						? { label: 'Extract Parameter', icon: 'mdi:variable', children: options(extract) }
+						? {
+								label: 'Extract Parameter',
+								icon: 'mdi:variable',
+								children: options(how => extract(merged(literals, how))),
+							}
 						: {
 								label: 'Extract Parameter',
 								icon: 'mdi:variable',
@@ -168,11 +221,10 @@ export function multiSelectHostOf(document: GlispDocument): MultiSelectHost {
 	if (host === undefined) {
 		host = {
 			batch: write => document.batch(write),
-			commands: selected =>
-				commandsAt(
-					document,
-					selected.flatMap(({ data }) => placesOf(data))
-				),
+			commands: selected => {
+				const fields = selected.map(({ data }) => placesOf(data))
+				return commandsAt(document, fields.flat(), fields)
+			},
 		}
 		hosts.set(document, host)
 	}

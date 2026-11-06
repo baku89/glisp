@@ -508,7 +508,6 @@ const label = (value: unknown): string =>
 			:source="sourceOf(ast)"
 			:place="place"
 			:pressEdits="headInField === null && !onlyRefers"
-			:selectedText="headInField?.label ?? shown"
 			:font="isNumber ? 'numeric' : isString || summary !== null || headInField !== null ? undefined : 'monospace'"
 			:leftIcon="headIcon"
 			:align="isNumber ? 'center' : undefined"

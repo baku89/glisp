@@ -513,8 +513,13 @@ const keptRow = ref<string | null>(null)
 /** The rows gone through to the one gone into, as a double click does, outside of which all is faint. */
 const isolation = ref<readonly string[]>([])
 const isolated = computed(() => isolation.value.at(-1) ?? null)
+/**
+ * The shape that a part of it picked in the inspector is in, which the inspector stays about,
+ * while that part is what is selected on the canvas, with its handles.
+ */
+const heldInInspector = ref<string | null>(null)
 /** What the inspector is about: the whole of a shape, with a part picked out of it. */
-const about = computed(() => rowsAbout(selected.value, keptRow.value))
+const about = computed(() => rowsAbout(selected.value, keptRow.value ?? heldInInspector.value))
 /** What is picked out in the inspector of what it is about. */
 const pickedOut = computed(() => (about.value === selected.value ? [] : selected.value))
 /** How the one thing selected is painted, for a tool to take that, if one thing is. */
@@ -902,28 +907,44 @@ useEventListener(window, 'pointerdown', (event: PointerEvent) => {
 const quickAddPlace = shallowRef<Vec>([0, 0])
 
 /**
- * A row picked in the inspector that is a path a shape is made from is that, on the canvas too,
- * within the shape, which stays what the inspector is about. Another row picked there goes back
- * to all of the shape.
+ * A row picked in the inspector that is a path a shape is made from is what is selected on the
+ * canvas, with its own handles, while the inspector stays about the shape. Another row picked
+ * there goes back to all of the shape.
  */
-let pickedInInspector = false
 function pickInInspector(row: string | null): void {
 	inspectorRow.value = row
 	const [whole, other] = about.value
 	const [root, env] = [document.root.value, document.env.value]
-	if (row !== null && whole !== undefined && other === undefined && row.startsWith(`${whole}/`) && pathOfRow(root, env, row) !== null) {
-		keptRow.value = whole
+	if (row !== null && whole !== undefined && other === undefined && row.startsWith(`${whole}/`)) {
+		if (pathOfRow(root, env, row) !== null) {
+			heldInInspector.value = whole
+			keptRow.value = null
+		} else {
+			// Any other parameter is picked out of the shape, which keeps its handles, as pressing
+			// the handle for it does, for that one to say so.
+			heldInInspector.value = null
+			keptRow.value = whole
+			keptByInspector = true
+		}
 		selected.value = [row]
-		pickedInInspector = true
 		return
 	}
-	if (pickedInInspector && keptRow.value !== null && pickedOut.value.length > 0) selected.value = [keptRow.value]
-	pickedInInspector = false
+	const back = heldInInspector.value ?? (keptByInspector ? keptRow.value : null)
+	if (back !== null && pickedOut.value.length > 0) selected.value = [back]
+	heldInInspector.value = null
+	keptByInspector = false
 }
+/** Whether what is picked out of the shape kept was picked in the inspector, to go back from there. */
+let keptByInspector = false
+// Anything else selected, from anywhere, is not the shape that was held any more.
+watch(selected, rows => {
+	const held = heldInInspector.value
+	if (held !== null && !rows.every(row => row.startsWith(`${held}/`))) heldInInspector.value = null
+})
 
 // Deleting a path that a shape is made from leaves nothing there, rather than taking the shape.
 useHostDelete(() => {
-	if (!pickedInInspector || pickedOut.value.length === 0) return false
+	if (heldInInspector.value === null || pickedOut.value.length === 0) return false
 	const next = withBlanks(document.root.value, document.env.value, pickedOut.value)
 	if (next instanceof LetAST) setProgram(next)
 	return true

@@ -1436,6 +1436,8 @@ describe('the convex hull of several', () => {
 		const { slots, append } = viewOf(parse(`(path.convexHull ${A} ${B})`), env)
 		expect(slots.map(({ label }) => label)).toEqual(['0', '1'])
 		expect(append?.label.toLowerCase()).toBe('path')
+		// As nothing yet, rather than an empty path that looks like one given.
+		expect(print(append!.add())).toBe(`(path.convexHull ${A} ${B} ())`)
 	})
 
 	it('comes to nothing, of nothing', () => {
