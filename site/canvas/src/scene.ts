@@ -191,6 +191,8 @@ export function evenlyFrom(from: Vec, to: Vec): Vec {
 }
 /** What a shape starts as, that its drag does not say, in proportion to what it does. */
 /** How a circle is drawn: within a box, through two points at either end of it, or through three. */
+export const ELLIPSE_MODES = ['box', 'diameter', 'threePoints'] as const
+export type EllipseMode = (typeof ELLIPSE_MODES)[number]
 
 export const SHAPE_ATTRIBUTES = {
 	/** How many sides a polygon or a star has. */
@@ -215,6 +217,7 @@ export const SHAPE_ATTRIBUTES = {
 	/** The other color of what is mixed from two, of which the first is the fill. */
 	fill2: '#f9faf9',
 	/** How a circle is drawn: within a box, through two points at either end of it, or through three. */
+	ellipseMode: 'box' as EllipseMode,
 }
 export type ShapeAttributes = typeof SHAPE_ATTRIBUTES
 
@@ -883,6 +886,34 @@ export function rowsHeldBy(root: AST, env: Env, rows: ReadonlySet<string>): stri
 		if ([...rows].some(own => moved.has(own) && written(ast, own) === before.get(own))) held.push(row)
 	}
 	return held
+}
+
+/** A place a circle is drawn through, and what it was put on, if it was put on anything. */
+export interface PlaceDrawn {
+	readonly at: Vec
+	readonly snap?: SnapPoint | null
+}
+
+/**
+ * `root` with a circle drawn through `places`, under `name`: with two, at either end of a line
+ * through its center, and with three, through all of them. Each that was put on what can be
+ * referred to refers to it, so that the circle goes on going through it.
+ */
+export function drawnThrough(
+	root: LetAST,
+	env: Env,
+	name: string,
+	places: readonly PlaceDrawn[],
+	step = FINEST
+): LetAST {
+	const written = ([x, y]: Vec): string => `[${roundedTo(x, step)} ${roundedTo(y, step)}]`
+	const fn = places.length === 2 ? 'path.circleFromDiameter' : 'path.circleThrough'
+	let next: AST = withLayerAdded(root, name, parse(`(${fn} ${places.map(({ at }) => written(at)).join(' ')})`))
+	for (const [i, { snap }] of places.entries()) {
+		if (!snap || !canRefer(snap)) continue
+		next = linked(next, env, `binding:${name}`, i, snap) ?? next
+	}
+	return next as LetAST
 }
 
 /** The name a shape drawn with `tool` gets for what it is, that `root` does not have yet. */

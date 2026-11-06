@@ -31,6 +31,9 @@ import {
 	dragStep,
 	drawn,
 	drawnFrom,
+	drawnThrough,
+	type EllipseMode,
+	type PlaceDrawn,
 	gripAt,
 	gripOfRows,
 	diveAt,
@@ -1878,6 +1881,9 @@ function onPointerDown(event: PointerEvent): void {
 		props.document.hold()
 		pressed = { kind: 'pencil', points }
 		return
+	} else if (drawsThrough()) {
+		circleDown(x, y, event.metaKey || event.ctrlKey)
+		return
 	} else if (props.drawing) {
 		const base = props.document.root.value
 		const snap = snapAt(snapPoints(), x, y)
@@ -2468,13 +2474,68 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 				}
 }
 
+/** How the circle tool draws, as its options say. */
+const ellipseMode = (): EllipseMode => props.attributes?.shape.ellipseMode ?? 'box'
+/** Whether a circle is drawn through places clicked, one at a time, rather than dragged out. */
+const drawsThrough = (): boolean => props.drawing === 'ellipse' && ellipseMode() === 'threePoints'
+
+/** A circle being drawn through places clicked, until there are three, and what it is drawn on. */
+let circling: { base: LetAST; name: string; places: readonly PlaceDrawn[] } | null = null
+
+/** The place a circle would go through, here on screen: on something, if it is near. */
+function circleAt(x: number, y: number, valueOnly: boolean): PlaceDrawn {
+	const snap = snapAt(snapPoints(circling?.base), x, y)
+	return { at: snap?.at ?? roundedPlace(x, y), snap: valueOnly ? null : snap }
+}
+
+/** The circle through the places so far, and `next` too: through two as either end of it, until there is a third. */
+function writeCircling(next: PlaceDrawn | null): void {
+	if (circling === null) return
+	const places = next === null ? circling.places : [...circling.places, next]
+	if (places.length < 2) {
+		props.document.setRoot(circling.base)
+		return
+	}
+	const drawnNow = drawnThrough(circling.base, props.document.env.value, circling.name, places.slice(0, 3), pointerStep())
+	props.document.setRoot(painted(drawnNow, circling.name))
+}
+
+/** One more place for the circle to go through, and with the third, that is the circle, as one step to undo. */
+function circleDown(x: number, y: number, valueOnly: boolean): void {
+	if (circling === null) {
+		const base = props.document.root.value
+		props.document.hold()
+		circling = { base, name: nameOfKind(base, 'circle'), places: [] }
+	}
+	circling.places = [...circling.places, circleAt(x, y, valueOnly)]
+	writeCircling(null)
+	if (circling.places.length < 3) return
+	emit('select', [`binding:${circling.name}`])
+	circling = null
+	props.document.release()
+}
+
+/** Leaving a circle that is not through three places yet undrawn. */
+function cancelCircling(): void {
+	if (circling === null) return
+	props.document.setRoot(circling.base)
+	circling = null
+	props.document.release()
+}
+watch([() => props.drawing, ellipseMode], cancelCircling)
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+	if (event.key === 'Escape' && circling !== null) cancelCircling()
+})
+
 /** The shape being drawn, as far as the pointer has got, and as even as asked. */
 function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): void {
 	if (pressed?.kind !== 'draw') return
 	const [fromX, fromY] = pressed.at
 	const [x, y] = pressed.to
+	// What goes through two places is a circle, whatever is held.
+	const byDiameter = pressed.tool === 'ellipse' && ellipseMode() === 'diameter'
 	// It is named for what it is, which can change as it is drawn.
-	const name = nameFor(pressed.base, pressed.tool, even)
+	const name = byDiameter ? nameOfKind(pressed.base, 'circle') : nameFor(pressed.base, pressed.tool, even)
 	const end = snapAt(pressed.points, x, y)
 	snapMark.value = end
 	linking.value = null
@@ -2488,12 +2549,13 @@ function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): vo
 			: null
 	const shape = props.attributes?.shape
 	// Command has it only be the same value, for now, rather than refer to that.
-	const started =
-		snap === null || valueOnly
+	const started = byDiameter
+		? drawnThrough(base, env.value, name, [{ at: start, snap: valueOnly ? null : snap }, { at: to, snap: valueOnly ? null : end }], pointerStep())
+		: snap === null || valueOnly
 			? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep(), false, fromCenter, shape)
 			: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep(), fromCenter, shape)
 	// What it is drawn to, it is drawn to as much as from what it starts at.
-	const ended = end === null || valueOnly ? null : drawnOnto(started, env.value, `binding:${name}`, end)
+	const ended = end === null || valueOnly || byDiameter ? null : drawnOnto(started, env.value, `binding:${name}`, end)
 	props.document.setRoot(painted(ended?.kind === 'let' ? ended : started, name))
 	if (name !== pressed.name) emit('select', [`binding:${name}`])
 	pressed.name = name
@@ -2533,6 +2595,15 @@ function onPointerMove(event: PointerEvent): void {
 				brush.state = brush.def.move(brush.state, fromScreen(x, y))
 				writeBrush(false)
 			}
+			return
+		}
+		if (drawsThrough() && circling !== null) {
+			hovered.value = null
+			hoveredHandle.value = null
+			cursor.value = 'crosshair'
+			const next = circleAt(x, y, event.metaKey || event.ctrlKey)
+			snapMark.value = next.snap ?? null
+			writeCircling(next)
 			return
 		}
 		if (props.drawing) {

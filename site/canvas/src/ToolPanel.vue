@@ -3,6 +3,7 @@ import { type GlispDocument, SELECTION } from '@glisp/tweeq'
 import { Icon } from 'tweeq/Icon'
 import { InputCheckbox } from 'tweeq/InputCheckbox'
 import { InputColor } from 'tweeq/InputColor'
+import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputNumber } from 'tweeq/InputNumber'
 import { ParameterTree, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
@@ -67,8 +68,16 @@ const take = (paint: Paint): void =>
 		<ScrollArea>
 			<ParameterTree v-if="own.length > 0" name="glisp.canvas.tool" :labelWidth="140">
 				<ParameterTreeItem v-for="attribute in own" :key="attribute.name" :label="attribute.label">
+					<InputDropdown
+						v-if="attribute.options !== undefined"
+						:modelValue="values[attribute.name] as string"
+						:options="attribute.options.map(option => option.value)"
+						:labels="attribute.options.map(option => option.label)"
+						:icons="attribute.options.map(option => option.icon)"
+						@update:modelValue="document.setRoot(withAttribute(document.root.value, attribute.name, $event))"
+					/>
 					<InputCheckbox
-						v-if="typeof values[attribute.name] === 'boolean'"
+						v-else-if="typeof values[attribute.name] === 'boolean'"
 						:modelValue="values[attribute.name] as boolean"
 						@update:modelValue="document.setRoot(withAttribute(document.root.value, attribute.name, $event))"
 					/>

@@ -55,6 +55,7 @@ import {
 	movedOnto,
 	pulledOnto,
 	drawnOnto,
+	drawnThrough,
 	rowsHeldBy,
 	paintedRow,
 	closingPulled,
@@ -590,6 +591,45 @@ describe('a shape stepped to what it is made of', () => {
 	})
 })
 
+describe('a circle drawn through places', () => {
+	const circleOf = (root: AST, row: string) => {
+		const grip = gripAt(root, env, row)!
+		const center = snapPointsOf(root, env, sceneOf(root, env).filter(s => s.row === row)).find(p => p.label === 'center')!.at
+		return { center, through: grip.handles.map(h => h.at!) }
+	}
+
+	it('has two at either end of a line through its center', () => {
+		const next = drawnThrough(parse('[]') as LetAST, env, 'circle1', [{ at: [0, 0] }, { at: [100, 0] }])
+		expect(print(next)).toContain('circle1 = (path.circleFromDiameter [0 0] [100 0])')
+		expect(circleOf(next, 'binding:circle1').center).toEqual([50, 0])
+	})
+
+	it('goes through three, or, of three in a line, has the two furthest apart at either end', () => {
+		const next = drawnThrough(parse('[]') as LetAST, env, 'circle1', [{ at: [0, 0] }, { at: [100, 0] }, { at: [50, 50] }])
+		expect(print(next)).toContain('circle1 = (path.circleThrough [0 0] [100 0] [50 50])')
+		const { center } = circleOf(next, 'binding:circle1')
+		expect(center[0]).toBeCloseTo(50)
+		expect(center[1]).toBeCloseTo(0)
+		const inLine = drawnThrough(parse('[]') as LetAST, env, 'circle1', [{ at: [0, 0] }, { at: [30, 0] }, { at: [100, 0] }])
+		expect(circleOf(inLine, 'binding:circle1').center).toEqual([50, 0])
+	})
+
+	it('refers to what each was put on, and goes on going through it', () => {
+		const root = parse('[r = (path.rect [0 0] [100 40])]') as LetAST
+		const corners = snapPointsOf(root, env, sceneOf(root, env))
+		const at = (where: Vec) => ({ at: where, snap: nearestSnap(corners, where, 1) })
+		const next = drawnThrough(root, env, 'circle1', [at([0, 0]), at([100, 40])])
+		expect(print(next)).toMatch(/\(path\.circleFromDiameter \S*r\/origin:? /)
+		const moved = parse(print(next).replace('[0 0] [100 40]', '[0 0] [200 40]'))
+		expect(circleOf(moved, 'binding:circle1').center).toEqual([100, 20])
+	})
+
+	it('comes to a circle around its center, as a step', () => {
+		const stepped = withSlotCommand(parse('[c = (path.circleThrough [0 0] [100 0] [50 50])]'), env, ['binding:c'], 'step')!
+		expect(print(stepped)).toContain('c = (path.circle [50 0] 50)')
+	})
+})
+
 describe('snapping', () => {
 	const root = parse('{c = (path.circle [100 100] 10) r = (path.rect [0 0] [10 10])}') as LetAST
 	const points = snapPointsOf(root, env, sceneOf(root, env))
@@ -833,6 +873,7 @@ describe('snapping', () => {
 		it('is nothing for what is not moved by one thing that says where it is', () => {
 			expect(moved('(path.line [100 0] [200 0])', 'middle', [150, 0])).toBeNull()
 		})
+
 	})
 
 	it('can be somewhere else along the same line, for what goes only one way to get to it', () => {

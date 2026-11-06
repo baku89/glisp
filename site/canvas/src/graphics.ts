@@ -515,6 +515,65 @@ const makeEllipseFromFoci = withExpansion(
 		return callOf('ellipse', [toAst(center, null), toAst(radius, null), toAst(angle, null)])
 	}
 )
+/** The circle with `a` and `b` at either end of a line through its center. */
+const circleOfDiameter = (a: Vec, b: Vec) => ({
+	center: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as Vec,
+	radius: dist(a, b) / 2,
+})
+
+/**
+ * The circle through `a`, `b` and `c`. Three in a line are not on any circle, and are on the one
+ * that the two furthest apart are either end of, for there to be something there.
+ */
+function circleThrough(a: Vec, b: Vec, c: Vec): { center: Vec; radius: number } {
+	const d = 2 * (a[0] * (b[1] - c[1]) + b[0] * (c[1] - a[1]) + c[0] * (a[1] - b[1]))
+	if (Math.abs(d) < 1e-9 * Math.max(1, dist(a, b) * dist(b, c))) {
+		const pairs: [Vec, Vec][] = [[a, b], [b, c], [a, c]]
+		const [p, q] = pairs.reduce((far, pair) => (dist(...pair) > dist(...far) ? pair : far))
+		return circleOfDiameter(p, q)
+	}
+	const [sa, sb, sc] = [a, b, c].map(([x, y]) => x * x + y * y) as [number, number, number]
+	const center: Vec = [
+		(sa * (b[1] - c[1]) + sb * (c[1] - a[1]) + sc * (a[1] - b[1])) / d,
+		(sa * (c[0] - b[0]) + sb * (a[0] - c[0]) + sc * (b[0] - a[0])) / d,
+	]
+	return { center, radius: dist(center, a) }
+}
+
+/** What a circle from places comes to, as a circle around its center: the next rung of it. */
+const asCircle = ({ center, radius }: { center: Vec; radius: number }): AST =>
+	callOf('circle', [toAst(center, null), toAst(radius, null)])
+
+const makeCircleFromDiameter = withExpansion(
+	makeTypedFn(
+		[point, point],
+		pathType,
+		(a, b) => {
+			const { center, radius } = circleOfDiameter(a as Vec, b as Vec)
+			return new PathValue(circle(center, radius))
+		},
+		['a', 'b']
+	),
+	([a, b], { value }) =>
+		a === undefined || b === undefined ? null : asCircle(circleOfDiameter(value(a) as Vec, value(b) as Vec))
+)
+
+const makeCircleThrough = withExpansion(
+	makeTypedFn(
+		[point, point, point],
+		pathType,
+		(a, b, c) => {
+			const { center, radius } = circleThrough(a as Vec, b as Vec, c as Vec)
+			return new PathValue(circle(center, radius))
+		},
+		['a', 'b', 'c']
+	),
+	([a, b, c], { value }) =>
+		a === undefined || b === undefined || c === undefined
+			? null
+			: asCircle(circleThrough(value(a) as Vec, value(b) as Vec, value(c) as Vec))
+)
+
 const makeCircle = withExpansion(
 	makeTypedFn(
 		[point, number],
@@ -1786,6 +1845,8 @@ withMembers(pathType, {
 	repeatAlong: withDoc(makeRepeatAlong, 'As many copies of `stamp` as `count` says, each with its middle on `path`, starting `offset` along it, turned the way it goes if `rotate` says.', 'Repeat Along'),
 	d: withDoc(makeD, 'A path from its data, as an SVG path has it.', 'Path Data'),
 	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.', 'Circle'),
+	circleFromDiameter: withDoc(makeCircleFromDiameter, 'The circle with `a` and `b` at either end of a line through its center.', 'Circle from Diameter'),
+	circleThrough: withDoc(makeCircleThrough, 'The circle through `a`, `b` and `c`.', 'Circle through Points'),
 	ellipseFromFoci: withDoc(makeEllipseFromFoci, 'An ellipse around `focus1` and `focus2`, going `through` a point, which says how large it is, as an ellipse is where the distances to its foci come to the same.', 'Ellipse from Foci'),
 	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` along each of its axes, turned by `angle`, in degrees.', 'Ellipse'),
 	rect: withDoc(makeRect, 'A rectangle from its `origin`, of this `size`.', 'Rectangle'),
@@ -2848,6 +2909,30 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			const grip = pointsGrip(args as Vec[], [line(focus1, through), line(focus2, through)])
 			const [first, second, last] = grip.handles
 			return { ...grip, handles: [...evenEnds([first!, second!], focus1, focus2), last!] }
+		},
+	],
+	[
+		makeCircleFromDiameter,
+		args => {
+			const [a, b] = args as [Vec, Vec]
+			const { center } = circleOfDiameter(a, b)
+			return pointsGrip(args as Vec[], [line(a, b)], {
+				points: [
+					{
+						at: center,
+						name: 'center',
+						code: p => `[(/ (+ ${p('arg0/0')} ${p('arg1/0')}) @2) (/ (+ ${p('arg0/1')} ${p('arg1/1')}) @2)]`,
+					},
+				],
+			})
+		},
+	],
+	[
+		makeCircleThrough,
+		args => {
+			const [a, b, c] = args as [Vec, Vec, Vec]
+			// Where it goes round, which none of them says, is only a place to line up with.
+			return pointsGrip(args as Vec[], [], { points: [{ at: circleThrough(a, b, c).center, name: 'center' }] })
 		},
 	],
 	[
@@ -4458,6 +4543,17 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 			turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
 		}),
 	],
+	...[makeCircleFromDiameter, makeCircleThrough].map(
+		(fn): [unknown, (args: readonly unknown[]) => BoxAnswer] => [
+			fn,
+			args => ({
+				even: true,
+				round: true,
+				scaled: (x, y, about) => args.map((at, i) => change(i, scaledPlace(at as Vec, x, y, about))),
+				turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
+			}),
+		]
+	),
 	[
 		makeCapsule,
 		([start, end, radius]) => ({

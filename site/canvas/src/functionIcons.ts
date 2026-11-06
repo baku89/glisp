@@ -38,6 +38,8 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.exclude': 'mdi:vector-difference',
 	...Object.fromEntries(Object.entries(SHAPE_ICONS).map(([name, icon]) => [`path.${name}`, icon])),
 	'path.ellipseFromFoci': SHAPE_ICONS.ellipse,
+	'path.circleFromDiameter': 'ph:circle-half',
+	'path.circleThrough': 'ph:dots-three-circle',
 	'path.d': 'ph:path',
 	'path.line': 'ph:line-segment',
 	'path.arcStrip': 'ph:wave-sine',

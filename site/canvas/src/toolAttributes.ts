@@ -25,6 +25,8 @@ export interface AttributeOfTool {
 	readonly min?: number
 	readonly max?: number
 	readonly step?: number
+	/** What it can be, of which one is chosen, each with what it is called and its icon. */
+	readonly options?: readonly { readonly value: string; readonly label: string; readonly icon: string }[]
 }
 
 const SIDES: AttributeOfTool = { name: 'sides', label: 'Sides', min: 3, step: 1 }
@@ -42,6 +44,17 @@ export const ATTRIBUTES_OF_TOOL: Readonly<Record<string, readonly AttributeOfToo
 	pencil: [
 		{ name: 'smoothness', label: 'Smoothness', min: 0.1, step: 0.1 },
 		{ name: 'pencilFill', label: 'Fill' },
+	],
+	ellipse: [
+		{
+			name: 'ellipseMode',
+			label: 'Draw By',
+			options: [
+				{ value: 'box', label: 'Box', icon: 'ph:bounding-box' },
+				{ value: 'diameter', label: 'Two Points', icon: 'ph:circle-half' },
+				{ value: 'threePoints', label: 'Three Points', icon: 'ph:dots-three-circle' },
+			],
+		},
 	],
 	ngon: [SIDES],
 	star: [SIDES, { name: 'starInner', label: 'Inner', min: 0, max: 1, step: 0.01 }],
@@ -78,7 +91,11 @@ export function shapeAttributesOf(root: LetAST, env: Env): ShapeAttributes {
 		Object.entries(SHAPE_ATTRIBUTES).map(([name, first]) => {
 			const ast = said.get(name)
 			const value = ast && evaluate(readByName(ast), env).value
-			const fits = typeof value === typeof first && (typeof value !== 'number' || Number.isFinite(value))
+			const options = Object.values(ATTRIBUTES_OF_TOOL).flat().find(attribute => attribute.name === name)?.options
+			const fits =
+				typeof value === typeof first &&
+				(typeof value !== 'number' || Number.isFinite(value)) &&
+				(options === undefined || options.some(option => option.value === value))
 			return [name, fits ? value : first]
 		})
 	) as ShapeAttributes
