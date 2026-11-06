@@ -120,6 +120,12 @@ describe('ungrouped, of what a path is made from', () => {
 		expect(result.rows).toEqual(['binding:rect1', 'binding:circle1'])
 	})
 
+	it('has what had a name in there keep it, under its style too', () => {
+		const result = of(`[c = (style (path.unite a = ${R} b = ${C}) stroke: "#000000")]`)!
+		expect(print(result.ast)).toBe(`{main = [a = (style ${R} stroke: "#000000") b = (style ${C} stroke: "#000000")]}`)
+		expect(result.rows).toEqual(['binding:a', 'binding:b'])
+	})
+
 	it('has each of them drawn by what the whole was', () => {
 		expect(print(of(`[c = (style (path.subtract ${R} ${C}) fill: "#ff0000")]`)!.ast)).toBe(
 			`{main = [rect1 = (style ${R} fill: "#ff0000") circle1 = (style ${C} fill: "#ff0000")]}`

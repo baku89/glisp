@@ -222,6 +222,9 @@ function levelsWithin(holder: AST, node: AST, frame: Env): Levels | null {
 	if (bare === node) return []
 	if (bare.kind !== 'call') return null
 	const index = bare.args.findIndex(arg => withoutMeta(arg) === node)
+	// What has a name of its own there is reached by it, wherever it goes in the call.
+	const given = index === -1 ? null : nameOf(bare.args[index]!)
+	if (given !== null) return [given]
 	const parameters = index === -1 ? null : callParameters(bare, frame)
 	if (parameters === null) return null
 	const name = parameters.names[index]
@@ -249,7 +252,8 @@ function combinedBindings(
 		return names.some(name => refs.names.has(name)) || refs.paths.some(({ up }) => up !== Infinity)
 	}
 	if (inside.some(refersOut)) return null
-	const made = callOf(filter, inside, env)
+	// Each goes on being called what it was, in what it is given to now.
+	const made = callOf(filter, inside.map((ast, i) => named(names[i]!, ast)), env)
 	const call = around(made)
 	const at = root.bindings.reduce((last, [name], i) => (names.includes(name) ? i : last), 0)
 	const bindings = root.bindings.flatMap((binding, i): (readonly [string, AST])[] => {
@@ -298,7 +302,8 @@ export function combined(
 		return names.some(name => refs.names.has(name)) || refs.paths.some(({ up }) => up !== Infinity)
 	}
 	if (inside.some(refersOut)) return null
-	const made = callOf(filter, inside, env)
+	// Each goes on being called what it was, in what it is given to now.
+	const made = callOf(filter, inside.map((ast, i) => named(names[i]!, ast)), env)
 	const call = around(made)
 	// Where the frontmost of them was, and none of the rest.
 	const at = elements.findIndex(element => names.includes(nameOf(element) ?? ''))

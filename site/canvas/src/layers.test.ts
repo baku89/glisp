@@ -213,8 +213,8 @@ describe('what is put around what is drawn', () => {
 
 		it('goes on going there, whichever is the subject', () => {
 			for (const [names, center] of [
-				[['ngon', 'dots'], '/main/ngon/path:/subject:/center:'],
-				[['dots', 'ngon'], '/main/dots/path:/tool:/center:'],
+				[['ngon', 'dots'], '/main/ngon/path:/ngon/center:'],
+				[['dots', 'ngon'], '/main/dots/path:/ngon/center:'],
 			] as const) {
 				const next = on(styled)(...names)('path.subtract')
 				expect(next).not.toBeNull()
@@ -225,13 +225,13 @@ describe('what is put around what is drawn', () => {
 
 		it('has what referred to one from elsewhere follow it', () => {
 			const next = on(styled)('ngon', 'dots')('path.subtract')!
-			expect(print(next)).toContain('other = (path.circle /main/ngon/path:/tool:/a:/center: 1)')
+			expect(print(next)).toContain('other = (path.circle /main/ngon/path:/dots/a:/center: 1)')
 			expect(problems(next)).toEqual([])
 		})
 
-		it('goes by a number, past those that have a name', () => {
+		it('goes by the name it had, which it keeps in there', () => {
 			const next = on(`[a = ${NGON} b = ${NGON} c = ${NGON} d = (path.circle /c/center: 1)]`)('a', 'b', 'c')('path.unite')!
-			expect(print(next)).toContain('d = (path.circle /main/a/others:/0/center: 1)')
+			expect(print(next)).toContain('d = (path.circle /main/a/c/center: 1)')
 			expect(problems(next)).toEqual([])
 		})
 

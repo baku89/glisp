@@ -88,14 +88,14 @@ describe('combined', () => {
 
 	it('has them given to it, in place of the last, called what the first is', () => {
 		const next = combined(root, env, ['a', 'b'], lits('1', '2'), filter('+', [1, 2]))!
-		expect(print(next)).toMatch(/a = \(\+ 1 2\)[\s\S]*c = 3/)
-		expect(print(next)).not.toContain('b = ')
+		expect(print(next)).toMatch(/a = \(\+ a = 1 b = 2\)[\s\S]*c = 3/)
+		expect(next.bindings.map(([name]) => name)).toEqual(['a', 'c'])
 	})
 
 	it('goes by the order they are given in', () => {
 		const next = combined(root, env, ['c', 'a'], lits('3', '1'), filter('-', [1, 2]))!
-		expect(print(next)).toContain('c = (- 3 1)')
-		expect(print(next)).not.toContain('a = ')
+		expect(print(next)).toContain('c = (- c = 3 a = 1)')
+		expect(next.bindings.map(([name]) => name)).toEqual(['b', 'c'])
 	})
 
 	it('leaves what referred to the first referring to it', () => {

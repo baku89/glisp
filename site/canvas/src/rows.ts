@@ -368,9 +368,13 @@ function madeFrom(value: AST, env: Env): readonly AST[] | null {
 	if (paths.length === 0) return null
 	return paths.map(path => {
 		if (styled === null) return path
-		const bare = path.kind === 'meta' ? path.expr : path
-		const within = bare.kind === 'call' && print(bare.head) === 'style' ? bare.args[0]! : path
-		return new CallAST(styled.head, [within, ...styled.args.slice(1)], styled.kwargs)
+		// What it was called in there, it is called around its style too.
+		const name = nameOf(path)
+		const own = unnamed(path)
+		const bare = own.kind === 'meta' ? own.expr : own
+		const within = bare.kind === 'call' && print(bare.head) === 'style' ? bare.args[0]! : own
+		const drawn = new CallAST(styled.head, [within, ...styled.args.slice(1)], styled.kwargs)
+		return name === null ? drawn : named(name, drawn)
 	})
 }
 
@@ -479,7 +483,15 @@ function ungroupedIn<B extends Layered>(
 					continue
 				}
 			}
-			out.push({ ast: name === null ? path : named(fresh(path.kind === 'sym' ? path.name : stemOf(path)), path), freed: true })
+			// What had a name in there keeps it, if nothing else here has it already.
+			const given = nameOf(path)
+			if (given !== null && !taken.has(given)) {
+				taken.add(given)
+				out.push({ ast: path, freed: true })
+				continue
+			}
+			const bare = unnamed(path)
+			out.push({ ast: name === null ? bare : named(fresh(bare.kind === 'sym' ? bare.name : stemOf(bare)), bare), freed: true })
 		}
 	})
 	if (!changed) return null
