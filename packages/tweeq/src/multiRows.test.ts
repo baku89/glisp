@@ -83,7 +83,9 @@ describe('commands on what is selected', () => {
 
 	it('merge what differs, and pull out what is the same or differs', () => {
 		expect(labels('{a = 1 b = 2}', two)).toEqual(['Swap', 'Merge', 'Extract Parameter'])
-		expect(labels('{a = 1 b = 1}', two)).toEqual(['Extract Parameter'])
+		// Bindings alike are still two names, to merge into one.
+		expect(labels('{a = 1 b = 1}', two)).toEqual(['Extract Parameter', 'Merge'])
+		expect(labels('{v = [1 1]}', [at('binding:v', 0), at('binding:v', 1)])).toEqual(['Extract Parameter'])
 	})
 
 	it('are nothing for values of different kinds, or for one alone', () => {
@@ -92,8 +94,8 @@ describe('commands on what is selected', () => {
 	})
 
 	it('swap vectors written out, as a position and a size are both two numbers', () => {
-		expect(labels('{a = [1] b = [2]}', two)).toEqual(['Swap'])
-		expect(labels('{a = [1 2] b = [1 2]}', two)).toEqual([])
+		expect(labels('{a = [1] b = [2]}', two)).toEqual(['Swap', 'Merge'])
+		expect(labels('{a = [1 2] b = [1 2]}', two)).toEqual(['Merge'])
 		const document = useGlispDocument('{a = [1 2] b = [3 4]}')
 		const [swap] = commandsAt(document, two)
 		expect(swap!.perform!()).toBeUndefined()
@@ -144,19 +146,19 @@ describe('commands on what is selected', () => {
 	})
 
 	it('have numbers merge by more than which of them', () => {
-		const document = useGlispDocument('{a = 1 b = 3}')
-		const merge = commandsAt(document, two).find(c => c.label === 'Merge')
+		const document = useGlispDocument('{v = [1 3]}')
+		const merge = commandsAt(document, [at('binding:v', 0), at('binding:v', 1)]).find(c => c.label === 'Merge')
 		expect(merge!.children!.map(c => c.label)).toEqual(['First', 'Last', 'Average', 'Min', 'Max'])
 		merge!.children!.find(c => c.label === 'Average')!.perform()
-		expect(print(document.root.value)).toBe('{a = 2 b = 2}')
+		expect(print(document.root.value)).toBe('{v = [2 2]}')
 	})
 
 	it('have strings merge only as one of them', () => {
-		const document = useGlispDocument('{a = "x" b = "y"}')
-		const merge = commandsAt(document, two).find(c => c.label === 'Merge')
+		const document = useGlispDocument('{v = ["x" "y"]}')
+		const merge = commandsAt(document, [at('binding:v', 0), at('binding:v', 1)]).find(c => c.label === 'Merge')
 		expect(merge!.children!.map(c => c.label)).toEqual(['First', 'Last'])
 		merge!.children![1]!.perform()
-		expect(print(document.root.value)).toBe('{a = "y" b = "y"}')
+		expect(print(document.root.value)).toBe('{v = ["y" "y"]}')
 	})
 
 	describe('of what refers to something', () => {
@@ -203,6 +205,34 @@ describe('commands on what is selected', () => {
 		it('leave one that comes to a number to what numbers have', () => {
 			const document = useGlispDocument('{w = 1 h = 2 a = w b = h}')
 			expect(commandsAt(document, [at('binding:a'), at('binding:b')]).map(c => c.label)).toEqual(['Swap', 'Merge', 'Extract Parameter'])
+		})
+
+		it('merge bindings into one, by name, rather than have them be alike', () => {
+			const source = '{x = 20 y = 20 a = (+ x 1) b = (* y 2)}'
+			const merge = (how: number) => {
+				const document = useGlispDocument(source)
+				const command = commandsAt(document, [at('binding:x'), at('binding:y')]).find(c => c.label === 'Merge')!
+				expect(command.children![how]!.perform()).toBeUndefined()
+				return print(document.root.value)
+			}
+			// Alike as they are, they are still two, and merging them makes them one.
+			expect(merge(0)).toBe('{x = 20 a = (+ x 1) b = (* x 2)}')
+			expect(merge(1)).toBe('{y = 20 a = (+ y 1) b = (* y 2)}')
+		})
+
+		it('merge bindings at what the numbers come to, kept as the first', () => {
+			const document = useGlispDocument('{x = 10 y = 30 a = [x y]}')
+			const command = commandsAt(document, [at('binding:x'), at('binding:y')]).find(c => c.label === 'Merge')!
+			command.children!.find(c => c.label === 'Average')!.perform()
+			expect(print(document.root.value)).toBe('{x = 20 a = [x x]}')
+		})
+
+		it('say why, and change nothing, for a name that would mean something else', () => {
+			const source = '{x = 1 y = 2 a = {x = 5 b = y}}'
+			const document = useGlispDocument(source)
+			const command = commandsAt(document, [at('binding:x'), at('binding:y')]).find(c => c.label === 'Merge')!
+			expect(command.children![0]!.perform()).toEqual(expect.any(String))
+			expect(print(document.root.value)).toBe(source)
 		})
 
 		it('are nothing for a vector and a number, which are not two of anything', () => {

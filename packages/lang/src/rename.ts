@@ -82,7 +82,40 @@ export function renameBindingIn(
 	if (!block.bindings.some(([name]) => name === from)) return null
 	if (from === to) return root
 	if (block.bindings.some(([name]) => name === to)) return null
+	return referredAs(root, block, from, to, false)
+}
 
+/**
+ * `root`, with the binding `from` of `block` gone into the binding `into` of the same block: what
+ * referred to `from` refers to `into`, by name and by path, as a rename has it, and `from` is no
+ * longer there. Two names that came to the same thing are then one.
+ *
+ * Null if it cannot be: `block` does not have both, they are the same, or a nearer `into` would
+ * catch a reference to `from`, which would then mean something else.
+ */
+export function mergeBindingIn(
+	root: AST,
+	block: LetAST,
+	from: string,
+	into: string
+): AST | null {
+	if (from === into) return null
+	if (!block.bindings.some(([name]) => name === from)) return null
+	if (!block.bindings.some(([name]) => name === into)) return null
+	return referredAs(root, block, from, into, true)
+}
+
+/**
+ * `root`, with what refers to the binding `from` of `block` referring to `to` instead: renamed,
+ * or, `merging`, gone into the binding `to` of the block that is there already.
+ */
+function referredAs(
+	root: AST,
+	block: LetAST,
+	from: string,
+	to: string,
+	merging: boolean
+): AST | null {
 	let caught = false
 	let edits = 0
 	let found = false
@@ -147,7 +180,8 @@ export function renameBindingIn(
 
 		switch (node.kind) {
 			case 'sym':
-				if (node.name === to && !names.near) caught = true
+				// Merging, a `to` in the block already means the block's, as a `from` will.
+				if (!merging && node.name === to && !names.near) caught = true
 				if (node.name !== from || names.hidden) return node
 				if (names.near) caught = true
 				edits++
@@ -188,13 +222,15 @@ export function renameBindingIn(
 								node.bindings.map(([name]) => name)
 							)
 				return new LetAST(
-					node.bindings.map(
-						([name, value]) =>
-							[
-								node === block && name === from ? to : name,
-								go(value, bound, inside),
-							] as const
-					),
+					node.bindings
+						.filter(([name]) => !(merging && node === block && name === from))
+						.map(
+							([name, value]) =>
+								[
+									node === block && name === from ? to : name,
+									go(value, bound, inside),
+								] as const
+						),
 					node.body === null ? null : go(node.body, bound, inside)
 				)
 			}

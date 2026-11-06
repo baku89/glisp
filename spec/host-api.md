@@ -253,6 +253,7 @@ An edit makes a new AST.
 ```ts
 renameBinding(block, 'a', 'b')  // a new let-block, or null if it cannot be
 renameBindingIn(root, block, 'a', 'b')  // the same for a let-block inside `root`
+mergeBindingIn(root, block, 'a', 'b')   // `a` gone into `b` of the same block, or null
 isBindingName('a')              // whether a name can be a binding's
 ```
 
@@ -261,6 +262,8 @@ isBindingName('a')              // whether a name can be a binding's
 Giving an expression a name, or another name, can catch what refers to something farther out: naming the `2` in `{x = 10 y = (+ 2 (* x 3))}` as `x` would have `(* x 3)` mean the `2`. An edit that names must not change what anything refers to: what it would catch becomes a path to what it meant, as `../../x`, the shortest that reaches it (see `shortestPath` below). This is what lets a host name anything at any time, as a canvas names a shape when something comes to refer to it. Only when no path reaches what was meant, as from inside a function literal to a name it closes over, does the edit refuse. Renaming follows the same rule, for what the new name would catch.
 
 `renameBindingIn` also follows paths from elsewhere in `root`, and what is unchanged stays `===`. A path that reaches the block through a call's argument by position is left as written, since following it needs the call's signature, and then reports an error.
+
+`mergeBindingIn` makes two bindings of one block one: what refers to `a`, by name or by path, refers to `b` as a rename would have it, and `a` is gone, so that two names for things alike are one name. It returns null if the block does not have both, or if a nearer `b` would catch a reference to `a`.
 
 Putting a node into a call moves it a level down, and paths count levels, so they have to follow too:
 

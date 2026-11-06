@@ -17,6 +17,7 @@ import {
 	MetaAST,
 	pathTarget,
 	print,
+	mergeBindingIn,
 	solve,
 	SymAST,
 	typeFits,
@@ -484,4 +485,54 @@ export function misfitAt(
 		}
 	}
 	return null
+}
+
+/** The names of the bindings at `places`, and the path of the block they are all in, if they are that. */
+export function bindingsAt(places: readonly Place[]): { readonly block: string; readonly names: readonly string[] } | null {
+	const split = places.map(({ path, element }) => (element === null ? /^(?:(.*)\/)?binding:([^/]+)$/.exec(path) : null))
+	if (split.length < 2 || split.some(found => found === null)) return null
+	const block = split[0]![1] ?? ''
+	if (split.some(found => (found![1] ?? '') !== block)) return null
+	const names = split.map(found => found![2]!)
+	return new Set(names).size === names.length ? { block, names } : null
+}
+
+/**
+ * `root`, with the bindings `names` of the block at `block` made one: the one at `keep`, where it
+ * is, as `value` if that is given, and what referred to any of the others referring to it. A name
+ * that would come to mean something else where it is referred to stops it, and says why.
+ */
+export function withBindingsMerged(
+	root: AST,
+	env: Env,
+	block: string,
+	names: readonly string[],
+	keep: number,
+	value?: AST
+): { ast: AST | null; problem: string | null } {
+	const blockAt = (ast: AST): LetAST | null => {
+		const found = block === '' ? ast : reach(ast, env, block)?.chain.at(-1)?.ast
+		const bare = found?.kind === 'meta' ? found.expr : found
+		return bare instanceof LetAST ? bare : null
+	}
+	const withBlock = (ast: AST, next: LetAST): AST | null => {
+		if (block === '') return next
+		const reached = reach(ast, env, block)
+		const last = reached?.chain.at(-1)
+		return reached && last ? withParent(reached.chain, last.replace(last.ast.kind === 'meta' ? new MetaAST(last.ast.metadata, next) : next)) : null
+	}
+	const kept = names[keep]!
+	let next: AST | null = root
+	for (const other of names.filter((_, i) => i !== keep)) {
+		const into = blockAt(next!)
+		const joined: AST | null = into === null ? null : mergeBindingIn(next!, into, other, kept)
+		if (!joined) return { ast: null, problem: `${other} cannot be ${kept} everywhere it is referred to` }
+		next = joined
+	}
+	if (value !== undefined) {
+		const into = blockAt(next!)!
+		next = withBlock(next!, new LetAST(into.bindings.map(([name, was]) => [name, name === kept ? value : was] as const), into.body))
+		if (next === null) return { ast: null, problem: 'they are not where they were' }
+	}
+	return { ast: next, problem: null }
 }

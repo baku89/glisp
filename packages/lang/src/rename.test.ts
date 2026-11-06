@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildPrelude } from './prelude.js'
 import { evaluate, parse, print, Session } from './index.js'
-import { isBindingName, renameBinding, renameBindingIn } from './rename.js'
+import { isBindingName, mergeBindingIn, renameBinding, renameBindingIn } from './rename.js'
 import type { LetAST, MetaAST } from './types.js'
 
 const rename = (src: string, from: string, to: string) => {
@@ -201,5 +201,26 @@ describe('Session.renameBinding', () => {
 		expect(session.renameBinding('x', 'y')).toContain('y')
 		expect(session.renameBinding('nope', 'z')).toContain('nope')
 		expect(session.bindings()).toEqual(['x', 'y'])
+	})
+})
+
+describe('mergeBindingIn', () => {
+	const merge = (source: string, from: string, into: string) => {
+		const root = parse(source) as LetAST
+		const next = mergeBindingIn(root, root, from, into)
+		return next && print(next)
+	}
+
+	it('has what referred to one refer to the other, by name and by path, and the one gone', () => {
+		expect(merge('{x = 20 y = 20 a = (+ x 1) b = (* y 2) c = ./y}', 'y', 'x')).toBe('{x = 20 a = (+ x 1) b = (* x 2) c = ./x}')
+	})
+
+	it('is nothing where a nearer name would catch what is referred to', () => {
+		expect(merge('{x = 1 y = 2 a = {x = 5 b = y}}', 'y', 'x')).toBeNull()
+	})
+
+	it('is nothing without both, or of one with itself', () => {
+		expect(merge('{x = 1}', 'y', 'x')).toBeNull()
+		expect(merge('{x = 1}', 'x', 'x')).toBeNull()
 	})
 })

@@ -3,11 +3,12 @@
  * say which places they are, and this is what is done to the program about it.
  */
 
-import { UNIT } from '@glisp/lang'
+import { lit, UNIT } from '@glisp/lang'
 import type { MultiSelectCommand, MultiSelectHost } from 'tweeq/stores/multiSelect'
 
 import type { GlispDocument } from './document'
 import {
+	bindingsAt,
 	canExtractAt,
 	differingExpressionsAt,
 	differingWrittenAt,
@@ -20,6 +21,7 @@ import {
 	nameFor,
 	type Place,
 	valuesAt,
+	withBindingsMerged,
 	withReferencesFrom,
 	withValuesAt,
 } from './multiRows'
@@ -121,6 +123,37 @@ export function commandsAt(
 	document: GlispDocument,
 	places: readonly Place[],
 	fields: Fields = places.map(place => [place])
+): MultiSelectCommand[] {
+	const commands = commandsOfPlaces(document, places, fields)
+	const bindings = fields.every(field => field.length === 1) ? bindingsAt(places) : null
+	if (bindings === null) return commands
+	// Bindings merged are one binding, however alike their values: the rest are gone, and what
+	// referred to them refers to it. A vector and a number are still not two of anything.
+	const values = valuesAt(document.root.value, document.env.value, places)
+	if (values !== null && new Set(values.map(kindOf).filter(kind => kind !== null)).size > 1) return commands
+	const numbers = values !== null && values.every(value => typeof value === 'number') ? (values as number[]) : null
+	const hows = numbers !== null && isMixed(numbers) ? MERGES : (['first', 'last'] as const)
+	const merge = (how: Merge): string | void => {
+		const keep = how === 'last' ? bindings.names.length - 1 : 0
+		const value = how === 'first' || how === 'last' || numbers === null ? undefined : lit(merged(numbers, how))
+		const { ast, problem } = withBindingsMerged(document.root.value, document.env.value, bindings.block, bindings.names, keep, value)
+		if (problem !== null) return problem
+		if (ast?.kind === 'let') document.setRoot(ast)
+	}
+	const merging: MultiSelectCommand = {
+		label: 'Merge',
+		icon: 'mdi:call-merge',
+		children: hows.map(how => ({ label: MERGE_LABELS[how], perform: () => merge(how) })),
+	}
+	const at = commands.findIndex(({ label }) => label === 'Merge')
+	return at < 0 ? [...commands, merging] : commands.map((command, i) => (i === at ? merging : command))
+}
+
+/** What can be done to the places, by what is at them. */
+function commandsOfPlaces(
+	document: GlispDocument,
+	places: readonly Place[],
+	fields: Fields
 ): MultiSelectCommand[] {
 	const root = document.root.value
 	const env = document.env.value
