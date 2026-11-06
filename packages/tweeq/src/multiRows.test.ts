@@ -154,6 +154,11 @@ describe('commands on what is selected', () => {
 			expect(commandsAt(document, [at('binding:a'), at('binding:b')]).map(c => c.label)).toEqual(['Merge', 'Extract Parameter'])
 		})
 
+		it('are nothing for a vector and a number, which are not two of anything', () => {
+			expect(commandsAt(useGlispDocument('{p = [1 2] w = 3 a = p b = w}'), [at('binding:a'), at('binding:b')])).toEqual([])
+			expect(commandsAt(useGlispDocument('{a = [1 2] b = 3}'), [at('binding:a'), at('binding:b')])).toEqual([])
+		})
+
 		it('swap as one thing to undo', () => {
 			const now = vi.spyOn(performance, 'now').mockReturnValue(10_000)
 			const source = `{${LINES} a = [p] b = [q]}`

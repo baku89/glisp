@@ -3,6 +3,7 @@
  * say which places they are, and this is what is done to the program about it.
  */
 
+import { UNIT } from '@glisp/lang'
 import type { MultiSelectCommand, MultiSelectHost } from 'tweeq/stores/multiSelect'
 
 import type { GlispDocument } from './document'
@@ -38,6 +39,13 @@ const isLiteral = (value: unknown): value is Literal =>
 /** An input stands for a place, or for several as a field of several rows does. */
 const placesOf = (data: unknown): readonly Place[] =>
 	Array.isArray(data) ? (data as Place[]) : data ? [data as Place] : []
+
+/**
+ * What kind of thing a value is, for only those of one kind to be done anything to together:
+ * a vector, however long, as what does not fit says so itself. What is not known is any kind.
+ */
+const kindOf = (value: unknown): string | null =>
+	Array.isArray(value) ? 'vector' : value === null || value === undefined || value === UNIT ? null : typeof value
 
 /** What can be done to places with something other than a value written there: moving it. */
 function expressionCommands(document: GlispDocument, places: readonly Place[]): MultiSelectCommand[] {
@@ -75,6 +83,8 @@ export function commandsAt(
 	const root = document.root.value
 	const env = document.env.value
 	const values = valuesAt(root, env, places)
+	// A vector and a number are not two of anything, to swap or to be the same.
+	if (values !== null && new Set(values.map(kindOf).filter(kind => kind !== null)).size > 1) return []
 	if (places.length >= 2 && values !== null && !values.every(isLiteral)) {
 		return expressionCommands(document, places)
 	}

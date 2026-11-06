@@ -7,7 +7,7 @@ import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { useMultiSelectStore } from 'tweeq/stores/multiSelect'
 import { vTooltip } from 'tweeq/Tooltip'
-import { computed, inject, nextTick, onBeforeUnmount, provide, ref, useTemplateRef, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 import AstCodePopup from './AstCodePopup.vue'
 import AstGapAdd from './AstGapAdd.vue'
@@ -360,13 +360,30 @@ const children = computed(() => {
 })
 
 const multiSelect = useMultiSelectStore()
+/** The row as a whole, as what is selected with others: a parameter is its value, not each number in it. */
+const $row = shallowRef<HTMLElement | null>(null)
+onMounted(() => {
+	$row.value = ($labelEnd.value?.closest('.TqParameterTreeItem') as HTMLElement | null) ?? null
+})
+const whole = layers
+	? null
+	: multiSelect.register({
+			type: 'opaque',
+			whole: true,
+			el: $row,
+			focusing: ref(false),
+			data: computed(() => ({ path: props.path, element: null })),
+			getValue: () => '',
+			setValue: () => {},
+			confirm: () => {},
+		})
 const alsoSelected = inject(ALSO_SELECTED, null)
 // What is selected inside of a row that is closed has nowhere else to be seen.
 const selected = computed(() => {
 	const also = alsoSelected?.() ?? []
 	return (
 		selection.value?.path === props.path ||
-		(!layers && multiSelect.allSelectedWithin($labelEnd.value?.closest('.TqParameterTreeItem'))) ||
+		(whole !== null && whole.selected && whole.multiSelected) ||
 		also.includes(props.path) ||
 		(!open.value && also.some(row => row.startsWith(`${props.path}/`)))
 	)
@@ -384,14 +401,14 @@ function pick(event: MouseEvent): void {
 	const item = layers || label.closest?.('.value') ? null : label.closest?.('.TqParameterTreeItem')
 	const along = event.metaKey || event.ctrlKey
 	// Picked out from among those selected, it is no longer selected.
-	if (item && along && multiSelect.allSelectedWithin(item)) {
-		multiSelect.selectWithin(item, 'along')
+	if (item && whole && along && whole.selected) {
+		whole.select('along')
 		if (selection.value?.path === props.path) selection.value = null
 		return
 	}
 	if (picker?.(props.path, event) !== false) select()
-	// A parameter being selected is what it has being selected, to do all that can be done to those.
-	if (item) multiSelect.selectWithin(item, event.shiftKey ? 'through' : along ? 'along' : 'only')
+	// A parameter is selected as a whole, its value being one thing however many numbers are in it.
+	if (item && whole) whole.select(event.shiftKey ? 'through' : along ? 'along' : 'only')
 }
 
 function select(): void {
