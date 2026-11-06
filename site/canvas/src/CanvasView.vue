@@ -8,7 +8,7 @@ import { toPath2D } from 'pave/path/canvas'
 import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
 import { useZUI } from 'tweeq/use/useZUI'
-import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
 import Dimensions from './Dimensions.vue'
 import {
@@ -114,7 +114,7 @@ import {
 import { artboardDrawn, boardAt, canvasLayersOf, nameForArtboard, presetNamed, sizeOf, withArtboardAdded, withLayersTakenIn, withLayerWhere, withLayerOnto } from './artboards'
 import { BRUSHES, type Brush, type BrushContext, brushed, type BrushName, type Guides, isBrush } from './brushes'
 import { fitFurther, NOTHING_SETTLED, pathOfFit, type PencilFit, samplesOf, type Steady, steadied } from './pencilFit'
-import { paintOfLine, withPaintDrawn } from './toolAttributes'
+import { paintOfLine, sidesAfterKey, withPaintDrawn } from './toolAttributes'
 import { useHostDelete } from '@glisp/tweeq'
 
 const props = defineProps<{
@@ -145,6 +145,8 @@ const emit = defineEmits<{
 	pick: [row: string]
 	/** A right click, and the row of what it was on, if anything. */
 	menu: [x: number, y: number, row: string | null]
+	/** One of what the tools draw from has been changed from the canvas, as by a key while drawing. */
+	attribute: [name: keyof ShapeAttributes, value: number]
 }>()
 
 const SOURCE_ALPHA = 0.5
@@ -1875,6 +1877,25 @@ useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {
 		hoverPen(penPointer[0], penPointer[1], event.shiftKey, valueOnly)
 	}
 })
+
+// While a polygon or a star is being drawn, Up and Down give it a side more or fewer, as in
+// Illustrator, and it keeps that many for the next one.
+useEventListener(
+	window,
+	'keydown',
+	async (event: KeyboardEvent) => {
+		if (pressed?.kind !== 'draw' || !pressed.drawing || typing(event)) return
+		const sides = sidesAfterKey(pressed.tool, props.attributes?.shape ?? SHAPE_ATTRIBUTES, event.key)
+		if (sides === null) return
+		event.preventDefault()
+		event.stopPropagation()
+		emit('attribute', 'sides', sides)
+		// What is drawn goes by the attributes as they come back down, after the change has gone up.
+		await nextTick()
+		drawPressed(event.shiftKey, event.metaKey || event.ctrlKey, event.altKey)
+	},
+	{ capture: true }
+)
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (event.code !== 'Space' || typing(event)) return

@@ -43,7 +43,7 @@ import ToolPanel from './ToolPanel.vue'
 import { alone, type Place } from './panelLayout'
 import { PANEL_DOCK, usePanelLayout } from './usePanelLayout'
 import { withPaintsSwapped } from './paintArguments'
-import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes, withPaintAdded } from './toolAttributes'
+import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes, withAttribute, withPaintAdded } from './toolAttributes'
 import IsolationBar from './IsolationBar.vue'
 import RowName from './RowName.vue'
 import {
@@ -1443,6 +1443,7 @@ function selectInTree(row: string | null): void {
 					v-model:isolation="isolation"
 					@select="selectOnCanvas"
 					@menu="openCanvasMenu"
+					@attribute="(name, value) => toolDocument.setRoot(withAttribute(toolDocument.root.value, name, value))"
 				/>
 				<IsolationBar v-if="crumbs.length > 0" :crumbs="crumbs" @back="backOneLevel" @go="goToCrumb" />
 				<QuickAdd

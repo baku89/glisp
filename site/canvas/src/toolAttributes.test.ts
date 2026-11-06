@@ -12,6 +12,7 @@ import {
 	paintOfAttributes,
 	paintOfLine,
 	shapeAttributesOf,
+	sidesAfterKey,
 	sourceOfAttributes,
 	withAttribute,
 	withPaintAdded,
@@ -171,5 +172,22 @@ describe('what is added from the menu', () => {
 	it('leaves alone what is not a shape', () => {
 		const { ast, row } = withAdded(blank, env, 'graphPaper', [0, 0])!
 		expect(withPaintAdded(ast, env, row, PAINT)).toBe(ast)
+	})
+})
+
+describe('sides, by the arrow keys while drawing', () => {
+	const shape = { ...SHAPE_ATTRIBUTES, sides: 5 }
+	it('goes up by one with Up and down by one with Down, for a polygon and a star', () => {
+		expect(sidesAfterKey('ngon', shape, 'ArrowUp')).toBe(6)
+		expect(sidesAfterKey('ngon', shape, 'ArrowDown')).toBe(4)
+		expect(sidesAfterKey('star', shape, 'ArrowUp')).toBe(6)
+	})
+	it('goes no lower than a triangle', () => {
+		expect(sidesAfterKey('ngon', { ...shape, sides: 3 }, 'ArrowDown')).toBe(3)
+	})
+	it('is nothing for another key, or a tool without sides', () => {
+		expect(sidesAfterKey('ngon', shape, 'ArrowLeft')).toBeNull()
+		expect(sidesAfterKey('rect', shape, 'ArrowUp')).toBeNull()
+		expect(sidesAfterKey('ellipse', shape, 'ArrowDown')).toBeNull()
 	})
 })

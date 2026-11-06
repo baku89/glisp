@@ -32,6 +32,18 @@ export interface AttributeOfTool {
 
 const SIDES: AttributeOfTool = { name: 'sides', label: 'Sides', min: 3, step: 1 }
 
+/**
+ * How many sides `tool` draws after `key` is pressed while it is being drawn, as the arrow keys
+ * change it in Illustrator: one more for Up, one fewer for Down, and never fewer than a triangle.
+ * It is `null` for a key that is not that, or a tool that has no sides to change.
+ */
+export function sidesAfterKey(tool: string, shape: ShapeAttributes, key: string): number | null {
+	if (!(ATTRIBUTES_OF_TOOL[tool] ?? []).includes(SIDES)) return null
+	const step = key === 'ArrowUp' ? 1 : key === 'ArrowDown' ? -1 : 0
+	if (step === 0) return null
+	return Math.max(SIDES.min!, Math.round(shape.sides) + step)
+}
+
 /** What a tool has of its own, besides how what it draws is painted. */
 export const ATTRIBUTES_OF_TOOL: Readonly<Record<string, readonly AttributeOfTool[]>> = {
 	spray: [
