@@ -1,5 +1,5 @@
 import { type AST, buildPrelude, evaluate, LetAST, print } from '@glisp/lang'
-import { combined, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
+import { combined, filtersFor, nameMadeBy, wrappedAt } from '@glisp/tweeq/filters'
 import { layersOf, moveBinding, renameBindingAt, viewOf, withLayerAdded } from '@glisp/tweeq/structure'
 import { pastedRows, reach, withoutRows } from '@glisp/tweeq/rowsClipboard'
 import { keptReferences } from '@glisp/tweeq/keptReferences'
@@ -189,6 +189,26 @@ describe('what is put around what is drawn', () => {
 		expect(next).not.toBeNull()
 		expect(layersOf(next!)).toEqual(['a', 'b'])
 		expect(sceneOf(next!, env)).toHaveLength(2)
+	})
+
+	it('is called what makes it, each in it going on being called what it was', () => {
+		const root = parse(held) as LetAST
+		const rows = ['b', 'c']
+		const values = rows.map(name => valueOfRow(root, env, `binding:${name}`))
+		const given = rows.map(name => bound(root).find(([bound]) => bound === name)![1])
+		const unite = filter(values, 'path.unite')
+		expect(nameMadeBy(root, unite)).toBe('unite1')
+		const next = combined(root, env, rows, given, unite, call => call, nameMadeBy(root, unite))!
+		expect(layersOf(next)).toEqual(['a', 'unite1'])
+		expect(print(next)).toMatch(/unite1 = \(path\.unite b = [\s\S]* c = /)
+		expect(nameMadeBy(next, unite)).toBe('unite2')
+	})
+
+	it('has a path through what is named again follow it', () => {
+		const root = parse('{c = (path.mirror c = (path.circle [0 0] 5) (line.fromPoints [0 0] [0 1])) d = (path.circle /c/c/center: 1)}')
+		const next = renameBindingAt(root, env, 'binding:c', 'mirror1')!
+		expect(print(next)).toContain('d = (path.circle /main/mirror1/c/center: 1)')
+		expect(print(next)).toContain('mirror1 = (path.mirror c = ')
 	})
 
 	describe('of which one goes by a path to another', () => {

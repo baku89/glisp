@@ -8,7 +8,7 @@ import {
 	inspectionOf,
 	useGlispDocument,
 } from '@glisp/tweeq'
-import { combined, type Filter, filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
+import { combined, type Filter, filtersFor, functionsOfProgram, nameMadeBy, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withBlanks, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { MAIN, layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
@@ -750,12 +750,21 @@ const wraps = computed(() => {
 	const namesOf = (of: readonly string[]) => of.map(row => nameOfRow(row) ?? '')
 	const insideOf = (of: readonly string[]) =>
 		of.map(row => reach(root, env, paintedRow(root, env, row))?.chain.at(-1)?.ast) as AST[]
+	// What they become is called what makes it, and each of them goes on being called what it was, in there.
 	const all = (filter: Filter, of: readonly string[]): LetAST | null =>
-		combined(root, env, namesOf(of), insideOf(of), filter, call =>
-			filter.fn.returnType === pathType ? withPaintOfRows(root, env, of, call) : call
+		combined(
+			root,
+			env,
+			namesOf(of),
+			insideOf(of),
+			filter,
+			call => (filter.fn.returnType === pathType ? withPaintOfRows(root, env, of, call) : call),
+			nameMadeBy(root, filter)
 		)
-	// What they became goes by the first of them.
-	const firstOf = (of: readonly string[]): string[] => of.slice(0, 1)
+	/** The row of what `row` has become, called `name`, if it was called something there. */
+	const renamedRow = (row: string, name: string): string =>
+		nameOfRow(row) === null ? row : row.replace(/[^/]*$/, `binding:${name}`)
+	const firstOf = (of: readonly string[], filter: Filter): string[] => [renamedRow(of[0]!, nameMadeBy(root, filter))]
 	return filtersFor(chosen.map(({ value }) => value), env, functionsOfProgram(root, env))
 		.filter(({ name }) => !NOT_FILTERS.has(name))
 		.flatMap(filter => {
@@ -775,16 +784,20 @@ const wraps = computed(() => {
 						perform(...picked: readonly Selected[]) {
 							const of = [...rows, ...picked.map(({ row }) => row)]
 							const next = new Set(of).size === of.length ? all(filter, of) : null
-							if (next) setProgram(next, firstOf(of))
+							if (next) setProgram(next, firstOf(of, filter))
 						},
 					},
 				]
 			}
-			const done = together ? all(filter, rows) : wrappedAt(root, env, paintedRow(root, env, rows[0]!), filter)
+			const done = together ? all(filter, rows) : wrappedAt(root, env, paintedRow(root, env, rows[0]!), filter, nameOfRow(rows[0]!))
 			if (!(done instanceof LetAST)) return []
-			return [
-				{ ...item, perform: () => setProgram(done, firstOf(rows)) },
-			]
+			// What is around it now is called what it is.
+			const perform = (): void => {
+				const renamed = together || nameOfRow(rows[0]!) === null ? null : renameBindingAt(done, env, rows[0]!, nameMadeBy(root, filter))
+				if (renamed instanceof LetAST) setProgram(renamed, firstOf(rows, filter))
+				else setProgram(done, together ? firstOf(rows, filter) : rows.slice(0, 1))
+			}
+			return [{ ...item, perform }]
 		})
 		.sort((a, b) => Number('params' in a) - Number('params' in b))
 })

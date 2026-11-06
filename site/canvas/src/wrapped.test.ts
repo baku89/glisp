@@ -4,7 +4,7 @@ import { filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { extractedLiteralAt } from '@glisp/tweeq/multiRows'
 import { copiedRows, pastedArguments, pastedRows } from '@glisp/tweeq/rowsClipboard'
 import { withSlotCommand } from '@glisp/tweeq/rowsClipboard'
-import { actionsOf, isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, referenceAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
+import { actionsOf, renameBindingAt, isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, referenceAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
 import { transform } from 'pave/path/modifiers'
@@ -550,6 +550,27 @@ describe('what else goes around a path', () => {
 		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.mirror')!
 		const next = wrappedAt(parse(`{c = ${Q}}`), env, 'binding:c', filter)!
 		expect(print(next)).toContain('(line.fromPoints [40 0] [40 20])')
+	})
+
+	it('has what it mirrors go on being called what it was, in there', () => {
+		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.mirror')!
+		const next = wrappedAt(parse(`{c = (path.circle [10 10] 5) d = (path.circle /c/center: 1)}`), env, 'binding:c', filter, 'c')!
+		expect(print(next)).toMatch(/c = \(path\.mirror c = \(path\.circle/)
+		expect(evaluate(next, env).diagnostics.filter(({ level }) => level === 'error')).toEqual([])
+	})
+
+	it('has what is in a mirror named again, and what went to it follow', () => {
+		const root = parse('{c = (path.mirror c = (path.circle [0 0] 5) (line.fromPoints [0 0] [0 1])) d = (path.circle /c/c/center: 1)}')
+		const next = renameBindingAt(root, env, 'binding:c/arg0', 'inner')!
+		expect(print(next)).toContain('(path.mirror inner = (path.circle')
+		expect(print(next)).toContain('/main/c/inner/center:')
+		expect(evaluate(next, env).diagnostics.filter(({ level }) => level === 'error')).toEqual([])
+	})
+
+	it('has what is mirrored in a style called what the style is', () => {
+		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.mirror')!
+		const next = wrappedAt(parse(`{c = (style ${Q} fill: "#000000")}`), env, 'binding:c/arg0', filter, 'c')!
+		expect(print(next)).toMatch(/c = \(style \(path\.mirror c = \(path\.rect/)
 	})
 
 	it('starts a kaleidoscope around the middle of what it reflects', () => {

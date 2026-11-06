@@ -1764,7 +1764,23 @@ export function renameBindingAt(
 ): AST | null {
 	const parts = path.split('/').filter(part => part !== '')
 	const key = parts.at(-1)
-	if (key === undefined || !key.startsWith(BINDING)) return null
+	if (key === undefined) return null
+	let found: { node: AST; frame: Env } | null = null
+	editAt(root, env, parts, (node, frame) => {
+		found = { node, frame }
+		return node
+	})
+	/** `next`, in which what went to it by its old name, `old`, goes on going to it by the new one. */
+	const followed = (next: AST | null, old: string | null): AST | null => {
+		const levels = old === null || next === null || found === null ? null : fromRootTo((found as { frame: Env }).frame)
+		return levels === null ? next : withPathsMoved(next!, env, [...levels, old!], [...levels, name])
+	}
+	// What is not bound is named by what is on it, wherever it is.
+	if (!key.startsWith(BINDING)) {
+		if (found === null) return null
+		const { node } = found as { node: AST }
+		return followed(withNamed(root, env, node.kind === 'meta' ? node.expr : node, name), nameOf(node))
+	}
 	const from = key.slice(BINDING.length)
 	const holder = nodeAt(root, env, parts.slice(0, -1))
 	if (holder === null) return null
@@ -1772,7 +1788,7 @@ export function renameBindingAt(
 	if (holder.kind !== 'let' && holder.kind !== 'vec') return null
 	const elements = holder.kind === 'vec' ? holder.elements : (layersVectorOf(holder)?.vector.elements ?? [])
 	const element = [...elements].reverse().find(e => nameOf(e) === from)
-	return element === undefined ? null : withNamed(root, env, element, name)
+	return element === undefined ? null : followed(withNamed(root, env, element, name), from)
 }
 
 const bareOf = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
