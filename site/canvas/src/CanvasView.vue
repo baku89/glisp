@@ -532,17 +532,20 @@ const cursor = ref('default')
 /** Why what was asked for could not be, until the next press. */
 const problem = ref<string | null>(null)
 
-const HANDLE_RADIUS = 5
-const VERTEX_HALF = 4
-const CONTROL_RADIUS = 3.5
-const PEN_CONTROL_RADIUS = 3
+/** As small as Figma's: 7 or 8 pixels across what a path goes through, and 6 across what pulls it. */
+const HANDLE_RADIUS = 3.5
+const VERTEX_HALF = 3
+const CONTROL_RADIUS = 2.5
+const PEN_CONTROL_RADIUS = 2.5
+/** How near a handle the pointer has to come for it, which is more than what is drawn of it. */
+const HANDLE_REACH = 8
 /** How far out from a handle the paper goes, each way, to be seen over the color of a shape. */
 const HANDLE_EDGE = 1.5
 const HANDLE_EDGE_ALPHA = 0.5
 /** How far past the ends of a line that goes. */
 const HANDLE_EDGE_PAST = 1
 /** As much to be seen of a square as of a round handle. */
-const CORNER_HALF = 4.5
+const CORNER_HALF = 3.5
 const HIT_WIDTH = 10
 const HOVER_WIDTH = 3
 const DASH = [3, 2]
@@ -733,7 +736,7 @@ const GRIP = new Path2D('M -3 -5 V 5 M 0 -5 V 5 M 3 -5 V 5')
 const BUTTON_ARROW = new Path2D('M -4 0 H 4 M 1 -3 L 4 0 L 1 3')
 /** How far either side of an outline the marks of what moves it are, and how far they bend. */
 const OFFSET_GAP = 4
-const OFFSET_REACH = HANDLE_RADIUS * 1.25
+const OFFSET_REACH = 6.25
 const OFFSET_BEND = 3.5
 /** How far along the outline they reach once bent, which is less, for them to come to a point. */
 const OFFSET_BENT_REACH = 3.5
@@ -1540,7 +1543,7 @@ function handleAt(x: number, y: number): number | null {
 	const context = $canvas.value?.getContext('2d')
 	// The nearest, and of those in the same place, what comes last.
 	let nearest: number | null = null
-	let away = HANDLE_RADIUS + 3
+	let away = HANDLE_REACH
 	for (let i = handles.length - 1; i >= 0; i--) {
 		const { at, outsideCorner } = handles[i]!
 		if (at === undefined || outsideCorner) continue
@@ -1571,6 +1574,33 @@ function handleAt(x: number, y: number): number | null {
 	return found
 }
 
+/**
+ * An arc with a head at each end, around the corner a handle turns from, as Figma has it: bulging
+ * out the way the corner faces, with what it points at in the middle of the arc.
+ */
+const TURN_CURSOR_ARC =
+	'M9.07 4.93 A10 10 0 0 1 9.07 19.07 M12.57 4.93 H9.07 V8.43 M12.57 19.07 H9.07 V15.57'
+const turnCursors = new Map<number, string>()
+function turnCursor(handle: Handle, x: number, y: number): string {
+	// Out from what it turns around, toward the pointer, to a degree, so that turning does not make a
+	// new one at every move.
+	const [px, py] = handle.pivot === undefined ? [x, y] : toScreen(handle.pivot)
+	const way = px === x && py === y ? facing(handle.angle ?? 0) : Math.atan2(y - py, x - px)
+	const degrees = Math.round((way * 180) / Math.PI)
+	let cursor = turnCursors.get(degrees)
+	if (cursor === undefined) {
+		const svg =
+			`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">` +
+			`<g transform="rotate(${degrees} 12 12)" fill="none" stroke-linecap="round" stroke-linejoin="round">` +
+			`<path d="${TURN_CURSOR_ARC}" stroke="white" stroke-width="4"/>` +
+			`<path d="${TURN_CURSOR_ARC}" stroke="black" stroke-width="1.5"/>` +
+			`</g></svg>`
+		cursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") 12 12, auto`
+		turnCursors.set(degrees, cursor)
+	}
+	return cursor
+}
+
 /** What a handle shows it does, as a cursor. */
 function shapingHandleAt(x: number, y: number): number | null {
 	if (!props.drawing) return null
@@ -1579,7 +1609,8 @@ function shapingHandleAt(x: number, y: number): number | null {
 }
 
 /** The cursor over a handle, until it is dragged, when the handle itself shows where the pointer is. */
-function cursorOf(handle: Handle): string {
+function cursorOf(handle: Handle, x: number, y: number): string {
+	if (handle.outsideCorner) return turnCursor(handle, x, y)
 	if (handle.kind === 'button') return 'pointer'
 	if (handle.kind === 'direction') return 'grab'
 	if (handle.angle === undefined) return 'move'
@@ -1961,7 +1992,7 @@ const closesPen = (x: number, y: number): boolean => {
 	const first = pen?.anchors[0]
 	if (first === undefined || pen!.anchors.length < 2) return false
 	const [hx, hy] = toScreen(first.at, view.value)
-	return Math.hypot(hx - x, hy - y) <= HANDLE_RADIUS + 3
+	return Math.hypot(hx - x, hy - y) <= HANDLE_REACH
 }
 
 /** What a pen would do here to what is selected, rather than drawing something new. */
@@ -2394,7 +2425,7 @@ function onPointerMove(event: PointerEvent): void {
 			hoveredHandle.value = shaping
 			snapMark.value = null
 			penLine.value = null
-			cursor.value = cursorOf(grip.value!.handles[shaping]!)
+			cursor.value = cursorOf(grip.value!.handles[shaping]!, x, y)
 			return
 		}
 		if (props.drawing === 'pen') {
@@ -2434,7 +2465,7 @@ function onPointerMove(event: PointerEvent): void {
 			: spaceDown
 			? 'grab'
 			: index !== null
-				? cursorOf(grip.value!.handles[index]!)
+				? cursorOf(grip.value!.handles[index]!, x, y)
 				: shape !== null
 					? 'move'
 					: 'default'
@@ -2490,8 +2521,9 @@ function onPointerMove(event: PointerEvent): void {
 		}
 		case 'handle': {
 			pressed.at = [x, y]
-			cursor.value = 'none'
 			dragHandle(event.altKey, event.metaKey || event.ctrlKey, event.shiftKey)
+			// What turns keeps its arrow, turned toward the pointer; anything else shows where it is itself.
+			cursor.value = pressed.handle.outsideCorner ? turnCursor(pressed.handle, x, y) : 'none'
 			break
 		}
 		case 'move': {

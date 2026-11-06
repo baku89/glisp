@@ -325,12 +325,18 @@ const barStyle = (bar: Bar) => ({
 	'--columns': bar.columns ?? bar.slots.length,
 })
 
-const flyoutPlacement = computed(() => {
-	const wall = props.arrangement.bars.find(bar =>
-		flyout.value !== null && bar.slots.some(slot => toolsOf(slot).includes(flyout.value!.tools[0]!))
-	)?.wall
-	return wall === 'left' ? 'right' : wall === 'right' ? 'left' : wall === 'top' ? 'bottom' : 'top'
-})
+/** Away from the wall a bar is on, toward the canvas. */
+const awayFrom = (wall: Bar['wall'] | undefined) =>
+	wall === 'left' ? 'right' : wall === 'right' ? 'left' : wall === 'top' ? 'bottom' : 'top'
+
+const flyoutPlacement = computed(() =>
+	awayFrom(
+		props.arrangement.bars.find(bar =>
+			flyout.value !== null && bar.slots.some(slot => toolsOf(slot).includes(flyout.value!.tools[0]!))
+		)?.wall
+	)
+)
+const stowedPlacement = computed(() => awayFrom(props.arrangement.bars.find(bar => bar.id === MAIN_BAR)?.wall))
 
 const ghost = computed(() => {
 	const held = heldTool.value
@@ -416,7 +422,9 @@ const isInto = (bar: Bar, index: number): boolean => {
 					:icon="
 						arrangement.stowed.includes(active)
 							? byName.get(active)!.icon
-							: 'ph:dots-three-vertical-bold'
+							: isStanding(bar)
+								? 'ph:dots-three-bold'
+								: 'ph:dots-three-vertical-bold'
 					"
 				/>
 			</button>
@@ -425,7 +433,7 @@ const isInto = (bar: Bar, index: number): boolean => {
 				v-if="dots"
 				v-model:open="stowedOpen"
 				:reference="dots"
-				placement="top"
+				:placement="stowedPlacement"
 				:offset="{ mainAxis: 12 }"
 			>
 				<div class="stowed">
