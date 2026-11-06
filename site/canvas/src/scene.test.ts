@@ -49,6 +49,7 @@ import {
 	gripOfRows,
 	withGuideHandles,
 	nearestSnap,
+	alongSnapped,
 	paintedRow,
 	closingPulled,
 	penGuided,
@@ -616,6 +617,47 @@ describe('snapping', () => {
 
 	it('has a place go before a line', () => {
 		expect(nearestSnap(points, [10.5, 8], 4)!.at).toEqual([10, 10])
+	})
+
+	it('has nothing that is only there to turn or count by', () => {
+		const gon = parse('{g = (path.ngon [0 0] 10 4 90)}')
+		const places = snapPointsOf(gon, env, sceneOf(gon, env)).filter(p => p.to === undefined)
+		expect(places.every(p => p.label !== '')).toBe(true)
+	})
+
+	describe('refers to what it is on, along a line', () => {
+		const onto = (other: string, at: Vec): string | null => {
+			const both = parse(`{o = ${other} c = (path.line [200 200] [300 300])}`) as LetAST
+			const snap = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), at, 5)!
+			const next = linked(both, env, 'binding:c', 0, snap)
+			return next && print((next as LetAST).bindings.find(([name]) => name === 'c')![1])
+		}
+
+		it('as much of the way along an edge, by its ends', () => {
+			expect(onto('(path.rect [0 0] [100 40])', [30, 1])).toBe('(path.line [(lerp /o/origin/0 (+ /o/origin/0 /o/size/0) 0.3) /o/origin/1] [300 300])')
+			expect(onto('(path.polyline [0 0] [100 0] [100 100])', [99, 37])).toBe('(path.line [(lerp /o/points/1/0 /o/points/2/0 0.37) (lerp /o/points/1/1 /o/points/2/1 0.37)] [300 300])')
+		})
+
+		it('and where it would go, if it went on', () => {
+			expect(onto('(path.line [0 0] [100 100])', [150, 149])).toBe('(path.line [(lerp /o/start/0 /o/end/0 1.495) (lerp /o/start/1 /o/end/1 1.495)] [300 300])')
+		})
+
+		it('and goes on being there as the line moves', () => {
+			const both = parse('{o = (path.line [0 0] [100 0]) c = (path.line [200 200] [300 300])}') as LetAST
+			const snap = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), [25, 1], 5)!
+			const next = print(linked(both, env, 'binding:c', 0, snap)!).replace('(path.line [0 0] [100 0])', '(path.line [0 0] [0 100])')
+			const moved = parse(next)
+			const start = gripAt(moved, env, 'binding:c')!.handles.find(h => h.place === 0)!.at!
+			expect(start[0]).toBeCloseTo(0)
+			expect(start[1]).toBeCloseTo(25)
+		})
+	})
+
+	it('can be somewhere else along the same line, for what goes only one way to get to it', () => {
+		const snap = nearestSnap(points, [12, 7], 2.5)!
+		expect(alongSnapped(snap, [10, 3], 2.5)).toMatchObject({ at: [10, 3], line: [[10, 0], [10, 10]] })
+		expect(alongSnapped(snap, [10, 3], 2.5)!.code).toBeDefined()
+		expect(alongSnapped(nearestSnap(points, [10, 10], 1)!, [0, 0], 1)).toBeNull()
 	})
 
 	it('says what it is', () => {

@@ -43,6 +43,7 @@ import {
 	nameFor,
 	axesThrough,
 	nearestSnap,
+	alongSnapped,
 	closingPulled,
 	penGuided,
 	penned,
@@ -287,6 +288,8 @@ function snappedMove(
 
 /** How near, on screen, a place has to be to be snapped to. */
 const SNAP_REACH = 8
+/** How far, on screen, what snapped can end up from where it snapped to, and still be on it. */
+const SNAP_MISS = 0.5
 
 /** The nearest of `points` within reach of `at` in the program's coordinates, unless turned off. */
 const snapNear = (points: readonly SnapPoint[], at: Vec): SnapPoint | null =>
@@ -2290,6 +2293,17 @@ useEventListener(
 )
 
 /** Of those of `kind` that are of `row`, the handle nearest to `to`, or as it was if there are none. */
+/** Where a handle like `handle` ends up in `ast`, it having been pulled to `to`: the nearest of its kind there. */
+function landedAt(ast: AST | null, row: string, handle: Handle, to: Vec): Vec | null {
+	if (ast === null) return null
+	let nearest: Vec | null = null
+	for (const { kind, name, at } of gripAt(ast, props.document.env.value, row)?.handles ?? []) {
+		if (kind !== handle.kind || name !== handle.name || at === undefined) continue
+		if (nearest === null || Math.hypot(at[0] - to[0], at[1] - to[1]) < Math.hypot(nearest[0] - to[0], nearest[1] - to[1])) nearest = at
+	}
+	return nearest
+}
+
 function nearestHandleOf(row: string, kind: Handle['kind'], to: Vec): number | null {
 	let nearest = draggedHandle.value
 	let distance = Infinity
@@ -2304,29 +2318,50 @@ function nearestHandleOf(row: string, kind: Handle['kind'], to: Vec): number | n
 /** The handle being dragged, to where the pointer has got. */
 function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void {
 	if (pressed?.kind !== 'handle' || pressed.at === null) return
-	const { row, handle, mat, from, offset, at, base, points } = pressed
+	const { row, handle, mat, from, offset, at, base, points, together } = pressed
 	const [px, py] = fromScreen(at[0], at[1], mat)
 	const wanted: Vec = [px + offset[0], py + offset[1]]
-	const snap = snapNear(
+	const found = snapNear(
 		handle.linesUpWith === undefined ? points : [...points, ...axesThrough(handle.linesUpWith, wanted)],
 		wanted
 	)
-	snapMark.value = snap
 
-	// Across, up and down or at 45 degrees from where it was, with SHIFT, as a control has already.
-	const pulledTo = even && partOf(handle) !== undefined ? evenFrom(handle.at ?? from, snap?.at ?? wanted) : (snap?.at ?? wanted)
-	const changes = pressed.together
-		? pressed.together.flatMap(({ row: of, handle: other, parts }) => {
-				// How far it has gone from where it was, as each goes from where it is.
-				const delta = sub(pulledTo, handle.at ?? from)
-				const was = other.at ?? from
-				return other.to(add(was, delta), was, { moving: parts }).map(change => ({ ...change, row: of }))
-			})
-		: handle.to(pulledTo, from, { symmetric, even, smooth: valueOnly })
-	if (handle.turnOf) boxTurn.value = pressed.boxTurn + handle.turnOf(snap?.at ?? wanted, { even })
 	const finest = handle.fine ? pointerStep() / FINE_BY : pointerStep()
-	const rounded = roundedChanges(changes, finest)
-	const next = apply(row, rounded, base)
+	const pulled = (target: Vec) => {
+		// Across, up and down or at 45 degrees from where it was, with SHIFT, as a control has already.
+		const pulledTo = even && partOf(handle) !== undefined ? evenFrom(handle.at ?? from, target) : target
+		const changes = together
+			? together.flatMap(({ row: of, handle: other, parts }) => {
+					// How far it has gone from where it was, as each goes from where it is.
+					const delta = sub(pulledTo, handle.at ?? from)
+					const was = other.at ?? from
+					return other.to(add(was, delta), was, { moving: parts }).map(change => ({ ...change, row: of }))
+				})
+			: handle.to(pulledTo, from, { symmetric, even, smooth: valueOnly })
+		const rounded = roundedChanges(changes, finest)
+		return { pulledTo, rounded, next: apply(row, rounded, base) }
+	}
+	// What can only go one way does not get to what it snapped to, unless that is along its way:
+	// and then it goes to where its way meets the line it snapped to, or else it does not snap.
+	let snap = found
+	let attempt = pulled(found?.at ?? wanted)
+	if (found !== null && !together) {
+		const off = (at: Vec | null): boolean => at === null || Math.hypot(at[0] - snap!.at[0], at[1] - snap!.at[1]) > SNAP_MISS / view.value[0]
+		let landed = landedAt(attempt.next.ast, row, handle, attempt.pulledTo)
+		const onLine = landed !== null && off(landed) ? alongSnapped(found, landed, SNAP_REACH / view.value[0]) : null
+		if (onLine !== null) {
+			snap = onLine
+			attempt = pulled(onLine.at)
+			landed = landedAt(attempt.next.ast, row, handle, attempt.pulledTo)
+		}
+		if (off(landed)) {
+			snap = null
+			attempt = pulled(wanted)
+		}
+	}
+	snapMark.value = snap
+	const { pulledTo, rounded, next } = attempt
+	if (handle.turnOf) boxTurn.value = pressed.boxTurn + handle.turnOf(snap?.at ?? wanted, { even })
 	const { place } = handle
 	let link: SnapPoint | null = null
 	if (next.ast !== null && snap !== null && !valueOnly && !symmetric && !handle.constrained && typeof place === 'number') {
@@ -2533,6 +2568,8 @@ function onPointerMove(event: PointerEvent): void {
 			hovered.value = null
 			const snappedTo = snappedMove(pressed.own, pressed.others, pressed.from, [x, y])
 			const [toX, toY] = event.shiftKey ? evenFrom(pressed.from, snappedTo) : snappedTo
+			// Going by even angles is going by where it was, and not by what it was near.
+			if (event.shiftKey) snapMark.value = null
 			let next: ReturnType<typeof apply> = {
 				ast: props.document.root.value,
 				problem: null,

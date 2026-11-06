@@ -328,6 +328,21 @@ export interface SnapPoint {
 	readonly line?: readonly [Vec, Vec]
 	/** It is where that line would go, if it went on. */
 	readonly beyond?: boolean
+	/** How the two ends of a line are worked out from the row at `of`, for a place on it to refer to them. */
+	readonly ends?: { readonly of: string; readonly from: PlaceCode; readonly to: PlaceCode }
+}
+
+/** How far apart two places on what is drawn can be, and be taken for the same place. */
+const SAME_END = 1e-6
+
+/** A place that can be referred to, as code relative to the row at `of`. */
+function codeOfPlace(point: SnapPoint, of: string): PlaceCode | null {
+	if (point.code !== undefined) return point.code.of === of ? point.code.make : null
+	if (point.target === null) return null
+	if (point.target === of) return p => `[${p('0')} ${p('1')}]`
+	if (!point.target.startsWith(`${of}/`)) return null
+	const path = point.target.slice(of.length + 1)
+	return p => `[${p(`${path}/0`)} ${p(`${path}/1`)}]`
 }
 
 /** Everywhere on what is drawn that something can snap to. */
@@ -343,8 +358,9 @@ export function snapPointsOf(
 		// In the coordinates of what is drawn, as a row inside a matrix is not.
 		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []
 		const inside = grip.within === undefined ? row : `${row}/${grip.within}`
-		const handles = grip.handles.flatMap(({ at, place, name, code }) =>
-			at === undefined
+		// What is there only to turn or count by is no place on what is drawn.
+		const handles: SnapPoint[] = grip.handles.flatMap(({ at, place, name, code }) =>
+			at === undefined || (place === undefined && code === undefined && name === undefined)
 				? []
 				: [
 						{
@@ -360,7 +376,7 @@ export function snapPointsOf(
 						},
 					]
 		)
-		return [
+		const points: SnapPoint[] = [
 			...handles,
 			...(grip.snaps?.points ?? []).map(({ at, name, code }) => ({
 				at,
@@ -368,12 +384,28 @@ export function snapPointsOf(
 				label: name,
 				target: null,
 			})),
-			...(grip.snaps?.lines ?? []).map(({ from, to, name }) => ({
-				at: from,
-				to,
-				label: name,
-				target: null,
-			})),
+		]
+		// The ends of a line are places on it already, if they are anything that can be referred to.
+		const endAt = (at: Vec): PlaceCode | null => {
+			for (const point of points) {
+				if (Math.hypot(point.at[0] - at[0], point.at[1] - at[1]) > SAME_END) continue
+				const code = codeOfPlace(point, inside)
+				if (code !== null) return code
+			}
+			return null
+		}
+		return [
+			...points,
+			...(grip.snaps?.lines ?? []).map(({ from, to, name }) => {
+				const [start, end] = [endAt(from), endAt(to)]
+				return {
+					at: from,
+					to,
+					label: name,
+					target: null,
+					...(start === null || end === null ? {} : { ends: { of: inside, from: start, to: end } }),
+				}
+			}),
 		]
 	})
 }
@@ -388,11 +420,11 @@ export const axesThrough = (place: Vec, at: Vec): SnapPoint[] => [
 ]
 
 /** The nearest place to `at` along a line, from `from` to `to`. */
-function along(from: Vec, to: Vec, at: Vec): { at: Vec; beyond: boolean } {
+function along(from: Vec, to: Vec, at: Vec): { at: Vec; beyond: boolean; t: number } {
 	const [dx, dy] = [to[0] - from[0], to[1] - from[1]]
 	const length = dx * dx + dy * dy
 	const t = length === 0 ? 0 : ((at[0] - from[0]) * dx + (at[1] - from[1]) * dy) / length
-	return { at: [from[0] + dx * t, from[1] + dy * t], beyond: length !== 0 && (t < 0 || t > 1) }
+	return { at: [from[0] + dx * t, from[1] + dy * t], beyond: length !== 0 && (t < 0 || t > 1), t }
 }
 
 /** The nearest of `points` to `at`, within `tolerance`, one with a row before one without. */
@@ -415,19 +447,65 @@ export function nearestSnap(
 	// Only with no place in reach, as a place is more of a place than a line is, and a
 	// line more than where it would go if it went on.
 	for (const onward of [false, true]) {
-		for (const { at: from, to, label } of points) {
-			if (to === undefined) continue
-			const { at: on, beyond } = along(from, to, at)
-			if (beyond !== onward) continue
-			const distance = Math.hypot(on[0] - at[0], on[1] - at[1])
+		for (const point of points) {
+			if (point.to === undefined) continue
+			const on = alongSnapped({ ...point, line: [point.at, point.to] }, at, tolerance)!
+			if ((on.beyond ?? false) !== onward) continue
+			const distance = Math.hypot(on.at[0] - at[0], on.at[1] - at[1])
 			if (distance < bestDistance) {
-				best = { at: on, target: null, label, line: [from, to], ...(beyond ? { beyond } : {}) }
+				best = on
 				bestDistance = distance
 			}
 		}
 		if (best !== null) return best
 	}
 	return null
+}
+
+/**
+ * What was snapped to along a line, somewhere else along it, nearest `at`: as it is for what can
+ * only go one way, which can get to the line, and only where its way meets it.
+ */
+export function alongSnapped(snap: SnapPoint, at: Vec, tolerance: number): SnapPoint | null {
+	if (snap.line === undefined) return null
+	const [from, to] = snap.line
+	const { at: on, beyond, t } = along(from, to, at)
+	const { label, line, ends } = snap
+	const extra = beyond ? { beyond } : {}
+	return ends === undefined
+		? { at: on, target: null, label, line, ...extra }
+		: { ...onLineBetween(ends, from, to, t, tolerance), label, line, ends, ...extra }
+}
+
+/**
+ * The place `t` of the way along a line whose ends can be referred to, which goes on being
+ * that much of the way along it as they move. It is rounded no more than `tolerance` across.
+ */
+function onLineBetween(
+	ends: NonNullable<SnapPoint['ends']>,
+	from: Vec,
+	to: Vec,
+	t: number,
+	tolerance: number
+): { at: Vec; target: null; code: NonNullable<SnapPoint['code']> } {
+	const length = Math.hypot(to[0] - from[0], to[1] - from[1])
+	const digits = length === 0 ? 0 : Math.min(6, Math.max(2, Math.ceil(-Math.log10(tolerance / 10 / length))))
+	const share = Number(t.toFixed(digits))
+	// As `lerp` works it out, for it to come to exactly where it is said to be.
+	const at: Vec = [from[0] + (to[0] - from[0]) * share, from[1] + (to[1] - from[1]) * share]
+	const between = (a: string, b: string): string => (a === b ? a : `(lerp ${a} ${b} ${share})`)
+	return {
+		at,
+		target: null,
+		code: {
+			of: ends.of,
+			make: p => {
+				const [ax, ay] = elementsOfCode(ends.from(p))
+				const [bx, by] = elementsOfCode(ends.to(p))
+				return `[${between(ax, bx)} ${between(ay, by)}]`
+			},
+		},
+	}
 }
 
 /**
@@ -544,12 +622,18 @@ function referred(root: AST, env: Env, source: string, snap: SnapPoint): AST | n
 	const { of, make } = snap.code
 	try {
 		const parts: string[] = []
+		// The same part is the same code, for it to be seen to be, as both ends of a level edge are.
+		const said = new Map<string, string>()
 		const written = make(path => {
+			const was = said.get(path)
+			if (was !== undefined) return was
 			const next = referenceAt(root, env, source, `${of}/${path}`)
 			const reference = next && reach(next, env, source)?.chain.at(-1)?.ast
 			if (!reference) throw new Error('out of reach')
 			parts.push(print(reference))
-			return `\0${parts.length - 1}\0`
+			const placeholder = `\0${parts.length - 1}\0`
+			said.set(path, placeholder)
+			return placeholder
 		})
 		const reached = reach(root, env, source)
 		const last = reached?.chain.at(-1)
