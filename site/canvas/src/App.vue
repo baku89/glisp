@@ -971,8 +971,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	const target = event.target as HTMLElement | null
 	if (target?.closest?.('input, textarea, select, [contenteditable]')) return
 	event.preventDefault()
-	const at: [number, number] = pointerAt ?? [window.innerWidth / 2, window.innerHeight / 2]
-	quickAddPlace.value = $canvas.value?.placeAt(at[0], at[1]) ?? [0, 0]
+	const middle: [number, number] = [window.innerWidth / 2, window.innerHeight / 2]
+	const at: [number, number] = pointerAt ?? middle
 	// What is drawn is added to, a guide too. A value on its own, however it is selected, wants another.
 	const [only, other] = selection.value
 	const isValue =
@@ -981,6 +981,11 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		!drawingType.fits(only.value) &&
 		!drawsAt(document.root.value, document.env.value, only.row)
 	quickFillAt.value = inspectorRow.value ?? (isValue ? only.row : null)
+	// A shape goes where it is pointed at on the canvas, or else in the middle of what is seen: what
+	// fills a place is not pointed at anywhere, and a panel the pointer is over would only hide it.
+	const pointed = quickFillAt.value === null && pointerAt !== null && ($canvas.value?.isAt(at[0], at[1]) ?? false)
+	const placed = pointed ? at : middle
+	quickAddPlace.value = $canvas.value?.placeAt(placed[0], placed[1]) ?? [0, 0]
 	quickAddAt.value = at
 })
 
