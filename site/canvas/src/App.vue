@@ -10,7 +10,7 @@ import {
 } from '@glisp/tweeq'
 import { combined, type Filter, filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withBlanks, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
-import { ARTBOARD, layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
+import { MAIN, layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
@@ -94,7 +94,7 @@ watchEffect(() => {
 
 const EXAMPLE = `{
   radius = 60
-  artboard = [
+  main = [
     c = (path.circle [240 200] radius)
     r = (path.rect [360 140] [160 120])
     axes1 = (axes)
@@ -112,9 +112,9 @@ const NEW_SKETCH = `{
   gap = 20
   ring = (path.circle [0 0] size)
 
-  ; What it draws is the artboard, which is what it comes to. What comes first is in front,
+  ; What it draws is main, which is what it comes to. What comes first is in front,
   ; and on top in Project.
-  artboard = [
+  main = [
     ; A vector with names in it is a group, which goes on the canvas as one.
     marks = [
       left = (style (path.circle [-60 0] 16) fill: "#ffffff")
@@ -359,7 +359,7 @@ function readFile(text: string): { readonly root: LetAST; readonly whole: boolea
 }
 
 const blankProgram = (): LetAST =>
-	withLayerAdded(withLayerAdded(new LetAST([[ARTBOARD, new VecAST([])]], null), 'graphPaper1', graphPaperCall('dots')) as LetAST, 'axes1', axesCall(), 0) as LetAST
+	withLayerAdded(withLayerAdded(new LetAST([[MAIN, new VecAST([])]], null), 'graphPaper1', graphPaperCall('dots')) as LetAST, 'axes1', axesCall(), 0) as LetAST
 
 const files = useFileTabs({
 	document,

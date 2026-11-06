@@ -234,8 +234,8 @@ describe('what goes on being what it was to a parameter, with no parameter aroun
 	it('works out only what is in a cast, which goes on being what it says', () => {
 		const src = '{c = (: (vec2.add [1 2] [3 4]) point)}'
 		const next = (id: string) => print(actionOf(src, 'binding:c', id)!.apply!())
-		expect(next('all')).toBe('{artboard = [c = (: [4 6] point)]}')
-		expect(next('step')).toBe('{artboard = [c = (: [4 6] point)]}')
+		expect(next('all')).toBe('{main = [c = (: [4 6] point)]}')
+		expect(next('step')).toBe('{main = [c = (: [4 6] point)]}')
 	})
 
 	it('has nothing to work out of a cast of what is written', () => {
@@ -919,7 +919,7 @@ describe('what wants a path, of what has a style', () => {
 		expect(picked(`{a = ${RECT} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
 			'o = (path.offset a 5)'
 		)
-		expect(picked(`{a = ${STYLED} o = 0}`, 'binding:o', 'binding:a')).toContain('o = /artboard/a')
+		expect(picked(`{a = ${STYLED} o = 0}`, 'binding:o', 'binding:a')).toContain('o = /main/a')
 	})
 
 	it('goes no further in than a style, to what only happens to fit', () => {

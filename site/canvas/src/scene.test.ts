@@ -176,7 +176,7 @@ describe('the paint of what is hidden', () => {
 
 	it('keeps the line and stays hidden, when its fill goes', () => {
 		const next = withPaint(hidden, env, 'binding:s', { fill: 'none' })
-		expect(print(next)).toBe('{artboard = [s = #_(style (path.rect [0 0] [1 1]) stroke: "#000000" width: 2)]}')
+		expect(print(next)).toBe('{main = [s = #_(style (path.rect [0 0] [1 1]) stroke: "#000000" width: 2)]}')
 	})
 })
 
@@ -258,24 +258,24 @@ describe('drawing a shape', () => {
 		print(drawn(root, 'x', tool, [10, 10], to, even))
 
 	it('adds a rect from corner to corner', () => {
-		expect(shape('rect', [30.126, 50])).toBe('{a = 1 artboard = [x = (path.rect [10 10] [20.13 40])]}')
-		expect(shape('rect', [0, 0])).toBe('{a = 1 artboard = [x = (path.rect [0 0] [10 10])]}')
+		expect(shape('rect', [30.126, 50])).toBe('{a = 1 main = [x = (path.rect [10 10] [20.13 40])]}')
+		expect(shape('rect', [0, 0])).toBe('{a = 1 main = [x = (path.rect [0 0] [10 10])]}')
 	})
 
 	it('adds an ellipse within those corners', () => {
-		expect(shape('ellipse', [30, 50])).toBe('{a = 1 artboard = [x = (path.ellipse [20 30] [10 20])]}')
-		expect(shape('ellipse', [-10, -10])).toBe('{a = 1 artboard = [x = (path.ellipse [0 0] [10 10])]}')
+		expect(shape('ellipse', [30, 50])).toBe('{a = 1 main = [x = (path.ellipse [20 30] [10 20])]}')
+		expect(shape('ellipse', [-10, -10])).toBe('{a = 1 main = [x = (path.ellipse [0 0] [10 10])]}')
 	})
 
 	it('adds a polygon out from where it was pressed', () => {
-		expect(shape('ngon', [13, 14])).toBe('{a = 1 artboard = [x = (path.ngon [10 10] 5 5 53.13)]}')
+		expect(shape('ngon', [13, 14])).toBe('{a = 1 main = [x = (path.ngon [10 10] 5 5 53.13)]}')
 		expect(nameFor(root, 'ngon', false)).toBe('ngon1')
 	})
 
 	it('is even when asked to, as far as the longer side goes', () => {
-		expect(shape('rect', [30, 50], true)).toBe('{a = 1 artboard = [x = (path.square [10 10] 40)]}')
-		expect(shape('rect', [-30, 20], true)).toBe('{a = 1 artboard = [x = (path.square [-30 10] 40)]}')
-		expect(shape('ellipse', [30, 50], true)).toBe('{a = 1 artboard = [x = (path.circle [30 30] 20)]}')
+		expect(shape('rect', [30, 50], true)).toBe('{a = 1 main = [x = (path.square [10 10] 40)]}')
+		expect(shape('rect', [-30, 20], true)).toBe('{a = 1 main = [x = (path.square [-30 10] 40)]}')
+		expect(shape('ellipse', [30, 50], true)).toBe('{a = 1 main = [x = (path.circle [30 30] 20)]}')
 	})
 
 	it('is named for what it is, and nothing already there', () => {
@@ -544,7 +544,7 @@ describe('several rows at once', () => {
 
 	it('go back to what each of them is written as', () => {
 		const { ast } = withValuesAt(root, env, field(1, 0).places, [7, 8])
-		expect(print(ast!)).toBe('{artboard = [b = (path.rect [5 5] [8 20]) a = (path.rect [0 0] [7 20])]}')
+		expect(print(ast!)).toBe('{main = [b = (path.rect [5 5] [8 20]) a = (path.rect [0 0] [7 20])]}')
 	})
 
 	it('say why they cannot, at a pin', () => {
@@ -557,7 +557,7 @@ describe('several rows at once', () => {
 	it('can have a number pulled out, that they all refer to', () => {
 		const result = extractedAt(root, env, field(1, 0).places, 20, field(1, 0).name)!
 		expect(print(result.ast)).toBe(
-			'{width = 20 artboard = [b = (path.rect [5 5] [width 20]) a = (path.rect [0 0] [width 20])]}'
+			'{width = 20 main = [b = (path.rect [5 5] [width 20]) a = (path.rect [0 0] [width 20])]}'
 		)
 		const pulled = inspectRows(result.ast, env, rows)!
 		expect(pulled.args[1]!.fields[0]!.values).toEqual([20, 20])
@@ -574,7 +574,7 @@ describe('several rows at once', () => {
 		const taken = parse('{width = 1 a = (path.rect [0 0] [10 20]) b = (path.rect [5 5] [30 20])}')
 		const result = extractedAt(taken, env, inspectRows(taken, env, rows)!.args[1]!.fields[0]!.places, 20, 'width')!
 		expect(result.name).toBe('width2')
-		expect(print(result.ast)).toMatch(/^\{width = 1 width2 = 20 artboard = \[b =/)
+		expect(print(result.ast)).toMatch(/^\{width = 1 width2 = 20 main = \[b =/)
 	})
 })
 
@@ -940,7 +940,7 @@ describe('snapping', () => {
 
 		it('has what it was dragged to refer to it', () => {
 			const next = linked(root, env, 'binding:r', 0, center)!
-			expect(print(next)).toBe('{artboard = [r = (path.rect ../c/center: [10 10]) c = (path.circle [100 100] 10)]}')
+			expect(print(next)).toBe('{main = [r = (path.rect ../c/center: [10 10]) c = (path.circle [100 100] 10)]}')
 		})
 
 		it('does not, for a place that no row says', () => {
@@ -1157,18 +1157,18 @@ describe('painting', () => {
 
 	it('wraps what has none, and goes on in it', () => {
 		const once = withPaint(root, env, row, { fill: '#ff0000' })
-		expect(print(once)).toBe('{artboard = [c = (style (path.circle [0 0] 10) fill: "#ff0000")]}')
+		expect(print(once)).toBe('{main = [c = (style (path.circle [0 0] 10) fill: "#ff0000")]}')
 		const twice = withPaint(once, env, row, { stroke: '#000000', width: 2 })
-		expect(print(twice)).toBe('{artboard = [c = (style (path.circle [0 0] 10) fill: "#ff0000" stroke: "#000000" width: 2)]}')
+		expect(print(twice)).toBe('{main = [c = (style (path.circle [0 0] 10) fill: "#ff0000" stroke: "#000000" width: 2)]}')
 	})
 
 	it('says how its line ends, turns and breaks', () => {
 		const line = withPaint(root, env, row, { stroke: '#000000', cap: 'round', dash: [4, 2] })
-		expect(print(line)).toBe('{artboard = [c = (style (path.circle [0 0] 10) stroke: "#000000" cap: "round" dash: [4 2])]}')
+		expect(print(line)).toBe('{main = [c = (style (path.circle [0 0] 10) stroke: "#000000" cap: "round" dash: [4 2])]}')
 		expect(sceneOf(line, env)[0]!.paint).toMatchObject({ cap: 'round', join: 'miter', dash: [4, 2] })
 		expect(evaluate(line, env).diagnostics).toEqual([])
 		expect(print(withPaint(line, env, row, { cap: 'butt', join: 'bevel' }))).toBe(
-			'{artboard = [c = (style (path.circle [0 0] 10) stroke: "#000000" join: "bevel" dash: [4 2])]}'
+			'{main = [c = (style (path.circle [0 0] 10) stroke: "#000000" join: "bevel" dash: [4 2])]}'
 		)
 	})
 
@@ -1187,13 +1187,13 @@ describe('painting', () => {
 	it('has what is passed by name, and takes what it was given in order', () => {
 		const given = parse('{c = (style (path.circle [0 0] 10) "#ff0000" "#000000" 2 "round")}')
 		expect(print(withPaint(given, env, row, { width: 3 }))).toBe(
-			'{artboard = [c = (style (path.circle [0 0] 10) fill: "#ff0000" stroke: "#000000" width: 3 cap: "round")]}'
+			'{main = [c = (style (path.circle [0 0] 10) fill: "#ff0000" stroke: "#000000" width: 3 cap: "round")]}'
 		)
 	})
 
 	it('is let go of, once there is nothing to it', () => {
 		const once = withPaint(root, env, row, { fill: '#ff0000' })
-		expect(print(withPaint(once, env, row, { fill: 'none' }))).toBe('{artboard = [c = (path.circle [0 0] 10)]}')
+		expect(print(withPaint(once, env, row, { fill: 'none' }))).toBe('{main = [c = (path.circle [0 0] 10)]}')
 	})
 
 	it('keeps what a color refers to, that is not being changed', () => {
@@ -1284,8 +1284,8 @@ describe('grips', () => {
 
 	it('go back to what the arguments come from', () => {
 		const source = '{r = 10 c = (path.circle [100 100] r)}'
-		expect(pulled(source, 0, [130, 100])).toBe('{r = 30 artboard = [c = (path.circle [100 100] r)]}')
-		expect(pulled(source, 1, [5, 6])).toBe('{r = 10 artboard = [c = (path.circle [5 6] r)]}')
+		expect(pulled(source, 0, [130, 100])).toBe('{r = 30 main = [c = (path.circle [100 100] r)]}')
+		expect(pulled(source, 1, [5, 6])).toBe('{r = 10 main = [c = (path.circle [5 6] r)]}')
 	})
 
 	it('stop at a pin', () => {
@@ -1295,16 +1295,16 @@ describe('grips', () => {
 	it('pull an ellipse one way at a time', () => {
 		const source = '{c = (path.ellipse [0 0] [10 20])}'
 		expect(kinds(source)).toEqual(['arrow', 'arrow', 'direction', 'translate'])
-		expect(pulled(source, 0, [30, 99])).toBe('{artboard = [c = (path.ellipse [0 0] [30 20])]}')
-		expect(pulled(source, 1, [99, 40])).toBe('{artboard = [c = (path.ellipse [0 0] [10 40])]}')
+		expect(pulled(source, 0, [30, 99])).toBe('{main = [c = (path.ellipse [0 0] [30 20])]}')
+		expect(pulled(source, 1, [99, 40])).toBe('{main = [c = (path.ellipse [0 0] [10 40])]}')
 	})
 
 	it('resize a rect by a corner, the opposite one staying where it is', () => {
 		const source = '{c = (path.rect [0 0] [10 10])}'
-		expect(pulled(source, 4, [-5, -6])).toBe('{artboard = [c = (path.rect [-5 -6] [15 16])]}')
-		expect(pulled(source, 5, [20, -6])).toBe('{artboard = [c = (path.rect [0 -6] [20 16])]}')
-		expect(pulled(source, 6, [-5, 20])).toBe('{artboard = [c = (path.rect [-5 0] [15 20])]}')
-		expect(pulled(source, 7, [20, 30])).toBe('{artboard = [c = (path.rect [0 0] [20 30])]}')
+		expect(pulled(source, 4, [-5, -6])).toBe('{main = [c = (path.rect [-5 -6] [15 16])]}')
+		expect(pulled(source, 5, [20, -6])).toBe('{main = [c = (path.rect [0 -6] [20 16])]}')
+		expect(pulled(source, 6, [-5, 20])).toBe('{main = [c = (path.rect [-5 0] [15 20])]}')
+		expect(pulled(source, 7, [20, 30])).toBe('{main = [c = (path.rect [0 0] [20 30])]}')
 	})
 
 	it('resize a rect about its center, when asked to', () => {
@@ -1313,10 +1313,10 @@ describe('grips', () => {
 			const handle = gripAt(root, env, row)!.handles[index]!
 			return print(changed(root, env, row, handle.to(to, to, { symmetric: true })).ast!)
 		}
-		expect(symmetric(2, [12, 99])).toBe('{artboard = [c = (path.rect [-2 0] [14 10])]}')
-		expect(symmetric(0, [-2, 99])).toBe('{artboard = [c = (path.rect [-2 0] [14 10])]}')
-		expect(symmetric(3, [99, 15])).toBe('{artboard = [c = (path.rect [0 -5] [10 20])]}')
-		expect(symmetric(7, [12, 15])).toBe('{artboard = [c = (path.rect [-2 -5] [14 20])]}')
+		expect(symmetric(2, [12, 99])).toBe('{main = [c = (path.rect [-2 0] [14 10])]}')
+		expect(symmetric(0, [-2, 99])).toBe('{main = [c = (path.rect [-2 0] [14 10])]}')
+		expect(symmetric(3, [99, 15])).toBe('{main = [c = (path.rect [0 -5] [10 20])]}')
+		expect(symmetric(7, [12, 15])).toBe('{main = [c = (path.rect [-2 -5] [14 20])]}')
 	})
 
 	it('take a rect by the middle of each side, the far side staying where it is', () => {
@@ -1327,16 +1327,16 @@ describe('grips', () => {
 			['offset', [10, 5]],
 			['offset', [5, 10]],
 		])
-		expect(pulled(source, 0, [-5, 99])).toBe('{artboard = [c = (path.rect [-5 0] [15 10])]}')
-		expect(pulled(source, 1, [99, -5])).toBe('{artboard = [c = (path.rect [0 -5] [10 15])]}')
-		expect(pulled(source, 2, [20, 99])).toBe('{artboard = [c = (path.rect [0 0] [20 10])]}')
-		expect(pulled(source, 3, [99, 20])).toBe('{artboard = [c = (path.rect [0 0] [10 20])]}')
+		expect(pulled(source, 0, [-5, 99])).toBe('{main = [c = (path.rect [-5 0] [15 10])]}')
+		expect(pulled(source, 1, [99, -5])).toBe('{main = [c = (path.rect [0 -5] [10 15])]}')
+		expect(pulled(source, 2, [20, 99])).toBe('{main = [c = (path.rect [0 0] [20 10])]}')
+		expect(pulled(source, 3, [99, 20])).toBe('{main = [c = (path.rect [0 0] [10 20])]}')
 	})
 
 	it('take a point of as many as there are', () => {
 		const source = '{c = (path.polyline [0 0] [1 1] [2 2])}'
 		expect(kinds(source)).toEqual(['point', 'point', 'point'])
-		expect(pulled(source, 2, [5, 5])).toBe('{artboard = [c = (path.polyline [0 0] [1 1] [5 5])]}')
+		expect(pulled(source, 2, [5, 5])).toBe('{main = [c = (path.polyline [0 0] [1 1] [5 5])]}')
 	})
 
 	it('have a whole number of sides, of at least three, on an ngon', () => {
@@ -1347,7 +1347,7 @@ describe('grips', () => {
 	it('count the sides of an ngon by how far round', () => {
 		const source = '{c = (path.ngon [0 0] 10 6)}'
 		expect(kinds(source)).toEqual(['point', 'dia', 'direction', 'translate'])
-		expect(pulled(source, 1, [0, 50])).toBe('{artboard = [c = (path.ngon [0 0] 10 4)]}')
+		expect(pulled(source, 1, [0, 50])).toBe('{main = [c = (path.ngon [0 0] 10 4)]}')
 	})
 
 	it('turn the ends of an arc by the short way', () => {
@@ -1360,17 +1360,17 @@ describe('grips', () => {
 		const { handles } = gripAt(parse(source), env, row)!
 		const atStart = handles.flatMap((h, i) => (h.at![0] === 0 ? [i] : []))
 		// The last of them is what is found first.
-		expect(pulled(source, atStart.at(-1)!, [1, 1])).toBe('{artboard = [c = (path.cubic [1 1] [0 0] [5 5] [9 0])]}')
+		expect(pulled(source, atStart.at(-1)!, [1, 1])).toBe('{main = [c = (path.cubic [1 1] [0 0] [5 5] [9 0])]}')
 	})
 
 	it('take a square by a corner or side, as one size', () => {
 		const source = '{c = (path.square [0 0] 10)}'
-		expect(pulled(source, 0, [20, 99])).toBe('{artboard = [c = (path.square [0 0] 20)]}')
-		expect(pulled(source, 1, [99, 30])).toBe('{artboard = [c = (path.square [0 0] 30)]}')
-		expect(pulled(source, 2, [-5, -2])).toBe('{artboard = [c = (path.square [-5 -5] 15)]}')
-		expect(pulled(source, 3, [20, 40])).toBe('{artboard = [c = (path.square [0 0] 40)]}')
+		expect(pulled(source, 0, [20, 99])).toBe('{main = [c = (path.square [0 0] 20)]}')
+		expect(pulled(source, 1, [99, 30])).toBe('{main = [c = (path.square [0 0] 30)]}')
+		expect(pulled(source, 2, [-5, -2])).toBe('{main = [c = (path.square [-5 -5] 15)]}')
+		expect(pulled(source, 3, [20, 40])).toBe('{main = [c = (path.square [0 0] 40)]}')
 		const root = parse(source)
-		expect(print(changed(root, env, row, gripAt(root, env, row)!.move!([3, 4])).ast!)).toBe('{artboard = [c = (path.square [3 4] 10)]}')
+		expect(print(changed(root, env, row, gripAt(root, env, row)!.move!([3, 4])).ast!)).toBe('{main = [c = (path.square [3 4] 10)]}')
 	})
 
 	it('show what controls a curve', () => {
@@ -1380,8 +1380,8 @@ describe('grips', () => {
 	})
 
 	it('take a point that is all there is', () => {
-		expect(pulled('{c = (: [1 2] point)}', 0, [5, 6])).toBe('{artboard = [c = (: [5 6] point)]}')
-		expect(pulled('{d = (: [1 2] point) c = d}', 0, [5, 6])).toBe('{artboard = [c = d d = (: [5 6] point)]}')
+		expect(pulled('{c = (: [1 2] point)}', 0, [5, 6])).toBe('{main = [c = (: [5 6] point)]}')
+		expect(pulled('{d = (: [1 2] point) c = d}', 0, [5, 6])).toBe('{main = [c = d d = (: [5 6] point)]}')
 	})
 
 	describe('a path as its data', () => {
@@ -1400,19 +1400,19 @@ describe('grips', () => {
 			const source = '{c = (path.d "M 0,0 L 10,0")}'
 			// And what is between them, for the tool that goes by those.
 			expect(kinds(source)).toEqual(['point', 'point', 'offset'])
-			expect(pulled(source, 1, [5, 5])).toBe('{artboard = [c = (path.d "M 0,0 L 5,5")]}')
+			expect(pulled(source, 1, [5, 5])).toBe('{main = [c = (path.d "M 0,0 L 5,5")]}')
 		})
 
 		it('is moved as a whole', () => {
 			const root = parse('{c = (path.d "M 0,0 L 10,0")}')
 			const { ast } = changed(root, env, row, gripAt(root, env, row)!.move!([1, 2]))
-			expect(print(ast!)).toBe('{artboard = [c = (path.d "M 1,2 L 11,2")]}')
+			expect(print(ast!)).toBe('{main = [c = (path.d "M 1,2 L 11,2")]}')
 		})
 
 		it('moves an arc by where it goes, leaving its radii', () => {
 			const root = parse(`{c = ${data('(path.ellipse [0 0] [10 20])')}}`)
 			const { ast } = changed(root, env, row, gripAt(root, env, row)!.move!([1, 2]))
-			expect(print(ast!)).toBe('{artboard = [c = (path.d "M 11,2 A 10,20 0 0 1 -9,2 A 10,20 0 0 1 11,2 Z")]}')
+			expect(print(ast!)).toBe('{main = [c = (path.d "M 11,2 A 10,20 0 0 1 -9,2 A 10,20 0 0 1 11,2 Z")]}')
 		})
 
 		describe('with a curve', () => {
@@ -1425,12 +1425,12 @@ describe('grips', () => {
 			})
 
 			it('takes the controls along with a vertex', () => {
-				expect(pulled(source, 3, [13, 0])).toBe('{artboard = [c = (path.d "M 0,0 C 1,0 12,0 13,0")]}')
-				expect(pulled(source, 0, [10, 0])).toBe('{artboard = [c = (path.d "M 10,0 C 11,0 2,0 3,0")]}')
+				expect(pulled(source, 3, [13, 0])).toBe('{main = [c = (path.d "M 0,0 C 1,0 12,0 13,0")]}')
+				expect(pulled(source, 0, [10, 0])).toBe('{main = [c = (path.d "M 10,0 C 11,0 2,0 3,0")]}')
 			})
 
 			it('moves a control on its own', () => {
-				expect(pulled(source, 1, [5, 5])).toBe('{artboard = [c = (path.d "M 0,0 C 5,5 2,0 3,0")]}')
+				expect(pulled(source, 1, [5, 5])).toBe('{main = [c = (path.d "M 0,0 C 5,5 2,0 3,0")]}')
 			})
 		})
 
@@ -1446,10 +1446,10 @@ describe('grips', () => {
 			const source = '{c = (path.transform (path.circle [0 0] 1) [1 0 0 1 10 20])}'
 			expect(kinds(source)).toEqual(['path', 'point', 'point', 'point', 'translate'])
 			expect(pulled(source, 4, [30, 40])).toBe(
-				'{artboard = [c = (path.transform (path.circle [0 0] 1) [1 0 0 1 30 40])]}'
+				'{main = [c = (path.transform (path.circle [0 0] 1) [1 0 0 1 30 40])]}'
 			)
 			expect(pulled(source, 3, [170, 180])).toBe(
-				'{artboard = [c = (path.transform (path.circle [0 0] 1) [2 0 0 2 10 20])]}'
+				'{main = [c = (path.transform (path.circle [0 0] 1) [2 0 0 2 10 20])]}'
 			)
 		})
 
@@ -1462,18 +1462,18 @@ describe('grips', () => {
 
 		it('is taken by the call that makes the matrix', () => {
 			expect(pulled('{c = (path.transform (path.circle [0 0] 1) (mat2d.translate [1 2]))}', 0, [5, 6])).toBe(
-				'{artboard = [c = (path.transform (path.circle [0 0] 1) (mat2d.translate [5 6]))]}'
+				'{main = [c = (path.transform (path.circle [0 0] 1) (mat2d.translate [5 6]))]}'
 			)
 			expect(pulled('{c = (path.transform (path.circle [0 0] 1) (mat2d.scale [1 1]))}', 0, [160, 99])).toBe(
-				'{artboard = [c = (path.transform (path.circle [0 0] 1) (mat2d.scale [2 1]))]}'
+				'{main = [c = (path.transform (path.circle [0 0] 1) (mat2d.scale [2 1]))]}'
 			)
 			expect(pulled('{c = (path.transform (path.circle [0 0] 1) (mat2d.rotate 0))}', 0, [0, 80])).toBe(
-				'{artboard = [c = (path.transform (path.circle [0 0] 1) (mat2d.rotate 90))]}'
+				'{main = [c = (path.transform (path.circle [0 0] 1) (mat2d.rotate 90))]}'
 			)
 		})
 
 		it('says where what is inside it is', () => {
-			const root = parse('{artboard = [c = (path.transform (path.circle [0 0] 1) [2 0 0 2 10 20])]}')
+			const root = parse('{main = [c = (path.transform (path.circle [0 0] 1) [2 0 0 2 10 20])]}')
 			expect(gripAt(root, env, 'binding:c/arg0')!.transform).toEqual([2, 0, 0, 2, 10, 20])
 			expect(gripAt(root, env, 'binding:c')!.transform).toEqual([1, 0, 0, 1, 0, 0])
 		})
@@ -1508,17 +1508,17 @@ describe('moving the whole', () => {
 	}
 
 	it('moves what goes along, and not what is the shape\'s size', () => {
-		expect(move('{r = 10 c = (path.circle [100 100] r)}')).toBe('{r = 10 artboard = [c = (path.circle [110 120] r)]}')
+		expect(move('{r = 10 c = (path.circle [100 100] r)}')).toBe('{r = 10 main = [c = (path.circle [110 120] r)]}')
 	})
 
 	it('moves every point that makes a shape', () => {
-		expect(move('{c = (path.rect [0 0] [10 10])}')).toBe('{artboard = [c = (path.rect [10 20] [10 10])]}')
-		expect(move('{c = (path.polygon [0 0] [1 1])}')).toBe('{artboard = [c = (path.polygon [10 20] [11 21])]}')
+		expect(move('{c = (path.rect [0 0] [10 10])}')).toBe('{main = [c = (path.rect [10 20] [10 10])]}')
+		expect(move('{c = (path.polygon [0 0] [1 1])}')).toBe('{main = [c = (path.polygon [10 20] [11 21])]}')
 	})
 
 	it('goes back through what it refers to', () => {
-		expect(move('{p = [1 2] c = (path.circle p 5)}')).toBe('{p = [11 22] artboard = [c = (path.circle p 5)]}')
-		expect(move('{a = (path.circle [0 0] 1) c = a}')).toBe('{artboard = [c = a a = (path.circle [10 20] 1)]}')
+		expect(move('{p = [1 2] c = (path.circle p 5)}')).toBe('{p = [11 22] main = [c = (path.circle p 5)]}')
+		expect(move('{a = (path.circle [0 0] 1) c = a}')).toBe('{main = [c = a a = (path.circle [10 20] 1)]}')
 	})
 
 	it('says why it cannot, at a pin', () => {
@@ -1527,10 +1527,10 @@ describe('moving the whole', () => {
 
 	it('moves the matrix of a transformed path, or if that cannot, what is inside', () => {
 		expect(move('{c = (path.transform (path.circle [0 0] 1) (mat2d.translate [1 2]))}')).toBe(
-			'{artboard = [c = (path.transform (path.circle [0 0] 1) (mat2d.translate [11 22]))]}'
+			'{main = [c = (path.transform (path.circle [0 0] 1) (mat2d.translate [11 22]))]}'
 		)
 		expect(move('{c = (path.transform (path.circle [0 0] 1) (mat2d.scale [2 2]))}')).toBe(
-			'{artboard = [c = (path.transform (path.circle [5 10] 1) (mat2d.scale [2 2]))]}'
+			'{main = [c = (path.transform (path.circle [5 10] 1) (mat2d.scale [2 2]))]}'
 		)
 	})
 
@@ -1538,7 +1538,7 @@ describe('moving the whole', () => {
 		const root = parse('{c = (path.circle [0 0] 1)}')
 		const { move: by } = gripAt(root, env, 'binding:c')!
 		const once = changed(root, env, 'binding:c', by!([5, 5])).ast!
-		expect(print(changed(once, env, 'binding:c', by!([7, 7])).ast!)).toBe('{artboard = [c = (path.circle [7 7] 1)]}')
+		expect(print(changed(once, env, 'binding:c', by!([7, 7])).ast!)).toBe('{main = [c = (path.circle [7 7] 1)]}')
 	})
 })
 
@@ -1679,7 +1679,7 @@ describe('lining up with a place', () => {
 })
 
 describe('the handles of a guide', () => {
-	const root = parse('{artboard = [p = (: [1 2] point) l = (line.fromPoints [0 0] [0 10]) f = (rect.new [0 0] [10 10]) c = (path.circle [0 0] 5)]}')
+	const root = parse('{main = [p = (: [1 2] point) l = (line.fromPoints [0 0] [0 10]) f = (rect.new [0 0] [10 10]) c = (path.circle [0 0] 5)]}')
 	const rowsOf = (rows: readonly string[], isReachable = (_: string) => true) =>
 		withGuideHandles(null, root, env, sceneOf(root, env), rows, isReachable)?.rowOf ?? []
 
@@ -1708,7 +1708,7 @@ describe('the handles of a guide', () => {
 })
 
 describe('what is between two points', () => {
-	const root = parse('{artboard = [l = (vec2.lerp a b 0.25) a = (: [0 0] point) b = (: [100 0] point)]}')
+	const root = parse('{main = [l = (vec2.lerp a b 0.25) a = (: [0 0] point) b = (: [100 0] point)]}')
 	const grip = gripAt(root, env, 'binding:l')!
 
 	it('has a handle where it is, that says how far along', () => {
@@ -1732,7 +1732,7 @@ describe('what is between two points', () => {
 })
 
 describe('what is nudged from a point', () => {
-	const root = parse('{artboard = [n = (vec2.nudge p [10 0]) p = (: [100 100] point)]}')
+	const root = parse('{main = [n = (vec2.nudge p [10 0]) p = (: [100 100] point)]}')
 	const grip = gripAt(root, env, 'binding:n')!
 
 	it('has a handle where it has got to, that says how far', () => {
@@ -1764,7 +1764,7 @@ describe('what comes to a point', () => {
 })
 
 describe('a percentage, where it is read', () => {
-	const root = parse('{artboard = [l = (vec2.lerp [0 0] [10 0] 0.25)]}')
+	const root = parse('{main = [l = (vec2.lerp [0 0] [10 0] 0.25)]}')
 
 	it('says what it is shown as, and goes on being what it is', () => {
 		expect(readoutOf(root, env, 'binding:l', [{ route: [2], value: 0.25 }])).toEqual(['Ratio 25%'])
@@ -1777,7 +1777,7 @@ describe('a percentage, where it is read', () => {
 
 describe('what turns a line at an angle', () => {
 	it('turns, and is not an arrow along the line', () => {
-		const root = parse('{artboard = [l = (line.at [0 0] 30)]}')
+		const root = parse('{main = [l = (line.at [0 0] 30)]}')
 		const handle = gripAt(root, env, 'binding:l')!.handles.find(({ kind }) => kind === 'direction')!
 		expect(handle.rotates).toBe(true)
 		expect(print(changed(root, env, 'binding:l', handle.to([0, 100], [0, 0])).ast!)).toContain('(line.at [0 0] 90)')

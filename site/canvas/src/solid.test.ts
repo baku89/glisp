@@ -94,9 +94,9 @@ describe('axes', () => {
 
 	it('go out of sight and come back as they were, or come to be if there are none', () => {
 		const toggled = (source: string) => print(withAxesToggled(parse(source) as LetAST, env))
-		const on = '{artboard = [x = (axes origin: [1 2])]}'
+		const on = '{main = [x = (axes origin: [1 2])]}'
 		const off = toggled(on)
-		expect(off).toBe('{artboard = [x = #_(axes origin: [1 2])]}')
+		expect(off).toBe('{main = [x = #_(axes origin: [1 2])]}')
 		expect(toggled(off)).toBe(on)
 		expect(toggled('[a = (path.circle [0 0] 1)]')).toContain('axes1 = (axes)')
 	})
@@ -217,12 +217,12 @@ describe('a graph paper', () => {
 	})
 
 	it('keeps its color and width through being turned off and on, and going to another kind', () => {
-		const on = '{artboard = [g = (graphPaper "dots" color: "#ff0000" width: 2)]}'
+		const on = '{main = [g = (graphPaper "dots" color: "#ff0000" width: 2)]}'
 		const off = toggled(on, 'dots')
 		expect(graphPaperIn(off)).toBeNull()
 		expect(toggled(off, 'dots')).toBe(on)
-		expect(toggled(on, 'lines')).toBe('{artboard = [g = (graphPaper "lines" color: "#ff0000" width: 2)]}')
-		expect(toggled(off, 'lines')).toBe('{artboard = [g = (graphPaper "lines" color: "#ff0000" width: 2)]}')
+		expect(toggled(on, 'lines')).toBe('{main = [g = (graphPaper "lines" color: "#ff0000" width: 2)]}')
+		expect(toggled(off, 'lines')).toBe('{main = [g = (graphPaper "lines" color: "#ff0000" width: 2)]}')
 		expect(toggled('{c = "#ff0000" g = (graphPaper "dots" color: c)}', 'lines')).toContain('color: c')
 	})
 

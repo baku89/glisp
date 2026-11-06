@@ -79,7 +79,7 @@ describe('withPaintThrough', () => {
 	it('has what it refers to come to it, and goes on referring', () => {
 		const next = print(withPaintThrough(parse(referring), env, 'binding:b', { fill: '#0000ff', width: 9 }))
 		expect(next).toContain('a = (style (path.rect [0 0] [1 1]) fill: "#0000ff" width: 9)')
-		expect(next).toContain('fill: /artboard/a/fill: width: /artboard/a/width:')
+		expect(next).toContain('fill: /main/a/fill: width: /main/a/width:')
 	})
 
 	it('writes what is only a value, or not said at all', () => {

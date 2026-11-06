@@ -99,7 +99,7 @@ describe('adding it', () => {
 
 	it('goes in front of what is there', () => {
 		const next = withAdded(parse('[a = (path.circle [0 0] 5)]') as LetAST, env, 'path.rect', [0, 0])!
-		expect(print(next.ast)).toMatch(/^\{artboard = \[rect1 = /)
+		expect(print(next.ast)).toMatch(/^\{main = \[rect1 = /)
 	})
 
 	it.each(['path.circle', 'path.ellipse', 'path.rect', 'path.square', 'path.roundRect', 'path.superellipse', 'path.line', 'path.ngon', 'path.star', 'path.capsule'])(
@@ -197,10 +197,10 @@ describe('adding it', () => {
 	it('has a solid come in at the back, and a graph paper in front of it', () => {
 		const start = parse('[a = (path.circle [0 0] 5)]') as LetAST
 		const behind = withAdded(start, env, 'solid', [0, 0])!
-		expect(print(behind.ast)).toMatch(/^\{artboard = \[a = .*solid1 = \(solid /)
+		expect(print(behind.ast)).toMatch(/^\{main = \[a = .*solid1 = \(solid /)
 		expect(behind.row).toBe('binding:solid1')
 		const both = withAdded(behind.ast, env, 'graphPaper', [0, 0])!
-		expect(print(both.ast)).toMatch(/^\{artboard = \[a = .*graphPaper1 = \(graphPaper "dots"\) solid1 = /)
+		expect(print(both.ast)).toMatch(/^\{main = \[a = .*graphPaper1 = \(graphPaper "dots"\) solid1 = /)
 		expect(both.row).toBe('binding:graphPaper1')
 	})
 

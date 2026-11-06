@@ -547,7 +547,7 @@ describe('an ellipse that is turned', () => {
 		const handle = gripAt(root, env, ROW)!.handles.find(h => h.kind === 'direction')!
 		expect(handle.pivot).toEqual([0, 0])
 		const { ast } = changed(root, env, ROW, handle.to([0, 60], handle.at!))
-		expect(print(ast!)).toBe('{artboard = [c = (path.ellipse [0 0] [20 10] 90)]}')
+		expect(print(ast!)).toBe('{main = [c = (path.ellipse [0 0] [20 10] 90)]}')
 		const [{ value }] = handle.to([30, 28], handle.at!, { even: true }) as [{ value: number }]
 		expect(value).toBe(45)
 	})
@@ -1094,37 +1094,37 @@ describe('what goes out and around, of which only one can change', () => {
 		// Facing +X, from 50 out. Across does nothing, and along is as far as it goes.
 		const { problem, source } = dragged('{c = (path.ngon [0 0] 50 5 @0)}', [70, 40])
 		expect(problem).toBeNull()
-		expect(source).toBe('{artboard = [c = (path.ngon [0 0] 70 5 @0)]}')
+		expect(source).toBe('{main = [c = (path.ngon [0 0] 70 5 @0)]}')
 	})
 
 	it('goes straight out at the angle it is pinned at', () => {
 		const { source } = dragged('{c = (path.ngon [0 0] 50 5 @90)}', [30, 80])
-		expect(source).toBe('{artboard = [c = (path.ngon [0 0] 80 5 @90)]}')
+		expect(source).toBe('{main = [c = (path.ngon [0 0] 80 5 @90)]}')
 	})
 
 	it('goes by what it refers to being pinned, as well', () => {
 		const { source } = dragged('{a = @0 c = (path.ngon [0 0] 50 5 a)}', [70, 40])
-		expect(source).toBe('{a = @0 artboard = [c = (path.ngon [0 0] 70 5 a)]}')
+		expect(source).toBe('{a = @0 main = [c = (path.ngon [0 0] 70 5 a)]}')
 	})
 
 	it('only turns, where it cannot go out', () => {
 		const { source } = dragged('{c = (path.ngon [0 0] @50 5 0)}', [0, 50])
-		expect(source).toBe('{artboard = [c = (path.ngon [0 0] @50 5 90)]}')
+		expect(source).toBe('{main = [c = (path.ngon [0 0] @50 5 90)]}')
 	})
 
 	it('does not go in past nothing', () => {
 		const { source } = dragged('{c = (path.ngon [0 0] 50 5 @0)}', [-20, 0])
-		expect(source).toBe('{artboard = [c = (path.ngon [0 0] 0 5 @0)]}')
+		expect(source).toBe('{main = [c = (path.ngon [0 0] 0 5 @0)]}')
 	})
 
 	it('is the same for a star', () => {
 		const { source } = dragged('{c = (path.star [0 0] 50 20 5 @0)}', [70, 40])
-		expect(source).toBe('{artboard = [c = (path.star [0 0] 70 20 5 @0)]}')
+		expect(source).toBe('{main = [c = (path.star [0 0] 70 20 5 @0)]}')
 	})
 
 	it('does both where it can, and says so where it can do neither', () => {
-		expect(dragged('{c = (path.ngon [0 0] 50 5 0)}', [0, 70]).source).toBe('{artboard = [c = (path.ngon [0 0] 70 5 90)]}')
-		expect(dragged('{c = (path.ngon [0 0] 50 5)}', [0, 70]).source).toBe('{artboard = [c = (path.ngon [0 0] 70 5 90)]}')
+		expect(dragged('{c = (path.ngon [0 0] 50 5 0)}', [0, 70]).source).toBe('{main = [c = (path.ngon [0 0] 70 5 90)]}')
+		expect(dragged('{c = (path.ngon [0 0] 50 5)}', [0, 70]).source).toBe('{main = [c = (path.ngon [0 0] 70 5 90)]}')
 		expect(dragged('{c = (path.ngon [0 0] @50 5 @0)}', [0, 70]).problem).toBe('locked')
 	})
 
@@ -1135,8 +1135,8 @@ describe('what goes out and around, of which only one can change', () => {
 			const { ast } = changed(root, env, ROW, handle.to(to, handle.at!))
 			return ast && print(ast)
 		}
-		expect(end('{c = (path.spiral [0 0] 0 50 @1)}', [70, 40])).toBe('{artboard = [c = (path.spiral [0 0] 0 70 @1)]}')
-		expect(end('{c = (path.spiral [0 0] 0 @50 1)}', [0, 50])).toBe('{artboard = [c = (path.spiral [0 0] 0 @50 1.25)]}')
+		expect(end('{c = (path.spiral [0 0] 0 50 @1)}', [70, 40])).toBe('{main = [c = (path.spiral [0 0] 0 70 @1)]}')
+		expect(end('{c = (path.spiral [0 0] 0 @50 1)}', [0, 50])).toBe('{main = [c = (path.spiral [0 0] 0 @50 1.25)]}')
 	})
 })
 
@@ -1148,8 +1148,8 @@ describe('a place of which only a part can change', () => {
 	}
 
 	it('goes as far as it can', () => {
-		expect(moved('{c = (path.circle [@1 2] 5)}', [7, 8]).source).toBe('{artboard = [c = (path.circle [@1 8] 5)]}')
-		expect(moved('{c = (path.circle [1 @2] 5)}', [7, 8]).source).toBe('{artboard = [c = (path.circle [7 @2] 5)]}')
+		expect(moved('{c = (path.circle [@1 2] 5)}', [7, 8]).source).toBe('{main = [c = (path.circle [@1 8] 5)]}')
+		expect(moved('{c = (path.circle [1 @2] 5)}', [7, 8]).source).toBe('{main = [c = (path.circle [7 @2] 5)]}')
 	})
 
 	it('says why, if it cannot go at all', () => {

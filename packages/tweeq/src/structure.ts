@@ -91,15 +91,18 @@ export const isGroup = (ast: AST): boolean => {
 /** A level of a path that no path can go by, for what has no name: `#` is not in a name. */
 const UNREACHABLE = '#'
 
-/** What a program calls the vector of what it draws, which goes on being that with nothing in it. */
-export const ARTBOARD = 'artboard'
+/**
+ * What a program calls the vector of what it draws, which goes on being that with nothing in it:
+ * what it comes to last, and so what it puts out when it is run with nothing to show it.
+ */
+export const MAIN = 'main'
 
 /** What holds the layers of `block`: a vector, or the vector a block comes to. */
 export type Layered = LetAST | VecAST
 
 /**
  * The vector a block comes to, which holds its layers: what it ends with, or the last of its
- * bindings, as the program names what it draws (`artboard = [...]`). `name` is that binding's,
+ * bindings, as the program names what it draws (`main = [...]`). `name` is that binding's,
  * and `with` is the block holding another vector in its place.
  */
 export function layersVectorOf(
@@ -116,7 +119,7 @@ export function layersVectorOf(
 	const vector = value.kind === 'meta' ? value.expr : value
 	if (vector.kind !== 'vec') return null
 	// A vector of values is only that: what holds layers has names in it, or is called so.
-	if (name !== ARTBOARD && !vector.elements.some(element => nameOf(element) !== null)) return null
+	if (name !== MAIN && !vector.elements.some(element => nameOf(element) !== null)) return null
 	return {
 		vector,
 		name,

@@ -40,7 +40,7 @@ import {
 } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import {
-	ARTBOARD,
+	MAIN,
 	elementOptionsOf,
 	isGroup,
 	layersVectorOf,
@@ -1769,7 +1769,7 @@ export function writtenAsNow(source: string): string {
 
 /**
  * A program as it is written now, with what it draws as named elements of the vector it ends
- * with, `artboard = [...]`, which is what it comes to. Before, a program drew its bindings, in
+ * with, `main = [...]`, which is what it comes to. Before, a program drew its bindings, in
  * their order, or those its vector held by name; and a group was a block like that. What a
  * vector held by name goes there under that name, a binding that drew goes there too, what
  * was drawn last coming first, and what only is bound stays where it was.
@@ -1823,11 +1823,11 @@ export function withLayersFromOrder(root: AST, env: Env): AST {
 		if (node.body !== null && node.body.kind !== 'vec') return root
 	}
 	const { kept, held } = node.kind === 'vec' ? { kept: [], held: [...node.elements] } : holding(node, env)
-	const program = new LetAST([...kept, [ARTBOARD, node.kind === 'vec' ? root : new VecAST(held)]], null)
+	const program = new LetAST([...kept, [MAIN, node.kind === 'vec' ? root : new VecAST(held)]], null)
 	// What a path from the root went to by its name is in what the program draws now.
 	return held.reduce<AST>((moved, element) => {
 		const name = nameOf(element)
-		return name === null ? moved : withPathsMoved(moved, env, [name], [ARTBOARD, name])
+		return name === null ? moved : withPathsMoved(moved, env, [name], [MAIN, name])
 	}, program)
 }
 

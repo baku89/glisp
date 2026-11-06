@@ -33,7 +33,7 @@ describe('what a program draws', () => {
 
 	it('leaves out what is only named, even if it could be drawn', () => {
 		expect(drawn(`{base = ${P(1)} [a = (path.offset base 2)]}`)).toEqual(['a'])
-		expect(drawn(`{a = ${P(1)} artboard = []}`)).toEqual([])
+		expect(drawn(`{a = ${P(1)} main = []}`)).toEqual([])
 	})
 
 	it('draws the same thing twice, if it is held twice', () => {
@@ -54,16 +54,16 @@ describe('a program from before', () => {
 	const after = (source: string) => print(withLayersFromOrder(parse(source), env))
 
 	it('holds what draws anything, what was drawn last coming first', () => {
-		expect(after(`{r = 10 a = ${P(1)} b = ${P(2)}}`)).toBe(`{r = 10 artboard = [b = ${P(2)} a = ${P(1)}]}`)
+		expect(after(`{r = 10 a = ${P(1)} b = ${P(2)}}`)).toBe(`{r = 10 main = [b = ${P(2)} a = ${P(1)}]}`)
 	})
 
 	it('has its groups come to hold what they did', () => {
-		expect(after(`{g = {a = ${P(1)} n = 1}}`)).toBe(`{artboard = [g = {n = 1 [a = ${P(1)}]}]}`)
+		expect(after(`{g = {a = ${P(1)} n = 1}}`)).toBe(`{main = [g = {n = 1 [a = ${P(1)}]}]}`)
 	})
 
 	it('has a vector, even with nothing in it, and is left alone once it has one', () => {
-		expect(after('{n = 1}')).toBe('{n = 1 artboard = []}')
-		const now = `{n = 1 artboard = [a = ${P(1)}]}`
+		expect(after('{n = 1}')).toBe('{n = 1 main = []}')
+		const now = `{n = 1 main = [a = ${P(1)}]}`
 		expect(after(now)).toBe(now)
 	})
 })
@@ -213,8 +213,8 @@ describe('what is put around what is drawn', () => {
 
 		it('goes on going there, whichever is the subject', () => {
 			for (const [names, center] of [
-				[['ngon', 'dots'], '/artboard/ngon/path:/subject:/center:'],
-				[['dots', 'ngon'], '/artboard/dots/path:/tool:/center:'],
+				[['ngon', 'dots'], '/main/ngon/path:/subject:/center:'],
+				[['dots', 'ngon'], '/main/dots/path:/tool:/center:'],
 			] as const) {
 				const next = on(styled)(...names)('path.subtract')
 				expect(next).not.toBeNull()
@@ -225,13 +225,13 @@ describe('what is put around what is drawn', () => {
 
 		it('has what referred to one from elsewhere follow it', () => {
 			const next = on(styled)('ngon', 'dots')('path.subtract')!
-			expect(print(next)).toContain('other = (path.circle /artboard/ngon/path:/tool:/a:/center: 1)')
+			expect(print(next)).toContain('other = (path.circle /main/ngon/path:/tool:/a:/center: 1)')
 			expect(problems(next)).toEqual([])
 		})
 
 		it('goes by a number, past those that have a name', () => {
 			const next = on(`[a = ${NGON} b = ${NGON} c = ${NGON} d = (path.circle /c/center: 1)]`)('a', 'b', 'c')('path.unite')!
-			expect(print(next)).toContain('d = (path.circle /artboard/a/others:/0/center: 1)')
+			expect(print(next)).toContain('d = (path.circle /main/a/others:/0/center: 1)')
 			expect(problems(next)).toEqual([])
 		})
 
@@ -544,14 +544,14 @@ describe('grouping inside of a group', () => {
 
 	it('lets go of a group where it is', () => {
 		const result = ungrouped(root, env, ['binding:o/binding:g'])!
-		expect(print(result.ast)).toBe(`{artboard = [o = [a = ${X} b = ${Y} d = ${Z}] c = ${P(4)}]}`)
+		expect(print(result.ast)).toBe(`{main = [o = [a = ${X} b = ${Y} d = ${Z}] c = ${P(4)}]}`)
 		expect(result.rows).toEqual(['binding:o/binding:a', 'binding:o/binding:b'])
 	})
 
 	it('groups where they are', () => {
 		const result = grouped(root, env, ['binding:o/binding:g', 'binding:o/binding:d'])!
 		expect(result.row).toBe('binding:o/binding:group1')
-		expect(print(result.ast)).toBe(`{artboard = [o = [group1 = [g = [a = ${X} b = ${Y}] d = ${Z}]] c = ${P(4)}]}`)
+		expect(print(result.ast)).toBe(`{main = [o = [group1 = [g = [a = ${X} b = ${Y}] d = ${Z}]] c = ${P(4)}]}`)
 	})
 
 	it('does not group across blocks', () => {
@@ -561,15 +561,15 @@ describe('grouping inside of a group', () => {
 	it('lets go of one in each of two blocks, at once', () => {
 		const two = parse(`[o = [g = [a = ${X}]] h = [b = ${Y}]]`) as LetAST
 		const result = ungrouped(two, env, ['binding:o/binding:g', 'binding:h'])!
-		expect(print(result.ast)).toBe(`{artboard = [o = [a = ${X}] b = ${Y}]}`)
+		expect(print(result.ast)).toBe(`{main = [o = [a = ${X}] b = ${Y}]}`)
 	})
 })
 
 describe('what is taken away, that something was drawn by', () => {
 	it('leaves that drawn where it was, at what it came to', () => {
-		const before = parse('[r = (path.rect [0 0] [100 40]) c = (path.circle [(lerp /artboard/r/origin:/0 (+ /artboard/r/origin:/0 /artboard/r/size:/0) 0.2) /artboard/r/origin:/1] 10)]')
+		const before = parse('[r = (path.rect [0 0] [100 40]) c = (path.circle [(lerp /main/r/origin:/0 (+ /main/r/origin:/0 /main/r/size:/0) 0.2) /main/r/origin:/1] 10)]')
 		const { ast, rows } = keptReferences(before, withoutRows(before, env, ['binding:r']), env)
-		expect(print(ast)).toBe('{artboard = [c = (path.circle [20 0] 10)]}')
+		expect(print(ast)).toBe('{main = [c = (path.circle [20 0] 10)]}')
 		expect(rows).toEqual(['binding:c/arg0'])
 	})
 })

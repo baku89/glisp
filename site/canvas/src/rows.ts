@@ -5,7 +5,7 @@
 
 import { AS_SOURCE, type AST, type Env, CallAST, enterNode, evaluate, hide, infer, isHidden, LetAST, lit, MetaAST, named, nameOf, namedChildrenOf, print, readByName, unhide, unnamed, VecAST, withPathsFollowed, withPathsMoved } from '@glisp/lang'
 import { reach, withoutRows, withParent } from '@glisp/tweeq/rowsClipboard'
-import { ARTBOARD, isGroup, type Layered, layersOf, layersVectorOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
+import { MAIN, isGroup, type Layered, layersOf, layersVectorOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import { GraphPaperValue, type Path, type Vec } from './graphics'
