@@ -814,6 +814,18 @@ describe('snapping', () => {
 			expect(gripAt(grown, env, 'binding:o')!.handles.find(h => h.name === 'right')!.at![0]).toBeCloseTo(125)
 		})
 
+		it('by a handle that is only a handle there, taken where it was before it was moved', () => {
+			const before = parse('[o = (path.circle [0 0] 30) s = (path.circle [100 0] 10)]')
+			const handle = snapPointsOf(before, env, sceneOf(before, env).filter(p => p.row === 'binding:o')).find(p => p.label === 'right' && p.code === undefined)!
+			// Moved, as a canvas moves it, for its right [30 0] to be on the left of the other [90 0].
+			const moved = changed(before, env, 'binding:o', gripAt(before, env, 'binding:o')!.move!([60, 0])).ast!
+			const left = nearestSnap(snapPointsOf(moved, env, sceneOf(moved, env), new Set(['binding:o'])), [90, 0], 1)!
+			const next = movedOnto(moved, env, 'binding:o', handle, left)!
+			expect(next).not.toBeNull()
+			const grown = parse(print(next).replace('[100 0] 10)', '[100 0] 20)'))
+			expect(gripAt(grown, env, 'binding:o')!.handles.find(h => h.name === 'right')!.at![0]).toBeCloseTo(80)
+		})
+
 		it('is nothing for what is not moved by one thing that says where it is', () => {
 			expect(moved('(path.line [100 0] [200 0])', 'middle', [150, 0])).toBeNull()
 		})

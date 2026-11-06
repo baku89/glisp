@@ -809,7 +809,8 @@ export function movedOnto(root: AST, env: Env, row: string, taken: SnapPoint, sn
 				point =>
 					canRefer(point) &&
 					point.label === taken.label &&
-					Math.hypot(point.at[0] - taken.at[0], point.at[1] - taken.at[1]) < SAME_END
+					// Where it was taken, or where it has been put, as it is in `root` once moved.
+					[taken.at, snap.at].some(at => Math.hypot(point.at[0] - at[0], point.at[1] - at[1]) < SAME_END)
 			)
 	if (own === undefined) return null
 	const grip = gripAt(root, env, row)

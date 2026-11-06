@@ -1673,9 +1673,13 @@ function commit(next: ReturnType<typeof apply>): void {
 	if (next.ast?.kind === 'let' && next.ast !== root.value) props.document.setRoot(next.ast)
 }
 
-/** What is selected, if a press is inside of the box that goes around several of it or a group, to move them all. */
+/**
+ * What is selected, if a press is inside of the box that goes around it, to move it all: several,
+ * a group, or one with nothing in it to take hold of, as an outline is, which is then taken by
+ * none of its places, for any of them to be put on something. What is drawn there is taken first.
+ */
 function rowOfBoxAt(x: number, y: number, adding: boolean): string | null {
-	if (adding || !grip.value?.box?.across) return null
+	if (adding || grip.value === null || taken.value.length === 0) return null
 	const box = boundsOfRows([...scene.value, ...hiddenSelected.value], taken.value)
 	if (box === null) return null
 	const [px, py] = fromScreen(x, y)
@@ -2637,8 +2641,17 @@ function onPointerMove(event: PointerEvent): void {
 			// The place it was taken by, put on another, goes on being there: unless it is only to be as much, with Command.
 			let link: SnapPoint | null = null
 			if (snappedBy !== null && !event.shiftKey && !event.metaKey && !event.ctrlKey && next.ast !== null) {
-				const of = snappedBy.own.code?.of ?? snappedBy.own.target ?? ''
-				const row = pressed.rows.find(({ row }) => of === row || of.startsWith(`${row}/`))?.row
+				const { own } = snappedBy
+				const of = own.code?.of ?? own.target
+				// A place that is only a handle says nothing of whose it is, but where it was, and what it is called.
+				const [was, rowEnv] = [pressed.base, props.document.env.value]
+				const row = pressed.rows.find(({ row }) =>
+					of !== undefined && of !== null
+						? of === row || of.startsWith(`${row}/`)
+						: snapPointsOf(was, rowEnv, sceneOf(was, rowEnv).filter(shape => shape.row === row)).some(
+								point => point.label === own.label && Math.hypot(point.at[0] - own.at[0], point.at[1] - own.at[1]) < 1e-6
+							)
+				)?.row
 				const onto = row === undefined ? null : movedOnto(next.ast, props.document.env.value, row, snappedBy.own, snappedBy.snap)
 				if (onto !== null) {
 					next = { ...next, ast: onto }
