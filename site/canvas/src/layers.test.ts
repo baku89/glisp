@@ -2,6 +2,7 @@ import { type AST, buildPrelude, evaluate, LetAST, parse, print, renameBinding }
 import { combined, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { layersOf, moveBinding, viewOf, withLayerAdded } from '@glisp/tweeq/structure'
 import { pastedRows, reach, withoutRows } from '@glisp/tweeq/rowsClipboard'
+import { keptReferences } from '@glisp/tweeq/keptReferences'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
@@ -560,5 +561,14 @@ describe('grouping inside of a group', () => {
 		const two = parse(`[o = [g = [a = ${X}]] h = [b = ${Y}]]`) as LetAST
 		const result = ungrouped(two, env, ['binding:o/binding:g', 'binding:h'])!
 		expect(print(result.ast)).toBe(`[o = [a = ${X}] b = ${Y}]`)
+	})
+})
+
+describe('what is taken away, that something was drawn by', () => {
+	it('leaves that drawn where it was, at what it came to', () => {
+		const before = parse('[r = (path.rect [0 0] [100 40]) c = (path.circle [(lerp /r/origin/0 (+ /r/origin/0 /r/size/0) 0.2) /r/origin/1] 10)]')
+		const { ast, rows } = keptReferences(before, withoutRows(before, env, ['binding:r']), env)
+		expect(print(ast)).toBe('[c = (path.circle [20 0] 10)]')
+		expect(rows).toEqual(['binding:c/arg0'])
 	})
 })

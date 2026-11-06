@@ -79,6 +79,7 @@ import {
 	valueTextOf,
 } from './selection'
 import { bindingsOfSvg, programInFile, svgOfProgram, svgOfRows } from './svg'
+import KeptNotice from './KeptNotice.vue'
 import ToolBar from './ToolBar.vue'
 import { arranged as arrangedTools, type FirstTools } from './toolbar'
 
@@ -169,6 +170,23 @@ function stored(): string | null {
 }
 
 const document = useGlispDocument(stored() ?? EXAMPLE, { env: withGraphics })
+
+/** What has just been made a value, by what it referred to having been deleted, to say so. */
+const kept = shallowRef<readonly string[] | null>(null)
+/** The program just before that, to go back to, whatever has been done since. */
+let keptFrom: AST | null = null
+function sayKept(rows: readonly string[], before: AST): void {
+	kept.value = [...new Set(rows.map(row => /^binding:([^/]+)/.exec(row)?.[1] ?? row))]
+	keptFrom = before
+}
+/** Back to just before it was deleted, as a step of its own, for that to be undone too. */
+function revertKept(): void {
+	kept.value = null
+	// Not more of whatever was done last, which undoing it would take away with it.
+	document.release()
+	if (keptFrom?.kind === 'let') document.setRoot(keptFrom)
+	keptFrom = null
+}
 
 watch(document.root, root => {
 	const source = print(root)
@@ -1292,6 +1310,7 @@ function selectInTree(row: string | null): void {
 		</template>
 		<template #default>
 			<div ref="$stage" class="stage">
+				<KeptNotice :names="kept" @revert="revertKept" @dismiss="kept = null" />
 				<div v-if="fileDrop !== null" class="file-drop" :class="fileDrop">
 					<span class="file-drop-says">{{ fileDrop === 'canvas' ? 'Add to this drawing' : 'Open as a new file' }}</span>
 				</div>
@@ -1365,6 +1384,7 @@ function selectInTree(row: string | null): void {
 							@select="selectInTree"
 							@code="showCode"
 							@pasted="selectOnCanvas"
+							@kept="sayKept"
 						/>
 					</div>
 				</FloatPanel>
@@ -1440,6 +1460,7 @@ function selectInTree(row: string | null): void {
 						:alsoSelected="pickedOut"
 						:iconOfValue="iconOfPath"
 						@select="inspectorRow = $event"
+						@kept="sayKept"
 						:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 						:pasteAs="bindingsOfSvg"
 						:iconOfFunction="iconOfFunction"

@@ -59,12 +59,14 @@ export function useHostDelete(deletes: () => boolean): void {
 /**
  * Deleting is about the row selected in an inspector, while there is one, rather than
  * what is selected elsewhere. A row that cannot go leaves it to `removeNearest`, if it is
- * given, to go up through what holds it.
+ * given, to go up through what holds it. `removing` is how a row that can go is taken away,
+ * for what else that changes to be done along with it.
  */
 export function useDeleteInInspector(
 	selection: ShallowRef<Selection | null>,
 	isInspector: () => boolean = () => true,
-	removeNearest?: (path: string) => void
+	removeNearest?: (path: string) => void,
+	removing: (remove: () => void) => void = remove => remove()
 ): void {
 	useEventListener(
 		window,
@@ -79,7 +81,7 @@ export function useDeleteInInspector(
 			event.stopPropagation()
 			event.preventDefault()
 			selection.value = null
-			if (selected.remove !== undefined) selected.remove()
+			if (selected.remove !== undefined) removing(selected.remove)
 			else removeNearest?.(selected.path)
 		},
 		{ capture: true }

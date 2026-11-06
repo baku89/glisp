@@ -15,6 +15,7 @@ import { type GlispDocument } from './document'
 import { sourceOfProgram } from './programSource'
 import FunctionAbout from './FunctionAbout.vue'
 import { iconOf } from './icons'
+import { keptReferences } from './keptReferences'
 import { multiSelectHostOf } from './multiInputs'
 import {
 	copiedRows,
@@ -109,6 +110,11 @@ const emit = defineEmits<{
 	code: []
 	/** These rows have just been pasted. */
 	pasted: [paths: readonly string[]]
+	/**
+	 * These rows referred to what has just been taken away, and are now what they came to.
+	 * `before` is the program as it was before that, to go back to.
+	 */
+	kept: [paths: readonly string[], before: AST]
 }>()
 
 const show = (value: unknown, env: Env): string => {
@@ -403,20 +409,41 @@ function pasteOnSelection(written: string): boolean {
 
 /** The row at `path`, or the nearest of what holds it that can go. */
 function removeNearest(path: string): void {
-	const next = withoutNearest(props.document.root.value, props.document.env.value, path)
+	const { root, env } = props.document
+	const next = withoutNearest(root.value, env.value, path)
 	if (next === null) return
 	reselectNothing = true
-	replaceRoot(next)
+	replaceKept(root.value, next)
 }
 
 function removeRows(): void {
-	const next = withoutRows(
-		props.document.root.value,
-		props.document.env.value,
-		selectedRows()
-	)
+	const { root, env } = props.document
+	const next = withoutRows(root.value, env.value, selectedRows())
 	reselectNothing = true
-	replaceRoot(next)
+	replaceKept(root.value, next)
+}
+
+/** `after`, which is `before` with something taken away, keeping what referred to that. */
+function replaceKept(before: AST, after: AST): void {
+	const { ast, rows } = keptReferences(before, after, props.document.env.value)
+	if (ast !== props.document.root.value) replaceRoot(ast)
+	if (rows.length > 0) emit('kept', rows, before)
+}
+
+/**
+ * What `remove` takes away, as one step, with what referred to it keeping what it came
+ * to: for a row that takes itself away, through what holds it.
+ */
+function removing(remove: () => void): void {
+	const { root } = props.document
+	const before = root.value
+	props.document.hold()
+	try {
+		remove()
+		if (root.value !== before) replaceKept(before, root.value)
+	} finally {
+		props.document.release()
+	}
 }
 
 const selection = shallowRef<Selection | null>(null)
@@ -432,7 +459,7 @@ provide(ISOLATED, () => props.isolated ?? [])
 provide(LAYER_ROWS, path => props.layerRows?.(path) ?? [])
 provide(LAYER_LABEL, path => props.layerLabel?.(path) ?? null)
 provide(ROW_PICKER, (path, event) => props.pickRow?.(path, event) ?? true)
-useDeleteInInspector(selection, () => isInspector.value, removeNearest)
+useDeleteInInspector(selection, () => isInspector.value, removeNearest, removing)
 /** What was selected has just gone, so there is nothing to select again. */
 let reselectNothing = false
 /** A row on its way to being selected again, having been edited. */
@@ -701,7 +728,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			removeRows()
 		} else if (selection.value.remove !== undefined) {
 			selection.value.evaluate?.('copy')
-			selection.value.remove()
+			removing(selection.value.remove)
 		}
 	} else if (event.key.toLowerCase() === 'e' && isMod && !event.altKey) {
 		if (selection.value?.evaluate === undefined) return
@@ -735,7 +762,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			removeRows()
 		} else if (selection.value.remove !== undefined) {
 			event.preventDefault()
-			selection.value.remove()
+			removing(selection.value.remove)
 		} else {
 			event.preventDefault()
 			removeNearest(selection.value.path)
