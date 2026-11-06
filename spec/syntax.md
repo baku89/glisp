@@ -23,7 +23,7 @@
 
 `number` is a single unified numeric type, IEEE 754 double internally.
 
-Literal types (e.g. `42` as a singleton type) are not introduced. Use `enum` for enumerated values.
+A value written as it is where a type is wanted, as `42`, is the type of just that value. A union of them, `(| "a" "b")`, is a set of values. See [types.md](./types.md#type-constructors).
 
 Keyword literal (`:foo`) is not introduced. Record keys and keyword arguments are written with bare symbols followed by `:`.
 
@@ -192,7 +192,7 @@ The prelude and what else a host binds is not a part of the program: a path from
 
 ### Optional fields and arguments — `?`
 
-A trailing `?` on a record field name or function parameter name marks it as optional:
+A trailing `?` on a record field name or function parameter name marks it as optional. `y?: T` is `y: (| T unit)`: what can be left out is what can be `()`.
 
 ```glisp
 {x: number  y?: string}                              ;; record type with optional y
@@ -202,7 +202,7 @@ A trailing `?` on a record field name or function parameter name marks it as opt
 Semantics (in conjunction with the `()` missing-value signal — see [types.md](./types.md)):
 
 - A missing or `()` value at a **required** slot triggers the type's `default` and emits a diagnostic.
-- A missing or `()` value at an **optional** slot triggers the type's `default` silently.
+- A missing value at an **optional** slot takes the type's `default` silently, which for `(| T unit)` is `T`'s. A `()` given to it stays `()`.
 
 ### `{...}` — record or let-block
 
@@ -338,7 +338,7 @@ Rules:
 - Each parameter must receive at most one binding (positional or keyword, not both). Double-binding emits a diagnostic.
 - A keyword whose name is not a parameter of the callee emits a diagnostic.
 - A required parameter (no `?` suffix) that receives no binding emits a diagnostic; the slot is filled with the parameter type's `default`.
-- An optional parameter (`?` suffix) that receives no binding silently uses the parameter type's `default`.
+- An optional parameter (`?` suffix, or of a type that `()` fits) that receives no binding silently uses the parameter type's `default`.
 - A variadic parameter `...rest` collects the remaining positional arguments into a vector. It can also be filled by keyword as a single vector value (`rest: [1 2 3]`). Mixing the two — positional rest-elements *and* a same-named kwarg — is a double-binding error.
 
 A variadic parameter is always the last one in the parameter list (see [Variadic parameters](#variadic-parameters)). Optional parameters must therefore precede the variadic, never follow it — this avoids the parse ambiguity TS's "no optional after rest" rule guards against.
@@ -394,7 +394,7 @@ Four forms have built-in semantics beyond ordinary function application: `?` (ma
 ```
 
 - Patterns are scanned in order; the first matching clause's result is returned.
-- A pattern that is a **type** (e.g. `number`, `string`, `(enum "round" "butt")`, `_`) matches when the value casts successfully. `_` (Top) matches anything, so it serves as the fallthrough catch-all.
+- A pattern that is a **type** (e.g. `number`, `string`, `(| "round" "butt")`, `_`) matches when the value casts successfully. `_` (Top) matches anything, so it serves as the fallthrough catch-all.
 - A pattern that is a **value** (literal or otherwise) matches by value equality.
 - If no clause matches, the result is `()`.
 - All `result` expressions must have the same type (no union). The type of the whole `?` form is that common result type.
@@ -583,11 +583,11 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `_`, and
 ```glisp
 [...number]                              ;; vector of number
 (=> (a: number b: number): number)       ;; function type
-(enum "round" "butt" "square")           ;; enumeration of values
+(| "round" "butt" "square")              ;; one of these values
 {x: number y: number}                    ;; record type
 ```
 
-`enum` takes literal values and produces a type that validates against membership in the value set. `"round"` itself remains of type `string`, distinct from any `enum` containing it.
+`|` makes a union of types, and a value written as it is there is the type of just that value. An expression that comes to `"round"` is of type `string`, which does not fit `(| "round" "butt")`, though a literal `"round"` written in its slot does.
 
 ### Coercing through a type
 
@@ -595,7 +595,7 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `_`, and
 
 <!-- test -->
 ```glisp
-JoinType = (enum "round" "butt" "square")
+JoinType = (| "round" "butt" "square")
 
 (: 42 number)                     ;; → 42
 (: "hello" number)                ;; → 0  (default)

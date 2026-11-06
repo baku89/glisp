@@ -44,7 +44,7 @@ A type is a set of values, and a type fits another when all its values belong to
 
 - `[number number]` fits `[...number]` and `[number ...number]`.
 - A record with extra fields fits, and a field declared `y?:` may be missing.
-- `(enum "a" "b")` fits `string` and `(enum "a" "b" "c")`.
+- `(| "a" "b")` fits `string` and `(| "a" "b" "c")`.
 - A type fits `(| A B)` if it fits `A` or `B`, and `(| A B)` fits where both `A` and `B` do.
 - A `refine` fits its base.
 - `(IO T)` and `[...T]` are covariant.
@@ -71,7 +71,7 @@ The top and bottom types are bound in the prelude under their syntactic names (`
 
 ### Naming convention
 
-Built-in primitive type names are **lowercase**: `number`, `string`, `boolean`, `unit`, `vector`, `enum`. Host-imported types and user-defined types are conventionally **uppercase-initial**: `Date`, `URL`, `JoinType`, `Point`. The convention is not enforced (identifier syntax allows either case) but signals the type's origin at a glance.
+Built-in primitive type names are **lowercase**: `number`, `string`, `boolean`, `unit`, `vector`. Host-imported types and user-defined types are conventionally **uppercase-initial**: `Date`, `URL`, `JoinType`, `Point`. The convention is not enforced (identifier syntax allows either case) but signals the type's origin at a glance.
 
 ## Type constructors
 
@@ -84,9 +84,9 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | `[...T]` | rest-only tuple — equivalent to "vector of `T`" with no fixed prefix |
 | `{k1: T1 k2: T2 ...}` | record with the given field types (same shape as a record value) |
 | `(=> (a: T1 b: T2 ...): R)`, `(=> (T1 T2 ...): R)` | Function type (parameter names are optional; not part of identity) |
-| `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
 | `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)`, with an explicit default for failed casts |
 | `(\| T1 T2 ...)` | union: the values of any of `T1 T2 ...`, defaulting to the first one's default |
+| `42`, `"round"`, `true` | a value written as it is: the type of just that value, which is its own default |
 | `(IO T)` | parametric IO: a deferred effect that, when forced, produces a `T`. Compatibility is covariant in the payload (`(IO !)` fits `(IO _)`) |
 | `(vector T)` | the same type as `[...T]`. Bare `vector` is any vector |
 
@@ -98,7 +98,7 @@ Notes on tuple types:
 - A tuple of zero fixed elements with no rest is `[]`, the type whose only inhabitant is the empty vector.
 - Equality is structural: `[number number] == [number number]`, `[number string] != [string number]`.
 
-`enum` is the mechanism for finite sets of literal values. Members must share a single base type; validation at cast time is membership in the value set.
+A value written as it is, where a type is wanted, is the type of just that value: `"round"` there holds `"round"` and nothing else. A finite set of values is a union of them, `(| "round" "butt" "square")`, which defaults to the first. `()` there is `unit`.
 
 `refine` is the mechanism for value-restricted subtypes — a base type narrowed by a predicate. Coercing through `(refine T default pred)` first checks that `v` fits `T`; if so, `pred(v)` is called; if `pred` returns true, the value is accepted, otherwise the result falls back to the explicit `default`. The default is supplied separately because `T`'s default need not satisfy `pred`.
 
@@ -113,7 +113,7 @@ ColorCode = (refine string "#000000"
 NonNegative = (refine number 0 (=> (n: number): boolean (>= n 0)))
 ```
 
-A `ColorCode` fits where a `string` is expected, but not the other way around. `enum` could in principle be expressed as a special-cased `refine`, but is kept as its own constructor for readability of the common literal-set case.
+A `ColorCode` fits where a `string` is expected, but not the other way around.
 
 When `(: v T)` is used to coerce, a value that does not fit `T` produces a diagnostic in addition to falling back to the default. This is the same surfacing rule typed function slots use: explicit `(: v T)` and implicit slot share the diagnostic boundary so type mismatches are never silent.
 
@@ -170,7 +170,7 @@ This is what lets literal forms play double duty:
 
 ### What type slots do *not* mean
 
-A type-slot annotation like `x: number` always reads as "x has type `number`" — that is, x is a numeric value. It is **not** read as "x is the singleton whose only inhabitant is the type value `number`". Glisp does not introduce singleton types over type values; you cannot say "x must be the type value `number`, nothing else". If you need to constrain a value to a literal-set membership, use `enum` (which is for value literals like `"red"`, `42`, etc., not for type values).
+A type-slot annotation like `x: number` always reads as "x has type `number`" — that is, x is a numeric value. It is **not** read as "x is the singleton whose only inhabitant is the type value `number`". Glisp does not introduce singleton types over type values; you cannot say "x must be the type value `number`, nothing else". To constrain a value to a set of values, write them as they are in a union, `(| "red" 42)`, which is for values like `"red"` and `42`, not for type values.
 
 This rule keeps the meaning of every annotation unambiguous: the right side of `:` always describes the *kind of values* the slot accepts, never a specific value pinned by identity.
 
@@ -180,7 +180,7 @@ Explicit type coercion uses the `:` special form, the prefix form of the annotat
 
 <!-- test -->
 ```glisp
-JoinType = (enum "round" "butt" "square")
+JoinType = (| "round" "butt" "square")
 
 (: 42 number)                 ;; → 42
 (: "hello" number)            ;; → 0  (default, with a diagnostic)
@@ -277,7 +277,7 @@ The language core assigns semantic meaning only to:
 
 All other keys are unrestricted. Hosts may register typed schemas for them via the host API.
 
-A value of an `enum` can have metadata of its own, which goes with it: `(enum ^{icon: "ph:a"} "a" ^{icon: "ph:b"} "b")`. It is the same type as `(enum "a" "b")`. As elsewhere, only what is written as a literal can be read back, so a value from `(enum ...xs)` has none. An editor shows the values by their `icon` if all of them have one. What an icon's name means is up to the host.
+A value written as a type can have metadata of its own, which goes with it: `(| ^{icon: "ph:a"} "a" ^{icon: "ph:b"} "b")`. It is the same type as `(| "a" "b")`. As elsewhere, only what is written as a literal can be read back, so a value spread in, as in `(| ...xs)`, has none. An editor shows the values by their `icon` if all of them have one. What an icon's name means is up to the host.
 
 ### `()` and default fallback
 
@@ -292,9 +292,24 @@ Default substitution happens in any of these situations:
 
 - **`()` arrives at a typed slot**: function parameter, record field declared with `:`, `(: v T)`, predicate of `if`, etc. The slot's `default` is used.
   - For required slots: a diagnostic is emitted at the substitution site.
-  - For optional slots (declared with `?`): substitution is silent.
+  - A slot of a type that `()` fits, as `(| T unit)`, takes `()` as it is. This is what can be left out: `y?: T` is `y: (| T unit)`. Left out, it takes the default, which is `T`'s, silently. See [Left out](#left-out).
 - **Non-`()` type mismatch at a typed slot**: a diagnostic is emitted and the slot's `default` is used.
 - **Static-time**: when the type checker proves an expression will fail, the substitution happens at compile time without waiting for runtime.
+
+### Left out
+
+What can be left out is what can be `()`: a field or a parameter of a type that is `unit` or a union with it. `y?: T` is another way to write `y: (| T unit)`.
+
+<!-- test -->
+```glisp
+Style = {width: number dash?: number}
+(: {width: 2} Style)                      ;; → {width: 2}
+((=> (d?: number): _ d))                  ;; → 0   (left out: the default of number, silently)
+((=> (d?: number): _ d) ())               ;; → ()  (given as nothing, it stays so)
+((=> (d: (| number unit)): _ d))          ;; → 0
+```
+
+A field that is missing is read as `()`, and so a record without it fits. An editor shows such a slot as one that can be emptied.
 
 Evaluation never throws at the language level. Errors and warnings flow on a parallel diagnostics channel.
 
@@ -322,7 +337,7 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 
 Signatures are mandatory, so types flow locally rather than through a global solver. `infer(ast, env)` runs no value expression. The only thing it evaluates is a type expression, since types are values.
 
-- **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else. A slot also takes a literal for what it is, so `"round"` goes in a slot of `(enum "round" "butt")` and `"z"` does not. This is true of what is written there, a vector or record of literals included. A name bound to `"round"` is a `string`, which `(: name J)` casts.
+- **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else. A slot also takes a literal for what it is, so `"round"` goes in a slot of `(| "round" "butt")` and `"z"` does not. This is true of what is written there, a vector or record of literals included. A name bound to `"round"` is a `string`, which `(: name J)` casts.
 - **Generics are solved at a call**, one argument at a time, by matching types structurally: `(xs: [...T])` given `[1 2]` solves `T` as `number`. A generic seen twice takes whichever of the two types the other fits; if neither does, that is a diagnostic. An unsolved generic is `_`.
 - **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] (+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
 - **Type constructors can be generic.** In `(=> (F T) (x: (F T)): T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.
@@ -337,5 +352,5 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 - Anonymous recursive types `(rec X ...)`. Currently named bindings cover the use cases; revisit if a clear motivation appears.
 - Whether function types carry their own metadata (e.g. purity/effect annotations).
 - Whether inference should make unions, as the type of `[1 "a"]` or of clauses of `?` that differ, and whether a clause of `?` should narrow the type of what it matched.
-- Tagged sums. A union of records that differ by a field, as `{kind: (enum "a") ...}`, covers them for now.
+- Tagged sums. A union of records that differ by a field, as `{kind: (| "a") ...}`, covers them for now.
 - **Type classes / constraint-based generics** (`(=> (T: Addable) (a: T b: T): T ...)`). v1 uses `overload` as a closed set of candidates. Type classes would add open extension (new instances declarable later) at the cost of a constraint syntax, instance declaration, and dictionary-passing implementation. Defer to v2; if introduced, `overload` may become syntactic sugar for a closed type-class definition.

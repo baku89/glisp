@@ -37,7 +37,7 @@ const ICONS: Readonly<Record<string, string>> = {
 	boolean: 'mdi:toggle-switch-outline',
 	unit: 'mdi:code-parentheses',
 	vector: 'mdi:code-brackets',
-	enum: 'mdi:format-list-bulleted',
+	'|': 'mdi:format-list-bulleted',
 	IO: 'mdi:play-outline',
 
 	'+': 'mdi:plus',
@@ -90,7 +90,7 @@ const SHAPE_ICONS: Readonly<Record<string, string>> = {
 const SHAPE_NAMES: Readonly<Record<string, string>> = {
 	vector: 'vector',
 	tuple: 'vector',
-	enum: 'enum',
+	union: '|',
 	io: 'IO',
 }
 
@@ -151,7 +151,7 @@ export function iconOf(
 	if (view.icon !== null) return view.icon
 	const wanted = textOf(expected?.meta?.get('icon'))
 	if (wanted !== null) return wanted
-	if (view.editor?.kind === 'enum') return iconBoundTo('enum', env)
+	if (view.editor?.kind === 'enum') return iconBoundTo('|', env)
 	const type = infer(ast, env)
 	return type === null ? null : iconOfType(type, env)
 }

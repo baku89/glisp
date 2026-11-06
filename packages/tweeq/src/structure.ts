@@ -567,7 +567,7 @@ export function viewOf(
 	const expected = memberOf(wanted, ast, env)
 	switch (ast.kind) {
 		case 'lit':
-			return { ...LEAF, editor: editorOfValue(ast.value, expected) }
+			return { ...LEAF, editor: editorOfValue(ast.value, wanted) }
 		case 'call':
 			return remembered(ast, env, null, () => viewOfCall(ast, env))
 		case 'vec':
@@ -716,14 +716,24 @@ export function parseSource(source: string): AST | null {
 	}
 }
 
+/** The values of a union of values written as they are, as `(| "round" "butt")`, or null. */
+export function literalsOf(type: TypeValue | null): readonly unknown[] | null {
+	const members = membersOf(type)
+	if (members === null) return null
+	const values = members.map(t => {
+		const shape = unwrapLazy(t).shape
+		return shape.kind === 'literal' ? shape.value : undefined
+	})
+	return values.includes(undefined) ? null : values
+}
+
 /**
- * What an enum's values are shown as, each saying so with `^{icon: ...}`, in the order they
- * are in. `null` unless all of them do, since a row of icons with a gap in it says nothing.
+ * What the values of a union of them are shown as, each saying so with `^{icon: ...}`, in the
+ * order they are in. `null` unless all of them do, since a row of icons with a gap in it says nothing.
  */
 export function enumIconsOf(type: TypeValue | null): readonly string[] | null {
-	const shape = type === null ? null : unwrapLazy(type).shape
-	if (shape?.kind !== 'enum') return null
-	const said = [...shape.values].map(value => textOf(shape.about?.get(value)?.get('icon')))
+	if (literalsOf(type) === null) return null
+	const said = membersOf(type)!.map(t => textOf(t.meta?.get('icon')))
 	return said.includes(null) ? null : (said as string[])
 }
 
@@ -745,12 +755,12 @@ export function typeHintOf(expected: TypeValue | null): string | null {
 
 /** The widget for a value of what is `expected`, whether it is written so or comes to it. */
 export function editorOfValue(value: unknown, wanted: TypeValue | null): Editor | null {
-	const expected = membersOf(wanted)?.find(t => t.fits(value)) ?? (membersOf(wanted) ? null : wanted)
-	const shape = expected === null ? null : unwrapLazy(expected).shape
-	if (shape?.kind === 'enum') {
-		const icons = enumIconsOf(expected)
-		return { kind: 'enum', value, options: [...shape.values], ...(icons ? { icons } : {}) }
+	const options = literalsOf(wanted)
+	if (options !== null) {
+		const icons = enumIconsOf(wanted)
+		return { kind: 'enum', value, options: [...options], ...(icons ? { icons } : {}) }
 	}
+	const expected = membersOf(wanted)?.find(t => t.fits(value)) ?? (membersOf(wanted) ? null : wanted)
 	if (typeof value === 'number') {
 		return { kind: 'number', value, ...(expected?.typeName === 'seed' ? { seed: true as const } : {}) }
 	}

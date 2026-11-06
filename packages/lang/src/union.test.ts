@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { check } from './check.js'
+import { resolveTypeSlot } from './infer.js'
 import { evaluate, isTypeValue, typeFits, type TypeValue } from './eval.js'
+import { UNIT } from './types.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 
@@ -67,7 +69,7 @@ describe('union types', () => {
 		expect(typeFits(b, ns)).toBe(false)
 		expect(typeFits(ns, n)).toBe(false)
 		expect(typeFits(ns, typeOf('(| string boolean number)'))).toBe(true)
-		expect(typeFits(typeOf('(enum 1 "a")'), ns)).toBe(true)
+		expect(typeFits(typeOf('(| 1 "a")'), ns)).toBe(true)
 		expect(typeFits(typeOf('(vector number)'), typeOf('(vector (| number string))'))).toBe(true)
 	})
 
@@ -92,5 +94,39 @@ describe('union types', () => {
 			env
 		)
 		expect(ds).toEqual([])
+	})
+
+	it('has values written as they are as types of just those values', () => {
+		const t = typeOf('(| "red" number)')
+		expect(t.fits('red')).toBe(true)
+		expect(t.fits('blue')).toBe(false)
+		expect(t.fits(3)).toBe(true)
+		expect(t.default).toBe('red')
+		expect(typeFits(typeOf('(| "a" "b")'), typeOf('string'))).toBe(true)
+		expect(typeFits(typeOf('(| "a" "b")'), typeOf('(| "a" "b" "c")'))).toBe(true)
+		expect(typeFits(typeOf('string'), typeOf('(| "a" "b")'))).toBe(false)
+	})
+})
+
+describe('what can be left out', () => {
+	it('is a union with unit, which y?: T stands for', () => {
+		const written = resolveTypeSlot(parse('{x: number y?: string}'), env)!
+		const spelled = resolveTypeSlot(parse('{x: number y: (| string unit)}'), env)!
+		expect(written.typeName).toBe('{x: number y?: string}')
+		expect(spelled.typeName).toBe('{x: number y?: string}')
+		expect(typeFits(written, spelled) && typeFits(spelled, written)).toBe(true)
+		expect(written.fits({ x: 1 })).toBe(true)
+		expect(written.fits({ x: 1, y: 2 })).toBe(false)
+	})
+
+	it('is the default of what it is besides when left out, and stays () when it is ()', () => {
+		expect(run('{f = (=> (y?: number): _ y) (f)}').value).toBe(0)
+		const passed = run('{f = (=> (y?: number): _ y) (f ())}')
+		expect(passed.value).toBe(UNIT)
+		expect(passed.diagnostics).toEqual([])
+		const spelled = run('{f = (=> (y: (| number unit)): _ y) (f)}')
+		expect(spelled.value).toBe(0)
+		expect(spelled.diagnostics).toEqual([])
+		expect(run('(: () (| unit number))').value).toBe(UNIT)
 	})
 })

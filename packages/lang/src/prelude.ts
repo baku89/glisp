@@ -29,8 +29,6 @@ import {
 	IO,
 	isGlispClosure,
 	isTypeValue,
-	literalValue,
-	withWritten,
 	makeFunctionType,
 	makeTopLevel,
 	makeTupleType,
@@ -165,7 +163,7 @@ export const ioType: TypeValue = makeIOType(topType)
 const vectorType: TypeValue = makeTupleType([], topType)
 
 /**
- * What `enum` and `refine` return. Calling one is a type expression, so a
+ * What `refine` returns. Calling one is a type expression, so a
  * checker reads the type itself rather than stopping at this.
  */
 const typeType: TypeValue = makeType('type', isTypeValue, topType)
@@ -817,10 +815,6 @@ export function buildPrelude(): Env {
 		// -----------------------------------------------------------------
 		// Type constructors
 		// -----------------------------------------------------------------
-		enum: bind(
-			'A type of just the values given. It defaults to the first.',
-			host(makeEnum())
-		),
 		refine: bind(
 			'The values of `base` that meet `pred`, falling back to `default`.',
 			host(makeRefine())
@@ -992,47 +986,8 @@ function makeReduce(): TypedHostFn {
 }
 
 // -----------------------------------------------------------------------------
-// Type constructors — enum, refine
+// Type constructors — refine
 // -----------------------------------------------------------------------------
-
-/**
- * `(enum v0 v1 ...)` — produce a finite-set type whose values are exactly
- * those listed. The default is the first listed value.
- */
-function makeEnum(): TypedHostFn {
-	return withWritten(
-		makeTypedFn(
-			[topType],
-			typeType,
-			(first, ...rest) => {
-				const set = new Set([first, ...rest])
-				const tail = rest.map(showValue).join(' ')
-				const name =
-					rest.length === 0
-						? `(enum ${showValue(first)})`
-						: `(enum ${showValue(first)} ${tail})`
-				return makeType(name, v => set.has(v), first, {
-					kind: 'enum',
-					values: set,
-				})
-			},
-			['first'],
-			topType
-		),
-		(type, args) => {
-			const about = new Map(
-				args.flatMap(arg => {
-					const value = arg.kind === 'meta' ? literalValue(arg) : undefined
-					return arg.kind === 'meta' && value !== undefined
-						? [[value, arg.metadata] as const]
-						: []
-				})
-			)
-			if (about.size === 0 || !isTypeValue(type)) return type
-			return Object.create(type, { shape: { value: { ...type.shape, about } } })
-		}
-	)
-}
 
 /**
  * `(refine base default pred)` — narrow `base` to the subset for which

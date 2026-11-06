@@ -65,7 +65,7 @@ describe('tokenizeLine', () => {
 	it('calls nothing in a list of parameters', () => {
 		expect(scopeIn('(=> (T) (x: T): T x)', 'T')).toBe('identifier')
 		expect(scopeIn('(=> (Foo Foo): Foo)', 'Foo')).toBe('identifier')
-		expect(scopeIn('(=> (x: (enum "a")): T x)', 'enum')).toBe('function')
+		expect(scopeIn('(=> (x: (refine number 0 p)): T x)', 'refine')).toBe('function')
 	})
 
 	it('has the literals and what is reserved', () => {

@@ -95,7 +95,7 @@ Types are first-class values. The prelude binds `number`, `string`, `boolean`, `
 <!-- test -->
 ```glisp
 ;; Enumeration of literal members
-Color = (enum "red" "green" "blue")
+Color = (| "red" "green" "blue")
 
 ;; Refinement: a base type narrowed by a predicate, with a default
 Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
@@ -115,7 +115,7 @@ Size = (| number [number number])
 ```glisp
 (: 42 number)          ;; → 42
 (: "oops" number)      ;; → 0   (default; diagnostic emitted)
-Color = (enum "red" "green" "blue")
+Color = (| "red" "green" "blue")
 Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
 
 (: "red" Color)        ;; → "red"

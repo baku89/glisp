@@ -42,7 +42,7 @@ export interface LineToken {
 }
 
 const KEYWORDS = new Set(['|>', '%', '&'])
-const TYPES = new Set(['number', 'string', 'boolean', 'unit', 'vector', 'enum', 'IO'])
+const TYPES = new Set(['number', 'string', 'boolean', 'unit', 'vector', '|', 'IO'])
 
 /** A name that is given something right after it: `a = 1`, `x: 1`, `(f x: 1)`, `y?: 1`. */
 const BOUND = /^\s*\??\s*(?::|=(?![=>]))/

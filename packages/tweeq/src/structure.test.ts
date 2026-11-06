@@ -26,7 +26,7 @@ describe('viewOf', () => {
 
 	it('gives a literal an enum widget where the slot expects one', () => {
 		const session = new Session(env)
-		session.exec('Join = (enum "round" "butt")')
+		session.exec('Join = (| "round" "butt")')
 		session.exec('f = (=> (j: Join): Join j)')
 		const call = parse('(f "butt")')
 		const slot = viewOf(call, session.env).slots[0]!
@@ -39,7 +39,7 @@ describe('viewOf', () => {
 
 	it('gives an enum widget the icons its type says, one for each value', () => {
 		const session = new Session(env)
-		session.exec('Join = (enum ^{icon: "a"} "round" ^{icon: "b"} "butt")')
+		session.exec('Join = (| ^{icon: "a"} "round" ^{icon: "b"} "butt")')
 		session.exec('f = (=> (j: Join): Join j)')
 		const slot = viewOf(parse('(f "butt")'), session.env).slots[0]!
 		expect(viewOf(slot.ast, slot.env, slot.expected).editor).toMatchObject({
@@ -47,7 +47,7 @@ describe('viewOf', () => {
 			icons: ['a', 'b'],
 		})
 
-		session.exec('Short = (enum ^{icon: "a"} "round" "butt")')
+		session.exec('Short = (| ^{icon: "a"} "round" "butt")')
 		session.exec('g = (=> (j: Short): Short j)')
 		const short = viewOf(parse('(g "butt")'), session.env).slots[0]!
 		expect(viewOf(short.ast, short.env, short.expected).editor).not.toHaveProperty('icons')
@@ -55,7 +55,7 @@ describe('viewOf', () => {
 
 	it('finds no problem with a literal that is one of an enum, and does with one that is not', () => {
 		const session = new Session(env)
-		session.exec('J = (enum "a" "b")')
+		session.exec('J = (| "a" "b")')
 		const read = (ast: AST, at: Env) => evaluate(ast, at)
 		const [fine] = viewOf(parse('(: "a" J)'), session.env).slots
 		expect(problemOf(fine!.ast, fine!.env, fine!.expected, read)).toBeNull()
@@ -310,18 +310,18 @@ describe('forms that are not calls', () => {
 	it('says what a cast is, by what it is to', () => {
 		expect(view('(: 20 number)').castTo?.label).toBe('Number')
 		expect(view('(: 20 number)').castTo?.doc).not.toContain('`')
-		expect(view('(: 20 (enum 20 30))').castTo?.label).toBeNull()
+		expect(view('(: 20 (| 20 30))').castTo?.label).toBeNull()
 		expect(view('(: 20)').castTo).toBeUndefined()
 	})
 
 	it('calls what is in a cast only what it is cast to, if that has a name', () => {
-		expect(view('(: 20 (enum 20 30))').slots.map(s => s.label)).toEqual(['Value'])
+		expect(view('(: 20 (| 20 30))').slots.map(s => s.label)).toEqual(['Value'])
 		expect(view('(: 20)').slots.map(s => s.label)).toEqual(['Value'])
 	})
 
 	it('expects of a cast the type it casts to', () => {
 		const session = new Session(env)
-		session.exec('J = (enum "a" "b")')
+		session.exec('J = (| "a" "b")')
 		const [value] = viewOf(parse('(: "a" J)'), session.env).slots
 		expect(viewOf(value!.ast, value!.env, value!.expected).editor?.kind).toBe('enum')
 		expect(print(value!.replace(parse('"b"')))).toBe('(: "b" J)')
@@ -1382,7 +1382,7 @@ describe('a string, that comes from elsewhere', () => {
 	})
 
 	it('has the widget it would have had if written', () => {
-		const shades = evaluate(parse('(enum "a" "b")'), env).value as Parameters<typeof editorOfValue>[1]
+		const shades = evaluate(parse('(| "a" "b")'), env).value as Parameters<typeof editorOfValue>[1]
 		const seed = evaluate(parse('seed'), env).value as Parameters<typeof editorOfValue>[1]
 		expect(editorOfValue(42, seed)).toEqual({ kind: 'number', value: 42, seed: true })
 		expect(editorOfValue(42, null)).toEqual({ kind: 'number', value: 42 })

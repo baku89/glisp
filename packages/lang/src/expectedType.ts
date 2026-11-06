@@ -20,7 +20,7 @@
  * Returns `null` when no type information is available.
  */
 
-import { resolveTypeSlot } from './infer.js'
+import { paramTypeOf, resolveTypeSlot } from './infer.js'
 import {
 	evaluate,
 	isGlispClosure,
@@ -58,7 +58,7 @@ export function expectedTypeAt(
 				const idx = Number(slot.slice('param:'.length))
 				const p = parent.params[idx]
 				if (p === undefined) return null
-				return resolveTypeSlot(p.type, env)
+				return paramTypeOf(p, env)
 			}
 			return null
 		}
@@ -85,7 +85,7 @@ function expectedAtCall(
 		if (isGlispClosure(head)) {
 			const param = head.ast.params.find(p => p.name === slot)
 			if (param === undefined) return null
-			return resolveTypeSlot(param.type, head.capturedEnv)
+			return paramTypeOf(param, head.capturedEnv)
 		}
 		return null
 	}
@@ -99,7 +99,7 @@ function expectedAtCall(
 	if (isGlispClosure(head)) {
 		const param = head.ast.params[argIdx]
 		if (param === undefined) return null
-		return resolveTypeSlot(param.type, head.capturedEnv)
+		return paramTypeOf(param, head.capturedEnv)
 	}
 	if (isTypeValue(head) && argIdx === 0) {
 		return head

@@ -130,26 +130,26 @@ describe('prelude — higher-order functions', () => {
 describe('prelude — type constructors', () => {
 	const env = buildPrelude()
 
-	it('keeps what is said about each value of an enum, which is the same type without it', () => {
+	it('keeps what is said about each value of a union of them, which is the same type without it', () => {
 		const env = buildPrelude()
-		const about = evaluate(parse('(enum ^{icon: "x"} "r" "g")'), env).value as TypeValue
+		const about = evaluate(parse('(| ^{icon: "x"} "r" "g")'), env).value as TypeValue
 		const { shape } = unwrapLazy(about)
-		if (shape.kind !== 'enum') throw new Error('not an enum')
-		expect(shape.about!.get('r')!.print()).toBe('{icon: "x"}')
-		expect(shape.about!.has('g')).toBe(false)
-		expect(about.typeName).toBe('(enum "r" "g")')
+		if (shape.kind !== 'union') throw new Error('not a union')
+		expect(shape.members[0]!.meta?.print()).toBe('{icon: "x"}')
+		expect(shape.members[1]!.meta).toBeUndefined()
+		expect(about.typeName).toBe('(| "r" "g")')
 		expect(about.fits('g')).toBe(true)
-		const plain = evaluate(parse('(enum "r" "g")'), env).value as TypeValue
+		const plain = evaluate(parse('(| "r" "g")'), env).value as TypeValue
 		expect(typeFits(about, plain) && typeFits(plain, about)).toBe(true)
 	})
 
 	it('(: v T) coerces an enum member through to its value', () => {
-		const r = evaluate(parse('{C = (enum "r" "g" "b") (: "g" C)}'), env)
+		const r = evaluate(parse('{C = (| "r" "g" "b") (: "g" C)}'), env)
 		expect(r.value).toBe('g')
 	})
 
 	it('(: v T) on a non-member falls back to the first listed value', () => {
-		const r = evaluate(parse('{C = (enum "r" "g" "b") (: "purple" C)}'), env)
+		const r = evaluate(parse('{C = (| "r" "g" "b") (: "purple" C)}'), env)
 		expect(r.value).toBe('r')
 		expect(
 			r.diagnostics.some(d => d.message.includes("doesn't accept"))
@@ -275,7 +275,7 @@ describe('prelude — parametric IO', () => {
 
 	it('rejects non-type arguments', () => {
 		const env = buildPrelude()
-		const r = evaluate(parse('(IO 42)'), env)
+		const r = evaluate(parse('(IO (+ 1 2))'), env)
 		expect(
 			r.diagnostics.some(d => d.message.includes('expects type arguments'))
 		).toBe(true)

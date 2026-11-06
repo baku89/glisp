@@ -4,7 +4,7 @@
  * Spec: docs/spec/types.md — Type inference
  *
  * The only thing ever evaluated is a type expression, since types are values:
- * working out `(enum "a" "b")` means calling `enum`. A value expression is
+ * working out `(| "a" "b")` means calling `|`. A value expression is
  * never forced, however it is reached.
  *
  * Signatures are mandatory, so types flow locally rather than through a global
@@ -35,6 +35,9 @@ import {
 	makeRecordType,
 	makeTupleType,
 	makeUnionType,
+	makeLiteralType,
+	omittable,
+	unitType as unitTypeValue,
 	makeType,
 	makeTypeVar,
 	numberType,
@@ -139,6 +142,8 @@ function computeTypeSlot(ast: AST, env: Env): TypeValue | null {
 			return recordSlot(ast, env)
 		case 'fn':
 			return ast.body === null ? functionTypeOfLiteral(ast, env) : null
+		case 'lit':
+			return literalSlot(ast.value)
 		case 'sym':
 			return symbolSlot(ast.name, env) ?? typeFromEvaluating(ast, env)
 		case 'call':
@@ -148,9 +153,30 @@ function computeTypeSlot(ast: AST, env: Env): TypeValue | null {
 	}
 }
 
+/**
+ * The type a parameter is declared to have, `(| T unit)` for one written `y?: T`, as
+ * it can be left out. Null if its type does not come to one.
+ */
+export function paramTypeOf(
+	param: { readonly type: AST; readonly optional?: boolean },
+	env: Env
+): TypeValue | null {
+	const type = resolveTypeSlot(param.type, env)
+	return type !== null && param.optional === true ? omittable(type) : type
+}
+
 function typeFromEvaluating(ast: AST, env: Env): TypeValue | null {
 	const value = evaluate(ast, env).value
 	return isTypeValue(value) ? value : null
+}
+
+/** A value written where a type is wanted is the type of just that value, and `()` is `unit`. */
+function literalSlot(value: unknown): TypeValue | null {
+	if (isTypeValue(value)) return value
+	if (value === UNIT) return unitTypeValue
+	return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean'
+		? makeLiteralType(value)
+		: null
 }
 
 function tupleSlot(ast: VecAST, env: Env): TypeValue | null {
@@ -268,7 +294,7 @@ function functionTypeOfLiteral(fn: FnAST, env: Env): TypeValue {
 	let variadicTail: TypeValue | undefined
 	let variadicName: string | undefined
 	for (const param of fn.params) {
-		const type = resolveTypeSlot(param.type, typeEnv) ?? top()
+		const type = paramTypeOf(param, typeEnv) ?? top()
 		if (param.variadic) {
 			variadicTail = type
 			variadicName = param.name
@@ -717,7 +743,7 @@ export function checkCall(
 	const shape = unwrapLazy(head).shape
 	if (shape.kind === 'function') {
 		const result = applyFunctionType(head, ast, inside, report)
-		// `(enum "a" "b")`: calling a type constructor is a type expression.
+		// `(refine T d p)`: calling a type constructor is a type expression.
 		return result?.typeName === 'type'
 			? (resolveTypeSlot(ast, inside) ?? result)
 			: result

@@ -13,6 +13,7 @@ import { desugar } from './desugar.js'
 import {
 	infer,
 	callParameters,
+	paramTypeOf,
 	resolveTypeSlot,
 	solveClosureGenerics,
 } from './infer.js'
@@ -144,7 +145,7 @@ function invokeClosureFromJS(c: GlispClosure, args: unknown[]): unknown {
  * `makeType` (number, string, top, etc.); compatibility there is by
  * `===` identity. The other kinds expose the constituent types so a
  * checker can recurse: `function` has `paramTypes` / `returnType`,
- * `enum` has its value set, `refine` keeps a pointer to the base.
+ * `literal` has its one value, `refine` keeps a pointer to the base.
  */
 export type TypeShape =
 	| { readonly kind: 'primitive' }
@@ -159,12 +160,8 @@ export type TypeShape =
 			/** Type variables this signature is generic over. */
 			readonly generics?: ReadonlyArray<string>
 	  }
-	| {
-			readonly kind: 'enum'
-			readonly values: ReadonlySet<unknown>
-			/** What is said about each value, where it was written with `^{...}`. */
-			readonly about?: ReadonlyMap<unknown, RecordAST>
-	  }
+	/** A value written where a type is wanted: the type of just that value. */
+	| { readonly kind: 'literal'; readonly value: number | string | boolean }
 	| { readonly kind: 'refine'; readonly base: TypeValue }
 	/** `(| A B)`: the values of any of `members`. With none, it is no value at all. */
 	| { readonly kind: 'union'; readonly members: ReadonlyArray<TypeValue> }
@@ -378,6 +375,42 @@ export function printType(type: TypeValue): string {
 		: new MetaASTClass(type.meta, new SymASTClass(type.typeName)).print()
 }
 
+const literalTypes = new Map<unknown, TypeValue>()
+
+/**
+ * The type of just `value`, as `"round"` is where a type is wanted. A union of
+ * them, `(| "round" "butt")`, is a type of just those values.
+ */
+export function makeLiteralType(value: number | string | boolean): TypeValue {
+	const known = literalTypes.get(value)
+	if (known !== undefined) return known
+	const type = makeType(new LitASTClass(value).print(), v => v === value, value, {
+		kind: 'literal',
+		value,
+	})
+	literalTypes.set(value, type)
+	return type
+}
+
+/**
+ * Whether a slot of `type` can be left out: what is left out is `()`, and so it can
+ * if `unit` is one of what it is, as `y?: T` says, which is `y: (| T unit)`.
+ */
+export function isOmittable(type: TypeValue | null): boolean {
+	if (type === null) return false
+	const resolved = unwrapLazy(type)
+	if (resolved.typeName === 'unit') return true
+	return (
+		resolved.shape.kind === 'union' &&
+		resolved.shape.members.some(t => unwrapLazy(t).typeName === 'unit')
+	)
+}
+
+/** `type`, or nothing: `(| type unit)`, which `y?: type` stands for. */
+export function omittable(type: TypeValue): TypeValue {
+	return makeUnionType([type, unitType])
+}
+
 /**
  * `(| A B ...)`: the values of any of `members`, defaulting to the first one's
  * default. A union in it is spread out into its members, the same type twice is
@@ -465,15 +498,23 @@ export function makeTupleType(
 	)
 }
 
-/** `{x: T y?: U}`. */
+/**
+ * `{x: T y?: U}`. `y?: U` is `y: (| U unit)`, and a field of a type that `()` fits
+ * can be missing, as what is read of a missing field is `()`.
+ */
 export function makeRecordType(
-	fields: ReadonlyMap<string, TypeValue>,
+	written: ReadonlyMap<string, TypeValue>,
 	optional: ReadonlySet<string> = new Set()
 ): TypeValue {
+	const fields: ReadonlyMap<string, TypeValue> =
+		optional.size === 0
+			? written
+			: new Map([...written].map(([key, type]) => [key, optional.has(key) ? omittable(type) : type]))
+	const omits = new Set([...fields].filter(([, type]) => isOmittable(type)).map(([key]) => key))
 	const defaults: Record<string, unknown> = {}
 	for (const [key, type] of fields) defaults[key] = type.default
-	const parts = [...fields].map(
-		([key, type]) => `${key}${optional.has(key) ? '?' : ''}: ${type.typeName}`
+	const parts = [...fields].map(([key, type]) =>
+		omits.has(key) ? `${key}?: ${withoutUnit(type).typeName}` : `${key}: ${type.typeName}`
 	)
 	return makeType(
 		`{${parts.join(' ')}}`,
@@ -482,7 +523,7 @@ export function makeRecordType(
 			const record = v as Record<string, unknown>
 			for (const [key, type] of fields) {
 				if (!(key in record)) {
-					if (!optional.has(key)) return false
+					if (!omits.has(key)) return false
 				} else if (!type.fits(record[key])) {
 					return false
 				}
@@ -490,8 +531,16 @@ export function makeRecordType(
 			return true
 		},
 		defaults,
-		{ kind: 'record', fields, optional }
+		{ kind: 'record', fields, optional: omits }
 	)
+}
+
+/** What `type` is besides `()`: `T` of `(| T unit)`. */
+export function withoutUnit(type: TypeValue): TypeValue {
+	const resolved = unwrapLazy(type)
+	if (resolved.shape.kind !== 'union') return type
+	const rest = resolved.shape.members.filter(t => unwrapLazy(t).typeName !== 'unit')
+	return rest.length === resolved.shape.members.length ? type : makeUnionType(rest)
 }
 
 export function isTypeValue(v: unknown): v is TypeValue {
@@ -556,7 +605,7 @@ export function makeFunctionType(
 /**
  * Does every value of `actual` belong to `expected`? Types are sets of values,
  * so this is subtyping, and it is structural: tuples fit vectors, records may
- * have extra fields, `(enum "a")` fits `string`, and a refinement fits its base.
+ * have extra fields, `"a"` fits `string`, and a refinement fits its base.
  *
  * - `_` as `actual` means "not known" rather than "anything", so it fits. Only
  *   what is known to be wrong gets rejected.
@@ -593,12 +642,9 @@ function fitsGuarded(
 	const a = actual.shape
 	const e = expected.shape
 	// A union fits where each of its members does, and a type fits a union where
-	// it fits one of its members, or, for an enum, where each value fits one.
+	// it fits one of its members.
 	if (a.kind === 'union') return a.members.every(t => fits(t, expected))
-	if (e.kind === 'union') {
-		if (e.members.some(t => fits(actual, t))) return true
-		return a.kind === 'enum' && [...a.values].every(value => expected.fits(value))
-	}
+	if (e.kind === 'union') return e.members.some(t => fits(actual, t))
 	if (a.kind === 'var' || e.kind === 'var') {
 		return a.kind === 'var' && e.kind === 'var' && a.name === e.name
 	}
@@ -611,13 +657,8 @@ function fitsGuarded(
 			a.args.every((arg, i) => fits(arg, e.args[i]!))
 		)
 	}
+	if (a.kind === 'literal') return expected.fits(a.value)
 	if (a.kind === 'refine' && e.kind !== 'refine') return fits(a.base, expected)
-	if (a.kind === 'enum' && e.kind !== 'enum') {
-		return [...a.values].every(value => expected.fits(value))
-	}
-	if (a.kind === 'enum' && e.kind === 'enum') {
-		return [...a.values].every(value => e.values.has(value))
-	}
 	if (a.kind === 'function' && e.kind === 'function') {
 		if (
 			a.variadicTail === undefined &&
@@ -842,7 +883,7 @@ export function literalValue(ast: AST): unknown {
 
 /**
  * Whether an argument can go in a slot. Its type says so, or else what is written does:
- * `"round"` is a `string`, which does not fit `(enum "round" "butt")`, though it is one.
+ * `"round"` is a `string`, which does not fit `(| "round" "butt")`, though it is one.
  */
 export function argFits(
 	arg: AST,
@@ -1957,7 +1998,7 @@ function applyClosure(
 	// type itself is referenced.
 	const paramTypes: Array<TypeValue | null> = []
 	for (const param of fnAst.params) {
-		const type = resolveTypeSlot(param.type, typeEvalEnv)
+		const type = paramTypeOf(param, typeEvalEnv)
 		// `_` (top) is a no-op cast, so skip it.
 		paramTypes.push(type !== null && type.typeName !== '_' ? type : null)
 	}
@@ -2044,9 +2085,9 @@ function applyClosure(
 			continue
 		}
 
-		if (param.optional) {
+		if (param.optional || isOmittable(paramType)) {
 			// Optional missing → bind to the param type's default (silent
-			// fallback). With no declared type, fall back to UNIT.
+			// fallback), which for `(| T unit)` is T's. With no declared type, UNIT.
 			const defaultValue = paramType !== null ? paramType.default : UNIT
 			map.set(param.name, {
 				ast: new LitASTClass(defaultValue as never),
@@ -2372,7 +2413,7 @@ function variantMatches(
 	for (let i = 0; i < positional.length; i++) {
 		const param = fnAst.params[i] ?? fnAst.params[fnAst.params.length - 1]
 		if (param === undefined) continue
-		const t = resolveTypeSlot(param.type, variant.capturedEnv)
+		const t = paramTypeOf(param, variant.capturedEnv)
 		if (t === null) continue
 		const inferred = argTypes[i]
 		if (inferred === null || inferred === undefined) continue

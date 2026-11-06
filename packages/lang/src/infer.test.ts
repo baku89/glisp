@@ -180,9 +180,15 @@ describe('type slots', () => {
 		)
 	})
 
+	it('takes a value written as it is for the type of just that value', () => {
+		expect(resolveTypeSlot(parse('1'), env)?.typeName).toBe('1')
+		expect(resolveTypeSlot(parse('[1 "a"]'), env)?.typeName).toBe('[1 "a"]')
+		expect(resolveTypeSlot(parse('()'), env)?.typeName).toBe('unit')
+		expect(value('(: 2 1)')).toBe(1)
+	})
+
 	it('rejects what is not a type', () => {
-		expect(resolveTypeSlot(parse('1'), env)).toBeNull()
-		expect(resolveTypeSlot(parse('[1 2]'), env)).toBeNull()
+		expect(resolveTypeSlot(parse('(+ 1 2)'), env)).toBeNull()
 		expect(resolveTypeSlot(parse('[...number string]'), env)).toBeNull()
 		expect(resolveTypeSlot(parse('nope'), env)).toBeNull()
 	})
@@ -253,10 +259,10 @@ describe('subtyping', () => {
 	})
 
 	it('fits an enum and a refinement to their base', () => {
-		expect(typeFits(slot('(enum "a" "b")'), slot('string'))).toBe(true)
-		expect(typeFits(slot('(enum "a" "b")'), slot('number'))).toBe(false)
-		expect(typeFits(slot('string'), slot('(enum "a" "b")'))).toBe(false)
-		expect(typeFits(slot('(enum "a")'), slot('(enum "a" "b")'))).toBe(true)
+		expect(typeFits(slot('(| "a" "b")'), slot('string'))).toBe(true)
+		expect(typeFits(slot('(| "a" "b")'), slot('number'))).toBe(false)
+		expect(typeFits(slot('string'), slot('(| "a" "b")'))).toBe(false)
+		expect(typeFits(slot('(| "a")'), slot('(| "a" "b")'))).toBe(true)
 		const positive = '(refine number 1 (=> (x: number): boolean (> x 0)))'
 		expect(typeFits(slot(positive), slot('number'))).toBe(true)
 		expect(typeFits(slot('number'), slot(positive))).toBe(false)
@@ -342,7 +348,7 @@ describe('check', () => {
 	})
 
 	it('takes a literal that is one of an enum, as an argument and as what is returned', () => {
-		const J = '(enum "a" "b")'
+		const J = '(| "a" "b")'
 		expect(problems(`{f = (=> (j: ${J}): number 1) (f "a")}`)).toEqual([])
 		expect(problems(`{f = (=> (j: ${J}): number 1) (f "z")}`)).toHaveLength(1)
 		expect(problems(`(=> (x: number): ${J} "a")`)).toEqual([])
@@ -372,7 +378,7 @@ describe('check', () => {
 			'(reduce (range 0 3) 0 +)',
 			'(|> 1 (+ % 1) (* % 2))',
 			'{Point = {x: number y: number} (=> (p: Point): number p.x)}',
-			'{Color = (enum "r" "g") (=> (c: Color): string c)}',
+			'{Color = (| "r" "g") (=> (c: Color): string c)}',
 		]) {
 			expect(problems(src), src).toEqual([])
 		}

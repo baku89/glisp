@@ -229,11 +229,11 @@ describe('Value builders (type values)', () => {
 		expect(g.vector(g.vector(g.number)).print()).toBe('[...[...number]]')
 	})
 
-	it('enum(...vs) produces an (enum ...) call AST', () => {
-		expect(g.enum('round', 'butt', 'square').print()).toBe(
-			'(enum "round" "butt" "square")'
+	it('oneOf(...vs) produces a (| ...) call AST', () => {
+		expect(g.oneOf('round', 'butt', 'square').print()).toBe(
+			'(| "round" "butt" "square")'
 		)
-		expect(g.enum(1, 2, 3).print()).toBe('(enum 1 2 3)')
+		expect(g.oneOf(1, 2, 3).print()).toBe('(| 1 2 3)')
 	})
 
 	it('fn() chain — object form for params', () => {

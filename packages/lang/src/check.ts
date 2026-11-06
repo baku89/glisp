@@ -56,7 +56,8 @@ function walk(ast: AST, env: Env, diagnostics: Diagnostic[]): void {
 		case 'access':
 			return walk(ast.target, env, diagnostics)
 		case 'meta': {
-			if (ast.metadata.get('default') !== undefined) {
+			// A value written as it is, as `^{default: 7} 5`, is a value here and not its type.
+			if (ast.metadata.get('default') !== undefined && ast.expr.kind !== 'lit') {
 				const type = resolveTypeSlot(ast.expr, env)
 				if (type !== null) {
 					diagnostics.push(

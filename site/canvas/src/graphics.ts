@@ -1032,7 +1032,7 @@ const enumOf = (icons: Readonly<Record<string, string>>): TypeValue => {
 	const values = Object.entries(icons).map(
 		([value, icon]) => `^{icon: ${JSON.stringify(icon)}} ${JSON.stringify(value)}`
 	)
-	return evaluate(parse(`(enum ${values.join(' ')})`), buildPrelude()).value as TypeValue
+	return evaluate(parse(`(| ${values.join(' ')})`), buildPrelude()).value as TypeValue
 }
 
 /** What colors go from one to another by, and how it looks on the way. */

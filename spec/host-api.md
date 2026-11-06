@@ -107,7 +107,7 @@ A host function that throws yields `()` with a diagnostic.
 
 A parameter is required, and leaving it out is a diagnostic. `withOptional(fn, ['a'])` lets it go unpassed, when it quietly takes its type's default, as `a?:` does in a function literal.
 
-A host function gets values, in which nothing is left of how they were written. `withWritten(fn, (value, args) => ...)` goes over what it returned, given the arguments as written. This is how `enum` keeps what is said about each of its values, in `shape.about`.
+A host function gets values, in which nothing is left of how they were written. `withWritten(fn, (value, args) => ...)` goes over what it returned, given the arguments as written.
 
 ### A more precise type
 
@@ -244,7 +244,7 @@ The builders are functions, also collected as `g`:
 | `pin(a)`, `unpin(a)`             | `@a`, and `a` from it. `isPinned(a)` asks |
 | `hide(a)`, `unhide(a)`           | `#_a`, and `a` from it. `isHidden(a)` asks |
 
-`g.number`, `g.string`, `g.boolean`, `g.unit`, `g.top`, `g.bottom`, `g.vector(T)` and `g.enum('a', 'b')` build **ASTs** of type expressions: they are what you would write in source, not `TypeValue`s.
+`g.number`, `g.string`, `g.boolean`, `g.unit`, `g.top`, `g.bottom`, `g.vector(T)` and `g.oneOf('a', 'b')` (which is `(| "a" "b")`) build **ASTs** of type expressions: they are what you would write in source, not `TypeValue`s.
 
 ## Editing
 

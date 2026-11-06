@@ -280,16 +280,13 @@ export function vectorType(T: AST): VecAST {
 }
 
 /**
- * `(enum v1 v2 ...)` — enum type with the given literal values. Each value
- * is auto-lifted to a `LitAST`.
+ * `(| v1 v2 ...)`: the type of just the literal values given, each of which is a
+ * type of that value alone.
  */
-function enumValueOf(v: number | string | boolean): AST {
-	return lit(v)
-}
-export function enumType(
+export function oneOfType(
 	...values: ReadonlyArray<number | string | boolean>
 ): CallAST {
-	return call(sym('enum'), ...values.map(enumValueOf))
+	return call(sym('|'), ...values.map(v => lit(v)))
 }
 
 // -----------------------------------------------------------------------------
@@ -326,5 +323,5 @@ export const g = {
 	bottom: bottomType,
 	ast: astType,
 	vector: vectorType,
-	enum: enumType,
+	oneOf: oneOfType,
 }
