@@ -86,13 +86,25 @@ describe('spray', () => {
 })
 
 describe('arcStrip', () => {
-	it('goes through its places by arcs, as a line', () => {
+	it('is a group of arcs, each through three places in a row, going on from the one before by what they have in common', () => {
 		const state = go(arcStrip, [...click([0, 0]), ...click([50, 50]), ...click([100, 0]), ...click([150, 50])])
 		const { source, shapes } = row(arcStrip, state)
-		expect(source).toContain('(path.arcStrip [[0 0] [50 50] [100 0] [150 50]])')
+		expect(source).toMatch(/^\[arc1 = .*\(path\.arcThrough \[0 0\] \[50 50\] \[100 0\]\).* arc2 = .*\(path\.arcThrough \S*arc1\/(?:path:\/)?through: \S*arc1\/(?:path:\/)?end: \[150 50\]\)/)
 		expect(source).not.toContain('fill=')
-		expect(shapes).toHaveLength(1)
-		expect((shapes[0]!.value as { curves: unknown[] }).curves).toHaveLength(2)
+		expect(shapes).toHaveLength(2)
+	})
+
+	it('goes on going through a place the arcs have in common, as it moves', () => {
+		const state = go(arcStrip, [...click([0, 0]), ...click([50, 50]), ...click([100, 0]), ...click([150, 50])])
+		const moved = parse(print(brushed(blank, env, arcStrip, state, context, true)).replace('[100 0]', '[100 20]'))
+		const arcs = sceneOf(moved, env)
+			.map(shape => shape.row)
+			.sort()
+			.map(row => gripAt(moved, env, row)!.handles.map(h => h.at))
+		expect(arcs).toEqual([
+			[[0, 0], [50, 50], [100, 20]],
+			[[50, 50], [100, 20], [150, 50]],
+		])
 	})
 
 	it('is a line while there are only two places, and not a mistake for three in a line', () => {
@@ -245,7 +257,7 @@ describe('what a brush has drawn', () => {
 	const gripOf = (source: string) => gripAt(parse(`{[a = ${source}]}`), env, 'binding:a')!
 
 	it('can be taken hold of at its places, and moved as a whole', () => {
-		const grip = gripOf('(path.arcStrip [[0 0] [50 50] [100 0]])')
+		const grip = gripOf('(triangleStrip [[0 0] [50 50] [100 0]] 3 "#ff0000" "#0000ff")')
 		expect(grip.handles.map(handle => handle.at)).toEqual([[0, 0], [50, 50], [100, 0]])
 		expect(grip.move!([1, 2])).toEqual([{ route: [0], value: [[1, 2], [51, 52], [101, 2]] }])
 		expect(grip.handles[1]!.to([9, 9], [50, 50])).toEqual([{ route: [0], value: [[0, 0], [9, 9], [100, 0]] }])

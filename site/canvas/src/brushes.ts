@@ -115,13 +115,26 @@ const placing = {
 const through = ({ places: put, at }: PlacesState, final: boolean): readonly Vec[] =>
 	final || at === null ? put : [...put, at]
 
+/**
+ * Arcs, each through three places in a row, as a group: each going on from the one before through
+ * the two they have in common, which it refers to there, so that they go on going through them.
+ * Two places are only a line.
+ */
 export const arcStrip: Brush<PlacesState> = {
 	kind: 'arcStrip',
-	painted: 'line',
+	painted: 'itself',
 	...placing,
-	source: (state, _, final) => {
+	source: (state, { paint }, final) => {
 		const points = through(state, final)
-		return points.length < 2 ? null : `(path.arcStrip ${places(points)})`
+		if (points.length < 2) return null
+		if (points.length === 2) return lineInPaint(`(path.line ${place(points[0]!)} ${place(points[1]!)})`, paint)
+		// What is in a style is a level further in, both the arc referring and the one it refers to.
+		const of = (i: number, part: string) => (paint.stroke === 'none' ? `../arc${i}/${part}:` : `../../arc${i}/path:/${part}:`)
+		const arcs = points.slice(2).map((end, i) => {
+			const [start, by] = i === 0 ? [place(points[0]!), place(points[1]!)] : [of(i, 'through'), of(i, 'end')]
+			return `arc${i + 1} = ${lineInPaint(`(path.arcThrough ${start} ${by} ${place(end)})`, paint)}`
+		})
+		return `[${arcs.join(' ')}]`
 	},
 }
 

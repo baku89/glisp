@@ -675,6 +675,30 @@ describe('a circle drawn through places', () => {
 	})
 })
 
+describe('an arc through three places', () => {
+	it('goes from the first through the second to the last, and comes to an arc around its center, as a step', () => {
+		const stepped = withSlotCommand(parse('[a = (path.arcThrough [0 0] [50 -50] [100 0])]'), env, ['binding:a'], 'step')!
+		expect(print(stepped)).toContain('a = (path.arc [50 0] 50 180 360)')
+		const under = withSlotCommand(parse('[a = (path.arcThrough [0 0] [50 50] [100 0])]'), env, ['binding:a'], 'step')!
+		expect(print(under)).toContain('a = (path.arc [50 0] 50 180 0)')
+	})
+
+	it('has its places as handles, and where it goes round to refer to', () => {
+		const root = parse('{a = (path.arcThrough [0 0] [50 -50] [100 0])}')
+		expect(gripAt(root, env, 'binding:a')!.handles.map(h => h.at)).toEqual([[0, 0], [50, -50], [100, 0]])
+		const center = snapPointsOf(root, env, sceneOf(root, env)).find(p => p.label === 'center')!
+		expect(center.at[0]).toBeCloseTo(50)
+		expect(center.at[1]).toBeCloseTo(0)
+		expect(center.code).toBeDefined()
+	})
+
+	it('is a line, for three in a line', () => {
+		const root = parse('{a = (path.arcThrough [0 0] [50 0] [100 0])}')
+		expect(sceneOf(root, env)).toHaveLength(1)
+		expect(snapPointsOf(root, env, sceneOf(root, env)).some(p => p.label === 'center')).toBe(false)
+	})
+})
+
 describe('snapping', () => {
 	const root = parse('{c = (path.circle [100 100] 10) r = (path.rect [0 0] [10 10])}') as LetAST
 	const points = snapPointsOf(root, env, sceneOf(root, env))

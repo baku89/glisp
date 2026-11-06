@@ -71,6 +71,7 @@ const SHAPES: Readonly<Record<string, (x: number, y: number) => string>> = {
 	'path.star': (x, y) => `[${x} ${y}] 50 22 5`,
 	'path.capsule': (x, y) => `[${x - 40} ${y}] [${x + 40} ${y}] 18`,
 	'path.arc': (x, y) => `[${x} ${y}] 50 0 270`,
+	'path.arcThrough': (x, y) => `[${x - 50} ${y}] [${x} ${y - 50}] [${x + 50} ${y}]`,
 	'path.fan': (x, y) => `[${x} ${y}] 25 50 -45 45`,
 	'path.spiral': (x, y) => `[${x} ${y}] 0 50 3`,
 	'path.clothoid': (x, y) => `[${x} ${y}] 0 100 0 0.03`,

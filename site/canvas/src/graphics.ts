@@ -620,6 +620,43 @@ const makeCircleThrough = withExpansion(
 			: asCircle(circleThrough(value(a) as Vec, value(b) as Vec, value(c) as Vec))
 )
 
+/**
+ * The arc from `start` through `through` to `end`: around the circle through all three, and the
+ * way round that goes by `through`, in degrees as `path.arc` has them. Null for three in a line.
+ */
+function arcOfThree(start: Vec, through: Vec, end: Vec): { center: Vec; radius: number; from: number; to: number } | null {
+	const turned = (through[0] - start[0]) * (end[1] - start[1]) - (through[1] - start[1]) * (end[0] - start[0])
+	if (Math.abs(turned) < 1e-6) return null
+	const { center, radius } = circleThrough(start, through, end)
+	const angle = ([x, y]: Vec) => degrees([x - center[0], y - center[1]])
+	const round = (a: number) => ((a % 360) + 360) % 360
+	const from = angle(start)
+	const [toThrough, toEnd] = [round(angle(through) - from), round(angle(end) - from)]
+	return { center, radius, from, to: from + (toThrough < toEnd ? toEnd : toEnd - 360) }
+}
+
+/** An arc from `start` through `by` to `end`, or a line for those all in one line. */
+function arcThrough(start: Vec, by: Vec, end: Vec): Path {
+	const turned = (by[0] - start[0]) * (end[1] - start[1]) - (by[1] - start[1]) * (end[0] - start[0])
+	return Math.abs(turned) < 1e-6 ? line(start, end) : arcByPoints(start, by, end)
+}
+
+const makeArcThrough = withExpansion(
+	makeTypedFn(
+		[point, point, point],
+		pathType,
+		(start, through, end) => new PathValue(arcThrough(start as Vec, through as Vec, end as Vec)),
+		['start', 'through', 'end']
+	),
+	([start, through, end], { value }) => {
+		if (start === undefined || through === undefined || end === undefined) return null
+		const arc = arcOfThree(value(start) as Vec, value(through) as Vec, value(end) as Vec)
+		return arc === null
+			? null
+			: callOf('arc', [toAst(arc.center, null), toAst(arc.radius, null), toAst(arc.from, null), toAst(arc.to, null)])
+	}
+)
+
 const makeCircle = withExpansion(
 	makeTypedFn(
 		[point, number],
@@ -1783,23 +1820,6 @@ const lerped = (a: number, b: number, t: number): number => a + (b - a) * t
 const merged = (paths: readonly Path[]): PathValue =>
 	new PathValue(paths.length === 0 ? empty : merge([...paths]))
 
-const makeArcStrip = makeTypedFn(
-	[placesType],
-	pathType,
-	places => {
-		const all = places as Vec[]
-		if (all.length === 2) return merged([line(all[0]!, all[1]!)])
-		return merged(all.slice(2).map((end, i) => arcThrough(all[i]!, all[i + 1]!, end)))
-	},
-	['places']
-)
-
-/** An arc from `start` through `by` to `end`, or a line for those all in one line. */
-function arcThrough(start: Vec, by: Vec, end: Vec): Path {
-	const turned = (by[0] - start[0]) * (end[1] - start[1]) - (by[1] - start[1]) * (end[0] - start[0])
-	return Math.abs(turned) < 1e-6 ? line(start, end) : arcByPoints(start, by, end)
-}
-
 const makeDubinsChain = makeTypedFn(
 	[dubinsStopsType, numberOf(20)],
 	pathType,
@@ -1858,7 +1878,6 @@ const makeTriangleStrip = withDoc(
 )
 
 withMembers(pathType, {
-	arcStrip: withDoc(makeArcStrip, 'An arc through each three of `places` in a row.', 'Arc Strip'),
 	dubinsChain: withDoc(makeDubinsChain, 'The shortest way between each two of `stops`, each a place, the way it is going, and how tightly it can turn on the way to there, or else as tightly as `radius`.', 'Dubins Chain'),
 	bounds: withDoc(makeBounds, 'The area that `path` just fits in.', 'Bounds'),
 	offset: withDoc(makeOffset, 'The outline of `path`, this `distance` out from it, or in, if that is below 0, going around corners by `join`.', 'Offset'),
@@ -1906,6 +1925,7 @@ withMembers(pathType, {
 	capsule: withDoc(makeCapsule, 'What is within `radius` of the line from `start` to `end`: a line with round ends.', 'Capsule'),
 	superellipse: withDoc(makeSuperellipse, 'Between shapes around `center`, by `shape`: 0 is a diamond, 1 an ellipse, 2 a squircle, and more comes toward a rectangle. Less than 0 has its sides drawn in.', 'Superellipse'),
 	arc: withDoc(makeArc, 'Part of a circle around `center`, from the angle `start` to `end`, in degrees.', 'Arc'),
+	arcThrough: withDoc(makeArcThrough, 'The arc from `start` to `end` that goes through `through`, or a line, for the three in a line.', 'Arc through Points'),
 	fan: withDoc(makeFan, 'What is between `innerRadius` and `outerRadius` around `center`, from the angle `start` to `end`, in degrees.', 'Fan'),
 	spiral: withDoc(makeSpiral, 'A line going around `center` as many `turns`, from `startRadius` out to `endRadius`.', 'Spiral'),
 	clothoid: withDoc(makeClothoid, 'A line from `start`, going at `angle` in degrees, that bends steadily more along its `length`, from `startCurvature` to `endCurvature`. One over a curvature is the radius of the bend.', 'Clothoid'),
@@ -2965,6 +2985,19 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 		},
 	],
 	[
+		makeArcThrough,
+		args => {
+			const [start, through, end] = args as [Vec, Vec, Vec]
+			const arc = arcOfThree(start, through, end)
+			// Where it goes round is a place, as long as it goes round anything.
+			const center = (p: (path: string) => string) => {
+				const { x, y } = throughCode(p)
+				return `[${x} ${y}]`
+			}
+			return pointsGrip(args as Vec[], [], { points: arc === null ? [] : [{ at: arc.center, name: 'center', code: center }] })
+		},
+	],
+	[
 		makeCircleThrough,
 		args => {
 			const [a, b, c] = args as [Vec, Vec, Vec]
@@ -3184,7 +3217,6 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			return { ...grip, handles: evenEnds(grip.handles, start, end) }
 		},
 	],
-	[makeArcStrip, args => placesGrip(args[0] as Vec[])],
 	[makeTriangleStrip, args => placesGrip(args[0] as Vec[])],
 	// As many places as a pointer went through, which is not something to take hold of one by one.
 	[makeSpray, args => ({ ...placesGrip(args[0] as Vec[]), handles: [] })],
@@ -4537,14 +4569,13 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 	[makePolygon, ofPlaces],
 	[makeCubic, ofPlaces],
 	[
-		makeArcStrip,
+		makeArcThrough,
 		args => ({
 			even: false,
-			scaled: (x, y, about) => [change(0, (args[0] as Vec[]).map(at => scaledPlace(at, x, y, about)))],
-			turned: (degrees, about) => [change(0, (args[0] as Vec[]).map(at => turnedPlace(at, degrees, about)))],
+			scaled: (x, y, about) => args.map((at, i) => change(i, scaledPlace(at as Vec, x, y, about))),
+			turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
 		}),
-	],
-	[
+	],	[
 		makeDubinsChain,
 		args => ({
 			even: true,
