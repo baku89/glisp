@@ -37,7 +37,6 @@ import {
 	callParameters,
 	withoutCall,
 	withPathsInto,
-	withFunctionsAsNow,
 	withPathsMoved,
 } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
@@ -1671,8 +1670,7 @@ export const drawsAt = (root: AST, env: Env, row: string): boolean =>
  * Source as it is written now, from when things went by other names: what fills a canvas was a
  * `background`, what is laid over it a `grid` that could say it had nothing to lay, and a stop
  * on a Dubins path four numbers in a row, and lines out from a center a function of their own.
- * A program with its own of those names keeps them. A function's parameters were in
- * parentheses, as its generics were.
+ * A program with its own of those names keeps them.
  */
 export function writtenAsNow(source: string): string {
 	const renamed = (text: string, old: string, name: string, hiddenAs: string): string =>
@@ -1697,7 +1695,7 @@ export function writtenAsNow(source: string): string {
 		return `[${lines.join(' ')}]`
 	}
 	const radialCall = `\\(path\\.radial\\s+\\[\\s*(${num})\\s+(${num})\\s*\\]\\s+\\[((?:\\s*\\[\\s*${num}\\s+${num}\\s+${num}\\s*\\])*)\\s*\\]\\)`
-	return renamed(renamed(withFunctionsAsNow(source), 'background', 'solid', '"#ffffff"'), 'grid', 'graphPaper', '"dots"')
+	return renamed(renamed(source, 'background', 'solid', '"#ffffff"'), 'grid', 'graphPaper', '"dots"')
 		.replace(new RegExp(`\\(style\\s+${radialCall}([^()]*)\\)`, 'g'), (_, x, y, rows, rest) =>
 			radial(x, y, rows, line => `(style ${line}${rest})`)
 		)

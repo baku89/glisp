@@ -138,12 +138,6 @@ describe('what was written before', () => {
 		const already = '(path.dubinsChain [[[0 0] 0] [[1 1] 0]] 20)'
 		expect(writtenAsNow(already)).toBe(already)
 	})
-
-	it('has a function written with brackets, as now', () => {
-		expect(writtenAsNow('[s = (=> (x: number): number (* x x)) g = (grid)]')).toBe(
-			'[s = (=> [x: number]: number (* x x)) g = (graphPaper)]'
-		)
-	})
 })
 
 describe('what shows on a solid', () => {

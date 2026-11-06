@@ -1,15 +1,14 @@
 /**
- * What was written before, as it is written now. See spec/syntax.md (Function literal,
- * Application — keyword arguments, Path).
+ * What was written before keyword arguments took `:` and paths told keys from names, as it
+ * is written now. See spec/syntax.md (Application — keyword arguments, Path).
  *
- * Before, a function's generics and parameters were in parentheses, as `(=> (T) (x: T): T x)`,
- * which is now `(=> {T} [x: T]: T x)`. Before that, `(f k=v)` passed `v` to the parameter `k`,
- * and a path went to a record's field or a call's argument by the bare name, as `./a/width`.
- * Now that is `(f k: v)` and `./a/width:`, and `k = v` and `./a/width` are said of names.
+ * Before, `(f k=v)` passed `v` to the parameter `k`, and a path went to a record's field or a
+ * call's argument by the bare name, as `./a/width`. Now that is `(f k: v)` and `./a/width:`,
+ * and `k = v` and `./a/width` are said of names.
  */
 
 import { childAt, enterNode, keySegment, rootFrame } from './eval.js'
-import { lex, type Token } from './lex.js'
+import { lex } from './lex.js'
 import { parse } from './parse.js'
 import { type AST, type Env, PathAST, withoutMeta } from './types.js'
 
@@ -18,7 +17,7 @@ import { type AST, type Env, PathAST, withoutMeta } from './types.js'
  * its keyword arguments. `env` is where it stands, for what a call's parameters are called.
  */
 export function fromOlderSyntax(source: string, env: Env): string {
-	const keyworded = withKeywordsWritten(withFunctionsAsNow(source))
+	const keyworded = withKeywordsWritten(source)
 	let ast: AST
 	try {
 		ast = parse(keyworded)
@@ -139,55 +138,4 @@ function withKeys(segments: PathAST['segments'], env: Env): PathAST['segments'] 
 		entered = false
 	}
 	return out.every((segment, i) => segment === segments[i]) ? null : out
-}
-
-const OPENS = new Set(['(', '[', '{'])
-const CLOSES = new Set([')', ']', '}'])
-
-/** Where the bracket opened at `tokens[at]` closes. */
-function closing(tokens: readonly Token[], at: number): number | null {
-	let depth = 0
-	for (let i = at; i < tokens.length; i++) {
-		const { kind } = tokens[i]!
-		if (OPENS.has(kind)) depth++
-		else if (CLOSES.has(kind) && --depth === 0) return kind === ')' ? i : null
-	}
-	return null
-}
-
-/**
- * Source written before a function's parameters went in brackets and its generics in braces, as
- * it is written now: `(=> (T) (x: T): T x)` is `(=> {T} [x: T]: T x)`. Generics are told from
- * parameters as they were then, as names alone followed by another list. What is written as now
- * already, and what cannot be read, comes back as it is.
- */
-export function withFunctionsAsNow(source: string): string {
-	let tokens: Token[]
-	try {
-		tokens = lex(source)
-	} catch {
-		return source
-	}
-
-	const edits: Array<{ start: number; end: number; text: string }> = []
-	const replace = (token: Token, text: string) => edits.push({ start: token.start, end: token.end, text })
-	for (let i = 0; i + 2 < tokens.length; i++) {
-		if (tokens[i]!.kind !== '(' || tokens[i + 1]!.kind !== '=>') continue
-		let at = i + 2
-		if (tokens[at]!.kind !== '(') continue
-
-		let end = at + 1
-		while (tokens[end]!.kind === 'identifier' && tokens[end + 1]!.kind !== ':') end++
-		if (end > at + 1 && tokens[end]!.kind === ')' && tokens[end + 1]!.kind === '(') {
-			replace(tokens[at]!, '{')
-			replace(tokens[end]!, '}')
-			at = end + 1
-		}
-
-		const close = closing(tokens, at)
-		if (close === null) continue
-		replace(tokens[at]!, '[')
-		replace(tokens[close]!, ']')
-	}
-	return applied(source, edits)
 }
