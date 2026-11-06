@@ -75,12 +75,12 @@ describe('union types', () => {
 
 	it('is checked at a typed slot', () => {
 		const ok = check(
-			parse('{f = (=> (x: (| number string)): number 0) (f "a")}'),
+			parse('{f = (=> [x: (| number string)]: number 0) (f "a")}'),
 			env
 		)
 		expect(ok).toEqual([])
 		const bad = check(
-			parse('{f = (=> (x: (| number string)): number 0) (f true)}'),
+			parse('{f = (=> [x: (| number string)]: number 0) (f true)}'),
 			env
 		)
 		expect(bad.map(d => d.message).join()).toMatch(/expected \(\| number string\)/)
@@ -89,7 +89,7 @@ describe('union types', () => {
 	it('takes vector and record literals of its members', () => {
 		const ds = check(
 			parse(
-				'{Anchor = (| [number number] {at: [number number]}) f = (=> (xs: [...Anchor]): number 0) (f [[0 0] {at: [1 2]}])}'
+				'{Anchor = (| [number number] {at: [number number]}) f = (=> [xs: [...Anchor]]: number 0) (f [[0 0] {at: [1 2]}])}'
 			),
 			env
 		)
@@ -120,11 +120,11 @@ describe('what can be left out', () => {
 	})
 
 	it('is the default of what it is besides when left out, and stays () when it is ()', () => {
-		expect(run('{f = (=> (y?: number): _ y) (f)}').value).toBe(0)
-		const passed = run('{f = (=> (y?: number): _ y) (f ())}')
+		expect(run('{f = (=> [y?: number]: _ y) (f)}').value).toBe(0)
+		const passed = run('{f = (=> [y?: number]: _ y) (f ())}')
 		expect(passed.value).toBe(UNIT)
 		expect(passed.diagnostics).toEqual([])
-		const spelled = run('{f = (=> (y: (| number unit)): _ y) (f)}')
+		const spelled = run('{f = (=> [y: (| number unit)]: _ y) (f)}')
 		expect(spelled.value).toBe(0)
 		expect(spelled.diagnostics).toEqual([])
 		expect(run('(: () (| unit number))').value).toBe(UNIT)
@@ -132,7 +132,7 @@ describe('what can be left out', () => {
 
 	it('is not known to be wrong where one of what it may be fits', () => {
 		const src = (slot: string) =>
-			`{f = (=> (x: (| number string)): number (g x)) g = (=> (n: ${slot}): number 0) (f 1)}`
+			`{f = (=> [x: (| number string)]: number (g x)) g = (=> [n: ${slot}]: number 0) (f 1)}`
 		expect(check(parse(src('number')), env)).toEqual([])
 		expect(check(parse(src('boolean')), env).map(d => d.message).join()).toMatch(/expected boolean/)
 	})

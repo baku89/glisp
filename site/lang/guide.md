@@ -49,18 +49,18 @@ Arguments can also be passed by name, as in `(f 1 step: 2)`.
 
 ## Functions
 
-Function literals take an explicit signature and an inferred body. The arrow is `=>`.
+Function literals take an explicit signature and an inferred body. The arrow is `=>`, the parameters go in brackets, and the return type follows them after `:`. A generic function names its type parameters in braces first, as in `(=> {T} [x: T]: T x)`.
 
 <!-- test -->
 ```glisp
-(=> (x: number y: number): number
+(=> [x: number y: number]: number
   (+ x y))
 
 ;; Single-arg form
-(=> (n: number): number (* n n))
+(=> [n: number]: number (* n n))
 
 ;; Bind it
-square = (=> (n: number): number (* n n))
+square = (=> [n: number]: number (* n n))
 (square 7)             ;; → 49
 ```
 
@@ -68,10 +68,10 @@ A function is itself a value. Higher-order use is the same as anywhere:
 
 <!-- test -->
 ```glisp
-(map [1 2 3 4] (=> (n: number): number (* n n)))
+(map [1 2 3 4] (=> [n: number]: number (* n n)))
 ;; → [1 4 9 16]
 
-(reduce [1 2 3 4 5] 0 (=> (a: number b: number): number (+ a b)))
+(reduce [1 2 3 4 5] 0 (=> [a: number b: number]: number (+ a b)))
 ;; → 15
 ```
 
@@ -98,7 +98,7 @@ Types are first-class values. The prelude binds `number`, `string`, `boolean`, `
 Color = (| "red" "green" "blue")
 
 ;; Refinement: a base type narrowed by a predicate, with a default
-Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
+Pos = (refine number 1 (=> [n: number]: boolean (> n 0)))
 
 ;; Union: the values of any of the types, defaulting to the first one's
 Size = (| number [number number])
@@ -116,7 +116,7 @@ Size = (| number [number number])
 (: 42 number)          ;; → 42
 (: "oops" number)      ;; → 0   (default; diagnostic emitted)
 Color = (| "red" "green" "blue")
-Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
+Pos = (refine number 1 (=> [n: number]: boolean (> n 0)))
 
 (: "red" Color)        ;; → "red"
 (: "purple" Color)     ;; → "red"  (default = first member)
@@ -151,10 +151,10 @@ Like everything else, `?` does not throw. If no clause matches and there's no de
 (|> 5
   (* 2 %)          ;; 10
   (+ 1 %)          ;; 11
-  (=> (n: number): number (* n n)))   ;; 121
+  (=> [n: number]: number (* n n)))   ;; 121
 ```
 
-`(* 2 %)` desugars to `(=> (_0: _): _ (* 2 _0))`, which is what gets applied to the threaded value at each step.
+`(* 2 %)` desugars to `(=> [_0: _]: _ (* 2 _0))`, which is what gets applied to the threaded value at each step.
 
 ## Let-blocks
 
@@ -178,9 +178,9 @@ Bindings are self-referential and can reference each other in any order, which i
 A function's body is its next step on the abstraction ladder, so you can define what a function *is* one level down. `~` marks an implementation detail: it is worked out within the step, so recursion and helpers stay out of view. Only what is needed gets computed, and an argument that is merely passed along stays as written. `...~` inlines the resulting vector.
 
 ```glisp
-repeat = (=> (T) (v: T n: number): [...T]
+repeat = (=> {T} [v: T n: number]: [...T]
              (? (== n 0) true [] _ [v ...(repeat v (- n 1))]))
-pow = (=> (x: number a: number): number (* ...~(repeat x a)))
+pow = (=> [x: number a: number]: number (* ...~(repeat x a)))
 
 (pow (+ 1 1) (+ 1 2))  ;; expands to (* (+ 1 1) (+ 1 1) (+ 1 1)), evaluates to 8
 ```

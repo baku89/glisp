@@ -254,7 +254,7 @@ describe('Session — paths through calls', () => {
 	const session = () => {
 		const s = new Session(buildPrelude())
 		s.exec('x = (first (reverse (map (range 0 3) (+ 1 %))))')
-		s.exec('f = (=> (a: number b: number): number (+ a b))')
+		s.exec('f = (=> [a: number b: number]: number (+ a b))')
 		s.exec('y = (f 1 b: 2)')
 		return s
 	}
@@ -291,7 +291,7 @@ describe('Session — paths through calls', () => {
 	it('reads variadic arguments as a vector', () => {
 		const s = new Session(buildPrelude())
 		s.exec('c = (+ 1 2 3)')
-		s.exec('f = (=> (a: number ...xs: number): number a)')
+		s.exec('f = (=> [a: number ...xs: number]: number a)')
 		s.exec('y = (f 1 2 3)')
 		s.exec('z = (++ [1] [2] [3])')
 		expect(s.exec('./c/xs:').value).toEqual([1, 2, 3])

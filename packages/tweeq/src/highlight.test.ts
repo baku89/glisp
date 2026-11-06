@@ -56,16 +56,16 @@ describe('tokenizeLine', () => {
 		expect(scopeIn('(f x: Foo)', 'Foo')).toBe('identifier')
 		expect(scopeIn('(f x: (g 1))', 'g')).toBe('function')
 		expect(scopeIn('(f\n  x: Foo)', 'Foo')).toBe('identifier')
-		expect(scopeIn('(=> (x: Foo) (f y: Bar))', 'Bar')).toBe('identifier')
-		expect(scopeIn('(=> (T) (x: T): Bar x)', 'Bar')).toBe('type')
+		expect(scopeIn('(=> [x: Foo] (f y: Bar))', 'Bar')).toBe('identifier')
+		expect(scopeIn('(=> {T} [x: T]: Bar x)', 'Bar')).toBe('type')
 		expect(scopeIn('(: v Foo)', 'v')).toBe('identifier')
-		expect(scopeIn('(=> (x: Foo): Bar x)', 'Bar')).toBe('type')
+		expect(scopeIn('(=> [x: Foo]: Bar x)', 'Bar')).toBe('type')
 	})
 
 	it('calls nothing in a list of parameters', () => {
-		expect(scopeIn('(=> (T) (x: T): T x)', 'T')).toBe('identifier')
-		expect(scopeIn('(=> (Foo Foo): Foo)', 'Foo')).toBe('identifier')
-		expect(scopeIn('(=> (x: (refine number 0 p)): T x)', 'refine')).toBe('function')
+		expect(scopeIn('(=> {T} [x: T]: T x)', 'T')).toBe('identifier')
+		expect(scopeIn('(=> [Foo Foo]: Foo)', 'Foo')).toBe('identifier')
+		expect(scopeIn('(=> [x: (refine number 0 p)]: T x)', 'refine')).toBe('function')
 	})
 
 	it('has the literals and what is reserved', () => {

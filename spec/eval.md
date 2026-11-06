@@ -218,7 +218,7 @@ Three forms have evaluation semantics that go beyond ordinary function applicati
 `%` is rewritten to a function literal by a pre-evaluation pass over the AST. The pass is bottom-up: any node N ∈ {Application, Vector, Record} that directly contains the bare token `%` is replaced with an internal function-literal AST equivalent to
 
 ```
-(=> (x: T) [N with all % occurrences replaced by x])
+(=> [x: T] [N with all % occurrences replaced by x])
 ```
 
 where the parameter type `T` is **inferred from context** during the type-inference pass — typically from how the surrounding expression uses N's value. The desugared literal is *internal*: the source-level rule "every parameter must be named with a type annotation" applies to user-written code, not to AST nodes synthesized by this pass. The inference pass closes the gap by deriving `T`.
@@ -226,7 +226,7 @@ where the parameter type `T` is **inferred from context** during the type-infere
 Bottom-up order ensures `%` binds to its **smallest** enclosing form. After this pass:
 
 - The AST contains no remaining bare `%` tokens at expression positions; any leftover `%` (in a type position, parameter list, or record key — see [syntax.md](./syntax.md#partial-application--)) is a syntax error.
-- A function literal `(=> ...)` may legitimately enclose a desugared sub-expression: `(=> (x: number): R (* x %))` becomes `(=> (x: number): R (=> (y: number) (* x y)))`, a higher-order result. The outer literal's body now contains an inner literal — both are valid.
+- A function literal `(=> ...)` may legitimately enclose a desugared sub-expression: `(=> [x: number]: R (* x %))` becomes `(=> [x: number]: R (=> [y: number] (* x y)))`, a higher-order result. The outer literal's body now contains an inner literal — both are valid.
 - All subsequent `eval` / `expand` proceeds on a `%`-free AST.
 
 #### `?` — match
@@ -249,7 +249,7 @@ A static check ensures every `resK` has the same type. The result type of the wh
 
 The AST has the shape `(|> input step1 step2 ... stepN)`. After the `%` desugaring pass:
 
-- If `input` is the bare `%`, the desugaring pass has already rewritten the entire form to `(=> (x) (|> x step1 ... stepN))`, so the `|>` evaluation rule below applies inside that closure body.
+- If `input` is the bare `%`, the desugaring pass has already rewritten the entire form to `(=> [x] (|> x step1 ... stepN))`, so the `|>` evaluation rule below applies inside that closure body.
 - Otherwise, `input` is an ordinary expression and each `stepK` is an ordinary expression evaluating to a function.
 
 Evaluation:
@@ -275,8 +275,8 @@ A core design principle of Glisp: **every expression has an abstraction ladder**
 A function's body is its next rung, so a definition states what the function is one level of abstraction down:
 
 ```glisp
-circle  = (=> (c: vec2 r: number): Path (ellipse c [r r]))
-ellipse = (=> (c: vec2 r: vec2): Path (path ...~(ellipse-segments c r)))
+circle  = (=> [c: vec2 r: number]: Path (ellipse c [r r]))
+ellipse = (=> [c: vec2 r: vec2]: Path (path ...~(ellipse-segments c r)))
 
 (circle [0 0] 10)                ;; rung 0: source
 (ellipse [0 0] [10 10])          ;; rung 1
@@ -318,10 +318,10 @@ Only what is needed gets computed, the same way lazy evaluation works:
 - `~x` on a parameter asks for that argument itself, so it is forced.
 
 ```glisp
-repeat = (=> (T) (v: T n: number): [...T]
+repeat = (=> {T} [v: T n: number]: [...T]
              (? (== n 0) true [] _ [v ...(repeat v (- n 1))]))
-pow    = (=> (x: number a: number): number (* ...~(repeat x a)))
-sq     = (=> (x: number): number (* ~x ~x))
+pow    = (=> [x: number a: number]: number (* ...~(repeat x a)))
+sq     = (=> [x: number]: number (* ~x ~x))
 
 (pow (+ 1 1) (+ 1 2))            ;; a is needed, x is passed along
 (* (+ 1 1) (+ 1 1) (+ 1 1))

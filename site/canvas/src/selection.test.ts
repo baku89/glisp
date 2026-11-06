@@ -88,7 +88,7 @@ describe('copying a value', () => {
 		v = [1 2]
 		r = {x: 1}
 		g = {c = 1}
-		f = (=> (x: number): number x)
+		f = (=> [x: number]: number x)
 	}`)
 	const of = (name: string) => selectedOf(rich, env, [`binding:${name}`])[0]!
 	const text = (name: string) => valueTextOf(of(name), env)

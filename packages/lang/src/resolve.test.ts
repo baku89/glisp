@@ -31,7 +31,7 @@ describe('resolve — names', () => {
 	})
 
 	it('allows a let binding to refer to itself and later siblings', () => {
-		expect(messages('{a = b b = 1 f = (=> (n: number): number (f n)) a}')).toEqual([])
+		expect(messages('{a = b b = 1 f = (=> [n: number]: number (f n)) a}')).toEqual([])
 	})
 
 	it('resolves against the host environment', () => {
@@ -40,20 +40,20 @@ describe('resolve — names', () => {
 
 	it('reports an unresolved name, even in a body that never runs', () => {
 		expect(messages('nope')).toEqual(['unresolvable name: nope'])
-		expect(messages('(=> (x: number): number nope)')).toEqual([
+		expect(messages('(=> [x: number]: number nope)')).toEqual([
 			'unresolvable name: nope',
 		])
 	})
 
 	it('sees parameters in the body but not in the types', () => {
-		expect(targetOf('(=> (x: number): number x)', 'x')?.kind).toBe('param')
-		expect(messages('(=> (t: number x: t): number x)')).toEqual([
+		expect(targetOf('(=> [x: number]: number x)', 'x')?.kind).toBe('param')
+		expect(messages('(=> [t: number x: t]: number x)')).toEqual([
 			'unresolvable name: t',
 		])
 	})
 
 	it('sees generics in the types and the body', () => {
-		const src = '(=> (T) (x: T): T (: x T))'
+		const src = '(=> {T} [x: T]: T (: x T))'
 		expect(messages(src)).toEqual([])
 		expect(targetOf(src, 'T')?.kind).toBe('generic')
 	})
@@ -113,7 +113,7 @@ describe('resolve — paths', () => {
 	})
 
 	it('counts a function literal as a level around its body', () => {
-		expect(pathTarget('[5 ((=> (x: number): _ ../../0) 1)]', '../../0')).toBe('5')
+		expect(pathTarget('[5 ((=> [x: number]: _ ../../0) 1)]', '../../0')).toBe('5')
 	})
 
 	it('reports paths that do not resolve', () => {
@@ -126,8 +126,8 @@ describe('resolve — paths', () => {
 
 	it('finds an argument by its parameter name, as evaluation does', () => {
 		expect(pathTarget('[(take [1 2] 1) ./0/n:]', './0/n:')).toBe('1')
-		expect(pathTarget('{f = (=> (a: number): number a) [(f 5) ./0/a:]}', './0/a:')).toBe('5')
-		expect(pathTarget('[((=> (a: number): number a) 5) ./0/a:]', './0/a:')).toBe('5')
+		expect(pathTarget('{f = (=> [a: number]: number a) [(f 5) ./0/a:]}', './0/a:')).toBe('5')
+		expect(pathTarget('[((=> [a: number]: number a) 5) ./0/a:]', './0/a:')).toBe('5')
 		expect(pathTarget('[(take [1] n: 3) ./0/n:]', './0/n:')).toBe('3')
 		expect(messages('[(take [1 2] 1) ./0/nope:]')).toEqual([
 			'path segment not found: nope:',
@@ -149,12 +149,12 @@ describe('freeRefs', () => {
 	it('collects names the node does not bind', () => {
 		expect(freeNames('(+ a b)')).toEqual(['+', 'a', 'b'])
 		expect(freeNames('{a = 1 (+ a b)}')).toEqual(['+', 'b'])
-		expect(freeNames('(=> (x: number): number (+ x y))')).toEqual([
+		expect(freeNames('(=> [x: number]: number (+ x y))')).toEqual([
 			'+',
 			'number',
 			'y',
 		])
-		expect(freeNames('(=> (T) (x: T): T x)')).toEqual([])
+		expect(freeNames('(=> {T} [x: T]: T x)')).toEqual([])
 	})
 
 	it('does not count special forms or a catch-all', () => {
@@ -170,7 +170,7 @@ describe('freeRefs', () => {
 		expect(ups('[../x 1]')).toEqual([0])
 		expect(ups('[(+ ../../x 1)]')).toEqual([0])
 		expect(ups('{a = ../x a}')).toEqual([0])
-		expect(ups('(=> (x: number): number ../y)')).toEqual([0])
+		expect(ups('(=> [x: number]: number ../y)')).toEqual([0])
 	})
 
 	it('is cached per instance', () => {
@@ -188,10 +188,10 @@ describe('resolve agrees with evaluate', () => {
 		'{w: 100 h: ./w: a: (* ../w: ../h:)}',
 		'[{k = 1 y = (+ k 1) y} ./0/y]',
 		'[[1 ./0] ./0/1]',
-		'((=> (x: number): number (+ x 1)) 1)',
-		'((=> (T) (x: T): T x) 1)',
-		'[5 ((=> (T) (x: T): _ ../0) 1)]',
-		'[5 ((=> (T) (x: number): _ ../0) 1)]',
+		'((=> [x: number]: number (+ x 1)) 1)',
+		'((=> {T} [x: T]: T x) 1)',
+		'[5 ((=> {T} [x: T]: _ ../0) 1)]',
+		'[5 ((=> {T} [x: number]: _ ../0) 1)]',
 		'[[1 2] 9 ./0/../1]',
 		'[1 ./]',
 		'[(take [1 2] 1) ./0/n:]',
@@ -225,7 +225,7 @@ describe('resolve agrees with evaluate', () => {
 		let calls = 0
 		const counted = makeTypedFn([], null as never, () => calls++, [])
 		const host = makeTopLevel({ h: lit(counted as never) })
-		resolve(parse('[(h) {a = (h) a} (=> (x: _): _ (h))]'), host)
+		resolve(parse('[(h) {a = (h) a} (=> [x: _]: _ (h))]'), host)
 		expect(calls).toBe(0)
 	})
 })

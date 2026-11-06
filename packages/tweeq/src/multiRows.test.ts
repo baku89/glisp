@@ -44,7 +44,7 @@ describe('places', () => {
 	})
 
 	it('are not pulled out of a vector that is not written as one', () => {
-		const computed = parse('{a = 1 b = (map [1 2] (=> (x: number): number x))}')
+		const computed = parse('{a = 1 b = (map [1 2] (=> [x: number]: number x))}')
 		expect(canExtractAt(computed, env, [at('binding:a'), at('binding:b', 0)])).toBe(false)
 	})
 
@@ -68,7 +68,7 @@ describe('places', () => {
 	})
 
 	it('say what does not fit them', () => {
-		const typed = parse('{f = (=> (x: number): number x) a = (f 1)}')
+		const typed = parse('{f = (=> [x: number]: number x) a = (f 1)}')
 		expect(misfitAt(typed, env, [at('binding:a/arg0')], 'no')).toContain('does not fit')
 		expect(misfitAt(typed, env, [at('binding:a/arg0')], 2)).toBeNull()
 	})
@@ -137,7 +137,7 @@ describe('commands on what is selected', () => {
 	})
 
 	it('say why, and change nothing, for vectors that do not fit where the other goes', () => {
-		const source = '{f = (=> (v: [number number]): _ v) a = (f [1 2]) b = [1 2 3]}'
+		const source = '{f = (=> [v: [number number]]: _ v) a = (f [1 2]) b = [1 2 3]}'
 		const document = useGlispDocument(source)
 		const places = [at('binding:a/arg0'), at('binding:b')]
 		const swap = commandsAt(document, places).find(c => c.label === 'Swap')!
@@ -282,7 +282,7 @@ describe('commands on what is selected', () => {
 		})
 
 		it('say why, and change nothing, for what does not fit', () => {
-			const source = '{f = (=> (v: [number number]): _ v) p = [1 2] c = [1 2 3] a = (f p) b = [c]}'
+			const source = '{f = (=> [v: [number number]]: _ v) p = [1 2] c = [1 2 3] a = (f p) b = [c]}'
 			const { document, problem } = perform(source, 'Swap', [at('binding:a/arg0'), at('binding:b/0')])
 			expect(problem).toEqual(expect.any(String))
 			expect(print(document.root.value)).toBe(source)

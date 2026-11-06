@@ -6,11 +6,11 @@ import { memberChoicesOf, rowsWithAbsent, viewOf } from './structure'
 const session = new Session(buildPrelude())
 session.exec('Point = [number number]')
 session.exec('Anchor = {at: Point in?: Point out?: Point}')
-session.exec('f = (=> (xs: [...(| Point Anchor)]): number 0)')
-session.exec('g = (=> (x: (| number string)): number 0)')
-session.exec('h = (=> (c: (| "red" number)): number 0)')
-session.exec('k = (=> (w: number d?: number): number 0)')
-session.exec('v = (=> (xs: [...(| number unit)]): number 0)')
+session.exec('f = (=> [xs: [...(| Point Anchor)]]: number 0)')
+session.exec('g = (=> [x: (| number string)]: number 0)')
+session.exec('h = (=> [c: (| "red" number)]: number 0)')
+session.exec('k = (=> [w: number d?: number]: number 0)')
+session.exec('v = (=> [xs: [...(| number unit)]]: number 0)')
 
 const slotsOf = (src: string) => viewOf(parse(src), session.env).slots
 const elementsOf = (src: string) => {
@@ -58,7 +58,7 @@ describe('a slot of a union', () => {
 	})
 
 	it('leaves a union of values only to its own menu', () => {
-		session.exec('j = (=> (x: (| "a" "b")): number 0)')
+		session.exec('j = (=> [x: (| "a" "b")]: number 0)')
 		expect(memberChoicesOf(slotsOf('(j "a")')[0]!)).toBeNull()
 	})
 

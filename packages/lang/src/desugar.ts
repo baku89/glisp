@@ -3,7 +3,7 @@
  *
  * For any AST node N ∈ {Application, Vector, Record} that *directly*
  * contains a bare `sym('%')`, the entire N is replaced by an internal
- * function-literal AST `(=> (x: _) [N with all % → x])`. The pass is
+ * function-literal AST `(=> [x: _] [N with all % → x])`. The pass is
  * bottom-up so that each `%` belongs to its smallest enclosing form.
  *
  * Spec: docs/spec/syntax.md — Partial application — `%`

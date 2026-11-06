@@ -12,12 +12,12 @@ This is a work in progress, and the language may still change.
 
 ```clojure
 turn = (/ tau 96)
-ring = (map (range 0 96) (=> (i: number): _
+ring = (map (range 0 96) (=> [i: number]: _
   [(+ 400 (* 290 (cos (* i turn))))
    (+ 400 (* 290 (sin (* i turn))))]))
 [
   dots = (spray ring 7 3 26 44 "#ff4d2e" "#ffd23f")
-  rays = (map (range 0 24) (=> (i: number): _
+  rays = (map (range 0 24) (=> [i: number]: _
     (style
       (path.line
         [(+ 400 (* 70 (cos (* i 4 turn)))) (+ 400 (* 70 (sin (* i 4 turn))))]

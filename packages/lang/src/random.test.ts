@@ -22,7 +22,7 @@ describe('random', () => {
 
 	it('makes a function from a number to a value', () => {
 		expect(value('((random.number 42) 0)')).toBe(0.2608322922664409)
-		expect(infer(parse('(random.number 42)'), env)?.typeName).toBe('(=> (i: number): number)')
+		expect(infer(parse('(random.number 42)'), env)?.typeName).toBe('(=> [i: number]: number)')
 	})
 
 	it('gives a sequence by being mapped over numbers', () => {
@@ -75,7 +75,7 @@ describe('random', () => {
 	it('picks from a vector, knowing what of', () => {
 		const picked = value('(map (range 0 200) (random.pick 3 ["a" "b" "c"]))') as string[]
 		expect(new Set(picked)).toEqual(new Set(['a', 'b', 'c']))
-		expect(infer(parse('(random.pick 3 [1 2])'), env)?.typeName).toBe('(=> (i: number): number)')
+		expect(infer(parse('(random.pick 3 [1 2])'), env)?.typeName).toBe('(=> [i: number]: number)')
 	})
 
 	it('picks nothing from nothing', () => {
@@ -88,6 +88,6 @@ describe('random', () => {
 	})
 
 	it('has `seed` to say what a function takes', () => {
-		expect(value('((=> (s: seed): number ((random.number s) 0)) 42)')).toBe(randomAt(42, 0))
+		expect(value('((=> [s: seed]: number ((random.number s) 0)) 42)')).toBe(randomAt(42, 0))
 	})
 })

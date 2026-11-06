@@ -17,11 +17,12 @@ export interface LineState {
 	readonly inCallee: boolean
 	/** What comes next is written after a `:`, as a type. */
 	readonly inType: boolean
-	/** Past a `=>`, and not yet at a `:`, where a list is of parameters and calls nothing. */
+	/** Past a `=>`, and not yet at a `:`, where a list calls nothing. */
 	readonly inSignature: boolean
 	/**
-	 * What is open, innermost last: `(` a call, `f` a function, `p` a list of its parameters, and
-	 * `[` and `{`. A `:` right in a call gives a keyword its value, and a `:` elsewhere a type.
+	 * What is open, innermost last: `(` a call, `f` a function, and `[` and `{`, which a function's
+	 * parameters and generics are in. A `:` right in a call gives a keyword its value, and a `:`
+	 * elsewhere a type.
 	 */
 	readonly open: string
 }
@@ -113,10 +114,8 @@ function stateAfter(token: Token, state: LineState): LineState {
 	const next = { ...state, inHead: false, inCallee: false, inType: false }
 	const inner = state.open.at(-1)
 	switch (token.kind) {
-		case '(': {
-			const list = state.inSignature && inner === 'f'
-			return { ...next, inHead: !state.inSignature, open: state.open + (list ? 'p' : '(') }
-		}
+		case '(':
+			return { ...next, inHead: !state.inSignature, open: `${state.open}(` }
 		case '[':
 		case '{':
 			return { ...next, open: state.open + token.kind }

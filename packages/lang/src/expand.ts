@@ -11,7 +11,7 @@
  * a host function is forced, while an argument that is merely passed along
  * stays as written:
  *
- *   pow = (=> (x: number a: number): number (* ...~(repeat x a)))
+ *   pow = (=> [x: number a: number]: number (* ...~(repeat x a)))
  *   (pow (+ 1 1) (+ 1 2))  →  (* (+ 1 1) (+ 1 1) (+ 1 1))
  *
  * A host function can say what its calls expand to with `withExpansion`.

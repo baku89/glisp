@@ -16,7 +16,8 @@ describe('format', () => {
 		expect(format('[1\n2\n3]')).toBe('[1 2 3]')
 		expect(format('(f 1 k:  2)')).toBe('(f 1 k: 2)')
 		expect(format('{ a: 1   b?: 2 }')).toBe('{a: 1 b?: 2}')
-		expect(format('( =>  (x: number) : number (* x x))')).toBe('(=> (x: number): number (* x x))')
+		expect(format('( =>  [x: number] : number (* x x))')).toBe('(=> [x: number]: number (* x x))')
+	expect(format('(=> { T  U } [x: T f: (=> [T]: U)]: U (f x))')).toBe('(=> {T U} [x: T f: (=> [T]: U)]: U (f x))')
 		expect(format('a . b')).toBe('a.b')
 		expect(format('(: 1  number)')).toBe('(: 1 number)')
 		expect(format('^{doc: "x"}   (f)')).toBe('^{doc: "x"} (f)')
@@ -49,10 +50,10 @@ describe('format', () => {
 	})
 
 	it('starts a function on the line of what it is given to', () => {
-		const written = '(map (range 0 96) (=> (i: number): _ [(+ 400 (cos (* i turn))) (+ 400 (sin (* i turn)))]))'
+		const written = '(map (range 0 96) (=> [i: number]: _ [(+ 400 (cos (* i turn))) (+ 400 (sin (* i turn)))]))'
 		expect(format(`ring = ${written}`, { width: 44 })).toBe(
 			[
-				'ring = (map (range 0 96) (=> (i: number): _',
+				'ring = (map (range 0 96) (=> [i: number]: _',
 				'  [(+ 400 (cos (* i turn)))',
 				'   (+ 400 (sin (* i turn)))]))',
 			].join('\n')

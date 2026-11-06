@@ -23,7 +23,7 @@ describe('copiedRows', () => {
 
 describe('slot commands on rows', () => {
 	const root = parse(`{
-		sq = (=> (x: number): number (* x x))
+		sq = (=> [x: number]: number (* x x))
 		a = (sq 2)
 		b = (+ 1 2)
 		n = 1

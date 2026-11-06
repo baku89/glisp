@@ -58,7 +58,7 @@ describe('withNamed', () => {
 
 	it('cannot be had where no path reaches what would be caught', () => {
 		expect(naming('{y = [1 (+ 1 1)]}', root => ((root as LetAST).bindings[0]![1] as VecAST).elements[0]!, '+')).toBeNull()
-		expect(naming('{f = (=> (x: number): _ [1 x])}', root => (((root as LetAST).bindings[0]![1] as never as { body: VecAST }).body.elements[0]!), 'x')).toBeNull()
+		expect(naming('{f = (=> [x: number]: _ [1 x])}', root => (((root as LetAST).bindings[0]![1] as never as { body: VecAST }).body.elements[0]!), 'x')).toBeNull()
 	})
 
 	it('cannot give a name another has where it is', () => {

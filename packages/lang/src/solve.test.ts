@@ -117,20 +117,20 @@ describe('solve — a call', () => {
 	})
 
 	it('goes through a closure to its arguments', () => {
-		const f = 'f = (=> (x: number): number (* x 2))'
+		const f = 'f = (=> [x: number]: number (* x 2))'
 		expect(edited(`{${f} r = (f 3)}`, 10)).toBe(`{${f} r = (f 5)}`)
 		expect(edited(`{${f} r = (f x: 3)}`, 10)).toBe(`{${f} r = (f x: 5)}`)
 		expect(edited(`{${f} a = 3 r = (f a)}`, 10)).toBe(`{${f} a = 5 r = (f a)}`)
 	})
 
 	it('leaves the literals of a function, which other calls share', () => {
-		const f = 'f = (=> (x: number): number 3)'
+		const f = 'f = (=> [x: number]: number 3)'
 		expect(edited(`{${f} r = (f 1)}`, 10)).toBeNull()
 		expect(reason(`{${f} r = (f 1)}`, 10)).toContain('function')
 	})
 
 	it('reaches what a closure captures', () => {
-		const f = 'f = (=> (x: number): number (* @x k))'
+		const f = 'f = (=> [x: number]: number (* @x k))'
 		expect(edited(`{k = 2 ${f} r = (f 3)}`, 12)).toBe(`{k = 4 ${f} r = (f 3)}`)
 	})
 
@@ -168,7 +168,7 @@ describe('solve — @', () => {
 
 describe('solve — what cannot add up', () => {
 	it('reports a name that would need two values', () => {
-		const f = 'f = (=> (x: number): [number number] [x x])'
+		const f = 'f = (=> [x: number]: [number number] [x x])'
 		expect(edited(`{${f} r = (f 1)}`, [5, 5])).toBe(`{${f} r = (f 5)}`)
 		expect(edited(`{${f} r = (f 1)}`, [5, 7])).toBeNull()
 		expect(reason(`{${f} r = (f 1)}`, [5, 7])).toContain('different values')
@@ -187,7 +187,7 @@ describe('solve — what cannot add up', () => {
 
 	it('does not run forever on a cycle or a recursion', () => {
 		expect(edited('{a = (+ a b) b = (+ b a) r = a}', 5)).toBeNull()
-		expect(edited('{f = (=> (x: number): number (f x)) r = (f 1)}', 5)).toBeNull()
+		expect(edited('{f = (=> [x: number]: number (f x)) r = (f 1)}', 5)).toBeNull()
 	})
 })
 
@@ -265,8 +265,8 @@ describe('solve through map', () => {
 
 	it('goes through a named function, and leaves its literals', () => {
 		expect(
-			edited('{f = (=> (x: number): number (+ x 1)) r = (map [1 2] f)}', [10, 2])
-		).toBe('{f = (=> (x: number): number (+ x 1)) r = (map [9 1] f)}')
+			edited('{f = (=> [x: number]: number (+ x 1)) r = (map [1 2] f)}', [10, 2])
+		).toBe('{f = (=> [x: number]: number (+ x 1)) r = (map [9 1] f)}')
 	})
 
 	it('goes through what is passed to it, by name or worked out', () => {
@@ -287,7 +287,7 @@ describe('solve through map', () => {
 
 	it('needs the same length, and a function with a way back', () => {
 		expect(edited('{r = (map [1 2] (* % 2))}', [1])).toBeNull()
-		expect(edited('{r = (map [1] (=> (x: number): number 5))}', [6])).toBeNull()
+		expect(edited('{r = (map [1] (=> [x: number]: number 5))}', [6])).toBeNull()
 	})
 })
 

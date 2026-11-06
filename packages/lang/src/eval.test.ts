@@ -236,7 +236,7 @@ describe('evaluate — call', () => {
 		void env
 		void env2
 
-		// closure-based: ((=> (x: number): number x) 42)  → 42
+		// closure-based: ((=> [x: number]: number x) 42)  → 42
 		const closureAst = fn(
 			[{ name: 'x', type: sym('number') }],
 			sym('number')
@@ -246,7 +246,7 @@ describe('evaluate — call', () => {
 	})
 
 	it('calls a Glisp closure with positional args', () => {
-		// ((=> (a: number b: number): number {(+ a b) ... ish}) 10 20) — but
+		// ((=> [a: number b: number]: number {(+ a b) ... ish}) 10 20) — but
 		// we don't have `+` bound, so use a body that just returns one arg.
 		const closureAst = fn(
 			[
@@ -261,7 +261,7 @@ describe('evaluate — call', () => {
 	})
 
 	it('lazy evaluation — unused args are not forced', () => {
-		// ((=> (a: number b: number): number a) 1 (sym-that-fails))
+		// ((=> [a: number b: number]: number a) 1 (sym-that-fails))
 		// b is never referenced, so the failing argument should not raise.
 		const closureAst = fn(
 			[
@@ -311,7 +311,7 @@ describe('evaluate — call', () => {
 
 describe('evaluate — call: kwargs / variadic / optional', () => {
 	it('kwargs match parameters by name', () => {
-		// ((=> (a: number b: number): number a) b: 20 a: 10)  → 10
+		// ((=> [a: number b: number]: number a) b: 20 a: 10)  → 10
 		const closure = fn(
 			[
 				{ name: 'a', type: sym('number') },
@@ -372,7 +372,7 @@ describe('evaluate — call: kwargs / variadic / optional', () => {
 	})
 
 	it('variadic parameter collects rest into a vector', () => {
-		// (f 1 2 3 4) where f = (=> (init: number ...rest: number): number ?)
+		// (f 1 2 3 4) where f = (=> [init: number ...rest: number]: number ?)
 		// We make the body return rest itself so we can inspect it.
 		const closure = fn(
 			[
@@ -488,7 +488,7 @@ describe('evaluate — special form |> (pipe)', () => {
 	})
 
 	it('chains a closure step', () => {
-		// (|> 5 ((=> (x: number): number x)))  — identity
+		// (|> 5 ((=> [x: number]: number x)))  — identity
 		const idClosure = fn(
 			[{ name: 'x', type: sym('number') }],
 			sym('number')
@@ -743,15 +743,15 @@ describe('evaluate — closure parameter / return type cast', () => {
 			),
 		})
 
-	it('argument cast: ((=> (x: number): number x) "str") → 0', () => {
-		const r = evaluate(parse('((=> (x: number): number x) "str")'), baseEnv())
+	it('argument cast: ((=> [x: number]: number x) "str") → 0', () => {
+		const r = evaluate(parse('((=> [x: number]: number x) "str")'), baseEnv())
 		expect(r.value).toBe(0)
 		expect(r.diagnostics.some(d => d.message.includes('type mismatch'))).toBe(
 			true
 		)
 	})
 
-	it('static mismatch skips evaluation: ((=> (x: number): number x) (show 0))', () => {
+	it('static mismatch skips evaluation: ((=> [x: number]: number x) (show 0))', () => {
 		let showCalled = 0
 		const env = makeTopLevel({
 			number: lit(numberType as never),
@@ -764,7 +764,7 @@ describe('evaluate — closure parameter / return type cast', () => {
 				}) as never
 			),
 		})
-		const r = evaluate(parse('((=> (x: number): number x) (show 0))'), env)
+		const r = evaluate(parse('((=> [x: number]: number x) (show 0))'), env)
 		expect(r.value).toBe(0)
 		expect(showCalled).toBe(0)
 		expect(r.diagnostics.some(d => d.message.includes('type mismatch'))).toBe(
@@ -772,26 +772,26 @@ describe('evaluate — closure parameter / return type cast', () => {
 		)
 	})
 
-	it('compatible types pass through: ((=> (x: number): number x) 42) → 42', () => {
-		const r = evaluate(parse('((=> (x: number): number x) 42)'), baseEnv())
+	it('compatible types pass through: ((=> [x: number]: number x) 42) → 42', () => {
+		const r = evaluate(parse('((=> [x: number]: number x) 42)'), baseEnv())
 		expect(r.value).toBe(42)
 		expect(r.diagnostics).toEqual([])
 	})
 
-	it('top-typed parameter is a no-op: ((=> (x: _): _ x) "str") → "str"', () => {
-		const r = evaluate(parse('((=> (x: _): _ x) "str")'), baseEnv())
+	it('top-typed parameter is a no-op: ((=> [x: _]: _ x) "str") → "str"', () => {
+		const r = evaluate(parse('((=> [x: _]: _ x) "str")'), baseEnv())
 		expect(r.value).toBe('str')
 		expect(r.diagnostics).toEqual([])
 	})
 
 	it('missing required typed parameter falls back to type default', () => {
-		const r = evaluate(parse('((=> (x: number): number x))'), baseEnv())
+		const r = evaluate(parse('((=> [x: number]: number x))'), baseEnv())
 		expect(r.value).toBe(0)
 		expect(r.diagnostics.some(d => d.message.includes('missing'))).toBe(true)
 	})
 
 	it('optional typed parameter falls back to type default silently', () => {
-		const r = evaluate(parse('((=> (x?: number): number x))'), baseEnv())
+		const r = evaluate(parse('((=> [x?: number]: number x))'), baseEnv())
 		expect(r.value).toBe(0)
 		expect(r.diagnostics).toEqual([])
 	})
@@ -801,7 +801,7 @@ describe('evaluate — closure parameter / return type cast', () => {
 		// The body literally evaluates to "hello" — at runtime the cast
 		// fails and we substitute the number default (0).
 		const r = evaluate(
-			parse('((=> (x: _): number "hello") 1)'),
+			parse('((=> [x: _]: number "hello") 1)'),
 			baseEnv()
 		)
 		expect(r.value).toBe(0)
@@ -810,8 +810,8 @@ describe('evaluate — closure parameter / return type cast', () => {
 		).toBe(true)
 	})
 
-	it('return type passthrough: ((=> (x: _): number 42) ()) → 42', () => {
-		const r = evaluate(parse('((=> (x: _): number 42) ())'), baseEnv())
+	it('return type passthrough: ((=> [x: _]: number 42) ()) → 42', () => {
+		const r = evaluate(parse('((=> [x: _]: number 42) ())'), baseEnv())
 		expect(r.value).toBe(42)
 		expect(r.diagnostics).toEqual([])
 	})
@@ -829,23 +829,23 @@ describe('evaluate — generic closure', () => {
 			_: lit(topType as never),
 		})
 
-	it('identity over T: ((=> (T) (x: T): T x) 42) → 42', () => {
-		const r = evaluate(parse('((=> (T) (x: T): T x) 42)'), baseEnv())
+	it('identity over T: ((=> {T} [x: T]: T x) 42) → 42', () => {
+		const r = evaluate(parse('((=> {T} [x: T]: T x) 42)'), baseEnv())
 		expect(r.value).toBe(42)
 		expect(r.diagnostics).toEqual([])
 	})
 
-	it('identity over T preserves string type: ((=> (T) (x: T): T x) "hi")', () => {
+	it('identity over T preserves string type: ((=> {T} [x: T]: T x) "hi")', () => {
 		// Pre-cast: T resolves to string, so the param cast is string→string,
 		// which does not coerce 42 (since the arg is "hi" — string).
-		const r = evaluate(parse('((=> (T) (x: T): T x) "hi")'), baseEnv())
+		const r = evaluate(parse('((=> {T} [x: T]: T x) "hi")'), baseEnv())
 		expect(r.value).toBe('hi')
 		expect(r.diagnostics).toEqual([])
 	})
 
-	it('agreement across params: ((=> (T) (x: T y: T): T y) 1 2) → 2', () => {
+	it('agreement across params: ((=> {T} [x: T y: T]: T y) 1 2) → 2', () => {
 		const r = evaluate(
-			parse('((=> (T) (x: T y: T): T y) 1 2)'),
+			parse('((=> {T} [x: T y: T]: T y) 1 2)'),
 			baseEnv()
 		)
 		expect(r.value).toBe(2)
@@ -854,7 +854,7 @@ describe('evaluate — generic closure', () => {
 
 	it('conflicting witnesses produce a diagnostic', () => {
 		const r = evaluate(
-			parse('((=> (T) (x: T y: T): T y) 1 "hi")'),
+			parse('((=> {T} [x: T y: T]: T y) 1 "hi")'),
 			baseEnv()
 		)
 		expect(
@@ -865,7 +865,7 @@ describe('evaluate — generic closure', () => {
 	it('generic in return position: T propagates to declared return type', () => {
 		// Return type is T, body returns x. Calling with a number returns
 		// the number unchanged.
-		const r = evaluate(parse('((=> (T) (x: T): T x) 7)'), baseEnv())
+		const r = evaluate(parse('((=> {T} [x: T]: T x) 7)'), baseEnv())
 		expect(r.value).toBe(7)
 	})
 })
@@ -931,7 +931,7 @@ describe('evaluate — overload', () => {
 		// chosen.
 		const r = evaluate(
 			parse(
-				'{g = (overload (=> (x: _): _ "first") (=> (x: _): _ "second")) (g 1)}'
+				'{g = (overload (=> [x: _]: _ "first") (=> [x: _]: _ "second")) (g 1)}'
 			),
 			baseEnv()
 		)
@@ -1061,7 +1061,7 @@ describe('evaluate — closure diagnostics bubble through host fns', () => {
 		// than getting silently coerced to default(number) = 0.
 		const env = buildPrelude()
 		const r = evaluate(
-			parse('(map ["str"] (=> (x: number): number (+ x 1)))'),
+			parse('(map ["str"] (=> [x: number]: number (+ x 1)))'),
 			env
 		)
 		expect(
@@ -1202,7 +1202,7 @@ describe('evaluate — parametric IO (coerce / fits)', () => {
 		const num = makeType('number', v => typeof v === 'number', 0)
 		const fnNumNum = makeFunctionType([num], num)
 		const fnTopTop = makeFunctionType([top], top)
-		// `(=> (number): number)` should fit `(=> (_): _)` since
+		// `(=> [number]: number)` should fit `(=> [_]: _)` since
 		// param/return both fit through covariance — current impl is
 		// over-permissive but that's the documented behavior.
 		expect(typeFits(fnNumNum, fnTopTop)).toBe(true)
@@ -1347,13 +1347,13 @@ describe('evaluate — path targets', () => {
 
 	it('counts the same levels whether or not a generic resolved', () => {
 		const climbs = (params: string): unknown =>
-			(run(`[5 [6 ((=> (T) (${params}): _ ../../0) 1)]]`).value as unknown[][])[1]![1]
+			(run(`[5 [6 ((=> {T} [${params}]: _ ../../0) 1)]]`).value as unknown[][])[1]![1]
 		expect(climbs('x: T')).toBe(6)
 		expect(climbs('x: number')).toBe(6)
 	})
 
 	it('keeps a resolved generic visible in the body', () => {
-		expect(run('((=> (T) (x: T): T (: x T)) 1)').value).toBe(1)
+		expect(run('((=> {T} [x: T]: T (: x T)) 1)').value).toBe(1)
 	})
 })
 
@@ -1362,9 +1362,9 @@ describe('evaluate — runaway recursion', () => {
 
 	it('does not throw, and yields a diagnostic', () => {
 		for (const src of [
-			'{f = (=> (x: number): number (f x)) (f 1)}',
-			'{f = (=> (x: number): number (+ 1 (f x))) (f 1)}',
-			'{f = (=> (x: number): number (reduce (map [x] f) 0 +)) (f 1)}',
+			'{f = (=> [x: number]: number (f x)) (f 1)}',
+			'{f = (=> [x: number]: number (+ 1 (f x))) (f 1)}',
+			'{f = (=> [x: number]: number (reduce (map [x] f) 0 +)) (f 1)}',
 		]) {
 			const r = evaluate(parse(src), env)
 			expect(r.diagnostics.map(d => d.message), src).toEqual([
@@ -1374,7 +1374,7 @@ describe('evaluate — runaway recursion', () => {
 	})
 
 	it('leaves nothing behind that looks like a cycle', () => {
-		const ast = parse('{f = (=> (x: number): number (f x)) (f 1)}')
+		const ast = parse('{f = (=> [x: number]: number (f x)) (f 1)}')
 		const messages = () =>
 			evaluate(ast, env).diagnostics.map(d => d.message)
 		expect(messages()).toEqual(['recursion too deep'])
@@ -1389,9 +1389,9 @@ describe('default in metadata', () => {
 	it('is what a type falls back to', () => {
 		expect(run('(: "a" ^{default: 7} number)').value).toBe(7)
 		expect(run('{P = ^{default: 7} number (: "a" P)}').value).toBe(7)
-		expect(run('{f = (=> (x: ^{default: 7} number): number x) (f "a")}').value).toBe(7)
-		expect(run('{P = ^{default: 7} number f = (=> (x: P): number x) (f "a")}').value).toBe(7)
-		expect(run('{f = (=> (x: ^{default: 7} number): number x) (f ())}').value).toBe(7)
+		expect(run('{f = (=> [x: ^{default: 7} number]: number x) (f "a")}').value).toBe(7)
+		expect(run('{P = ^{default: 7} number f = (=> [x: P]: number x) (f "a")}').value).toBe(7)
+		expect(run('{f = (=> [x: ^{default: 7} number]: number x) (f ())}').value).toBe(7)
 	})
 
 	it('goes along with what is derived, until something goes over it', () => {
@@ -1405,9 +1405,9 @@ describe('default in metadata', () => {
 	})
 
 	it('still fits as what it is', () => {
-		expect(run('{P = ^{default: 7} number f = (=> (x: number): number x) (f (: 1 P))}').value).toBe(1)
+		expect(run('{P = ^{default: 7} number f = (=> [x: number]: number x) (f (: 1 P))}').value).toBe(1)
 		expect(run('(: 1 ^{default: 7} number)').value).toBe(1)
-		expect(check(parse('{P = ^{default: 7} number f = (=> (x: P): number x) (f 1)}'), env)).toEqual([])
+		expect(check(parse('{P = ^{default: 7} number f = (=> [x: P]: number x) (f 1)}'), env)).toEqual([])
 		const typed = resolveTypeSlot(parse('^{default: 7} number'), env)!
 		const plain = resolveTypeSlot(parse('number'), env)!
 		expect(typeFits(typed, plain)).toBe(true)
@@ -1458,7 +1458,7 @@ describe('members of a type', () => {
 	it('leave the type as a type', () => {
 		expect(run('(: [1 2] pair)').value).toEqual([1, 2])
 		expect(run('(: "a" pair)').value).toEqual([0, 0])
-		expect(run('{f = (=> (p: pair): number p.0) (f [4 5])}').value).toBe(4)
+		expect(run('{f = (=> [p: pair]: number p.0) (f [4 5])}').value).toBe(4)
 	})
 
 	it('say which one is missing', () => {
@@ -1492,7 +1492,7 @@ describe('#_', () => {
 		expect(run('[1 #_2 3]')).toEqual([1, UNIT, 3])
 		expect(run('(+ 1 #_(+ 2 3) 4)')).toBe(5)
 		expect(run('(* 2 #_3)')).toBe(2)
-		expect(run('{f = (=> (x: number): number (+ x 1)) (f #_5)}')).toBe(1)
+		expect(run('{f = (=> [x: number]: number (+ x 1)) (f #_5)}')).toBe(1)
 		expect(run('{a = 1 #_a}')).toBe(UNIT)
 	})
 

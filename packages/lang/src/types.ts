@@ -400,10 +400,10 @@ export class FnAST extends ASTNode {
 	override printStructural(): string {
 		const segments: string[] = ['=>']
 		if (this.generics.length > 0) {
-			segments.push(`(${this.generics.join(' ')})`)
+			segments.push(`{${this.generics.join(' ')}}`)
 		}
 		const params = this.params.map(printFnParam).join(' ')
-		segments.push(`(${params}): ${this.returnType.print()}`)
+		segments.push(`[${params}]: ${this.returnType.print()}`)
 		if (this.body !== null) {
 			segments.push(this.body.print())
 		}

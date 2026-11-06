@@ -33,7 +33,7 @@ number  !=  string
 A function type is identified by its **list of parameter types** (positional, in declared order) and its **return type**. Parameter *names* are part of the function value's keyword-argument interface but **not** part of the type identity:
 
 ```glisp
-(=> (a: number b: number): number)  ==  (=> (x: number y: number): number)
+(=> [a: number b: number]: number)  ==  (=> [x: number y: number]: number)
 ```
 
 Two functions of these types are interchangeable at any slot expecting that type. Calls that use keyword arguments still need to supply the receiving function's actual parameter names — that is a per-value concern, not a type concern.
@@ -83,8 +83,8 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | `[T1 T2 ... Tn ...Trest]` | tuple with a trailing rest: first `n` fixed, then any number of `Trest` |
 | `[...T]` | rest-only tuple — equivalent to "vector of `T`" with no fixed prefix |
 | `{k1: T1 k2: T2 ...}` | record with the given field types (same shape as a record value) |
-| `(=> (a: T1 b: T2 ...): R)`, `(=> (T1 T2 ...): R)` | Function type (parameter names are optional; not part of identity) |
-| `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)`, with an explicit default for failed casts |
+| `(=> [a: T1 b: T2 ...]: R)`, `(=> [T1 T2 ...]: R)` | Function type (parameter names are optional; not part of identity) |
+| `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> [v: T]: boolean)`, with an explicit default for failed casts |
 | `(\| T1 T2 ...)` | union: the values of any of `T1 T2 ...`, defaulting to the first one's default |
 | `42`, `"round"`, `true` | a value written as it is: the type of just that value, which is its own default |
 | `(IO T)` | parametric IO: a deferred effect that, when forced, produces a `T`. Compatibility is covariant in the payload (`(IO !)` fits `(IO _)`) |
@@ -105,12 +105,12 @@ A value written as it is, where a type is wanted, is the type of just that value
 <!-- test -->
 ```glisp
 ColorCode = (refine string "#000000"
-                    (=> (s: string): boolean (starts-with s "#")))
+                    (=> [s: string]: boolean (starts-with s "#")))
 
 (: "#FF0000" ColorCode)  ;; → "#FF0000"
 (: "hello" ColorCode)    ;; → "#000000"  (default)
 
-NonNegative = (refine number 0 (=> (n: number): boolean (>= n 0)))
+NonNegative = (refine number 0 (=> [n: number]: boolean (>= n 0)))
 ```
 
 A `ColorCode` fits where a `string` is expected, but not the other way around.
@@ -164,7 +164,7 @@ This is what lets literal forms play double duty:
 | record   | `{x: 10 y: 20}`    | `{x: number y: number}` |
 | tuple    | `[1 "a"]`          | `[number string]`       |
 | vector   | `[1 2 3]`          | `[...number]`           |
-| function | (closure)          | `(=> (a: T): R)`        |
+| function | (closure)          | `(=> [a: T]: R)`        |
 
 `[...T]` is the special case of a tuple type with no fixed prefix and a rest of `T` — the type of "any-length vector of `T`". `[T1 T2 ...T3]` mixes fixed and rest. The rest spread may appear only at the end (see [Type constructors](#type-constructors)).
 
@@ -186,8 +186,8 @@ JoinType = (| "round" "butt" "square")
 (: "hello" number)            ;; → 0  (default, with a diagnostic)
 (: [1 2 3] [...number])       ;; → [1 2 3]
 (: "round" JoinType)          ;; → "round"
-((=> (j: JoinType): JoinType j) "butt")       ;; → "butt"
-((=> (o: {j: JoinType}): _ o) {j: "butt"})    ;; → {j: "butt"}
+((=> [j: JoinType]: JoinType j) "butt")       ;; → "butt"
+((=> [o: {j: JoinType}]: _ o) {j: "butt"})    ;; → {j: "butt"}
 (: "diamond" JoinType)        ;; → "round"  (default, with a diagnostic)
 ```
 
@@ -212,24 +212,24 @@ For non-fallback type tests (membership without consuming the default), pattern-
 
 ### Constant-function lifting
 
-When the target type of `(: v T)` is a function type `(=> (...): R)` and the input `v` is **not** a function, the coercion tries to interpret `v` as the return value of a constant function:
+When the target type of `(: v T)` is a function type `(=> [...]: R)` and the input `v` is **not** a function, the coercion tries to interpret `v` as the return value of a constant function:
 
-- If `v` coerces to `R`, the result is a constant function `(=> (...): R v)` — calling it ignores its arguments and returns `v`.
+- If `v` coerces to `R`, the result is a constant function `(=> [...]: R v)` — calling it ignores its arguments and returns `v`.
 - Otherwise, the standard default fallback applies.
 
 <!-- test -->
 ```glisp
-(map [1 2 3] (: 20 (=> (x: number): number)))   ;; → [20 20 20]
+(map [1 2 3] (: 20 (=> [x: number]: number)))   ;; → [20 20 20]
 ```
 
-Lifting only happens inside `(: v T)` against a function type. Outside it a value's identity is unchanged. This rule complements the ban on zero-parameter functions: instead of writing `(=> (): T body)` (which is a syntax error), pass `body` through `(: body T)` wherever a function is expected.
+Lifting only happens inside `(: v T)` against a function type. Outside it a value's identity is unchanged. This rule complements the ban on zero-parameter functions: instead of writing `(=> []: T body)` (which is a syntax error), pass `body` through `(: body T)` wherever a function is expected.
 
 ## Members
 
 A type can have functions and constants that go with it, read with `.`, so that a host's `vec2` is one name for the points and for what is done to them.
 
 ```glisp
-(=> (p: vec2): vec2 (vec2.scale p 2))
+(=> [p: vec2]: vec2 (vec2.scale p 2))
 ```
 
 Members say nothing about the type's values, so they take no part in what fits what. For now only a host gives a type members. See [`withMembers`](./host-api.md#what-goes-with-a-type).
@@ -240,7 +240,7 @@ Any value (including types) can be wrapped with metadata via `^{...}` prefix.
 
 ```glisp
 ^{default: 1 label: "Count"} number
-^{doc: "Square"} (=> (x: number): number (* x x))
+^{doc: "Square"} (=> [x: number]: number (* x x))
 ^{label: "Width"} 100
 ```
 
@@ -260,7 +260,7 @@ a = (: 20 Percent)             ;; : ^{min: 0 max: 100 suffix: "%"} number
 b = ^{min: 0} 5                ;; : ^{min: 0} number
 c = b                          ;; : ^{min: 0} number
 d = (+ b 1)                    ;; : number, since `+` says it returns a number
-f = (=> (p: Percent): number p)  ;; `p` is a Percent, and so is what is passed to it, for an editor
+f = (=> [p: Percent]: number p)  ;; `p` is a Percent, and so is what is passed to it, for an editor
 ```
 
 A value takes its metadata from where it is written, and through names, parameters' and return types, and generics. Metadata stays out of type names in diagnostics. Apart from `default`, it is not evaluated: only what is written as a literal can be read back, as `^{max: a}` cannot be without running `a`. A `default` can be any expression whose value is of the type, and one that is not is a diagnostic and has no effect. A host that writes a default into a program, such as for an argument being added, writes that expression, so that `^{default: (mat2d.trs [50 0])} mat2d` starts as something that can be read, or what it comes to if it would not come to the same there.
@@ -304,9 +304,9 @@ What can be left out is what can be `()`: a field or a parameter of a type that 
 ```glisp
 Style = {width: number dash?: number}
 (: {width: 2} Style)                      ;; → {width: 2}
-((=> (d?: number): _ d))                  ;; → 0   (left out: the default of number, silently)
-((=> (d?: number): _ d) ())               ;; → ()  (given as nothing, it stays so)
-((=> (d: (| number unit)): _ d))          ;; → 0
+((=> [d?: number]: _ d))                  ;; → 0   (left out: the default of number, silently)
+((=> [d?: number]: _ d) ())               ;; → ()  (given as nothing, it stays so)
+((=> [d: (| number unit)]: _ d))          ;; → 0
 ```
 
 A field that is missing is read as `()`, and so a record without it fits. An editor shows such a slot as one that can be emptied.
@@ -327,9 +327,9 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 - Generic type parameters at call sites.
 
 ```glisp
-(=> (T) (xs: [...T] i: number): T (xs i))
+(=> {T} [xs: [...T] i: number]: T (xs i))
 
-((=> (T) (xs: [...T] i: number): T (xs i)) [1 2 3] 0)
+((=> {T} [xs: [...T] i: number]: T (xs i)) [1 2 3] 0)
 ;; T is inferred from the argument as number; result type is number.
 ```
 
@@ -340,7 +340,7 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 - **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else. A slot also takes a literal for what it is, so `"round"` goes in a slot of `(| "round" "butt")` and `"z"` does not. This is true of what is written there, a vector or record of literals included. A name bound to `"round"` is a `string`, which `(: name J)` casts.
 - **Generics are solved at a call**, one argument at a time, by matching types structurally: `(xs: [...T])` given `[1 2]` solves `T` as `number`. A generic seen twice takes whichever of the two types the other fits; if neither does, that is a diagnostic. An unsolved generic is `_`.
 - **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] (+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
-- **Type constructors can be generic.** In `(=> (F T) (x: (F T)): T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.
+- **Type constructors can be generic.** In `(=> {F T} [x: (F T)]: T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.
 - **Inside a generic function's body, `T` is opaque**: it fits only itself.
 - **Unions are not inferred**, only written. A vector with no common element type is a vector of `_` when it meets `[...T]`, and clauses of `?` with no type in common are a diagnostic.
 - **`?`** has the type its clauses have in common. Clauses with none are a diagnostic.
@@ -353,4 +353,4 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 - Whether function types carry their own metadata (e.g. purity/effect annotations).
 - Whether inference should make unions, as the type of `[1 "a"]` or of clauses of `?` that differ, and whether a clause of `?` should narrow the type of what it matched.
 - Tagged sums. A union of records that differ by a field, as `{kind: (| "a") ...}`, covers them for now.
-- **Type classes / constraint-based generics** (`(=> (T: Addable) (a: T b: T): T ...)`). v1 uses `overload` as a closed set of candidates. Type classes would add open extension (new instances declarable later) at the cost of a constraint syntax, instance declaration, and dictionary-passing implementation. Defer to v2; if introduced, `overload` may become syntactic sugar for a closed type-class definition.
+- **Type classes / constraint-based generics** (`(=> [T: Addable] (a: T b: T): T ...)`). v1 uses `overload` as a closed set of candidates. Type classes would add open extension (new instances declarable later) at the cost of a constraint syntax, instance declaration, and dictionary-passing implementation. Defer to v2; if introduced, `overload` may become syntactic sugar for a closed type-class definition.

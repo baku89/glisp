@@ -24,7 +24,7 @@ describe('desugar — basic shapes', () => {
 	})
 
 	it('(f % y) becomes a 1-arg fn closing over the form', () => {
-		// (f % y) → (=> (%N: _) (f %N y))
+		// (f % y) → (=> [%N: _] (f %N y))
 		const ast = parse('(f % y)')
 		const desugared = desugar(ast)
 		expect(isFn(desugared)).toBe(true)
@@ -37,7 +37,7 @@ describe('desugar — basic shapes', () => {
 		const ast = parse('(* 2 %)')
 		const desugared = desugar(ast) as FnAST
 		expect(isFn(desugared)).toBe(true)
-		// shape: (=> (n: _) (* 2 n))
+		// shape: (=> [n: _] (* 2 n))
 		const paramName = desugared.params[0]!.name
 		// the body should reference paramName once and `2` once
 		expect(print(desugared.body!)).toBe(`(* 2 ${paramName})`)
@@ -53,7 +53,7 @@ describe('desugar — basic shapes', () => {
 
 describe('desugar — nesting', () => {
 	it('(g (f %)) only wraps the inner (f %)', () => {
-		// (g (f %)) → (g (=> (n) (f n)))
+		// (g (f %)) → (g (=> [n] (f n)))
 		const ast = parse('(g (f %))')
 		const desugared = desugar(ast)
 		// outer g call should remain a call (not a fn)
@@ -69,7 +69,7 @@ describe('desugar — nesting', () => {
 		expect(args).toHaveLength(2)
 	})
 
-	it('[% %] becomes (=> (n) [n n])', () => {
+	it('[% %] becomes (=> [n] [n n])', () => {
 		const ast = parse('[% %]')
 		const desugared = desugar(ast) as FnAST
 		expect(isFn(desugared)).toBe(true)
@@ -92,7 +92,7 @@ describe('desugar — evaluation', () => {
 			return xs.map(fn)
 		}
 		const env = makeTopLevel({
-			map: parse('(=> (f: _ xs: _): _ x)'), // placeholder, won't be used
+			map: parse('(=> [f: _ xs: _]: _ x)'), // placeholder, won't be used
 			'*': parse('1'), // placeholder
 		})
 		// Simpler: directly call a closure built via desugaring.

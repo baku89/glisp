@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { parse, print } from '@glisp/lang'
+import { parse, print, withFunctionsAsNow } from '@glisp/lang'
 import { AstEditor, Repl, useGlispDocument } from '@glisp/tweeq'
 import { useMediaQuery, useMutationObserver } from '@vueuse/core'
 import { PaneSplit } from 'tweeq/PaneSplit'
@@ -34,7 +34,9 @@ const readsBack = (source: string): boolean => {
 
 function stored(): string | null {
 	try {
-		const source = localStorage.getItem(STORAGE_KEY)
+		const kept = localStorage.getItem(STORAGE_KEY)
+		// What was kept before functions took brackets is read as it is written now.
+		const source = kept === null ? null : withFunctionsAsNow(kept)
 		return source !== null && readsBack(source) ? source : null
 	} catch {
 		return null

@@ -102,7 +102,7 @@ describe('prelude — higher-order functions', () => {
 
 	it('map applies fn elementwise', () => {
 		const r = evaluate(
-			parse('(map [1 2 3 4] (=> (x: number): number (* x x)))'),
+			parse('(map [1 2 3 4] (=> [x: number]: number (* x x)))'),
 			env
 		)
 		expect(r.value).toEqual([1, 4, 9, 16])
@@ -110,7 +110,7 @@ describe('prelude — higher-order functions', () => {
 
 	it('filter retains elements where pred is truthy', () => {
 		const r = evaluate(
-			parse('(filter [1 2 3 4 5] (=> (x: number): boolean (> x 2)))'),
+			parse('(filter [1 2 3 4 5] (=> [x: number]: boolean (> x 2)))'),
 			env
 		)
 		expect(r.value).toEqual([3, 4, 5])
@@ -119,7 +119,7 @@ describe('prelude — higher-order functions', () => {
 	it('reduce folds left-to-right with init', () => {
 		const r = evaluate(
 			parse(
-				'(reduce [1 2 3 4 5] 0 (=> (a: number b: number): number (+ a b)))'
+				'(reduce [1 2 3 4 5] 0 (=> [a: number b: number]: number (+ a b)))'
 			),
 			env
 		)
@@ -158,7 +158,7 @@ describe('prelude — type constructors', () => {
 
 	it('refine narrows base type via (: v T)', () => {
 		const pos = (arg: string): string =>
-			`{Pos = (refine number 1 (=> (x: number): boolean (> x 0))) (: ${arg} Pos)}`
+			`{Pos = (refine number 1 (=> [x: number]: boolean (> x 0))) (: ${arg} Pos)}`
 		expect(evaluate(parse(pos('5')), env).value).toBe(5)
 		const fail = evaluate(parse(pos('-3')), env)
 		expect(fail.value).toBe(1) // declared default
@@ -287,17 +287,17 @@ describe('prelude — :type signature display via infer', () => {
 
 	it('infer(+) yields a function-type with a variadic parameter', () => {
 		const t = infer(parse('+'), env)
-		expect(t?.typeName).toBe('(=> (...xs: number): number)')
+		expect(t?.typeName).toBe('(=> [...xs: number]: number)')
 	})
 
 	it('infer(==) returns boolean-typed predicate', () => {
 		const t = infer(parse('=='), env)
-		expect(t?.typeName).toBe('(=> (...xs: _): boolean)')
+		expect(t?.typeName).toBe('(=> [...xs: _]: boolean)')
 	})
 
 	it('infer of a fn literal renders its signature', () => {
-		const t = infer(parse('(=> (n: number): number (* n 2))'), env)
-		expect(t?.typeName).toBe('(=> (n: number): number)')
+		const t = infer(parse('(=> [n: number]: number (* n 2))'), env)
+		expect(t?.typeName).toBe('(=> [n: number]: number)')
 	})
 })
 

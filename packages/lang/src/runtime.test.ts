@@ -92,7 +92,7 @@ describe('Runtime — incremental evaluation', () => {
 		const H = counter()
 		const rt = new Runtime(prelude)
 		rt.setRoot(
-			program(H.ast, '{f = (=> (x: number): number (H x)) [(f 1) (f 1) (f 1)]}')
+			program(H.ast, '{f = (=> [x: number]: number (H x)) [(f 1) (f 1) (f 1)]}')
 		)
 		expect(rt.evaluate().value).toEqual([1, 1, 1])
 		expect(H.runs).toBe(1)
@@ -176,33 +176,33 @@ describe('Runtime — correctness of hits', () => {
 	it('sees a change in what a closure captures', () => {
 		expect(
 			run(
-				'{k = 1 f = (=> (x: number): number (+ x k)) (f 1)}',
-				'{k = 2 f = (=> (x: number): number (+ x k)) (f 1)}'
+				'{k = 1 f = (=> [x: number]: number (+ x k)) (f 1)}',
+				'{k = 2 f = (=> [x: number]: number (+ x k)) (f 1)}'
 			)
 		).toEqual([2, 3])
 	})
 
 	it('distinguishes different arguments to one closure', () => {
 		expect(
-			run('{f = (=> (x: number): number (* x 2)) [(f 1) (f 2)]}')
+			run('{f = (=> [x: number]: number (* x 2)) [(f 1) (f 2)]}')
 		).toEqual([[2, 4]])
 	})
 
 	it('handles self and mutual recursion across edits', () => {
 		const fact = (extra: number) =>
-			`{extra = ${extra} f = (=> (n: number): number (? (== n 0) true 1 _ (* n (f (- n 1))))) [(f 4) extra]}`
+			`{extra = ${extra} f = (=> [n: number]: number (? (== n 0) true 1 _ (* n (f (- n 1))))) [(f 4) extra]}`
 		expect(run(fact(1), fact(2))).toEqual([
 			[24, 1],
 			[24, 2],
 		])
 		const even = (start: number) =>
-			`{e = (=> (n: number): boolean (? (== n 0) true true _ (o (- n 1)))) o = (=> (n: number): boolean (? (== n 0) true false _ (e (- n 1)))) (e ${start})}`
+			`{e = (=> [n: number]: boolean (? (== n 0) true true _ (o (- n 1)))) o = (=> [n: number]: boolean (? (== n 0) true false _ (e (- n 1)))) (e ${start})}`
 		expect(run(even(4), even(3))).toEqual([true, false])
 	})
 
 	it('does not mix up swapped names in a recursive group', () => {
 		const src = (a: string, b: string) =>
-			`{a = (=> (n: number): number (? (== n 0) true ${a} _ (b (- n 1)))) b = (=> (n: number): number (? (== n 0) true ${b} _ (a (- n 1)))) (a 1)}`
+			`{a = (=> [n: number]: number (? (== n 0) true ${a} _ (b (- n 1)))) b = (=> [n: number]: number (? (== n 0) true ${b} _ (a (- n 1)))) (a 1)}`
 		expect(run(src('1', '2'), src('2', '1'))).toEqual([2, 1])
 	})
 
@@ -222,7 +222,7 @@ describe('Runtime — correctness of hits', () => {
 
 	it('does not cache a value that depends on itself through a function', () => {
 		const src =
-			'{p = {f = (=> (k: number): number (? (< k 4) true {r = k p} _ (+ 1 (f (- k 1))))) (f 8)} p}'
+			'{p = {f = (=> [k: number]: number (? (< k 4) true {r = k p} _ (+ 1 (f (- k 1))))) (f 8)} p}'
 		const plain = evaluate(parse(src), prelude).value
 		const rt = new Runtime(prelude, { heavyMs: 0 })
 		for (let i = 0; i < 2; i++) {
@@ -235,7 +235,7 @@ describe('Runtime — correctness of hits', () => {
 		const rt = new Runtime(prelude)
 		const root = (extra: number) =>
 			parse(
-				`{extra = ${extra} f = (=> (n: number): number (? (< n 1) true 1 _ (* n (f (- n 1))))) [(f 9) extra]}`
+				`{extra = ${extra} f = (=> [n: number]: number (? (< n 1) true 1 _ (* n (f (- n 1))))) [(f 9) extra]}`
 			)
 		rt.setRoot(root(1))
 		rt.evaluate()
@@ -259,7 +259,7 @@ describe('Runtime — correctness of hits', () => {
 		const rt = new Runtime(prelude, { heavyMs: 0 })
 		rt.setRoot(
 			parse(
-				`[((=> (x: number): _ [x]) ${arg}) ((=> (x: string): _ [x]) ${arg})]`
+				`[((=> [x: number]: _ [x]) ${arg}) ((=> [x: string]: _ [x]) ${arg})]`
 			)
 		)
 		expect(rt.evaluate().value).toEqual([[0], ['s']])
@@ -267,7 +267,7 @@ describe('Runtime — correctness of hits', () => {
 
 	it('does not cache a result of runaway recursion', () => {
 		const rt = new Runtime(prelude)
-		rt.setRoot(parse('{f = (=> (x: number): number (f x)) [(f 1) 2]}'))
+		rt.setRoot(parse('{f = (=> [x: number]: number (f x)) [(f 1) 2]}'))
 		expect(rt.evaluate().diagnostics.map(d => d.message)).toEqual([
 			'recursion too deep',
 		])
@@ -355,7 +355,7 @@ describe('Runtime — memory', () => {
 
 	it('does not grow with calls inside a function', () => {
 		const rt = new Runtime(prelude)
-		rt.setRoot(parse('{f = (=> (x: number): number (+ x 1)) (map (range 0 500) f)}'))
+		rt.setRoot(parse('{f = (=> [x: number]: number (+ x 1)) (map (range 0 500) f)}'))
 		rt.evaluate()
 		expect(rt.stats().entries).toBeLessThan(50)
 	})
@@ -377,7 +377,7 @@ describe('Runtime — memory', () => {
 		)
 		const rt = new Runtime(prelude)
 		rt.setRoot(
-			program(slow, '{f = (=> (x: number): number (H x)) (map [1 1 2 1] f)}')
+			program(slow, '{f = (=> [x: number]: number (H x)) (map [1 1 2 1] f)}')
 		)
 		expect(rt.evaluate().value).toEqual([1, 1, 2, 1])
 		expect(runs).toBe(2)
@@ -419,16 +419,16 @@ describe('Runtime — agrees with plain evaluation under random edits', () => {
 			}
 			case 5: {
 				const param = pick(['x', 'y'])
-				return `((=> (${param}: number): number ${sub([param])}) ${sub()})`
+				return `((=> [${param}: number]: number ${sub([param])}) ${sub()})`
 			}
 			case 6:
 				return `(? (< ${sub()} 4) true ${sub()} _ ${sub()})`
 			case 7: {
 				const name = pick(['f', 'g'])
-				return `{${name} = (=> (k: number): number (? (< k 1) true ${sub(['k'])} _ (+ 1 (${name} (- k 1))))) (${name} ${random(3)})}`
+				return `{${name} = (=> [k: number]: number (? (< k 1) true ${sub(['k'])} _ (+ 1 (${name} (- k 1))))) (${name} ${random(3)})}`
 			}
 			default:
-				return `(reduce (map [1 2] (=> (e: number): number ${sub(['e'])})) 0 +)`
+				return `(reduce (map [1 2] (=> [e: number]: number ${sub(['e'])})) 0 +)`
 		}
 	}
 

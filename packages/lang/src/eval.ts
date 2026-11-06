@@ -6,7 +6,7 @@
  *
  * Not yet implemented:
  * - `expand` / macro evaluation
- * - generic-parameter resolution in `(=> (T) (params): T body)`
+ * - generic-parameter resolution in `(=> {T} [params]: T body)`
  */
 
 import { desugar } from './desugar.js'
@@ -582,8 +582,8 @@ export function makeFunctionType(
 		params.push(`...${options.variadicName ?? 'rest'}: ${options.variadicTail.typeName}`)
 	}
 	const generics = options?.generics ?? []
-	const genericList = generics.length > 0 ? `(${generics.join(' ')}) ` : ''
-	const name = `(=> ${genericList}(${params.join(' ')}): ${returnType.typeName})`
+	const genericList = generics.length > 0 ? `{${generics.join(' ')}} ` : ''
+	const name = `(=> ${genericList}[${params.join(' ')}]: ${returnType.typeName})`
 	const shape: TypeShape = {
 		kind: 'function',
 		paramTypes,
@@ -2438,7 +2438,7 @@ function describeVariantSignature(
 		if (variant.variadicTail !== undefined) {
 			params.push(`...rest: ${variant.variadicTail.typeName}`)
 		}
-		return `(=> (${params.join(' ')}): ${variant.returnType.typeName})`
+		return `(=> [${params.join(' ')}]: ${variant.returnType.typeName})`
 	}
 	return variant.ast.print()
 }

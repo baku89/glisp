@@ -26,45 +26,45 @@ const value = (src: string): unknown => evaluate(parse(src), env).value
 
 describe('infer — generics', () => {
 	it('solves a generic from an argument', () => {
-		expect(typeOf('((=> (T) (x: T): T x) 1)')).toBe('number')
-		expect(typeOf('((=> (T) (x: T): T x) "s")')).toBe('string')
-		expect(typeOf('((=> (T U) (a: T b: U): U b) 1 "s")')).toBe('string')
+		expect(typeOf('((=> {T} [x: T]: T x) 1)')).toBe('number')
+		expect(typeOf('((=> {T} [x: T]: T x) "s")')).toBe('string')
+		expect(typeOf('((=> {T U} [a: T b: U]: U b) 1 "s")')).toBe('string')
 	})
 
 	it('solves through structure', () => {
-		expect(typeOf('((=> (T) (xs: [...T]): T (first xs)) [1 2])')).toBe('number')
-		expect(typeOf('((=> (T) (r: {x: T}): T r.x) {x: "s"})')).toBe('string')
-		expect(typeOf('((=> (T) (p: [T T]): [...T] p) [1 2])')).toBe('[...number]')
+		expect(typeOf('((=> {T} [xs: [...T]]: T (first xs)) [1 2])')).toBe('number')
+		expect(typeOf('((=> {T} [r: {x: T}]: T r.x) {x: "s"})')).toBe('string')
+		expect(typeOf('((=> {T} [p: [T T]]: [...T] p) [1 2])')).toBe('[...number]')
 	})
 
 	it('solves by keyword argument', () => {
-		expect(typeOf('((=> (T) (x: T y: number): T x) y: 1 x: "s")')).toBe('string')
+		expect(typeOf('((=> {T} [x: T y: number]: T x) y: 1 x: "s")')).toBe('string')
 	})
 
 	it('leaves an unsolved generic as unknown', () => {
-		expect(typeOf('((=> (T) (x: number): T x) 1)')).toBe('_')
+		expect(typeOf('((=> {T} [x: number]: T x) 1)')).toBe('_')
 	})
 
 	it('types a generic function value by its signature', () => {
-		expect(typeOf('(=> (T) (x: T): T x)')).toBe('(=> (T) (x: T): T)')
+		expect(typeOf('(=> {T} [x: T]: T x)')).toBe('(=> {T} [x: T]: T)')
 	})
 
 	it('reports two uses of a generic that do not agree', () => {
-		expect(problems('((=> (T) (a: T b: T): T a) 1 "s")')).toEqual([
+		expect(problems('((=> {T} [a: T b: T]: T a) 1 "s")')).toEqual([
 			'generic T resolved to number earlier but argument here is string',
 		])
 	})
 
 	it('lets a generic widen to what both uses fit', () => {
-		expect(problems('((=> (T) (a: T b: T): T a) [1] [...[1 2]])')).toEqual([])
+		expect(problems('((=> {T} [a: T b: T]: T a) [1] [...[1 2]])')).toEqual([])
 	})
 
 	it('keeps a generic opaque inside its own body', () => {
-		expect(problems('(=> (T) (x: T): number x)')).toEqual([
+		expect(problems('(=> {T} [x: T]: number x)')).toEqual([
 			'return type mismatch: expected number, got T',
 		])
-		expect(problems('(=> (T) (x: T): T x)')).toEqual([])
-		expect(problems('(=> (T) (x: T): number (+ x 1))')).toEqual([
+		expect(problems('(=> {T} [x: T]: T x)')).toEqual([])
+		expect(problems('(=> {T} [x: T]: number (+ x 1))')).toEqual([
 			'type mismatch: expected number, got T',
 		])
 	})
@@ -83,20 +83,20 @@ describe('infer — the prelude is generic', () => {
 	})
 
 	it('types map through the function it is given', () => {
-		expect(typeOf('(map [1 2] (=> (x: number): string "s"))')).toBe('[...string]')
-		expect(typeOf('(map ["a"] (=> (x: string): number 1))')).toBe('[...number]')
+		expect(typeOf('(map [1 2] (=> [x: number]: string "s"))')).toBe('[...string]')
+		expect(typeOf('(map ["a"] (=> [x: string]: number 1))')).toBe('[...number]')
 	})
 
 	it('infers the parameter of a function given to map', () => {
 		expect(typeOf('(map [1 2] (+ % 1))')).toBe('[...number]')
-		expect(typeOf('(map [1 2] (=> (x: _): _ (+ x 1)))')).toBe('[...number]')
+		expect(typeOf('(map [1 2] (=> [x: _]: _ (+ x 1)))')).toBe('[...number]')
 		expect(typeOf('(map [1 2] [% %])')).toBe('[...[number number]]')
 	})
 
 	it('types filter and reduce', () => {
 		expect(typeOf('(filter [1 2] (> % 1))')).toBe('[...number]')
 		expect(typeOf('(reduce [1 2] 0 +)')).toBe('number')
-		expect(typeOf('(reduce [1 2] "" (=> (acc: string x: number): string acc))')).toBe('string')
+		expect(typeOf('(reduce [1 2] "" (=> [acc: string x: number]: string acc))')).toBe('string')
 	})
 
 	it('chains through pipes and nested calls', () => {
@@ -110,18 +110,18 @@ describe('infer — the prelude is generic', () => {
 		expect(typeOf('(reverse ["a" 1])')).toBe('vector')
 		expect(typeOf('(first ["a" 1])')).toBe('_')
 		expect(problems('(reverse ["a" 1])')).toEqual([])
-		expect(problems('(map [1 "a"] (=> (x: _): _ x))')).toEqual([])
+		expect(problems('(map [1 "a"] (=> [x: _]: _ x))')).toEqual([])
 	})
 
 	it('finds a mismatch through a generic', () => {
 		expect(problems('(+ (first ["a"]) 1)')).toEqual([
 			'type mismatch: expected number, got string',
 		])
-		expect(problems('(map [1] (=> (x: string): string x))')).toEqual([
+		expect(problems('(map [1] (=> [x: string]: string x))')).toEqual([
 			'generic T resolved to number earlier but argument here is string',
 		])
 		expect(problems('(filter [1] (+ % 1))')).toEqual([
-			'type mismatch: expected (=> (x: number): boolean), got (=> (%1: number): number)',
+			'type mismatch: expected (=> [x: number]: boolean), got (=> [%1: number]: number)',
 		])
 		expect(problems('(+ (first [1]) 1)')).toEqual([])
 	})
@@ -146,19 +146,19 @@ describe('type constructors', () => {
 	})
 
 	it('solves a generic constructor', () => {
-		const id = '(=> (F T) (x: (F T)): (F T) x)'
+		const id = '(=> {F T} [x: (F T)]: (F T) x)'
 		expect(typeOf(`(${id} [1 2])`)).toBe('[...number]')
 		expect(typeOf(`(${id} (: 1 (IO number)))`)).toBe('(IO number)')
 	})
 
 	it('extracts through a generic constructor', () => {
-		const unwrap = '(=> (F T) (x: (F T)): T (: () T))'
+		const unwrap = '(=> {F T} [x: (F T)]: T (: () T))'
 		expect(typeOf(`(${unwrap} ["a"])`)).toBe('string')
 		expect(typeOf(`(${unwrap} (: 1 (IO number)))`)).toBe('number')
 	})
 
 	it('builds a generic constructor around another type', () => {
-		const remap = '(=> (F T) (x: (F T)): (F string) (: () (F string)))'
+		const remap = '(=> {F T} [x: (F T)]: (F string) (: () (F string)))'
 		expect(typeOf(`(${remap} [1 2])`)).toBe('[...string]')
 		expect(typeOf(`(${remap} (: 1 (IO number)))`)).toBe('(IO string)')
 	})
@@ -175,8 +175,8 @@ describe('type slots', () => {
 		expect(slot('[number string]').typeName).toBe('[number string]')
 		expect(slot('[number ...string]').typeName).toBe('[number ...string]')
 		expect(slot('{x: number y?: string}').typeName).toBe('{x: number y?: string}')
-		expect(slot('(=> (number number): number)').typeName).toBe(
-			'(=> (number number): number)'
+		expect(slot('(=> [number number]: number)').typeName).toBe(
+			'(=> [number number]: number)'
 		)
 	})
 
@@ -205,13 +205,13 @@ describe('type slots', () => {
 	})
 
 	it('lifts a value to a constant function', () => {
-		expect(value('(map [1 2] (: 20 (=> (x: number): number)))')).toEqual([20, 20])
-		const r = evaluate(parse('(: "s" (=> (x: number): number))'), env)
+		expect(value('(map [1 2] (: 20 (=> [x: number]: number)))')).toEqual([20, 20])
+		const r = evaluate(parse('(: "s" (=> [x: number]: number))'), env)
 		expect(r.diagnostics.length).toBeGreaterThan(0)
 	})
 
 	it('checks a parameter of each form at run time', () => {
-		const r = evaluate(parse('((=> (x: [...number]): _ x) (? true true ["a"] _ 1))'), env)
+		const r = evaluate(parse('((=> [x: [...number]]: _ x) (? true true ["a"] _ 1))'), env)
 		expect(r.value).toEqual([])
 		expect(r.diagnostics.length).toBeGreaterThan(0)
 	})
@@ -263,7 +263,7 @@ describe('subtyping', () => {
 		expect(typeFits(slot('(| "a" "b")'), slot('number'))).toBe(false)
 		expect(typeFits(slot('string'), slot('(| "a" "b")'))).toBe(false)
 		expect(typeFits(slot('(| "a")'), slot('(| "a" "b")'))).toBe(true)
-		const positive = '(refine number 1 (=> (x: number): boolean (> x 0)))'
+		const positive = '(refine number 1 (=> [x: number]: boolean (> x 0)))'
 		expect(typeFits(slot(positive), slot('number'))).toBe(true)
 		expect(typeFits(slot('number'), slot(positive))).toBe(false)
 	})
@@ -339,20 +339,20 @@ describe('infer — forms', () => {
 
 describe('check', () => {
 	it('checks a return type', () => {
-		expect(problems('(=> (x: number): string x)')).toEqual([
+		expect(problems('(=> [x: number]: string x)')).toEqual([
 			'return type mismatch: expected string, got number',
 		])
-		expect(problems('(=> (x: number): number x)')).toEqual([])
-		expect(problems('(=> (x: [...number]): number (first x))')).toEqual([])
-		expect(problems('(=> (...xs: number): [...number] xs)')).toEqual([])
+		expect(problems('(=> [x: number]: number x)')).toEqual([])
+		expect(problems('(=> [x: [...number]]: number (first x))')).toEqual([])
+		expect(problems('(=> [...xs: number]: [...number] xs)')).toEqual([])
 	})
 
 	it('takes a literal that is one of an enum, as an argument and as what is returned', () => {
 		const J = '(| "a" "b")'
-		expect(problems(`{f = (=> (j: ${J}): number 1) (f "a")}`)).toEqual([])
-		expect(problems(`{f = (=> (j: ${J}): number 1) (f "z")}`)).toHaveLength(1)
-		expect(problems(`(=> (x: number): ${J} "a")`)).toEqual([])
-		expect(problems(`(=> (x: number): ${J} "z")`)).toHaveLength(1)
+		expect(problems(`{f = (=> [j: ${J}]: number 1) (f "a")}`)).toEqual([])
+		expect(problems(`{f = (=> [j: ${J}]: number 1) (f "z")}`)).toHaveLength(1)
+		expect(problems(`(=> [x: number]: ${J} "a")`)).toEqual([])
+		expect(problems(`(=> [x: number]: ${J} "z")`)).toHaveLength(1)
 	})
 
 	it('looks into what never runs', () => {
@@ -365,7 +365,7 @@ describe('check', () => {
 	})
 
 	it('reads a parameter in the body by its declared type', () => {
-		expect(problems('(=> (s: string): number (+ s 1))')).toEqual([
+		expect(problems('(=> [s: string]: number (+ s 1))')).toEqual([
 			'type mismatch: expected number, got string',
 		])
 	})
@@ -373,12 +373,12 @@ describe('check', () => {
 	it('reports nothing for well-typed programs', () => {
 		for (const src of [
 			'(map [1 2] (+ % 1))',
-			'{f = (=> (n: number): number (? (< n 1) true 1 _ (* n (f (- n 1))))) (f 3)}',
-			'{e = (=> (n: number): boolean (o n)) o = (=> (n: number): boolean (e n)) (e 1)}',
+			'{f = (=> [n: number]: number (? (< n 1) true 1 _ (* n (f (- n 1))))) (f 3)}',
+			'{e = (=> [n: number]: boolean (o n)) o = (=> [n: number]: boolean (e n)) (e 1)}',
 			'(reduce (range 0 3) 0 +)',
 			'(|> 1 (+ % 1) (* % 2))',
-			'{Point = {x: number y: number} (=> (p: Point): number p.x)}',
-			'{Color = (| "r" "g") (=> (c: Color): string c)}',
+			'{Point = {x: number y: number} (=> [p: Point]: number p.x)}',
+			'{Color = (| "r" "g") (=> [c: Color]: string c)}',
 		]) {
 			expect(problems(src), src).toEqual([])
 		}
@@ -412,7 +412,7 @@ describe('metadata on a type', () => {
 	})
 
 	it('goes through a function, its generics, and no further than it says', () => {
-		const src = `{${PERCENT} f = (=> (p: Percent): Percent p) id = (=> (T) (v: T): T v) a = (f 1) b = ^{min: 0} 5 c = (id b) d = (+ b 1)}`
+		const src = `{${PERCENT} f = (=> [p: Percent]: Percent p) id = (=> {T} [v: T]: T v) a = (f 1) b = ^{min: 0} 5 c = (id b) d = (+ b 1)}`
 		expect(typeIn(src, 'a')).toBe(SAID)
 		expect(typeIn(src, 'c')).toBe('^{min: 0} number')
 		expect(typeIn(src, 'd')).toBe('number')
@@ -420,7 +420,7 @@ describe('metadata on a type', () => {
 
 	it('reaches a parameter inside its function', () => {
 		const fn = infer(
-			parse(`{${PERCENT} (=> (p: Percent): number p)}`),
+			parse(`{${PERCENT} (=> [p: Percent]: number p)}`),
 			buildPrelude()
 		)!
 		const shape = unwrapLazy(fn).shape
@@ -435,15 +435,15 @@ describe('metadata on a type', () => {
 		expect(typeFits(plain, said)).toBe(true)
 		expect(said.fits(1)).toBe(true)
 		expect(said.fits('a')).toBe(false)
-		expect(check(parse(`{${PERCENT} f = (=> (p: Percent): number p) (f "a")}`), env)).not.toEqual([])
-		expect(check(parse(`{${PERCENT} f = (=> (p: Percent): number p) (f 1)}`), env)).toEqual([])
+		expect(check(parse(`{${PERCENT} f = (=> [p: Percent]: number p) (f "a")}`), env)).not.toEqual([])
+		expect(check(parse(`{${PERCENT} f = (=> [p: Percent]: number p) (f 1)}`), env)).toEqual([])
 	})
 
 	it('leaves behind what is said about a name or a place', () => {
 		expect(typeIn('{a = @5}', 'a')).toBe('number')
 		expect(typeIn('{a = ^{doc: "D" label: "L" min: 0} @5}', 'a')).toBe('^{min: 0} number')
-		expect(typeIn('{f = ^{doc: "D"} (=> (x: number): number x)}', 'f')).toBe(
-			'(=> (x: number): number)'
+		expect(typeIn('{f = ^{doc: "D"} (=> [x: number]: number x)}', 'f')).toBe(
+			'(=> [x: number]: number)'
 		)
 		expect(typeIn('{a = 1}', 'pi')).toBe('number')
 		expect(typeIn('{a = (: 1 number)}', 'a')).toBe('number')

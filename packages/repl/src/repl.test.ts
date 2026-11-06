@@ -187,12 +187,12 @@ describe('ReplCore', () => {
 		expect(plain(core.envLines())).toEqual(['{()}'])
 		core.submit('x = 1')
 		core.submit('y = (+ x 1)')
-		core.submit('f = (=> (n: number): number (* n 2))')
+		core.submit('f = (=> [n: number]: number (* n 2))')
 		const lines = plain(core.envLines())
 		expect(lines).toEqual([
 			'{x = 1',
 			' y = (+ x 1) ; -> 2',
-			' f = (=> (n: number): number (* n 2))',
+			' f = (=> [n: number]: number (* n 2))',
 			'}',
 		])
 		expect(parse(lines.join('\n')).kind).toBe('let')

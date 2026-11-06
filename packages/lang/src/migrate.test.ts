@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildPrelude, type CallAST, evaluate, fromOlderSyntax, nameOf, parse } from './index.js'
+import { buildPrelude, type CallAST, evaluate, fromOlderSyntax, nameOf, parse, withFunctionsAsNow } from './index.js'
 
 const env = buildPrelude()
 const now = (source: string) => fromOlderSyntax(source, env)
@@ -55,5 +55,43 @@ describe('what was written before', () => {
 	it('comes to what it came to', () => {
 		const before = '{a = (take [1 2 3] n=2) b = ./a/n c = {w: 3 h: ../c/w} [b c]}'
 		expect(valueOf(now(before)).value).toEqual([2, { w: 3, h: 3 }])
+	})
+})
+
+describe('functions', () => {
+	it('puts parameters in brackets and generics in braces', () => {
+		expect(withFunctionsAsNow('(=> (x: number): number (* x x))')).toBe('(=> [x: number]: number (* x x))')
+		expect(withFunctionsAsNow('(=> (T) (xs: [...T] i: number): T (xs i))')).toBe(
+			'(=> {T} [xs: [...T] i: number]: T (xs i))'
+		)
+		expect(withFunctionsAsNow('(=> (F T) (x: (F T)): T x)')).toBe('(=> {F T} [x: (F T)]: T x)')
+		expect(withFunctionsAsNow('(=> (number ...string): number)')).toBe('(=> [number ...string]: number)')
+	})
+
+	it('reaches a function in a function, and keeps what is around it', () => {
+		const before = `{sq = ^{doc: "(=> (a) b)"} (=> (x: number): number (* x x))
+ ; (=> (old: number): number)
+ twice = (=> (f: (=> (x: number): number) x: number): number (f (f x)))
+ (twice sq 3)}`
+		const now = withFunctionsAsNow(before)
+		expect(now).toBe(`{sq = ^{doc: "(=> (a) b)"} (=> [x: number]: number (* x x))
+ ; (=> (old: number): number)
+ twice = (=> [f: (=> [x: number]: number) x: number]: number (f (f x)))
+ (twice sq 3)}`)
+		expect(() => parse(now)).not.toThrow()
+	})
+
+	it('leaves what is written as now, or cannot be read, as it is', () => {
+		for (const source of ['(=> {T} [x: T]: T x)', '(=> [x: number]: number x)', '"unclosed', '(f (g 1)']) {
+			expect(withFunctionsAsNow(source)).toBe(source)
+		}
+	})
+})
+
+describe('fromOlderSyntax', () => {
+	it('has functions written as now before it reads keywords and paths', () => {
+		expect(now('{f = (=> (x: number k: number): number (+ x k)) (f 1 k=2)}')).toBe(
+			'{f = (=> [x: number k: number]: number (+ x k)) (f 1 k: 2)}'
+		)
 	})
 })

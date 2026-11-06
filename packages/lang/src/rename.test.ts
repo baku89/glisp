@@ -23,13 +23,13 @@ describe('renameBinding', () => {
 	})
 
 	it('reaches into everything in its scope', () => {
-		expect(rename('{a = 1 b = [a {x: a}] c = (=> (y: number): number a) a}', 'a', 'z')).toBe(
-			'{z = 1 b = [z {x: z}] c = (=> (y: number): number z) z}'
+		expect(rename('{a = 1 b = [a {x: a}] c = (=> [y: number]: number a) a}', 'a', 'z')).toBe(
+			'{z = 1 b = [z {x: z}] c = (=> [y: number]: number z) z}'
 		)
 		expect(rename('{a = 1 b = (+ ...a) c = a.x}', 'a', 'z')).toBe('{z = 1 b = (+ ...z) c = z.x}')
 		expect(rename('{a = 1 b = ^{label: "L"} a}', 'a', 'z')).toBe('{z = 1 b = ^{label: "L"} z}')
-		expect(rename('{a = number f = (=> (x: a): a x)}', 'a', 'z')).toBe(
-			'{z = number f = (=> (x: z): z x)}'
+		expect(rename('{a = number f = (=> [x: a]: a x)}', 'a', 'z')).toBe(
+			'{z = number f = (=> [x: z]: z x)}'
 		)
 	})
 
@@ -40,8 +40,8 @@ describe('renameBinding', () => {
 
 	it('leaves alone what a nearer one shadows', () => {
 		expect(rename('{a = 1 b = {a = 2 a} c = a}', 'a', 'z')).toBe('{z = 1 b = {a = 2 a} c = z}')
-		expect(rename('{a = 1 f = (=> (a: number): number a)}', 'a', 'z')).toBe(
-			'{z = 1 f = (=> (a: number): number a)}'
+		expect(rename('{a = 1 f = (=> [a: number]: number a)}', 'a', 'z')).toBe(
+			'{z = 1 f = (=> [a: number]: number a)}'
 		)
 	})
 
@@ -53,8 +53,8 @@ describe('renameBinding', () => {
 	})
 
 	it('follows a path past what shadows the name, which a path does not see', () => {
-		expect(rename('{a = 1 f = (=> (a: number): number ../a)}', 'a', 'z')).toBe(
-			'{z = 1 f = (=> (a: number): number ../z)}'
+		expect(rename('{a = 1 f = (=> [a: number]: number ../a)}', 'a', 'z')).toBe(
+			'{z = 1 f = (=> [a: number]: number ../z)}'
 		)
 	})
 
@@ -79,8 +79,8 @@ describe('renameBinding', () => {
 	})
 
 	it("does not take a parameter for what its type refers to", () => {
-		expect(rename('{a = number f = (=> (a: a): a a)}', 'a', 'z')).toBe(
-			'{z = number f = (=> (a: z): z a)}'
+		expect(rename('{a = number f = (=> [a: a]: a a)}', 'a', 'z')).toBe(
+			'{z = number f = (=> [a: z]: z a)}'
 		)
 	})
 
@@ -90,7 +90,7 @@ describe('renameBinding', () => {
 
 	it('does not let something inside catch a reference', () => {
 		expect(rename('{a = 1 b = {c = 2 (+ a c)}}', 'a', 'c')).toBeNull()
-		expect(rename('{a = 1 f = (=> (c: number): number a)}', 'a', 'c')).toBeNull()
+		expect(rename('{a = 1 f = (=> [c: number]: number a)}', 'a', 'c')).toBeNull()
 	})
 
 	it('allows what is inside to have the name when nothing is caught', () => {

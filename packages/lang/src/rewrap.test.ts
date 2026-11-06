@@ -15,7 +15,7 @@ import { type AST, CallAST, LetAST, MetaAST, PathAST, withoutMeta } from './type
 
 const env = (() => {
 	const prelude = buildPrelude()
-	const block = parse('{hold = (=> (held: _ note: _): _ held)}') as LetAST
+	const block = parse('{hold = (=> [held: _ note: _]: _ held)}') as LetAST
 	return { ast: new LetAST([], null), parent: prelude, bindings: new Map(block.bindings.map(([name, ast]) => [name, { ast, env: prelude }])) } as never
 })()
 

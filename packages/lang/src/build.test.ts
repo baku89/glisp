@@ -164,7 +164,7 @@ describe('AST builders', () => {
 	})
 
 	it('fn builds a function literal AST', () => {
-		// (=> (x: number y: number): number (+ x y))
+		// (=> [x: number y: number]: number (+ x y))
 		const ast = fn(
 			[
 				{ name: 'x', type: sym('number') },
@@ -185,7 +185,7 @@ describe('AST builders', () => {
 	})
 
 	it('fn supports generics', () => {
-		// (=> (T) (xs: [...T] i: number): T (xs i))
+		// (=> {T} [xs: [...T] i: number]: T (xs i))
 		const xsType = vec(spread(sym('T')))
 		const ast = fn(
 			[
@@ -244,7 +244,7 @@ describe('Value builders (type values)', () => {
 			{ name: 'b', type: g.number },
 		])
 		expect(ast.body).toBeNull()
-		expect(ast.print()).toBe('(=> (a: number b: number): number)')
+		expect(ast.print()).toBe('(=> [a: number b: number]: number)')
 	})
 
 	it('fn() chain — .withBody() turns a type value into an AST', () => {
@@ -257,18 +257,18 @@ describe('Value builders (type values)', () => {
 	it('fn() chain — .withGenerics() adds generic params', () => {
 		const ast = fn({ x: sym('T') }, sym('T')).withGenerics('T')
 		expect(ast.generics).toEqual(['T'])
-		expect(ast.print()).toBe('(=> (T) (x: T): T)')
+		expect(ast.print()).toBe('(=> {T} [x: T]: T)')
 	})
 
 	it('fn() chain — full .withGenerics().withBody()', () => {
 		const ast = fn({ x: sym('T') }, sym('T'))
 			.withGenerics('T')
 			.withBody(sym('x'))
-		expect(ast.print()).toBe('(=> (T) (x: T): T x)')
+		expect(ast.print()).toBe('(=> {T} [x: T]: T x)')
 	})
 
 	it('value builders compose with fn for type-position use', () => {
-		// (=> (xs: [...number] i: number): number ...)
+		// (=> [xs: [...number] i: number]: number ...)
 		const ast = fn(
 			[
 				{ name: 'xs', type: g.vector(g.number) },
@@ -277,7 +277,7 @@ describe('Value builders (type values)', () => {
 			g.number
 		)
 		expect(ast.print()).toBe(
-			'(=> (xs: [...number] i: number): number)'
+			'(=> [xs: [...number] i: number]: number)'
 		)
 	})
 })

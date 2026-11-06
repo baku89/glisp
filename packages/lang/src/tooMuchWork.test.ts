@@ -4,7 +4,7 @@ import { buildPrelude, evaluate, parse } from './index.js'
 
 const env = buildPrelude()
 const doubling = (n: number) =>
-	`{f = (=> (n: number): number (? (== n 0) true 1 _ (+ (f (- n 1)) (f (- n 1)))))  (f ${n})}`
+	`{f = (=> [n: number]: number (? (== n 0) true 1 _ (+ (f (- n 1)) (f (- n 1)))))  (f ${n})}`
 const messages = (src: string) => evaluate(parse(src), env).diagnostics.map(({ message }) => message)
 
 describe('a recursion that branches', () => {

@@ -188,7 +188,7 @@ const U = makeTypeVar('U')
 const A = makeTypeVar('A')
 const vectorOf = (element: TypeValue): TypeValue => makeTupleType([], element)
 
-/** `(=> (generics...) (name: type ...): returnType)`. */
+/** `(=> [generics...] (name: type ...): returnType)`. */
 function generic(
 	generics: ReadonlyArray<string>,
 	params: Readonly<Record<string, TypeValue>>,
@@ -866,33 +866,33 @@ export function buildPrelude(): Env {
 	// itself, using the host primitives above (`+`, `*`, `map`, `reduce`, etc.)
 	const helpers: ReadonlyArray<readonly [string, string]> = [
 		// integer step / sign helpers
-		['inc', '^{doc: "One more than `n`."} (=> (n: number): number (+ n 1))'],
-		['dec', '^{doc: "One less than `n`."} (=> (n: number): number (- n 1))'],
-		['neg', '^{doc: "`n` with its sign flipped."} (=> (n: number): number (- n))'],
+		['inc', '^{doc: "One more than `n`."} (=> [n: number]: number (+ n 1))'],
+		['dec', '^{doc: "One less than `n`."} (=> [n: number]: number (- n 1))'],
+		['neg', '^{doc: "`n` with its sign flipped."} (=> [n: number]: number (- n))'],
 
 		// 2-arg min / max
-		['min', '^{doc: "The smaller of `a` and `b`."} (=> (a: number b: number): number (? (< a b) true a _ b))'],
-		['max', '^{doc: "The larger of `a` and `b`."} (=> (a: number b: number): number (? (> a b) true a _ b))'],
+		['min', '^{doc: "The smaller of `a` and `b`."} (=> [a: number b: number]: number (? (< a b) true a _ b))'],
+		['max', '^{doc: "The larger of `a` and `b`."} (=> [a: number b: number]: number (? (> a b) true a _ b))'],
 
 		// reductions over a vector
-		['sum', '^{doc: "Adds up a vector of numbers."} (=> (xs: [...number]): number (reduce xs 0 +))'],
-		['product', '^{doc: "Multiplies a vector of numbers together."} (=> (xs: [...number]): number (reduce xs 1 *))'],
+		['sum', '^{doc: "Adds up a vector of numbers."} (=> [xs: [...number]]: number (reduce xs 0 +))'],
+		['product', '^{doc: "Multiplies a vector of numbers together."} (=> [xs: [...number]]: number (reduce xs 1 *))'],
 
 		// angle conversion — Glisp's trig is radians; these are the bridges
-		['to-deg', '^{doc: "An angle in radians, in degrees."} (=> (rad: number): number (/ (* rad 180) pi))'],
-		['to-rad', '^{doc: "An angle in degrees, in radians."} (=> (deg: number): number (/ (* deg pi) 180))'],
-		['to-turn', '^{doc: "An angle in radians, in turns."} (=> (rad: number): number (/ rad tau))'],
-		['turn', '^{doc: "An angle in turns, in radians."} (=> (t: number): number (* t tau))'],
+		['to-deg', '^{doc: "An angle in radians, in degrees."} (=> [rad: number]: number (/ (* rad 180) pi))'],
+		['to-rad', '^{doc: "An angle in degrees, in radians."} (=> [deg: number]: number (/ (* deg pi) 180))'],
+		['to-turn', '^{doc: "An angle in radians, in turns."} (=> [rad: number]: number (/ rad tau))'],
+		['turn', '^{doc: "An angle in turns, in radians."} (=> [t: number]: number (* t tau))'],
 
 		// range remapping — staples for design / motion code
-		['lerp', '^{doc: "Goes from `a` to `b` as `t` goes from 0 to 1."} (=> (a: number b: number t: number): number (+ a (* (- b a) t)))'],
-		['mix', '^{doc: "Goes from `a` to `b` as `t` goes from 0 to 1."} (=> (a: number b: number t: number): number (lerp a b t))'],
-		['clamp', '^{doc: "Keeps `x` between `lo` and `hi`."} (=> (lo: number hi: number x: number): number (min hi (max lo x)))'],
-		['clamp01', '^{doc: "Keeps `x` between 0 and 1."} (=> (x: number): number (clamp 0 1 x))'],
-		['fit', '^{doc: "Maps `x` from `omin` to `omax` onto `nmin` to `nmax`."} (=> (omin: number omax: number nmin: number nmax: number x: number): number (+ nmin (* (- nmax nmin) (/ (- x omin) (- omax omin)))))'],
-		['fit01', '^{doc: "Maps `x` from 0 to 1 onto `lo` to `hi`."} (=> (lo: number hi: number x: number): number (lerp lo hi x))'],
-		['fit11', '^{doc: "Maps `x` from −1 to 1 onto `lo` to `hi`."} (=> (lo: number hi: number x: number): number (lerp lo hi (* 0.5 (+ x 1))))'],
-		['step', '^{doc: "0 while `x` is below `edge`, and 1 from there on."} (=> (edge: number x: number): number (? (< x edge) true 0 _ 1))'],
+		['lerp', '^{doc: "Goes from `a` to `b` as `t` goes from 0 to 1."} (=> [a: number b: number t: number]: number (+ a (* (- b a) t)))'],
+		['mix', '^{doc: "Goes from `a` to `b` as `t` goes from 0 to 1."} (=> [a: number b: number t: number]: number (lerp a b t))'],
+		['clamp', '^{doc: "Keeps `x` between `lo` and `hi`."} (=> [lo: number hi: number x: number]: number (min hi (max lo x)))'],
+		['clamp01', '^{doc: "Keeps `x` between 0 and 1."} (=> [x: number]: number (clamp 0 1 x))'],
+		['fit', '^{doc: "Maps `x` from `omin` to `omax` onto `nmin` to `nmax`."} (=> [omin: number omax: number nmin: number nmax: number x: number]: number (+ nmin (* (- nmax nmin) (/ (- x omin) (- omax omin)))))'],
+		['fit01', '^{doc: "Maps `x` from 0 to 1 onto `lo` to `hi`."} (=> [lo: number hi: number x: number]: number (lerp lo hi x))'],
+		['fit11', '^{doc: "Maps `x` from −1 to 1 onto `lo` to `hi`."} (=> [lo: number hi: number x: number]: number (lerp lo hi (* 0.5 (+ x 1))))'],
+		['step', '^{doc: "0 while `x` is below `edge`, and 1 from there on."} (=> [edge: number x: number]: number (? (< x edge) true 0 _ 1))'],
 
 		// Note: `?` is not an identifier character per spec, so the
 		// Scheme-style predicate naming `even?` / `empty?` is unavailable.

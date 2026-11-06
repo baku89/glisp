@@ -133,10 +133,10 @@ export function letBlock(
  * result to add a body and generic parameters; both produce a new FnAST.
  *
  *   fn({a: g.number, b: g.number}, g.number)
- *   // → (=> (a: number b: number): number)   — function type value
+ *   // → (=> [a: number b: number]: number)   — function type value
  *
  *   fn({a: g.number, b: g.number}, g.number).withBody(call(sym('+'), sym('a'), sym('b')))
- *   // → (=> (a: number b: number): number (+ a b))   — function literal AST
+ *   // → (=> [a: number b: number]: number (+ a b))   — function literal AST
  *
  *   fn({xs: g.vector(g.sym('T'))}, g.sym('T'))
  *     .withGenerics('T')

@@ -212,7 +212,7 @@ describe('adding it', () => {
 	})
 
 	it('has a program say something else by that name, which goes first', () => {
-		const own = parse('{graphPaper = (=> (at: point): path (path.circle at 5))}') as LetAST
+		const own = parse('{graphPaper = (=> [at: point]: path (path.circle at 5))}') as LetAST
 		expect(print(withAdded(own, env, 'graphPaper', [1, 2])!.ast)).toContain('(graphPaper [1 2])')
 	})
 
@@ -268,8 +268,8 @@ describe('what goes in a value of what there is', () => {
 
 describe('what a program has of its own', () => {
 	const PROGRAM = parse(`{
-		flower = (=> (c: vec2 r: number): path (path.circle c r))
-		twice = (=> (n: number): number (* n 2))
+		flower = (=> [c: vec2 r: number]: path (path.circle c r))
+		twice = (=> [n: number]: number (* n 2))
 		a = 1
 	}`) as LetAST
 	const own = addablesIn(PROGRAM, env)
@@ -281,7 +281,7 @@ describe('what a program has of its own', () => {
 	})
 
 	it('goes by what it comes to, if it does not say', () => {
-		const unsaid = parse('{a = (=> (r: number): _ (path.circle [0 0] r)) b = (=> (r: number): _ r)}') as LetAST
+		const unsaid = parse('{a = (=> [r: number]: _ (path.circle [0 0] r)) b = (=> [r: number]: _ r)}') as LetAST
 		const listed = addablesIn(unsaid, env).map(({ name }) => name)
 		expect(listed).toContain('a')
 		expect(listed).not.toContain('b')
@@ -299,12 +299,12 @@ describe('what a program has of its own', () => {
 	})
 
 	it('goes where it was asked for, if it says where it is', () => {
-		const placed = parse('{p = (=> (at: vec2 r: number): path (path.circle at r))}') as LetAST
+		const placed = parse('{p = (=> [at: vec2 r: number]: path (path.circle at r))}') as LetAST
 		expect(print(withAdded(placed, env, 'p', [7, 8])!.ast)).toContain('p1 = (p [7 8] 0)')
 	})
 
 	it('goes before what it was given, by the same name', () => {
-		const shadow = parse('{style = (=> (a: path): path a)}') as LetAST
+		const shadow = parse('{style = (=> [a: path]: path a)}') as LetAST
 		const items = addablesIn(shadow, env).filter(({ name }) => name === 'style')
 		expect(items).toHaveLength(1)
 		expect(items[0]!.group).toBe('Project')
@@ -315,9 +315,9 @@ describe('what goes where a value is selected', () => {
 	const SRC = `{
 		n = 5
 		v = [1 2]
-		f = (=> (x: number): number (* x 2))
-		g = (=> (p: path): path p)
-		h = (=> (a: string): number 1)
+		f = (=> [x: number]: number (* x 2))
+		g = (=> [p: path]: path p)
+		h = (=> [a: string]: number 1)
 		c = (path.circle [0 0] 10)
 		s = (path.square v n)
 	}`
@@ -392,13 +392,13 @@ describe('what goes where a value is selected', () => {
 })
 
 describe('what is a function of the program', () => {
-	const root = parse('{g = (=> (p: path d: number): path (path.offset p d))}') as LetAST
+	const root = parse('{g = (=> [p: path d: number]: path (path.offset p d))}') as LetAST
 
 	it('takes what a function given would, and is called by name', () => {
 		const circle = evaluate(parse('(path.circle [0 0] 1)'), env).value
 		const found = filtersFor([circle], env, functionsOfProgram(root, env)).find(({ name }) => name === 'g')!
 		expect(found.label).toBe('g')
-		const wrapped = wrappedAt(parse('{g = (=> (p: path d: number): path (path.offset p d)) c = (path.circle [0 0] 1)}'), env, 'binding:c', found)!
+		const wrapped = wrappedAt(parse('{g = (=> [p: path d: number]: path (path.offset p d)) c = (path.circle [0 0] 1)}'), env, 'binding:c', found)!
 		expect(print(wrapped)).toContain('c = (g (path.circle [0 0] 1) 0)')
 	})
 

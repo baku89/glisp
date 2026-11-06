@@ -11,7 +11,7 @@
  * solver. A call solves its function's generics against its arguments, one by
  * one, by matching types structurally (`unify`). A function literal passed as
  * an argument is inferred against what is known by then, so the `x` in
- * `(map [1 2] (=> (x: _): _ (+ x 1)))` is a number.
+ * `(map [1 2] (=> [x: _]: _ (+ x 1)))` is a number.
  *
  * `_` as a type of a value means "not known", so it is compatible with any
  * slot. A type that cannot be determined at all is `null`.
@@ -112,7 +112,7 @@ const typeSlotsInProgress = new Map<AST, Map<Env, SlotInProgress>>()
 /**
  * Interpret `ast` as a type: the meaning of the right of `:`. Literal forms
  * mean what they look like, so `[...T]`, `[T U]`, `{x: T}` and
- * `(=> (T): U)` are types here even though they evaluate to other things.
+ * `(=> [T]: U)` are types here even though they evaluate to other things.
  * Anything else is evaluated, and has to produce a type. Returns null if it
  * does not. A binding that refers to itself, like
  * `Tree = {value: number children: [...Tree]}`, is a recursive type.
@@ -876,7 +876,7 @@ function applyFunctionType(
 /**
  * The type of a function literal given what its slot expects. A parameter or
  * return declared `_` takes what is known from the slot and from the body, so
- * `(+ % 1)` given a number is `(=> (number): number)`.
+ * `(+ % 1)` given a number is `(=> [number]: number)`.
  */
 function inferLiteralAgainst(
 	fn: FnAST,

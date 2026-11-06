@@ -196,7 +196,7 @@ A trailing `?` on a record field name or function parameter name marks it as opt
 
 ```glisp
 {x: number  y?: string}                              ;; record type with optional y
-(=> (x: number y?: string): number ...)              ;; optional argument y
+(=> [x: number y?: string]: number ...)              ;; optional argument y
 ```
 
 Semantics (in conjunction with the `()` missing-value signal — see [types.md](./types.md)):
@@ -279,28 +279,28 @@ A let-block's bindings are where things are defined (see [Hiding](#hiding--_)). 
 ### Function literal
 
 ```glisp
-(=> (x: number y: number): number (* x y))
-(=> (T) (x: T): T x)                                ;; generic
-(=> (T U) (a: T b: U): T a)                         ;; multiple generics
-(=> (a: number b: number): number)                  ;; function type (no body)
-(=> (number number): number)                        ;; function type, parameter names omitted
+(=> [x: number y: number]: number (* x y))
+(=> {T} [x: T]: T x)                                ;; generic
+(=> {T U} [a: T b: U]: T a)                         ;; multiple generics
+(=> [a: number b: number]: number)                  ;; function type (no body)
+(=> [number number]: number)                        ;; function type, parameter names omitted
 ```
 
 Argument signature and return type are mandatory. Inside the body, types are inferred.
 
-When two parens lists appear before the return type `:`, the first is the generic parameter list (bare names) and the second is the value parameter list (`name: Type` entries). When one list appears, it is the value parameter list.
+The parameters are in brackets, `[name: Type ...]`, and the names of the types a function is generic over, if any, in braces before them, `{T U}`. The brackets read as a tuple type with names: without the names, `[a: number ...rest: string]` is `[number ...string]`, the type of what the function is given. The braces name what is bound for the function's types and body, as a let-block does. What a generic is bound by, as in `{T: Show}`, is not supported yet.
 
-A function with a body must name every value parameter. A function type (no body) may omit names, as in `(=> (number number): number)`. Parameter names are part of each function value's keyword-argument interface (see [Application — keyword arguments](#application--keyword-arguments)) and matter at call sites, but they are **not** part of the function's *type* identity. `(=> (a: number b: number): number)` and `(=> (x: number y: number): number)` are the same type. See [types.md — Function-type equality](./types.md#function-type-equality).
+A function with a body must name every value parameter. A function type (no body) may omit names, as in `(=> [number number]: number)`. Parameter names are part of each function value's keyword-argument interface (see [Application — keyword arguments](#application--keyword-arguments)) and matter at call sites, but they are **not** part of the function's *type* identity. `(=> [a: number b: number]: number)` and `(=> [x: number y: number]: number)` are the same type. See [types.md — Function-type equality](./types.md#function-type-equality).
 
-A function takes **at least one value parameter**. A zero-parameter function `(=> (): T body)` is a syntax error: in a purely functional language the body's value is fully determined by its lexical context, so "calling" the function is indistinguishable from referencing the body directly — `body` and `((=> (): T body))` are the same expression. Use the body in place. A host has no impure operation to expose as a function: what changes from one moment to the next, such as the time, reaches a program as an `IO` that a host runs, or as a value it writes in.
+A function takes **at least one value parameter**. A zero-parameter function `(=> []: T body)` is a syntax error: in a purely functional language the body's value is fully determined by its lexical context, so "calling" the function is indistinguishable from referencing the body directly — `body` and `((=> []: T body))` are the same expression. Use the body in place. A host has no impure operation to expose as a function: what changes from one moment to the next, such as the time, reaches a program as an `IO` that a host runs, or as a value it writes in.
 
 ### Variadic parameters
 
 A parameter prefixed with `...` is variadic: it collects the remaining positional arguments into a vector. The type after `:` is the **element type** — the outer vector wrapping is implicit, because variadic always means "many of this":
 
 ```glisp
-(=> (...xs: number): number ...)              ;; xs : [...number]
-(=> (init: number ...rest: number): number ...)
+(=> [...xs: number]: number ...)              ;; xs : [...number]
+(=> [init: number ...rest: number]: number ...)
 ```
 
 - A variadic parameter must appear last in the value parameter list.
@@ -310,7 +310,7 @@ A parameter prefixed with `...` is variadic: it collects the remaining positiona
 The element type is *just a type* — there is no special restriction on what it may be. If the element type happens to be itself a vector type, the variadic parameter ends up as a vector of vectors:
 
 ```glisp
-(=> (...rows: [...number]): number ...)
+(=> [...rows: [...number]]: number ...)
 ;; rows : [...[...number]]    — a vector of number vectors (2-D)
 ```
 
@@ -323,7 +323,7 @@ See [Spread](#spread--) for how to call variadic functions and for spread in vec
 Any positional parameter of a function can be passed by name at the call site using `name: value`, as a record's field is written. No special declaration is required at the definition: every parameter is automatically callable both positionally and by keyword.
 
 ```glisp
-(=> (x: number y: number z: number): number (* x y z))
+(=> [x: number y: number z: number]: number (* x y z))
 
 (f 2 3 4)              ;; all positional → 24
 (f x: 2 y: 3 z: 4)     ;; all keyword → 24
@@ -344,7 +344,7 @@ Rules:
 A variadic parameter is always the last one in the parameter list (see [Variadic parameters](#variadic-parameters)). Optional parameters must therefore precede the variadic, never follow it — this avoids the parse ambiguity TS's "no optional after rest" rule guards against.
 
 ```glisp
-;; (=> (init: number name?: string ...rest: number): number ...)
+;; (=> [init: number name?: string ...rest: number]: number ...)
 
 (f 1)                                 ;; init: 1, name unspecified, rest: []
 (f 1 "foo" 2 3)                       ;; init: 1, name: "foo", rest: [2 3]
@@ -423,16 +423,16 @@ No separate `if` form is provided.
 ```glisp
 (|> 5 double)              ;; ≡ (double 5)
 (|> 5 double show)         ;; ≡ (show (double 5))
-(|> 5 (+ 2 %))             ;; ≡ ((=> (x) (+ 2 x)) 5) → 7
-(|> 5 (f a % b))           ;; ≡ ((=> (x) (f a x b)) 5) → (f a 5 b)
+(|> 5 (+ 2 %))             ;; ≡ ((=> [x] (+ 2 x)) 5) → 7
+(|> 5 (f a % b))           ;; ≡ ((=> [x] (f a x b)) 5) → (f a 5 b)
 ```
 
 When `input` itself is `%`, the entire `|>` form is the function (function composition):
 
 ```glisp
-(|> % f g)                 ;; ≡ (=> (x) (g (f x)))   — function composition
-(|> % (+ 2 %))             ;; ≡ (=> (x) (+ 2 x))
-(map (|> % double) xs)     ;; pass (=> (x) (double x)) to map
+(|> % f g)                 ;; ≡ (=> [x] (g (f x)))   — function composition
+(|> % (+ 2 %))             ;; ≡ (=> [x] (+ 2 x))
+(map (|> % double) xs)     ;; pass (=> [x] (double x)) to map
 ```
 
 ### Partial application — `%`
@@ -440,13 +440,13 @@ When `input` itself is `%`, the entire `|>` form is the function (function compo
 A bare `%` in any expression turns its **smallest enclosing** `(...)`, `[...]`, or `{...}` into a single-argument function. The argument replaces every occurrence of `%` within that enclosing form.
 
 ```glisp
-(f % y)              ;; ≡ (=> (x) (f x y))
-(* 2 %)              ;; ≡ (=> (x) (* 2 x))
-(map (* 2 %) xs)     ;; ≡ (map (=> (x) (* 2 x)) xs)
-[% %]                ;; ≡ (=> (x) [x x])
-{a: (+ % 1)}         ;; ≡ {a: (=> (x) (+ x 1))}     — only (+ % 1) is wrapped
-(* % %)              ;; ≡ (=> (x) (* x x))           — same x reused
-(g (f %) (h %))      ;; ≡ (g (=> (x) (f x)) (=> (y) (h y)))   — independent functions
+(f % y)              ;; ≡ (=> [x] (f x y))
+(* 2 %)              ;; ≡ (=> [x] (* 2 x))
+(map (* 2 %) xs)     ;; ≡ (map (=> [x] (* 2 x)) xs)
+[% %]                ;; ≡ (=> [x] [x x])
+{a: (+ % 1)}         ;; ≡ {a: (=> [x] (+ x 1))}     — only (+ % 1) is wrapped
+(* % %)              ;; ≡ (=> [x] (* x x))           — same x reused
+(g (f %) (h %))      ;; ≡ (g (=> [x] (f x)) (=> [y] (h y)))   — independent functions
 ```
 
 Expansion is bottom-up: the innermost `%` is consumed first, so each `%` belongs to its smallest enclosing `(...)`/`[...]`/`{...}`. Nesting is unambiguous.
@@ -455,21 +455,21 @@ Expansion is bottom-up: the innermost `%` is consumed first, so each `%` belongs
 
 <!-- test -->
 ```glisp
-(=> (x: number): (=> (y: number): number) (* x %))
-;; ≡ (=> (x: number): (=> (y: number): number) (=> (y) (* x y)))
+(=> [x: number]: (=> [y: number]: number) (* x %))
+;; ≡ (=> [x: number]: (=> [y: number]: number) (=> [y] (* x y)))
 ;; → number → (number → number)
 ```
 
-The inner `(=> (y) ...)` is a *desugaring artifact*, not source-level Glisp; its parameter type is inferred from context (here, `number` follows from `*`). See [eval.md](./eval.md#--partial-application-desugaring) for the inference rule.
+The inner `(=> [y] ...)` is a *desugaring artifact*, not source-level Glisp; its parameter type is inferred from context (here, `number` follows from `*`). See [eval.md](./eval.md#--partial-application-desugaring) for the inference rule.
 
 Restrictions on where `%` may appear:
 - **Type positions** (the right of `:`, parameter type slots, return type slots) — `%` is not a type and cannot stand in a type position.
-- **Parameter lists** of `(=> ...)` — `(=> (% : T) ...)` is invalid; parameters must be named identifiers.
+- **Parameter lists** of `(=> ...)` — `(=> [% : T] ...)` is invalid; parameters must be named identifiers.
 - **Record keys** — `{%: 10}` is invalid; keys must be identifiers.
 
 Anywhere else (expression positions inside calls, vectors, records, function bodies), `%` is fine.
 
-Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> (a: T b: U): R ...)` explicitly.
+Only single-argument partial application is supported. For multi-argument anonymous functions, write `(=> [a: T b: U]: R ...)` explicitly.
 
 The `|>` form interacts with `%` purely through this rule — a step like `(+ 2 %)` becomes a function via the `%` expansion, then `|>` applies it. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
 
@@ -494,7 +494,7 @@ For non-fallback type tests (membership without consuming the default), pattern-
 
 ```glisp
 (x: number)                            ;; argument
-(=> (a: number): number ...)           ;; return type after `:`
+(=> [a: number]: number ...)           ;; return type after `:`
 {x: 10}                                ;; record key
 (f x: 10)                              ;; keyword argument
 ^{label: "..."}                        ;; metadata record key
@@ -516,7 +516,7 @@ Any expression can be prefixed with `^{...}` to attach metadata:
 
 ```glisp
 ^{default: 1 label: "Count"} number
-^{doc: "Square the number"} (=> (x: number): number (* x x))
+^{doc: "Square the number"} (=> [x: number]: number (* x x))
 ^{label: "Width"} 100
 ^{label: "Origin"} {x: 0 y: 0}
 ^{label: "2D Point"} [number number]
@@ -582,7 +582,7 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `_`, and
 
 ```glisp
 [...number]                              ;; vector of number
-(=> (a: number b: number): number)       ;; function type
+(=> [a: number b: number]: number)       ;; function type
 (| "round" "butt" "square")              ;; one of these values
 {x: number y: number}                    ;; record type
 ```
@@ -613,9 +613,9 @@ Types are sets of values, with structural subtyping. See [types.md](./types.md#s
 A generic parameter list is written as a leading parens of bare names before the value parameter list:
 
 ```glisp
-(=> (T) (xs: [...T] i: number): T (xs i))
-(=> (T U) (a: T b: U): T a)
-(=> (F T) (x: (F T)): T ...)        ;; F stands for a type constructor: IO, vector
+(=> {T} [xs: [...T] i: number]: T (xs i))
+(=> {T U} [a: T b: U]: T a)
+(=> {F T} [x: (F T)]: T ...)        ;; F stands for a type constructor: IO, vector
 ```
 
 Parameter scope is the surrounding function literal.
@@ -625,7 +625,7 @@ Parameter scope is the surrounding function literal.
 `~expr` in a function body marks an implementation detail: `expand` works it out within one step, so its intermediate forms stay off the abstraction ladder. `evaluate` ignores it. `...~expr` is `...` applied to `~expr`.
 
 ```glisp
-pow = (=> (x: number a: number): number (* ...~(repeat x a)))
+pow = (=> [x: number a: number]: number (* ...~(repeat x a)))
 
 (pow (+ 1 1) (+ 1 2))  ;; expands to (* (+ 1 1) (+ 1 1) (+ 1 1))
 ```
@@ -643,8 +643,8 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | Token         | Role                                                   |
 | ------------- | ------------------------------------------------------ |
 | `(...)`       | function/value application                             |
-| `[...]`       | vector                                                 |
-| `{...}`       | record / let-block                                     |
+| `[...]`       | vector; a function's parameters, after `=>`            |
+| `{...}`       | record / let-block; a function's generics, after `=>`  |
 | `:`           | type annotation, return type, record key, keyword argument, metadata key; a key in a path; coerce form when directly after `(` |
 | `=`           | names an expression, binding the name for what is around it |
 | `=>`          | function literal                                       |

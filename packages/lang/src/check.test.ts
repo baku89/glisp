@@ -14,7 +14,7 @@ describe('check — call-site type mismatches', () => {
 	})
 
 	it('reports unresolved references, even in a body that never runs', () => {
-		const ds = check(parse('(=> (n: number): number (+ n nope))'), env)
+		const ds = check(parse('(=> [n: number]: number (+ n nope))'), env)
 		expect(ds.map(d => d.message)).toContain('unresolvable name: nope')
 	})
 
@@ -33,25 +33,25 @@ describe('check — call-site type mismatches', () => {
 
 	it('flags mismatch in a closure body that is never called', () => {
 		const ds = check(
-			parse('(=> (n: number): number (+ n "bad"))'),
+			parse('(=> [n: number]: number (+ n "bad"))'),
 			env
 		)
 		expect(ds.some(d => d.message.includes('expected number'))).toBe(true)
 	})
 
 	it('reports a closure-arg mismatch at a HOF call', () => {
-		// map expects (=> (_): _) — passing a closure with the wrong
+		// map expects (=> [_]: _) — passing a closure with the wrong
 		// declared input type was historically a problem; now structural
-		// compat says (=> (number): number) fits (=> (_): _).
+		// compat says (=> [number]: number) fits (=> [_]: _).
 		const ds = check(
-			parse('(map [1 2 3] (=> (n: number): number (* n n)))'),
+			parse('(map [1 2 3] (=> [n: number]: number (* n n)))'),
 			env
 		)
 		expect(ds).toEqual([])
 	})
 
 	it('catches an arity-wrong closure passed to a 1-arg fn slot', () => {
-		// `not` takes exactly (=> (boolean): boolean)-shaped slots? It's a
+		// `not` takes exactly (=> [boolean]: boolean)-shaped slots? It's a
 		// typed host fn with one param. We pass a closure as an arg value
 		// not in fn position, so this is a different test. Just verify
 		// `not` arity overflow is flagged.

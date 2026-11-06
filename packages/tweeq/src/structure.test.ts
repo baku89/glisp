@@ -27,7 +27,7 @@ describe('viewOf', () => {
 	it('gives a literal an enum widget where the slot expects one', () => {
 		const session = new Session(env)
 		session.exec('Join = (| "round" "butt")')
-		session.exec('f = (=> (j: Join): Join j)')
+		session.exec('f = (=> [j: Join]: Join j)')
 		const call = parse('(f "butt")')
 		const slot = viewOf(call, session.env).slots[0]!
 		expect(viewOf(slot.ast, slot.env, slot.expected).editor).toEqual({
@@ -40,7 +40,7 @@ describe('viewOf', () => {
 	it('gives an enum widget the icons its type says, one for each value', () => {
 		const session = new Session(env)
 		session.exec('Join = (| ^{icon: "a"} "round" ^{icon: "b"} "butt")')
-		session.exec('f = (=> (j: Join): Join j)')
+		session.exec('f = (=> [j: Join]: Join j)')
 		const slot = viewOf(parse('(f "butt")'), session.env).slots[0]!
 		expect(viewOf(slot.ast, slot.env, slot.expected).editor).toMatchObject({
 			kind: 'enum',
@@ -48,7 +48,7 @@ describe('viewOf', () => {
 		})
 
 		session.exec('Short = (| ^{icon: "a"} "round" "butt")')
-		session.exec('g = (=> (j: Short): Short j)')
+		session.exec('g = (=> [j: Short]: Short j)')
 		const short = viewOf(parse('(g "butt")'), session.env).slots[0]!
 		expect(viewOf(short.ast, short.env, short.expected).editor).not.toHaveProperty('icons')
 	})
@@ -143,7 +143,7 @@ describe('viewOf', () => {
 	})
 
 	it('leaves names, paths and functions to be edited as source', () => {
-		for (const src of ['x', './a', '(=> (x: number): number x)']) {
+		for (const src of ['x', './a', '(=> [x: number]: number x)']) {
 			const v = view(src)
 			expect(v.editor, src).toBeNull()
 			expect(v.slots, src).toEqual([])
@@ -223,15 +223,15 @@ describe('head', () => {
 	it('has what the function says about itself', () => {
 		expect(view('(+ 1 2)').head?.doc).toBeTruthy()
 		const session = new Session(env)
-		session.exec('f = ^{doc: "Fills it."} (=> (x: number): number x)')
+		session.exec('f = ^{doc: "Fills it."} (=> [x: number]: number x)')
 		expect(viewOf(parse('(f 1)'), session.env).head?.doc).toBe('Fills it.')
-		session.exec('g = (=> (x: number): number x)')
+		session.exec('g = (=> [x: number]: number x)')
 		expect(viewOf(parse('(g 1)'), session.env).head?.doc).toBeUndefined()
 	})
 
 	it('goes by the name, for a function with no label', () => {
 		const session = new Session(env)
-		session.exec('sq = (=> (x: number): number (* x x))')
+		session.exec('sq = (=> [x: number]: number (* x x))')
 		const { head } = viewOf(parse('(sq 2)'), session.env)
 		expect(head?.label).toBe('sq')
 		expect(head?.icon).toBe('mdi:function-variant')
@@ -239,7 +239,7 @@ describe('head', () => {
 
 	it('has the label and icon of the function', () => {
 		const session = new Session(env)
-		session.exec('f = ^{label: "Fill" icon: "mdi:brush"} (=> (x: number): number x)')
+		session.exec('f = ^{label: "Fill" icon: "mdi:brush"} (=> [x: number]: number x)')
 		const { head } = viewOf(parse('(f 1)'), session.env)
 		expect(head?.label).toBe('Fill')
 		expect(head?.icon).toBe('mdi:brush')
@@ -403,13 +403,13 @@ describe('docs', () => {
 
 	it('takes a doc from a parameter type', () => {
 		const session = new Session(env)
-		session.exec('f = (=> (w: ^{doc: "How wide."} number): number w)')
+		session.exec('f = (=> [w: ^{doc: "How wide."} number]: number w)')
 		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.doc).toBe('How wide.')
 	})
 
 	it('still reads params given as just labels', () => {
 		const session = new Session(env)
-		session.exec('f = ^{params: {w: "Width"}} (=> (w: number): number w)')
+		session.exec('f = ^{params: {w: "Width"}} (=> [w: number]: number w)')
 		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.label).toBe('Width')
 	})
 })
@@ -474,7 +474,7 @@ describe('adding an element', () => {
 	})
 
 	it('adds a number with nothing to go by', () => {
-		expect(add('[(=> (x: number): number x)]')).toBe('[(=> (x: number): number x) 0]')
+		expect(add('[(=> [x: number]: number x)]')).toBe('[(=> [x: number]: number x) 0]')
 	})
 
 	it('goes by the slot if it says', () => {
@@ -686,7 +686,7 @@ describe('kindIconOf', () => {
 	it('tells kinds of expression apart', () => {
 		expect(kind('(+ 1 2)')).toBe('mdi:function-variant')
 		expect(kind('{a = 1 a}')).toBe('mdi:graph-outline')
-		expect(kind('(=> (x: number): number x)')).toBe('mdi:lambda')
+		expect(kind('(=> [x: number]: number x)')).toBe('mdi:lambda')
 		expect(kind('x')).toBe('mdi:arrow-top-right')
 		expect(kind('../x')).toBe('mdi:arrow-top-right')
 		expect(kind('[1 x]')).toBe('mdi:code-brackets')
@@ -808,7 +808,7 @@ describe('parameter labels', () => {
 
 	it('come from the metadata on a parameter type', () => {
 		const session = new Session(env)
-		session.exec('f = (=> (w: ^{label: "Width"} number h: number): number w)')
+		session.exec('f = (=> [w: ^{label: "Width"} number h: number]: number w)')
 		expect(viewOf(parse('(f 1 2)'), session.env).slots.map(s => s.label)).toEqual([
 			'Width',
 			'h',
@@ -817,18 +817,18 @@ describe('parameter labels', () => {
 
 	it('come from params on a definition', () => {
 		const session = new Session(env)
-		session.exec('f = ^{params: {w: "Width"}} (=> (w: number): number w)')
+		session.exec('f = ^{params: {w: "Width"}} (=> [w: number]: number w)')
 		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.label).toBe('Width')
 	})
 
 	it('work for a function written in place', () => {
-		const v = view('((=> (w: ^{label: "Width"} number): number w) 1)')
+		const v = view('((=> [w: ^{label: "Width"} number]: number w) 1)')
 		expect(v.slots[0]?.label).toBe('Width')
 	})
 
 	it('fall back to the name', () => {
 		const session = new Session(env)
-		session.exec('f = (=> (w: number): number w)')
+		session.exec('f = (=> [w: number]: number w)')
 		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.label).toBe('w')
 	})
 
@@ -901,7 +901,7 @@ describe('numberOptions', () => {
 
 	it('come from the metadata on a parameter type', () => {
 		const session = new Session(env)
-		session.exec('f = (=> (w: ^{min: 0 max: 100} number h: number): number w)')
+		session.exec('f = (=> [w: ^{min: 0 max: 100} number h: number]: number w)')
 		const [w, h] = viewOf(parse('(f 1 2)'), session.env).slots
 		expect(w?.numberOptions).toEqual({ min: 0, max: 100 })
 		expect(h?.numberOptions).toEqual({})
@@ -921,7 +921,7 @@ describe('numberOptions', () => {
 describe('names', () => {
 	it('prefers the label on the definition', () => {
 		const session = new Session(env)
-		session.exec('f = ^{label: "Fill" icon: "mdi:brush"} (=> (x: number): number x)')
+		session.exec('f = ^{label: "Fill" icon: "mdi:brush"} (=> [x: number]: number x)')
 		const v = viewOf(parse('(f 1)'), session.env)
 		expect(v.title).toBe('Fill')
 		expect(v.icon).toBeNull()
@@ -944,10 +944,10 @@ describe('icons', () => {
 		expect(icon('"a"')).toBe('mdi:format-quote-close')
 		expect(icon('[1 "a"]')).toBe('mdi:code-brackets')
 		expect(icon('(map [1 2] (* % 2))')).toBe('mdi:code-brackets')
-		expect(icon('(: 3 (refine number 1 (=> (x: number): boolean (> x 0))))')).toBe(
+		expect(icon('(: 3 (refine number 1 (=> [x: number]: boolean (> x 0))))')).toBe(
 			'mdi:pound'
 		)
-		expect(icon('(=> (x: number): number x)')).toBe('mdi:function-variant')
+		expect(icon('(=> [x: number]: number x)')).toBe('mdi:function-variant')
 		expect(icon('{a: 1}')).toBe('mdi:code-braces')
 	})
 
@@ -970,7 +970,7 @@ describe('icons', () => {
 
 	it('gives a call the icon of what it returns', () => {
 		const session = new Session(env)
-		session.exec('f = ^{icon: "mdi:brush"} (=> (x: number): string "a")')
+		session.exec('f = ^{icon: "mdi:brush"} (=> [x: number]: string "a")')
 		expect(icon('(f 1)', session.env)).toBe('mdi:format-quote-close')
 		expect(icon('f', session.env)).toBe('mdi:function-variant')
 	})
@@ -978,11 +978,11 @@ describe('icons', () => {
 	it('takes the icon of a type a program defines', () => {
 		const session = new Session(env)
 		session.exec(
-			'Len = ^{icon: "mdi:ruler"} (refine number 1 (=> (x: number): boolean (> x 0)))'
+			'Len = ^{icon: "mdi:ruler"} (refine number 1 (=> [x: number]: boolean (> x 0)))'
 		)
-		session.exec('Plain = (refine number 1 (=> (x: number): boolean (>= x 0)))')
-		session.exec('f = (=> (x: number): Len x)')
-		session.exec('g = (=> (x: number): Plain x)')
+		session.exec('Plain = (refine number 1 (=> [x: number]: boolean (>= x 0)))')
+		session.exec('f = (=> [x: number]: Len x)')
+		session.exec('g = (=> [x: number]: Plain x)')
 		expect(icon('(f 1)', session.env)).toBe('mdi:ruler')
 		expect(icon('(: 3 Len)', session.env)).toBe('mdi:ruler')
 		expect(icon('(g 1)', session.env)).toBe('mdi:pound')
@@ -1019,7 +1019,7 @@ describe('problemOf', () => {
 	})
 
 	it('reports what never runs', () => {
-		expect(problem('(=> (x: number): number nope)')).toContain('nope')
+		expect(problem('(=> [x: number]: number nope)')).toContain('nope')
 	})
 
 	it('reports a problem inside, so that a closed row shows it', () => {
@@ -1115,7 +1115,7 @@ describe('actionsOf', () => {
 
 	it('evaluates one step, by the abstraction ladder', () => {
 		const session = new Session(env)
-		session.exec('sq = (=> (x: number): number (* x x))')
+		session.exec('sq = (=> [x: number]: number (* x x))')
 		const slot = viewOf(parse('[(sq 3)]'), session.env).slots[0]!
 		const step = actionsOf(slot).find(a => a.label === 'Evaluate One Step')!
 		expect('apply' in step && print(step.apply())).toBe('[(* 3 3)]')
@@ -1296,7 +1296,7 @@ describe('referenceAt', () => {
 	})
 
 	it('refers to an element of what a call is given, and from one', () => {
-		const next = referenceAt(parse('{f = (=> (p: _): _ p) a = (f [3 4]) b = (f [0 0]) b}'), env, 'binding:b/arg0/0', 'binding:a/arg0/1')!
+		const next = referenceAt(parse('{f = (=> [p: _]: _ p) a = (f [3 4]) b = (f [0 0]) b}'), env, 'binding:b/arg0/0', 'binding:a/arg0/1')!
 		expect(print(next)).toContain('b = (f [/a/p:/1 0])')
 		expect(evaluate(next, env).value).toEqual([4, 0])
 	})
@@ -1322,7 +1322,7 @@ describe('referenceAt', () => {
 })
 
 describe('what a call is not yet given', () => {
-	const program = '{f = (=> (a: number b?: string): number a) x = (f 1 b: "red") y = (f 2)}'
+	const program = '{f = (=> [a: number b?: string]: number a) x = (f 1 b: "red") y = (f 2)}'
 
 	it('can refer to something, where it comes to be said', () => {
 		const next = missingReferringTo(parse(program), env, 'binding:y', 'b', 'binding:x/kw:b')!
@@ -1378,7 +1378,7 @@ describe('a string, that comes from elsewhere', () => {
 		expect(canSolve(row('{s = "x" a = s}'), 'x')).toBe(true)
 		expect(canSolve(row('{s = {t = "x"} a = ./s/t}'), 'x')).toBe(true)
 		expect(canSolve(row('{a = "x"}'), 'x')).toBe(false)
-		expect(canSolve(row('{f = (=> (n?: number): string "x") a = (f)}'), 'x')).toBe(false)
+		expect(canSolve(row('{f = (=> [n?: number]: string "x") a = (f)}'), 'x')).toBe(false)
 	})
 
 	it('has the widget it would have had if written', () => {
@@ -1406,7 +1406,7 @@ describe('writtenReference', () => {
 
 	it('is a path from the top to anything further in', () => {
 		expect(written('{a = [1 2]}', 'binding:a/1')).toBe('/a/1')
-		expect(written('{f = (=> (p: _): _ p) a = (f [3 4])}', 'binding:a/arg0/1')).toBe('/a/p:/1')
+		expect(written('{f = (=> [p: _]: _ p) a = (f [3 4])}', 'binding:a/arg0/1')).toBe('/a/p:/1')
 	})
 
 	it('comes to it, as code at the top of the program', () => {
@@ -1509,7 +1509,7 @@ describe('what a type brings to a number field', () => {
 	})
 
 	it('reaches an argument through a parameter, which keeps its own name', () => {
-		const call = rowOf(`{${PERCENT} f = (=> (p: Percent): number p) a = (f 1)}`, 'binding:a')
+		const call = rowOf(`{${PERCENT} f = (=> [p: Percent]: number p) a = (f 1)}`, 'binding:a')
 		const arg = viewOf(call.ast, call.env).slots[0]!
 		expect(arg.numberOptions).toEqual(OPTIONS)
 		expect(arg.label).toBe('p')

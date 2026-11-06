@@ -340,22 +340,18 @@ class Parser {
 
 	// `(=> ...)` body — already past `(` and `=>`.
 	private fnTail(): AST {
-		// Optional generic list `(T U ...)` — bare identifiers, followed by
-		// another `(` (the value-parameter list).
-		let generics: string[] = []
-		if (this.peek().kind === '(') {
-			const save = this.pos
-			const list = this.tryParseBareNameList()
-			if (list !== null && this.peek().kind === '(') {
-				generics = list
-			} else {
-				this.pos = save
-			}
-		}
+		// Optional generics `{T U}`, then the parameters `[...]`.
+		const generics = this.peek().kind === '{' ? this.parseGenerics() : []
 
 		const start = this.peek()
-		this.expect('(')
+		if (start.kind === '(') {
+			throw this.error(start, 'parameters go in `[...]`, as in `(=> [x: number]: number x)`')
+		}
+		this.expect('[')
 		const params = this.parseParams()
+		if (params.length === 0) {
+			throw this.error(start, 'a function takes at least one parameter: use what it gives in its place')
+		}
 		this.expect(':')
 		const returnType = this.signatureType()
 
@@ -376,34 +372,40 @@ class Parser {
 		return result
 	}
 
-	private tryParseBareNameList(): string[] | null {
-		const save = this.pos
-		this.advance() // '('
+	/** `{T U}`: the names of the types a function is generic over. */
+	private parseGenerics(): string[] {
+		this.advance() // '{'
 		const names: string[] = []
-		while (
-			this.peek().kind === 'identifier' &&
-			this.peek(1).kind !== ':'
-		) {
+		while (this.peek().kind !== '}') {
+			const tok = this.peek()
+			if (tok.kind !== 'identifier') {
+				throw this.error(tok, 'generics are names, as in `{T U}`')
+			}
+			if (this.peek(1).kind === ':') {
+				throw this.error(tok, 'what a generic is bound by, as in `{T: Show}`, is not supported yet')
+			}
 			names.push(this.advance().value as string)
 		}
-		if (this.peek().kind !== ')') {
-			this.pos = save
-			return null
+		if (names.length === 0) {
+			throw this.error(this.peek(), 'generics `{}` name at least one type')
 		}
-		this.advance() // ')'
+		this.advance() // '}'
 		return names
 	}
 
 	private parseParams(): FnParam[] {
 		const params: FnParam[] = []
-		while (this.peek().kind !== ')') {
+		while (this.peek().kind !== ']') {
+			if (this.peek().kind === 'eof') {
+				throw this.error(this.peek(), 'unterminated `[`')
+			}
 			let variadic = false
 			if (this.peek().kind === '...') {
 				this.advance()
 				variadic = true
 			}
 			if (!this.atNamedParam()) {
-				// Function types may omit names: `(=> (number number): number)`.
+				// Function types may omit names: `(=> [number number]: number)`.
 				params.push({ name: '', type: this.signatureType(), variadic })
 				continue
 			}
@@ -417,7 +419,7 @@ class Parser {
 			const type = this.signatureType()
 			params.push({ name, type, optional, variadic })
 		}
-		this.advance() // ')'
+		this.advance() // ']'
 		return params
 	}
 

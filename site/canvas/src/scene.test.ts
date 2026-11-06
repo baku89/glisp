@@ -87,7 +87,7 @@ describe('path', () => {
 
 	it('is a type that functions come with', () => {
 		const { value } = evaluate(
-			parse('{f = (=> (p: path): path p) (f (path.circle [0 0] 1))}'),
+			parse('{f = (=> [p: path]: path p) (f (path.circle [0 0] 1))}'),
 			env
 		)
 		expect(isPath(value)).toBe(true)
@@ -445,7 +445,7 @@ describe('what a row is called, to read', () => {
 			const [, call] = slots(src)
 			return viewOf(call!.ast, call!.env).slots.map(titleOf)
 		}
-		expect(inner('{f = (=> (r: ^{label: "dB level"} number): number r) y = (f 1)}')).toEqual(['dB level'])
+		expect(inner('{f = (=> [r: ^{label: "dB level"} number]: number r) y = (f 1)}')).toEqual(['dB level'])
 	})
 
 	it('is what is bound, as it is', () => {

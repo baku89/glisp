@@ -103,19 +103,19 @@ describe('print', () => {
 			],
 			sym('number')
 		).withBody(call(sym('+'), sym('x'), sym('y')))
-		expect(print(ast)).toBe('(=> (x: number y: number): number (+ x y))')
+		expect(print(ast)).toBe('(=> [x: number y: number]: number (+ x y))')
 	})
 
 	it('prints function types (no body)', () => {
 		const ast = fn([{ name: 'x', type: sym('number') }], sym('number'))
-		expect(print(ast)).toBe('(=> (x: number): number)')
+		expect(print(ast)).toBe('(=> [x: number]: number)')
 	})
 
 	it('prints generic functions', () => {
 		const ast = fn([{ name: 'x', type: sym('T') }], sym('T'))
 			.withGenerics('T')
 			.withBody(sym('x'))
-		expect(print(ast)).toBe('(=> (T) (x: T): T x)')
+		expect(print(ast)).toBe('(=> {T} [x: T]: T x)')
 	})
 
 	it('prints variadic and optional parameters', () => {
@@ -128,7 +128,7 @@ describe('print', () => {
 			sym('number')
 		)
 		expect(print(ast)).toBe(
-			'(=> (init: number name?: string ...rest: number): number)'
+			'(=> [init: number name?: string ...rest: number]: number)'
 		)
 	})
 
@@ -190,7 +190,7 @@ describe('print', () => {
 			'[1   2   3]',
 			'{x: 10 y: 20}',
 			'{x: 10  ; comment\n y: 20}',
-			'(=> (n: number): number (+ n 1))',
+			'(=> [n: number]: number (+ n 1))',
 			'^{label: "x"} 100',
 			'(f a: 1 b: 2)',
 			"(f ~x ...~ys)",
@@ -212,7 +212,7 @@ describe('print', () => {
 	})
 
 	it('round-trips a moderately nested expression', () => {
-		// (=> (n: number): number {a = (* n 2) (+ a 1)})
+		// (=> [n: number]: number {a = (* n 2) (+ a 1)})
 		const ast = fn(
 			[{ name: 'n', type: sym('number') }],
 			sym('number')
@@ -223,7 +223,7 @@ describe('print', () => {
 			)
 		)
 		expect(print(ast)).toBe(
-			'(=> (n: number): number {a = (* n 2) (+ a 1)})'
+			'(=> [n: number]: number {a = (* n 2) (+ a 1)})'
 		)
 	})
 })

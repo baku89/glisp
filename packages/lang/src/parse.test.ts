@@ -255,8 +255,8 @@ describe('parse — let-blocks', () => {
 })
 
 describe('parse — functions', () => {
-	it('(=> (x: number y: number): number (+ x y))', () => {
-		expect(parse('(=> (x: number y: number): number (+ x y))')).toEqual(
+	it('(=> [x: number y: number]: number (+ x y))', () => {
+		expect(parse('(=> [x: number y: number]: number (+ x y))')).toEqual(
 			fn(
 				[
 					{ name: 'x', type: sym('number'), optional: false, variadic: false },
@@ -268,7 +268,7 @@ describe('parse — functions', () => {
 	})
 
 	it('function-type expression (no body)', () => {
-		expect(parse('(=> (a: number b: number): number)')).toEqual(
+		expect(parse('(=> [a: number b: number]: number)')).toEqual(
 			fn(
 				[
 					{ name: 'a', type: sym('number'), optional: false, variadic: false },
@@ -280,7 +280,7 @@ describe('parse — functions', () => {
 	})
 
 	it('generic function', () => {
-		expect(parse('(=> (T) (x: T): T x)')).toEqual(
+		expect(parse('(=> {T} [x: T]: T x)')).toEqual(
 			fn(
 				[{ name: 'x', type: sym('T'), optional: false, variadic: false }],
 				sym('T')
@@ -288,11 +288,22 @@ describe('parse — functions', () => {
 				.withGenerics('T')
 				.withBody(sym('x'))
 		)
+		expect(parse('(=> {T U} [x: T]: U x)').printStructural()).toBe('(=> {T U} [x: T]: U x)')
+	})
+
+	it('has its parameters in brackets, and its generics in braces', () => {
+		expect(() => parse('(=> (x: number): number x)')).toThrow(/parameters go in `\[\.\.\.\]`/)
+		expect(() => parse('(=> {T: Show} [x: T]: T x)')).toThrow(/not supported yet/)
+		expect(() => parse('(=> {} [x: number]: number x)')).toThrow(ParseError)
+		expect(() => parse('(=> {1} [x: number]: number x)')).toThrow(ParseError)
+		expect(() => parse('(=> [x: number: number x)')).toThrow(ParseError)
+		expect(() => parse('(=> []: number 1)')).toThrow(/at least one parameter/)
+		expect(() => parse('(=> []: number)')).toThrow(ParseError)
 	})
 
 	it('variadic + optional parameters', () => {
 		const ast = parse(
-			'(=> (init: number name?: string ...rest: number): number)'
+			'(=> [init: number name?: string ...rest: number]: number)'
 		)
 		expect(ast).toEqual(
 			fn(
@@ -392,9 +403,9 @@ describe('parse — round-trip', () => {
 			'{x: 10 y: 20}',
 			'{}',
 			'{a = 10 b = 20 (+ a b)}',
-			'(=> (x: number y: number): number (+ x y))',
-			'(=> (a: number b: number): number)',
-			'(=> (T) (x: T): T x)',
+			'(=> [x: number y: number]: number (+ x y))',
+			'(=> [a: number b: number]: number)',
+			'(=> {T} [x: T]: T x)',
 			'./foo',
 			'../foo',
 			'../../a',
@@ -445,7 +456,7 @@ describe('parse — special forms (parser is permissive)', () => {
 	it('`:` is only a coerce head directly after `(`', () => {
 		expect(() => parse('(x: number)')).toThrow()
 		expect(() => parse('(f : number)')).toThrow()
-		const fnAst = parse('(=> (x: number): number (: x number))')
+		const fnAst = parse('(=> [x: number]: number (: x number))')
 		expect(fnAst.kind).toBe('fn')
 	})
 
@@ -476,7 +487,7 @@ describe('parse — special forms (parser is permissive)', () => {
 			'[(f)]',
 			'(make-point).x',
 			'a.b.c',
-			'(=> (x: number): number x)',
+			'(=> [x: number]: number x)',
 			'(f k: (g))',
 			'[...xs]',
 			'(* ~x ...~xs)',
@@ -491,29 +502,29 @@ describe('parse — special forms (parser is permissive)', () => {
 
 	it('rejects paths in a function signature', () => {
 		for (const src of [
-			'(=> (x: ./0): number)',
-			'(=> (T) (x: ../T): T 1)',
-			'(=> (x: number): ../r x)',
-			'(=> ([./0]): number)',
-			'(=> (f: (=> (y: ./0): number)): number 1)',
+			'(=> [x: ./0]: number)',
+			'(=> {T} [x: ../T]: T 1)',
+			'(=> [x: number]: ../r x)',
+			'(=> [[./0]]: number)',
+			'(=> [f: (=> [y: ./0]: number)]: number 1)',
 		]) {
 			expect(() => parse(src), src).toThrow(ParseError)
 		}
-		expect(() => parse('[1 (=> (x: number): number ../0)]')).not.toThrow()
+		expect(() => parse('[1 (=> [x: number]: number ../0)]')).not.toThrow()
 	})
 
 	it('allows unnamed parameters in a function type only', () => {
 		for (const src of [
-			'(=> (number number): number)',
-			'(=> (T) (T [...T]): T)',
-			'(=> (a: number string): number)',
-			'(=> (number ...string): number)',
+			'(=> [number number]: number)',
+			'(=> {T} [T [...T]]: T)',
+			'(=> [a: number string]: number)',
+			'(=> [number ...string]: number)',
 		]) {
 			expect(roundTrip(src), src).toBe(src)
 			expect(parse(src).printStructural(), src).toBe(src)
 		}
-		expect(() => parse('(=> (number number): number 1)')).toThrow(ParseError)
-		expect(() => parse('(=> (a: number string): number a)')).toThrow(ParseError)
+		expect(() => parse('(=> [number number]: number 1)')).toThrow(ParseError)
+		expect(() => parse('(=> [a: number string]: number a)')).toThrow(ParseError)
 	})
 
 	it('round-trips IO-parametric form', () => {

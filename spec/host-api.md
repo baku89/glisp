@@ -160,7 +160,7 @@ For a function that takes a function, the fourth argument has `invert(fn, result
 makeTopLevel({
 	vec2: host(withMembers(makeTupleType([numberType, numberType]), { add, scale })),
 })
-// (=> (p: vec2): vec2 (vec2.scale p 2))
+// (=> [p: vec2]: vec2 (vec2.scale p 2))
 ```
 
 It changes the type it is given, so make one of your own rather than giving members to `number`. A host value that is a plain record of these reads the same way, as `geom.rect.center`, and static analysis can see through both.
@@ -232,9 +232,9 @@ The builders are functions, also collected as `g`:
 | `vec(a, b)`                      | `[a b]`                      |
 | `record({ x: a })`               | `{x: a}`                     |
 | `letBlock([['a', x]], body)`     | `{a = x body}`, also `g.let` |
-| `fn({ a: T }, R)`                | `(=> (a: T): R)`             |
-| `.withBody(expr)`                | `(=> (a: T): R expr)`        |
-| `.withGenerics('T')`             | `(=> (T) (a: T): R)`         |
+| `fn({ a: T }, R)`                | `(=> [a: T]: R)`             |
+| `.withBody(expr)`                | `(=> [a: T]: R expr)`        |
+| `.withGenerics('T')`             | `(=> {T} [a: T]: R)`         |
 | `path('..', 'x')`                | `../x`                       |
 | `path('/', 'x', 0)`              | `/x/0`                       |
 | `path('.', 'a', 'x:')`           | `./a/x:`, a key              |

@@ -274,7 +274,11 @@ const isPaired = (item: Item): boolean => isBinding(item) || isKeyword(item)
 
 /** Bindings, which have a line each, as there is no telling them apart otherwise. */
 const isBlock = ({ open, items }: Group): boolean =>
-	(open === '{' && items.length > 1 && items.every(item => item.value.kind !== 'pair' || item.value.by === '=')) ||
+	(open === '{' &&
+		items.length > 1 &&
+		items.every(item => item.value.kind !== 'pair' || item.value.by === '=') &&
+		// Names alone, as a function's generics `{T U}` are, bind nothing
+		items.some(item => item.value.kind === 'pair')) ||
 	(open === '[' && items.some(isBinding))
 
 /** All on one line, if it can be. */

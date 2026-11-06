@@ -28,7 +28,7 @@ describe('expectedTypeAt — call positions', () => {
 		// `not` has paramNames undefined → no kwarg slot. Use a closure
 		// where param names are intrinsic.
 		const call = parse(
-			'((=> (a: number b: string): _ a) 1 b: "x")'
+			'((=> [a: number b: string]: _ a) 1 b: "x")'
 		) as CallAST
 		const tA = expectedTypeAt(call, 'a', env)
 		expect(tA?.typeName).toBe('number')
@@ -47,13 +47,13 @@ describe('expectedTypeAt — fn signature slots', () => {
 	const env = buildPrelude()
 
 	it('return slot', () => {
-		const fn = parse('(=> (n: number): string (show n))') as FnAST
+		const fn = parse('(=> [n: number]: string (show n))') as FnAST
 		const t = expectedTypeAt(fn, 'return', env)
 		expect(t?.typeName).toBe('string')
 	})
 
 	it('param slot', () => {
-		const fn = parse('(=> (n: number m: string): _ ())') as FnAST
+		const fn = parse('(=> [n: number m: string]: _ ())') as FnAST
 		const t0 = expectedTypeAt(fn, 'param:0', env)
 		const t1 = expectedTypeAt(fn, 'param:1', env)
 		expect(t0?.typeName).toBe('number')
@@ -72,13 +72,13 @@ describe('expectedTypeAt — edge cases', () => {
 
 	it('unknown kwarg name returns null', () => {
 		const call = parse(
-			'((=> (a: number): _ a) 1 b: "x")'
+			'((=> [a: number]: _ a) 1 b: "x")'
 		) as CallAST
 		expect(expectedTypeAt(call, 'nope', env)).toBeNull()
 	})
 
 	it('out-of-range fn param:N returns null', () => {
-		const fn = parse('(=> (n: number): _ n)') as FnAST
+		const fn = parse('(=> [n: number]: _ n)') as FnAST
 		expect(expectedTypeAt(fn, 'param:99', env)).toBeNull()
 		expect(expectedTypeAt(fn, 'param:invalid', env)).toBeNull()
 	})
@@ -92,7 +92,7 @@ describe('expectedTypeAt — edge cases', () => {
 
 	it('overload head: no per-variant routing yet (returns null)', () => {
 		const session = new Session(buildPrelude())
-		session.exec('f = (overload (=> (n: number): _ n) (=> (s: string): _ s))')
+		session.exec('f = (overload (=> [n: number]: _ n) (=> [s: string]: _ s))')
 		const call = parse('(f 1)') as CallAST
 		expect(expectedTypeAt(call, 0, session.env)).toBeNull()
 	})

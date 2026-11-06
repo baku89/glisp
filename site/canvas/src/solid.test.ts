@@ -122,7 +122,7 @@ describe('what was written before', () => {
 	})
 
 	it('leaves a function a program has of its own', () => {
-		const own = '{grid = (=> (at: point): path (path.circle at 5)) a = (grid [1 2])}'
+		const own = '{grid = (=> [at: point]: path (path.circle at 5)) a = (grid [1 2])}'
 		expect(writtenAsNow(own)).toBe(own)
 	})
 
@@ -137,6 +137,12 @@ describe('what was written before', () => {
 		expect(writtenAsNow('(path.dubinsChain [[0 0 0 50] [200 100.5 -90]] 20)')).toBe('(path.dubinsChain [[[0 0] 0 50] [[200 100.5] -90]] 20)')
 		const already = '(path.dubinsChain [[[0 0] 0] [[1 1] 0]] 20)'
 		expect(writtenAsNow(already)).toBe(already)
+	})
+
+	it('has a function written with brackets, as now', () => {
+		expect(writtenAsNow('[s = (=> (x: number): number (* x x)) g = (grid)]')).toBe(
+			'[s = (=> [x: number]: number (* x x)) g = (graphPaper)]'
+		)
 	})
 })
 
