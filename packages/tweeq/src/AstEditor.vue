@@ -145,9 +145,13 @@ useEventListener(
 	},
 	{ capture: true }
 )
-for (const type of ['pointerup', 'pointercancel', 'blur'] as const) {
+for (const type of ['pointerup', 'pointercancel'] as const) {
 	useEventListener(window, type, () => (pressedElsewhere.value = false), { capture: true })
 }
+// Only the window going out of focus, as anything in it doing so is no letting go.
+useEventListener(window, 'blur', event => {
+	if (event.target === window) pressedElsewhere.value = false
+})
 const shown = shallowRef({
 	root: props.document.root.value,
 	env: props.document.env.value,
@@ -246,7 +250,14 @@ function copyReference(path: string): boolean {
 	return true
 }
 
-provide(VALUE_ICON, value => props.iconOfValue?.(value) ?? null)
+// What a value is shown as is the same for as long as it is the same value, which an edit
+// elsewhere leaves it, and drawing a shape small enough to be one is not nothing.
+const iconsOf = new WeakMap<object, string | null>()
+provide(VALUE_ICON, value => {
+	if (typeof value !== 'object' || value === null) return props.iconOfValue?.(value) ?? null
+	if (!iconsOf.has(value)) iconsOf.set(value, props.iconOfValue?.(value) ?? null)
+	return iconsOf.get(value)!
+})
 provide(FUNCTION_ICON, fn => props.iconOfFunction?.(fn) ?? null)
 provide(HOST_KEY, event => props.hostKey?.(event) ?? false)
 if (props.valuePicker) provide(VALUE_PICKER, props.valuePicker)
