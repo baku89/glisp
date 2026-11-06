@@ -37,7 +37,7 @@ import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
 import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
-import { ARTBOARD_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
+import { ARTBOARD_ICON, AXES_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
 import { alone, type Place } from './panelLayout'
@@ -1260,7 +1260,7 @@ actions.register([
 			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
 			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGraphPaper('dots') },
 			{ id: 'view_lines', label: 'Toggle Lines', icon: 'ph:grid-four', perform: () => toggleGraphPaper('lines') },
-			{ id: 'view_axes', label: 'Toggle Axes', icon: 'ph:crosshair-simple', perform: toggleAxes },
+			{ id: 'view_axes', label: 'Toggle Axes', icon: AXES_ICON, perform: toggleAxes },
 			{ id: 'view_solid', label: 'Set Solid', icon: 'ph:paint-bucket', perform: setSolid },
 		],
 	},

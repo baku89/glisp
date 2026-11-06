@@ -1,4 +1,4 @@
-import { POINT_ICON, RAY_ICON, STRAIGHT_LINE_ICON } from './graphics'
+import { AXES_ICON, POINT_ICON, RAY_ICON, STRAIGHT_LINE_ICON } from './graphics'
 
 /** What a shape looks like as a tool, and as the function that makes it. */
 export const SHAPE_ICONS = {
@@ -64,7 +64,7 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	rect: 'mdi:crop-free',
 	solid: 'ph:paint-bucket',
 	graphPaper: 'ph:grid-four',
-	axes: 'ph:crosshair-simple',
+	axes: AXES_ICON,
 	'mat2d.translate': 'ph:arrows-out-cardinal',
 	'mat2d.rotate': 'ph:arrow-clockwise',
 	'mat2d.scale': 'ph:arrows-out',

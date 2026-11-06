@@ -149,6 +149,8 @@ const percentType = withTypeMeta(
 )
 
 export const POINT_ICON = 'fill:M11.25 3h1.5v6h-1.5zM11.25 15h1.5v6h-1.5zM3 11.25h6v1.5H3zM15 11.25h6v1.5h-6z'
+/** Two axes through the origin, each with an arrow the way it goes on the canvas: right, and down. */
+export const AXES_ICON = 'stroke:M3 12h17M16 8l4 4-4 4M12 3v17M8 16l4 4 4-4'
 
 /** How far something goes, which a pad can take hold of, though it is nowhere to be drawn. */
 const translationType = withTypeMeta(
@@ -5163,7 +5165,7 @@ const isAxes = (value: unknown): value is AxesValue => value instanceof AxesValu
 const axesType = said(
 	makeType('axes', isAxes, new AxesValue([0, 0], AXES_COLOR, AXES_WIDTH)),
 	'axes',
-	'ph:crosshair-simple'
+	AXES_ICON
 )
 
 const makeAxes = withDoc(
