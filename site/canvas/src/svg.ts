@@ -14,7 +14,8 @@ import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
 
 import { type AxesValue, cornersOf, type GraphPaperValue, LINE_CAPS, LINE_JOINS, NO_PAINT, type Paint, type Path, type RectValue, styleOf, toHex, withGraphics } from './graphics'
-import { paintedIn } from './scene'
+import { boardsIn } from './artboards'
+import { artboardOfRow, paintedIn } from './scene'
 
 const NAMESPACE = 'https://glisp.app/canvas'
 /** What already has a name, which an element from elsewhere is not to take from it. */
@@ -91,6 +92,12 @@ export function svgOfRows(
 	return svgWith(copiedRows(root, env, paths), root, env, paths, area)
 }
 
+/** The artboard at `row` as an SVG of its own, as large as it is, or null if it is not one. */
+export function svgOfArtboard(root: AST, env: Env, row: string): string | null {
+	const board = artboardOfRow(root, env, row)
+	return board === null ? null : svgOfRows(root, env, [row], board.area)
+}
+
 /**
  * A program as a file: all it draws, with all of its code in it, drawn or not. A program
  * that draws nothing still has to be kept, so it is an SVG with nothing to see.
@@ -98,8 +105,10 @@ export function svgOfRows(
 export function svgOfProgram(root: LetAST, env: Env): string {
 	const code = sourceOfProgram(root)
 	const rows = paintedIn(root, env).map(({ row }) => row)
+	// With artboards, it is the one in front, as a page is what is seen of a drawing of pages.
+	const first = boardsIn(root, env).find(({ row }) => !row.includes('/'))
 	return (
-		svgWith(code, root, env, rows) ??
+		svgWith(code, root, env, rows, first?.value.area) ??
 		['<svg xmlns="http://www.w3.org/2000/svg">', metadataOf(code), '</svg>'].join('\n')
 	)
 }
@@ -139,7 +148,7 @@ function svgWith(
 	const isAsked = (row: string) => paths.some(path => row === path || row.startsWith(`${path}/`))
 	const painted = paintedIn(root, env).filter(({ row }) => isAsked(row))
 	const shapes = painted.filter(({ draw, value }) => {
-		if (draw !== 'path') return false
+		if (draw !== 'path' && draw !== 'artboard') return false
 		const [[l, t], [r, b]] = bounds(value as Path)
 		return l <= toX && r >= fromX && t <= toY && b >= fromY
 	})
@@ -158,6 +167,12 @@ function svgWith(
 	const [width, height] = area ? area.size : [right - left + MARGIN * 2, bottom - top + MARGIN * 2]
 
 	const shown = new Set(shapes)
+	// What an artboard cuts off what is on it by, once for each.
+	const clips = new Map<Path, string>()
+	const clipOf = (clip: Path): string => {
+		if (!clips.has(clip)) clips.set(clip, `clip${clips.size + 1}`)
+		return clips.get(clip)!
+	}
 	const drawn = painted.flatMap(shape => {
 		const { row, draw, value, paint } = shape
 		const id = row.split('/').at(-1)!.replace(/^binding:/, '')
@@ -171,11 +186,21 @@ function svgWith(
 		const attributes = paint
 			? `${colorAttributes('fill', paint.fill)}${colorAttributes('stroke', paint.stroke)} stroke-width="${paint.width}"${lineAttributes(paint)}`
 			: ''
-		return [`  <path id="${escaped(id)}" d="${toD(value as Path)}"${attributes}/>`]
+		const clipped = shape.clip === undefined ? '' : ` clip-path="url(#${clipOf(shape.clip)})"`
+		return [`  <path id="${escaped(id)}" d="${toD(value as Path)}"${attributes}${clipped}/>`]
 	})
+	const defs =
+		clips.size === 0
+			? []
+			: [
+					'  <defs>',
+					...[...clips].map(([clip, id]) => `    <clipPath id="${id}"><path d="${toD(clip)}"/></clipPath>`),
+					'  </defs>',
+				]
 	return [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${width} ${height}" width="${width}" height="${height}" fill="none" stroke="black" stroke-width="${STROKE_WIDTH}">`,
 		metadataOf(code),
+		...defs,
 		...drawn,
 		'</svg>',
 	].join('\n')

@@ -14,9 +14,11 @@ import {
 	shapeAttributesOf,
 	sourceOfAttributes,
 	withAttribute,
+	withPaintAdded,
 	withPaintDrawn,
 	withPaintTaken,
 } from './toolAttributes'
+import { withAdded } from './quickAdd'
 
 const env: Env = withGraphics(buildPrelude())
 const first = parse(FIRST_SOURCE) as LetAST
@@ -145,5 +147,29 @@ describe('a tool makes a shape from them', () => {
 		}
 		expect(paintedPen(false)?.fill).toBe('none')
 		expect(paintedPen(true)?.fill).toBe('#ff0000')
+	})
+})
+
+describe('what is added from the menu', () => {
+	const PAINT = { ...NO_PAINT, fill: '#ff0000', stroke: '#0000ff' }
+	const added = (name: string) => {
+		const { ast, row } = withAdded(blank, env, name, [0, 0])!
+		return source(withPaintAdded(ast, env, row, PAINT), row.slice('binding:'.length))
+	}
+
+	it('is painted as what the tools draw', () => {
+		expect(added('path.square')).toMatch(/^\(style \(path\.square .*\) fill: "#ff0000" stroke: "#0000ff"\)$/)
+		expect(added('path.qr')).toMatch(/^\(style \(path\.qr /)
+	})
+
+	it('has no fill where it is not closed', () => {
+		const line = added('path.line')
+		expect(line).toContain('stroke: "#0000ff"')
+		expect(line).not.toContain('fill:')
+	})
+
+	it('leaves alone what is not a shape', () => {
+		const { ast, row } = withAdded(blank, env, 'graphPaper', [0, 0])!
+		expect(withPaintAdded(ast, env, row, PAINT)).toBe(ast)
 	})
 })

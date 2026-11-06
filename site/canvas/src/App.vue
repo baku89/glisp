@@ -8,7 +8,7 @@ import {
 	inspectionOf,
 	useGlispDocument,
 } from '@glisp/tweeq'
-import { combined, type Filter, filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
+import { combined, type Filter, filtersFor, functionsOfProgram, nameMadeBy, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withBlanks, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { MAIN, layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
@@ -37,13 +37,13 @@ import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
 import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
-import { iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
+import { ARTBOARD_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
 import { alone, type Place } from './panelLayout'
 import { PANEL_DOCK, usePanelLayout } from './usePanelLayout'
 import { withPaintsSwapped } from './paintArguments'
-import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
+import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes, withPaintAdded } from './toolAttributes'
 import IsolationBar from './IsolationBar.vue'
 import RowName from './RowName.vue'
 import {
@@ -222,6 +222,7 @@ const TOOLS = [
 	{ name: 'points', label: 'Edit Points', key: 'a', icon: 'ph:cursor' },
 	{ name: 'pen', label: 'Pen', key: 'p', icon: 'ph:pen-nib' },
 	{ name: 'pencil', label: 'Pencil', key: 'b', icon: 'ph:pencil-simple' },
+	{ name: 'artboard', label: 'Artboard', key: 'f', icon: ARTBOARD_ICON },
 	{ name: 'rect', label: 'Rectangle', key: 'r', icon: SHAPE_ICONS.rect },
 	{ name: 'ellipse', label: 'Ellipse', key: 'o', icon: SHAPE_ICONS.circle },
 	{ name: 'ngon', label: 'Polygon', key: 'n', icon: SHAPE_ICONS.ngon },
@@ -242,7 +243,7 @@ const tool = ref<(typeof TOOLS)[number]['name']>('select')
 
 /** What is on the bar at first: the rest is there behind its dots, until it is wanted. */
 const FIRST_TOOLS: FirstTools = {
-	shown: ['select', 'points', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
+	shown: ['select', 'artboard', 'points', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
 	stowed: [
 		'star',
 		'roundRect',
@@ -750,12 +751,21 @@ const wraps = computed(() => {
 	const namesOf = (of: readonly string[]) => of.map(row => nameOfRow(row) ?? '')
 	const insideOf = (of: readonly string[]) =>
 		of.map(row => reach(root, env, paintedRow(root, env, row))?.chain.at(-1)?.ast) as AST[]
+	// What they become is called what makes it, and each of them goes on being called what it was, in there.
 	const all = (filter: Filter, of: readonly string[]): LetAST | null =>
-		combined(root, env, namesOf(of), insideOf(of), filter, call =>
-			filter.fn.returnType === pathType ? withPaintOfRows(root, env, of, call) : call
+		combined(
+			root,
+			env,
+			namesOf(of),
+			insideOf(of),
+			filter,
+			call => (filter.fn.returnType === pathType ? withPaintOfRows(root, env, of, call) : call),
+			nameMadeBy(root, filter)
 		)
-	// What they became goes by the first of them.
-	const firstOf = (of: readonly string[]): string[] => of.slice(0, 1)
+	/** The row of what `row` has become, called `name`, if it was called something there. */
+	const renamedRow = (row: string, name: string): string =>
+		nameOfRow(row) === null ? row : row.replace(/[^/]*$/, `binding:${name}`)
+	const firstOf = (of: readonly string[], filter: Filter): string[] => [renamedRow(of[0]!, nameMadeBy(root, filter))]
 	return filtersFor(chosen.map(({ value }) => value), env, functionsOfProgram(root, env))
 		.filter(({ name }) => !NOT_FILTERS.has(name))
 		.flatMap(filter => {
@@ -775,16 +785,20 @@ const wraps = computed(() => {
 						perform(...picked: readonly Selected[]) {
 							const of = [...rows, ...picked.map(({ row }) => row)]
 							const next = new Set(of).size === of.length ? all(filter, of) : null
-							if (next) setProgram(next, firstOf(of))
+							if (next) setProgram(next, firstOf(of, filter))
 						},
 					},
 				]
 			}
-			const done = together ? all(filter, rows) : wrappedAt(root, env, paintedRow(root, env, rows[0]!), filter)
+			const done = together ? all(filter, rows) : wrappedAt(root, env, paintedRow(root, env, rows[0]!), filter, nameOfRow(rows[0]!))
 			if (!(done instanceof LetAST)) return []
-			return [
-				{ ...item, perform: () => setProgram(done, firstOf(rows)) },
-			]
+			// What is around it now is called what it is.
+			const perform = (): void => {
+				const renamed = together || nameOfRow(rows[0]!) === null ? null : renameBindingAt(done, env, rows[0]!, nameMadeBy(root, filter))
+				if (renamed instanceof LetAST) setProgram(renamed, firstOf(rows, filter))
+				else setProgram(done, together ? firstOf(rows, filter) : rows.slice(0, 1))
+			}
+			return [{ ...item, perform }]
 		})
 		.sort((a, b) => Number('params' in a) - Number('params' in b))
 })
@@ -1052,7 +1066,7 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 					const added = root && withAdded(root, env, name, quickAddPlace.value, selected.value)
 					if (!added) return
 					tool.value = 'select'
-					setProgram(added.ast, [added.row])
+					setProgram(withPaintAdded(added.ast, env, added.row, toolAttributes.value.paint), [added.row])
 				},
 			})),
 	]
@@ -1121,7 +1135,7 @@ actions.register([
 			{ id: 'file_save_as', label: 'Save As...', icon: 'mdi:content-save-edit-outline', bind: 'command+shift+s', perform: () => files.save(true) },
 			{
 				id: 'file_export_svg',
-				label: 'Export Selection...',
+				label: 'Export Selection or Artboard...',
 				icon: 'mdi:export-variant',
 				// All of a program is what saving it writes. This is what is drawn, or an area, or
 				// both: that much of those, and an area on its own is that much of everything.
@@ -1129,7 +1143,10 @@ actions.register([
 				perform(chosen: readonly Selected[]) {
 					const root = document.root.value
 					const env = document.env.value
-					const area = chosen.find(({ value }) => isRect(value))?.value as RectValue | undefined
+					// An artboard is exported as large as it is, as an area would be, with what is on it.
+					const area =
+						(chosen.find(({ value }) => isRect(value))?.value as RectValue | undefined) ??
+						(chosen.find(({ value }) => isArtboard(value))?.value as ArtboardValue | undefined)?.area
 					const drawings = chosen.filter(({ value }) => !isRect(value)).map(({ row }) => row)
 					const svg = svgOfRows(root, env, exportedRows(root, env, drawings), area)
 					if (svg !== null) void exportSvg(svg, files.activeTab.value?.name ?? 'sketch')

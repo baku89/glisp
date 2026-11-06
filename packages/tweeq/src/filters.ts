@@ -10,6 +10,7 @@ import {
 	keySegment,
 	CallAST,
 	check,
+	childrenOf,
 	enterNode,
 	type Env,
 	evaluate,
@@ -193,13 +194,19 @@ export function callOf({ name, fn }: Filter, given: readonly AST[], env: Env): C
 const errorsIn = (ast: AST, env: Env): number =>
 	check(ast, env).filter(({ level }) => level === 'error').length
 
-/** `root` with what is at `path` given to `filter`, in its place. Null if it is not there. */
-export function wrappedAt(root: AST, env: Env, path: string, filter: Filter): AST | null {
+/**
+ * `root` with what is at `path` given to `filter`, in its place. Null if it is not there. What it
+ * was called, or `as`, it goes on being called in there too, as what is combined is, so that it is
+ * called that again once let go of.
+ */
+export function wrappedAt(root: AST, env: Env, path: string, filter: Filter, as?: string | null): AST | null {
 	const chain = reach(root, env, path)?.chain
 	const slot = chain?.at(-1)
 	if (!chain || !slot) return null
 	const { ast } = slot
-	const call = callOf(filter, [ast.kind === 'meta' ? ast.expr : ast], slot.env)
+	const name = as ?? nameOf(ast)
+	const inner = unnamed(ast.kind === 'meta' ? ast.expr : ast)
+	const call = callOf(filter, [name === null ? inner : named(name, inner)], slot.env)
 	const next = ast.kind === 'meta' ? new MetaAST(ast.metadata, call) : call
 	return withPathsInto(withParent(chain, slot.replace(next)), env, call)
 }
@@ -234,6 +241,25 @@ function levelsWithin(holder: AST, node: AST, frame: Env): Levels | null {
 		: [keySegment(parameters.variadicName), index - parameters.names.length]
 }
 
+/**
+ * A name for what `filter` makes, from what it is called, as the shape a tool draws is called
+ * what it is: none that is anywhere in `root` already, so that each says which it is.
+ */
+export function nameMadeBy(root: AST, filter: Filter): string {
+	const stem = filter.name.slice(filter.name.lastIndexOf('.') + 1).replace(/[^a-zA-Z0-9]/g, '') || 'value'
+	const taken = new Set<string>()
+	const visit = (ast: AST): void => {
+		const own = nameOf(ast)
+		if (own !== null) taken.add(own)
+		if (ast.kind === 'let') for (const [name] of ast.bindings) taken.add(name)
+		for (const child of childrenOf(ast)) visit(child)
+	}
+	visit(root)
+	let n = 1
+	while (taken.has(`${stem}${n}`)) n++
+	return `${stem}${n}`
+}
+
 /** `combined`, of what a block only binds: in place of the last of them, called what the first is. */
 function combinedBindings(
 	root: LetAST,
@@ -241,11 +267,12 @@ function combinedBindings(
 	names: readonly string[],
 	given: readonly AST[],
 	filter: Filter,
-	around: (call: AST) => AST
+	around: (call: AST) => AST,
+	as: string | undefined
 ): LetAST | null {
-	const [as] = names
 	const bound = new Set(root.bindings.map(([name]) => name))
 	if (as === undefined || !names.every(name => bound.has(name))) return null
+	if (as !== names[0] && bound.has(as)) return null
 	const inside = given.map(ast => (ast.kind === 'meta' ? ast.expr : ast))
 	const refersOut = (ast: AST): boolean => {
 		const refs = freeRefs(ast)
@@ -274,8 +301,8 @@ function combinedBindings(
 }
 
 /**
- * `root` with the bindings `names` given to `filter`, each as `given`, in place of the last of
- * them and called what the first is, as `wrappedAt` leaves a name where it was. A path from the
+ * `root` with the bindings `names` given to `filter`, each as `given` and still called what it
+ * was, in place of the last of them and called `as`, or what the first is. A path from the
  * root to what is given goes on to it, there. Null if one is not there, if what is given refers
  * to one by name or climbs out of itself, as neither says the same from there, or if that leaves
  * more wrong than there was: something else needed one that is gone, or what was given is not
@@ -288,14 +315,14 @@ export function combined(
 	given: readonly AST[],
 	filter: Filter,
 	around: (call: AST) => AST = call => call,
+	as: string | undefined = names[0],
 ): LetAST | null {
-	const [as] = names
 	// What is drawn, by name: what the program's vector holds.
 	const layered = layersVectorOf(root)
 	const elements = layered?.vector.elements ?? []
 	const drawn = new Map(elements.flatMap(element => (nameOf(element) === null ? [] : [[nameOf(element)!, element] as const])))
-	if (as === undefined) return null
-	if (layered === null || !names.every(name => drawn.has(name))) return combinedBindings(root, env, names, given, filter, around)
+	if (as === undefined || (as !== names[0] && drawn.has(as))) return null
+	if (layered === null || !names.every(name => drawn.has(name))) return combinedBindings(root, env, names, given, filter, around, as)
 	const inside = given.map(ast => (ast.kind === 'meta' ? ast.expr : ast))
 	const refersOut = (ast: AST): boolean => {
 		const refs = freeRefs(ast)

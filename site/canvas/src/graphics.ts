@@ -25,6 +25,7 @@ import {
 	print,
 	RecordAST,
 	type TypeValue,
+	UNIT,
 	UNSET,
 	toAst,
 	VecAST,
@@ -1825,6 +1826,63 @@ const makeConvexHull = makeTypedFn(
 withMembers(rectType, {
 	new: withDoc(makeArea, 'An area from its `origin`, of this `size`, such as a page to export.', 'Area'),
 })
+
+// -----------------------------------------------------------------------------
+// An artboard: a page on the canvas, with what is on it measured from its corner
+// -----------------------------------------------------------------------------
+
+const ARTBOARD_FILL = '#ffffff'
+
+/**
+ * A page of the canvas: an `area`, filled, holding `layers` that are measured from its
+ * top left corner, so that it goes where it is moved with all of them, and what goes past
+ * its edge is cut off there if it `clip`s.
+ */
+export class ArtboardValue {
+	constructor(
+		readonly area: RectValue,
+		readonly layers: readonly unknown[],
+		readonly fill: string,
+		readonly clip: boolean
+	) {}
+}
+
+export const isArtboard = (value: unknown): value is ArtboardValue => value instanceof ArtboardValue
+
+/** Where what is on an artboard is measured from, on the canvas. */
+export const artboardMatrix = ({ area }: ArtboardValue): Mat => [1, 0, 0, 1, area.origin[0], area.origin[1]]
+
+export const ARTBOARD_ICON = 'mdi:artboard'
+
+const artboardType = said(
+	makeType('artboard', isArtboard, new ArtboardValue(new RectValue([0, 0], [100, 100]), [], ARTBOARD_FILL, true)),
+	'artboard',
+	ARTBOARD_ICON
+)
+
+const layersType = makeTupleType([], makeType('_', () => true, UNIT))
+
+/** Whether `fn` makes an artboard, whose argument at 1 is what is on it. */
+export const makesArtboard = (fn: unknown): boolean => fn === makeArtboard
+
+/** Which of the arguments of an artboard holds what is on it. */
+export const ARTBOARD_LAYERS = 1
+
+const makeArtboard = withDoc(
+	withOptional(
+		makeTypedFn(
+			[rectType, layersType, colorOf(ARTBOARD_FILL), withDefault(booleanType, true)],
+			artboardType,
+			(area, layers, fill, clip) =>
+				new ArtboardValue(area as RectValue, (layers as unknown[]) ?? [], fill as string, clip as boolean),
+			['area', 'layers', 'fill', 'clip']
+		),
+		['layers', 'fill', 'clip']
+	),
+	'A page of the canvas, over an `area` filled with `fill`, holding `layers` that are measured from its top left corner, and cut off at its edge if it `clip`s. It is exported by itself as that area.',
+	'Artboard'
+)
+
 
 // -----------------------------------------------------------------------------
 // What the brushes draw, each of which comes to the same however often it is worked out
@@ -4477,6 +4535,17 @@ for (const fn of [makeUnite, makeSubtract, makeIntersect, makeExclude, makeBlend
 // An area is taken hold of as a rectangle is, having the same origin and size.
 makers.set(makeArea, makers.get(makeRect)!)
 
+// An artboard is taken hold of by its area: what is on it is measured from that, so goes with it,
+// and is not scaled when it is.
+makers.set(makeArtboard, (_, inner) => {
+	const area = inner(0)
+	return {
+		guides: [],
+		handles: area?.handles ?? [],
+		...(area?.move === undefined ? {} : { move: area.move }),
+	}
+})
+
 /** Where `at` goes, being `x` and `y` times as far from `about`. */
 const scaledPlace = ([px, py]: Vec, x: number, y: number, [ax, ay]: Vec): Vec => [
 	ax + (px - ax) * x,
@@ -4710,6 +4779,7 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 	// A grid scales any way with what it is of, and stays upright, as what it says is a row and a column.
 	[makePixelate, (_, inner) => answeredTogether([inner(0)?.box, inner(1)?.box], { keepsAxes: false, turns: false })],
 	[makeArea, fromOrigin],
+	[makeArtboard, (_, inner) => inner(0)?.box ?? null],
 	[makeOffset, inProportion(makeOffset, { lengths: [1], keepsAxes: true })],
 	[makeOffsetStroke, inProportion(makeOffsetStroke, { lengths: [1], keepsAxes: true })],
 	[makeRoundCorners, inProportion(makeRoundCorners, { lengths: [1], keepsAxes: true })],
@@ -4775,7 +4845,8 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 			scaled: (x, y, about) => args.map((at, i) => change(i, scaledPlace(at as Vec, x, y, about))),
 			turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
 		}),
-	],	[
+	],
+	[
 		makeDubinsChain,
 		args => ({
 			even: true,
@@ -4889,6 +4960,10 @@ export const gripOf = (
 /** Where the program's coordinates are for the argument at `arg` of a call of `fn`. */
 export function withinArg(fn: unknown, arg: number, args: readonly unknown[]): Mat | null {
 	if (fn === makeTransformed && arg === 0) return args[1] as Mat
+	if (fn === makeArtboard && arg === ARTBOARD_LAYERS && isRect(args[0])) {
+		const [x, y] = (args[0] as RectValue).origin
+		return [1, 0, 0, 1, x, y]
+	}
 	if (fn === multiply) {
 		return (args as Mat[])
 			.slice(0, arg)
@@ -5027,6 +5102,7 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 	spray: makeSpray,
 	triangleStrip: makeTriangleStrip,
 	solid: makeSolid,
+	artboard: makeArtboard,
 	graphPaper: makeGraphPaper,
 	axes: makeAxes,
 	vec2,

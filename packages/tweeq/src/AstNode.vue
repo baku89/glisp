@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, readByName, toAst } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, nameOf, readByName, toAst } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputRotary } from 'tweeq/InputRotary'
@@ -96,8 +96,11 @@ const hint = computed(
 )
 
 // A binding's name is edited on its label. What a call calls is an expression, so its
-// code opens from the row.
-const renamable = isBinding
+// code opens from the row. In the project, a row is what is drawn, and what is in another is
+// given a name, or another, on its label as well.
+const renamable = computed(
+	() => isBinding.value || (layers && !isFunction.value && !props.entry.absent)
+)
 // A row with no field of its own for it, such as these, opens it from itself.
 const editingCode = ref(false)
 const $anchor = useTemplateRef<HTMLElement>('$anchor')
@@ -538,7 +541,7 @@ watch(
 		:sortHandle="entry.sort !== undefined"
 		:dragId="isBinding ? path : undefined"
 		v-model:renaming="renaming"
-		:labelSource="entry.label"
+		:labelSource="isBinding ? entry.label : (nameOf(ast) ?? '')"
 		:canRename="canRename"
 		renameSpaceAs="_"
 		@rename="rename"

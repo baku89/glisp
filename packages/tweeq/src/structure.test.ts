@@ -862,8 +862,12 @@ describe('renameBindingAt', () => {
 		)
 	})
 
-	it('wants a binding', () => {
-		expect(rename('{a = (+ 1 2)}', 'binding:a/arg0', 'b')).toBeNull()
+	it('names what is in a call, by what is on it', () => {
+		expect(rename('{a = (+ 1 2)}', 'binding:a/arg0', 'b')).toBe('{a = (+ b = 1 2)}')
+		expect(rename('{a = (+ b = 1 2)}', 'binding:a/arg0', 'c')).toBe('{a = (+ c = 1 2)}')
+	})
+
+	it('is nothing, for what is not there', () => {
 		expect(rename('{a = 1}', 'binding:b', 'c')).toBeNull()
 	})
 })
