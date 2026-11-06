@@ -79,6 +79,7 @@ import { nearest } from 'pave/path/queries'
 import { fromD, toD } from 'pave/path/svg'
 
 import { type GraphPaperKind, PAPER_STEP } from './graphPaper'
+import { outsideFinders, QR_LEVELS, type QrLevel, qrModules, qrOutline } from './qr'
 
 const said = (type: TypeValue, draw: string, icon: string): TypeValue =>
 	withTypeMeta(
@@ -1556,6 +1557,37 @@ const pixelateAnchorsType = enumOf({
 	corners: 'ph:corners-out',
 	cells: 'ph:dots-nine',
 })
+/** How much of a QR code can be lost and it still reads: about 7, 15, 25 and 30 percent. */
+const qrLevelType = withDefault(
+	enumOf({
+		L: 'ph:cell-signal-low',
+		M: 'ph:cell-signal-medium',
+		Q: 'ph:cell-signal-high',
+		H: 'ph:cell-signal-full',
+	}),
+	'M'
+)
+/** Where the outline of a QR code has anchors: where it turns, at every module, or at every one but in the finders. */
+const qrAnchorsType = enumOf({
+	corners: 'ph:corners-out',
+	cells: 'ph:dots-nine',
+	cellsButFinders: 'ph:qr-code',
+})
+const makeQr = withOptional(
+	makeTypedFn(
+		[point, sideType, withDefault(stringType, 'https://glisp.app'), qrLevelType, qrAnchorsType],
+		pathType,
+		(origin, side, text, level, anchors) => {
+			const modules = qrModules(String(text ?? ''), QR_LEVELS.includes(level as QrLevel) ? (level as QrLevel) : 'M')
+			if (modules === null) return new PathValue(empty)
+			const along = anchors === 'cells' || (anchors === 'cellsButFinders' && outsideFinders(modules.length))
+			const loops = qrOutline(modules, origin as Vec, (side as number) / modules.length, along)
+			return new PathValue(loops.length === 0 ? empty : merge(loops.map(loop => polygon(...(loop as Vec[])))))
+		},
+		['origin', 'size', 'text', 'level', 'anchors']
+	),
+	['level', 'anchors']
+)
 const makePixelate = withInitial(
 	withOptional(
 		makeTypedFn(
@@ -1916,6 +1948,7 @@ withMembers(pathType, {
 	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` along each of its axes, turned by `angle`, in degrees.', 'Ellipse'),
 	rect: withDoc(makeRect, 'A rectangle from its `origin`, of this `size`.', 'Rectangle'),
 	square: withDoc(makeSquare, 'A square from its `origin`, with sides of this `size`.', 'Square'),
+	qr: withDoc(makeQr, 'The QR code of `text`, from its `origin`, with sides of this `size` and no margin around it. `level` says how much of it can be lost and still read: L, M, Q or H. `anchors` puts them where it turns, at every module along it too, or at every one but in the three squares in its corners, which stay as squares.', 'QR Code'),
 	line: withDoc(makeLine, 'A straight line from `start` to `end`.', 'Line'),
 	polyline: withDoc(makePolyline, 'Straight lines through each of the points, in turn.', 'Polyline'),
 	polygon: withDoc(makePolygon, 'Straight lines through each of the points, and back.', 'Polygon'),
@@ -3888,6 +3921,9 @@ makers.set(makeBlend, ([a, b, ratio], inner) => {
 	}
 })
 
+// A QR code is taken hold of as the square it fills.
+makers.set(makeQr, makers.get(makeSquare)!)
+
 // What is around a path shows that path, however else it is taken hold of.
 const transformed = makers.get(makeTransformed)!
 makers.set(makeTransformed, (args, inner, proportional, free) => ({
@@ -4556,6 +4592,7 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 	[makeRect, fromOrigin],
 	[makeRoundRect, fromOrigin],
 	[makeSquare, centerAnd(1)],
+	[makeQr, centerAnd(1)],
 	[makeCircle, args => ({ ...centerAnd(1)(args), ...turningAround()(args), round: true })],
 	[makeEllipse, args => ({ ...alongAxes(args, (args[2] as number | undefined) ?? 0), ...turningAround(2)(args) })],
 	[makeSuperellipse, args => alongAxes(args, 0)],

@@ -61,6 +61,7 @@ const SHAPES: Readonly<Record<string, (x: number, y: number) => string>> = {
 	'path.ellipseFromFoci': (x, y) => `[${x - 30} ${y}] [${x + 30} ${y}] [${x} ${y - 40}]`,
 	'path.rect': (x, y) => `[${x - 50} ${y - 50}] [100 100]`,
 	'path.square': (x, y) => `[${x - 50} ${y - 50}] 100`,
+	'path.qr': (x, y) => `[${x - 50} ${y - 50}] 100 "https://glisp.app"`,
 	'path.roundRect': (x, y) => `[${x - 50} ${y - 50}] [100 100] 12`,
 	'path.superellipse': (x, y) => `[${x} ${y}] [50 50] 2`,
 	'path.line': (x, y) => `[${x - 50} ${y}] [${x + 50} ${y}]`,

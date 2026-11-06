@@ -41,6 +41,7 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.circleFromDiameter': 'ph:circle-half',
 	'path.circleThrough': 'ph:dots-three-circle',
 	'path.d': 'ph:path',
+	'path.qr': 'ph:qr-code',
 	'path.line': 'ph:line-segment',
 	'path.dubinsChain': 'ph:path',
 	spray: 'ph:spray-bottle',
