@@ -12,7 +12,7 @@ import { fromD, toD } from 'pave/path/svg'
 import { describe, expect, it } from 'vitest'
 
 import { BOX_ANSWERS, type PathValue, withGraphics } from './graphics'
-import { boundsOfRows, boxHandlesOf, changed, gripAt, boxMeasured, gripOfPointsOrNot, gripOfRows, hasSizeMeasured, innerPathsOf, boxWithCornerAt, numbersDifferent, placeOfNumbers, pointsWithin, whatStayed, withBoxMeasured, withBoxOfParts, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
+import { isPlaceOf, boundsOfRows, boxHandlesOf, changed, gripAt, boxMeasured, gripOfPointsOrNot, gripOfRows, hasSizeMeasured, innerPathsOf, boxWithCornerAt, numbersDifferent, placeOfNumbers, pointsWithin, whatStayed, withBoxMeasured, withBoxOfParts, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const grip = (src: string) => gripAt(parse(`{c = ${src}}`), env, 'binding:c')!
@@ -852,7 +852,7 @@ describe('painting what refers to the corners of what is also painted', () => {
 			'{a = (path.ngon [0 0] 50 5 10) b = (path.ngon [200 0] 50 5 70) l = (path.line [60 0] [140 0])}'
 		)
 		const snaps = snapPointsOf(root, env, sceneOf(root, env))
-		const corner = (row: string) => snaps.find(({ code }) => code?.of === row)!
+		const corner = (row: string) => snaps.find(point => point.code !== undefined && isPlaceOf(point, row))!
 		return linked(linked(root, env, 'binding:l', 0, corner('binding:a'))!, env, 'binding:l', 1, corner('binding:b'))!
 	}
 	const drawnOf = (root: AST, row: string) => toD(pathOfRow(root, env, row)!.path)
@@ -1002,7 +1002,7 @@ describe('what a matrix goes around', () => {
 describe('what is moved, where it refers to a place on something else', () => {
 	const at = (source: string, move: readonly [number, number]) => {
 		const root = parse(`{a = ${source} b = (path.circle [0 0] 20)}`)
-		const snap = snapPointsOf(root, env, sceneOf(root, env)).find(({ code }) => code?.of === 'binding:a')!
+		const snap = snapPointsOf(root, env, sceneOf(root, env)).find(point => point.code !== undefined && isPlaceOf(point, 'binding:a'))!
 		const next = linked(root, env, 'binding:b', 0, snap)!
 		return { snap, ...changed(next, env, 'binding:b', gripAt(next, env, 'binding:b')!.move!(move as [number, number])) }
 	}
@@ -1019,7 +1019,7 @@ describe('what is moved, where it refers to a place on something else', () => {
 
 	it('leaves half as what the middle of a line is', () => {
 		const root = parse('{a = (path.line [50 60] [150 90]) b = (path.circle [0 0] 20)}')
-		const middle = snapPointsOf(root, env, sceneOf(root, env)).find(({ label, code }) => label === 'middle' && code?.of === 'binding:a')!
+		const middle = snapPointsOf(root, env, sceneOf(root, env)).find(point => point.label === 'middle' && point.code !== undefined && isPlaceOf(point, 'binding:a'))!
 		const next = linked(root, env, 'binding:b', 0, middle)!
 		const moved = changed(next, env, 'binding:b', gripAt(next, env, 'binding:b')!.move!([10, 5]))
 		expect(moved.problem).toBe(null)
@@ -1029,7 +1029,7 @@ describe('what is moved, where it refers to a place on something else', () => {
 
 	it('can refer to the top of a circle, where going round is not exact', () => {
 		const root = parse('{a = (path.circle [100 100] 50) b = (path.circle [0 0] 20)}')
-		const top = snapPointsOf(root, env, sceneOf(root, env)).find(({ label, code }) => label === 'top' && code?.of === 'binding:a')!
+		const top = snapPointsOf(root, env, sceneOf(root, env)).find(point => point.label === 'top' && point.code !== undefined && isPlaceOf(point, 'binding:a'))!
 		expect(print(linked(root, env, 'binding:b', 0, top)!)).toContain('(- ../../../a/center:/1 ../../../a/radius:)')
 	})
 

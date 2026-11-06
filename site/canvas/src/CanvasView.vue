@@ -48,6 +48,7 @@ import {
 	pulledOnto,
 	drawnOnto,
 	rowsHeldBy,
+	isPlaceOf,
 	closingPulled,
 	penGuided,
 	penned,
@@ -2642,12 +2643,11 @@ function onPointerMove(event: PointerEvent): void {
 			let link: SnapPoint | null = null
 			if (snappedBy !== null && !event.shiftKey && !event.metaKey && !event.ctrlKey && next.ast !== null) {
 				const { own } = snappedBy
-				const of = own.code?.of ?? own.target
 				// A place that is only a handle says nothing of whose it is, but where it was, and what it is called.
 				const [was, rowEnv] = [pressed.base, props.document.env.value]
 				const row = pressed.rows.find(({ row }) =>
-					of !== undefined && of !== null
-						? of === row || of.startsWith(`${row}/`)
+					canRefer(own)
+						? isPlaceOf(own, row)
 						: snapPointsOf(was, rowEnv, sceneOf(was, rowEnv).filter(shape => shape.row === row)).some(
 								point => point.label === own.label && Math.hypot(point.at[0] - own.at[0], point.at[1] - own.at[1]) < 1e-6
 							)
