@@ -166,6 +166,8 @@ export type TypeShape =
 			readonly about?: ReadonlyMap<unknown, RecordAST>
 	  }
 	| { readonly kind: 'refine'; readonly base: TypeValue }
+	/** `(| A B)`: the values of any of `members`. With none, it is no value at all. */
+	| { readonly kind: 'union'; readonly members: ReadonlyArray<TypeValue> }
 	| { readonly kind: 'io'; readonly payload: TypeValue }
 	| { readonly kind: 'vector'; readonly element: TypeValue }
 	| {
@@ -376,6 +378,47 @@ export function printType(type: TypeValue): string {
 		: new MetaASTClass(type.meta, new SymASTClass(type.typeName)).print()
 }
 
+/**
+ * `(| A B ...)`: the values of any of `members`, defaulting to the first one's
+ * default. A union in it is spread out into its members, the same type twice is
+ * there once, and a union of just one type is that type.
+ */
+export function makeUnionType(members: ReadonlyArray<TypeValue>): TypeValue {
+	const flat: TypeValue[] = []
+	for (const member of members) {
+		const inner = unwrapLazy(member).shape
+		for (const t of inner.kind === 'union' ? inner.members : [member]) {
+			if (!flat.some(seen => seen === t || (typeFits(seen, t) && typeFits(t, seen)))) {
+				flat.push(t)
+			}
+		}
+	}
+	if (flat.length === 1) return flat[0]!
+	if (flat.length === 0) return unionConstructor
+	return {
+		__glispType: true,
+		typeName: `(| ${flat.map(t => t.typeName).join(' ')})`,
+		fits: v => flat.some(t => t.fits(v)),
+		get default() {
+			return flat[0]!.default
+		},
+		shape: { kind: 'union', members: flat },
+	}
+}
+
+/**
+ * `|` by itself, the union of no types, which no value fits. Given types, as in
+ * `(| A B)`, it is their union.
+ */
+export const unionConstructor: TypeValue = {
+	__glispType: true,
+	typeName: '(|)',
+	fits: () => false,
+	default: UNIT,
+	shape: { kind: 'union', members: [] },
+	apply: typeArgs => makeUnionType(typeArgs),
+}
+
 const vectorTypes: WeakMap<TypeValue, TypeValue> = new WeakMap()
 
 /** `[...T]`, also written `(vector T)`. */
@@ -549,6 +592,13 @@ function fitsGuarded(
 
 	const a = actual.shape
 	const e = expected.shape
+	// A union fits where each of its members does, and a type fits a union where
+	// it fits one of its members, or, for an enum, where each value fits one.
+	if (a.kind === 'union') return a.members.every(t => fits(t, expected))
+	if (e.kind === 'union') {
+		if (e.members.some(t => fits(actual, t))) return true
+		return a.kind === 'enum' && [...a.values].every(value => expected.fits(value))
+	}
 	if (a.kind === 'var' || e.kind === 'var') {
 		return a.kind === 'var' && e.kind === 'var' && a.name === e.name
 	}
@@ -955,6 +1005,12 @@ function evalTypeApply(
 	}
 	const typeArgs: TypeValue[] = []
 	for (const argAst of positional) {
+		// An argument is a type slot, so that `[T U]` and `{x: T}` are types there.
+		const asType = resolveTypeSlot(argAst, env)
+		if (asType !== null) {
+			typeArgs.push(asType)
+			continue
+		}
 		const r = evaluate(argAst, env)
 		push(diagnostics, r.diagnostics)
 		if (!isTypeValue(r.value)) {

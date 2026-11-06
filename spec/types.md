@@ -45,6 +45,7 @@ A type is a set of values, and a type fits another when all its values belong to
 - `[number number]` fits `[...number]` and `[number ...number]`.
 - A record with extra fields fits, and a field declared `y?:` may be missing.
 - `(enum "a" "b")` fits `string` and `(enum "a" "b" "c")`.
+- A type fits `(| A B)` if it fits `A` or `B`, and `(| A B)` fits where both `A` and `B` do.
 - A `refine` fits its base.
 - `(IO T)` and `[...T]` are covariant.
 - Function parameters match in either direction, so `_` in a slot's signature means "don't care".
@@ -85,6 +86,7 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | `(=> (a: T1 b: T2 ...): R)`, `(=> (T1 T2 ...): R)` | Function type (parameter names are optional; not part of identity) |
 | `(enum v1 v2 ...)` | enumeration of literal values (all of the same type) |
 | `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> (v: T): boolean)`, with an explicit default for failed casts |
+| `(\| T1 T2 ...)` | union: the values of any of `T1 T2 ...`, defaulting to the first one's default |
 | `(IO T)` | parametric IO: a deferred effect that, when forced, produces a `T`. Compatibility is covariant in the payload (`(IO !)` fits `(IO _)`) |
 | `(vector T)` | the same type as `[...T]`. Bare `vector` is any vector |
 
@@ -114,6 +116,20 @@ NonNegative = (refine number 0 (=> (n: number): boolean (>= n 0)))
 A `ColorCode` fits where a `string` is expected, but not the other way around. `enum` could in principle be expressed as a special-cased `refine`, but is kept as its own constructor for readability of the common literal-set case.
 
 When `(: v T)` is used to coerce, a value that does not fit `T` produces a diagnostic in addition to falling back to the default. This is the same surfacing rule typed function slots use: explicit `(: v T)` and implicit slot share the diagnostic boundary so type mismatches are never silent.
+
+`|` is the mechanism for a slot that takes values of more than one type, such as a point or a point with handles. A value that fits any member is taken as it is, and one that fits none falls back to the first member's default, so the order of the members says only what the default is. It converts nothing: a value is not changed into another member.
+
+<!-- test -->
+```glisp
+Anchor = (| [number number] {at: [number number] in?: [number number] out?: [number number]})
+
+(: [10 20] Anchor)                          ;; → [10 20]
+(: {at: [0 0] out: [5 0]} Anchor)           ;; → {at: [0 0] out: [5 0]}
+(: "a" Anchor)                              ;; → [0 0]  (default, with a diagnostic)
+(: [[0 0] {at: [10 0]}] [...Anchor])        ;; → [[0 0] {at: [10 0]}]
+```
+
+A union inside a union is spread into its members, the same type is a member once, and a union of one type is that type: `(| number (| string number))` is `(| number string)`, and `(| number)` is `number`. Two unions are the same type if they have the same members, in any order. `(|)`, with no members, holds no value, as `!` does. The arguments of `|` are type slots, so `[T U]` and `{x: T}` are types there.
 
 ## Recursive types
 
@@ -311,7 +327,7 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 - **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] (+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
 - **Type constructors can be generic.** In `(=> (F T) (x: (F T)): T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.
 - **Inside a generic function's body, `T` is opaque**: it fits only itself.
-- **A vector with no common element type** is a vector of `_` when it meets `[...T]`, since there are no union types.
+- **Unions are not inferred**, only written. A vector with no common element type is a vector of `_` when it meets `[...T]`, and clauses of `?` with no type in common are a diagnostic.
 - **`?`** has the type its clauses have in common. Clauses with none are a diagnostic.
 
 `check(ast, env)` walks everything, including what evaluation would not reach: references, call arguments, return types, and clauses of `?`.
@@ -320,5 +336,6 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 
 - Anonymous recursive types `(rec X ...)`. Currently named bindings cover the use cases; revisit if a clear motivation appears.
 - Whether function types carry their own metadata (e.g. purity/effect annotations).
-- Sum types and unions: not introduced. A vector with no common element type is a vector of `_`.
+- Whether inference should make unions, as the type of `[1 "a"]` or of clauses of `?` that differ, and whether a clause of `?` should narrow the type of what it matched.
+- Tagged sums. A union of records that differ by a field, as `{kind: (enum "a") ...}`, covers them for now.
 - **Type classes / constraint-based generics** (`(=> (T: Addable) (a: T b: T): T ...)`). v1 uses `overload` as a closed set of candidates. Type classes would add open extension (new instances declarable later) at the cost of a constraint syntax, instance declaration, and dictionary-passing implementation. Defer to v2; if introduced, `overload` may become syntactic sugar for a closed type-class definition.

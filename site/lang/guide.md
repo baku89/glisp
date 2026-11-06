@@ -100,6 +100,9 @@ Color = (enum "red" "green" "blue")
 ;; Refinement: a base type narrowed by a predicate, with a default
 Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
 
+;; Union: the values of any of the types, defaulting to the first one's
+Size = (| number [number number])
+
 ;; Parametric IO: an IO that produces a number when forced
 (IO number)            ;; → (IO number)  (a type value)
 ```
@@ -119,6 +122,10 @@ Pos = (refine number 1 (=> (n: number): boolean (> n 0)))
 (: "purple" Color)     ;; → "red"  (default = first member)
 (: 5 Pos)              ;; → 5
 (: -3 Pos)             ;; → 1   (default; predicate failed)
+Size = (| number [number number])
+
+(: [10 20] Size)       ;; → [10 20]
+(: "big" Size)         ;; → 0   (default = the first member's)
 ```
 
 `(: v T)` is the prefix form of the `v: T` annotation. A bare `(T v)` is rejected with a hint pointing to it.

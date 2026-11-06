@@ -42,6 +42,7 @@ import {
 	stringType,
 	type TypedHostFn,
 	type TypeValue,
+	unionConstructor,
 	unitType,
 	UNSET,
 	withDoc,
@@ -823,6 +824,10 @@ export function buildPrelude(): Env {
 		refine: bind(
 			'The values of `base` that meet `pred`, falling back to `default`.',
 			host(makeRefine())
+		),
+		'|': bind(
+			'The values of any of the types given. It defaults to the first one\'s default. `(|)` is a type no value fits.',
+			host(unionConstructor)
 		),
 
 		// -----------------------------------------------------------------

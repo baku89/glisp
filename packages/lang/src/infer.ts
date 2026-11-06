@@ -34,6 +34,7 @@ import {
 	makeLazyType,
 	makeRecordType,
 	makeTupleType,
+	makeUnionType,
 	makeType,
 	makeTypeVar,
 	numberType,
@@ -427,7 +428,7 @@ function constructorParts(
 }
 
 /**
- * What a tuple's elements have in common. With no union types to say more,
+ * What a tuple's elements have in common. Unions are not inferred, so
  * `[1 "a"]` as a vector is a vector of anything rather than an error.
  */
 function elementOfTuple(shape: {
@@ -479,6 +480,10 @@ export function substitute(
 			const same =
 				elements.every((t, i) => t === s.elements[i]) && rest === s.rest
 			return same ? type : makeTupleType(elements, rest)
+		}
+		case 'union': {
+			const members = s.members.map(sub)
+			return members.every((t, i) => t === s.members[i]) ? type : makeUnionType(members)
 		}
 		case 'record': {
 			const fields = new Map([...s.fields].map(([k, t]) => [k, sub(t)]))

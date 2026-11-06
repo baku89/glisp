@@ -49,6 +49,7 @@ import {
 	resolveTypeSlot,
 	toAst,
 	argFits,
+	literalValue,
 	type TypeValue,
 	typeFits,
 	UNIT,
@@ -561,8 +562,9 @@ export function metadataOf(name: string, env: Env): MetaAST['metadata'] | null {
 export function viewOf(
 	ast: AST,
 	env: Env,
-	expected: TypeValue | null = null
+	wanted: TypeValue | null = null
 ): NodeView {
+	const expected = memberOf(wanted, ast, env)
 	switch (ast.kind) {
 		case 'lit':
 			return { ...LEAF, editor: editorOfValue(ast.value, expected) }
@@ -598,6 +600,81 @@ function remembered(ast: AST, env: Env, expected: TypeValue | null, make: () => 
 	let view = byType.get(key)
 	if (view === undefined) byType.set(key, (view = make()))
 	return view
+}
+
+/** The types a union is of, or null if `type` is not one. */
+export function membersOf(type: TypeValue | null): ReadonlyArray<TypeValue> | null {
+	if (type === null) return null
+	const shape = unwrapLazy(type).shape
+	return shape.kind === 'union' && shape.members.length > 0 ? shape.members : null
+}
+
+/**
+ * Of what is `expected`, the type that `ast` is shown as: for a union, the first of its
+ * members it fits, or what it is if it fits none, and otherwise what is expected.
+ */
+export function memberOf(expected: TypeValue | null, ast: AST, env: Env): TypeValue | null {
+	const members = membersOf(expected)
+	if (members === null) return expected
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	const value = literalValue(bare)
+	if (value !== undefined) return members.find(t => t.fits(value)) ?? null
+	const type = infer(bare, env)
+	return type === null ? null : (members.find(t => argFits(bare, type, t)) ?? null)
+}
+
+/** What a union's member is called, to someone choosing among them. */
+export function memberLabelOf(member: TypeValue, env: Env): string {
+	const said = textOf(member.meta?.get('name'))
+	if (said !== null) return said
+	const named = toAst(unwrapLazy(member), env)
+	if (named.kind === 'sym' && lookupBareName(named.name, env) !== null) return named.name
+	// A type written as a vector or a record goes by the name of one that is the same type.
+	for (let frame = env; frame !== null; frame = frame.parent) {
+		for (const [name, target] of frame.bindings ?? []) {
+			const kind = target.ast.kind === 'meta' ? target.ast.expr.kind : target.ast.kind
+			if (kind !== 'vec' && kind !== 'record') continue
+			const type = resolveTypeSlot(target.ast, target.env)
+			if (type !== null && typeFits(type, member) && typeFits(member, type)) return name
+		}
+	}
+	return member.typeName
+}
+
+/**
+ * `ast` made into a `member` of a union, with what it is carried over where it can be:
+ * into the field of a record that it fits, or out of the field of one that fits.
+ */
+export function asMember(ast: AST, member: TypeValue, env: Env): AST {
+	const fits = (part: AST): boolean => {
+		const value = literalValue(part)
+		if (value !== undefined) return member.fits(value)
+		const type = infer(part, env)
+		return type !== null && argFits(part, type, member)
+	}
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	if (bare.kind === 'record') {
+		const field = bare.fields.find(
+			(entry): entry is readonly [string, AST] => !('kind' in entry) && fits(entry[1])
+		)
+		if (field !== undefined) return field[1]
+	}
+	const shape = unwrapLazy(member).shape
+	if (shape.kind === 'record') {
+		const from = infer(bare, env)
+		let carried = false
+		const fields: Array<readonly [string, AST]> = []
+		for (const [key, type] of shape.fields) {
+			if (!carried && from !== null && typeFits(from, type)) {
+				fields.push([key, bare])
+				carried = true
+			} else if (!shape.optional.has(key)) {
+				fields.push([key, defaultFor(type, env)])
+			}
+		}
+		if (carried) return new RecordAST(fields)
+	}
+	return defaultFor(member, env)
 }
 
 /** The value a type accepts as its default, as source. */
@@ -667,7 +744,8 @@ export function typeHintOf(expected: TypeValue | null): string | null {
 }
 
 /** The widget for a value of what is `expected`, whether it is written so or comes to it. */
-export function editorOfValue(value: unknown, expected: TypeValue | null): Editor | null {
+export function editorOfValue(value: unknown, wanted: TypeValue | null): Editor | null {
+	const expected = membersOf(wanted)?.find(t => t.fits(value)) ?? (membersOf(wanted) ? null : wanted)
 	const shape = expected === null ? null : unwrapLazy(expected).shape
 	if (shape?.kind === 'enum') {
 		const icons = enumIconsOf(expected)
@@ -2097,6 +2175,20 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	const revert = revertOf(slot)
 	if (revert !== null) {
 		actions.push({ label: 'Revert to Default', icon: 'mdi:restore', group: 'edit', apply: revert })
+	}
+
+	const members = membersOf(slot.expected)
+	if (members !== null) {
+		const current = memberOf(slot.expected, slot.ast, slot.env)
+		for (const member of members) {
+			if (member === current) continue
+			actions.push({
+				label: `As ${memberLabelOf(member, slot.env)}`,
+				icon: 'mdi:swap-horizontal',
+				group: 'edit',
+				apply: () => slot.replace(asMember(slot.ast, member, slot.env)),
+			})
+		}
 	}
 
 	const cast = castValueOf(slot.ast)
