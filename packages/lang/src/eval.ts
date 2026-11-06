@@ -891,6 +891,10 @@ export function argFits(
 	expected: TypeValue
 ): boolean {
 	if (typeFits(inferred, expected)) return true
+	// What may be any of several is not known to be wrong while one of them would do, and
+	// is checked when it arrives.
+	const shape = unwrapLazy(inferred).shape
+	if (shape.kind === 'union' && shape.members.some(t => typeFits(t, expected))) return true
 	const value = literalValue(arg)
 	return value !== undefined && expected.fits(value)
 }

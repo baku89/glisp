@@ -129,4 +129,11 @@ describe('what can be left out', () => {
 		expect(spelled.diagnostics).toEqual([])
 		expect(run('(: () (| unit number))').value).toBe(UNIT)
 	})
+
+	it('is not known to be wrong where one of what it may be fits', () => {
+		const src = (slot: string) =>
+			`{f = (=> (x: (| number string)): number (g x)) g = (=> (n: ${slot}): number 0) (f 1)}`
+		expect(check(parse(src('number')), env)).toEqual([])
+		expect(check(parse(src('boolean')), env).map(d => d.message).join()).toMatch(/expected boolean/)
+	})
 })

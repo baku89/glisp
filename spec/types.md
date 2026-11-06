@@ -45,7 +45,7 @@ A type is a set of values, and a type fits another when all its values belong to
 - `[number number]` fits `[...number]` and `[number ...number]`.
 - A record with extra fields fits, and a field declared `y?:` may be missing.
 - `(| "a" "b")` fits `string` and `(| "a" "b" "c")`.
-- A type fits `(| A B)` if it fits `A` or `B`, and `(| A B)` fits where both `A` and `B` do.
+- A type fits `(| A B)` if it fits `A` or `B`, and `(| A B)` fits where both `A` and `B` do. Where only one of them does, a value of it is not known to be wrong, and so is not reported until it arrives as something that does not fit.
 - A `refine` fits its base.
 - `(IO T)` and `[...T]` are covariant.
 - Function parameters match in either direction, so `_` in a slot's signature means "don't care".

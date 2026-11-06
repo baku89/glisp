@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, readByName, toAst } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
+import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputRotary } from 'tweeq/InputRotary'
 import { InputTranslate } from 'tweeq/InputTranslate'
 import { type MenuItem } from 'tweeq/Menu'
@@ -39,6 +40,7 @@ import {
 	isAngleInput,
 	isTranslatable,
 	kindIconOf,
+	memberChoicesOf,
 	type Slot,
 	sourceOf,
 	viewOf,
@@ -148,6 +150,21 @@ const turnable = computed(
 	() => isAngleInput(props.entry.expected) && typeof placeValue.value === 'number'
 )
 const PAD_WIDTH = 26
+
+/**
+ * Which of a union's members it is, chosen beside the member's own editor: a value or
+ * nothing has nothing more to it, and stands alone.
+ */
+const memberChoices = computed(() => memberChoicesOf(props.entry))
+const showsMember = computed(() => {
+	const choices = memberChoices.value
+	if (choices === null) return true
+	return choices.current !== null && choices.choices[choices.current]!.kind === 'type'
+})
+const choose = (index: number): void => {
+	const choice = memberChoices.value?.choices[index]
+	if (choice !== undefined && !locked.value) emit('change', choice.apply())
+}
 /** Moving a pad or a dial. What is not said yet comes to be said, as there is nothing to solve for. */
 const moveTo = (value: number | readonly [number, number]): void => {
 	if (props.entry.absent) update(toAst(value, null))
@@ -537,20 +554,30 @@ watch(
 			:data-takes-drop="pointable ? path : undefined"
 			:data-tq-takes-drag="pointable ? '' : undefined"
 		>
+			<InputDropdown
+				v-if="memberChoices !== null"
+				class="member"
+				:class="{ alone: !showsMember }"
+				:modelValue="memberChoices.current ?? -1"
+				:options="memberChoices.choices.map((_, i) => i)"
+				:labelizer="(i: number) => memberChoices?.choices[i]?.label ?? ''"
+				@update:modelValue="choose"
+			/>
 			<InputTranslate
-				v-if="translatable"
+				v-if="translatable && showsMember"
 				:modelValue="placeValue as [number, number]"
 				:showOverlayLabel="!numbersInView"
 				@update:modelValue="moveTo($event)"
 			/>
 			<!-- 0 is along X, as it is on a canvas, rather than up. -->
 			<InputRotary
-				v-if="turnable"
+				v-if="turnable && showsMember"
 				:modelValue="placeValue as number"
 				:angleOffset="0"
 				@update:modelValue="moveTo($event)"
 			/>
-			<div v-if="inline" ref="$anchor" class="inline-anchor">
+			<div v-if="!showsMember" ref="$anchor" />
+			<div v-else-if="inline" ref="$anchor" class="inline-anchor">
 				<AstInline
 					:slots="view.slots"
 					:parentPath="path"
@@ -782,6 +809,13 @@ watch(
 .value-row > :not(.TqInputTranslate, .TqInputRotary, .point-at) {
 	flex: 1;
 	min-width: 0;
+}
+/* Which member it is goes before what it is as that member, and takes the row if that is all. */
+.value-row > .member:not(.alone) {
+	flex: 0 1 40%;
+}
+.value-row:has(> .member.alone) > :not(.member) {
+	display: none;
 }
 .value-row > :deep(.TqInputTranslate),
 .value-row > :deep(.TqInputRotary) {

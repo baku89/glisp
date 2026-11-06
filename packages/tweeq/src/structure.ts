@@ -50,6 +50,7 @@ import {
 	toAst,
 	argFits,
 	literalValue,
+	isOmittable,
 	type TypeValue,
 	typeFits,
 	UNIT,
@@ -641,6 +642,65 @@ export function memberLabelOf(member: TypeValue, env: Env): string {
 	return member.typeName
 }
 
+/** One of what a slot of a union can be made, as a menu of them shows it. */
+export interface MemberChoice {
+	readonly label: string
+	/** A value as it is, nothing at all, or a type, whose own editor then shows beside it. */
+	readonly kind: 'value' | 'none' | 'type'
+	/** The new parent, with the slot made this. */
+	apply(): AST
+}
+
+export interface MemberChoices {
+	readonly choices: readonly MemberChoice[]
+	/** Which of them it is now, if it is any. */
+	readonly current: number | null
+}
+
+/**
+ * What a slot of a union can be made, one for each of its members, unless they are all values
+ * as they are, which a menu of those values shows by itself. Being nothing empties the slot:
+ * an argument or a field is left out, and anything else is written as `()`.
+ */
+export function memberChoicesOf(slot: Slot): MemberChoices | null {
+	const members = membersOf(slot.expected)
+	if (members === null || literalsOf(slot.expected) !== null) return null
+	const current = memberOf(slot.expected, slot.ast, slot.env)
+	const choices = members.map((member): MemberChoice => {
+		const shape = unwrapLazy(member).shape
+		if (unwrapLazy(member).typeName === 'unit') {
+			return {
+				label: 'None',
+				kind: 'none',
+				apply: () =>
+					slot.parameter !== undefined && slot.remove !== undefined
+						? slot.remove()
+						: slot.replace(new LitAST(UNIT)),
+			}
+		}
+		if (shape.kind === 'literal') {
+			const { value } = shape
+			return {
+				label: typeof value === 'string' ? value : String(value),
+				kind: 'value',
+				apply: () => slot.replace(new LitAST(value)),
+			}
+		}
+		return {
+			label: memberLabelOf(member, slot.env),
+			kind: 'type',
+			apply: () => slot.replace(asMember(slot.ast, member, slot.env)),
+		}
+	})
+	// Left out, it is nothing, whatever it then comes to.
+	const index = slot.absent
+		? choices.findIndex(c => c.kind === 'none')
+		: current === null
+			? -1
+			: members.indexOf(current)
+	return { choices, current: index < 0 ? null : index }
+}
+
 /**
  * `ast` made into a `member` of a union, with what it is carried over where it can be:
  * into the field of a record that it fits, or out of the field of one that fits.
@@ -1088,7 +1148,10 @@ function viewOfCall(ast: CallAST, env: Env): NodeView {
 									} satisfies SlotSort,
 								}),
 					}
-				: {}),
+				: // The last of them, if it can be left out, goes, and the call is the same without it.
+					i === ast.args.length - 1 && !hasSpread && isOmittable(signature?.(i) ?? null)
+					? { remove: () => new CallAST(ast.head, ast.args.slice(0, -1), ast.kwargs) }
+					: {}),
 		})
 	})
 
@@ -2187,20 +2250,6 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		actions.push({ label: 'Revert to Default', icon: 'mdi:restore', group: 'edit', apply: revert })
 	}
 
-	const members = membersOf(slot.expected)
-	if (members !== null) {
-		const current = memberOf(slot.expected, slot.ast, slot.env)
-		for (const member of members) {
-			if (member === current) continue
-			actions.push({
-				label: `As ${memberLabelOf(member, slot.env)}`,
-				icon: 'mdi:swap-horizontal',
-				group: 'edit',
-				apply: () => slot.replace(asMember(slot.ast, member, slot.env)),
-			})
-		}
-	}
-
 	const cast = castValueOf(slot.ast)
 	const isOnlyCast = cast !== null && !isExpression(cast)
 	// With no parameter to say what it is, it is for what it comes to to say so.
@@ -2292,6 +2341,9 @@ export function actionsOf(slot: Slot): SlotAction[] {
 			...SLOT_COMMANDS.delete,
 			apply: remove,
 		})
+	} else if (isOmittable(slot.expected) && literalValue(slot.ast) !== UNIT) {
+		// What can be left out and cannot go is emptied.
+		actions.push({ ...SLOT_COMMANDS.delete, apply: () => slot.replace(new LitAST(UNIT)) })
 	}
 	return actions
 }
