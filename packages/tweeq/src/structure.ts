@@ -2208,9 +2208,9 @@ function isSettled(ast: AST, env: Env): boolean {
 }
 
 /**
- * `ast` one step on. What a host function has no next rung for goes by what it is given first, so
- * that what is in a modifier comes down its own ladder before the modifier is worked out. After
- * that, all that remains is the value, unless it failed. A name in it stays one until then.
+ * `ast` one step on. It is what is selected that goes, not what is in it: what a host function
+ * has no next rung for comes to its value. Only what comes back as itself, as what makes a path
+ * from its data does, or what fails, goes by what it is given, one of them at a time.
  */
 function steppedOnce(ast: AST, env: Env): AST {
 	// What it is cast to goes on being said, and what there is to work out is what is in it.
@@ -2219,6 +2219,12 @@ function steppedOnce(ast: AST, env: Env): AST {
 	const next = expand(ast, env)
 	if (next !== ast) return next
 	const bare = ast.kind === 'meta' ? ast.expr : ast
+	const { value, diagnostics } = evaluate(ast, env)
+	const failed = diagnostics.some(d => d.level === 'error')
+	const written = failed ? null : toAst(value, env)
+	const comesBackAsItself =
+		bare.kind === 'call' && written?.kind === 'call' && print(written.head) === print(bare.head)
+	if (written !== null && !comesBackAsItself) return written
 	if (bare.kind === 'call' && !bare.args.some(arg => arg.kind === 'spread')) {
 		const inside = enterNode(bare, env)
 		for (const [i, arg] of bare.args.entries()) {
@@ -2231,8 +2237,7 @@ function steppedOnce(ast: AST, env: Env): AST {
 			return ast.kind === 'meta' ? new MetaAST(ast.metadata, call) : call
 		}
 	}
-	const { value, diagnostics } = evaluate(ast, env)
-	return diagnostics.some(d => d.level === 'error') ? ast : toAst(value, env)
+	return written ?? ast
 }
 
 /**

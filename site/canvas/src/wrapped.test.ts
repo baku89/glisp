@@ -1379,16 +1379,14 @@ describe('going one step on what is in a modifier', () => {
 		return next === null ? null : print(next).replace(/\s+/g, ' ')
 	}
 
-	it('goes by what it is given first', () => {
-		expect(stepped('{a = (path.offset (path.circle [10 10] 5) 2)}')).toContain('(path.offset (path.ellipse [10 10] [5 5]) 2)')
-		expect(stepped('{a = (path.offset (path.ellipse [10 10] [5 5]) 2)}')).toMatch(/path\.offset \(path\.d "M 15,10/)
-		expect(stepped('{a = (style (path.circle [10 10] 5) fill: "#000000")}')).toContain('(style (path.ellipse [10 10] [5 5]) fill: ')
+	it('works out what is selected, not what is in it', () => {
+		const next = stepped('{a = (path.offset (path.circle [10 10] 5) 2)}')
+		expect(next).toMatch(/a = \(path\.d "M 17,10/)
+		expect(stepped('{a = (path.blend (path.circle [10 10] 5) (path.rect [0 0] [5 5]) 0.5)}')).toMatch(/a = \(path\.d "/)
 	})
 
-	it('goes one of them at a time', () => {
-		expect(stepped('{a = (path.blend (path.circle [10 10] 5) (path.rect [0 0] [5 5]) 0.5)}')).toContain(
-			'(path.blend (path.ellipse [10 10] [5 5]) (path.rect [0 0] [5 5]) 0.5)'
-		)
+	it('goes by what it is given, when it comes back as itself', () => {
+		expect(stepped('{a = (style (path.circle [10 10] 5) fill: "#000000")}')).toContain('(style (path.ellipse [10 10] [5 5]) fill: ')
 	})
 
 	it('works out the modifier, when there is nothing left in it to step', () => {
