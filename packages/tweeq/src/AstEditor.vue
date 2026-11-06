@@ -5,7 +5,7 @@ import { InputButton } from 'tweeq/InputButton'
 import { ParameterTree } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
 import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
-import { computed, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, provide, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
 import { useNumberFieldEdits } from './numberFieldEdits'
 
@@ -128,14 +128,50 @@ const show = (value: unknown, env: Env): string => {
 	}
 }
 
+/**
+ * The program as the rows show it. While something is being dragged from outside of them, on a
+ * canvas or in an inspector, they stay as they were, and come to the program as it is once it is
+ * let go of: they could not be pressed in the meantime, and drawing each row anew for each step
+ * of a drag is most of what it takes. What is done to the program is done to it as it is.
+ */
+const $rows = useTemplateRef<HTMLElement>('$rows')
+const pressedElsewhere = ref(false)
+useEventListener(
+	window,
+	'pointerdown',
+	(event: PointerEvent) => {
+		const target = event.target as Node | null
+		pressedElsewhere.value = !isInspector.value && $rows.value !== null && !(target !== null && $rows.value.contains(target))
+	},
+	{ capture: true }
+)
+for (const type of ['pointerup', 'pointercancel', 'blur'] as const) {
+	useEventListener(window, type, () => (pressedElsewhere.value = false), { capture: true })
+}
+const shown = shallowRef({
+	root: props.document.root.value,
+	env: props.document.env.value,
+	layerRows: props.layerRows,
+	layerLabel: props.layerLabel,
+})
+watchEffect(() => {
+	const next = {
+		root: props.document.root.value,
+		env: props.document.env.value,
+		layerRows: props.layerRows,
+		layerLabel: props.layerLabel,
+	}
+	if (!pressedElsewhere.value) shown.value = next
+})
+
 const bindings = computed(
-	() => viewOf(props.document.root.value, props.document.env.value).slots
+	() => viewOf(shown.value.root, shown.value.env).slots
 )
 
 provide(LAYERS, props.layers ?? false)
 
 const rootAppend = computed(
-	() => viewOf(props.document.root.value, props.document.env.value).append
+	() => viewOf(shown.value.root, shown.value.env).append
 )
 
 const revealTarget = shallowRef<{
@@ -460,8 +496,19 @@ watch(
 )
 provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
 provide(ISOLATED, () => props.isolated ?? [])
-provide(LAYER_ROWS, path => props.layerRows?.(path) ?? [])
-provide(LAYER_LABEL, path => props.layerLabel?.(path) ?? null)
+// What a host lists of a row reads the program as it is, so it is kept for the program as the rows
+// show it: asked again as it changes, it is what it was, until they show it as it is.
+const listedOf = new WeakMap<object, Map<string, readonly string[]>>()
+const labelsOf = new WeakMap<object, Map<string, string | null>>()
+function keptFor<T>(memo: WeakMap<object, Map<string, T>>, path: string, ask: () => T): T {
+	const at = shown.value
+	let kept = memo.get(at)
+	if (kept === undefined) memo.set(at, (kept = new Map()))
+	if (!kept.has(path)) kept.set(path, ask())
+	return kept.get(path)!
+}
+provide(LAYER_ROWS, path => keptFor(listedOf, path, () => shown.value.layerRows?.(path) ?? []))
+provide(LAYER_LABEL, path => keptFor(labelsOf, path, () => shown.value.layerLabel?.(path) ?? null))
 provide(ROW_PICKER, (path, event) => props.pickRow?.(path, event) ?? true)
 useDeleteInInspector(selection, () => isInspector.value, removeNearest, removing)
 /** What was selected has just gone, so there is nothing to select again. */
@@ -803,7 +850,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 			<slot />
 		</ScrollArea>
 	</div>
-	<div v-else class="AstEditor" :class="{ layers }">
+	<div v-else ref="$rows" class="AstEditor" :class="{ layers }">
 		<div v-if="!layers" class="toolbar">
 			<InputButton
 				v-if="!compact"

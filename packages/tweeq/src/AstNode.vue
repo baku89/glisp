@@ -465,6 +465,11 @@ const slotMenu = computed(() =>
 	)
 )
 
+// What a menu offers is made once it is opened, as working it out for each row as it is drawn
+// would come to more than drawing it.
+const slotMenuLater = (): MenuItem[] => slotMenu.value
+const menuItemsLater = (): MenuItem[] => menuItems.value
+
 // What the value's own field offers by itself, and the row offers on its behalf.
 const menuItems = computed<MenuItem[]>(() => [
 	...(isFunction.value || locked.value
@@ -522,7 +527,7 @@ watch(
 		@rename="rename"
 		:selected="selected"
 		:closedGuide="bareKind === 'call'"
-		:menuItems="menuItems"
+		:menuItems="menuItemsLater"
 		@select="pick"
 	>
 		<div
@@ -561,7 +566,7 @@ watch(
 				:entry="entry"
 				:beside="translatable ? PAD_WIDTH : 0"
 				:path="path"
-				:menuItems="slotMenu"
+				:menuItems="slotMenuLater"
 				:read="read"
 				:show="show"
 				@change="emit('change', $event)"

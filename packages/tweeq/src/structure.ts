@@ -567,18 +567,37 @@ export function viewOf(
 		case 'lit':
 			return { ...LEAF, editor: editorOfValue(ast.value, expected) }
 		case 'call':
-			return viewOfCall(ast, env)
+			return remembered(ast, env, null, () => viewOfCall(ast, env))
 		case 'vec':
-			return viewOfVec(ast, env, expected)
+			return remembered(ast, env, expected, () => viewOfVec(ast, env, expected))
 		case 'record':
-			return viewOfRecord(ast, env)
+			return remembered(ast, env, null, () => viewOfRecord(ast, env))
 		case 'let':
 			return letViewOf(ast, env)
 		case 'meta':
-			return viewOfMeta(ast, env, expected)
+			return remembered(ast, env, expected, () => viewOfMeta(ast, env, expected))
 		default:
 			return LEAF
 	}
+}
+
+const NO_TYPE = {}
+const views = new WeakMap<AST, WeakMap<object, WeakMap<object, NodeView>>>()
+
+/**
+ * How to show `ast` in `env`, as expected to be `expected`, worked out once: a program is never
+ * changed, only replaced, and what is shown of a node is asked for many times as it is drawn.
+ */
+function remembered(ast: AST, env: Env, expected: TypeValue | null, make: () => NodeView): NodeView {
+	if (env === null) return make()
+	let byEnv = views.get(ast)
+	if (byEnv === undefined) views.set(ast, (byEnv = new WeakMap()))
+	let byType = byEnv.get(env)
+	if (byType === undefined) byEnv.set(env, (byType = new WeakMap()))
+	const key = expected ?? NO_TYPE
+	let view = byType.get(key)
+	if (view === undefined) byType.set(key, (view = make()))
+	return view
 }
 
 /** The value a type accepts as its default, as source. */

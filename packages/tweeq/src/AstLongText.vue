@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { InputButton } from 'tweeq/InputButton'
-import { Menu, type MenuItem } from 'tweeq/Menu'
+import { Menu, type MenuItem, type MenuItems, menuItemsOf } from 'tweeq/Menu'
 import { Popover } from 'tweeq/Popover'
 import { ref, useTemplateRef, watch } from 'vue'
 
@@ -18,7 +18,7 @@ const props = defineProps<{
 	icon?: string
 	/** What it is written in, if anything is known of that. */
 	language?: string
-	menuItems?: MenuItem[]
+	menuItems?: MenuItems
 	inlinePosition?: 'start' | 'middle' | 'end'
 }>()
 
@@ -53,9 +53,13 @@ function dismiss(): void {
 }
 
 const menuAt = ref<[number, number] | null>(null)
+// What the menu has in it, made once it is opened rather than each time this is drawn.
+const shownItems = ref<MenuItem[]>([])
 
 function openMenu(event: MouseEvent): void {
-	if (!props.menuItems?.length) return
+	const items = menuItemsOf(props.menuItems)
+	if (items.length === 0) return
+	shownItems.value = items
 	event.preventDefault()
 	event.stopPropagation()
 	menuAt.value = [event.clientX, event.clientY]
@@ -81,7 +85,7 @@ function openMenu(event: MouseEvent): void {
 			teleport=".TqViewport"
 			@update:open="$event || (menuAt = null)"
 		>
-			<Menu :items="menuItems ?? []" @close="menuAt = null" />
+			<Menu :items="shownItems" @close="menuAt = null" />
 		</Popover>
 		<CodePopover
 			v-if="open"

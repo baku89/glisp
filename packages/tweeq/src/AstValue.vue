@@ -9,7 +9,7 @@ import { vTooltip } from 'tweeq/Tooltip'
 import { InputString } from 'tweeq/InputString'
 import { InputSwitch } from 'tweeq/InputSwitch'
 import { InputTextBase } from 'tweeq/InputTextBase'
-import { type MenuItem } from 'tweeq/Menu'
+import { type MenuItem, type MenuItems, menuItemsOf } from 'tweeq/Menu'
 import { ParameterTreeContextKey } from 'tweeq/ParameterGrid'
 import { computed, inject, nextTick, ref, useTemplateRef, watch } from 'vue'
 
@@ -44,7 +44,7 @@ type InputPosition = 'start' | 'middle' | 'end'
 const props = defineProps<{
 	entry: Slot
 	path: string
-	menuItems: MenuItem[]
+	menuItems: MenuItems
 	/** Where it is in a row of them, which also leaves no room for an icon. */
 	inlinePosition?: InputPosition
 	/** Where it is in a column of them. */
@@ -345,7 +345,8 @@ const hostKey = inject(HOST_KEY, undefined)
 const editItems = computed(() =>
 	locked.value ? [] : editMenuItems(hasNumber.value ? editValue : null, editExpression, hostKey)
 )
-const fieldMenu = computed<MenuItem[]>(() => [...editItems.value, ...props.menuItems])
+// Made once a menu is opened, as what is offered is no use until then, and not cheap to work out.
+const fieldMenu = (): MenuItem[] => [...editItems.value, ...menuItemsOf(props.menuItems)]
 
 defineExpose({
 	editValue: computed(() => (hasNumber.value && !locked.value ? editValue : null)),

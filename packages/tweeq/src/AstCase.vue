@@ -31,7 +31,7 @@ const emit = defineEmits<{ change: [parent: AST] }>()
 				:style="{ order: i * 2 }"
 				:entry="slot"
 				:path="`${parentPath}/${slot.key}`"
-				:menuItems="slotMenuItems(slot, parent => emit('change', parent))"
+				:menuItems="() => slotMenuItems(slot, parent => emit('change', parent))"
 				:read="read"
 				:show="show"
 				@change="emit('change', $event)"

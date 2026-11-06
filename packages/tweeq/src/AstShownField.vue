@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Icon } from 'tweeq/Icon'
 import { InputTextBase } from 'tweeq/InputTextBase'
-import { Menu, type MenuItem } from 'tweeq/Menu'
+import { Menu, type MenuItem, type MenuItems, menuItemsOf } from 'tweeq/Menu'
 import { Popover } from 'tweeq/Popover'
 import { useMultiSelectStore } from 'tweeq/stores/multiSelect'
 import type { InputAlign, InputFont, InputPosition } from 'tweeq/types'
@@ -20,7 +20,7 @@ const props = defineProps<{
 	align?: InputAlign
 	font?: InputFont
 	inlinePosition?: InputPosition
-	menuItems?: MenuItem[]
+	menuItems?: MenuItems
 }>()
 
 const emit = defineEmits<{
@@ -62,8 +62,12 @@ function onClick(event: MouseEvent): void {
 // is nothing in it to type in, and its focus is only for being selected along with others.
 const $button = useTemplateRef<HTMLElement>('$button')
 const menuAt = ref<[number, number] | null>(null)
+// What the menu has in it, made once it is opened rather than each time this is drawn.
+const shownItems = ref<MenuItem[]>([])
 function onButtonMenu(event: MouseEvent): void {
-	if (!props.menuItems?.length) return
+	const items = menuItemsOf(props.menuItems)
+	if (items.length === 0) return
+	shownItems.value = items
 	event.preventDefault()
 	menuAt.value = [event.clientX, event.clientY]
 }
@@ -97,7 +101,7 @@ function onButtonClick(event: MouseEvent): void {
 			teleport=".TqViewport"
 			@update:open="menuAt = $event ? menuAt : null"
 		>
-			<Menu :items="menuItems ?? []" @close="menuAt = null" />
+			<Menu :items="shownItems" @close="menuAt = null" />
 		</Popover>
 	</div>
 	<InputTextBase
