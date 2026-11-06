@@ -19,6 +19,7 @@ import {
 	withValuesAt,
 } from '@glisp/tweeq/multiRows'
 import { capitalCase, enumIconsOf, inspectionOf, isSizeInput, isTranslatable, titleOf, viewOf } from '@glisp/tweeq/structure'
+import { withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -570,6 +571,18 @@ describe('several rows at once', () => {
 		const result = extractedAt(taken, env, inspectRows(taken, env, rows)!.args[1]!.fields[0]!.places, 20, 'width')!
 		expect(result.name).toBe('width2')
 		expect(print(result.ast)).toMatch(/^\{width = 1 width2 = 20 \[b =/)
+	})
+})
+
+describe('a shape stepped to what it is made of', () => {
+	it('is as free as that is: a square stepped to a rect has a width and a height of its own', () => {
+		for (const [src, handle] of [['[s = (path.square [0 0] 60)]', 'right'], ['[s = (path.circle [0 0] 60)]', 'right']] as const) {
+			const stepped = withSlotCommand(parse(src), env, ['binding:s'], 'step')!
+			const side = gripAt(stepped, env, 'binding:s')!.handles.find(h => h.name === handle)!
+			const next = changed(stepped, env, 'binding:s', side.to([side.at![0] + 30, side.at![1]], side.at!)).ast!
+			const [w, h] = print(next).match(/\[(\d+) (\d+)\]\)\]$/)!.slice(1).map(Number)
+			expect(w).not.toBe(h)
+		}
 	})
 })
 

@@ -28,6 +28,14 @@ describe('expand', () => {
 		env = () => session.env
 	})
 
+	it('puts what is used in two places in each as a node of its own, to be worked back to apart', () => {
+		define('twice = (=> (x: number): [number number] [x x])')
+		const next = expand(parse('(twice 60)'), env())
+		expect(print(next)).toBe('[60 60]')
+		const [first, second] = (next as unknown as { elements: unknown[] }).elements
+		expect(first).not.toBe(second)
+	})
+
 	describe('function body as the next rung', () => {
 		it('leaves non-calls and host calls as fixed points', () => {
 			for (const src of ['42', '(+ 1 2)', '(: 1 number)']) {

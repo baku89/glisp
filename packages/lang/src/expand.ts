@@ -177,7 +177,7 @@ class Step {
 		for (const arg of args) {
 			if (arg !== undefined) this.passedAlong.add(arg)
 		}
-		return expansion(args, {
+		const next = expansion(args, {
 			value: ast => evaluate(ast, this.env).value,
 			call: (name, value, callArgs) => {
 				const target = lookupBareName(name, this.env)
@@ -189,6 +189,8 @@ class Step {
 				)
 			},
 		})
+		// A copy of what was passed along is as much passed along.
+		return next === null ? null : apart(next, (from, to) => this.passedAlong.has(from) && this.passedAlong.add(to))
 	}
 
 	private resolveTail(ast: AST): AST {
@@ -222,11 +224,14 @@ class Step {
 		for (const arg of subst.values()) {
 			for (const name of freeRefs(arg).names) argFrees.add(name)
 		}
-		return substitute(closure.ast.body!, subst, {
-			captured: closure.capturedEnv,
-			caller: this.env,
-			argFrees,
-		})
+		return apart(
+			substitute(closure.ast.body!, subst, {
+				captured: closure.capturedEnv,
+				caller: this.env,
+				argFrees,
+			}),
+			(from, to) => this.passedAlong.has(from) && this.passedAlong.add(to)
+		)
 	}
 
 	private bindArgs(closure: GlispClosure, call: CallAST): Map<string, AST> {
@@ -381,6 +386,75 @@ interface Scope {
  * - A binder in the body that would capture an argument's free name is
  *   renamed.
  */
+/**
+ * `ast`, with what is in more than one place in it a node of its own in each: as an argument is
+ * that a body or a host puts in twice, `[side side]` from a square. Each is then a place of its
+ * own to work back to, a width and a height, and changing one is not changing the other.
+ */
+function apart(ast: AST, copiedFrom: (from: AST, to: AST) => void = () => {}): AST {
+	const seen = new WeakSet<AST>()
+	const walk = (node: AST): AST => {
+		if (seen.has(node)) {
+			const copy = copied(node)
+			copiedFrom(node, copy)
+			return copy
+		}
+		seen.add(node)
+		switch (node.kind) {
+			case 'vec': {
+				const elements = node.elements.map(walk)
+				return elements.every((e, i) => e === node.elements[i]) ? node : new VecAST(elements)
+			}
+			case 'call': {
+				const head = walk(node.head)
+				const args = node.args.map(walk)
+				const kwargs = mapValues(node.kwargs, walk)
+				const same = head === node.head && args.every((a, i) => a === node.args[i]) &&
+					(node.kwargs === undefined || [...node.kwargs].every(([k, v]) => kwargs!.get(k) === v))
+				return same ? node : new CallAST(head, args, kwargs)
+			}
+			case 'meta': {
+				const expr = walk(node.expr)
+				return expr === node.expr ? node : new MetaAST(node.metadata, expr)
+			}
+			default:
+				return node
+		}
+	}
+	return walk(ast)
+}
+
+/** `ast` as new nodes, where they are what can be worked back to, the same in all else. */
+function copied(ast: AST): AST {
+	switch (ast.kind) {
+		case 'lit':
+			return new LitAST(ast.value)
+		case 'sym':
+			return new SymAST(ast.name)
+		case 'vec':
+			return new VecAST(ast.elements.map(copied))
+		case 'call':
+			return new CallAST(copied(ast.head), ast.args.map(copied), mapValues(ast.kwargs, copied))
+		case 'record':
+			return new RecordAST(
+				ast.fields.map(entry =>
+					entry instanceof SpreadAST ? new SpreadAST(copied(entry.expr)) : ([entry[0], copied(entry[1])] as const)
+				),
+				ast.optional
+			)
+		case 'meta':
+			return new MetaAST(copied(ast.metadata) as RecordAST, copied(ast.expr))
+		case 'access':
+			return new AccessAST(copied(ast.target), ast.key)
+		case 'spread':
+			return new SpreadAST(copied(ast.expr))
+		case 'unquote':
+			return new UnquoteAST(copied(ast.expr))
+		default:
+			return ast
+	}
+}
+
 function substitute(ast: AST, subst: Subst, scope: Scope): AST {
 	const sub = (a: AST): AST => substitute(a, subst, scope)
 	switch (ast.kind) {
