@@ -1234,6 +1234,17 @@ describe('rowsWithin', () => {
 		expect(rowsWithin(scene, [12, 12], [18, 18])).toEqual([])
 		expect(rowsWithin(scene, [49, 49], [51, 51])).toEqual(['binding:p'])
 	})
+
+	it('has what is only a line when it touches the line, and not inside of it, where it is filled', () => {
+		const around = sceneOf(
+			parse('{line = (style (path.rect [0 0] [100 100]) stroke: "#000000") fill = (style (path.rect [200 0] [100 100]) fill: "#000000")}'),
+			env
+		)
+		expect(rowsWithin(around, [40, 40], [60, 60])).toEqual([])
+		expect(rowsWithin(around, [90, 40], [110, 60])).toEqual(['binding:line'])
+		expect(rowsWithin(around, [-10, -10], [110, 110])).toEqual(['binding:line'])
+		expect(rowsWithin(around, [240, 40], [260, 60])).toEqual(['binding:fill'])
+	})
 })
 
 describe('grips', () => {
@@ -1528,9 +1539,12 @@ describe('whether a shape has an inside to take hold of', () => {
 		expect(hasInside(shape(NO_PAINT))).toBe(false)
 	})
 
-	it('has one, with a fill or a line', () => {
+	it('has one, with a fill', () => {
 		expect(hasInside(shape({ ...NO_PAINT, fill: '#000000' }))).toBe(true)
-		expect(hasInside(shape({ ...NO_PAINT, stroke: '#000000' }))).toBe(true)
+	})
+
+	it('has none, with only a line, for what is seen through it to be reached', () => {
+		expect(hasInside(shape({ ...NO_PAINT, stroke: '#000000' }))).toBe(false)
 	})
 })
 

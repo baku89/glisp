@@ -56,6 +56,8 @@ import { mat2d } from 'linearly'
 import { fit } from 'pave/path/fitting'
 import { toD } from 'pave/path/svg'
 import { bounds } from 'pave/path/metrics'
+import { rectangle } from 'pave/path/primitives'
+import { contains, intersections } from 'pave/path/queries'
 import { transform } from 'pave/path/modifiers'
 
 import type { GraphPaperValue } from './graphics'
@@ -101,12 +103,15 @@ export interface Shape {
 }
 
 /**
- * Whether taking hold of a shape can be anywhere inside of it. What has no fill or line of
- * its own is only its outline, and has no inside to speak of: an open path would be closed
- * from its end back to its start.
+ * Whether taking hold of a shape can be anywhere inside of it, which is where it is filled.
+ * What is only a line, or has no paint of its own, is taken hold of by its line, for what is
+ * seen through it to be reached: an open path would be closed from its end back to its start.
  */
-export const hasInside = ({ paint }: Shape): boolean =>
-	paint !== undefined && (paint.fill !== 'none' || paint.stroke !== 'none')
+export const hasInside = ({ paint }: Shape): boolean => paint !== undefined && paint.fill !== 'none'
+
+/** How wide the line of a shape is, in what is drawn, if it has one that is painted. */
+export const widthOfLine = ({ paint }: Shape): number =>
+	paint === undefined || paint.stroke === 'none' ? 0 : paint.width
 
 /** The rows of what is at all within the corners `a` and `b`, once each. */
 /** It has an outline, as a path, and not only a place. A frame is drawn differently. */
@@ -123,7 +128,10 @@ export const lineOfShape = ({ draw, value }: Pick<Shape, 'draw' | 'value'>): Pat
 export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 	const [left, right] = a[0] < b[0] ? [a[0], b[0]] : [b[0], a[0]]
 	const [top, bottom] = a[1] < b[1] ? [a[1], b[1]] : [b[1], a[1]]
-	const rows = scene.flatMap(({ row, draw, value }) => {
+	const inBox = ([x, y]: Vec): boolean => x >= left && x <= right && y >= top && y <= bottom
+	const box = rectangle([left, top], [right, bottom])
+	const rows = scene.flatMap(shape => {
+		const { row, draw, value } = shape
 		// A line goes on for ever, so what counts is whether it goes through.
 		if (draw === 'line') {
 			const [[x, y], [dx, dy]] = value as StraightLine
@@ -134,7 +142,15 @@ export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 		}
 		const [[l, t], [r, d]] =
 			isOutlined(draw) ? bounds(value as Path) : [value as Vec, value as Vec]
-		return l <= right && r >= left && t <= bottom && d >= top ? [row] : []
+		if (!(l <= right && r >= left && t <= bottom && d >= top)) return []
+		if (!isOutlined(draw)) return [row]
+		// What is around the box without touching it is not in it, unless it is filled, where the box is.
+		const path = value as Path
+		const touches =
+			path.curves.some(curve => curve.vertices.some(({ point }) => inBox(point as Vec))) ||
+			intersections(path, box).length > 0 ||
+			(hasInside(shape) && contains(path, [left, top]))
+		return touches ? [row] : []
 	})
 	return [...new Set(rows)]
 }

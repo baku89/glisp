@@ -52,6 +52,7 @@ import {
 	penGuided,
 	penned,
 	hasInside,
+	widthOfLine,
 	placedDimensions,
 	saysOutside,
 	withExpressionAt,
@@ -1559,6 +1560,8 @@ function shapeAt(x: number, y: number, outsideToo = false): Shape | null {
 		const outline = lineOfShape(shape)
 		if (outline !== null) {
 			const path = pathOnScreen(outline, view.value)
+			// As wide as its line is drawn, and never too narrow to be found.
+			context.lineWidth = Math.max(HIT_WIDTH, widthOfLine(shape) * view.value[0])
 			if (
 				context.isPointInStroke(path, x, y) ||
 				(shape.draw === 'path' && hasInside(shape) && context.isPointInPath(path, x, y))
@@ -1654,7 +1657,8 @@ function cursorOf(handle: Handle, x: number, y: number): string {
 	if (handle.outsideCorner) return turnCursor(handle, x, y)
 	if (handle.kind === 'button') return 'pointer'
 	if (handle.kind === 'direction') return 'grab'
-	if (handle.angle === undefined) return 'move'
+	// A place that goes any way is the pointer as it is, which says enough by being over it.
+	if (handle.angle === undefined) return 'default'
 	const quarter = Math.round((facing(handle.angle) / Math.PI) * 4 + 4) % 4
 	return ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][quarter]!
 }
@@ -2546,9 +2550,7 @@ function onPointerMove(event: PointerEvent): void {
 			? 'grab'
 			: index !== null
 				? cursorOf(grip.value!.handles[index]!, x, y)
-				: shape !== null
-					? 'move'
-					: 'default'
+				: 'default'
 		return
 	}
 	switch (pressed.kind) {
