@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { AST, LetAST } from '@glisp/lang'
 import { type GlispDocument } from '@glisp/tweeq'
+import { layersOf } from '@glisp/tweeq/structure'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
 import { mat2d, vec2 } from 'linearly'
 import { toPath2D } from 'pave/path/canvas'
+import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
 import { useZUI } from 'tweeq/use/useZUI'
 import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
@@ -75,6 +77,7 @@ import {
 	sceneOf,
 	type Shape,
 	SHAPE_ATTRIBUTES,
+	isArtboardRow,
 	type ShapeAttributes,
 	type ShapeTool,
 	type SnapPoint,
@@ -108,6 +111,7 @@ import {
 	canRefer,
 	penKind,
 } from './scene'
+import { artboardDrawn, boardAt, canvasLayersOf, nameForArtboard, presetNamed, sizeOf, withArtboardAdded, withLayersTakenIn, withLayerWhere, withLayerOnto } from './artboards'
 import { BRUSHES, type Brush, type BrushContext, brushed, type BrushName, type Guides, isBrush } from './brushes'
 import { fitFurther, NOTHING_SETTLED, pathOfFit, type PencilFit, samplesOf, type Steady, steadied } from './pencilFit'
 import { paintOfLine, withPaintDrawn } from './toolAttributes'
@@ -122,7 +126,7 @@ const props = defineProps<{
 	/** Where the program's origin is on screen, until the view has been moved. */
 	origin: readonly [number, number]
 	/** What a press does, if it draws. */
-	drawing?: ShapeTool | 'pen' | 'pencil' | BrushName | null
+	drawing?: ShapeTool | 'artboard' | 'pen' | 'pencil' | BrushName | null
 	/** What is taken hold of is the points of a path, and not the whole of anything. */
 	byPoints?: boolean
 	/** What it draws from, of which what it draws has a copy. */
@@ -1161,9 +1165,12 @@ function draw(): void {
 			drawGraphPaper(shape.value as GraphPaperValue)
 		} else if (shape.draw === 'axes') {
 			drawAxes(shape.value as AxesValue)
-		} else if (shape.draw === 'path') {
+		} else if (shape.draw === 'path' || shape.draw === 'artboard') {
 			const onScreenPath = pathOnScreen(shape.value as Path, view.value)
 			const { paint } = shape
+			// What is on an artboard goes no further than its edge.
+			context.save()
+			if (shape.clip !== undefined) context.clip(pathOnScreen(shape.clip, view.value))
 			if (paint !== undefined) {
 				if (paint.fill !== 'none') {
 					context.fillStyle = paint.fill
@@ -1195,7 +1202,26 @@ function draw(): void {
 				context.stroke(onScreenPath)
 				context.restore()
 			}
+			context.restore()
 		}
+	}
+	context.globalAlpha = 1
+
+	// The name of each artboard, above its corner, by which it is taken hold of.
+	artboardLabels = []
+	context.font = ARTBOARD_LABEL_FONT
+	context.textBaseline = 'bottom'
+	for (const shape of scene.value) {
+		if (shape.draw !== 'artboard') continue
+		const [[left, top]] = bounds(shape.value as Path)
+		const [x, y] = toScreen([left, top], view.value)
+		const name = nameOfRow(shape.row)
+		const width = context.measureText(name).width
+		context.globalAlpha = isOutside(shape.row, isolation.value) ? OUTSIDE_ALPHA : 1
+		context.fillStyle = isMarked(shape) ? accent : ink
+		if (!isMarked(shape)) context.globalAlpha *= ARTBOARD_LABEL_ALPHA
+		context.fillText(name, x, y - ARTBOARD_LABEL_GAP)
+		artboardLabels.push({ row: shape.row, x, y: y - ARTBOARD_LABEL_GAP - ARTBOARD_LABEL_HEIGHT, width, height: ARTBOARD_LABEL_HEIGHT })
 	}
 	context.globalAlpha = 1
 
@@ -1547,6 +1573,19 @@ useEventListener(
 	{ capture: true }
 )
 
+const ARTBOARD_LABEL_FONT = '11px system-ui, sans-serif'
+const ARTBOARD_LABEL_GAP = 4
+const ARTBOARD_LABEL_HEIGHT = 14
+const ARTBOARD_LABEL_ALPHA = 0.6
+
+/** Where the name of each artboard was last drawn, on screen. */
+let artboardLabels: { row: string; x: number; y: number; width: number; height: number }[] = []
+
+/** What a row is called, as the last of its path says. */
+const nameOfRow = (row: string): string => (row.split('/').at(-1) ?? row).replace(/^binding:/, '')
+
+const isEmptyArtboard = (row: string): boolean => !scene.value.some(shape => shape.row.startsWith(`${row}/`))
+
 /** The shape at a place on screen, the last drawn first. */
 function shapeAt(x: number, y: number, outsideToo = false): Shape | null {
 	const context = $canvas.value?.getContext('2d')
@@ -1555,12 +1594,21 @@ function shapeAt(x: number, y: number, outsideToo = false): Shape | null {
 	context.setTransform(1, 0, 0, 1, 0, 0)
 	context.lineWidth = HIT_WIDTH
 	let found: Shape | null = null
+	// An artboard is taken hold of by its name, before anything, as that is above all else.
+	const label = artboardLabels.find(at => x >= at.x && x <= at.x + at.width && y >= at.y && y <= at.y + at.height)
+	const labelled = label === undefined ? undefined : scene.value.find(({ row }) => row === label.row)
+	if (labelled !== undefined && (outsideToo || isolated.value === null || isWithin(labelled.row, isolated.value))) {
+		context.restore()
+		return labelled
+	}
 	for (const shape of [...scene.value].reverse()) {
 		// What is outside of what is isolated is only there to be seen.
 		if (!outsideToo && isolated.value !== null) {
 			const isWithinIsolated = isWithin(shape.row, isolated.value) && insideIsolated.value.length === 0
 			if (!isWithinIsolated) continue
 		}
+		// What is cut off by the edge of an artboard is not there to be found.
+		if (shape.clip !== undefined && !context.isPointInPath(pathOnScreen(shape.clip, view.value), x, y)) continue
 		const outline = lineOfShape(shape)
 		if (outline !== null) {
 			const path = pathOnScreen(outline, view.value)
@@ -1568,7 +1616,9 @@ function shapeAt(x: number, y: number, outsideToo = false): Shape | null {
 			context.lineWidth = Math.max(HIT_WIDTH, widthOfLine(shape) * view.value[0])
 			if (
 				context.isPointInStroke(path, x, y) ||
-				(shape.draw === 'path' && hasInside(shape) && context.isPointInPath(path, x, y))
+				(shape.draw === 'path' && hasInside(shape) && context.isPointInPath(path, x, y)) ||
+				// An artboard with nothing on it is all there is there, to be taken hold of anywhere.
+				(shape.draw === 'artboard' && isEmptyArtboard(shape.row) && context.isPointInPath(path, x, y))
 			) {
 				found = shape
 				break
@@ -1656,7 +1706,7 @@ function shapingHandleAt(x: number, y: number): number | null {
 	return index !== null && onlyShapes(grip.value!.handles[index]!) ? index : null
 }
 
-/** The cursor over a handle, until it is dragged, when the handle itself shows where the pointer is. */
+/** The cursor over a handle, and while it is dragged. */
 function cursorOf(handle: Handle, x: number, y: number): string {
 	if (handle.outsideCorner) return turnCursor(handle, x, y)
 	if (handle.kind === 'button') return 'pointer'
@@ -1773,6 +1823,7 @@ let pressed:
 	| { kind: 'closing'; from: Vec; first: Anchor; at?: Vec }
 	| { kind: 'pencil'; points: readonly SnapPoint[] }
 	| { kind: 'brush' }
+	| { kind: 'artboard'; base: LetAST; name: string; at: Vec; moved: boolean }
 	| {
 			kind: 'draw'
 			tool: ShapeTool
@@ -1883,6 +1934,13 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	} else if (drawsThrough()) {
 		circleDown(x, y, event.metaKey || event.ctrlKey)
+		return
+	} else if (props.drawing === 'artboard') {
+		const base = props.document.root.value
+		if (base.kind !== 'let') return
+		// All of it, from where it is begun to what it takes in, undoes as one.
+		props.document.hold()
+		pressed = { kind: 'artboard', base, name: nameForArtboard(base), at: [x, y], moved: false }
 		return
 	} else if (props.drawing) {
 		const base = props.document.root.value
@@ -2255,6 +2313,10 @@ function finishPencil(end: SnapPoint | null): void {
 		}
 	}
 	const drew = was !== null && props.document.root.value !== pencilBase
+	if (drew && was[0] !== undefined && pencilBase?.kind === 'let') {
+		const added = layersOf(props.document.root.value as LetAST).find(name => !layersOf(pencilBase as LetAST).includes(name))
+		if (added !== undefined) ontoBoardAt(`binding:${added}`, was[0])
+	}
 	pencilStroke.value = null
 	pencilBase = null
 	props.document.release()
@@ -2287,6 +2349,42 @@ function pressBrush(name: BrushName, x: number, y: number): void {
 	brush.state = brush.def.press(brush.state, fromScreen(x, y), brushContext())
 	pressed = { kind: 'brush' }
 	writeBrush(false)
+}
+
+/** How far a press goes and is still a click. */
+const CLICK_REACH = 3
+
+/**
+ * The artboard is as far as it was drawn, or as large as Tool Options says where it was only
+ * clicked, and takes in what is wholly within it of what is not on another.
+ */
+function finishArtboard({ base, name, at, moved }: { base: LetAST; name: string; at: Vec; moved: boolean }): void {
+	const { env } = props.document
+	const shape = props.attributes?.shape ?? SHAPE_ATTRIBUTES
+	if (!moved) {
+		const [x, y] = fromScreen(at[0], at[1])
+		const step = pointerStep()
+		const origin: Vec = [roundedTo(x, step), roundedTo(y, step)]
+		props.document.setRoot(withArtboardAdded(base, name, origin, sizeOf(presetNamed(shape.artboardPreset), shape.artboardLandscape)))
+	}
+	const root = props.document.root.value
+	const row = `binding:${name}`
+	const loose = canvasLayersOf(root, env.value).filter(other => other !== row)
+	const takenIn = withLayersTakenIn(root, env.value, loose, row)
+	if (takenIn.kind === 'let') props.document.setRoot(takenIn)
+	props.document.release()
+	emit('select', [row])
+}
+
+/** What was just drawn at `row`, on the artboard `at` is on, staying where it is. Its row then. */
+function ontoBoardAt(row: string, at: Vec): string {
+	const { root, env } = props.document
+	const board = boardAt(root.value, env.value, at, [row])
+	if (board === null) return row
+	const moved = withLayerOnto(root.value, env.value, row, board.row)
+	if (moved === null || moved.ast.kind !== 'let') return row
+	props.document.setRoot(moved.ast)
+	return moved.row
 }
 
 /** That is all of it, with nothing left following the pointer, or else it never was. */
@@ -2630,6 +2728,22 @@ function onPointerMove(event: PointerEvent): void {
 		return
 	}
 	switch (pressed.kind) {
+		case 'artboard': {
+			const [fromX, fromY] = pressed.at
+			// Only so far is still a click, which puts one down as large as Tool Options says.
+			if (!pressed.moved && Math.hypot(x - fromX, y - fromY) < CLICK_REACH) break
+			pressed.moved = true
+			const from = fromScreen(fromX, fromY)
+			let to = fromScreen(x, y)
+			if (event.shiftKey) {
+				const side = Math.max(Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1]))
+				to = [from[0] + Math.sign(to[0] - from[0] || 1) * side, from[1] + Math.sign(to[1] - from[1] || 1) * side]
+			}
+			const begin: Vec = event.altKey ? [from[0] * 2 - to[0], from[1] * 2 - to[1]] : from
+			props.document.setRoot(artboardDrawn(pressed.base, pressed.name, begin, to, pointerStep()))
+			if (taken.value[0] !== `binding:${pressed.name}`) emit('select', [`binding:${pressed.name}`])
+			break
+		}
 		case 'brush': {
 			if (brush === null) break
 			brushPointer.value = fromScreen(x, y)
@@ -2680,8 +2794,8 @@ function onPointerMove(event: PointerEvent): void {
 		case 'handle': {
 			pressed.at = [x, y]
 			dragHandle(event.altKey, event.metaKey || event.ctrlKey, event.shiftKey)
-			// What turns keeps its arrow, turned toward the pointer; anything else shows where it is itself.
-			cursor.value = pressed.handle.outsideCorner ? turnCursor(pressed.handle, x, y) : 'none'
+			// It goes on showing what it did over the handle, for the pointer to be seen where it is.
+			cursor.value = pressed.handle.kind === 'direction' ? 'grabbing' : cursorOf(pressed.handle, x, y)
 			break
 		}
 		case 'move': {
@@ -2805,6 +2919,28 @@ useEventListener(window, 'pointerup', event => {
 		penPulled.value = null
 		pen = null
 		penLine.value = null
+	}
+	if (pressed?.kind === 'artboard') finishArtboard(pressed)
+	// What is drawn goes on the artboard it was begun on.
+	if (pressed?.kind === 'draw' && pressed.drawing) {
+		const row = ontoBoardAt(`binding:${pressed.name}`, pressed.snap?.at ?? fromScreen(pressed.at[0], pressed.at[1]))
+		if (row !== `binding:${pressed.name}`) emit('select', [row])
+	}
+	// What is dragged goes on the artboard it is let go over, or off of any.
+	if (pressed?.kind === 'move' && pressed.moving && !event.defaultPrevented) {
+		const at = fromScreen(event.offsetX, event.offsetY)
+		const { root, env } = props.document
+		let next: AST = root.value
+		const rows = taken.value.map(row => {
+			if (isArtboardRow(next, env.value, row)) return row
+			const moved = withLayerWhere(next, env.value, row, at)
+			next = moved.ast
+			return moved.row
+		})
+		if (next !== root.value && next.kind === 'let') {
+			props.document.setRoot(next)
+			emit('select', rows)
+		}
 	}
 	// Letting go of a drag is being at what it got hold of.
 	if (pressed !== null && held.value !== null) {

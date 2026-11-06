@@ -37,7 +37,7 @@ import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
 import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
-import { iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
+import { ARTBOARD_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
 import { alone, type Place } from './panelLayout'
@@ -222,6 +222,7 @@ const TOOLS = [
 	{ name: 'points', label: 'Edit Points', key: 'a', icon: 'ph:cursor' },
 	{ name: 'pen', label: 'Pen', key: 'p', icon: 'ph:pen-nib' },
 	{ name: 'pencil', label: 'Pencil', key: 'b', icon: 'ph:pencil-simple' },
+	{ name: 'artboard', label: 'Artboard', key: 'f', icon: ARTBOARD_ICON },
 	{ name: 'rect', label: 'Rectangle', key: 'r', icon: SHAPE_ICONS.rect },
 	{ name: 'ellipse', label: 'Ellipse', key: 'o', icon: SHAPE_ICONS.circle },
 	{ name: 'ngon', label: 'Polygon', key: 'n', icon: SHAPE_ICONS.ngon },
@@ -242,7 +243,7 @@ const tool = ref<(typeof TOOLS)[number]['name']>('select')
 
 /** What is on the bar at first: the rest is there behind its dots, until it is wanted. */
 const FIRST_TOOLS: FirstTools = {
-	shown: ['select', 'points', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
+	shown: ['select', 'artboard', 'points', 'pen', 'pencil', 'rect', 'ellipse', 'ngon'],
 	stowed: [
 		'star',
 		'roundRect',
@@ -1134,7 +1135,7 @@ actions.register([
 			{ id: 'file_save_as', label: 'Save As...', icon: 'mdi:content-save-edit-outline', bind: 'command+shift+s', perform: () => files.save(true) },
 			{
 				id: 'file_export_svg',
-				label: 'Export Selection...',
+				label: 'Export Selection or Artboard...',
 				icon: 'mdi:export-variant',
 				// All of a program is what saving it writes. This is what is drawn, or an area, or
 				// both: that much of those, and an area on its own is that much of everything.
@@ -1142,7 +1143,10 @@ actions.register([
 				perform(chosen: readonly Selected[]) {
 					const root = document.root.value
 					const env = document.env.value
-					const area = chosen.find(({ value }) => isRect(value))?.value as RectValue | undefined
+					// An artboard is exported as large as it is, as an area would be, with what is on it.
+					const area =
+						(chosen.find(({ value }) => isRect(value))?.value as RectValue | undefined) ??
+						(chosen.find(({ value }) => isArtboard(value))?.value as ArtboardValue | undefined)?.area
 					const drawings = chosen.filter(({ value }) => !isRect(value)).map(({ row }) => row)
 					const svg = svgOfRows(root, env, exportedRows(root, env, drawings), area)
 					if (svg !== null) void exportSvg(svg, files.activeTab.value?.name ?? 'sketch')

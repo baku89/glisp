@@ -8,6 +8,7 @@
 import { type AST, type Env, evaluate, LetAST, lit, parse, print, readByName } from '@glisp/lang'
 import { layersOf } from '@glisp/tweeq/structure'
 
+import { ARTBOARD_PRESETS } from './artboards'
 import { NO_PAINT, type Paint, PathValue } from './graphics'
 import { paintAt, SHAPE_ATTRIBUTES, type ShapeAttributes, valueOfRow, withPaint } from './scene'
 
@@ -67,6 +68,14 @@ export const ATTRIBUTES_OF_TOOL: Readonly<Record<string, readonly AttributeOfToo
 	],
 	spiral: [{ name: 'spiralTurns', label: 'Turns', min: 0, step: 0.1 }],
 	clothoid: [{ name: 'clothoidTurn', label: 'Turn', step: 0.1 }],
+	artboard: [
+		{
+			name: 'artboardPreset',
+			label: 'Size',
+			options: ARTBOARD_PRESETS.map(({ name, label, size, icon }) => ({ value: name, label: `${label}  ${size[0]}×${size[1]}`, icon })),
+		},
+		{ name: 'artboardLandscape', label: 'Landscape' },
+	],
 }
 
 /** What was kept, if it can still be what this is, or else what it is at first. */

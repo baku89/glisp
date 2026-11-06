@@ -9,6 +9,7 @@ import { toD } from 'pave/path/svg'
 import type { ActionTypes } from 'tweeq'
 
 import {
+	isArtboard,
 	isPath,
 	isRect,
 	isStyled,
@@ -71,7 +72,7 @@ export const rowType = makeType('row', () => false, null)
 /** What can be exported: what is drawn, or an area to export whatever is in. */
 export const exportableType = makeType(
 	'drawing or rect',
-	value => drawingType.fits(value) || rectType.fits(value),
+	value => drawingType.fits(value) || rectType.fits(value) || isArtboard(value),
 	GROUP
 )
 const withinRow: readonly TypeValue[] = [exportableType, drawingType, rectType, pathType, groupType, ungroupableType]

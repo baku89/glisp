@@ -59,7 +59,7 @@ import {
 	viewOf,
 } from '@glisp/tweeq/structure'
 
-import { mat2d } from 'linearly'
+import { mat2d, vec2 } from 'linearly'
 import { fit } from 'pave/path/fitting'
 import { toD } from 'pave/path/svg'
 import { bounds } from 'pave/path/metrics'
@@ -95,6 +95,10 @@ import {
 	under,
 	type Vec,
 	withinArg,
+	isArtboard,
+	makesArtboard,
+	ARTBOARD_LAYERS,
+	type ArtboardValue,
 	isRect,
 	outlineOf,
 	otherControl,
@@ -107,6 +111,8 @@ export interface Shape {
 	readonly value: unknown
 	/** How it is drawn, if it says. */
 	readonly paint?: Paint
+	/** What it is cut off by, on the canvas, as what is on an artboard is by its edge. */
+	readonly clip?: Path
 }
 
 /**
@@ -122,7 +128,7 @@ export const widthOfLine = ({ paint }: Shape): number =>
 
 /** The rows of what is at all within the corners `a` and `b`, once each. */
 /** It has an outline, as a path, and not only a place. A frame is drawn differently. */
-export const isOutlined = (draw: string): boolean => draw === 'path' || draw === 'frame'
+export const isOutlined = (draw: string): boolean => draw === 'path' || draw === 'frame' || draw === 'artboard'
 
 /** What can be seen of a shape as a line, if it is not only a place. */
 export const lineOfShape = ({ draw, value }: Pick<Shape, 'draw' | 'value'>): Path | null => {
@@ -218,6 +224,10 @@ export const SHAPE_ATTRIBUTES = {
 	fill2: '#f9faf9',
 	/** How a circle is drawn: within a box, through two points at either end of it, or through three. */
 	ellipseMode: 'box' as EllipseMode,
+	/** The size an artboard is put down at by a click, by the name of what it is for. */
+	artboardPreset: 'desktop',
+	/** Whether that is the wider way around. */
+	artboardLandscape: true,
 }
 export type ShapeAttributes = typeof SHAPE_ATTRIBUTES
 
@@ -914,6 +924,9 @@ export function rowsHeldBy(root: AST, env: Env, rows: ReadonlySet<string>): stri
 	const held: string[] = []
 	for (const row of new Set(sceneOf(root, env).map(shape => shape.row))) {
 		if (rows.has(row)) continue
+		// What is on an artboard that is moved goes with it already, being measured from it, and
+		// what is moved on an artboard is only on it, and does not take it along.
+		if ([...rows].some(own => row.startsWith(`${own}/`) || own.startsWith(`${row}/`))) continue
 		const changes = gripAt(root, env, row)?.move?.([1.37, 2.11])
 		if (changes === undefined || changes.length === 0) continue
 		const { ast } = changed(root, env, row, changes)
@@ -1635,6 +1648,16 @@ function workedOutDrawn(root: AST, env: Env, hidden: boolean): readonly Shape[] 
 			if (isOut && !hidden) return []
 			const row = parent === '' ? slot.key : `${parent}/${slot.key}`
 			if (isGroup(slot.ast) || isVecOfDrawn(slot.ast, slot.env)) return visit(slot.ast, slot.env, row, isOut)
+			const board = artboardAt(slot.ast, slot.env)
+			if (board !== null) {
+				const own: Shape[] = isOut !== hidden ? [] : [artboardShape(row, board.value)]
+				const on = viewOf(board.call, slot.env).slots.find(({ key }) => key === `arg${ARTBOARD_LAYERS}`)
+				if (on === undefined) return own
+				const m = artboardMatrixOf(board.value)
+				const clip = board.value.clip ? outlineOfArtboard(board.value) : undefined
+				const inner = visit(on.ast, on.env, `${row}/${on.key}`, isOut).map(shape => movedBy(shape, m))
+				return [...own, ...(clip === undefined ? inner : inner.map(shape => clippedBy(shape, clip)))]
+			}
 			if (isOut !== hidden) return []
 			const value = evaluate(readByName(slot.ast), slot.env).value
 			return shapesIn(infer(readByName(slot.ast), slot.env), value, row)
@@ -1643,6 +1666,60 @@ function workedOutDrawn(root: AST, env: Env, hidden: boolean): readonly Shape[] 
 	const kind = bare(root).kind
 	return kind === 'let' || kind === 'vec' ? visit(root, env, '', false) : []
 }
+
+/** The call of an artboard that `ast` is, and what it comes to, if it is one. */
+function artboardAt(ast: AST, env: Env): { readonly call: CallAST; readonly value: ArtboardValue } | null {
+	const node = bare(ast)
+	if (node.kind !== 'call') return null
+	const head = evaluate(node.head, enterNode(node, env)).value
+	if (!makesArtboard(head)) return null
+	const { value } = evaluate(readByName(ast), env)
+	return isArtboard(value) ? { call: node, value } : null
+}
+
+/** Whether the row at `row` is an artboard. */
+export const isArtboardRow = (root: AST, env: Env, row: string): boolean => {
+	const found = rowAt(root, env, row)
+	return found !== null && artboardAt(found.node, found.env) !== null
+}
+
+/** The artboard at `row`, as it is, if it is one. */
+export function artboardOfRow(root: AST, env: Env, row: string): ArtboardValue | null {
+	const found = rowAt(root, env, row)
+	if (found === null) return null
+	const board = artboardAt(found.node, found.env)
+	if (board === null) return null
+	// What it is measured in is what is around it, an artboard on an artboard being on that.
+	return found.transform.join() === IDENTITY.join() ? board.value : null
+}
+
+const artboardMatrixOf = ({ area }: ArtboardValue): Mat => [1, 0, 0, 1, area.origin[0], area.origin[1]]
+
+const outlineOfArtboard = ({ area }: ArtboardValue): Path =>
+	rectangle(area.origin, [area.origin[0] + area.size[0], area.origin[1] + area.size[1]])
+
+/** What is drawn of an artboard itself: its area, filled. */
+const artboardShape = (row: string, board: ArtboardValue): Shape => ({
+	row,
+	draw: 'artboard',
+	value: outlineOfArtboard(board),
+	paint: { ...NO_PAINT, fill: board.fill, stroke: 'none' },
+})
+
+/** `shape`, where it is on the canvas once what it is in has been moved by `m`. */
+function movedBy(shape: Shape, m: Mat): Shape {
+	const clip = shape.clip === undefined ? {} : { clip: transform(shape.clip, m) }
+	if (isOutlined(shape.draw)) return { ...shape, value: transform(shape.value as Path, m), ...clip }
+	if (shape.draw === 'point') return { ...shape, value: vec2.transformMat2d(shape.value as Vec, m as unknown as mat2d) as unknown as Vec, ...clip }
+	if (shape.draw === 'line') {
+		const [through, direction] = shape.value as StraightLine
+		return { ...shape, value: [vec2.transformMat2d(through, m as unknown as mat2d) as unknown as Vec, direction], ...clip }
+	}
+	return { ...shape, ...clip }
+}
+
+/** `shape`, cut off by `clip` as well as by whatever it was. */
+const clippedBy = (shape: Shape, clip: Path): Shape => ({ ...shape, clip: shape.clip ?? clip })
 
 /**
  * Whether a node is a vector of what each draws something, with no names, as what a spray comes to
@@ -2391,7 +2468,9 @@ export function rowTakenAt(
 	for (let i = first; i < keys.length; i++) {
 		const around = keys.slice(0, i).join('/')
 		const isInto = selected.some(other => other.startsWith(`${around}/`))
-		if (!isInto && holdsRows(root, env, around)) return around
+		// What an artboard holds is not a group: what is on it is taken hold of each by itself.
+		const isOnArtboard = keys[i - 1] === `arg${ARTBOARD_LAYERS}` && isArtboardRow(root, env, keys.slice(0, i - 1).join('/'))
+		if (!isInto && !isOnArtboard && holdsRows(root, env, around)) return around
 	}
 	return row
 }
