@@ -1034,6 +1034,11 @@ describe('problemOf', () => {
 		expect(problemOf(fine.ast, fine.env, fine.expected, read)).toBeNull()
 	})
 
+	it('has nothing to say of (), which is taken at any slot as what comes to its default', () => {
+		const blank = view('(+ () 1)').slots[0]!
+		expect(problemOf(blank.ast, blank.env, blank.expected, read)).toBeNull()
+	})
+
 	it('does not judge by a slot that is still generic', () => {
 		const session = new Session(env)
 		session.exec('radius = 40')

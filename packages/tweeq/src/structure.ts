@@ -47,6 +47,7 @@ import {
 	type TypeValue,
 	typeFits,
 	UNIT,
+	readByName,
 	unhide,
 	unpin,
 	unwrapLazy,
@@ -1361,6 +1362,10 @@ export function problemOf(
 	// A slot that is still generic says nothing until the call has been solved,
 	// and the call reports what does not fit it.
 	if (expected === null || mentionsTypeVar(expected)) return null
+	// `()` is taken at any typed slot, as what comes to its default: a place left for something.
+	const written = readByName(ast)
+	const inner = written.kind === 'meta' ? written.expr : written
+	if (inner.kind === 'lit' && inner.value === UNIT) return null
 	const type = infer(ast, env)
 	return type !== null && !argFits(ast, type, expected)
 		? `type mismatch: expected ${expected.typeName}, got ${type.typeName}`
