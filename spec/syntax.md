@@ -25,7 +25,7 @@
 
 Literal types (e.g. `42` as a singleton type) are not introduced. Use `enum` for enumerated values.
 
-Keyword literal (`:foo`) is not introduced. Record keys are written with bare symbols followed by `:`.
+Keyword literal (`:foo`) is not introduced. Record keys and keyword arguments are written with bare symbols followed by `:`.
 
 #### String escape sequences
 
@@ -126,15 +126,7 @@ Empty `()` is the unit value.
 
 A vector is a value of type `[...T]` for some element type `T`.
 
-An element can be given a name where it is, which the rest of the vector can refer to in any order. `[a = 1 b = (+ a 1) 3]` is another way to write `{a = 1 b = (+ a 1) [a b 3]}`, and nothing but a way to write it: the value is an ordinary vector, with no names in it. As the last thing in a block, its names are bound with the rest of the block, so `{x = 1 [a = x]}` is `{x = 1 a = x [a]}`. What a block binds and its vector holds prints where the vector holds it.
-
-<!-- test -->
-```glisp
-[a = 1 b = (+ a 1) 3]          ;; → [1 2 3]
-[b = (+ a 1) a = 1]            ;; → [2 1]
-[a = 1 a]                      ;; → [1 1]
-{x = 2 [a = (* x 2)]}          ;; → [4]
-```
+An element can have a name, as any expression can (see [Names](#names--)), which the rest of the vector can refer to in any order. The value is an ordinary vector, with no names in it.
 
 ### Accessor — `.`
 
@@ -157,8 +149,11 @@ A path is a sequence of segments separated by `/`. Each segment is one of:
 
 - `.` — stay at the current node (no-op; required as the first segment when the path otherwise starts with a name).
 - `..` — go up to the immediate parent AST node.
-- a name — descend into a named child: a record field, a let-binding, or a call's argument by its parameter's name (`./x/xs` in `x = (first [1 2])`). The name is looked up in the head's signature, without running anything. A variadic parameter's name refers to the remaining arguments, as a vector (`./c/xs/1` in `c = (+ 1 2 3)` is `2`).
-- an integer — descend into a vector element. A call's arguments are reached by name, not by position.
+- a name — descend into the child that has this [name](#names--): a let-binding, or anything else written `name = expr`.
+- a key followed by `:` — descend into what fills a slot: a record's field, or a call's argument by its parameter's name, whether it was passed by keyword or by position (`./x/xs:` in `x = (first [1 2])`). The parameter is looked up in the head's signature, without running anything. A variadic parameter's name refers to the remaining arguments, as a vector (`./c/xs:/1` in `c = (+ 1 2 3)` is `2`).
+- an integer — descend into a vector element. A call's arguments are reached by their parameters' names, not by position.
+
+A name and a key are written differently, so they never stand for each other: in `(circle center: radius = [0 0] radius: 10)`, `./radius` is `[0 0]` and `./radius:` is `10`. A key is the callee's or the record's to choose, and a name is the writer's, so neither can take the other's place when one of them changes.
 
 `..` may be repeated arbitrarily by chaining with `/` to walk further up: `../..` is two levels up, `../../..` is three, and so on. There is no special "deeper" syntax — chained `..` segments are how depth is expressed.
 
@@ -167,22 +162,22 @@ Distinguishing path from spread/splice: a path always begins with `./`, `../` or
 <!-- test -->
 ```glisp
 {width: 100
- height: ./width                ;; parent = record, sibling 'width' = 100
- area: (* ../width ../height)}  ;; grandparent (call's parent) = record, lookup width/height
+ height: ./width:               ;; parent = record, its field 'width' = 100
+ area: (* ../width: ../height:)};; grandparent (call's parent) = record, its fields width and height
 
 [10 ./0]                        ;; parent = vector, element 0 = 10 → vector evaluates to [10 10]
 
 [./1 "str with index 1"]        ;; ./1 = vector's element 1 → ["str with index 1" "str with index 1"]
 
-(+ x ./xs/0)                    ;; in a call, ./xs/0 = the first of the variadic arguments = x
+(+ x ./xs:/0)                   ;; in a call, ./xs:/0 = the first of the variadic arguments = x
                                 ;; → equivalent to (+ x x)
 ```
 
-Paths walk every AST level, including records, vectors, and function applications, but not every expression has a path. Metadata is not a level: a path passes through it, so `{z = ^{label: "L"} {a: 7} q = ./z/a}` reaches `7`.
+Paths walk every AST level, including records, vectors, and function applications, but not every expression has a path. Metadata and names are not levels: a path passes through them, so `{z = ^{label: "L"} {a: 7} q = ./z/a:}` reaches `7`.
 
-- A let-block's trailing expression has none. Bind it to a name to reference it (`{a = 10 r = (* a 2) r}`, then `./r`).
+- A let-block's trailing expression has none unless it has a name (`{a = 10 r = (* a 2)}`, then `./r`).
 - A call's head has none, and neither does a function's parameters, generics, or body. A path cannot descend into a function literal.
-- A path cannot appear in a function signature, as a parameter's type or the return type. This is a syntax error. Bare-name lookup of an unqualified `x`, by contrast, walks only scope-introducing forms (let-blocks and function literals). Records, vectors, and applications are transparent to bare-name lookup but addressable via path.
+- A path cannot appear in a function signature, as a parameter's type or the return type. This is a syntax error. Bare-name lookup of an unqualified `x`, by contrast, looks only at [names](#names--) and a function's parameters, and passes over keys and indices.
 
 A path beginning with `/` starts from the root, the outermost node of the program, wherever it is written. It comes to the same as climbing there with `..`, and counts no levels, so what is around it can change without it saying anything else. `/` right before a name or an index begins such a path; otherwise, it is division, so write `(/ a b)` with a space.
 
@@ -213,23 +208,24 @@ Semantics (in conjunction with the `()` missing-value signal — see [types.md](
 
 The block contents determine the kind:
 
-- All entries `name: expr` → **record**.
-- Otherwise (entries `name = expr` and at most one trailing bare expression) → **let-block**.
-- Mixing `:` and `=` is a syntax error.
+- All entries `key: expr` → **record**. What fills a field may have a [name](#names--) of its own, as in `{x: c = 10}`.
+- Otherwise every entry is `name = expr`, except that the last may go without a name → **let-block**. It comes to its last entry, named or not.
+- Mixing `:` and `=` entries is a syntax error.
 
 ```glisp
 {x: 10 y: 20}                  ;; record
 {a = 10 b = 20 (+ a b)}        ;; let-block → 30
-{a = 10 b = 20}                ;; let-block, no trailing expression → unit
+{a = 10 b = 20}                ;; let-block → 20, its last entry
+{a = 10 r = (+ a 1)}           ;; let-block → 11, and ./r reaches what it comes to
 {}                             ;; empty record
 {()}                           ;; empty let-block → unit
 {x: 10  a = 20}                ;; ❌ syntax error
-{a = 10 (foo) (+ a 1)}         ;; ❌ syntax error: only one trailing bare expression allowed
+{a = 10 (foo) (+ a 1)}         ;; ❌ syntax error: only the last entry may go without a name
 ```
 
 #### Order
 
-A let-block is a graph of what refers to what, and the order of its bindings means nothing: a binding can refer to one written after it, and writing them in another order changes no value. What has an order is a vector.
+A let-block is a graph of what refers to what, and the order of its bindings means nothing but which is last: a binding can refer to one written after it, and writing the others in another order changes no value. The order is kept as written, for a host to show them in, as an editor shows lines; what has an order in its value is a vector.
 
 <!-- test -->
 ```glisp
@@ -239,15 +235,43 @@ A let-block is a graph of what refers to what, and the order of its bindings mea
 
 #### Duplicate names
 
-A record may not list the same field name twice. A let-block may not bind the same name twice. The duplicate is a diagnostic, but evaluation does not throw — it is **recoverable**: the **last entry wins** and overrides earlier ones.
+A record may not list the same field name twice. No two expressions directly in the same node may have the same [name](#names--), which for a let-block is binding the same name twice. The duplicate is a diagnostic, but evaluation does not throw — it is **recoverable**: the **last entry wins** and overrides earlier ones, for a bare name and for a path alike.
 
 <!-- test -->
 ```glisp
 {x: 10 x: 20}                  ;; → {x: 20}  (with a warning)
 {a = 10 a = 20 a}              ;; → 20  (with a warning)
+{v = [a = 1 a = 2] ./v/a}      ;; → 2  (with a warning)
 ```
 
+Names need only differ among what is directly in one node, so the same name can be given again in another, as `r` is in every function that has one.
+
 The last-wins rule keeps the language consistent with hosts whose serialization layers (JS object literals, JSON parsers, many config formats) drop earlier duplicates silently.
+
+### Names — `=`
+
+`name = expr` gives an expression a name, wherever it stands: as a binding of a let-block, an element of a vector, an argument of a call, or what fills a record's field. The name changes no value, and adds no level for paths. A host shows it, as the name of a layer.
+
+A bare name is looked up by going up from where it is written, one node at a time, and at each among the names of what is directly in it. The nearest wins. Every node is looked in the same way, so there is one kind of name, and a let-block is only a node every entry of which has a name, but the last. A path reaches what has a name too (see [Path](#path-----and-)).
+
+```glisp
+[a = 1 b = 2]                  ;; → [1 2]
+[a = 1 (+ a 1)]                ;; → [1 2]
+(+ a = 1 a)                    ;; → 2
+{x: c = 10 y: (* c 2)}         ;; → {x: 10 y: 20}
+{c = 1 [c = 10 c]}             ;; → [10 10], the nearer c
+{x = 10 y = (+ x = 2 (* x 3))}        ;; → 8: x is the 2, named in the call nearer to it
+{x = 10 y = (+ x = 2 (* ../../x 3))}  ;; → 32: ./ is (* ...), ../ is (+ ...), ../../ the block
+[c = 10 (+ ../c 1)]            ;; a path reaches it too: ./ is the call, ../ the vector → [10 11]
+```
+
+A key is not a name. A parameter's name is the callee's, and it is not in scope at the call: in `(circle center: [0 0] radius: center)`, `center` is not the argument, but whatever `center` is around the call.
+
+- One expression has one name. `a = b = 1` is a syntax error.
+- Metadata, `@` and `#_` go on what is named, after `=`: `a = ^{label: "A"} @10`.
+- A call's head, a spread, and what makes up a function literal (its parameters, generics, return type and body) take no name, as a path cannot reach them.
+
+A let-block's bindings are where things are defined (see [Hiding](#hiding--_)). What has a name anywhere else is used where it stands: a vector's named element is drawn like any other.
 
 ## Functions
 
@@ -295,36 +319,37 @@ See [Spread](#spread--) for how to call variadic functions and for spread in vec
 
 ### Application — keyword arguments
 
-Any positional parameter of a function can be passed by name at the call site using `name=value`. No special declaration is required at the definition: every parameter is automatically callable both positionally and by keyword.
+Any positional parameter of a function can be passed by name at the call site using `name: value`, as a record's field is written. No special declaration is required at the definition: every parameter is automatically callable both positionally and by keyword.
 
 ```glisp
 (=> (x: number y: number z: number): number (* x y z))
 
 (f 2 3 4)              ;; all positional → 24
-(f x=2 y=3 z=4)        ;; all keyword → 24
-(f 2 z=4 y=3)          ;; positional first, then keyword in any order → 24
-(f y=3 x=2 z=4)        ;; keyword only, in any order → 24
+(f x: 2 y: 3 z: 4)     ;; all keyword → 24
+(f 2 z: 4 y: 3)        ;; positional first, then keyword in any order → 24
+(f y: 3 x: 2 z: 4)     ;; keyword only, in any order → 24
 ```
 
 Rules:
 
 - Once a keyword argument appears in a call, no further positional argument may follow.
+- What is passed, by keyword or by position, may have a [name](#names--): `(circle radius: r = 10)`. `(f a = 1)` passes `1` by position, named `a`; `(f a: 1)` passes it to the parameter `a`.
 - Each parameter must receive at most one binding (positional or keyword, not both). Double-binding emits a diagnostic.
 - A keyword whose name is not a parameter of the callee emits a diagnostic.
 - A required parameter (no `?` suffix) that receives no binding emits a diagnostic; the slot is filled with the parameter type's `default`.
 - An optional parameter (`?` suffix) that receives no binding silently uses the parameter type's `default`.
-- A variadic parameter `...rest` collects the remaining positional arguments into a vector. It can also be filled by keyword as a single vector value (`rest=[1 2 3]`). Mixing the two — positional rest-elements *and* a same-named kwarg — is a double-binding error.
+- A variadic parameter `...rest` collects the remaining positional arguments into a vector. It can also be filled by keyword as a single vector value (`rest: [1 2 3]`). Mixing the two — positional rest-elements *and* a same-named kwarg — is a double-binding error.
 
 A variadic parameter is always the last one in the parameter list (see [Variadic parameters](#variadic-parameters)). Optional parameters must therefore precede the variadic, never follow it — this avoids the parse ambiguity TS's "no optional after rest" rule guards against.
 
 ```glisp
 ;; (=> (init: number name?: string ...rest: number): number ...)
 
-(f 1)                                 ;; init=1, name unspecified, rest=[]
-(f 1 "foo" 2 3)                       ;; init=1, name="foo", rest=[2 3]
+(f 1)                                 ;; init: 1, name unspecified, rest: []
+(f 1 "foo" 2 3)                       ;; init: 1, name: "foo", rest: [2 3]
 (f 1 2 3)                             ;; ❌ second positional must satisfy `string` for `name`
-(f 1 name="foo" rest=[2 3])           ;; all keyword
-(f init=1 rest=[2 3 4])               ;; name is omitted (optional)
+(f 1 name: "foo" rest: [2 3])         ;; all keyword
+(f init: 1 rest: [2 3 4])             ;; name is omitted (optional)
 ```
 
 ## Spread — `...`
@@ -470,20 +495,19 @@ For non-fallback type tests (membership without consuming the default), pattern-
 (x: number)                            ;; argument
 (=> (a: number): number ...)           ;; return type after `:`
 {x: 10}                                ;; record key
+(f x: 10)                              ;; keyword argument
 ^{label: "..."}                        ;; metadata record key
 ```
 
 ## Local binding
 
-`=` binds a name to a value in a let-block. The language has no other way to bind a name. A REPL or application shell may offer `name = expr` at its top level, as syntax for an `IO` action that edits the environment's let-block.
+`=` [names](#names--) an expression, and the name is bound for what is around it, in a let-block or anywhere else. The language has no other way to bind a name. A REPL or application shell may offer `name = expr` at its top level, as syntax for an `IO` action that edits the environment's let-block.
 
 ```glisp
 {a = 10
  b = 20
  (+ a b)}
 ```
-
-The same `=` is reused for keyword arguments at function application sites.
 
 ## Metadata — `^{...}` prefix
 
@@ -506,8 +530,8 @@ The `{...}` after `^` is a record literal (uses `:` for keys).
 <!-- test -->
 ```glisp
 {a = @10 (+ a 1)}                       ;; → 11
-{z = @{a: 7} q = ./z/a q}               ;; → 7
-{z = ^{label: "Z"} @{a: 7} q = ./z/a q} ;; → 7
+{z = @{a: 7} q = ./z/a: q}               ;; → 7
+{z = ^{label: "Z"} @{a: 7} q = ./z/a: q} ;; → 7
 ```
 
 `@` joins other metadata, as in `^{label: "Width"} @100`. `@@a` is a syntax error, and so is `@` as a key of `^{...}`.
@@ -620,8 +644,8 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `(...)`       | function/value application                             |
 | `[...]`       | vector                                                 |
 | `{...}`       | record / let-block                                     |
-| `:`           | type annotation, return type, record key, metadata key; coerce form when directly after `(` |
-| `=`           | local binding, keyword argument                        |
+| `:`           | type annotation, return type, record key, keyword argument, metadata key; a key in a path; coerce form when directly after `(` |
+| `=`           | names an expression, binding the name for what is around it |
 | `=>`          | function literal                                       |
 | `^{...}`      | metadata attachment                                    |
 | `~`           | work out within one expansion step                     |

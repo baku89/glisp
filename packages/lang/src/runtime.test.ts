@@ -154,7 +154,7 @@ describe('Runtime — correctness of hits', () => {
 	})
 
 	it('sees a change through a path', () => {
-		expect(run('{w: 1 h: ./w}', '{w: 2 h: ./w}')).toEqual([
+		expect(run('{w: 1 h: ./w:}', '{w: 2 h: ./w:}')).toEqual([
 			{ w: 1, h: 1 },
 			{ w: 2, h: 2 },
 		])

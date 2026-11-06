@@ -81,22 +81,22 @@ describe('axes', () => {
 	})
 
 	it('are drawn in the end, through their origin, in their color and width', () => {
-		const file = exported(`[${a} x = (axes origin=[5 7] color="#00ff00" width=3)]`)
+		const file = exported(`[${a} x = (axes origin: [5 7] color: "#00ff00" width: 3)]`)
 		expect(file).toContain('d="M 5 -3 V 3 M -3 7 H 3" stroke="#00ff00" stroke-width="3"')
 	})
 
 	it('are in their place among the layers', () => {
-		const front = exported(`[x = (axes color="#00ff00") ${a}]`)
+		const front = exported(`[x = (axes color: "#00ff00") ${a}]`)
 		expect(front.indexOf('id="a"')).toBeLessThan(front.indexOf('#00ff00'))
-		const back = exported(`[${a} x = (axes color="#00ff00")]`)
+		const back = exported(`[${a} x = (axes color: "#00ff00")]`)
 		expect(back.indexOf('#00ff00')).toBeLessThan(back.indexOf('id="a"'))
 	})
 
 	it('go out of sight and come back as they were, or come to be if there are none', () => {
 		const toggled = (source: string) => print(withAxesToggled(parse(source) as LetAST, env))
-		const on = '[x = (axes origin=[1 2])]'
+		const on = '[x = (axes origin: [1 2])]'
 		const off = toggled(on)
-		expect(off).toBe('[x = #_(axes origin=[1 2])]')
+		expect(off).toBe('[x = #_(axes origin: [1 2])]')
 		expect(toggled(off)).toBe(on)
 		expect(toggled('[a = (path.circle [0 0] 1)]')).toContain('axes1 = (axes)')
 	})
@@ -104,7 +104,7 @@ describe('axes', () => {
 	it('say only what is not as it would be anyway', () => {
 		const value = (source: string) => paintedIn(parse(source), env).find(({ draw }) => draw === 'axes')!.value as AxesValue
 		expect(print(value('[x = (axes)]')[AS_SOURCE]())).toBe('(axes)')
-		expect(print(value('[x = (axes origin=[1 2] width=2)]')[AS_SOURCE]())).toBe('(axes origin=[1 2] width=2)')
+		expect(print(value('[x = (axes origin: [1 2] width: 2)]')[AS_SOURCE]())).toBe('(axes origin: [1 2] width: 2)')
 	})
 })
 
@@ -128,7 +128,7 @@ describe('what was written before', () => {
 
 	it('has lines out from a center come to a group of them, each styled as the whole was', () => {
 		expect(writtenAsNow('(path.radial [10 20] [[0 5 15] [90 0 10]])')).toBe('[line1 = (path.line [15 20] [25 20]) line2 = (path.line [10 20] [10 30])]')
-		expect(writtenAsNow('(style (path.radial [0 0] [[0 1 2]]) stroke="#fff" width=3)')).toBe('[line1 = (style (path.line [1 0] [2 0]) stroke="#fff" width=3)]')
+		expect(writtenAsNow('(style (path.radial [0 0] [[0 1 2]]) stroke: "#fff" width: 3)')).toBe('[line1 = (style (path.line [1 0] [2 0]) stroke: "#fff" width: 3)]')
 		const worked = '(path.radial [0 0] (map (range 0 3) f))'
 		expect(writtenAsNow(worked)).toBe(worked)
 	})
@@ -161,21 +161,21 @@ describe('a graph paper', () => {
 	})
 
 	it('has a color and a width, which it does without saying', () => {
-		const said = graphPaperOf(parse('{g = (graphPaper "lines" color="#ff0000" width=3)}'), env)!
+		const said = graphPaperOf(parse('{g = (graphPaper "lines" color: "#ff0000" width: 3)}'), env)!
 		expect([said.color, said.width]).toEqual(['#ff0000', 3])
 		const plain = graphPaperOf(parse('{g = (graphPaper "lines")}'), env)!
 		expect(plain.width).toBe(1)
 		expect(print(plain[AS_SOURCE]())).toBe('(graphPaper "lines")')
-		expect(print(said[AS_SOURCE]())).toBe('(graphPaper "lines" color="#ff0000" width=3)')
-		expect(graphPaperOf(parse('{g = (graphPaper "lines" width=-1)}'), env)!.width).toBe(0)
+		expect(print(said[AS_SOURCE]())).toBe('(graphPaper "lines" color: "#ff0000" width: 3)')
+		expect(graphPaperOf(parse('{g = (graphPaper "lines" width: -1)}'), env)!.width).toBe(0)
 	})
 
 	it('goes from an origin, by a step, and adaptive unless it says otherwise', () => {
 		const plain = graphPaperOf(parse('{g = (graphPaper "dots")}'), env)!
 		expect([plain.origin, plain.step, plain.adaptive]).toEqual([[0, 0], 20, true])
-		const said = graphPaperOf(parse('{g = (graphPaper "dots" origin=[5 7] step=50 adaptive=false)}'), env)!
+		const said = graphPaperOf(parse('{g = (graphPaper "dots" origin: [5 7] step: 50 adaptive: false)}'), env)!
 		expect([said.origin, said.step, said.adaptive]).toEqual([[5, 7], 50, false])
-		expect(print(said[AS_SOURCE]())).toBe('(graphPaper "dots" origin=[5 7] step=50 adaptive=false)')
+		expect(print(said[AS_SOURCE]())).toBe('(graphPaper "dots" origin: [5 7] step: 50 adaptive: false)')
 		expect(print(plain[AS_SOURCE]())).toBe('(graphPaper "dots")')
 	})
 
@@ -189,41 +189,41 @@ describe('a graph paper', () => {
 
 	it('has a step that can be drawn, whatever it is told', () => {
 		for (const step of [0, -5]) {
-			expect(graphPaperOf(parse(`{g = (graphPaper "dots" step=${step})}`), env)!.step).toBe(20)
+			expect(graphPaperOf(parse(`{g = (graphPaper "dots" step: ${step})}`), env)!.step).toBe(20)
 		}
 	})
 
 	it('is as it is at full size in the end, adaptive or not', () => {
-		for (const adaptive of ['', ' adaptive=false']) {
-			const root = parse(`[a = (path.circle [0 0] 1) g = (graphPaper "lines" step=50${adaptive})]`)
+		for (const adaptive of ['', ' adaptive: false']) {
+			const root = parse(`[a = (path.circle [0 0] 1) g = (graphPaper "lines" step: 50${adaptive})]`)
 			const file = svgOfRows(root, env, exportedRows(root, env, ['binding:a']))!
 			expect(file).toContain('<pattern id="g" width="50" height="50"')
 		}
 	})
 
 	it('is moved by its origin in the end', () => {
-		const root = parse('[a = (path.circle [0 0] 1) g = (graphPaper "dots" origin=[5 7])]')
+		const root = parse('[a = (path.circle [0 0] 1) g = (graphPaper "dots" origin: [5 7])]')
 		const file = svgOfRows(root, env, exportedRows(root, env, ['binding:a']))!
 		expect(file).toContain('patternTransform="translate(-5 -3)"')
 	})
 
 	it('is drawn in its color and width in the end', () => {
-		const root = parse('[a = (path.circle [0 0] 1) g = (graphPaper "dots" color="#ff000080" width=2)]')
+		const root = parse('[a = (path.circle [0 0] 1) g = (graphPaper "dots" color: "#ff000080" width: 2)]')
 		const file = svgOfRows(root, env, exportedRows(root, env, ['binding:a']))!
 		expect(file).toContain('r="2" fill="#ff0000" fill-opacity="0.502"')
-		const lines = parse('[a = (path.circle [0 0] 1) g = (graphPaper "lines" color="#00ff00" width=3)]')
+		const lines = parse('[a = (path.circle [0 0] 1) g = (graphPaper "lines" color: "#00ff00" width: 3)]')
 		const other = svgOfRows(lines, env, exportedRows(lines, env, ['binding:a']))!
 		expect(other).toContain('stroke="#00ff00" stroke-width="3"')
 	})
 
 	it('keeps its color and width through being turned off and on, and going to another kind', () => {
-		const on = '[g = (graphPaper "dots" color="#ff0000" width=2)]'
+		const on = '[g = (graphPaper "dots" color: "#ff0000" width: 2)]'
 		const off = toggled(on, 'dots')
 		expect(graphPaperIn(off)).toBeNull()
 		expect(toggled(off, 'dots')).toBe(on)
-		expect(toggled(on, 'lines')).toBe('[g = (graphPaper "lines" color="#ff0000" width=2)]')
-		expect(toggled(off, 'lines')).toBe('[g = (graphPaper "lines" color="#ff0000" width=2)]')
-		expect(toggled('{c = "#ff0000" g = (graphPaper "dots" color=c)}', 'lines')).toContain('color=c')
+		expect(toggled(on, 'lines')).toBe('[g = (graphPaper "lines" color: "#ff0000" width: 2)]')
+		expect(toggled(off, 'lines')).toBe('[g = (graphPaper "lines" color: "#ff0000" width: 2)]')
+		expect(toggled('{c = "#ff0000" g = (graphPaper "dots" color: c)}', 'lines')).toContain('color: c')
 	})
 
 	it('is not a shape, and is not in an SVG', () => {

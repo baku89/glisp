@@ -26,6 +26,8 @@ import {
 	isTypeValue,
 	LetAST,
 	LitAST,
+	isKeySegment,
+	keySegment,
 	lookupBareName,
 	MetaAST,
 	parse,
@@ -1529,16 +1531,16 @@ function levelsTo(
 		const slot = viewOf(node, nodeEnv).slots.find(s => s.key === key)
 		if (slot === undefined) return null
 		if (key.startsWith(BINDING)) levels.push(key.slice(BINDING.length))
-		else if (key.startsWith('field:')) levels.push(key.slice('field:'.length))
-		else if (key.startsWith('kw:')) levels.push(key.slice('kw:'.length))
+		else if (key.startsWith('field:')) levels.push(keySegment(key.slice('field:'.length)))
+		else if (key.startsWith('kw:')) levels.push(keySegment(key.slice('kw:'.length)))
 		else if (/^\d+$/.test(key)) levels.push(Number(key))
 		else if (key.startsWith('arg') && bare.kind === 'call') {
 			const index = Number(key.slice('arg'.length))
 			const parameters = callParameters(bare, slot.env)
 			const name = parameters?.names[index]
-			if (name !== undefined) levels.push(name)
+			if (name !== undefined) levels.push(keySegment(name))
 			else if (parameters?.variadicName !== undefined) {
-				levels.push(parameters.variadicName, index - parameters.names.length)
+				levels.push(keySegment(parameters.variadicName), index - parameters.names.length)
 			} else return null
 		} else return null
 		found = slot
@@ -1649,7 +1651,7 @@ export function writtenReference(root: AST, env: Env, path: string): string | nu
 	if (levels === undefined) return null
 	const [only] = levels
 	return print(
-		levels.length === 1 && typeof only === 'string' ? new SymAST(only) : new PathAST(['/', ...levels])
+		levels.length === 1 && typeof only === 'string' && !isKeySegment(only) ? new SymAST(only) : new PathAST(['/', ...levels])
 	)
 }
 

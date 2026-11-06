@@ -55,7 +55,7 @@ interface Elem {
 	readonly parts: ReadonlyArray<string | Group>
 }
 
-/** `name = value`, `k=value`, `name: type`, `(params): type` or `^{...} value`. */
+/** `name = value`, `k: value`, `name: type`, `(params): type` or `^{...} value`. */
 interface Pair {
 	readonly kind: 'pair'
 	readonly left: Elem
@@ -248,19 +248,7 @@ class Reader {
 		const dangling = this.gaps[this.pos]!.comments
 		this.gaps[this.pos] = { comments: [], blankAfter: false }
 		this.advance()
-		const inCall = open === '('
-		return {
-			open,
-			close,
-			dangling,
-			// A keyword argument goes with its name, unless that would be read as something else.
-			items: items.map(item => {
-				const { value } = item
-				if (!inCall || value.kind !== 'pair' || value.by !== '=') return item
-				const said = flat(value.right)
-				return said?.startsWith('=') ? item : { ...item, value: { ...value, between: '=' } }
-			}),
-		}
+		return { open, close, dangling, items }
 	}
 }
 
@@ -277,6 +265,12 @@ const groupOf = (value: Value): Group | null => {
 }
 
 const isBinding = (item: Item): boolean => item.value.kind === 'pair' && item.value.by === '='
+
+/** A keyword argument, `k: value`, in a call. */
+const isKeyword = (item: Item): boolean => item.value.kind === 'pair' && item.value.by === ':'
+
+/** What is given with a name or a key, which does not stay on the line of what it is given to. */
+const isPaired = (item: Item): boolean => isBinding(item) || isKeyword(item)
 
 /** Bindings, which have a line each, as there is no telling them apart otherwise. */
 const isBlock = ({ open, items }: Group): boolean =>
@@ -414,7 +408,13 @@ class Layout {
 	}
 
 	/** On their own lines from here on, aligned at `indent`, with keywords and with names going on for as long as they fit. */
-	private rest(items: readonly Item[], dangling: readonly Comment[], indent: number, after: number): string {
+	private rest(
+		items: readonly Item[],
+		dangling: readonly Comment[],
+		indent: number,
+		after: number,
+		goesOn: (item: Item) => boolean = isBinding
+	): string {
 		const pad = ' '.repeat(indent)
 		let out = ''
 		let line = ''
@@ -427,7 +427,7 @@ class Layout {
 			const isLast = i === items.length - 1
 			const closing = isLast && dangling.length === 0 && item.trailing === null ? after : 0
 			const whole = flat(item.value)
-			const kind = hasComments(item) || whole === null ? null : isBinding(item) ? 'keyword' : isAtom(item.value) ? 'atom' : null
+			const kind = hasComments(item) || whole === null ? null : goesOn(item) ? 'keyword' : isAtom(item.value) ? 'atom' : null
 			if (kind !== null && kind === lineKind && this.fits(`${line} ${whole!}`, indent, closing)) {
 				line += ` ${whole!}`
 				return
@@ -462,7 +462,7 @@ class Layout {
 		out += this.value(head.value, indent, columnAfter(out, column), 0)
 		if (head.trailing !== null) {
 			out += ` ${head.trailing.text}`
-			return out + this.rest(others, dangling, inner, closed) + closing
+			return out + this.rest(others, dangling, inner, closed, isKeyword) + closing
 		}
 		let at = columnAfter(out, column)
 		let i = 0
@@ -490,7 +490,7 @@ class Layout {
 			dangling.length === 0 &&
 			!others.some(hasComments) &&
 			!before.includes(null) &&
-			!others.some(isBinding) &&
+			!others.some(isPaired) &&
 			this.fits(before.map(text => ` ${text}`).join(''), at, 0)
 		) {
 			const said = before.map(text => ` ${text}`).join('')
@@ -502,7 +502,7 @@ class Layout {
 		while (i < others.length) {
 			const item = others[i]!
 			const text = flat(item.value)
-			if (text === null || item.leading.length > 0 || isBinding(item) || !isSimple(item.value, i === 0)) break
+			if (text === null || item.leading.length > 0 || isPaired(item) || !isSimple(item.value, i === 0)) break
 			const isLast = i === others.length - 1
 			if (!this.fits(` ${text}`, at, isLast ? closed : 0)) break
 			out += ` ${text}`
@@ -513,7 +513,7 @@ class Layout {
 				break
 			}
 		}
-		return out + this.rest(others.slice(i), dangling, inner, closed) + closing
+		return out + this.rest(others.slice(i), dangling, inner, closed, isKeyword) + closing
 	}
 
 	/** Each aligned with the first, with what is only numbers and names going on for as long as it fits. */

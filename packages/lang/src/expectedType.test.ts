@@ -28,7 +28,7 @@ describe('expectedTypeAt — call positions', () => {
 		// `not` has paramNames undefined → no kwarg slot. Use a closure
 		// where param names are intrinsic.
 		const call = parse(
-			'((=> (a: number b: string): _ a) 1 b="x")'
+			'((=> (a: number b: string): _ a) 1 b: "x")'
 		) as CallAST
 		const tA = expectedTypeAt(call, 'a', env)
 		expect(tA?.typeName).toBe('number')
@@ -72,7 +72,7 @@ describe('expectedTypeAt — edge cases', () => {
 
 	it('unknown kwarg name returns null', () => {
 		const call = parse(
-			'((=> (a: number): _ a) 1 b="x")'
+			'((=> (a: number): _ a) 1 b: "x")'
 		) as CallAST
 		expect(expectedTypeAt(call, 'nope', env)).toBeNull()
 	})

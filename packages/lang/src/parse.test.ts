@@ -135,13 +135,13 @@ describe('parse — calls', () => {
 	})
 
 	it('calls with kwargs', () => {
-		expect(parse('(f 1 k=2 m=3)')).toEqual(
+		expect(parse('(f 1 k: 2 m: 3)')).toEqual(
 			callKw(sym('f'), [lit(1)], { k: lit(2), m: lit(3) })
 		)
 	})
 
 	it('rejects positional after keyword', () => {
-		expect(() => parse('(f k=1 2)')).toThrow(ParseError)
+		expect(() => parse('(f k: 1 2)')).toThrow(ParseError)
 	})
 
 	it('rejects empty application', () => {
@@ -383,7 +383,7 @@ describe('parse — round-trip', () => {
 			'foo',
 			'(+ 1 2)',
 			'(* (+ 1 2) 3)',
-			'(f 1 k=2 m=3)',
+			'(f 1 k: 2 m: 3)',
 			'a.b.c',
 			'arr.2',
 			'[1 2 3]',
@@ -477,7 +477,7 @@ describe('parse — special forms (parser is permissive)', () => {
 			'(make-point).x',
 			'a.b.c',
 			'(=> (x: number): number x)',
-			'(f k=(g))',
+			'(f k: (g))',
 			'[...xs]',
 			'(* ~x ...~xs)',
 			'^{a: 1} x',

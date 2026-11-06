@@ -205,15 +205,15 @@ describe('what is put around what is drawn', () => {
 		}
 		const problems = (ast: AST) => evaluate(ast, env).diagnostics.map(({ message }) => message)
 		const styled = `[
-			ngon = (style ${NGON} fill="#000000")
-			dots = (style (path.unite (path.circle /ngon/path/center 10) (path.circle [/ngon/path/radius 0] 10)) fill="#000000")
-			other = (path.circle /dots/path/a/center 1)
+			ngon = (style ${NGON} fill: "#000000")
+			dots = (style (path.unite (path.circle /ngon/path:/center: 10) (path.circle [/ngon/path:/radius: 0] 10)) fill: "#000000")
+			other = (path.circle /dots/path:/a:/center: 1)
 		]`
 
 		it('goes on going there, whichever is the subject', () => {
 			for (const [names, center] of [
-				[['ngon', 'dots'], '/ngon/path/subject/center'],
-				[['dots', 'ngon'], '/dots/path/tool/center'],
+				[['ngon', 'dots'], '/ngon/path:/subject:/center:'],
+				[['dots', 'ngon'], '/dots/path:/tool:/center:'],
 			] as const) {
 				const next = on(styled)(...names)('path.subtract')
 				expect(next).not.toBeNull()
@@ -224,18 +224,18 @@ describe('what is put around what is drawn', () => {
 
 		it('has what referred to one from elsewhere follow it', () => {
 			const next = on(styled)('ngon', 'dots')('path.subtract')!
-			expect(print(next)).toContain('other = (path.circle /ngon/path/tool/a/center 1)')
+			expect(print(next)).toContain('other = (path.circle /ngon/path:/tool:/a:/center: 1)')
 			expect(problems(next)).toEqual([])
 		})
 
 		it('goes by a number, past those that have a name', () => {
-			const next = on(`[a = ${NGON} b = ${NGON} c = ${NGON} d = (path.circle /c/center 1)]`)('a', 'b', 'c')('path.unite')!
-			expect(print(next)).toContain('d = (path.circle /a/others/0/center 1)')
+			const next = on(`[a = ${NGON} b = ${NGON} c = ${NGON} d = (path.circle /c/center: 1)]`)('a', 'b', 'c')('path.unite')!
+			expect(print(next)).toContain('d = (path.circle /a/others:/0/center: 1)')
 			expect(problems(next)).toEqual([])
 		})
 
 		it('is nothing if a path climbs out of what is given', () => {
-			const climbing = `[a = ${NGON} b = (path.circle ../a/center 1)]`
+			const climbing = `[a = ${NGON} b = (path.circle ../a/center: 1)]`
 			expect(on(climbing)('a', 'b')('path.subtract')).toBeNull()
 		})
 	})
@@ -316,7 +316,7 @@ describe('how a group is drawn', () => {
 })
 
 describe('going into something, as a double click does', () => {
-	const source = `[a = ${P(1)} g = [b = ${P(2)} h = [c = ${P(3)}]] m = (style (path.offset (path.offset ${P(4)} 1) 2) fill="#000000")]`
+	const source = `[a = ${P(1)} g = [b = ${P(2)} h = [c = ${P(3)}]] m = (style (path.offset (path.offset ${P(4)} 1) 2) fill: "#000000")]`
 	const root = parse(source)
 	const [G, H, B, C] = ['binding:g', 'binding:g/binding:h', 'binding:g/binding:b', 'binding:g/binding:h/binding:c']
 	const M = 'binding:m/arg0'
@@ -361,7 +361,7 @@ describe('going into something, as a double click does', () => {
 })
 
 describe('a vector of what is drawn, with no names, as a spray comes to', () => {
-	const circle = (x: number) => `(style (path.d "M ${x + 1} 0 A 1 1 0 0 1 ${x - 1} 0 A 1 1 0 0 1 ${x + 1} 0 Z") fill="#000000")`
+	const circle = (x: number) => `(style (path.d "M ${x + 1} 0 A 1 1 0 0 1 ${x - 1} 0 A 1 1 0 0 1 ${x + 1} 0 Z") fill: "#000000")`
 	const source = `[o = ${P(100)} s = [${circle(0)} ${circle(10)} ${circle(20)}] n = [1 2] v = [[1 2] [3 4]]]`
 	const root = parse(source)
 	const [S, FIRST] = ['binding:s', 'binding:s/0']
@@ -429,7 +429,7 @@ describe('a vector of what is drawn, with no names, as a spray comes to', () => 
 
 describe('going into what goes by a name', () => {
 	const C = '(path.circle [0 0] 10)'
-	const root = parse(`{r = (path.offset ${C} 1) [m = (style r fill="#000000") n = r o = (path.offset r 2) p = ${P(9)}]}`)
+	const root = parse(`{r = (path.offset ${C} 1) [m = (style r fill: "#000000") n = r o = (path.offset r 2) p = ${P(9)}]}`)
 	const [R, M, N, O] = ['binding:r', 'binding:m', 'binding:n', 'binding:o']
 
 	it('goes to where it is written, past a style', () => {
@@ -453,20 +453,20 @@ describe('going into what goes by a name', () => {
 	})
 
 	it('has nothing to go into in what is made from nothing, however it is named', () => {
-		const plain = parse(`{r = ${C} [m = (style r fill="#000000")]}`)
+		const plain = parse(`{r = ${C} [m = (style r fill: "#000000")]}`)
 		expect(canIsolate(plain, env, 'binding:m')).toBe(false)
 	})
 })
 
 describe('what is listed in a row that is not a group', () => {
 	const root = parse(`{r = ${P(0)} [
-		u = (style (path.unite ${P(1)} ${P(2)} ${P(3)}) fill="#000000")
+		u = (style (path.unite ${P(1)} ${P(2)} ${P(3)}) fill: "#000000")
 		h = (path.convexHull ${P(4)})
 		n = (path.offset (path.offset ${P(5)} 1) 2)
 		o = (path.offset r 2)
-		c = (style r fill="#000000")
+		c = (style r fill: "#000000")
 		p = ${P(6)}
-		s = [(style ${P(7)} fill="#000000") ${P(8)}]
+		s = [(style ${P(7)} fill: "#000000") ${P(8)}]
 		v = [1 2]
 	]}`)
 	const listed = (row: string) => rowsListedIn(root, env, `binding:${row}`).map(it => it.replace(`binding:${row}/`, ''))
@@ -507,8 +507,8 @@ describe('what is listed in a row that is not a group', () => {
 describe('the levels gone into', () => {
 	const root = parse(`{r = (path.offset ${P(0)} 1) [
 		g = [h = [a = ${P(1)}]]
-		n = (style (path.offset (path.offset ${P(2)} 1) 2) fill="#000000")
-		m = (style r fill="#000000")
+		n = (style (path.offset (path.offset ${P(2)} 1) 2) fill: "#000000")
+		m = (style r fill: "#000000")
 		o = (path.offset r 2)
 	]}`)
 	const crumbs = (gone: string[]) => crumbsOf(root, env, gone).map(({ label }) => label)
@@ -566,7 +566,7 @@ describe('grouping inside of a group', () => {
 
 describe('what is taken away, that something was drawn by', () => {
 	it('leaves that drawn where it was, at what it came to', () => {
-		const before = parse('[r = (path.rect [0 0] [100 40]) c = (path.circle [(lerp /r/origin/0 (+ /r/origin/0 /r/size/0) 0.2) /r/origin/1] 10)]')
+		const before = parse('[r = (path.rect [0 0] [100 40]) c = (path.circle [(lerp /r/origin:/0 (+ /r/origin:/0 /r/size:/0) 0.2) /r/origin:/1] 10)]')
 		const { ast, rows } = keptReferences(before, withoutRows(before, env, ['binding:r']), env)
 		expect(print(ast)).toBe('[c = (path.circle [20 0] 10)]')
 		expect(rows).toEqual(['binding:c/arg0'])

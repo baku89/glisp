@@ -181,7 +181,7 @@ describe('pastedArguments', () => {
 	})
 
 	it('gives a parameter that has not been given yet', () => {
-		expect(given('{a = (take [1 2 3])}', ['binding:a'], 'n = 2')).toBe('{a = (take [1 2 3] n=2)}')
+		expect(given('{a = (take [1 2 3])}', ['binding:a'], 'n = 2')).toBe('{a = (take [1 2 3] n: 2)}')
 	})
 
 	it('goes into what the row is made of, the nearest first', () => {

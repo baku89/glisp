@@ -27,7 +27,7 @@ _                   ;; top  (accepts anything)
 
 ## Calls
 
-A call is `(head arg ... kwarg=...)`. Whitespace separates tokens; commas are not used.
+A call is `(head arg ... kwarg: ...)`. Whitespace separates tokens; commas are not used.
 
 <!-- test -->
 ```glisp
@@ -35,7 +35,7 @@ A call is `(head arg ... kwarg=...)`. Whitespace separates tokens; commas are no
 (* 2 (+ 3 4))          ;; → 14
 ```
 
-Arguments can also be passed by name, as in `(f 1 step=2)`.
+Arguments can also be passed by name, as in `(f 1 step: 2)`.
 
 ## Vectors and records
 

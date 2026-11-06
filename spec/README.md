@@ -26,7 +26,7 @@ These follow from the GUI-primary premise:
 
 1. **CST, not AST**. The parse tree retains delimiters' trivia (whitespace, comments) so that GUI edits can be serialized back without losing formatting.
 2. **Abstraction ladder**. Every expression has progressively-more-evaluated forms with the same final value. `expand` walks one step down the ladder; `eval` jumps to the bottom. Hosts can show any rung.
-3. **Path-based cross-reference**. `./key`, `../key` address AST positions structurally, so the GUI can wire nodes together without inventing names.
+3. **Path-based cross-reference**. `./name`, `../key:` address AST positions structurally, by the names written with `=` and by keys, so the GUI can wire nodes together without inventing names.
 4. **Evaluation never throws**. Failures produce `()`, which is coerced to the slot type's `default` at typed boundaries. The GUI always has a value to display.
 5. **Diagnostics as a side channel**. Errors and warnings are accumulated on each evaluation node, with `(message, source)` structure, queryable by the host without disrupting evaluation.
 6. **Static name resolution**. Names and paths can be resolved without running the program, so the GUI can show types and references.

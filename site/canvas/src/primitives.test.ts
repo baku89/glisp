@@ -215,15 +215,15 @@ describe('which way a polygon or a star faces', () => {
 	})
 
 	it('can be said by name', () => {
-		const [x, y] = firstVertex('(path.ngon [0 0] 10 4 angle=90)')
+		const [x, y] = firstVertex('(path.ngon [0 0] 10 4 angle: 90)')
 		expect(x).toBeCloseTo(0)
 		expect(y).toBeCloseTo(10)
-		const root = parse('{c = (path.ngon [0 0] 20 4 angle=90)}')
+		const root = parse('{c = (path.ngon [0 0] 20 4 angle: 90)}')
 		const at = gripAt(root, env, ROW)!.handles[0]!.at!
 		expect(at[0]).toBeCloseTo(0)
 		expect(at[1]).toBeCloseTo(20)
 		const { ast } = changed(root, env, ROW, [{ route: [3], value: 45 }])
-		expect(source(ast!)).toBe('(path.ngon [0 0] 20 4 angle=45)')
+		expect(source(ast!)).toBe('(path.ngon [0 0] 20 4 angle: 45)')
 	})
 
 	it('comes out the same on the next rung', () => {
@@ -243,8 +243,8 @@ describe('which way a polygon or a star faces', () => {
 	})
 
 	it('says it inside a style too', () => {
-		const src = '(style (path.ngon [0 0] 20 5) fill="red")'
-		expect(pull(src, 0, [0, 30])).toBe('(style (path.ngon [0 0] 30 5 90) fill="red")')
+		const src = '(style (path.ngon [0 0] 20 5) fill: "red")'
+		expect(pull(src, 0, [0, 30])).toBe('(style (path.ngon [0 0] 30 5 90) fill: "red")')
 	})
 
 	it('goes by 45 degrees with Shift', () => {
@@ -625,7 +625,7 @@ describe('drawn out from the center', () => {
 		const snap = snapPointsOf(from, env, sceneOf(from, env)).find(p => p.target === 'binding:o/arg0')!
 		const source = (tool: ShapeTool) =>
 			print(drawnFrom(from, env, 'x', tool, snap, [80, 70], false, 0.01, true).bindings.at(-1)![1])
-		expect(source('ellipse')).toMatch(/^\(path\.ellipse \/o\/center \[30 20\]\)$/)
+		expect(source('ellipse')).toMatch(/^\(path\.ellipse \/o\/center: \[30 20\]\)$/)
 		expect(source('rect')).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 20\)\] \[60 40\]\)$/)
 	})
 })
@@ -703,7 +703,7 @@ describe('the part of a row that a handle is', () => {
 		expect(of('(path.ngon [0 0] 20 5 30)', 0)).toEqual(['binding:c/arg1', 'binding:c/arg3'])
 		expect(of('(path.star [0 0] 20 10 5 30)', 0)).toEqual(['binding:c/arg1', 'binding:c/arg4'])
 		expect(of('(path.spiral [0 0] 0 20 3)', 1)).toEqual(['binding:c/arg2', 'binding:c/arg3'])
-		expect(of('(style (path.ngon [0 0] 20 5 30) fill="red")', 0)).toEqual(['binding:c/arg0/arg1', 'binding:c/arg0/arg3'])
+		expect(of('(style (path.ngon [0 0] 20 5 30) fill: "red")', 0)).toEqual(['binding:c/arg0/arg1', 'binding:c/arg0/arg3'])
 	})
 
 	it('is only as far out, if which way is not written', () => {
@@ -722,8 +722,8 @@ describe('the part of a row that a handle is', () => {
 	})
 
 	it('goes inside what is around it', () => {
-		expect(of('(style (path.circle [0 0] 20) fill="red")', 0)).toBe('binding:c/arg0/arg1')
-		expect(of('(style (path.circle [0 0] 20) fill="red")', 1)).toBe('binding:c/arg0/arg0')
+		expect(of('(style (path.circle [0 0] 20) fill: "red")', 0)).toBe('binding:c/arg0/arg1')
+		expect(of('(style (path.circle [0 0] 20) fill: "red")', 1)).toBe('binding:c/arg0/arg0')
 	})
 })
 
@@ -1159,7 +1159,7 @@ describe('a place of which only a part can change', () => {
 })
 
 describe('what refers to a place on something else', () => {
-	const REF = 'b = (path.circle [(+ ../../../a/center/0 ../../../a/radius) ../../a/center/1] 30)'
+	const REF = 'b = (path.circle [(+ ../../../a/center:/0 ../../../a/radius:) ../../a/center:/1] 30)'
 	const moved = (a: string) => {
 		const root = parse(`{a = ${a} ${REF}}`)
 		const { ast } = changed(root, env, 'binding:b', [{ route: [0], value: [170, 120] }])

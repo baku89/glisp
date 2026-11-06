@@ -11,7 +11,7 @@
  */
 
 import { desugar } from './desugar.js'
-import { childAt, enterNode, lookupBareName, rootFrame, typeFits } from './eval.js'
+import { childAt, enterNode, isKeySegment, keySegment, lookupBareName, rootFrame, typeFits } from './eval.js'
 import { expectedTypeAt } from './expectedType.js'
 import { callParameters, infer } from './infer.js'
 import {
@@ -167,13 +167,14 @@ function levelOf(frame: NonNullable<Env>, node: AST): Segments[number] | null {
 	}
 	if (holder.kind === 'record') {
 		for (const field of holder.fields) {
-			if (!('kind' in field) && is(field[1])) return field[0]
+			if (!('kind' in field) && is(field[1])) return keySegment(field[0])
 		}
 		return null
 	}
 	if (holder.kind !== 'call') return null
-	for (const [name, value] of holder.kwargs ?? []) if (is(value)) return name
-	return callParameters(holder, frame)?.names[holder.args.findIndex(is)] ?? null
+	for (const [name, value] of holder.kwargs ?? []) if (is(value)) return keySegment(name)
+	const name = callParameters(holder, frame)?.names[holder.args.findIndex(is)]
+	return name === undefined ? null : keySegment(name)
 }
 
 /**
@@ -263,7 +264,7 @@ export function withPathsInto(root: AST, env: Env, call: CallAST): AST {
 			if (withoutMeta(child) === call) {
 				frame = enterNode(call, frame)
 				here = held
-				out.push(parameter)
+				out.push(keySegment(parameter))
 			}
 		}
 		return unchangedOr(path, out)
@@ -281,11 +282,11 @@ export function withPathsInto(root: AST, env: Env, call: CallAST): AST {
 			const { ast } = at
 			if (ast.kind === 'fn' && ast.params.some(p => p.name === name.name)) return name
 			if (ast.kind === 'let' && ast.bindings.some(([, value]) => value === target.ast)) {
-				const relative = new PathAST([...climbs, name.name, parameter])
+				const relative = new PathAST([...climbs, name.name, keySegment(parameter)])
 				const levels = fromRootTo(at)
 				return levels === null
 					? relative
-					: shortestPath(relative, new PathAST(['/', ...levels, name.name, parameter]))
+					: shortestPath(relative, new PathAST(['/', ...levels, name.name, keySegment(parameter)]))
 			}
 			climbs.push('..')
 		}
@@ -344,7 +345,7 @@ export function withoutCall(root: AST, env: Env, call: CallAST): AST | null {
 			}
 			if (here === null) return path
 			const holder: AST = withoutMeta(here)
-			if (holder === call && segment !== parameter) return path
+			if (holder === call && (parameter === null || segment !== keySegment(parameter))) return path
 			const child = childAt(holder, segment, frame)
 			if (child === null) return path
 			if (!entered) frame = enterNode(holder, frame)
@@ -358,6 +359,7 @@ export function withoutCall(root: AST, env: Env, call: CallAST): AST | null {
 			out.length < path.segments.length &&
 			here === held &&
 			typeof name === 'string' &&
+			!isKeySegment(name) &&
 			out.slice(0, -1).every(segment => segment === '..' || segment === '/') &&
 			withoutMeta(lookupBareName(name, start)?.ast ?? held) === call
 		return isName ? new SymAST(name) : unchangedOr(path, out)

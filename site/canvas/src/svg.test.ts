@@ -41,7 +41,7 @@ describe('svgOfRows', () => {
 
 	it('says how its line is drawn, if it is not as an SVG takes it to be', () => {
 		const svg = svgOfRows(
-			parse('{c = (style (path.line [0 0] [1 1]) stroke="#000000" cap="round" dash=[4 2])}'),
+			parse('{c = (style (path.line [0 0] [1 1]) stroke: "#000000" cap: "round" dash: [4 2])}'),
 			env,
 			['binding:c']
 		)!
@@ -162,13 +162,13 @@ describe('bindingsOfSvg', () => {
 			</svg>`)
 		).toBe(
 			[
-				'rect1 = (style (path.rect [1 2] [30 40]) fill="#000000")',
-				'circle1 = (style (path.circle [5 6] 7) fill="#000000")',
-				'ellipse1 = (style (path.ellipse [1 2] [3 4]) fill="#000000")',
-				'line1 = (style (path.line [0 0] [1 1]) fill="#000000")',
-				'polyline1 = (style (path.polyline [0 0] [1 1] [2 0]) fill="#000000")',
-				'polygon1 = (style (path.polygon [0 0] [1 1] [2 0]) fill="#000000")',
-				'path1 = (style (path.d "M0 0 L10 10") fill="#000000")',
+				'rect1 = (style (path.rect [1 2] [30 40]) fill: "#000000")',
+				'circle1 = (style (path.circle [5 6] 7) fill: "#000000")',
+				'ellipse1 = (style (path.ellipse [1 2] [3 4]) fill: "#000000")',
+				'line1 = (style (path.line [0 0] [1 1]) fill: "#000000")',
+				'polyline1 = (style (path.polyline [0 0] [1 1] [2 0]) fill: "#000000")',
+				'polygon1 = (style (path.polygon [0 0] [1 1] [2 0]) fill: "#000000")',
+				'path1 = (style (path.d "M0 0 L10 10") fill: "#000000")',
 			].reverse().join('\n')
 		)
 	})
@@ -176,7 +176,7 @@ describe('bindingsOfSvg', () => {
 	it('keeps a name that can be a name, and counts the rest', () => {
 		expect(
 			bindingsOfSvg(`<svg><rect id="logo" width="1" height="1"/><rect id="a b" width="1" height="1"/></svg>`)
-		).toBe('rect1 = (style (path.rect [0 0] [1 1]) fill="#000000")\nlogo = (style (path.rect [0 0] [1 1]) fill="#000000")')
+		).toBe('rect1 = (style (path.rect [0 0] [1 1]) fill: "#000000")\nlogo = (style (path.rect [0 0] [1 1]) fill: "#000000")')
 	})
 
 	it('has how a line is drawn, and leaves what it cannot', () => {
@@ -184,25 +184,25 @@ describe('bindingsOfSvg', () => {
 			bindingsOfSvg(
 				`<svg><circle r="1" stroke="black" stroke-linecap="round" stroke-linejoin="arcs" stroke-dasharray="4,2"/></svg>`
 			)
-		).toBe('circle1 = (style (path.circle [0 0] 1) fill="#000000" stroke="black" cap="round" dash=[4 2])')
+		).toBe('circle1 = (style (path.circle [0 0] 1) fill: "#000000" stroke: "black" cap: "round" dash: [4 2])')
 	})
 
 	it('has how it is drawn, either way it is said', () => {
 		expect(bindingsOfSvg(`<svg><circle r="1" fill="#ff0000"/></svg>`)).toBe(
-			'circle1 = (style (path.circle [0 0] 1) fill="#ff0000")'
+			'circle1 = (style (path.circle [0 0] 1) fill: "#ff0000")'
 		)
 		expect(bindingsOfSvg(`<svg><circle r="1" style="fill: none; stroke: #00f; stroke-width: 3"/></svg>`)).toBe(
-			'circle1 = (style (path.circle [0 0] 1) stroke="#00f" width=3)'
+			'circle1 = (style (path.circle [0 0] 1) stroke: "#00f" width: 3)'
 		)
 		expect(bindingsOfSvg(`<svg><circle r="1" stroke="black"/></svg>`)).toBe(
-			'circle1 = (style (path.circle [0 0] 1) fill="#000000" stroke="black")'
+			'circle1 = (style (path.circle [0 0] 1) fill: "#000000" stroke: "black")'
 		)
 	})
 
 	it('leaves out what is only there to be used', () => {
 		expect(
 			bindingsOfSvg(`<svg><defs><clipPath id="a"><rect width="1" height="1"/></clipPath></defs><!-- <circle r="1"/> --><circle r="2"/></svg>`)
-		).toBe('circle1 = (style (path.circle [0 0] 2) fill="#000000")')
+		).toBe('circle1 = (style (path.circle [0 0] 2) fill: "#000000")')
 	})
 
 	it('comes to shapes that can be drawn, pasted into a program', () => {
@@ -210,7 +210,7 @@ describe('bindingsOfSvg', () => {
 		const { ast } = pastedRows(parse('{a = 1}'), env, null, text)!
 		expect(sceneOf(ast, env).map(s => s.row)).toEqual(['binding:path1', 'binding:rect1'])
 		expect(isPath(evaluate(parse('(path.d "M0 0 C 1 0 2 0 3 3 Z")'), env).value)).toBe(true)
-		expect(print(ast)).toContain('rect1 = (style (path.rect [0 0] [1 2]) fill="#000000")')
+		expect(print(ast)).toContain('rect1 = (style (path.rect [0 0] [1 2]) fill: "#000000")')
 	})
 })
 
@@ -252,18 +252,18 @@ describe('a color that can be seen through', () => {
 	const svgOf = (source: string) => svgOfRows(parse(source), env, ['binding:c'])!
 
 	it('is written apart from how see-through it is', () => {
-		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill="#ff000040" stroke="#00000080")}')
+		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill: "#ff000040" stroke: "#00000080")}')
 		expect(svg).toContain('fill="#ff0000" fill-opacity="0.251"')
 		expect(svg).toContain('stroke="#000000" stroke-opacity="0.502"')
 	})
 
 	it('is that however it is written', () => {
-		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill="rgb(255 0 0 / 0.5)")}')
+		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill: "rgb(255 0 0 / 0.5)")}')
 		expect(svg).toContain('fill="#ff0000" fill-opacity="0.5"')
 	})
 
 	it('says nothing more of one that cannot', () => {
-		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill="red" stroke="none")}')
+		const svg = svgOf('{c = (style (path.line [0 0] [1 1]) fill: "red" stroke: "none")}')
 		expect(svg).toContain('fill="red" stroke="none"')
 		expect(svg).not.toContain('opacity')
 	})
@@ -271,12 +271,12 @@ describe('a color that can be seen through', () => {
 	it('comes back from elsewhere with its alpha in it', () => {
 		expect(
 			bindingsOfSvg('<svg><circle r="1" fill="#ff0000" fill-opacity="0.5" stroke="#000000" stroke-opacity="25%"/></svg>')
-		).toBe('circle1 = (style (path.circle [0 0] 1) fill="#ff000080" stroke="#00000040")')
+		).toBe('circle1 = (style (path.circle [0 0] 1) fill: "#ff000080" stroke: "#00000040")')
 	})
 
 	it('is the same color after going out and back', () => {
-		const out = svgOf('{c = (style (path.line [0 0] [1 1]) fill="#ff000040")}').replace(/<metadata>.*<\/metadata>/, '')
-		expect(bindingsOfSvg(out)).toContain('fill="#ff000040"')
+		const out = svgOf('{c = (style (path.line [0 0] [1 1]) fill: "#ff000040")}').replace(/<metadata>.*<\/metadata>/, '')
+		expect(bindingsOfSvg(out)).toContain('fill: "#ff000040"')
 	})
 
 	it('leaves what is not a color out, as there is nothing to see through', () => {
@@ -289,73 +289,73 @@ describe('how what comes from an SVG is drawn', () => {
 	const C = '(path.circle [0 0] 1)'
 
 	it('is black, where nothing says, as an SVG has it', () => {
-		expect(of('<circle r="1"/>')).toBe(`circle1 = (style ${C} fill="#000000")`)
+		expect(of('<circle r="1"/>')).toBe(`circle1 = (style ${C} fill: "#000000")`)
 	})
 
 	it('goes down from what it is in, however far', () => {
 		expect(bindingsOfSvg(`<svg fill="none" stroke="#111" stroke-width="2"><g><circle r="1"/></g></svg>`)).toBe(
-			`circle1 = (style ${C} stroke="#111" width=2)`
+			`circle1 = (style ${C} stroke: "#111" width: 2)`
 		)
 		expect(of('<g fill="#f00"><g style="fill: #00f"><circle r="1"/></g><circle r="1"/></g>')).toBe(
-			`circle2 = (style ${C} fill="#f00")\ncircle1 = (style ${C} fill="#00f")`
+			`circle2 = (style ${C} fill: "#f00")\ncircle1 = (style ${C} fill: "#00f")`
 		)
 	})
 
 	it('stops going down once what it is in has closed', () => {
 		expect(of('<g fill="#f00"><circle r="1"/></g><circle r="1"/>')).toBe(
-			`circle2 = (style ${C} fill="#000000")\ncircle1 = (style ${C} fill="#f00")`
+			`circle2 = (style ${C} fill: "#000000")\ncircle1 = (style ${C} fill: "#f00")`
 		)
 	})
 
 	it('is what its own says over that, and `inherit` is to go by that', () => {
-		expect(of('<g fill="#f00"><circle r="1" fill="#0f0"/></g>')).toBe(`circle1 = (style ${C} fill="#0f0")`)
-		expect(of('<g fill="#f00"><circle r="1" fill="inherit"/></g>')).toBe(`circle1 = (style ${C} fill="#f00")`)
+		expect(of('<g fill="#f00"><circle r="1" fill="#0f0"/></g>')).toBe(`circle1 = (style ${C} fill: "#0f0")`)
+		expect(of('<g fill="#f00"><circle r="1" fill="inherit"/></g>')).toBe(`circle1 = (style ${C} fill: "#f00")`)
 	})
 
 	it('goes by the rules of a stylesheet, even in defs, over attributes and under its style', () => {
 		const css = '<defs><style>/* c */ .a { fill: #f00 } circle.b, .c { stroke: #00f; stroke-width: 3px } #i { fill: #0f0 }</style></defs>'
-		expect(of(`${css}<circle r="1" class="a" fill="#000"/>`)).toBe(`circle1 = (style ${C} fill="#f00")`)
-		expect(of(`${css}<circle r="1" class="a b"/>`)).toBe(`circle1 = (style ${C} fill="#f00" stroke="#00f" width=3)`)
-		expect(of(`${css}<circle r="1" class="a" id="i"/>`)).toBe(`i = (style ${C} fill="#0f0")`)
-		expect(of(`${css}<circle r="1" class="a" style="fill: #123"/>`)).toBe(`circle1 = (style ${C} fill="#123")`)
-		expect(of(`<style><![CDATA[.a{fill:#f00}]]></style><circle r="1" class="a"/>`)).toBe(`circle1 = (style ${C} fill="#f00")`)
+		expect(of(`${css}<circle r="1" class="a" fill="#000"/>`)).toBe(`circle1 = (style ${C} fill: "#f00")`)
+		expect(of(`${css}<circle r="1" class="a b"/>`)).toBe(`circle1 = (style ${C} fill: "#f00" stroke: "#00f" width: 3)`)
+		expect(of(`${css}<circle r="1" class="a" id="i"/>`)).toBe(`i = (style ${C} fill: "#0f0")`)
+		expect(of(`${css}<circle r="1" class="a" style="fill: #123"/>`)).toBe(`circle1 = (style ${C} fill: "#123")`)
+		expect(of(`<style><![CDATA[.a{fill:#f00}]]></style><circle r="1" class="a"/>`)).toBe(`circle1 = (style ${C} fill: "#f00")`)
 	})
 
 	it('has `currentColor` be the color that goes down to it', () => {
 		expect(of('<g color="#f00"><circle r="1" fill="currentColor" stroke="currentcolor"/></g>')).toBe(
-			`circle1 = (style ${C} fill="#f00" stroke="#f00")`
+			`circle1 = (style ${C} fill: "#f00" stroke: "#f00")`
 		)
-		expect(of('<circle r="1" fill="currentColor"/>')).toBe(`circle1 = (style ${C} fill="#000000")`)
+		expect(of('<circle r="1" fill="currentColor"/>')).toBe(`circle1 = (style ${C} fill: "#000000")`)
 	})
 
 	it('multiplies opacity all the way down, into the alpha of both', () => {
 		expect(of('<g opacity="0.5"><circle r="1" fill="#ff0000" opacity="50%"/></g>')).toBe(
-			`circle1 = (style ${C} fill="#ff000040")`
+			`circle1 = (style ${C} fill: "#ff000040")`
 		)
 		expect(of('<g opacity="0.5"><g><circle r="1" fill="#ff0000" stroke="#0000ff" stroke-opacity="0.5"/></g></g>')).toBe(
-			`circle1 = (style ${C} fill="#ff000080" stroke="#0000ff40")`
+			`circle1 = (style ${C} fill: "#ff000080" stroke: "#0000ff40")`
 		)
 	})
 
 	it('has the first color of a gradient, through what it refers to, or what falls back', () => {
 		const defs = '<defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient><linearGradient id="h" xlink:href="#g"/></defs>'
-		expect(of(`${defs}<circle r="1" fill="url(#g)"/>`)).toBe(`circle1 = (style ${C} fill="#f00")`)
-		expect(of(`${defs}<circle r="1" fill="url(#h)"/>`)).toBe(`circle1 = (style ${C} fill="#f00")`)
-		expect(of(`<circle r="1" fill="url(#gone) #0f0"/>`)).toBe(`circle1 = (style ${C} fill="#0f0")`)
-		expect(of(`<circle r="1" fill="url(#gone)" stroke="#000"/>`)).toBe(`circle1 = (style ${C} stroke="#000")`)
+		expect(of(`${defs}<circle r="1" fill="url(#g)"/>`)).toBe(`circle1 = (style ${C} fill: "#f00")`)
+		expect(of(`${defs}<circle r="1" fill="url(#h)"/>`)).toBe(`circle1 = (style ${C} fill: "#f00")`)
+		expect(of(`<circle r="1" fill="url(#gone) #0f0"/>`)).toBe(`circle1 = (style ${C} fill: "#0f0")`)
+		expect(of(`<circle r="1" fill="url(#gone)" stroke="#000"/>`)).toBe(`circle1 = (style ${C} stroke: "#000")`)
 	})
 
 	it('leaves out what is not to be seen, and what is in it', () => {
 		expect(of('<g display="none"><circle r="1"/></g><g style="display: none"><circle r="2"/></g>')).toBeNull()
 		expect(of('<g visibility="hidden"><circle r="1"/><circle r="2" visibility="visible" fill="#f00"/></g>')).toBe(
-			'circle1 = (style (path.circle [0 0] 2) fill="#f00")'
+			'circle1 = (style (path.circle [0 0] 2) fill: "#f00")'
 		)
 	})
 
 	it('goes back as it was drawn, from what a canvas wrote without its code', () => {
-		const root = parse('[a = (style (path.circle [0 0] 1) fill="#ff0000" stroke="#0000ff" width=2 cap="round")]')
+		const root = parse('[a = (style (path.circle [0 0] 1) fill: "#ff0000" stroke: "#0000ff" width: 2 cap: "round")]')
 		const written = svgOfRows(root, env, ['binding:a'])!.replace(/<metadata>[\s\S]*?<\/metadata>/, '')
-		expect(bindingsOfSvg(written)).toMatch(/^a = \(style \(path\.d "[^"]*"\) fill="#ff0000" stroke="#0000ff" width=2 cap="round"\)$/)
+		expect(bindingsOfSvg(written)).toMatch(/^a = \(style \(path\.d "[^"]*"\) fill: "#ff0000" stroke: "#0000ff" width: 2 cap: "round"\)$/)
 	})
 })
 

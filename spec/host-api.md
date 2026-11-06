@@ -80,7 +80,7 @@ session.evalSrc('x = 1')          // { value: <IO>, ... }, not yet run
 session.ast()                     // the let-block, which is the whole state
 session.setAst(earlier)           // restores an earlier let-block, for undo
 session.setBinding('y', lit(2))
-session.setAtPath(['p', 'q'], lit(2))  // null, or why the path cannot be reached
+session.setAtPath(['p', 'q'], lit(2))  // null, or why the path cannot be reached; a field or an argument is a key, as 'x:'
 session.unsetBinding('y')
 session.renameBinding('x', 'w')    // null, or why it cannot be
 session.env                       // the env to pass to `check`, `infer`, etc.
@@ -227,7 +227,7 @@ The builders are functions, also collected as `g`:
 | `host(value)`                    | any JS value, evaluated as itself. Prints as a label such as `<host-fn>`, so it does not round-trip |
 | `sym('x')`                       | `x`                          |
 | `call(head, a, b)`               | `(head a b)`                 |
-| `callKw(head, [a], { k: b })`    | `(head a k=b)`               |
+| `callKw(head, [a], { k: b })`    | `(head a k: b)`              |
 | `access(target, 'x')`            | `target.x`                   |
 | `vec(a, b)`                      | `[a b]`                      |
 | `record({ x: a })`               | `{x: a}`                     |
@@ -237,6 +237,8 @@ The builders are functions, also collected as `g`:
 | `.withGenerics('T')`             | `(=> (T) (a: T): R)`         |
 | `path('..', 'x')`                | `../x`                       |
 | `path('/', 'x', 0)`              | `/x/0`                       |
+| `path('.', 'a', 'x:')`           | `./a/x:`, a key              |
+| `named('c', a)`                  | `c = a`, outside a let-block too. `nameOf(a)` asks |
 | `unquote(a)`, `spread(a)`        | `~a`, `...a`                 |
 | `meta({ label: 'x' }, a)`        | `^{label: "x"} a`            |
 | `pin(a)`, `unpin(a)`             | `@a`, and `a` from it. `isPinned(a)` asks |
@@ -256,6 +258,8 @@ isBindingName('a')              // whether a name can be a binding's
 
 `renameBinding` renames a binding of a `LetAST`, and what refers to it follows along: names inside the block, leaving alone what a nearer binding shadows, and paths such as `./a`, which shadowing does not touch. It returns null if the block has no such binding, or if the new name is not a name, is taken in the block, would be caught by something inside, or would catch a name inside that means something else.
 
+Giving an expression a name, or another name, can catch what refers to something farther out: naming the `2` in `{x = 10 y = (+ 2 (* x 3))}` as `x` would have `(* x 3)` mean the `2`. An edit that names must not change what anything refers to: what it would catch becomes a path to what it meant, as `../../x`, the shortest that reaches it (see `shortestPath` below). This is what lets a host name anything at any time, as a canvas names a shape when something comes to refer to it. Only when no path reaches what was meant, as from inside a function literal to a name it closes over, does the edit refuse. Renaming follows the same rule, for what the new name would catch.
+
 `renameBindingIn` also follows paths from elsewhere in `root`, and what is unchanged stays `===`. A path that reaches the block through a call's argument by position is left as written, since following it needs the call's signature, and then reports an error.
 
 Putting a node into a call moves it a level down, and paths count levels, so they have to follow too:
@@ -265,7 +269,7 @@ withPathsInto(root, env, call)  // `call`, in `root`, has just been put where it
 withoutCall(root, env, call)    // `root` with `call` replaced by its first argument
 ```
 
-Either way, a path comes to what it came to: `a/center` becomes `a/path/center` once `a` is in a call with a first parameter `path`, and what climbs out of the node climbs one level more. A name stays a name wherever what the call comes to is taken too, and otherwise, given as an argument that wants something else, goes to what is held, as `../a/path`; `withoutCall` has it be a name again. A path to anything else of a call that is taken away has nothing left to lead to, and stays as written. A path from the root stays one, and has no levels to make up for.
+Either way, a path comes to what it came to: `a/center:` becomes `a/path:/center:` once `a` is in a call with a first parameter `path`, and what climbs out of the node climbs one level more. A name stays a name wherever what the call comes to is taken too, and otherwise, given as an argument that wants something else, goes to what is held, as `../a/path:`; `withoutCall` has it be a name again. A path to anything else of a call that is taken away has nothing left to lead to, and stays as written. A path from the root stays one, and has no levels to make up for.
 
 A host evaluates what it edits against `session.hostEnv`, not `session.env`, which holds the let-block as it was: there, a path from the root would start at that.
 

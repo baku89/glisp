@@ -66,7 +66,7 @@ describe('viewOf', () => {
 	it('shows call arguments by parameter name', () => {
 		expect(view('(take [1 2] 1)').title).toBe('Take')
 		expect(labels('(take [1 2] 1)')).toEqual(['Items', 'Count'])
-		expect(labels('(take [1 2] n=1)')).toEqual(['Items', 'Count'])
+		expect(labels('(take [1 2] n: 1)')).toEqual(['Items', 'Count'])
 		expect(labels('(+ 1 2 3)')).toEqual(['0', '1', '2'])
 	})
 
@@ -81,16 +81,16 @@ describe('viewOf', () => {
 	it('offers a parameter that was not passed', () => {
 		const { missing } = view('(take [1 2])')
 		expect(missing.map(m => m.name)).toEqual(['Count'])
-		expect(print(missing[0]!.add())).toBe('(take [1 2] n=0)')
-		expect(view('(take [1 2] n=1)').missing).toEqual([])
+		expect(print(missing[0]!.add())).toBe('(take [1 2] n: 0)')
+		expect(view('(take [1 2] n: 1)').missing).toEqual([])
 	})
 
 	it('shows that parameter as what it comes to, which editing writes', () => {
 		const { slot } = view('(take [1 2])').missing[0]!
 		expect(print(slot!.ast)).toBe('0')
-		expect(print(slot!.replace(parse('3')))).toBe('(take [1 2] n=3)')
+		expect(print(slot!.replace(parse('3')))).toBe('(take [1 2] n: 3)')
 		const hidden = view('^{label: "L"} (take [1 2])').missing[0]!.slot!
-		expect(print(hidden.replace(parse('3')))).toContain('n=3')
+		expect(print(hidden.replace(parse('3')))).toContain('n: 3')
 	})
 
 	it('keeps it where its parameter is, written or not, with the same key', () => {
@@ -102,8 +102,8 @@ describe('viewOf', () => {
 			return rowsWithAbsent(v.slots, v.missing).map(({ key, absent }) => `${key}${absent ? '?' : ''}`)
 		}
 		expect(keysOf('(f 1)')).toEqual(['arg0', 'kw:b?', 'kw:c?'])
-		expect(keysOf('(f 1 c=3)')).toEqual(['arg0', 'kw:b?', 'kw:c'])
-		expect(keysOf('(f 1 c=3 b=2)')).toEqual(['arg0', 'kw:b', 'kw:c'])
+		expect(keysOf('(f 1 c: 3)')).toEqual(['arg0', 'kw:b?', 'kw:c'])
+		expect(keysOf('(f 1 c: 3 b: 2)')).toEqual(['arg0', 'kw:b', 'kw:c'])
 	})
 
 	it('reverts one written by name by leaving it out, and one by its place to the default', () => {
@@ -113,7 +113,7 @@ describe('viewOf', () => {
 			const action = actionsOf(slot).find(({ label }) => label === 'Revert to Default')
 			return action !== undefined && 'apply' in action ? print(action.apply()) : null
 		}
-		expect(reverted('(take [1 2] n=3)', 'kw:n')).toBe('(take [1 2])')
+		expect(reverted('(take [1 2] n: 3)', 'kw:n')).toBe('(take [1 2])')
 		expect(reverted('(take [1 2] 3)', 'arg1')).toBe('(take [1 2] 0)')
 		expect(reverted('(take [1 2] 0)', 'arg1')).toBeNull()
 		expect(reverted('{a: 1}', 'a')).toBeNull()
@@ -163,7 +163,7 @@ describe('editing', () => {
 
 	it('replaces a child and keeps the rest of the source', () => {
 		expect(replaced('(+ 1  2)', 0, '9')).toBe('(+ 9 2)')
-		expect(replaced('(take [1] n=1)', 1, '2')).toBe('(take [1] n=2)')
+		expect(replaced('(take [1] n: 1)', 1, '2')).toBe('(take [1] n: 2)')
 		expect(replaced('[1 2]', 1, '9')).toBe('[1 9]')
 		expect(replaced('{x: 1 y: (+  1 2)}', 0, '9')).toBe('{x: 9 y: (+  1 2)}')
 		expect(replaced('{a = 1 a}', 0, '9')).toBe('{a = 9 a}')
@@ -183,7 +183,7 @@ describe('editing', () => {
 		expect(removed('{x: 1 y: 2}', 0)).toBe('{y: 2}')
 		expect(removed('{a = 1 b = 2}', 0)).toBe('{b = 2}')
 		expect(removed('(+ 1 2 3)', 1)).toBe('(+ 1 3)')
-		expect(removed('(take [1] n=1)', 1)).toBe('(take [1])')
+		expect(removed('(take [1] n: 1)', 1)).toBe('(take [1])')
 		expect(view('(take [1] 1)').slots[0]!.remove).toBeUndefined()
 	})
 
@@ -1283,7 +1283,7 @@ describe('referenceAt', () => {
 
 	it('refers by a path to what has no name there', () => {
 		expect(linked('{z = {a = 1} q = 0}', 'binding:q', 'binding:z/binding:a')).toBe('{z = {a = 1} q = /z/a}')
-		expect(linked('{z = {x: 1} q = 0}', 'binding:q', 'binding:z/field:x')).toBe('{z = {x: 1} q = /z/x}')
+		expect(linked('{z = {x: 1} q = 0}', 'binding:q', 'binding:z/field:x')).toBe('{z = {x: 1} q = /z/x:}')
 		expect(linked('{z = [1 2] q = 0}', 'binding:q', 'binding:z/1')).toBe('{z = [1 2] q = /z/1}')
 		expect(linked('{a = 1 q = {a = 2 r = 0}}', 'binding:q/binding:r', 'binding:a')).toBe(
 			'{a = 1 q = {a = 2 r = /a}}'
@@ -1292,7 +1292,7 @@ describe('referenceAt', () => {
 
 	it('refers to an element of what a call is given, and from one', () => {
 		const next = referenceAt(parse('{f = (=> (p: _): _ p) a = (f [3 4]) b = (f [0 0]) b}'), env, 'binding:b/arg0/0', 'binding:a/arg0/1')!
-		expect(print(next)).toContain('b = (f [/a/p/1 0])')
+		expect(print(next)).toContain('b = (f [/a/p:/1 0])')
 		expect(evaluate(next, env).value).toEqual([4, 0])
 	})
 
@@ -1317,16 +1317,16 @@ describe('referenceAt', () => {
 })
 
 describe('what a call is not yet given', () => {
-	const program = '{f = (=> (a: number b?: string): number a) x = (f 1 b="red") y = (f 2)}'
+	const program = '{f = (=> (a: number b?: string): number a) x = (f 1 b: "red") y = (f 2)}'
 
 	it('can refer to something, where it comes to be said', () => {
 		const next = missingReferringTo(parse(program), env, 'binding:y', 'b', 'binding:x/kw:b')!
-		expect(print(next)).toContain('y = (f 2 b=/x/b)')
+		expect(print(next)).toContain('y = (f 2 b: /x/b:)')
 	})
 
 	it('can be written', () => {
 		const next = missingWritten(parse(program), env, 'binding:y', 'b', parse('"blue"'))!
-		expect(print(next)).toContain('y = (f 2 b="blue")')
+		expect(print(next)).toContain('y = (f 2 b: "blue")')
 	})
 
 	it('is nothing to do of what is given already, or what is not there', () => {
@@ -1401,7 +1401,7 @@ describe('writtenReference', () => {
 
 	it('is a path from the top to anything further in', () => {
 		expect(written('{a = [1 2]}', 'binding:a/1')).toBe('/a/1')
-		expect(written('{f = (=> (p: _): _ p) a = (f [3 4])}', 'binding:a/arg0/1')).toBe('/a/p/1')
+		expect(written('{f = (=> (p: _): _ p) a = (f [3 4])}', 'binding:a/arg0/1')).toBe('/a/p:/1')
 	})
 
 	it('comes to it, as code at the top of the program', () => {

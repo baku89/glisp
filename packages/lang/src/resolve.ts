@@ -19,7 +19,7 @@
  */
 
 import { desugar } from './desugar.js'
-import { argumentOf, type CallParameters, childAt, isHostLevel, NO_ROOT } from './eval.js'
+import { argumentOf, type CallParameters, childAt, isHostLevel, isKeySegment, keyOfSegment, NO_ROOT } from './eval.js'
 import { callParameters } from './infer.js'
 import {
 	type AST,
@@ -478,8 +478,8 @@ function walkPath(
 		if (here === null) return 'path descended below the root'
 		here = withoutMeta(here)
 		const child =
-			here.kind === 'call' && typeof segment === 'string'
-				? argumentByName(here, segment, scope, env)
+			here.kind === 'call' && isKeySegment(segment)
+				? argumentByName(here, keyOfSegment(segment), scope, env)
 				: childAt(here, segment, null)
 		if (child === UNKNOWN) return UNKNOWN
 		if (child === null) return `path segment not found: ${segment}`

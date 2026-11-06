@@ -12,7 +12,7 @@ const env = withGraphics(buildPrelude())
 /** What is asked of each row of a program would otherwise grow with the square of its rows. */
 describe('what is asked of many rows', () => {
 	const root = parse(`[
-		a = (style (path.circle [0 0] 10) fill="#ff0000")
+		a = (style (path.circle [0 0] 10) fill: "#ff0000")
 		b = (path.rect [0 0] [10 10])
 		g = (graphPaper "dots")
 		h = #_(path.circle [5 5] 10)

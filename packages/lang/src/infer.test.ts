@@ -38,7 +38,7 @@ describe('infer — generics', () => {
 	})
 
 	it('solves by keyword argument', () => {
-		expect(typeOf('((=> (T) (x: T y: number): T x) y=1 x="s")')).toBe('string')
+		expect(typeOf('((=> (T) (x: T y: number): T x) y: 1 x: "s")')).toBe('string')
 	})
 
 	it('leaves an unsolved generic as unknown', () => {

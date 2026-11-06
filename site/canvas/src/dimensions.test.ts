@@ -495,8 +495,8 @@ describe('what a handle is about', () => {
 
 		it('leaves what it was put on where it is', () => {
 			expect(
-				typedAt('{a = (path.rect [5 6] [1 1]) c = (path.rect ../a/origin [380 280])}', TOP_LEFT, 50)
-			).toBe('{a = (path.rect [5 6] [1 1]) c = (path.rect ../a/origin [50 280])}')
+				typedAt('{a = (path.rect [5 6] [1 1]) c = (path.rect ../a/origin: [380 280])}', TOP_LEFT, 50)
+			).toBe('{a = (path.rect [5 6] [1 1]) c = (path.rect ../a/origin: [50 280])}')
 		})
 
 		it('leaves a name where it is', () => {

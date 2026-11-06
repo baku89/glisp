@@ -46,13 +46,18 @@ describe('tokenizeLine', () => {
 	it('reads a name given something, including by a keyword', () => {
 		expect(scopeIn('{a = 1}', 'a')).toBe('variable')
 		expect(scopeIn('{x: 1}', 'x')).toBe('variable')
-		expect(scopeIn('(f x=2)', 'x')).toBe('variable')
+		expect(scopeIn('(f x: 2)', 'x')).toBe('variable')
 		expect(scopeIn('{y?: string}', 'y')).toBe('variable')
 		expect(scopeIn('(f x==2)', 'x')).toBe('identifier')
 	})
 
 	it('reads what is after a colon as a type, but not in a call of it', () => {
 		expect(scopeIn('{x: Foo}', 'Foo')).toBe('type')
+		expect(scopeIn('(f x: Foo)', 'Foo')).toBe('identifier')
+		expect(scopeIn('(f x: (g 1))', 'g')).toBe('function')
+		expect(scopeIn('(f\n  x: Foo)', 'Foo')).toBe('identifier')
+		expect(scopeIn('(=> (x: Foo) (f y: Bar))', 'Bar')).toBe('identifier')
+		expect(scopeIn('(=> (T) (x: T): Bar x)', 'Bar')).toBe('type')
 		expect(scopeIn('(: v Foo)', 'v')).toBe('identifier')
 		expect(scopeIn('(=> (x: Foo): Bar x)', 'Bar')).toBe('type')
 	})
@@ -69,6 +74,7 @@ describe('tokenizeLine', () => {
 		expect(scopeIn('[_ !]', '_')).toBe('type')
 		expect(scopeIn('[./width/0]', './width/0')).toBe('variable.predefined')
 		expect(scopeIn('[/a/b]', '/a/b')).toBe('variable.predefined')
+		expect(scopeIn('[./c/radius:]', './c/radius:')).toBe('variable.predefined')
 		expect(scopeIn('(|> x %)', '|>')).toBe('keyword')
 		expect(scopeIn('(|> x %)', '%')).toBe('keyword')
 		expect(scopeIn('(? x)', '?')).toBe('keyword')

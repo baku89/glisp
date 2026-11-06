@@ -52,7 +52,7 @@ describe('AST builders', () => {
 	})
 
 	it('callKw includes keyword arguments', () => {
-		// (f 1 2 a=10 b=20)
+		// (f 1 2 a: 10 b: 20)
 		const ast = callKw(sym('f'), [lit(1), lit(2)], { a: lit(10), b: lit(20) })
 		expect(ast.kwargs).toBeDefined()
 		expect(ast.kwargs?.get('a')).toEqual(lit(10))

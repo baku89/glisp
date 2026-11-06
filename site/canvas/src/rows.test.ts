@@ -68,7 +68,7 @@ describe('grouped', () => {
 	})
 
 	it('refuses what a path would no longer reach', () => {
-		const root = parse('{a = (path.circle [0 0] 1) b = (path.rect ../a/center [1 1])}') as LetAST
+		const root = parse('{a = (path.circle [0 0] 1) b = (path.rect ../a/center: [1 1])}') as LetAST
 		expect(grouped(root, env, ['binding:b'])).toBeNull()
 	})
 
@@ -109,7 +109,7 @@ describe('ungrouped, of what a path is made from', () => {
 	})
 
 	it('has what it was made by and what it was drawn by go on', () => {
-		expect(print(of(`[c = (style (path.offset ${R} 5) fill="#ff0000")]`)!.ast)).toBe(`[c = (style ${R} fill="#ff0000")]`)
+		expect(print(of(`[c = (style (path.offset ${R} 5) fill: "#ff0000")]`)!.ast)).toBe(`[c = (style ${R} fill: "#ff0000")]`)
 	})
 
 	it('lets all of what is united go, where it was, each by what it is', () => {
@@ -119,14 +119,14 @@ describe('ungrouped, of what a path is made from', () => {
 	})
 
 	it('has each of them drawn by what the whole was', () => {
-		expect(print(of(`[c = (style (path.subtract ${R} ${C}) fill="#ff0000")]`)!.ast)).toBe(
-			`[rect1 = (style ${R} fill="#ff0000") circle1 = (style ${C} fill="#ff0000")]`
+		expect(print(of(`[c = (style (path.subtract ${R} ${C}) fill: "#ff0000")]`)!.ast)).toBe(
+			`[rect1 = (style ${R} fill: "#ff0000") circle1 = (style ${C} fill: "#ff0000")]`
 		)
 	})
 
 	it('goes for a style that is around what is in it, as that had nothing to say', () => {
-		expect(print(of(`[c = (style (path.offset (style ${R} fill="#00ff00") 5) fill="#ff0000")]`)!.ast)).toBe(
-			`[c = (style ${R} fill="#ff0000")]`
+		expect(print(of(`[c = (style (path.offset (style ${R} fill: "#00ff00") 5) fill: "#ff0000")]`)!.ast)).toBe(
+			`[c = (style ${R} fill: "#ff0000")]`
 		)
 	})
 
@@ -154,7 +154,7 @@ describe('ungrouped, of what a path is made from', () => {
 
 	it('is nothing, for what is made from no path', () => {
 		expect(of(`[c = ${R}]`)).toBeNull()
-		expect(of(`[c = (style ${R} fill="#ff0000")]`)).toBeNull()
+		expect(of(`[c = (style ${R} fill: "#ff0000")]`)).toBeNull()
 		expect(of('[c = (+ 1 2)]')).toBeNull()
 		expect(of(`[c = (path.bounds ${R})]`)).toBeNull()
 	})

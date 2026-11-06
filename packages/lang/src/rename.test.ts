@@ -35,7 +35,7 @@ describe('renameBinding', () => {
 
 	it('leaves a key that happens to have the name', () => {
 		expect(rename('{a = 1 b = {a: 2}}', 'a', 'z')).toBe('{z = 1 b = {a: 2}}')
-		expect(rename('{a = 1 b = (f a=a)}', 'a', 'z')).toBe('{z = 1 b = (f a=z)}')
+		expect(rename('{a = 1 b = (f a: a)}', 'a', 'z')).toBe('{z = 1 b = (f a: z)}')
 	})
 
 	it('leaves alone what a nearer one shadows', () => {
@@ -48,7 +48,7 @@ describe('renameBinding', () => {
 	it('follows a path that lands on the binding', () => {
 		expect(rename('{a = 1 b = ./a}', 'a', 'z')).toBe('{z = 1 b = ./z}')
 		expect(rename('{a = 1 b = (+ ../a 1)}', 'a', 'z')).toBe('{z = 1 b = (+ ../z 1)}')
-		expect(rename('{a = {x: 1} b = ./a/x}', 'a', 'z')).toBe('{z = {x: 1} b = ./z/x}')
+		expect(rename('{a = {x: 1} b = ./a/x:}', 'a', 'z')).toBe('{z = {x: 1} b = ./z/x:}')
 		expect(rename('{p = 1 a = 2 b = ./p/../a}', 'a', 'z')).toBe('{p = 1 z = 2 b = ./p/../z}')
 	})
 
@@ -62,7 +62,7 @@ describe('renameBinding', () => {
 		expect(rename('{a = 1 b = {a = 2 c = ./a d = ../a}}', 'a', 'z')).toBe(
 			'{z = 1 b = {a = 2 c = ./a d = ../z}}'
 		)
-		expect(rename('{a = 1 b = {a: 2} c = ./b/a}', 'a', 'z')).toBe('{z = 1 b = {a: 2} c = ./b/a}')
+		expect(rename('{a = 1 b = {a: 2} c = ./b/a:}', 'a', 'z')).toBe('{z = 1 b = {a: 2} c = ./b/a:}')
 	})
 
 	it('counts the function that % makes as a level', () => {
@@ -139,8 +139,8 @@ describe('renameBindingIn', () => {
 		expect(inner('{z = {a = 1} q = (+ ../z/a 1)}', 'z', 'a', 'b')).toBe(
 			'{z = {b = 1} q = (+ ../z/b 1)}'
 		)
-		expect(inner('{z = {a = {x: 1}} y = {q = ../z/a/x}}', 'z', 'a', 'b')).toBe(
-			'{z = {b = {x: 1}} y = {q = ../z/b/x}}'
+		expect(inner('{z = {a = {x: 1}} y = {q = ../z/a/x:}}', 'z', 'a', 'b')).toBe(
+			'{z = {b = {x: 1}} y = {q = ../z/b/x:}}'
 		)
 	})
 

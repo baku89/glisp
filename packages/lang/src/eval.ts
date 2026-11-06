@@ -2478,7 +2478,42 @@ export function childAt(
 	seg: string | number,
 	env: Env
 ): AST | null {
-	if (node.kind === 'record' && typeof seg === 'string') {
+	if (typeof seg === 'string' && !isKeySegment(seg)) return namedChildAt(node, seg)
+	if (typeof seg === 'string') return slotAt(node, keyOfSegment(seg), env)
+	if (node.kind === 'vec') return node.elements[seg] ?? null
+	return null
+}
+
+/** Whether a segment of a path is a key, `x:`, which goes to what fills a slot, rather than a name. */
+export function isKeySegment(segment: '..' | string | number): segment is string {
+	return typeof segment === 'string' && segment.endsWith(':')
+}
+
+/** The key a segment `x:` stands for. */
+export function keyOfSegment(segment: string): string {
+	return segment.slice(0, -1)
+}
+
+/** The segment of a path that goes to what fills the slot `key`. */
+export function keySegment(key: string): string {
+	return `${key}:`
+}
+
+/** What directly in `node` has the name `name`, the last of them if more than one has it. */
+function namedChildAt(node: AST, name: string): AST | null {
+	if (node.kind === 'let') {
+		const bindings = node.bindings
+		for (let i = bindings.length - 1; i >= 0; i--) {
+			const b = bindings[i]
+			if (b !== undefined && b[0] === name) return b[1]
+		}
+	}
+	return null
+}
+
+/** What fills the slot `key` of `node`: a record's field, or a call's argument by its parameter's name. */
+function slotAt(node: AST, seg: string, env: Env): AST | null {
+	if (node.kind === 'record') {
 		const fields = node.fields
 		// last-wins lookup, ignoring SpreadAST entries (they need eval)
 		for (let i = fields.length - 1; i >= 0; i--) {
@@ -2489,18 +2524,7 @@ export function childAt(
 		}
 		return null
 	}
-	if (node.kind === 'vec' && typeof seg === 'number') {
-		return node.elements[seg] ?? null
-	}
-	if (node.kind === 'let' && typeof seg === 'string') {
-		const bindings = node.bindings
-		for (let i = bindings.length - 1; i >= 0; i--) {
-			const b = bindings[i]
-			if (b !== undefined && b[0] === seg) return b[1]
-		}
-		return null
-	}
-	if (node.kind === 'call' && typeof seg === 'string') {
+	if (node.kind === 'call') {
 		const keyword = node.kwargs?.get(seg)
 		if (keyword !== undefined) return keyword
 		if (node.args.some(arg => arg.kind === 'spread')) return null

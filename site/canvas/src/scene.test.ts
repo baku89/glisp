@@ -105,15 +105,15 @@ describe('iconOfPath', () => {
 	it('is in the colors it is painted', () => {
 		const rect = '(path.rect [0 0] [10 10])'
 		const d = icon(rect)!.slice('stroke:'.length)
-		expect(icon(`(style ${rect} fill="#ff0000")`)).toBe(`paint:#ff0000|none|${d}`)
-		expect(icon(`(style ${rect} stroke="#00ff00")`)).toBe(`paint:none|#00ff00|${d}`)
-		expect(icon(`(style ${rect} fill="#ff0000" stroke="#00ff00")`)).toBe(`paint:#ff0000|#00ff00|${d}`)
+		expect(icon(`(style ${rect} fill: "#ff0000")`)).toBe(`paint:#ff0000|none|${d}`)
+		expect(icon(`(style ${rect} stroke: "#00ff00")`)).toBe(`paint:none|#00ff00|${d}`)
+		expect(icon(`(style ${rect} fill: "#ff0000" stroke: "#00ff00")`)).toBe(`paint:#ff0000|#00ff00|${d}`)
 	})
 
 	it('has no line where one has no width, and an outline where nothing is painted', () => {
 		const rect = '(path.rect [0 0] [10 10])'
 		const d = icon(rect)!.slice('stroke:'.length)
-		expect(icon(`(style ${rect} fill="#ff0000" stroke="#00ff00" width=0)`)).toBe(`paint:#ff0000|none|${d}`)
+		expect(icon(`(style ${rect} fill: "#ff0000" stroke: "#00ff00" width: 0)`)).toBe(`paint:#ff0000|none|${d}`)
 		expect(icon(`(style ${rect})`)).toBe(`stroke:${d}`)
 	})
 
@@ -170,7 +170,7 @@ describe('the paint of what is hidden', () => {
 
 	it('keeps the line and stays hidden, when its fill goes', () => {
 		const next = withPaint(hidden, env, 'binding:s', { fill: 'none' })
-		expect(print(next)).toBe('[s = #_(style (path.rect [0 0] [1 1]) stroke="#000000" width=2)]')
+		expect(print(next)).toBe('[s = #_(style (path.rect [0 0] [1 1]) stroke: "#000000" width: 2)]')
 	})
 })
 
@@ -357,14 +357,14 @@ describe('the pen', () => {
 			const circle = parse('{c = (path.circle [100 100] 10)}') as LetAST
 			const center = nearestSnap(snapPointsOf(circle, env, sceneOf(circle, env)), [100, 100], 1)!
 			const { ast } = penned(circle, env, [{ at: [100, 100], snap: center }, { at: [0, 0] }], false)
-			expect(print(ast.bindings.at(-1)![1])).toBe('(path.line /c/center [0 0])')
+			expect(print(ast.bindings.at(-1)![1])).toBe('(path.line /c/center: [0 0])')
 			const curve = penned(
 				circle,
 				env,
 				[{ at: [0, 0], out: [1, 0] }, { at: [100, 100], snap: center }],
 				false
 			)
-			expect(print(curve.ast.bindings.at(-1)![1])).toContain('[100 100] /c/center)')
+			expect(print(curve.ast.bindings.at(-1)![1])).toContain('[100 100] /c/center:)')
 		})
 
 		it('has only the value, as a path has no place to refer from', () => {
@@ -516,7 +516,7 @@ describe('several rows at once', () => {
 		})
 
 		it('in some, with a vector written in one and referred to in the other', () => {
-			const source = '{a = (path.rect [0 0] [1 2]) b = (path.rect ../a/origin [1 2])}'
+			const source = '{a = (path.rect [0 0] [1 2]) b = (path.rect ../a/origin: [1 2])}'
 			expect(of(source, 0, 0)).toBe('some')
 			expect(of(source, 0, 1)).toBe('some')
 		})
@@ -634,8 +634,8 @@ describe('snapping', () => {
 		}
 
 		it('as much of the way along an edge, by its ends', () => {
-			expect(onto('(path.rect [0 0] [100 40])', [30, 1])).toBe('(path.line [(lerp /o/origin/0 (+ /o/origin/0 /o/size/0) 0.3) /o/origin/1] [300 300])')
-			expect(onto('(path.polyline [0 0] [100 0] [100 100])', [99, 37])).toBe('(path.line [(lerp /o/points/1/0 /o/points/2/0 0.37) (lerp /o/points/1/1 /o/points/2/1 0.37)] [300 300])')
+			expect(onto('(path.rect [0 0] [100 40])', [30, 1])).toBe('(path.line [(lerp /o/origin:/0 (+ /o/origin:/0 /o/size:/0) 0.3) /o/origin:/1] [300 300])')
+			expect(onto('(path.polyline [0 0] [100 0] [100 100])', [99, 37])).toBe('(path.line [(lerp /o/points:/1/0 /o/points:/2/0 0.37) (lerp /o/points:/1/1 /o/points:/2/1 0.37)] [300 300])')
 		})
 
 		it('only across, where a level or upright edge would go on, being only lined up with it', () => {
@@ -646,7 +646,7 @@ describe('snapping', () => {
 		})
 
 		it('and where it would go, if it went on', () => {
-			expect(onto('(path.line [0 0] [100 100])', [150, 149])).toBe('(path.line [(lerp /o/start/0 /o/end/0 1.495) (lerp /o/start/1 /o/end/1 1.495)] [300 300])')
+			expect(onto('(path.line [0 0] [100 100])', [150, 149])).toBe('(path.line [(lerp /o/start:/0 /o/end:/0 1.495) (lerp /o/start:/1 /o/end:/1 1.495)] [300 300])')
 		})
 
 		it('and goes on being there as the line moves', () => {
@@ -692,7 +692,7 @@ describe('snapping', () => {
 
 	it('has a rect refer to the center it was drawn from', () => {
 		const next = drawnFrom(root, env, 'x', 'rect', points.find(p => p.target === 'binding:c/arg0')!, [130, 120], false)
-		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect /c/center [30 20])')
+		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect /c/center: [30 20])')
 		const [, , shape] = sceneOf(next, env)
 		expect(gripAt(next, env, shape!.row)!.handles[0]!.at).toEqual([100, 110])
 	})
@@ -705,20 +705,20 @@ describe('snapping', () => {
 
 	it('has a polygon refer from its center, whichever way it goes', () => {
 		const next = drawnFrom(root, env, 'x', 'ngon', points.find(p => p.target === 'binding:c/arg0')!, [90, 90], false)
-		expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.ngon \/c\/center /)
+		expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.ngon \/c\/center: /)
 	})
 
 	it('refers from there, whichever way it was drawn', () => {
 		const start = points.find(p => p.target === 'binding:c/arg0')!
 		const drawnAs = (tool: 'rect' | 'roundRect' | 'ellipse', to: Vec, even = false) =>
 			print(drawnFrom(root, env, 'x', tool, start, to, even).bindings.at(-1)![1])
-		expect(drawnAs('rect', [130, 120])).toBe('(path.rect /c/center [30 20])')
-		expect(drawnAs('rect', [90, 90])).toMatch(/^\(path\.rect \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] \[10 10\]\)$/)
-		expect(drawnAs('rect', [130, 90])).toMatch(/^\(path\.rect \[\S*c\/center\/0 \(- \S*c\/center\/1 10\)\] \[30 10\]\)$/)
-		expect(drawnAs('rect', [90, 90], true)).toMatch(/^\(path\.square \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] 10\)$/)
-		expect(drawnAs('roundRect', [90, 90])).toMatch(/^\(path\.roundRect \[\(- \S*c\/center\/0 10\) \(- \S*c\/center\/1 10\)\] \[10 10\] /)
-		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse /c/center [20 30])')
-		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle /c/center 30)')
+		expect(drawnAs('rect', [130, 120])).toBe('(path.rect /c/center: [30 20])')
+		expect(drawnAs('rect', [90, 90])).toMatch(/^\(path\.rect \[\(- \S*c\/center:\/0 10\) \(- \S*c\/center:\/1 10\)\] \[10 10\]\)$/)
+		expect(drawnAs('rect', [130, 90])).toMatch(/^\(path\.rect \[\S*c\/center:\/0 \(- \S*c\/center:\/1 10\)\] \[30 10\]\)$/)
+		expect(drawnAs('rect', [90, 90], true)).toMatch(/^\(path\.square \[\(- \S*c\/center:\/0 10\) \(- \S*c\/center:\/1 10\)\] 10\)$/)
+		expect(drawnAs('roundRect', [90, 90])).toMatch(/^\(path\.roundRect \[\(- \S*c\/center:\/0 10\) \(- \S*c\/center:\/1 10\)\] \[10 10\] /)
+		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse /c/center: [20 30])')
+		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle /c/center: 30)')
 	})
 
 	describe('what no one argument says', () => {
@@ -733,7 +733,7 @@ describe('snapping', () => {
 
 		it('is worked out from them', () => {
 			expect(refers([10, 10])).toMatchObject({ center: [10, 10] })
-			expect(refers([10, 10]).code).toContain('(+ /r/origin/0 /r/size/0)')
+			expect(refers([10, 10]).code).toContain('(+ /r/origin:/0 /r/size:/0)')
 			expect(refers([5, 5]).center).toEqual([5, 5])
 			expect(refers([10, 0]).center).toEqual([10, 0])
 			expect(refers([110, 100]).center).toEqual([110, 100])
@@ -748,7 +748,7 @@ describe('snapping', () => {
 
 		it('has a handle dragged to it refer too', () => {
 			const next = linked(root, env, 'binding:c', 0, at([10, 10]))!
-			expect(print(next)).toContain('(path.circle [(+ /r/origin/0 /r/size/0)')
+			expect(print(next)).toContain('(path.circle [(+ /r/origin:/0 /r/size:/0)')
 			expect(gripAt(next, env, 'binding:c')!.handles.at(-1)!.at).toEqual([10, 10])
 		})
 
@@ -765,7 +765,7 @@ describe('snapping', () => {
 
 		it('has what it was dragged to refer to it', () => {
 			const next = linked(root, env, 'binding:r', 0, center)!
-			expect(print(next)).toBe('[r = (path.rect /c/center [10 10]) c = (path.circle [100 100] 10)]')
+			expect(print(next)).toBe('[r = (path.rect /c/center: [10 10]) c = (path.circle [100 100] 10)]')
 		})
 
 		it('does not, for a place that no row says', () => {
@@ -773,7 +773,7 @@ describe('snapping', () => {
 		})
 
 		it('does not, for what already refers to it', () => {
-			const around = parse('{c = (path.circle ../r/origin 10) r = (path.rect [0 0] [10 10])}')
+			const around = parse('{c = (path.circle ../r/origin: 10) r = (path.rect [0 0] [10 10])}')
 			expect(linked(around, env, 'binding:r', 0, { at: [0, 0], target: 'binding:c/arg0', label: '' })).toBeNull()
 		})
 
@@ -797,7 +797,7 @@ describe('snapping', () => {
 
 		it('is what refers to it, as well', () => {
 			expect(
-				moved('{a = (path.circle [0 0] 1) b = (path.rect ../a/center [1 1]) c = (path.circle [9 9] 1)}', 'binding:a')
+				moved('{a = (path.circle [0 0] 1) b = (path.rect ../a/center: [1 1]) c = (path.circle [9 9] 1)}', 'binding:a')
 			).toEqual(['binding:a', 'binding:b'])
 		})
 
@@ -895,9 +895,9 @@ describe('a square', () => {
 		const root = parse('{c = (path.circle [100 100] 10)}') as LetAST
 		const center = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [100, 100], 1)!
 		const drawnAs = (to: Vec) => print(drawnFrom(root, env, 'x', 'rect', center, to, true).bindings.at(-1)![1])
-		expect(drawnAs([130, 120])).toBe('(path.square /c/center 30)')
-		expect(drawnAs([70, 80])).toMatch(/^\(path\.square \[\(- \S*c\/center\/0 30\) \(- \S*c\/center\/1 30\)\] 30\)$/)
-		expect(drawnAs([130, 80])).toMatch(/^\(path\.square \[\S*c\/center\/0 \(- \S*c\/center\/1 30\)\] 30\)$/)
+		expect(drawnAs([130, 120])).toBe('(path.square /c/center: 30)')
+		expect(drawnAs([70, 80])).toMatch(/^\(path\.square \[\(- \S*c\/center:\/0 30\) \(- \S*c\/center:\/1 30\)\] 30\)$/)
+		expect(drawnAs([130, 80])).toMatch(/^\(path\.square \[\S*c\/center:\/0 \(- \S*c\/center:\/1 30\)\] 30\)$/)
 	})
 })
 
@@ -982,25 +982,25 @@ describe('painting', () => {
 
 	it('wraps what has none, and goes on in it', () => {
 		const once = withPaint(root, env, row, { fill: '#ff0000' })
-		expect(print(once)).toBe('[c = (style (path.circle [0 0] 10) fill="#ff0000")]')
+		expect(print(once)).toBe('[c = (style (path.circle [0 0] 10) fill: "#ff0000")]')
 		const twice = withPaint(once, env, row, { stroke: '#000000', width: 2 })
-		expect(print(twice)).toBe('[c = (style (path.circle [0 0] 10) fill="#ff0000" stroke="#000000" width=2)]')
+		expect(print(twice)).toBe('[c = (style (path.circle [0 0] 10) fill: "#ff0000" stroke: "#000000" width: 2)]')
 	})
 
 	it('says how its line ends, turns and breaks', () => {
 		const line = withPaint(root, env, row, { stroke: '#000000', cap: 'round', dash: [4, 2] })
-		expect(print(line)).toBe('[c = (style (path.circle [0 0] 10) stroke="#000000" cap="round" dash=[4 2])]')
+		expect(print(line)).toBe('[c = (style (path.circle [0 0] 10) stroke: "#000000" cap: "round" dash: [4 2])]')
 		expect(sceneOf(line, env)[0]!.paint).toMatchObject({ cap: 'round', join: 'miter', dash: [4, 2] })
 		expect(evaluate(line, env).diagnostics).toEqual([])
 		expect(print(withPaint(line, env, row, { cap: 'butt', join: 'bevel' }))).toBe(
-			'[c = (style (path.circle [0 0] 10) stroke="#000000" join="bevel" dash=[4 2])]'
+			'[c = (style (path.circle [0 0] 10) stroke: "#000000" join: "bevel" dash: [4 2])]'
 		)
 	})
 
 	it('has an icon for each way a line ends and turns, where an editor can read it', () => {
 		expect(enumIconsOf(lineCapType)).toHaveLength(LINE_CAPS.length)
 		expect(enumIconsOf(lineJoinType)).toHaveLength(LINE_JOINS.length)
-		const call = parse('(style (path.line [0 0] [1 1]) cap="round")')
+		const call = parse('(style (path.line [0 0] [1 1]) cap: "round")')
 		const slot = viewOf(call, env).slots.find(s => s.key === 'kw:cap')!
 		expect(viewOf(slot.ast, slot.env, slot.expected).editor).toMatchObject({
 			kind: 'enum',
@@ -1012,7 +1012,7 @@ describe('painting', () => {
 	it('has what is passed by name, and takes what it was given in order', () => {
 		const given = parse('{c = (style (path.circle [0 0] 10) "#ff0000" "#000000" 2 "round")}')
 		expect(print(withPaint(given, env, row, { width: 3 }))).toBe(
-			'[c = (style (path.circle [0 0] 10) fill="#ff0000" stroke="#000000" width=3 cap="round")]'
+			'[c = (style (path.circle [0 0] 10) fill: "#ff0000" stroke: "#000000" width: 3 cap: "round")]'
 		)
 	})
 
@@ -1023,7 +1023,7 @@ describe('painting', () => {
 
 	it('keeps what a color refers to, that is not being changed', () => {
 		const refers = parse('{k = "#00ff00" c = (style (path.circle [0 0] 1) k "none" 0)}')
-		expect(print(withPaint(refers, env, row, { width: 3 }))).toContain('(style (path.circle [0 0] 1) fill=k width=3)')
+		expect(print(withPaint(refers, env, row, { width: 3 }))).toContain('(style (path.circle [0 0] 1) fill: k width: 3)')
 	})
 
 	it('has handles as what it is the style of has', () => {
@@ -1051,14 +1051,14 @@ describe('painting', () => {
 		const center = points.find(p => p.target !== null)!
 		expect(center.target).toBe('binding:c/arg0/arg0')
 		const next = drawnFrom(painted, env, 'x', 'rect', center, [20, 20], false)
-		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect /c/path/center [20 20])')
+		expect(print(next.bindings.at(-1)![1])).toBe('(path.rect /c/path:/center: [20 20])')
 		expect(gripAt(next, env, 'binding:x')!.handles[4]!.at).toEqual([0, 0])
 	})
 
 	it('comes along when it is evaluated', () => {
 		const painted = '(style (path.rect [0 0] [1 1]) "#ff0000" "none" 0)'
 		expect(print(toAst(evaluate(parse(painted), env).value, env))).toBe(
-			'(style (path.d "M 0,0 L 1,0 L 1,1 L 0,1 Z") fill="#ff0000" width=0)'
+			'(style (path.d "M 0,0 L 1,0 L 1,1 L 0,1 Z") fill: "#ff0000" width: 0)'
 		)
 	})
 })
@@ -1300,14 +1300,14 @@ describe('what cannot be worked out', () => {
 
 	it('has a handle where the default is, rather than failing', () => {
 		expect(held('{c = (path.circle [/nope/x 5] 1)}').handles.at(-1)!.at).toEqual([0, 0])
-		expect(held('{c = (path.circle /nope/center 1)}').handles.at(-1)!.at).toEqual([0, 0])
+		expect(held('{c = (path.circle /nope/center: 1)}').handles.at(-1)!.at).toEqual([0, 0])
 		expect(held('{c = (path.circle [0 0] ../nope)}').handles[0]!.at).toEqual([0, 0])
 		expect(held('{c = (path.rect "x" [1 1])}').handles).toHaveLength(8)
-		expect(held('{c = (path.polyline [../nope 0] [1 1])}').handles).toHaveLength(2)
+		expect(held('{c = (path.polyline [../nope: 0] [1 1])}').handles).toHaveLength(2)
 	})
 
 	it('can be drawn, snapped to and moved all the same', () => {
-		const root = parse('{c = (path.circle [(+ ../../../gone/origin/0 1) ../../gone/origin/1] 10)}')
+		const root = parse('{c = (path.circle [(+ ../../../gone/origin:/0 1) ../../gone/origin:/1] 10)}')
 		expect(sceneOf(root, env)).toHaveLength(1)
 		expect(snapPointsOf(root, env, sceneOf(root, env)).length).toBeGreaterThan(0)
 		expect(gripAt(root, env, row)!.move!([1, 2])).toHaveLength(1)
@@ -1386,24 +1386,24 @@ describe('how what is put together is drawn', () => {
 
 	it('has a fill in front go with a line behind it', () => {
 		expect(
-			painted(`(style ${RECT} stroke="red" width=3)`, `(style ${CIRCLE} fill="blue")`)
-		).toBe(print(parse('(style it fill="blue" stroke="red" width=3)')))
+			painted(`(style ${RECT} stroke: "red" width: 3)`, `(style ${CIRCLE} fill: "blue")`)
+		).toBe(print(parse('(style it fill: "blue" stroke: "red" width: 3)')))
 	})
 
 	it('goes by the one in front, whichever was selected first', () => {
 		expect(
-			painted(`(style ${RECT} fill="red" width=3)`, `(style ${CIRCLE} fill="blue" width=5)`)
-		).toBe(print(parse('(style it fill="blue" width=5)')))
+			painted(`(style ${RECT} fill: "red" width: 3)`, `(style ${CIRCLE} fill: "blue" width: 5)`)
+		).toBe(print(parse('(style it fill: "blue" width: 5)')))
 	})
 
 	it('takes what is only as it would be anyway as saying nothing', () => {
-		expect(painted(`(style ${RECT} fill="red")`, `(style ${CIRCLE} fill="none")`)).toBe(
-			print(parse('(style it fill="red")'))
+		expect(painted(`(style ${RECT} fill: "red")`, `(style ${CIRCLE} fill: "none")`)).toBe(
+			print(parse('(style it fill: "red")'))
 		)
 	})
 
 	it('reads what a style is given in order', () => {
-		expect(painted(`(style ${RECT} "red")`, CIRCLE)).toBe(print(parse('(style it fill="red")')))
+		expect(painted(`(style ${RECT} "red")`, CIRCLE)).toBe(print(parse('(style it fill: "red")')))
 	})
 
 	it('adds no style where neither has one', () => {
@@ -1600,7 +1600,7 @@ describe('what there is for colors', () => {
 
 	it('goes between two, by the way that is said', () => {
 		expect(value('(color.lerp "#000000" "#ffffff" 0.5 "srgb")')).toBe('#808080')
-		expect(value('(color.mix "#000000" "#ffffff" 0.5 space="srgb")')).toBe('#808080')
+		expect(value('(color.mix "#000000" "#ffffff" 0.5 space: "srgb")')).toBe('#808080')
 		// By how it looks, unless it is said otherwise.
 		expect(value('(color.lerp "#000000" "#ffffff" 0.5)')).not.toBe('#808080')
 		expect(value('(color.lerp "#000000" "#ffffff" 0)')).toBe('#000000')
@@ -1618,10 +1618,10 @@ describe('what there is for colors', () => {
 
 	it('goes from what a color has, as a relative color does', () => {
 		expect(value('(color.from "#ff0000")')).toBe('#ff0000')
-		expect(value('(color.from "#ff0000" alpha=-0.5)')).toBe('#ff000080')
-		expect(value('(color.from "#808080" lightness=1)')).toBe('#ffffff')
-		expect(value('(color.from "#808080" lightness=-1)')).toBe('#000000')
-		expect(value('(color.chromaOf (color.from "#808080" chroma=-1))')).toBeCloseTo(0)
+		expect(value('(color.from "#ff0000" alpha: -0.5)')).toBe('#ff000080')
+		expect(value('(color.from "#808080" lightness: 1)')).toBe('#ffffff')
+		expect(value('(color.from "#808080" lightness: -1)')).toBe('#000000')
+		expect(value('(color.chromaOf (color.from "#808080" chroma: -1))')).toBeCloseTo(0)
 	})
 
 	it('has its hue on the other side, and is as light', () => {

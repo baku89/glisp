@@ -221,7 +221,7 @@ export class CallAST extends ASTNode {
 		const kw: string[] = []
 		if (this.kwargs) {
 			for (const [k, v] of this.kwargs) {
-				kw.push(`${k}=${v.print()}`)
+				kw.push(`${k}: ${v.print()}`)
 			}
 		}
 		return `(${[...positional, ...kw].join(' ')})`

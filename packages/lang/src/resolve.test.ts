@@ -75,7 +75,7 @@ describe('resolve — names', () => {
 
 	it('walks kwargs, spread, access, meta and ~', () => {
 		for (const src of [
-			'(f k=a)',
+			'(f k: a)',
 			'[...a]',
 			'{...a}',
 			'a.b',
@@ -103,8 +103,8 @@ describe('resolve — paths', () => {
 
 	it('finds a sibling and climbs levels', () => {
 		expect(pathTarget('[10 ./0]', './0')).toBe('10')
-		expect(pathTarget('{w: 100 h: ./w}', './w')).toBe('100')
-		expect(pathTarget('{w: 100 a: (* ../w 2)}', '../w')).toBe('100')
+		expect(pathTarget('{w: 100 h: ./w:}', './w:')).toBe('100')
+		expect(pathTarget('{w: 100 a: (* ../w: 2)}', '../w:')).toBe('100')
 	})
 
 	it('descends through several levels', () => {
@@ -125,17 +125,17 @@ describe('resolve — paths', () => {
 	})
 
 	it('finds an argument by its parameter name, as evaluation does', () => {
-		expect(pathTarget('[(take [1 2] 1) ./0/n]', './0/n')).toBe('1')
-		expect(pathTarget('{f = (=> (a: number): number a) [(f 5) ./0/a]}', './0/a')).toBe('5')
-		expect(pathTarget('[((=> (a: number): number a) 5) ./0/a]', './0/a')).toBe('5')
-		expect(pathTarget('[(take [1] n=3) ./0/n]', './0/n')).toBe('3')
-		expect(messages('[(take [1 2] 1) ./0/nope]')).toEqual([
-			'path segment not found: nope',
+		expect(pathTarget('[(take [1 2] 1) ./0/n:]', './0/n:')).toBe('1')
+		expect(pathTarget('{f = (=> (a: number): number a) [(f 5) ./0/a:]}', './0/a:')).toBe('5')
+		expect(pathTarget('[((=> (a: number): number a) 5) ./0/a:]', './0/a:')).toBe('5')
+		expect(pathTarget('[(take [1] n: 3) ./0/n:]', './0/n:')).toBe('3')
+		expect(messages('[(take [1 2] 1) ./0/nope:]')).toEqual([
+			'path segment not found: nope:',
 		])
 	})
 
 	it('makes no claim about a head it cannot read', () => {
-		expect(messages('[((? true true take _ drop) [1 2] 1) ./0/n]')).toEqual([])
+		expect(messages('[((? true true take _ drop) [1 2] 1) ./0/n:]')).toEqual([])
 	})
 
 	it('gives a let-block trailing expression no path', () => {
@@ -185,7 +185,7 @@ describe('resolve agrees with evaluate', () => {
 		'{a = b b = 1 a}',
 		'{a = 1 {a = 2 a}}',
 		'[10 ./0]',
-		'{w: 100 h: ./w a: (* ../w ../h)}',
+		'{w: 100 h: ./w: a: (* ../w: ../h:)}',
 		'[{k = 1 y = (+ k 1) y} ./0/y]',
 		'[[1 ./0] ./0/1]',
 		'((=> (x: number): number (+ x 1)) 1)',
@@ -194,8 +194,8 @@ describe('resolve agrees with evaluate', () => {
 		'[5 ((=> (T) (x: number): _ ../0) 1)]',
 		'[[1 2] 9 ./0/../1]',
 		'[1 ./]',
-		'[(take [1 2] 1) ./0/n]',
-		'[(take [1 2] 1) ./0/nope]',
+		'[(take [1 2] 1) ./0/n:]',
+		'[(take [1 2] 1) ./0/nope:]',
 		'[1 ~./0]',
 		'^{label: "x"} [1 ./0]',
 		'(? 1 number 2 _ 3)',

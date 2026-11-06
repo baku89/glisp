@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, buildPrelude, LetAST, parse, print, type TypeValue } from '@glisp/lang'
+import { type AST, buildPrelude, fromOlderSyntax, LetAST, parse, print, type TypeValue } from '@glisp/lang'
 import {
 	AstEditor,
 	AstMultiInspector,
@@ -115,16 +115,16 @@ const NEW_SKETCH = `{
   [
     ; A vector with names in it is a group, which goes on the canvas as one.
     marks = [
-      left = (style (path.circle [-60 0] 16) fill="#ffffff")
-      right = (style (path.circle [60 0] 16) fill="#ffffff")
+      left = (style (path.circle [-60 0] 16) fill: "#ffffff")
+      right = (style (path.circle [60 0] 16) fill: "#ffffff")
     ]
 
     ; Made from what is named above, which itself draws nothing.
-    disc = (style ring fill="#1473e6")
-    halo = (style (path.offset ring gap) stroke="#1473e6" width=2)
+    disc = (style ring fill: "#1473e6")
+    halo = (style (path.offset ring gap) stroke: "#1473e6" width: 2)
 
     ; A name lets the rest of it refer to this, from anywhere.
-    plate = (style (path.rect [-200 -200] [400 400]) fill="#f0ece2")
+    plate = (style (path.rect [-200 -200] [400 400]) fill: "#f0ece2")
 
     ; These are layers like the rest: moved to the front, they cover what is behind.
     axes1 = (axes)
@@ -143,7 +143,7 @@ const STORAGE_KEY = 'glisp.canvas.source'
  */
 const graphicsEnv = withGraphics(buildPrelude())
 function fromBefore(source: string): string {
-	const written = writtenAsNow(source)
+	const written = fromOlderSyntax(writtenAsNow(source), graphicsEnv)
 	try {
 		return print(withLayersFromOrder(parse(written), graphicsEnv))
 	} catch {

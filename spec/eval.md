@@ -34,8 +34,8 @@ For each node type, the number of trivia slots reflects the syntactic positions 
 | Record outer `{f0 … fN}` | `N + 1` fields | `N + 2` | inside `{` and `}` |
 | Let-block outer `{b0 … bN-1 expr?}` | `N` bindings + optional trailing expr | (count + 1) | inside `{` and `}` |
 | Record-field `name: value` | 2 | 2 | flexible: trivia allowed on both sides of `:` |
-| Let-binding `name = value` | 2 | 2 | flexible: trivia allowed on both sides of `=` |
-| Kwarg `key=value` | 2 | 2 | flexible: trivia allowed on both sides of `=` |
+| Name `name = value`, as of a let-binding | 2 | 2 | flexible: trivia allowed on both sides of `=` |
+| Kwarg `key: value` | 2 | 2 | flexible: trivia allowed on both sides of `:` |
 | Metadata-attached `^{meta} expr` | 2 | 1 | `^` is **sticky** to `{`; trivia only between `^{...}` and `expr` |
 | `~expr` | 1 | 0 | **sticky** |
 | Spread `...expr`, `...~expr` | 1 | 0 | **sticky** |
@@ -65,7 +65,7 @@ The AST is a discriminated union keyed by `kind`. Hosts construct ASTs via build
 | `'spread'` | spread               | `...expr`; `...~expr` is a spread of an `'unquote'`           |
 | `'meta'`   | metadata-attached    | `^{...} expr`                                                 |
 
-The detailed field shape per kind is left to the implementation (e.g. how kwargs are represented inside `'call'`, how generics are stored on `'fn'`). Hosts that pattern-match should rely only on `kind` and on field accessors documented by the implementation.
+A [name](./syntax.md#names--) given with `=` is not a kind of its own: it is held by the node it stands in, as a let-block holds the names of its bindings. The detailed field shape per kind is left to the implementation (e.g. how kwargs and names are represented inside `'call'`, how generics are stored on `'fn'`). Hosts that pattern-match should rely only on `kind` and on field accessors documented by the implementation.
 
 ### AST equality
 
@@ -95,11 +95,11 @@ Env  ::= null            ;; root sentinel (above top-level)
 Frame = {
   ast:      ASTNode            ;; the AST node this frame represents
   parent:   Env                ;; one level up
-  bindings: Map<Name, (AST, Env)>?   ;; only on scope-introducing frames
+  bindings: Map<Name, (AST, Env)>?   ;; only on frames whose node has names
 }
 ```
 
-When `eval` recurses into a syntactic child of the current AST, the env naturally tracks the ancestor chain — every let-block, function literal, record, vector, and application is pushed as a frame on the way down. Records, vectors, and applications contribute no `bindings` (transparent to bare-name lookup) but participate in path navigation.
+When `eval` recurses into a syntactic child of the current AST, the env naturally tracks the ancestor chain — every let-block, function literal, record, vector, and application is pushed as a frame on the way down. One contributes `bindings` if what is directly in it has [names](./syntax.md#names--), and is transparent to bare-name lookup otherwise; all of them participate in path navigation.
 
 However, **the env and the AST being evaluated are independent**: for a host-driven `eval(ast, env)`, the AST need not be a structural descendant of `env`'s top frame. The env is only consulted for name and path resolution; it does not constrain what AST may be evaluated against it. Hosts can synthesize an AST on the fly, or pull a sub-expression out of a larger tree, and evaluate it against any env that supplies the names and ancestor levels the AST refers to.
 
@@ -108,7 +108,7 @@ Three kinds of frames carry `bindings`:
 | Frame | `parent` | `bindings` |
 |---|---|---|
 | Top-level | `null` | host-provided initial bindings |
-| Let-block `{a = ... b = ... ...}` | enclosing frame | each `name → (value-AST, this-frame)` where `value-AST` is the expression on the right of `=` (self-referential, enables recursive bindings) |
+| A node with names: a let-block `{a = ... b = ... ...}`, or a vector, call or record with `name = ...` in it | enclosing frame | each `name → (value-AST, this-frame)` where `value-AST` is the expression on the right of `=` (self-referential, enables recursive bindings) |
 | Function body | the closure's captured lexical env | each `parameter → (argument-AST, caller's env)` where `argument-AST` is the expression passed at the call site |
 
 When `eval` recurses into a child of the current AST, it pushes a new frame `{ ast: currentAST, parent: env, bindings: bindings-if-any }` and evaluates the child against the extended env.
@@ -142,25 +142,26 @@ resolve(x, e): (AST, Env)
 
 Walk `e`'s frame chain. At each frame, check whether its `bindings` (if any) contain `x`. Return the innermost found `(AST, env)` pair. If no frame contains `x`, emit a diagnostic and yield `()` as the resolved value (see [Failure as `()`](#failure-as-)).
 
-Frames without `bindings` (records, vectors, applications) are skipped — they are transparent to bare-name lookup.
+Frames without `bindings`, those of nodes with no names in them, are skipped — they are transparent to bare-name lookup. Keys are never bindings: a call's frame binds the names given to its arguments, not its parameters' names.
 
 ## Path lookup
 
-A path atom carries a sequence of segments. Each segment is one of: `'..'` (go up to parent), a name, or an integer. A leading `'/'` has the walk begin at the root frame: the outermost frame whose node is written, past those that only stand for what a host binds (the prelude and what is layered on it). With no such frame, a diagnostic is emitted and the path yields `()`.
+A path atom carries a sequence of segments. Each segment is one of: `'..'` (go up to parent), a name, a key (written `key:`), or an integer. A leading `'/'` has the walk begin at the root frame: the outermost frame whose node is written, past those that only stand for what a host binds (the prelude and what is layered on it). With no such frame, a diagnostic is emitted and the path yields `()`.
 
 To resolve a path at env `e`, start with the env's top frame (representing the AST node containing the path) and process segments in order:
 
 1. `'..'` — pop one frame off `e` (move to the parent's frame). The resulting frame is the new "current frame".
-2. a name — interpret it as a child name within the current frame's AST node: a record field, a let-block binding, or a call's argument, by keyword or by the name of the parameter in the head's signature.
-3. an integer — interpret it as an index into a vector's elements. A call's arguments are reached by name, and a variadic parameter's name refers to the remaining arguments as a vector, which adds no level for paths inside them. Let-blocks are addressed by name only, so a let-block's trailing expression has no path. A path cannot descend into a function literal, and cannot appear in a function signature (a syntax error).
+2. a name — the child of the current frame's AST node that has this name, given with `=`: a let-block binding, or a named element, argument or field value.
+3. a key — what fills a slot of the current frame's AST node: a record field, or a call's argument, by keyword or by the name of the parameter in the head's signature. A variadic parameter's name refers to the remaining arguments as a vector, which adds no level for paths inside them.
+4. an integer — an index into a vector's elements. A call's arguments are reached by key, not by position. A let-block's trailing expression has a path only if it has a name. A path cannot descend into a function literal, and cannot appear in a function signature (a syntax error).
 
 After processing all segments, the result is the evaluation node `(target_AST, env_at_target)`. When the path runs out of frames to pop (popping above top-level) or a name/integer fails to address a child, a diagnostic is emitted and the path yields `()`.
 
 For a vector `[e0 e1 ...]`, indices are `0` = `e0`, `1` = `e1`, etc.
 
-`env_at_target` is the env that the target AST would be evaluated in if reached by ordinary recursive descent from the top-level: walk the AST from top-level down to the target, pushing a frame at each scope-introducing form on the way:
+`env_at_target` is the env that the target AST would be evaluated in if reached by ordinary recursive descent from the top-level: walk the AST from top-level down to the target, pushing a frame at each node with names on the way:
 
-- **Let-block** entered: push a frame whose bindings are the let-block's `name = value` pairs (with self-referential `parent`).
+- **A node with names** entered: push a frame whose bindings are its `name = value` pairs (with self-referential `parent`).
 - **Top-level**: the host's initial env.
 
 For path traversals that stay within scope-flat structures (records, vectors, applications), `env_at_target` equals the current env — no pop/push is needed.
@@ -179,7 +180,7 @@ eval: (AST, Env) → Value
 
 Nothing in a program can come out differently from one evaluation or one machine to the next. There is no clock and no source of entropy to evaluate. Randomness is `random`, whose values only its seed and a number decide. What varies, a host chooses when editing, and writes into the program as a literal: a tool rolling a seed is an edit.
 
-When `eval` recurses into a sub-expression, it passes the sub-AST and the *same* env (no new frame created), unless the sub-expression is itself a scope-introducing form (let-block, function call), in which case a new frame is pushed.
+When `eval` recurses into a sub-expression, it passes the sub-AST and the *same* env (no new frame created), unless the sub-expression is itself a node with names, or a function call, in which case a new frame is pushed.
 
 ### Lazy semantics
 
@@ -202,7 +203,7 @@ When forcing `(AST, env)`:
 - `InProgress`: a cycle is detected. Return `()` and emit a diagnostic. Do not transition state — the in-progress entry remains so the outer evaluation that started this cycle finishes normally and writes `Computed`.
 - `NotComputed`: transition to `InProgress`, evaluate, store `Computed`, return.
 
-Examples like `{a: ./b  b: ./a}` resolve via this rule: each field becomes `()`, which is then coerced to its declared type's default at the next typed slot.
+Examples like `{a: ./b:  b: ./a:}` resolve via this rule: each field becomes `()`, which is then coerced to its declared type's default at the next typed slot.
 
 ### `~` during evaluation
 
@@ -438,7 +439,7 @@ It stops at `@`, including a path that goes through something locked to what is 
 
 Of a call's arguments, it tries a literal first, as that changes nothing else, and then a later one before an earlier one, as what comes later is less of what a call is. `(+ a 1)` changes the `1`, `(+ a @1)` changes `a`, and `(+ a b)` changes `b`, or `a` if `b` cannot change. The first that works is the one, so a program steers it with `@`.
 
-After a literal, and before going by the order, comes a path through a parameter whose type says `changesFirst: true`, of a host function. A host says this of what can change without what a thing is changing, such as where it is: with `(circle (center: Place) radius)`, `(+ ../a/center ../a/radius)` changes the center, whichever way around it is written, and the radius only if the center cannot change.
+After a literal, and before going by the order, comes a path through a parameter whose type says `changesFirst: true`, of a host function. A host says this of what can change without what a thing is changing, such as where it is: with `(circle (center: Place) radius)`, `(+ ../a/center: ../a/radius:)` changes the center, whichever way around it is written, and the radius only if the center cannot change.
 
 ### What cannot add up
 

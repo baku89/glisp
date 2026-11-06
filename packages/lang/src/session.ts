@@ -24,7 +24,7 @@ import { renameBinding } from './rename.js'
  * from the same source.
  */
 
-import { enterNode, type EvalResult, IO, isIO, pushLetFrame } from './eval.js'
+import { enterNode, type EvalResult, IO, isIO, isKeySegment, keyOfSegment, pushLetFrame } from './eval.js'
 import { callParameters } from './infer.js'
 import { lex } from './lex.js'
 import { parse, ParseError } from './parse.js'
@@ -265,19 +265,21 @@ function setAtPathInAst(
 		}
 		case 'record': {
 			if (typeof seg !== 'string') return `expected field name, got ${seg}`
+			if (!isKeySegment(seg)) return `expected field name, as \`${seg}:\``
+			const key = keyOfSegment(seg)
 			for (let i = 0; i < ast.fields.length; i++) {
 				const entry = ast.fields[i]!
 				if (entry instanceof SpreadAST) continue
 				const [name, value] = entry
-				if (name !== seg) continue
+				if (name !== key) continue
 				const next = descend(value)
 				if (typeof next === 'string') return next
 				const newFields: RecordEntry[] = ast.fields.slice()
 				newFields[i] = [name, next] as const
 				return new RecordAST(newFields, ast.optional)
 			}
-			if (rest.length > 0) return `no field named ${seg}`
-			return new RecordAST([...ast.fields, [seg, replacement]], ast.optional)
+			if (rest.length > 0) return `no field named ${key}`
+			return new RecordAST([...ast.fields, [key, replacement]], ast.optional)
 		}
 		case 'vec': {
 			if (typeof seg !== 'number') return `expected index, got ${seg}`
@@ -292,7 +294,8 @@ function setAtPathInAst(
 		}
 		case 'call':
 			if (typeof seg !== 'string') return `expected parameter name, got ${seg}`
-			return setCallArgument(ast, seg, rest, descend, replacement, inside)
+			if (!isKeySegment(seg)) return `expected parameter name, as \`${seg}:\``
+			return setCallArgument(ast, keyOfSegment(seg), rest, descend, replacement, inside)
 		default:
 			return `cannot descend into ${ast.kind}`
 	}

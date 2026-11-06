@@ -53,7 +53,7 @@ describe('print', () => {
 	it('prints applications with kwargs', () => {
 		expect(
 			print(callKw(sym('f'), [lit(1)], { k: lit(2), m: lit(3) }))
-		).toBe('(f 1 k=2 m=3)')
+		).toBe('(f 1 k: 2 m: 3)')
 	})
 
 	it('prints accessor sugar', () => {
@@ -192,7 +192,7 @@ describe('print', () => {
 			'{x: 10  ; comment\n y: 20}',
 			'(=> (n: number): number (+ n 1))',
 			'^{label: "x"} 100',
-			'(f a=1 b=2)',
+			'(f a: 1 b: 2)',
 			"(f ~x ...~ys)",
 		]
 		for (const s of cases) {

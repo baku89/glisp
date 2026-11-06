@@ -132,7 +132,7 @@ describe('what can be turned as it is written', () => {
 		`(path.reflect ${R} (line.fromPoints [50 0] [50 10]))`,
 		`(path.zigzag ${R} 2 10)`,
 		`(path.wave ${R} 2 10)`,
-		`(path.wave ${R} 2 10 phase=40 angle=30 origin=[5 5])`,
+		`(path.wave ${R} 2 10 phase: 40 angle: 30 origin: [5 5])`,
 		`(path.twirl ${R} [20 10] 30 40)`,
 		`(path.bulge ${R} [20 10] 30 0.4)`,
 		`(path.dash ${R} [10 5])`,
@@ -143,7 +143,7 @@ describe('what can be turned as it is written', () => {
 		`(path.shadow ${R} [10 20])`,
 		`(path.shadowFrom ${R} [-20 -20] 2)`,
 		`(path.ray ${R} [-20 10] [0 10])`,
-		`(style (path.roundCorners (path.mirror (path.ellipse [50 20] [30 10] 20) (line.fromPoints [90 0] [90 10])) 3) fill="#ff0000")`,
+		`(style (path.roundCorners (path.mirror (path.ellipse [50 20] [30 10] 20) (line.fromPoints [90 0] [90 10])) 3) fill: "#ff0000")`,
 	])('comes out as far round: %s', src => {
 		const root = parse(`{c = ${src}}`)
 		const answer = gripAt(root, env, 'binding:c')!.box!
@@ -284,19 +284,19 @@ describe('how an offset goes around corners', () => {
 		toD((evaluate(parse(src), env).value as PathValue).path)
 
 	it('is mitered until it says otherwise', () => {
-		expect(pathOf(`(path.offset ${RECT} 5)`)).toBe(pathOf(`(path.offset ${RECT} 5 join="miter")`))
+		expect(pathOf(`(path.offset ${RECT} 5)`)).toBe(pathOf(`(path.offset ${RECT} 5 join: "miter")`))
 	})
 
 	it('can be round or beveled', () => {
 		const miter = pathOf(`(path.offset ${RECT} 5)`)
-		expect(pathOf(`(path.offset ${RECT} 5 join="round")`)).not.toBe(miter)
-		expect(pathOf(`(path.offset ${RECT} 5 join="bevel")`)).not.toBe(miter)
+		expect(pathOf(`(path.offset ${RECT} 5 join: "round")`)).not.toBe(miter)
+		expect(pathOf(`(path.offset ${RECT} 5 join: "bevel")`)).not.toBe(miter)
 	})
 
 	it('has a stroke end by its cap', () => {
 		const line = '(path.line [0 0] [10 0])'
-		expect(area(`(path.offsetStroke ${line} 4 cap="square")`)).toBeGreaterThan(
-			area(`(path.offsetStroke ${line} 4 cap="butt")`)
+		expect(area(`(path.offsetStroke ${line} 4 cap: "square")`)).toBeGreaterThan(
+			area(`(path.offsetStroke ${line} 4 cap: "butt")`)
 		)
 	})
 
@@ -400,7 +400,7 @@ describe('a double click on what is made from several', () => {
 	})
 
 	it('goes through a style', () => {
-		const styled = parse(`{c = (style (path.blend ${RECT} ${CIRCLE} 0.5) fill="#ddd")}`)
+		const styled = parse(`{c = (style (path.blend ${RECT} ${CIRCLE} 0.5) fill: "#ddd")}`)
 		expect(rowsInside(styled, env, c, [c])).toEqual(['binding:c/arg0/arg0', 'binding:c/arg0/arg1'])
 	})
 
@@ -733,7 +733,7 @@ describe('changing only how a path is painted', () => {
 		const painted = (fill: string) =>
 			session.setAst(
 				new LetAST(
-					(parse(`{u = (style (path.unite ${RECT} ${CIRCLE}) fill="${fill}")}`) as LetAST).bindings,
+					(parse(`{u = (style (path.unite ${RECT} ${CIRCLE}) fill: "${fill}")}`) as LetAST).bindings,
 					null
 				)
 			)
@@ -885,7 +885,7 @@ describe('painting what refers to the corners of what is also painted', () => {
 
 describe('putting a filter around what is referred to', () => {
 	it('leaves what refers to its center where it was', () => {
-		const root = parse('{a = (path.circle [10 0] 5) p = (path.circle ./a/center 2)}')
+		const root = parse('{a = (path.circle [10 0] 5) p = (path.circle ./a:/center 2)}')
 		const filter = filtersFor([evaluate(parse('(path.circle [0 0] 1)'), env).value], env).find(({ name }) => name === 'path.offset')!
 		const next = wrappedAt(root, env, 'binding:a', filter)!
 		expect(check(next, env).filter(({ level }) => level === 'error')).toEqual([])
@@ -894,7 +894,7 @@ describe('putting a filter around what is referred to', () => {
 })
 
 describe('what wants a path, of what has a style', () => {
-	const STYLED = '(style (path.circle [0 0] 5) fill="#ff0000")'
+	const STYLED = '(style (path.circle [0 0] 5) fill: "#ff0000")'
 	const errors = (root: AST) => check(root, env).filter(({ level }) => level === 'error')
 	const picked = (src: string, source: string, target: string) => {
 		const next = referenceAt(parse(src), env, source, target)!
@@ -904,14 +904,14 @@ describe('what wants a path, of what has a style', () => {
 
 	it('refers to the path in it when one is picked', () => {
 		expect(picked(`{a = ${STYLED} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
-			'o = (path.offset /a/path 5)'
+			'o = (path.offset /a/path: 5)'
 		)
 	})
 
 	it('finds it however a style is given it', () => {
-		const given = '(style fill="#ff0000" path=(path.circle [0 0] 5))'
+		const given = '(style fill: "#ff0000" path: (path.circle [0 0] 5))'
 		expect(picked(`{a = ${given} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
-			'o = (path.offset /a/path 5)'
+			'o = (path.offset /a/path: 5)'
 		)
 	})
 
@@ -933,8 +933,8 @@ describe('what wants a path, of what has a style', () => {
 
 		it('goes to the path in it, drawing as it did', () => {
 			const next = styled()
-			expect(print(next)).toContain('o = (path.offset /a/path 5)')
-			expect(print(next)).toContain('/a/path)')
+			expect(print(next)).toContain('o = (path.offset /a/path: 5)')
+			expect(print(next)).toContain('/a/path:)')
 			expect(errors(next)).toEqual([])
 			for (const row of ['binding:o', 'binding:u']) {
 				expect(toD(pathOfRow(next, env, row)!.path)).toBe(toD(pathOfRow(parse(SRC), env, row)!.path))
@@ -1030,7 +1030,7 @@ describe('what is moved, where it refers to a place on something else', () => {
 	it('can refer to the top of a circle, where going round is not exact', () => {
 		const root = parse('{a = (path.circle [100 100] 50) b = (path.circle [0 0] 20)}')
 		const top = snapPointsOf(root, env, sceneOf(root, env)).find(({ label, code }) => label === 'top' && code?.of === 'binding:a')!
-		expect(print(linked(root, env, 'binding:b', 0, top)!)).toContain('(- /a/center/1 /a/radius)')
+		expect(print(linked(root, env, 'binding:b', 0, top)!)).toContain('(- /a/center:/1 /a/radius:)')
 	})
 
 	it.each([[10, 0], [0, 5], [-7.5, 3.25]] as const)('moves it by %s, %s just as well', (x, y) => {
@@ -1100,7 +1100,7 @@ describe('what is across a line', () => {
 		})
 
 		it('moves every line of mirrors within mirrors, under what is around them', () => {
-			expectMoved(`(style (path.roundCorners (path.mirror (path.mirror (path.mirror (path.ellipse [-113.3 -6.6] [72.9 54.6] -24.5) (line.fromPoints [-28.1 -41.3] [-134.3 84.5])) (line.fromPoints [-0.8 -58.9] [-1.7 93.5])) (line.fromPoints [-78.5 -36.4] [178.6 -37.4])) 12) fill="#fba79d")`)
+			expectMoved(`(style (path.roundCorners (path.mirror (path.mirror (path.mirror (path.ellipse [-113.3 -6.6] [72.9 54.6] -24.5) (line.fromPoints [-28.1 -41.3] [-134.3 84.5])) (line.fromPoints [-0.8 -58.9] [-1.7 93.5])) (line.fromPoints [-78.5 -36.4] [178.6 -37.4])) 12) fill: "#fba79d")`)
 		})
 
 		it('moves a line that is named elsewhere', () => {
@@ -1116,9 +1116,9 @@ describe('what is across a line', () => {
 		it('says the place of a wave by its name, when moved for the first time', () => {
 			const root = parse(`{c = (path.wave ${RECT} 2 10)}`)
 			const { ast } = changed(root, env, 'binding:c', gripAt(root, env, 'binding:c')!.move!([30, -20]))
-			expect(print(ast!)).toContain('origin=[30 -20]')
+			expect(print(ast!)).toContain('origin: [30 -20]')
 			const again = changed(ast!, env, 'binding:c', gripAt(ast!, env, 'binding:c')!.move!([1, 1]))
-			expect(print(again.ast!)).toContain('origin=[31 -19]')
+			expect(print(again.ast!)).toContain('origin: [31 -19]')
 		})
 
 		const moved = (src: string, delta: [number, number]) => {
@@ -1128,7 +1128,7 @@ describe('what is across a line', () => {
 		}
 		it.each([
 			`(path.wave ${RECT} 2 10)`,
-			`(path.wave ${RECT} 2 10 phase=40 angle=30 origin=[5 5])`,
+			`(path.wave ${RECT} 2 10 phase: 40 angle: 30 origin: [5 5])`,
 			`(path.twirl ${RECT} [5 5] 8 90)`,
 			`(path.bulge ${RECT} [5 5] 8 0.5)`,
 			`(path.shadowFrom ${RECT} [-20 -20] 2)`,
@@ -1149,7 +1149,7 @@ describe('what is across a line', () => {
 
 describe('the box around what is selected', () => {
 	const shapesOf = (src: string) => sceneOf(parse(src), env)
-	const SRC = '{a = (path.rect [0 0] [10 10]) b = (path.circle [50 50] 10) p = (style (path.rect [100 0] [10 10]) fill="#000000")}'
+	const SRC = '{a = (path.rect [0 0] [10 10]) b = (path.circle [50 50] 10) p = (style (path.rect [100 0] [10 10]) fill: "#000000")}'
 
 	it('goes around one, or all of several', () => {
 		expect(boundsOfRows(shapesOf(SRC), ['binding:a'])).toEqual([[0, 0], [10, 10]])
@@ -1233,9 +1233,9 @@ describe('what each thing says to the box around it', () => {
 			`(path.zigzag ${R} 2 10)`,
 			`(path.zigzag ${R})`,
 			`(path.wave ${R} 2 10)`,
-			`(path.wave ${R} 2 10 phase=40 angle=30 origin=[5 5])`,
+			`(path.wave ${R} 2 10 phase: 40 angle: 30 origin: [5 5])`,
 			`(path.dash ${R} [10 5] 3)`,
-			`(path.repeatAlong ${R} (path.circle [0 0] 2) spacing=15)`,
+			`(path.repeatAlong ${R} (path.circle [0 0] 2) spacing: 15)`,
 			`(path.twirl ${R} [20 10] 30 40)`,
 			`(path.bulge ${R} [20 10] 30 0.4)`,
 			`(path.dash ${R} [10 5])`,
@@ -1267,7 +1267,7 @@ describe('what each thing says to the box around it', () => {
 		})
 
 		it('goes for a program as it was pasted', () => {
-			expectScaled(`(style (path.roundCorners (path.mirror (path.mirror (path.mirror (path.ellipse [-113.3 -6.6] [72.9 54.6] -24.5) (line.fromPoints [-28.1 -41.3] [-134.3 84.5])) (line.fromPoints [-0.8 -58.9] [-1.7 93.5])) (line.fromPoints [-78.5 -36.4] [178.6 -37.4])) 12) fill="#fba79d")`)
+			expectScaled(`(style (path.roundCorners (path.mirror (path.mirror (path.mirror (path.ellipse [-113.3 -6.6] [72.9 54.6] -24.5) (line.fromPoints [-28.1 -41.3] [-134.3 84.5])) (line.fromPoints [-0.8 -58.9] [-1.7 93.5])) (line.fromPoints [-78.5 -36.4] [178.6 -37.4])) 12) fill: "#fba79d")`)
 		})
 
 		it('has the sides for what only goes on from what it is made of', () => {
@@ -1299,7 +1299,7 @@ describe('what each thing says to the box around it', () => {
 	})
 
 	it('passes through a style, to what is in it', () => {
-		const answer = held('(style (path.rect [0 0] [10 10]) fill="#000000")').box!
+		const answer = held('(style (path.rect [0 0] [10 10]) fill: "#000000")').box!
 		expect(answer.even).toBe(false)
 		expect(answer.scaled(2, 1, [0, 0])[1]).toEqual({ route: [0, 1], value: [20, 10] })
 	})
@@ -1382,7 +1382,7 @@ describe('going one step on what is in a modifier', () => {
 	it('goes by what it is given first', () => {
 		expect(stepped('{a = (path.offset (path.circle [10 10] 5) 2)}')).toContain('(path.offset (path.ellipse [10 10] [5 5]) 2)')
 		expect(stepped('{a = (path.offset (path.ellipse [10 10] [5 5]) 2)}')).toMatch(/path\.offset \(path\.d "M 15,10/)
-		expect(stepped('{a = (style (path.circle [10 10] 5) fill="#000000")}')).toContain('(style (path.ellipse [10 10] [5 5]) fill=')
+		expect(stepped('{a = (style (path.circle [10 10] 5) fill: "#000000")}')).toContain('(style (path.ellipse [10 10] [5 5]) fill: ')
 	})
 
 	it('goes one of them at a time', () => {
@@ -1565,7 +1565,7 @@ describe('the points of a path', () => {
 
 	it('are not there for the tool that goes by the whole of things, and are all there is for the one that goes by them', () => {
 		const data = 'M0,0 C10,0 10,10 20,10 L30,0'
-		const root = parse(`{c = (style ${d(data)} fill="#000")}`)
+		const root = parse(`{c = (style ${d(data)} fill: "#000")}`)
 		const held = gripOfRows(root, env, ['binding:c'])!
 		const whole = gripOfPointsOrNot(held, false)!
 		expect(whole.grip.handles).toEqual([])

@@ -4,7 +4,7 @@
  */
 
 import { desugar } from './desugar.js'
-import { childAt } from './eval.js'
+import { childAt, isKeySegment, keyOfSegment } from './eval.js'
 import { parse } from './parse.js'
 import {
 	AccessAST,
@@ -122,7 +122,9 @@ export function renameBindingIn(
 			if (here === block && segment === from) segments[i] = to
 			const child: AST | null =
 				here.kind === 'call'
-					? (here.kwargs?.get(String(segment)) ?? null)
+					? isKeySegment(segment)
+						? (here.kwargs?.get(keyOfSegment(segment)) ?? null)
+						: childAt(here, segment, null)
 					: childAt(here, segment, null)
 			if (child === null) break
 			if (!entered) scope = { ast: here, parent: scope }

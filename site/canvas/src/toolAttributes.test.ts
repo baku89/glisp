@@ -87,7 +87,7 @@ describe('a tool makes a shape from them', () => {
 
 	it('and a copy of the paint, so that changing it later leaves that as it is', () => {
 		const ast = withPaintDrawn(drawn(blank, 'a', 'rect', [0, 0], [10, 10], false, 1), env, 'a', RED)
-		expect(source(ast, 'a')).toBe('(style (path.rect [0 0] [10 10]) fill="#ff0000")')
+		expect(source(ast, 'a')).toBe('(style (path.rect [0 0] [10 10]) fill: "#ff0000")')
 		expect(paintAt(ast, env, 'binding:a')?.fill).toBe('#ff0000')
 	})
 

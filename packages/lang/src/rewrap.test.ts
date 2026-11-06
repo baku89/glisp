@@ -41,8 +41,8 @@ const valueIn = (root: AST, name: string): unknown =>
 
 describe('withPathsInto', () => {
 	it('has a path go by way of the call, to what it came to', () => {
-		const next = into('{a = (take [1 2 3] 2) b = ./a/n}', 'a')
-		expect(print(next)).toContain('b = ./a/held/n')
+		const next = into('{a = (take [1 2 3] 2) b = ./a/n:}', 'a')
+		expect(print(next)).toContain('b = ./a/held:/n:')
 		expect(valueIn(next, 'b')).toBe(2)
 	})
 
@@ -65,7 +65,7 @@ describe('withPathsInto', () => {
 	})
 
 	it('does both for what is in each of two', () => {
-		let root = parse('{a = (take [1 2 3] 2) b = [../a/n 7]}') as AST
+		let root = parse('{a = (take [1 2 3] 2) b = [../a/n: 7]}') as AST
 		for (const name of ['a', 'b']) {
 			const block = root as LetAST
 			const held = block.bindings.find(([n]) => n === name)![1]
@@ -81,7 +81,7 @@ describe('withPathsInto', () => {
 	})
 
 	it('goes past metadata', () => {
-		const next = into('{a = ^{label: "A"} (take [1 2 3] 2) b = ./a/n}', 'a')
+		const next = into('{a = ^{label: "A"} (take [1 2 3] 2) b = ./a/n:}', 'a')
 		expect(valueIn(next, 'b')).toBe(2)
 	})
 
@@ -105,20 +105,20 @@ describe('withoutCall', () => {
 
 	it('comes back to what was written, whichever way a path goes', () => {
 		for (const [src, name] of [
-			['{a = (take [1 2 3] 2) b = ./a/n}', 'a'],
+			['{a = (take [1 2 3] 2) b = ./a/n:}', 'a'],
 			['{a = 1 b = [../a 2]}', 'b'],
 			['{a = 1 b = ./a}', 'b'],
 			['{a = 1 b = [5 ./0]}', 'b'],
-			['{a = ^{label: "A"} (take [1 2 3] 2) b = ./a/n}', 'a'],
+			['{a = ^{label: "A"} (take [1 2 3] 2) b = ./a/n:}', 'a'],
 		] as const) {
 			expect(roundTrip(src, name)).toBe(print(parse(src)))
 		}
 	})
 
 	it('leaves what led to the rest of the call with nothing to lead to', () => {
-		const root = parse('{a = (hold 1 "x") b = ./a/note}') as LetAST
+		const root = parse('{a = (hold 1 "x") b = ./a/note:}') as LetAST
 		const next = withoutCall(root, env, root.bindings[0]![1] as CallAST)!
-		expect(print(next)).toBe('{a = 1 b = ./a/note}')
+		expect(print(next)).toBe('{a = 1 b = ./a/note:}')
 	})
 
 	it('has nothing to do without a first argument', () => {
@@ -133,7 +133,7 @@ describe('paths from the root', () => {
 	it('reach the same from anywhere', () => {
 		expect(at('{a = {b = [10 20]} c = {d = [[/a/b/1]]} /c/d/0/0}').value).toBe(20)
 		expect(at('[5 [[/0]]]').value).toEqual([5, [[5]]])
-		expect(at('{w: 3 h: {i: /w}}').value).toEqual({ w: 3, h: { i: 3 } })
+		expect(at('{w: 3 h: {i: /w:}}').value).toEqual({ w: 3, h: { i: 3 } })
 	})
 
 	it('start at the program, not at what a host binds', () => {
@@ -170,7 +170,7 @@ describe('paths from the root', () => {
 
 	it('go by way of a call put around what they go by, and back', () => {
 		const next = into('{a = [1 2] b = {c = /a/0}}', 'a')
-		expect(print(next)).toContain('c = /a/held/0')
+		expect(print(next)).toContain('c = /a/held:/0')
 		expect(evaluate(next, env).diagnostics).toEqual([])
 		const call = next.bindings[0]![1] as CallAST
 		expect(print(withoutCall(next, env, call)!)).toBe('{a = [1 2] b = {c = /a/0}}')

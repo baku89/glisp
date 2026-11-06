@@ -58,7 +58,7 @@ describe('expand', () => {
 				'sub = (=> (a: number b: number): number (- a b))',
 				'sum = (=> (...xs: number): number (+ ...xs))'
 			)
-			expect(step('(sub b=1 a=5)')).toBe('(- 5 1)')
+			expect(step('(sub b: 1 a: 5)')).toBe('(- 5 1)')
 			expect(step('(sum 1 2 3)')).toBe('(+ ...[1 2 3])')
 			expect(step('(sub 7)')).toBe('(- 7 ())')
 		})
@@ -143,7 +143,7 @@ describe('expand', () => {
 			])
 			expect(step('(** 2 0)')).toBe('(*)')
 			expect(step('(** 2 1)')).toBe('(* 2)')
-			expect(step('(** base=2 exp=2)')).toBe('(* 2 2)')
+			expect(step('(** base: 2 exp: 2)')).toBe('(* 2 2)')
 		})
 
 		it('has no next rung otherwise', () => {

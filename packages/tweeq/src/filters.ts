@@ -7,6 +7,7 @@
 import {
 	type AST,
 	callParameters,
+	keySegment,
 	CallAST,
 	check,
 	type Env,
@@ -220,8 +221,10 @@ function levelsWithin(holder: AST, node: AST, frame: Env): Levels | null {
 	const parameters = index === -1 ? null : callParameters(bare, frame)
 	if (parameters === null) return null
 	const name = parameters.names[index]
-	if (name !== undefined) return [name]
-	return parameters.variadicName === undefined ? null : [parameters.variadicName, index - parameters.names.length]
+	if (name !== undefined) return [keySegment(name)]
+	return parameters.variadicName === undefined
+		? null
+		: [keySegment(parameters.variadicName), index - parameters.names.length]
 }
 
 /**

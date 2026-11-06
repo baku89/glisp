@@ -22,7 +22,7 @@ ring = (map (range 0 96) (=> (i: number): _
       (path.line
         [(+ 400 (* 70 (cos (* i 4 turn)))) (+ 400 (* 70 (sin (* i 4 turn))))]
         [(+ 400 (* 215 (cos (* i 4 turn)))) (+ 400 (* 215 (sin (* i 4 turn))))])
-      stroke="#ffffff" width=3)))
+      stroke: "#ffffff" width: 3)))
   bg = (solid "#1473e6")
 ]
 ```

@@ -66,7 +66,7 @@ export function call(head: AST, ...args: ReadonlyArray<AST>): CallAST {
 }
 
 /**
- * Application with keyword arguments: `(head a b k1=v1 k2=v2)`.
+ * Application with keyword arguments: `(head a b k1: v1 k2: v2)`.
  */
 export function callKw(
 	head: AST,

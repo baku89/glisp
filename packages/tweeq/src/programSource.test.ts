@@ -35,7 +35,7 @@ describe('a program as code', () => {
 
 describe('what a row is, in what is written', () => {
 	const env: Env = buildPrelude()
-	const WRITTEN = 'a = 1\n\nb = (+ a [2 3])\nc = (+ b kw=4)'
+	const WRITTEN = 'a = 1\n\nb = (+ a [2 3])\nc = (+ b kw: 4)'
 	const reading = readProgram(WRITTEN)
 	const program = (reading as { ast: LetAST }).ast
 	const textAt = (row: string): string | null => {
@@ -95,7 +95,7 @@ describe('what goes on over several lines', () => {
 	const program = (written: string) => (readProgram(written) as { ast: LetAST }).ast
 
 	it('goes along with where it now is, having been written somewhere else', () => {
-		expect(sourceOfProgram(program('s = (style\n  (f)\n  k=1)\n[s]'))).toBe('[\n  s = (style\n    (f)\n    k=1)\n]')
+		expect(sourceOfProgram(program('s = (style\n  (f)\n  k: 1)\n[s]'))).toBe('[\n  s = (style\n    (f)\n    k: 1)\n]')
 		expect(sourceOfProgram(program('[\n  s = (style\n    (f))\n]\nt = s'))).toContain('s = (style\n    (f))')
 	})
 
@@ -106,7 +106,7 @@ describe('what goes on over several lines', () => {
 	})
 
 	it('stays as it is, where it is already', () => {
-		const written = '[\n  s = (style\n    (f)\n    k=1)\n]'
+		const written = '[\n  s = (style\n    (f)\n    k: 1)\n]'
 		expect(sourceOfProgram(program(written))).toBe(written)
 	})
 

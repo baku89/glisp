@@ -19,6 +19,11 @@ export interface LineState {
 	readonly inType: boolean
 	/** Past a `=>`, and not yet at a `:`, where a list is of parameters and calls nothing. */
 	readonly inSignature: boolean
+	/**
+	 * What is open, innermost last: `(` a call, `f` a function, `p` a list of its parameters, and
+	 * `[` and `{`. A `:` right in a call gives a keyword its value, and a `:` elsewhere a type.
+	 */
+	readonly open: string
 }
 
 export const LINE_START: LineState = {
@@ -27,6 +32,7 @@ export const LINE_START: LineState = {
 	inCallee: false,
 	inType: false,
 	inSignature: false,
+	open: '',
 }
 
 /** A stretch of a line, from `start` until where the next begins. */
@@ -38,7 +44,7 @@ export interface LineToken {
 const KEYWORDS = new Set(['|>', '%', '&'])
 const TYPES = new Set(['number', 'string', 'boolean', 'unit', 'vector', 'enum', 'IO'])
 
-/** A name that is given something right after it: `a = 1`, `x: 1`, `f x=1`, `y?: 1`. */
+/** A name that is given something right after it: `a = 1`, `x: 1`, `(f x: 1)`, `y?: 1`. */
 const BOUND = /^\s*\??\s*(?::|=(?![=>]))/
 
 const ESCAPE = /\\(?:[nrt"\\]|u[0-9a-fA-F]{4})/y
@@ -105,16 +111,29 @@ function scopeOf(token: Token, line: string, state: LineState): string {
 
 function stateAfter(token: Token, state: LineState): LineState {
 	const next = { ...state, inHead: false, inCallee: false, inType: false }
+	const inner = state.open.at(-1)
 	switch (token.kind) {
-		case '(':
-			return { ...next, inHead: !state.inSignature }
+		case '(': {
+			const list = state.inSignature && inner === 'f'
+			return { ...next, inHead: !state.inSignature, open: state.open + (list ? 'p' : '(') }
+		}
+		case '[':
+		case '{':
+			return { ...next, open: state.open + token.kind }
+		case ')':
+		case ']':
+		case '}':
+			return { ...next, open: state.open.slice(0, -1) }
 		case '.':
 			return { ...next, inHead: state.inCallee }
 		case '=>':
-			return { ...next, inSignature: true }
+			return { ...next, inSignature: true, open: inner === '(' ? `${state.open.slice(0, -1)}f` : state.open }
 		case ':':
 			// Directly after `(`, it is what is called, on a value and a type.
-			return state.inHead ? next : { ...next, inType: true, inSignature: false }
+			if (state.inHead) return next
+			// What a keyword is given is a value, as anything else given to a call is.
+			if (inner === '(' && !state.inSignature) return next
+			return { ...next, inType: true, inSignature: false }
 		case 'identifier':
 			return { ...next, inCallee: state.inHead && !KEYWORDS.has(token.text) }
 		default:

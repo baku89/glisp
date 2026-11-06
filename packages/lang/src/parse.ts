@@ -295,13 +295,19 @@ class Parser {
 			if (this.peek().kind === 'eof') {
 				throw this.error(this.peek(), 'unterminated `(`')
 			}
-			// kwarg: identifier `=` expression
+			// kwarg: identifier `:` expression, as a record's field is written
+			if (this.peek().kind === 'identifier' && this.peek(1).kind === '=') {
+				throw this.error(
+					this.peek(1),
+					`a keyword argument is written \`${this.peek().text}: ...\``
+				)
+			}
 			if (
 				this.peek().kind === 'identifier' &&
-				this.peek(1).kind === '='
+				this.peek(1).kind === ':'
 			) {
 				const nameTok = this.advance()
-				this.advance() // '='
+				this.advance() // ':'
 				kwargs[nameTok.value as string] = this.expression()
 				sawKwarg = true
 				continue

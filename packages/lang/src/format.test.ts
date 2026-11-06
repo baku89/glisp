@@ -14,7 +14,7 @@ describe('format', () => {
 	it('leaves what fits on a line', () => {
 		expect(format('(+  1   2)')).toBe('(+ 1 2)')
 		expect(format('[1\n2\n3]')).toBe('[1 2 3]')
-		expect(format('(f 1 k = 2)')).toBe('(f 1 k=2)')
+		expect(format('(f 1 k:  2)')).toBe('(f 1 k: 2)')
 		expect(format('{ a: 1   b?: 2 }')).toBe('{a: 1 b?: 2}')
 		expect(format('( =>  (x: number) : number (* x x))')).toBe('(=> (x: number): number (* x x))')
 		expect(format('a . b')).toBe('a.b')
@@ -38,12 +38,12 @@ describe('format', () => {
 	})
 
 	it('breaks what does not fit, with what it closes on the last line', () => {
-		expect(format('(style (path.radial [400 400] (map (range 0 24) f)) stroke="#ffffff" width=3)', { width: 40 })).toBe(
+		expect(format('(style (path.radial [400 400] (map (range 0 24) f)) stroke: "#ffffff" width: 3)', { width: 40 })).toBe(
 			[
 				'(style',
 				'  (path.radial [400 400]',
 				'    (map (range 0 24) f))',
-				'  stroke="#ffffff" width=3)',
+				'  stroke: "#ffffff" width: 3)',
 			].join('\n')
 		)
 	})
@@ -77,7 +77,7 @@ describe('format', () => {
 
 	it('goes on with names given to a call for as long as they fit', () => {
 		expect(format('(max 1 2 3 4 5 6 7 8)', { width: 10 })).toBe('(max 1 2 3\n  4 5 6 7\n  8)')
-		expect(format('(f (g (h)) 1 2 k=3 m=4)', { width: 12 })).toBe('(f\n  (g (h))\n  1 2\n  k=3 m=4)')
+		expect(format('(f (g (h)) 1 2 k: 3 m: 4)', { width: 12 })).toBe('(f\n  (g (h))\n  1 2\n  k: 3 m: 4)')
 	})
 
 	it('keeps comments, where they are said', () => {

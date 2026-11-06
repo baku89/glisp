@@ -323,7 +323,14 @@ function readPathFromDots(
 
 		const idStart = pos
 		pos = identifierEnd(src, pos)
-		segments.push(src.slice(idStart, pos).normalize('NFC'))
+		const name = src.slice(idStart, pos).normalize('NFC')
+		// `key:` is what fills a slot, a record's field or a call's argument, and not a name.
+		if (src[pos] === ':') {
+			pos++
+			segments.push(`${name}:`)
+		} else {
+			segments.push(name)
+		}
 	}
 
 	return {

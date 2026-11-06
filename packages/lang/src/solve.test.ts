@@ -47,7 +47,7 @@ describe('solve', () => {
 
 	it('follows a path', () => {
 		expect(edited('{a = 1 r = ./a}', 5)).toBe('{a = 5 r = ./a}')
-		expect(edited('{p = {a: 1} r = ./p/a}', 5)).toBe('{p = {a: 5} r = ./p/a}')
+		expect(edited('{p = {a: 1} r = ./p/a:}', 5)).toBe('{p = {a: 5} r = ./p/a:}')
 	})
 
 	it('goes into vectors and records, by what differs', () => {
@@ -119,7 +119,7 @@ describe('solve — a call', () => {
 	it('goes through a closure to its arguments', () => {
 		const f = 'f = (=> (x: number): number (* x 2))'
 		expect(edited(`{${f} r = (f 3)}`, 10)).toBe(`{${f} r = (f 5)}`)
-		expect(edited(`{${f} r = (f x=3)}`, 10)).toBe(`{${f} r = (f x=5)}`)
+		expect(edited(`{${f} r = (f x: 3)}`, 10)).toBe(`{${f} r = (f x: 5)}`)
 		expect(edited(`{${f} a = 3 r = (f a)}`, 10)).toBe(`{${f} a = 5 r = (f a)}`)
 	})
 
@@ -341,20 +341,20 @@ describe('solve — what a parameter says of itself', () => {
 	}
 
 	it('changes what refers to it first, wherever it comes in a call', () => {
-		expect(moved('{a = (circle 10 2) r = (+ ../a/center ../a/radius)}', 20)).toBe('{a = (circle 18 2) r = (+ ../a/center ../a/radius)}')
-		expect(moved('{a = (circle 10 2) r = (+ ../a/radius ../a/center)}', 20)).toBe('{a = (circle 18 2) r = (+ ../a/radius ../a/center)}')
+		expect(moved('{a = (circle 10 2) r = (+ ../a/center: ../a/radius:)}', 20)).toBe('{a = (circle 18 2) r = (+ ../a/center: ../a/radius:)}')
+		expect(moved('{a = (circle 10 2) r = (+ ../a/radius: ../a/center:)}', 20)).toBe('{a = (circle 18 2) r = (+ ../a/radius: ../a/center:)}')
 	})
 
 	it('goes on to the rest, where that is pinned', () => {
-		expect(moved('{a = (circle @10 2) r = (+ ../a/center ../a/radius)}', 20)).toBe('{a = (circle @10 10) r = (+ ../a/center ../a/radius)}')
+		expect(moved('{a = (circle @10 2) r = (+ ../a/center: ../a/radius:)}', 20)).toBe('{a = (circle @10 10) r = (+ ../a/center: ../a/radius:)}')
 	})
 
 	it('still changes a literal before it', () => {
-		expect(moved('{a = (circle 10 2) r = (+ ../a/center 5)}', 20)).toBe('{a = (circle 10 2) r = (+ ../a/center 10)}')
+		expect(moved('{a = (circle 10 2) r = (+ ../a/center: 5)}', 20)).toBe('{a = (circle 10 2) r = (+ ../a/center: 10)}')
 	})
 
 	it('changes the later, as ever, where nothing says otherwise', () => {
-		expect(moved('{a = (circle 10 2) b = 1 r = (+ ../a/radius ../b)}', 20)).toBe('{a = (circle 10 2) b = 18 r = (+ ../a/radius ../b)}')
+		expect(moved('{a = (circle 10 2) b = 1 r = (+ ../a/radius: ../b)}', 20)).toBe('{a = (circle 10 2) b = 18 r = (+ ../a/radius: ../b)}')
 	})
 })
 
@@ -369,7 +369,7 @@ describe('solve — a path into what is pinned', () => {
 		const { ast, diagnostics } = moved('{z = @[1 2] r = ./z/0}', 5)
 		expect(ast).toBeNull()
 		expect(diagnostics[0]?.message).toBe('locked')
-		expect(moved('{z = @{a: 7} r = ./z/a}', 5).ast).toBeNull()
+		expect(moved('{z = @{a: 7} r = ./z/a:}', 5).ast).toBeNull()
 	})
 
 	it('goes to something else, if there is something', () => {

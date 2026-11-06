@@ -311,7 +311,7 @@ describe('evaluate — call', () => {
 
 describe('evaluate — call: kwargs / variadic / optional', () => {
 	it('kwargs match parameters by name', () => {
-		// ((=> (a: number b: number): number a) b=20 a=10)  → 10
+		// ((=> (a: number b: number): number a) b: 20 a: 10)  → 10
 		const closure = fn(
 			[
 				{ name: 'a', type: sym('number') },
@@ -319,12 +319,12 @@ describe('evaluate — call: kwargs / variadic / optional', () => {
 			],
 			sym('number')
 		).withBody(sym('a'))
-		const r = evaluate(parse('(f b=20 a=10)'), makeTopLevel({ f: closure }))
+		const r = evaluate(parse('(f b: 20 a: 10)'), makeTopLevel({ f: closure }))
 		expect(r.value).toBe(10)
 	})
 
 	it('positional + kwarg combination works', () => {
-		// (f 1 b=20)  with (a, b) → a=1, b=20
+		// (f 1 b: 20)  with (a, b) → a: 1, b: 20
 		const closure = fn(
 			[
 				{ name: 'a', type: sym('number') },
@@ -332,7 +332,7 @@ describe('evaluate — call: kwargs / variadic / optional', () => {
 			],
 			sym('number')
 		).withBody(sym('b'))
-		const r = evaluate(parse('(f 1 b=20)'), makeTopLevel({ f: closure }))
+		const r = evaluate(parse('(f 1 b: 20)'), makeTopLevel({ f: closure }))
 		expect(r.value).toBe(20)
 	})
 
@@ -341,7 +341,7 @@ describe('evaluate — call: kwargs / variadic / optional', () => {
 			[{ name: 'a', type: sym('number') }],
 			sym('number')
 		).withBody(sym('a'))
-		const r = evaluate(parse('(f 1 a=2)'), makeTopLevel({ f: closure }))
+		const r = evaluate(parse('(f 1 a: 2)'), makeTopLevel({ f: closure }))
 		expect(r.diagnostics.some(d => d.message.includes('double binding'))).toBe(
 			true
 		)
@@ -390,7 +390,7 @@ describe('evaluate — call: kwargs / variadic / optional', () => {
 			[{ name: 'rest', type: sym('number'), variadic: true }],
 			sym('number')
 		).withBody(sym('rest'))
-		const r = evaluate(parse('(f rest=[10 20])'), makeTopLevel({ f: closure }))
+		const r = evaluate(parse('(f rest: [10 20])'), makeTopLevel({ f: closure }))
 		expect(r.value).toEqual([10, 20])
 	})
 
@@ -399,7 +399,7 @@ describe('evaluate — call: kwargs / variadic / optional', () => {
 			[{ name: 'a', type: sym('number') }],
 			sym('number')
 		).withBody(sym('a'))
-		const r = evaluate(parse('(f a=1 zzz=2)'), makeTopLevel({ f: closure }))
+		const r = evaluate(parse('(f a: 1 zzz: 2)'), makeTopLevel({ f: closure }))
 		expect(r.diagnostics.some(d => d.message.includes('unknown'))).toBe(true)
 	})
 })
@@ -635,7 +635,7 @@ describe('evaluate — typed host function arg cast / default', () => {
 				) as never
 			),
 		})
-		const r = evaluate(parse('(sub b=10 a=3)'), env)
+		const r = evaluate(parse('(sub b: 10 a: 3)'), env)
 		expect(r.value).toBe(-7)
 		expect(r.diagnostics).toEqual([])
 	})
@@ -652,7 +652,7 @@ describe('evaluate — typed host function arg cast / default', () => {
 				) as never
 			),
 		})
-		const r = evaluate(parse('(+ a=1 b=2)'), env)
+		const r = evaluate(parse('(+ a: 1 b: 2)'), env)
 		expect(
 			r.diagnostics.some(d =>
 				d.message.includes('cannot pass keyword arguments')
@@ -671,8 +671,8 @@ describe('evaluate — typed host function arg cast / default', () => {
 		)
 		const env = makeTopLevel({ number: lit(numberType as never), f: lit(f as never) })
 		expect(evaluate(parse('(f 1)'), env)).toMatchObject({ value: 8, diagnostics: [] })
-		expect(evaluate(parse('(f b=1)'), env).value).toBe(8)
-		expect(evaluate(parse('(f b=1)'), env).diagnostics).toHaveLength(1)
+		expect(evaluate(parse('(f b: 1)'), env).value).toBe(8)
+		expect(evaluate(parse('(f b: 1)'), env).diagnostics).toHaveLength(1)
 	})
 
 	it('typed host fn detects double-binding via kwargs', () => {
@@ -688,7 +688,7 @@ describe('evaluate — typed host function arg cast / default', () => {
 				) as never
 			),
 		})
-		const r = evaluate(parse('(sub 1 a=5)'), env)
+		const r = evaluate(parse('(sub 1 a: 5)'), env)
 		expect(
 			r.diagnostics.some(d => d.message.includes('double binding'))
 		).toBe(true)
@@ -1225,7 +1225,7 @@ describe('evaluate — path lookup', () => {
 		}
 		;(inner as { parent?: typeof outer }).parent = outer
 		// `../x` inside `inner` should reach outer (record), find field x.
-		const r = evaluate(path('..', 'x'), inner)
+		const r = evaluate(path('..', 'x:'), inner)
 		expect(r.value).toBe(10)
 	})
 
@@ -1245,7 +1245,7 @@ describe('evaluate — path lookup', () => {
 				) as never
 			),
 		})
-		const r = evaluate(parse('(+ 1 ./rest/0)'), env)
+		const r = evaluate(parse('(+ 1 ./rest:/0)'), env)
 		expect(r.value).toBe(2)
 	})
 
@@ -1255,7 +1255,7 @@ describe('evaluate — path lookup', () => {
 	})
 
 	it('record field via ./key', () => {
-		const r = evaluate(parse('{x: 10 y: ./x}'), emptyEnv)
+		const r = evaluate(parse('{x: 10 y: ./x:}'), emptyEnv)
 		expect(r.value).toEqual({ x: 10, y: 10 })
 	})
 })
@@ -1293,7 +1293,7 @@ describe('evaluate — a path passes through metadata', () => {
 	const run = (src: string) => evaluate(parse(src), env)
 
 	it('reaches a field, a binding and an element', () => {
-		expect(run('{z = ^{label: "L"} {a: 7} q = ./z/a q}').value).toBe(7)
+		expect(run('{z = ^{label: "L"} {a: 7} q = ./z/a: q}').value).toBe(7)
 		expect(run('{z = ^{label: "L"} {a = 7} q = ./z/a q}').value).toBe(7)
 		expect(run('{z = ^{label: "L"} [7] q = ./z/0 q}').value).toBe(7)
 	})
@@ -1303,21 +1303,21 @@ describe('evaluate — a path passes through metadata', () => {
 	})
 
 	it('reports nothing statically either', () => {
-		expect(check(parse('{z = ^{label: "L"} {a: 7} q = ./z/a q}'), env)).toEqual([])
-		expect(infer(parse('{z = ^{label: "L"} {a: 7} q = ./z/a q}'), env)?.typeName).toBe('number')
+		expect(check(parse('{z = ^{label: "L"} {a: 7} q = ./z/a: q}'), env)).toEqual([])
+		expect(infer(parse('{z = ^{label: "L"} {a: 7} q = ./z/a: q}'), env)?.typeName).toBe('number')
 	})
 
 	it('is the same through a Runtime', () => {
 		const runtime = new Runtime(env)
-		runtime.setRoot(parse('{z = ^{label: "L"} {a: 7} q = ./z/a}'))
+		runtime.setRoot(parse('{z = ^{label: "L"} {a: 7} q = ./z/a:}'))
 		expect(runtime.read('q').value).toBe(7)
-		expect(runtime.read('z', 'a').value).toBe(7)
+		expect(runtime.read('z', 'a:').value).toBe(7)
 	})
 
 	it('lets a session set through it, and keeps the metadata', () => {
 		const session = new Session(env)
 		session.setBinding('z', parse('^{label: "L"} {a: 7}'))
-		expect(session.setAtPath(['z', 'a'], parse('8'))).toBeNull()
+		expect(session.setAtPath(['z', 'a:'], parse('8'))).toBeNull()
 		expect(print(session.ast())).toContain('^{label: "L"} {a: 8}')
 	})
 })
