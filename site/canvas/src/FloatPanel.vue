@@ -6,13 +6,16 @@ import { useAppConfigStore } from 'tweeq/stores/appConfig'
 import { computed, inject, onBeforeUnmount, onMounted, ref, useSlots, useTemplateRef } from 'vue'
 
 import { draggedHeight, draggedSplit, draggedTop, type Height } from './floatHeight'
-import { GAP, MIN_HEIGHT, type PanelBox } from './panelLayout'
+import { GAP, isUpright, MIN_HEIGHT, type PanelBox } from './panelLayout'
 import { PANEL_DOCK } from './usePanelLayout'
 
 /**
  * What floats over the canvas, from an edge or away from them, alone or joined to others. It
  * is the one thing, a tab that grows into a panel and goes back. It is as tall as what is in
  * it, until it has been made otherwise. Where it is, the layout says.
+ *
+ * It is the same on each edge: what goes down an edge at the side goes across one at the top or
+ * the bottom, and its width there is how long it is along that edge, as its height is at a side.
  */
 const props = defineProps<{
 	/** What its size is kept under, and what the layout knows it by. */
@@ -33,6 +36,8 @@ const MIN_WIDTH = 200
 const MARGIN = 24
 /** What is in the way of taking hold of the header. */
 const NOT_A_HANDLE = 'button, input, textarea, select, a, [contenteditable], .RowName'
+/** A drag along an edge at the top or bottom has no length of its own to come to rest at. */
+const NO_FIT = -1e9
 
 const dock = inject(PANEL_DOCK)!
 const config = useAppConfigStore()
@@ -43,50 +48,59 @@ const slots = useSlots()
 const $root = useTemplateRef<HTMLElement>('$root')
 const resizing = ref(false)
 /** The end of it being dragged has come to where it fits. */
-const snapped = ref<'top' | 'along' | null>(null)
-/** A drag has come up against this end of the room there is. */
-const reachedWall = ref<'top' | 'bottom' | null>(null)
+const snapped = ref<'start' | 'end' | 'across' | null>(null)
+/** A drag has come up against this wall of the window. */
+const reachedWall = ref<string | null>(null)
 
 const box = computed<PanelBox>(
 	() =>
 		dock.boxes.value.get(props.name) ?? {
 			side: 'left',
 			inset: 0,
-			top: 0,
-			bottom: null,
-			maxHeight: 0,
-			grows: 'down',
+			start: 0,
+			end: null,
+			most: 0,
+			grows: 'forward',
 			shown: true,
-			joinedAbove: false,
-			joinedBelow: false,
-			flushBottom: false,
+			joinedBefore: false,
+			joinedAfter: false,
+			flushEnd: false,
 			room: 0,
 			neighbor: null,
 			ceiling: 0,
-			above: null,
+			before: null,
+			folded: false,
 		}
 )
+/** On an edge at the side, rather than lying along the top or the bottom. */
+const upright = computed(() => isUpright(box.value.side))
 const floating = computed(() => box.value.inset > 0)
+/** Minimized among others it is joined to, as no more than its header. */
+const folded = computed(() => box.value.folded && !open.value)
 const tabs = computed(() => dock.tabsOf(props.name))
 /** What has no title of its own, or has others alongside it, says by its tabs what it is. */
 const showsTabs = computed(() => tabs.value.length > 1 || slots.header === undefined)
-/** On an edge it folds away toward that edge. Off of one, there is no way that it goes. */
-const minimizeIcon = computed(() =>
-	floating.value ? 'ph:minus' : box.value.side === 'left' ? 'ph:caret-left' : 'ph:caret-right'
-)
+/** On an edge it folds away toward that edge, or among others to its header. Off of one, there is no way it goes. */
+const minimizeIcon = computed(() => {
+	if (box.value.joinedBefore || box.value.joinedAfter) return upright.value ? 'ph:caret-up' : 'ph:caret-left'
+	if (floating.value) return 'ph:minus'
+	return { left: 'ph:caret-left', right: 'ph:caret-right', top: 'ph:caret-up', bottom: 'ph:caret-down' }[box.value.side]
+})
 /** Held from both ends, so that it goes from one to the other. */
-const fills = computed(() => box.value.top !== null && box.value.bottom !== null)
+const fills = computed(() => box.value.start !== null && box.value.end !== null)
 const moving = computed(() => dock.held.value.includes(props.name))
+/** Another in its stack is being resized, which it goes along with at once. */
+const following = computed(() => !resizing.value && dock.resizing.value.includes(props.name))
 const order = computed(() => dock.layout.value.findIndex(({ groups }) => groups.some(({ tabs }) => tabs.includes(props.name))))
 
 const px = (value: number | null): string => (value === null ? 'auto' : `${value}px`)
 
 const style = computed(() => ({
-	'--panel-width': `${width.value}px`,
-	'--panel-height': fills.value || height.value === null ? 'auto' : `${height.value}px`,
-	'--panel-max-height': `${box.value.maxHeight}px`,
-	'--panel-top': px(box.value.top),
-	'--panel-bottom': px(box.value.bottom),
+	'--panel-width': upright.value || !fills.value ? `${width.value}px` : 'auto',
+	'--panel-height': (upright.value && fills.value) || height.value === null ? 'auto' : `${height.value}px`,
+	'--panel-most': `${box.value.most}px`,
+	'--panel-start': px(box.value.start),
+	'--panel-end': px(box.value.end),
 	'--panel-inset': `${box.value.inset}px`,
 	zIndex: order.value + 1,
 }))
@@ -95,11 +109,11 @@ const style = computed(() => ({
 const walls = computed<readonly string[]>(() => {
 	if (resizing.value) return reachedWall.value === null ? [] : [reachedWall.value]
 	if (!moving.value) return []
-	const { inset, side, top, bottom } = box.value
+	const { inset, side, start, end } = box.value
 	return [
 		...(inset === 0 ? [side] : []),
-		...(top === 0 ? ['top'] : []),
-		...(bottom === 0 ? ['bottom'] : []),
+		...(start === 0 ? [upright.value ? 'top' : 'left'] : []),
+		...(end === 0 ? [upright.value ? 'bottom' : 'right'] : []),
 	]
 })
 
@@ -137,123 +151,151 @@ useResizeObserver($root, () => {
 	if (root !== null && box.value.shown) dock.measure(props.name, { width: root.offsetWidth, height: root.offsetHeight })
 })
 
-function resize(event: PointerEvent, axes: { x?: boolean; y?: boolean }): void {
-	const root = $root.value
-	if (event.button !== 0 || !root) return
-	event.preventDefault()
+/** Follows a drag from a press on one of its edges, until it is let go of. */
+function dragFrom(event: PointerEvent, handlers: { move: (move: PointerEvent) => void; up?: () => void }): void {
 	const handle = event.currentTarget as HTMLElement
 	handle.setPointerCapture(event.pointerId)
-	const { clientX, clientY } = event
-	const start = root.getBoundingClientRect()
-	const parent = root.parentElement!.getBoundingClientRect()
-	const toward = box.value.side === 'left' ? 1 : -1
-	const fit = axes.y ? natural(root) : 0
-	const { grows, room, joinedAbove, joinedBelow, neighbor } = box.value
-	let reached = false
-	const down = grows === 'down' ? 1 : -1
-	// Only what ends its stack has nothing past it, to go on to the end of the window.
-	const canReach = grows === 'down' ? !joinedBelow : !joinedAbove
-	const startY = dock.stackOf(props.name)?.y
-	const before = height.value
-	const across = axes.y ? dock.acrossLine(props.name, grows) : null
-	// Between two that are joined, it divides what they come to, and nothing else moves.
-	const split =
-		across === null
-			? null
-			: {
-					sum: start.height + (across.root()?.offsetHeight ?? 0),
-					natural: across.naturalHeight(),
-				}
 	resizing.value = true
-
-	const onMove = (move: PointerEvent) => {
-		if (axes.x) {
-			const wanted = start.width + (move.clientX - clientX) * toward
-			const most = parent.width - box.value.inset - MARGIN
-			dock.setWidth(props.name, Math.round(Math.min(Math.max(wanted, MIN_WIDTH), most)))
-		}
-		if (axes.y) {
-			const wanted = Math.round(start.height + (move.clientY - clientY) * down)
-			if (across !== null && split !== null) {
-				const divided = draggedSplit(wanted, Math.round(split.sum), fit, split.natural, MIN_HEIGHT)
-				height.value = divided.height
-				across.height.value = divided.other
-				snapped.value = divided.snapped ? 'along' : null
-				return
-			}
-			const dragged = draggedHeight(wanted, room, fit, MIN_HEIGHT)
-			const reaches = dragged.reaches && canReach
-			reached = reaches
-			// Growing up to what is above, it goes on starting from the end of the window.
-			if (canReach && !(grows === 'up' && neighbor !== null)) {
-				dock.setFull(props.name, reaches, reaches ? undefined : startY)
-				height.value = reaches ? before : dragged.height
-			} else {
-				height.value = dragged.height
-			}
-			snapped.value = dragged.snapped ? 'along' : null
-			reachedWall.value = reaches ? (grows === 'down' ? 'bottom' : 'top') : null
-		}
-	}
+	dock.resize(props.name)
 	const onUp = () => {
 		resizing.value = false
+		dock.resize(null)
 		snapped.value = null
 		reachedWall.value = null
-		if (reached && neighbor !== null) {
-			height.value = before
-			dock.merge(props.name, neighbor)
-		}
-		handle.removeEventListener('pointermove', onMove)
+		handlers.up?.()
+		handle.removeEventListener('pointermove', handlers.move)
 		handle.removeEventListener('pointerup', onUp)
 		handle.removeEventListener('pointercancel', onUp)
 	}
-	handle.addEventListener('pointermove', onMove)
+	handle.addEventListener('pointermove', handlers.move)
 	handle.addEventListener('pointerup', onUp)
 	handle.addEventListener('pointercancel', onUp)
 }
 
-/** Moves its top, with its bottom staying where it is. */
-function resizeTop(event: PointerEvent): void {
+/** How long it is along its edge, which is its height at a side and its width at the top or bottom. */
+const lengthOf = (rect: { width: number; height: number }): number => (upright.value ? rect.height : rect.width)
+
+/** Sets how long a panel is along its edge, with `null` for as tall as what is in it, at a side. */
+function setLength(handle: { width: { value: number }; height: { value: Height } }, length: Height, was: number): void {
+	if (upright.value) handle.height.value = length
+	else handle.width.value = Math.round(length ?? was)
+}
+const own = { width, height }
+
+function resize(event: PointerEvent, axes: { across?: boolean; along?: boolean }): void {
 	const root = $root.value
 	if (event.button !== 0 || !root) return
 	event.preventDefault()
-	const handle = event.currentTarget as HTMLElement
-	handle.setPointerCapture(event.pointerId)
-	const { clientY } = event
+	const { clientX, clientY } = event
 	const start = root.getBoundingClientRect()
 	const parent = root.parentElement!.getBoundingClientRect()
-	const { ceiling, above } = box.value
-	// What takes up the room left has no height of its own to set, or to fit.
-	const filling = fills.value
-	const fit = filling ? Infinity : natural(root)
+	const toward = box.value.side === 'left' || box.value.side === 'top' ? 1 : -1
+	const fit = axes.along ? (upright.value ? natural(root) : NO_FIT) : 0
+	const fitAcross = axes.across && !upright.value ? natural(root) : 0
+	const { grows, room, joinedBefore, joinedAfter, neighbor } = box.value
 	let reached = false
-	resizing.value = true
+	const forward = grows === 'forward' ? 1 : -1
+	// Only what ends its stack has nothing past it, to go on to the end of the edge.
+	const canReach = grows === 'forward' ? !joinedAfter : !joinedBefore
+	const startAlong = dock.stackOf(props.name)?.along
+	// Going on to the end, it starts where it is now, even from the middle.
+	const fullFrom = typeof startAlong === 'number' ? startAlong : (box.value.start ?? undefined)
+	const before = upright.value ? height.value : width.value
+	const across = axes.along ? dock.acrossLine(props.name, grows) : null
+	const otherRect = across?.root()?.getBoundingClientRect()
+	// Between two that are joined, it divides what they come to, and nothing else moves.
+	const split =
+		across === null || otherRect === undefined
+			? null
+			: { sum: lengthOf(start) + lengthOf(otherRect), natural: upright.value ? across.naturalHeight() : NO_FIT }
+	const endWall = upright.value ? (grows === 'forward' ? 'bottom' : 'top') : grows === 'forward' ? 'right' : 'left'
 
-	const onMove = (move: PointerEvent) => {
-		const wanted = Math.round(start.top - parent.top + move.clientY - clientY)
-		const dragged = draggedTop(wanted, Math.round(start.bottom - parent.top), ceiling, fit, MIN_HEIGHT)
-		reached = dragged.reaches
-		dock.setY(props.name, dragged.y)
-		if (!filling) height.value = dragged.height
-		snapped.value = dragged.snapped ? 'top' : null
-		reachedWall.value = dragged.reaches ? 'top' : null
-	}
-	const onUp = () => {
-		resizing.value = false
-		snapped.value = null
-		reachedWall.value = null
-		if (reached && above !== null) {
-			// Its top goes on up over the gap and onto the line it comes to share.
-			if (!filling && height.value !== null) height.value += GAP + 1
-			dock.joinUnder(props.name, above)
-		}
-		handle.removeEventListener('pointermove', onMove)
-		handle.removeEventListener('pointerup', onUp)
-		handle.removeEventListener('pointercancel', onUp)
-	}
-	handle.addEventListener('pointermove', onMove)
-	handle.addEventListener('pointerup', onUp)
-	handle.addEventListener('pointercancel', onUp)
+	dragFrom(event, {
+		move(move) {
+			const [dx, dy] = [move.clientX - clientX, move.clientY - clientY]
+			if (axes.across) {
+				if (upright.value) {
+					const wanted = start.width + dx * toward
+					const most = parent.width - box.value.inset - MARGIN
+					dock.setWidth(props.name, Math.round(Math.min(Math.max(wanted, MIN_WIDTH), most)))
+				} else {
+					// How tall it is, for each that it is joined to, as how wide is at a side.
+					const most = parent.height - box.value.inset - MARGIN
+					const dragged = draggedHeight(Math.round(start.height + dy * toward), most, fitAcross, MIN_HEIGHT)
+					dock.setHeight(props.name, dragged.reaches ? Math.round(most) : dragged.height)
+					snapped.value = dragged.snapped ? 'across' : null
+				}
+			}
+			if (axes.along) {
+				const wanted = Math.round(lengthOf(start) + (upright.value ? dy : dx) * forward)
+				if (across !== null && split !== null) {
+					const divided = draggedSplit(wanted, Math.round(split.sum), fit, split.natural, MIN_HEIGHT)
+					setLength(own, divided.height, lengthOf(start))
+					setLength(across, divided.other, split.sum - wanted)
+					snapped.value = divided.snapped ? 'end' : null
+					return
+				}
+				const dragged = draggedHeight(wanted, room, fit, MIN_HEIGHT)
+				const reaches = dragged.reaches && canReach
+				reached = reaches
+				// Growing back to what is before it, it goes on starting from the end of the edge.
+				if (canReach && !(grows === 'back' && neighbor !== null)) {
+					dock.setFull(props.name, reaches, reaches ? fullFrom : startAlong)
+					setLength(own, reaches ? before : dragged.height, lengthOf(start))
+				} else {
+					setLength(own, dragged.height, lengthOf(start))
+				}
+				snapped.value = dragged.snapped ? 'end' : null
+				reachedWall.value = reaches ? endWall : null
+			}
+		},
+		up() {
+			if (reached && neighbor !== null) {
+				setLength(own, before, lengthOf(start))
+				dock.merge(props.name, neighbor)
+			}
+		},
+	})
+}
+
+/** Moves its start, with its end staying where it is. */
+function resizeStart(event: PointerEvent): void {
+	const root = $root.value
+	if (event.button !== 0 || !root) return
+	event.preventDefault()
+	const { clientX, clientY } = event
+	const start = root.getBoundingClientRect()
+	const parent = root.parentElement!.getBoundingClientRect()
+	const { ceiling, before } = box.value
+	const [from, to] = upright.value
+		? [start.top - parent.top, start.bottom - parent.top]
+		: [start.left - parent.left, start.right - parent.left]
+	// What takes up the room left has no length of its own to set, or to fit.
+	const filling = fills.value
+	const fit = filling ? Infinity : upright.value ? natural(root) : NO_FIT
+	let reached = false
+
+	dragFrom(event, {
+		move(move) {
+			const wanted = Math.round(from + (upright.value ? move.clientY - clientY : move.clientX - clientX))
+			const dragged = draggedTop(wanted, Math.round(to), ceiling, fit, MIN_HEIGHT)
+			reached = dragged.reaches
+			dock.setAlong(props.name, dragged.y)
+			if (!filling) setLength(own, dragged.height, to - dragged.y)
+			snapped.value = dragged.snapped ? 'start' : null
+			reachedWall.value = dragged.reaches ? (upright.value ? 'top' : 'left') : null
+		},
+		up() {
+			if (reached && before !== null) {
+				// Its start goes on back over the gap and onto the line it comes to share.
+				if (!filling) {
+					if (upright.value && height.value !== null) height.value += GAP + 1
+					if (!upright.value) width.value += GAP + 1
+				}
+				dock.joinUnder(props.name, before)
+			}
+		},
+	})
 }
 
 function grabHeader(event: PointerEvent): void {
@@ -269,17 +311,20 @@ function grabHeader(event: PointerEvent): void {
 		:class="[
 			box.side,
 			box.grows,
+			upright ? 'upright' : 'lying',
 			{
 				behind: !box.shown,
 				open,
+				folded,
 				floating,
 				fills,
 				moving,
 				resizing,
+				following,
 				fitting: !fills && height === null,
-				'joined-above': box.joinedAbove,
-				'joined-below': box.joinedBelow,
-				'flush-bottom': box.flushBottom,
+				'joined-before': box.joinedBefore,
+				'joined-after': box.joinedAfter,
+				'flush-end': box.flushEnd,
 			},
 		]"
 		:style="style"
@@ -289,7 +334,7 @@ function grabHeader(event: PointerEvent): void {
 		<div class="clip">
 			<button
 				class="tab"
-				:inert="open"
+				:inert="open || (folded && upright)"
 				:aria-label="`Show ${label}`"
 				data-selects-rows
 				@pointerdown="dock.grab(name, $event)"
@@ -298,9 +343,9 @@ function grabHeader(event: PointerEvent): void {
 				<Icon class="tab-icon" :icon="icon" />
 				<span class="tab-label">{{ label }}</span>
 			</button>
-			<div class="body" :inert="!open">
+			<div class="body" :inert="!open && !(folded && upright)">
 				<header class="header" data-selects-rows @pointerdown="grabHeader">
-					<div v-if="showsTabs" class="strip" role="tablist">
+					<div v-if="showsTabs" class="strip" :class="{ alone: tabs.length === 1 }" role="tablist">
 						<button
 							v-for="tab in tabs"
 							:key="tab.name"
@@ -318,6 +363,15 @@ function grabHeader(event: PointerEvent): void {
 					</div>
 					<slot v-else name="header" />
 					<InputButton
+						v-if="folded"
+						class="toggle"
+						icon="ph:caret-down"
+						ghost
+						:aria-label="`Show ${label}`"
+						@click="dock.setOpen(name, true)"
+					/>
+					<InputButton
+						v-else
 						class="toggle"
 						:icon="minimizeIcon"
 						ghost
@@ -340,26 +394,31 @@ function grabHeader(event: PointerEvent): void {
 		</div>
 		<div v-for="wall in walls" :key="wall" class="wall" :class="wall" />
 		<template v-if="open">
-			<div class="edge side" data-selects-rows @pointerdown="resize($event, { x: true })" />
 			<div
-				v-if="box.grows === 'down' && !box.joinedAbove"
-				class="edge top"
-				:class="{ snapped: snapped === 'top' }"
+				class="edge across"
+				:class="{ snapped: snapped === 'across' }"
 				data-selects-rows
-				@pointerdown="resizeTop"
+				@pointerdown="resize($event, { across: true })"
 			/>
 			<div
-				v-if="!(fills && box.joinedBelow)"
+				v-if="box.grows === 'forward' && !box.joinedBefore"
+				class="edge start"
+				:class="{ snapped: snapped === 'start' }"
+				data-selects-rows
+				@pointerdown="resizeStart"
+			/>
+			<div
+				v-if="!(fills && box.joinedAfter)"
 				class="edge along"
-				:class="{ snapped: snapped === 'along' }"
+				:class="{ snapped: snapped === 'end' }"
 				data-selects-rows
-				@pointerdown="resize($event, { y: true })"
+				@pointerdown="resize($event, { along: true })"
 			/>
 			<div
-				v-if="!(fills && box.joinedBelow)"
+				v-if="!(fills && box.joinedAfter)"
 				class="edge corner"
 				data-selects-rows
-				@pointerdown="resize($event, { x: true, y: true })"
+				@pointerdown="resize($event, { across: true, along: true })"
 			/>
 		</template>
 	</aside>
@@ -370,46 +429,67 @@ function grabHeader(event: PointerEvent): void {
 	--ease: 240ms cubic-bezier(0.2, 0, 0, 1);
 	--tab-width: 32px;
 	--tab-height: 112px;
+	--corner-tl: var(--tq-radius-pane);
+	--corner-tr: var(--tq-radius-pane);
+	--corner-br: var(--tq-radius-pane);
+	--corner-bl: var(--tq-radius-pane);
 	position: absolute;
-	top: var(--panel-top);
-	bottom: var(--panel-bottom);
 	isolation: isolate;
 	display: flex;
 	flex-direction: column;
 	box-sizing: border-box;
-	width: var(--tab-width);
-	height: var(--tab-height);
 	border: 1px solid transparent;
+	border-radius: var(--corner-tl) var(--corner-tr) var(--corner-br) var(--corner-bl);
 	interpolate-size: allow-keywords;
 	transition:
 		width var(--ease),
 		height var(--ease);
 }
+/* Where it is: kept from its wall, and along that wall from where it starts or ends. */
+.FloatPanel.upright {
+	top: var(--panel-start);
+	bottom: var(--panel-end);
+	width: var(--tab-width);
+	height: var(--tab-height);
+}
+.FloatPanel.lying {
+	right: var(--panel-end);
+	left: var(--panel-start);
+	width: var(--tab-height);
+	height: var(--tab-width);
+}
 .FloatPanel.left {
 	left: var(--panel-inset);
-	--corner-tl: 0px;
-	--corner-bl: 0px;
-	--corner-tr: var(--tq-radius-pane);
-	--corner-br: var(--tq-radius-pane);
 }
 .FloatPanel.right {
 	right: var(--panel-inset);
-	--corner-tl: var(--tq-radius-pane);
-	--corner-bl: var(--tq-radius-pane);
-	--corner-tr: 0px;
-	--corner-br: 0px;
 }
-.FloatPanel.floating {
-	--corner-tl: var(--tq-radius-pane);
-	--corner-bl: var(--tq-radius-pane);
-	--corner-tr: var(--tq-radius-pane);
-	--corner-br: var(--tq-radius-pane);
+.FloatPanel.top {
+	top: var(--panel-inset);
 }
+.FloatPanel.bottom {
+	bottom: var(--panel-inset);
+}
+/* On its wall, it goes straight into it. */
 .FloatPanel.left:not(.floating) {
+	--corner-tl: 0px;
+	--corner-bl: 0px;
 	border-left: none;
 }
 .FloatPanel.right:not(.floating) {
+	--corner-tr: 0px;
+	--corner-br: 0px;
 	border-right: none;
+}
+.FloatPanel.top:not(.floating) {
+	--corner-tl: 0px;
+	--corner-tr: 0px;
+	border-top: none;
+}
+.FloatPanel.bottom:not(.floating) {
+	--corner-bl: 0px;
+	--corner-br: 0px;
+	border-bottom: none;
 }
 /* Behind what is in it, as a blur only sees through to the canvas from outside of anything
 else that blurs. */
@@ -434,41 +514,84 @@ else that blurs. */
 	right: 0;
 	border-right: none;
 }
-.FloatPanel.flush-bottom::before {
+.FloatPanel.top:not(.floating)::before {
+	top: 0;
+	border-top: none;
+}
+.FloatPanel.bottom:not(.floating)::before {
+	bottom: 0;
 	border-bottom: none;
 }
+.FloatPanel.upright.flush-end::before {
+	border-bottom: none;
+}
+.FloatPanel.lying.flush-end::before {
+	border-right: none;
+}
 /* What is next to it casts nothing onto it. */
-.FloatPanel.joined-above::before {
+.FloatPanel.upright.joined-before::before {
 	clip-path: inset(0 -64px -64px -64px);
 }
-.FloatPanel.joined-below::before {
+.FloatPanel.upright.joined-after::before {
 	clip-path: inset(-64px -64px 0 -64px);
 }
-.FloatPanel.joined-above.joined-below::before {
+.FloatPanel.upright.joined-before.joined-after::before {
 	clip-path: inset(0 -64px 0 -64px);
 }
-/* Where it meets another, or the end of the window, it goes straight on. */
-.FloatPanel.joined-above {
+.FloatPanel.lying.joined-before::before {
+	clip-path: inset(-64px -64px -64px 0);
+}
+.FloatPanel.lying.joined-after::before {
+	clip-path: inset(-64px 0 -64px -64px);
+}
+.FloatPanel.lying.joined-before.joined-after::before {
+	clip-path: inset(-64px 0 -64px 0);
+}
+/* Where it meets another, or the end of its edge, it goes straight on. */
+.FloatPanel.upright.joined-before {
 	--corner-tl: 0px;
 	--corner-tr: 0px;
 }
-.FloatPanel.joined-below,
-.FloatPanel.flush-bottom {
+.FloatPanel.upright:is(.joined-after, .flush-end) {
 	--corner-bl: 0px;
 	--corner-br: 0px;
 }
-.FloatPanel {
-	border-radius: var(--corner-tl) var(--corner-tr) var(--corner-br) var(--corner-bl);
+.FloatPanel.lying.joined-before {
+	--corner-tl: 0px;
+	--corner-bl: 0px;
+}
+.FloatPanel.lying:is(.joined-after, .flush-end) {
+	--corner-tr: 0px;
+	--corner-br: 0px;
 }
 .FloatPanel.open {
-	max-height: var(--panel-max-height);
 	width: var(--panel-width);
 	height: var(--panel-height);
 }
-/* It goes between where it is held from, rather than being of any height of its own. */
-.FloatPanel.open.fills {
+.FloatPanel.upright.open {
+	max-height: var(--panel-most);
+}
+.FloatPanel.lying.open {
+	max-width: var(--panel-most);
+}
+/* It goes between where it is held from, rather than being of any length of its own. */
+.FloatPanel.upright.open.fills {
 	height: auto;
 	max-height: none;
+}
+.FloatPanel.lying.open.fills {
+	width: auto;
+	max-width: none;
+}
+/* Minimized among others, at a side it is no more than its header, as wide as they are. */
+.FloatPanel.upright.folded {
+	width: var(--panel-width);
+	height: auto;
+}
+/* And across the top or the bottom, no more than its tab, standing up. */
+.FloatPanel.lying.folded {
+	width: var(--tab-width);
+	height: var(--tab-height);
 }
 /* What is in it stays in it. */
 .clip {
@@ -480,7 +603,8 @@ else that blurs. */
 	min-height: 0;
 	border-radius: inherit;
 }
-.left .clip {
+.left .clip,
+.lying .clip {
 	align-items: flex-start;
 }
 .right .clip {
@@ -500,6 +624,10 @@ else that blurs. */
 	height: auto;
 	transition: none;
 }
+.FloatPanel.bottom.open.measuring {
+	top: auto;
+	bottom: var(--panel-inset);
+}
 .FloatPanel.measuring .clip,
 .FloatPanel.measuring .body,
 .FloatPanel.measuring .content {
@@ -510,8 +638,9 @@ else that blurs. */
 .FloatPanel.moving {
 	z-index: 60 !important;
 }
-/* It goes by the pointer, rather than following it. */
+/* It goes by the pointer, rather than following it, and so does what is joined to it. */
 .FloatPanel.resizing,
+.FloatPanel.following,
 .FloatPanel.moving {
 	transition: none;
 	user-select: none;
@@ -521,6 +650,11 @@ else that blurs. */
 	cursor: grabbing;
 }
 /* A boundary that can be dragged lights up, as that of a split view does. */
+.edge {
+	position: absolute;
+	z-index: 2;
+	touch-action: none;
+}
 .edge::before {
 	content: '';
 	position: absolute;
@@ -529,38 +663,126 @@ else that blurs. */
 	pointer-events: none;
 	transition: opacity var(--tq-hover-transition-duration) ease;
 }
-.edge.side::before {
+/* An edge that goes up and down, and one that goes across. */
+.upright .edge.across,
+.lying .edge:is(.along, .start) {
+	top: 0;
+	bottom: 0;
+	width: 6px;
+	cursor: ew-resize;
+}
+.lying .edge.across,
+.upright .edge:is(.along, .start) {
+	right: 0;
+	left: 0;
+	height: 6px;
+	cursor: ns-resize;
+}
+.upright .edge.across::before,
+.lying .edge:is(.along, .start)::before {
 	top: 0;
 	bottom: 0;
 	width: 3px;
 }
-.left .edge.side::before {
-	right: -1px;
-}
-.right .edge.side::before {
-	left: -1px;
-}
-.edge.along::before,
-.edge.top::before {
+.lying .edge.across::before,
+.upright .edge:is(.along, .start)::before {
 	right: 0;
 	left: 0;
 	height: 3px;
 }
-.down .edge.along::before {
+/* How thick it is, at the side away from its wall. */
+.left .edge.across {
+	right: 0;
+}
+.left .edge.across::before {
+	right: -1px;
+}
+.right .edge.across {
+	left: 0;
+}
+.right .edge.across::before {
+	left: -1px;
+}
+.top .edge.across {
+	bottom: 0;
+}
+.top .edge.across::before {
 	bottom: -1px;
 }
-.up .edge.along::before,
-.edge.top::before {
+.bottom .edge.across {
+	top: 0;
+}
+.bottom .edge.across::before {
 	top: -1px;
 }
-.edge:is(.side, .along, .top):hover::before,
-.edge:is(.side, .along, .top):active::before,
-.FloatPanel:has(.edge.corner:hover, .edge.corner:active) .edge:is(.side, .along)::before {
+/* How long it is, at the end that it grows from, and where it starts. */
+.upright.forward .edge.along {
+	bottom: 0;
+}
+.upright.forward .edge.along::before {
+	bottom: -1px;
+}
+.upright.back .edge.along,
+.upright .edge.start {
+	top: 0;
+}
+.upright.back .edge.along::before,
+.upright .edge.start::before {
+	top: -1px;
+}
+.lying.forward .edge.along {
+	right: 0;
+}
+.lying.forward .edge.along::before {
+	right: -1px;
+}
+.lying.back .edge.along,
+.lying .edge.start {
+	left: 0;
+}
+.lying.back .edge.along::before,
+.lying .edge.start::before {
+	left: -1px;
+}
+.edge.corner {
+	width: 14px;
+	height: 14px;
+}
+.left .edge.corner,
+.lying.forward .edge.corner {
+	right: 0;
+}
+.right .edge.corner,
+.lying.back .edge.corner {
+	left: 0;
+}
+.top .edge.corner,
+.upright.forward .edge.corner {
+	bottom: 0;
+}
+.bottom .edge.corner,
+.upright.back .edge.corner {
+	top: 0;
+}
+.left.forward .edge.corner,
+.right.back .edge.corner,
+.top.forward .edge.corner,
+.bottom.back .edge.corner {
+	cursor: nwse-resize;
+}
+.right.forward .edge.corner,
+.left.back .edge.corner,
+.top.back .edge.corner,
+.bottom.forward .edge.corner {
+	cursor: nesw-resize;
+}
+.edge:is(.across, .along, .start):hover::before,
+.edge:is(.across, .along, .start):active::before,
+.FloatPanel:has(.edge.corner:hover, .edge.corner:active) .edge:is(.across, .along)::before {
 	opacity: 1;
 }
 /* Where it would fit is a mark on the way, so it is dashed, and says so. */
 .edge.snapped::before {
-	height: 2px;
 	background: repeating-linear-gradient(to right, var(--tq-color-accent) 0 6px, transparent 6px 10px);
 	opacity: 1;
 	transition: none;
@@ -582,8 +804,10 @@ else that blurs. */
 /* Coming onto a wall of the window is a thing of its own: it glows, from that wall. */
 .wall {
 	--glow: 16px;
+	--wall-tint: color-mix(in srgb, var(--tq-color-accent) 35%, transparent);
 	position: absolute;
 	z-index: 3;
+	box-sizing: border-box;
 	pointer-events: none;
 	animation: wall-on 120ms ease-out;
 }
@@ -624,88 +848,44 @@ else that blurs. */
 	border-bottom: 3px solid var(--tq-color-accent);
 	background: linear-gradient(to top, var(--wall-tint), transparent);
 }
-.wall {
-	--wall-tint: color-mix(in srgb, var(--tq-color-accent) 35%, transparent);
-	box-sizing: border-box;
-}
-.edge {
-	position: absolute;
-	z-index: 2;
-	touch-action: none;
-}
-.edge.side {
-	top: 0;
-	bottom: 0;
-	width: 6px;
-	cursor: ew-resize;
-}
-.left .edge.side,
-.left .edge.corner {
-	right: 0;
-}
-.right .edge.side,
-.right .edge.corner {
-	left: 0;
-}
-.edge.along {
-	right: 0;
-	left: 0;
-	height: 6px;
-	cursor: ns-resize;
-}
-.edge.top {
-	top: 0;
-	right: 0;
-	left: 0;
-	height: 6px;
-	cursor: ns-resize;
-}
-/* It is at the end that it grows from. */
-.down .edge.along,
-.down .edge.corner {
-	bottom: 0;
-}
-.up .edge.along,
-.up .edge.corner {
-	top: 0;
-}
-.edge.corner {
-	width: 14px;
-	height: 14px;
-}
-.left.down .edge.corner,
-.right.up .edge.corner {
-	cursor: nwse-resize;
-}
-.right.down .edge.corner,
-.left.up .edge.corner {
-	cursor: nesw-resize;
-}
 .tab {
 	position: absolute;
 	top: 0;
+	left: 0;
 	display: flex;
-	flex-direction: column;
 	gap: 6px;
 	align-items: center;
-	width: var(--tab-width);
-	height: var(--tab-height);
-	padding-block: 8px;
 	border: none;
 	background: none;
 	color: var(--tq-color-text-mute);
 	cursor: pointer;
 	transition: opacity var(--ease);
 }
-.up .tab {
+/* Standing up along an edge at the side, and among others across the top or the bottom. */
+.upright .tab,
+.lying.folded .tab {
+	flex-direction: column;
+	width: var(--tab-width);
+	height: var(--tab-height);
+	padding-block: 8px;
+}
+.lying:not(.folded) .tab {
+	width: var(--tab-height);
+	height: var(--tab-width);
+	padding-inline: 8px;
+}
+.upright.back .tab {
 	top: auto;
 	bottom: 0;
 }
-.left .tab {
-	left: 0;
-}
-.right .tab {
+.right .tab,
+.lying.back:not(.folded) .tab {
 	right: 0;
+	left: auto;
+}
+.bottom .tab {
+	top: auto;
+	bottom: 0;
 }
 .tab:hover {
 	color: var(--tq-color-text);
@@ -715,9 +895,16 @@ else that blurs. */
 	font-size: 18px;
 }
 .tab-label {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.upright .tab-label,
+.lying.folded .tab-label {
 	writing-mode: vertical-rl;
 }
-.open .tab {
+.open .tab,
+.upright.folded .tab {
 	opacity: 0;
 	pointer-events: none;
 }
@@ -734,25 +921,40 @@ else that blurs. */
 		opacity var(--ease),
 		scale var(--ease);
 }
+.lying.fills .body {
+	width: 100%;
+}
 /* It goes in toward where it folds away to, the corner that the tab is in. */
-.left .body {
+.left .body,
+.top.forward .body {
 	transform-origin: left top;
 }
-.right .body {
+.right .body,
+.top.back .body {
 	transform-origin: right top;
 }
-.left.up .body {
+.left.back .body,
+.bottom.forward .body {
 	transform-origin: left bottom;
 }
-.right.up .body {
+.right.back .body,
+.bottom.back .body {
 	transform-origin: right bottom;
 }
 .fitting .body {
 	flex: 0 1 auto;
 }
-.open .body {
+.open .body,
+.upright.folded .body {
 	opacity: 1;
 	scale: 1;
+}
+/* Folded, there is nothing to it but its header. */
+.folded :is(.content, .below-tabs) {
+	display: none;
+}
+.upright.folded .header {
+	padding-bottom: 6px;
 }
 .header {
 	display: flex;
@@ -792,10 +994,14 @@ else that blurs. */
 .strip-tab:hover {
 	color: var(--tq-color-text);
 }
-/* As the tabs of files say which one it is. */
+/* As the tabs of files say which one it is, which there is no need for with only the one. */
 .strip-tab.active {
 	box-shadow: inset 0 -2px 0 currentColor;
 	color: var(--tq-color-text);
+}
+.strip.alone .strip-tab {
+	box-shadow: none;
+	cursor: inherit;
 }
 .strip-tab.active .strip-label {
 	font-weight: 600;

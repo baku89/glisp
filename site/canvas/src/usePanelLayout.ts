@@ -7,28 +7,37 @@ import {
 	acrossLine,
 	activated,
 	boxesOf,
+	fillerOf,
+	fitted,
 	type Group,
 	groupOf,
 	heightOfStack,
+	isUpright,
 	type Join,
 	joinAt,
 	joined,
 	joinedUnder,
+	lengthOf,
+	MIN_HEIGHT,
 	merged,
 	namesOf,
 	normalized,
 	type PanelBox,
+	type Place,
 	type PanelLayout,
 	type PanelRect,
 	placeAt,
 	placed,
 	raised,
+	roomOf,
 	settled,
 	type Side,
 	type Size,
 	type Stack,
 	stackOf,
+	stamped,
 	tabbed,
+	thicknessOf,
 	withFull,
 } from './panelLayout'
 
@@ -49,6 +58,8 @@ export interface PanelHandle {
 	readonly alert: () => string | null
 	/** How tall it would be, away from anything that holds it to a height. */
 	readonly freeHeight: () => number
+	/** It is as large as what is in it says, as a toolbar is, and is no tab of anything. */
+	readonly fixed?: boolean
 }
 
 export interface PanelTab {
@@ -63,6 +74,10 @@ export interface PanelDock {
 	readonly boxes: Readonly<Ref<ReadonlyMap<string, PanelBox>>>
 	readonly layout: Readonly<Ref<PanelLayout>>
 	readonly held: Readonly<Ref<readonly string[]>>
+	/** What is in the stack of a panel being resized, which goes by the pointer as that one does. */
+	readonly resizing: Readonly<Ref<readonly string[]>>
+	/** Says that the panel is being resized, or no longer is, with null. */
+	resize(name: string | null): void
 	/** What the panel being held would join, if it were let go of now. */
 	readonly joining: Readonly<Ref<Join | null>>
 	register(name: string, handle: PanelHandle): void
@@ -72,15 +87,19 @@ export interface PanelDock {
 	stackOf(name: string): Stack | undefined
 	tabsOf(name: string): readonly PanelTab[]
 	setWidth(name: string, width: number): void
-	setFull(name: string, full: boolean, y?: Stack['y']): void
+	/** How tall it is, and each that it is joined to across the top or the bottom. */
+	setHeight(name: string, height: Height): void
+	setFull(name: string, full: boolean, along?: Stack['along']): void
 	/** Joins it to the next along the edge, with it taking up the room that is left. */
 	merge(name: string, neighbor: string): void
-	/** Moves its stack up or down, leaving the rest as it is. */
-	setY(name: string, y: number): void
+	/** Moves its stack along its edge, leaving the rest as it is. */
+	setAlong(name: string, along: number): void
 	/** What has to give way when this panel's end is moved, within its stack. */
-	acrossLine(name: string, grows: 'down' | 'up'): PanelHandle | null
-	/** Joins it under what is above it, as wide as that is. */
-	joinUnder(name: string, above: string): void
+	acrossLine(name: string, grows: PanelBox['grows']): PanelHandle | null
+	/** Joins it after what is before it, as thick as that is. */
+	joinUnder(name: string, before: string): void
+	/** Puts it at a place of its own, as a toolbar taken apart is put where it was let go of. */
+	place(name: string, place: Place): void
 	/** Opens or minimizes it, along with the tabs that it is among. */
 	setOpen(name: string, open: boolean): void
 	/** Brings it to the front of its tabs, as open or as minimized as they are. */
@@ -95,7 +114,11 @@ export interface PanelDock {
 	 * Takes hold of a panel. By a tab of several, that is it alone. Otherwise it is its group, and
 	 * all that go with it if that is at their top, unless `alone` says otherwise.
 	 */
-	grab(name: string, event: PointerEvent, options?: { readonly byTab?: boolean }): void
+	grab(
+		name: string,
+		event: PointerEvent,
+		options?: { readonly byTab?: boolean; readonly onMove?: (event: PointerEvent) => void; readonly onEnd?: () => void }
+	): void
 	/** How much of the window the panels on an edge keep from the canvas. */
 	taken(side: Side): number
 }
@@ -105,11 +128,13 @@ export const PANEL_DOCK: InjectionKey<PanelDock> = Symbol('panel dock')
 export function usePanelLayout(
 	stage: Readonly<Ref<HTMLElement | null>>,
 	key: string,
-	defaults: PanelLayout
+	defaults: PanelLayout,
+	/** What can be there besides the defaults, as the toolbars are, with where each goes at first. */
+	others: () => ReadonlyMap<string, Place> = () => new Map()
 ): PanelDock {
 	const kept = useAppConfigStore().ref<unknown>(key, null)
 	const layout = computed<PanelLayout>({
-		get: () => normalized(kept.value, defaults),
+		get: () => normalized(kept.value, defaults, others()),
 		set: value => (kept.value = value),
 	})
 
@@ -117,15 +142,22 @@ export function usePanelLayout(
 	const handles = shallowRef(new Map<string, PanelHandle>())
 	const sizes = shallowRef(new Map<string, Size>())
 	const held = shallowRef<readonly string[]>([])
+	const resizing = shallowRef<readonly string[]>([])
 	const joining = shallowRef<Join | null>(null)
 
+	const closed = computed(
+		() => new Set([...handles.value].flatMap(([name, handle]) => (handle.open.value ? [] : [name])))
+	)
 	const boxes = computed(() =>
 		boxesOf(layout.value, {
 			sizes: sizes.value,
 			stage: { width: stageWidth.value, height: stageHeight.value },
 			held: held.value,
+			closed: closed.value,
+			fixed: new Set([...handles.value].flatMap(([name, handle]) => (handle.fixed ? [name] : []))),
 		})
 	)
+	const isFixed = (name: string): boolean => handles.value.get(name)?.fixed ?? false
 
 	/** Of what shows, as what does not has nowhere to be. */
 	const rectsWithin = (origin: DOMRect): PanelRect[] =>
@@ -148,8 +180,50 @@ export function usePanelLayout(
 		const stack = stackOf(layout.value, name)
 		for (const panel of stack === undefined ? [name] : namesOf(stack.groups)) {
 			const handle = handles.value.get(panel)
-			if (handle !== undefined) handle.width.value = width
+			if (handle !== undefined && !handle.fixed) handle.width.value = width
 		}
+	}
+
+	function setHeight(name: string, height: Height): void {
+		const stack = stackOf(layout.value, name)
+		for (const panel of stack === undefined ? [name] : namesOf(stack.groups)) {
+			const handle = handles.value.get(panel)
+			if (handle !== undefined && !handle.fixed) handle.height.value = height
+		}
+	}
+
+	/**
+	 * Makes what is joined in the stack that has `name` fit along its edge, as one more joined to
+	 * others that already go as far as there is room would go on past the end of the window.
+	 */
+	function fitStack(name: string): void {
+		const stack = stackOf(layout.value, name)
+		const measured = {
+			sizes: sizes.value,
+			stage: { width: stageWidth.value, height: stageHeight.value },
+			closed: closed.value,
+		}
+		const room = roomOf(layout.value, measured, name)
+		if (stack === undefined || room === null || stack.inset > 0) return
+		const upright = isUpright(stack.side)
+		const filler = fillerOf(stack, measured) ?? -1
+		const handlesOf = stack.groups.map(({ active }) => handles.value.get(active))
+		// What takes up the room left counts as the least it can be, and what is folded as its header.
+		const lengths = handlesOf.map((handle, i) => {
+			if (i === filler) return MIN_HEIGHT
+			if (handle === undefined) return 0
+			const size = sizes.value.get(stack.groups[i]!.active) ?? { width: 0, height: 0 }
+			if (!handle.open.value || handle.fixed) return lengthOf(size, stack.side)
+			return upright ? handle.freeHeight() : handle.width.value
+		})
+		const kept = handlesOf.map((handle, i) => i === filler || handle === undefined || handle.fixed === true || !handle.open.value)
+		const next = fitted(lengths, room, kept)
+		next.forEach((length, i) => {
+			const handle = handlesOf[i]
+			if (handle === undefined || kept[i] || length === lengths[i]) return
+			if (upright) handle.height.value = length
+			else handle.width.value = length
+		})
 	}
 
 	const isOpen = (name: string): boolean => handles.value.get(name)?.open.value ?? false
@@ -179,10 +253,16 @@ export function usePanelLayout(
 		const group = groupOf(layout.value, name)
 		if (stack === undefined || group === undefined) return []
 		if (byTab && group.tabs.length > 1) return [{ tabs: [name], active: name }]
+		// What is as large as what is in it goes alone, as it has no top to take the rest by.
+		if (isFixed(name)) return [group]
 		return stack.groups[0] === group && !alt ? stack.groups : [group]
 	}
 
-	function grab(name: string, event: PointerEvent, options?: { readonly byTab?: boolean }): void {
+	function grab(
+		name: string,
+		event: PointerEvent,
+		options?: { readonly byTab?: boolean; readonly onMove?: (event: PointerEvent) => void; readonly onEnd?: () => void }
+	): void {
 		const area = stage.value
 		if (event.button !== 0 || area === null) return
 		const groups = heldBy(name, options?.byTab ?? false, event.altKey)
@@ -203,6 +283,7 @@ export function usePanelLayout(
 				groups.map(({ active }) => handles.value.get(active)?.freeHeight() ?? 0)
 			)
 			start = { x: left, y: top, size: { width: right - left, height } }
+			layout.value = stamped(layout.value, name)
 			held.value = names
 			// To what stays, as a tab being held can go from the panel that it was pressed in. Not
 			// before it is a drag, as a click goes to what has the pointer.
@@ -225,8 +306,10 @@ export function usePanelLayout(
 				move.clientY - origin.top,
 				layout.value,
 				rectsWithin(origin),
-				names
+				names,
+				isFixed
 			)
+			options?.onMove?.(move)
 		}
 
 		const finish = (commit: boolean) => {
@@ -240,15 +323,17 @@ export function usePanelLayout(
 					join.kind === 'tab'
 						? tabbed(layout.value, groups, join.to)
 						: joined(layout.value, groups, join.to, join.at)
-				if (target !== undefined) {
+				if (target !== undefined && !target.fixed) {
 					setWidth(name, target.width.value)
 					if (join.kind === 'tab') setOpen(name, target.open.value)
 				}
+				if (join.kind === 'stack') fitStack(name)
 			}
 			if (commit && join === null && start !== null) layout.value = settled(layout.value, name)
 			joining.value = null
 			held.value = []
 			if (start === null) return
+			options?.onEnd?.()
 			// A click comes after this, on what was only being held.
 			const swallow = (click: Event) => click.stopImmediatePropagation()
 			window.addEventListener('click', swallow, { capture: true, once: true })
@@ -269,6 +354,11 @@ export function usePanelLayout(
 		boxes,
 		layout,
 		held,
+		resizing,
+		resize(name) {
+			const stack = name === null ? undefined : stackOf(layout.value, name)
+			resizing.value = name === null ? [] : stack === undefined ? [name] : namesOf(stack.groups)
+		},
 		joining,
 		register(name, handle) {
 			handles.value.set(name, handle)
@@ -306,11 +396,12 @@ export function usePanelLayout(
 			})
 		},
 		setWidth,
-		setFull(name, full, y) {
-			layout.value = withFull(layout.value, name, full, y)
+		setHeight,
+		setFull(name, full, along) {
+			layout.value = withFull(layout.value, name, full, along)
 		},
 		merge(name, neighbor) {
-			const width = handles.value.get(name)?.width.value
+			const width = isFixed(name) ? undefined : handles.value.get(name)?.width.value
 			layout.value = merged(layout.value, name, neighbor)
 			if (width !== undefined) setWidth(name, width)
 		},
@@ -318,14 +409,18 @@ export function usePanelLayout(
 			const across = acrossLine(layout.value, name, grows)
 			return across === null ? null : (handles.value.get(across) ?? null)
 		},
-		setY(name, y) {
+		setAlong(name, along) {
 			const stack = stackOf(layout.value, name)
-			if (stack !== undefined) layout.value = withFull(layout.value, name, stack.full, y)
+			if (stack !== undefined) layout.value = withFull(layout.value, name, stack.full, along)
 		},
-		joinUnder(name, above) {
-			const width = handles.value.get(above)?.width.value
-			layout.value = joinedUnder(layout.value, name, above)
+		joinUnder(name, before) {
+			const width = isFixed(before) ? undefined : handles.value.get(before)?.width.value
+			layout.value = joinedUnder(layout.value, name, before)
 			if (width !== undefined) setWidth(name, width)
+		},
+		place(name, place) {
+			const group = groupOf(layout.value, name) ?? { tabs: [name], active: name }
+			layout.value = placed(layout.value, [group], place)
 		},
 		setOpen,
 		activate,
@@ -338,10 +433,10 @@ export function usePanelLayout(
 		grab,
 		taken(side) {
 			const onEdge = layout.value.filter(stack => stack.side === side && stack.inset === 0)
-			const widths = onEdge.flatMap(({ groups }) =>
-				groups.map(({ active }) => sizes.value.get(active)?.width ?? 0)
+			const thick = onEdge.flatMap(({ groups }) =>
+				groups.map(({ active }) => thicknessOf(sizes.value.get(active) ?? { width: 0, height: 0 }, side))
 			)
-			return Math.max(0, ...widths)
+			return Math.max(0, ...thick)
 		},
 	}
 }

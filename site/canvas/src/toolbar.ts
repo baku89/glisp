@@ -40,6 +40,9 @@ export interface FirstTools {
 /** The bar that is always there, which says what else there is. */
 export const MAIN_BAR = 'main'
 
+/** What the panels know a bar by, as one of them. */
+export const barPanel = (id: string): string => `glisp.canvas.toolbar.${id}`
+
 const MAIN_PLACE = { x: 0.5, y: 1, wall: 'bottom', columns: null } as const
 
 export const toolsOf = (slot: Slot): readonly string[] => (typeof slot === 'string' ? [slot] : slot.tools)

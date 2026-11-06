@@ -40,7 +40,7 @@ import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
 import { iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
-import { alone } from './panelLayout'
+import { alone, type Place } from './panelLayout'
 import { PANEL_DOCK, usePanelLayout } from './usePanelLayout'
 import { withPaintsSwapped } from './paintArguments'
 import { loadedSource, PAINT_ROW, paintOfAttributes, shapeAttributesOf, sourceOfAttributes } from './toolAttributes'
@@ -82,7 +82,7 @@ import {
 } from './selection'
 import { bindingsOfSvg, programInFile, svgOfProgram, svgOfRows } from './svg'
 import ToolBar from './ToolBar.vue'
-import { arranged as arrangedTools, type FirstTools } from './toolbar'
+import { arranged as arrangedTools, barPanel, type FirstTools, MAIN_BAR } from './toolbar'
 
 initTweeq('app.glisp.canvas', { accentColor: '#1473e6' })
 
@@ -281,12 +281,22 @@ const panels = usePanelLayout($stage, 'glisp.canvas.panels', [
 		groups: [{ tabs: [PROJECT_PANEL, CODE_PANEL], active: PROJECT_PANEL }],
 		side: 'left',
 		inset: 0,
-		y: 0,
+		along: 0,
 		full: false,
 	},
-	{ groups: [alone(INSPECTOR_PANEL)], side: 'right', inset: 0, y: 0, full: false },
-	{ groups: [alone('glisp.canvas.tool')], side: 'left', inset: 0, y: 'bottom', full: false },
-])
+	{ groups: [alone(INSPECTOR_PANEL)], side: 'right', inset: 0, along: 0, full: false },
+	{ groups: [alone('glisp.canvas.tool')], side: 'left', inset: 0, along: 'end', full: false },
+	{ groups: [alone(barPanel(MAIN_BAR))], side: 'bottom', inset: 0, along: 'middle', full: false },
+], () => {
+	// The other bars, of tools taken off of one, are panels too, which go where they were let go of.
+	const stage = $stage.value
+	const [width, height] = [stage?.clientWidth ?? 1000, stage?.clientHeight ?? 800]
+	return new Map(
+		toolArrangement.value.bars.flatMap(({ id, x, y }): [string, Place][] =>
+			id === MAIN_BAR ? [] : [[barPanel(id), { side: x < 0.5 ? 'left' : 'right', inset: Math.round(Math.max(1, (x < 0.5 ? x : 1 - x) * width - 24)), along: Math.round(Math.max(0, y * height - 24)) }]]
+		)
+	)
+})
 provide(PANEL_DOCK, panels)
 const panelJoining = panels.joining
 const toolInHand = computed(() => TOOLS.find(({ name }) => name === tool.value)!)
@@ -486,9 +496,8 @@ const FIT_MARGIN = 32
 /** What is free of the panels that are open. */
 function freeArea(): Area {
 	const [width, height] = $canvas.value?.size() ?? [0, 0]
-	const left = panels.taken('left')
-	const right = panels.taken('right')
-	return [left + FIT_MARGIN, FIT_MARGIN, width - right - FIT_MARGIN, height - FIT_MARGIN]
+	const [left, right, top, bottom] = (['left', 'right', 'top', 'bottom'] as const).map(side => panels.taken(side))
+	return [left! + FIT_MARGIN, top! + FIT_MARGIN, width - right! - FIT_MARGIN, height - bottom! - FIT_MARGIN]
 }
 
 function fit(rows?: readonly string[]): void {
@@ -1566,12 +1575,12 @@ function selectInTree(row: string | null): void {
 				<div
 					v-if="panelJoining"
 					class="panel-joining"
-					:class="panelJoining.kind"
+					:class="[panelJoining.kind, { across: panelJoining.kind === 'stack' && panelJoining.width === 0 }]"
 					:style="{
 						left: `${panelJoining.left}px`,
 						top: `${panelJoining.top}px`,
-						width: `${panelJoining.width}px`,
-						height: panelJoining.kind === 'tab' ? `${panelJoining.height}px` : undefined,
+						width: panelJoining.width === 0 ? undefined : `${panelJoining.width}px`,
+						height: panelJoining.height === 0 ? undefined : `${panelJoining.height}px`,
 					}"
 				/>
 				<ToolBar
@@ -1661,6 +1670,12 @@ function selectInTree(row: string | null): void {
 .panel-joining.stack {
 	height: 3px;
 	margin-top: -1px;
+}
+/* Between two side by side, across the top or the bottom. */
+.panel-joining.stack.across {
+	width: 3px;
+	margin-top: 0;
+	margin-left: -1px;
 }
 .panel-joining.tab {
 	opacity: 0.3;

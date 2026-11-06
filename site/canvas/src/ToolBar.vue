@@ -4,11 +4,15 @@ import type { IconSequence } from 'bndr-js'
 import { Icon } from 'tweeq/Icon'
 import { Popover } from 'tweeq/Popover'
 import { vTooltip } from 'tweeq/Tooltip'
-import { computed, ref, shallowRef, useTemplateRef } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch } from 'vue'
+
+import { isUpright, type PanelBox, placeAt } from './panelLayout'
+import { PANEL_DOCK } from './usePanelLayout'
 
 import {
 	type Arrangement,
 	type Bar,
+	barPanel,
 	barPlaceAt,
 	distanceFrom,
 	type Drop,
@@ -50,6 +54,61 @@ const DRAG_FROM = 4
 const NEAR_BAR = 12
 /** A tool and the gap to the next, as `.tool` and `.sortable` have them. */
 const PITCH = 34
+
+/** Where the bars are, which is where the panels are, as each is one. */
+const dock = inject(PANEL_DOCK)!
+const boxOf = (bar: Bar): PanelBox | undefined => dock.boxes.value.get(barPanel(bar.id))
+/** The wall it is on, if it is on one. */
+const wallOf = (bar: Bar): Bar['wall'] => {
+	const box = boxOf(bar)
+	return box === undefined || box.inset > 0 ? null : box.side
+}
+
+// Each bar is a panel as large as its tools make it, that is no tab of anything.
+const sized = new ResizeObserver(entries => {
+	for (const { target } of entries) {
+		const id = (target as HTMLElement).dataset.bar
+		if (id !== undefined) {
+			dock.measure(barPanel(id), { width: (target as HTMLElement).offsetWidth, height: (target as HTMLElement).offsetHeight })
+		}
+	}
+})
+const registered = new Set<string>()
+watch(
+	() => props.arrangement.bars.map(({ id }) => id),
+	ids => {
+		for (const id of registered) {
+			if (ids.includes(id)) continue
+			dock.unregister(barPanel(id))
+			registered.delete(id)
+		}
+		for (const id of ids) {
+			if (registered.has(id)) continue
+			registered.add(id)
+			const element = () => barElement(id)
+			dock.register(barPanel(id), {
+				root: element,
+				width: ref(0),
+				open: ref(true),
+				height: ref(null),
+				naturalHeight: () => element()?.offsetHeight ?? 0,
+				label: () => 'Tools',
+				icon: () => 'ph:toolbox',
+				alert: () => null,
+				freeHeight: () => element()?.offsetHeight ?? 0,
+				fixed: true,
+			})
+		}
+	},
+	{ immediate: true }
+)
+onBeforeUnmount(() => {
+	sized.disconnect()
+	for (const id of registered) dock.unregister(barPanel(id))
+})
+const observe = (element: unknown): void => {
+	if (element instanceof HTMLElement) sized.observe(element)
+}
 
 const $root = useTemplateRef<HTMLElement>('$root')
 const dots = shallowRef<HTMLElement | null>(null)
@@ -116,7 +175,15 @@ const caret = computed(() => {
 			}
 })
 
-const isStanding = (bar: Bar): boolean => bar.columns === 1
+/** How many go across, standing up along a wall at the side and lying along one at the top or bottom. */
+function columnsOf(bar: Bar): number | null {
+	const wall = wallOf(bar)
+	if ((wall === 'left' || wall === 'right') && bar.columns === null) return 1
+	if ((wall === 'top' || wall === 'bottom') && bar.columns === 1) return null
+	return bar.columns
+}
+
+const isStanding = (bar: Bar): boolean => columnsOf(bar) === 1
 
 function targetAt(x: number, y: number, slot: Slot): Target {
 	if (dots.value !== null && distanceFrom(x, y, dots.value.getBoundingClientRect()) === 0) return { kind: 'stow' }
@@ -217,7 +284,19 @@ function letGo({ slot, x, y, target }: NonNullable<typeof heldTool.value>): void
 			{ width: PITCH + GRIP_WIDTH, height: PITCH + 12 },
 			{ width: origin.width, height: origin.height }
 		)
+		const before = new Set(arrangement.bars.map(({ id }) => id))
 		emit('update:arrangement', separated(arrangement, slot, place))
+		// It goes where it was let go of, as a panel of its own, once there is one.
+		void nextTick(() => {
+			const added = props.arrangement.bars.find(({ id }) => !before.has(id))
+			if (added === undefined) return
+			const size = { width: PITCH + GRIP_WIDTH, height: PITCH + 12 }
+			const at = placeAt(x - origin.left - size.width / 2, y - origin.top - size.height / 2, size, {
+				width: origin.width,
+				height: origin.height,
+			})
+			dock.place(barPanel(added.id), at)
+		})
 	}
 }
 
@@ -225,25 +304,11 @@ function letGo({ slot, x, y, target }: NonNullable<typeof heldTool.value>): void
 const GRIP_WIDTH = 28
 
 function pressBar(event: PointerEvent, bar: Bar): void {
-	const element = event.currentTarget as HTMLElement
-	const box = element.closest('[data-bar]')!.getBoundingClientRect()
-	const grab = [event.clientX - (box.left + box.right) / 2, event.clientY - (box.top + box.bottom) / 2] as const
-	follow(event, {
-		begin() {
+	// It is moved as a panel is, and goes into another bar if let go of on one.
+	dock.grab(barPanel(bar.id), event, {
+		onMove({ clientX, clientY }) {
 			stowedOpen.value = false
 			flyout.value = null
-			movingBar.value = { id: bar.id, into: null }
-		},
-		move({ clientX, clientY }) {
-			const origin = stage().getBoundingClientRect()
-			const own = barElement(bar.id)!.getBoundingClientRect()
-			const place = barPlaceAt(
-				clientX - grab[0] - origin.left,
-				clientY - grab[1] - origin.top,
-				{ width: own.width, height: own.height },
-				{ width: origin.width, height: origin.height }
-			)
-			emit('update:arrangement', movedBar(props.arrangement, bar.id, place))
 			const into =
 				bar.id === MAIN_BAR
 					? undefined
@@ -254,12 +319,16 @@ function pressBar(event: PointerEvent, bar: Bar): void {
 						})
 			movingBar.value = { id: bar.id, into: into?.id ?? null }
 		},
-		end(done) {
+		onEnd() {
 			const moving = movingBar.value
 			movingBar.value = null
-			if (!done || moving?.into == null) return
-			const into = props.arrangement.bars.find(({ id }) => id === moving.into)!
-			emit('update:arrangement', mergedBars(props.arrangement, bar.id, into.id, into.slots.length))
+			if (moving?.into != null) {
+				const into = props.arrangement.bars.find(({ id }) => id === moving.into)!
+				emit('update:arrangement', mergedBars(props.arrangement, bar.id, into.id, into.slots.length))
+				return
+			}
+			// Standing up along a wall at the side, and lying along one at the top or bottom.
+			emit('update:arrangement', movedBar(props.arrangement, bar.id, { x: bar.x, y: bar.y, wall: wallOf(bar) }))
 		},
 	})
 }
@@ -267,9 +336,10 @@ function pressBar(event: PointerEvent, bar: Bar): void {
 /** Changes how many tools go across, by how far the corner is dragged. */
 function pressShape(event: PointerEvent, bar: Bar): void {
 	event.stopPropagation()
-	const from = bar.columns ?? bar.slots.length
+	const from = columnsOf(bar) ?? bar.slots.length
 	// It grows on both sides if nothing holds it at one.
-	const k = bar.wall === 'left' ? 1 : bar.wall === 'right' ? -1 : 2
+	const wall = wallOf(bar)
+	const k = wall === 'left' ? 1 : wall === 'right' ? -1 : 2
 	const { clientX } = event
 	follow(event, {
 		begin() {},
@@ -314,29 +384,42 @@ const tooltipOf = ({ tooltip: { content, shortcut } }: Tool) => ({
 	...(shortcut === undefined ? {} : { shortcut: [...shortcut] }),
 })
 
-const barStyle = (bar: Bar) => ({
-	left: bar.wall === 'right' ? 'auto' : `${bar.x * 100}%`,
-	right: bar.wall === 'right' ? '0' : 'auto',
-	top: bar.wall === 'bottom' ? 'auto' : `${bar.y * 100}%`,
-	bottom: bar.wall === 'bottom' ? '0' : 'auto',
-	translate: `${bar.wall === 'left' || bar.wall === 'right' ? '0' : '-50%'} ${
-		bar.wall === 'top' || bar.wall === 'bottom' ? '0' : '-50%'
-	}`,
-	'--columns': bar.columns ?? bar.slots.length,
-})
+const px = (value: number | null): string => (value === null ? 'auto' : `${value}px`)
+
+const barStyle = (bar: Bar) => {
+	const box = boxOf(bar)
+	const order = dock.layout.value.findIndex(({ groups }) => groups.some(({ tabs }) => tabs.includes(barPanel(bar.id))))
+	if (box === undefined) return { visibility: 'hidden' as const, '--columns': columnsOf(bar) ?? bar.slots.length }
+	// It is as long as its tools make it, so it starts where it starts, or else ends where it ends.
+	const [start, end] = box.start !== null ? [box.start, null] : [null, box.end]
+	return {
+		[box.side]: `${box.inset}px`,
+		...(isUpright(box.side) ? { top: px(start), bottom: px(end) } : { left: px(start), right: px(end) }),
+		zIndex: 40 + Math.max(0, order),
+		'--columns': columnsOf(bar) ?? bar.slots.length,
+	}
+}
+
+/** It meets what it is joined to, along its stack, straight on. */
+const joinsOf = (bar: Bar) => {
+	const box = boxOf(bar)
+	return { 'joined-before': box?.joinedBefore ?? false, 'joined-after': box?.joinedAfter ?? false }
+}
 
 /** Away from the wall a bar is on, toward the canvas. */
 const awayFrom = (wall: Bar['wall'] | undefined) =>
 	wall === 'left' ? 'right' : wall === 'right' ? 'left' : wall === 'top' ? 'bottom' : 'top'
 
-const flyoutPlacement = computed(() =>
-	awayFrom(
-		props.arrangement.bars.find(bar =>
-			flyout.value !== null && bar.slots.some(slot => toolsOf(slot).includes(flyout.value!.tools[0]!))
-		)?.wall
+const flyoutPlacement = computed(() => {
+	const bar = props.arrangement.bars.find(
+		bar => flyout.value !== null && bar.slots.some(slot => toolsOf(slot).includes(flyout.value!.tools[0]!))
 	)
-)
-const stowedPlacement = computed(() => awayFrom(props.arrangement.bars.find(bar => bar.id === MAIN_BAR)?.wall))
+	return awayFrom(bar && wallOf(bar))
+})
+const stowedPlacement = computed(() => {
+	const bar = props.arrangement.bars.find(bar => bar.id === MAIN_BAR)
+	return awayFrom(bar && wallOf(bar))
+})
 
 const ghost = computed(() => {
 	const held = heldTool.value
@@ -362,12 +445,15 @@ const isInto = (bar: Bar, index: number): boolean => {
 	<div
 		v-for="bar in arrangement.bars"
 		:key="bar.id"
+		:ref="observe"
 		class="tools"
 		:class="[
-			bar.wall ? `on-${bar.wall}` : 'floating',
+			wallOf(bar) ? `on-${wallOf(bar)}` : 'floating',
+			boxOf(bar) && isUpright(boxOf(bar)!.side) ? 'upright' : 'lying',
+			joinsOf(bar),
 			{
-				standing: bar.columns === 1,
-				moving: movingBar?.id === bar.id,
+				standing: isStanding(bar),
+				moving: dock.held.value.includes(barPanel(bar.id)),
 				'taking-in': movingBar?.into === bar.id,
 			},
 		]"
@@ -560,9 +646,26 @@ else that blurs. */
 .on-right::before {
 	border-right: none;
 }
+/* Where it meets a panel it is joined to, it goes straight on. */
+.upright.joined-before {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+.upright.joined-after {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+.lying.joined-before {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+.lying.joined-after {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
 /* While it is moved, it says so of the wall it would be on, as a panel does. */
 .moving {
-	z-index: 61;
+	z-index: 61 !important;
 }
 .moving.on-bottom::before {
 	border-bottom: 3px solid var(--tq-color-accent);
