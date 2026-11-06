@@ -1213,8 +1213,21 @@ function penSource(anchors: readonly Anchor[], closed: boolean, kind: PenKind): 
 			const into = asPoint(inOf(to) ?? to.at)
 			return `(path.cubic ${points[0]} ${out} ${into} ${points[1]})`
 		}
-		case 'path':
-			return `(path.d "${dOfAnchors(anchors, closed)}")`
+		case 'path': {
+			// A place by itself goes straight through, and one with handles curves toward them.
+			// What an open path's ends would curve toward beyond them is nothing to it.
+			const written = anchors.map((anchor, i) => {
+				const into = !closed && i === 0 ? undefined : inOf(anchor)
+				const out = !closed && i === anchors.length - 1 ? undefined : anchor.out
+				if (into === undefined && out === undefined) return asPoint(anchor.at)
+				const handles = [
+					...(into === undefined ? [] : [`in: ${asPoint(into)}`]),
+					...(out === undefined ? [] : [`out: ${asPoint(out)}`]),
+				]
+				return `{at: ${asPoint(anchor.at)} ${handles.join(' ')}}`
+			})
+			return `(path.anchors [${written.join(' ')}]${closed ? ' closed: true' : ''})`
+		}
 	}
 }
 

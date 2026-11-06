@@ -342,11 +342,14 @@ describe('the pen', () => {
 			)
 		})
 
-		it('anything more, a path', () => {
+		it('anything more, a path through its anchors, each a place, or a place with the handles it has', () => {
 			expect(drawn_([{ at: [0, 0], out: [5, 0] }, { at: [10, 10] }, { at: [20, 0] }])).toBe(
-				'path1 = (path.d "M 0,0 C 5,0 10,10 10,10 L 20,0")'
+				'path1 = (path.anchors [{at: [0 0] out: [5 0]} [10 10] [20 0]])'
 			)
-			expect(drawn_(clicks([0, 0], [1, 1]), true)).toBe('path1 = (path.d "M 0,0 L 1,1 L 0,0 Z")')
+			expect(drawn_([{ at: [0, 0] }, { at: [10, 0], out: [15, 0] }, { at: [20, 0] }])).toBe(
+				'path1 = (path.anchors [[0 0] {at: [10 0] in: [5 0] out: [15 0]} [20 0]])'
+			)
+			expect(drawn_(clicks([0, 0], [1, 1]), true)).toBe('path1 = (path.anchors [[0 0] [1 1]] closed: true)')
 		})
 
 		it('counts each kind on its own', () => {
@@ -374,11 +377,11 @@ describe('the pen', () => {
 			expect(print(bound(curve.ast).at(-1)![1])).toContain('[100 100] ../c/center:)')
 		})
 
-		it('has only the value, as a path has no place to refer from', () => {
+		it('has only the value, as an anchor in a path does not refer to anything yet', () => {
 			const circle = parse('{c = (path.circle [100 100] 10)}') as LetAST
 			const center = nearestSnap(snapPointsOf(circle, env, sceneOf(circle, env)), [100, 100], 1)!
 			const { ast } = penned(circle, env, [{ at: [100, 100], snap: center, out: [1, 1] }, { at: [0, 0] }, { at: [5, 5] }], false)
-			expect(print(bound(ast).at(-1)![1])).toMatch(/^\(path\.d "M 100,100/)
+			expect(print(bound(ast).at(-1)![1])).toMatch(/^\(path\.anchors \[\{at: \[100 100\]/)
 		})
 	})
 })
@@ -1551,6 +1554,50 @@ describe('grips', () => {
 			const ladder = expandLadder(parse('(path.circle [0 0] 5)'), env).map(print)
 			expect(ladder.at(-1)).toBe('(path.ellipse [0 0] [5 5])')
 			expect(data(ladder.at(-1)!)).toMatch(/^\(path\.d "M 5,0 A/)
+		})
+	})
+
+	describe('a path through its anchors', () => {
+		const source = '{c = (path.anchors [[0 0] {at: [10 0] in: [5 0] out: [15 0]} (vec2.add [20 0] [0 0])])}'
+		const data = (src: string) => print(toAst(evaluate(parse(src), env).value, env))
+
+		it('goes straight through a place, and curves toward handles', () => {
+			expect(data('(path.anchors [[0 0] [10 0] [10 10]] closed: true)')).toBe('(path.d "M 0,0 L 10,0 L 10,10 Z")')
+			expect(data('(path.anchors [[0 0] {at: [10 0] in: [5 0]}])')).toBe('(path.d "M 0,0 C 0,0 5,0 10,0")')
+		})
+
+		it('has its data as its next rung', () => {
+			expect(expandLadder(parse('(path.anchors [[0 0] [10 0]])'), env).map(print).at(-1)).toBe(
+				'(path.d "M 0,0 L 10,0")'
+			)
+		})
+
+		it('is taken by each place, with its handles, which have lines to them', () => {
+			const grip = gripAt(parse(source), env, row)!
+			expect(grip.handles.map(h => h.at)).toEqual([[0, 0], [5, 0], [15, 0], [10, 0], [20, 0]])
+			expect(grip.handles.map(h => h.control ?? false)).toEqual([false, true, true, false, false])
+			expect(grip.guides).toHaveLength(2)
+		})
+
+		it('moves a place with its handles, and only that anchor', () => {
+			expect(pulled(source, 3, [10, 5])).toBe(
+				'{main = [c = (path.anchors [[0 0] {at: [10 5] in: [5 5] out: [15 5]} (vec2.add [20 0] [0 0])])]}'
+			)
+			expect(pulled(source, 0, [1, 2])).toBe(
+				'{main = [c = (path.anchors [[1 2] {at: [10 0] in: [5 0] out: [15 0]} (vec2.add [20 0] [0 0])])]}'
+			)
+		})
+
+		it('keeps a handle going the other way from the one across from it, which is moved', () => {
+			expect(pulled(source, 2, [10, 10])).toBe(
+				'{main = [c = (path.anchors [[0 0] {at: [10 0] in: [10 -5] out: [10 10]} (vec2.add [20 0] [0 0])])]}'
+			)
+		})
+
+		it('is moved as a whole', () => {
+			const root = parse('{c = (path.anchors [[0 0] {at: [10 0] out: [15 0]}])}')
+			const { ast } = changed(root, env, row, gripAt(root, env, row)!.move!([1, 2]))
+			expect(print(ast!)).toBe('{main = [c = (path.anchors [[1 2] {at: [11 2] out: [16 2]}])]}')
 		})
 	})
 

@@ -16,8 +16,10 @@ import {
 	LetAST,
 	MetaAST,
 	lit,
+	makeRecordType,
 	makeTupleType,
 	makeType,
+	makeUnionType,
 	makeTypedFn,
 	parse,
 	print,
@@ -1852,6 +1854,79 @@ const lerped = (a: number, b: number, t: number): number => a + (b - a) * t
 const merged = (paths: readonly Path[]): PathValue =>
 	new PathValue(paths.length === 0 ? empty : merge([...paths]))
 
+/**
+ * Where a path goes through, and how it comes in and goes out of there: a place by itself,
+ * which a path goes straight in and out of, or one with handles, which it curves toward.
+ * A handle not said is none, so a curve on one side only is said by one handle.
+ */
+const anchorWithHandles = withTypeMeta(
+	makeRecordType(
+		new Map([
+			['at', point],
+			['in', point],
+			['out', point],
+		]),
+		new Set(['in', 'out'])
+	),
+	new RecordAST([['name', lit('handles')]])
+)
+const anchorType = makeUnionType([point, anchorWithHandles])
+const anchorsType = makeTupleType([], anchorType)
+
+/** An anchor as its place and handles, whichever way it is written. */
+export interface AnchorParts {
+	readonly at: Vec
+	readonly in?: Vec
+	readonly out?: Vec
+}
+
+export const partsOfAnchor = (anchor: unknown): AnchorParts =>
+	Array.isArray(anchor) ? { at: anchor as unknown as Vec } : (anchor as AnchorParts)
+
+const placeInD = ([x, y]: Vec): string => `${Number(x.toFixed(4))},${Number(y.toFixed(4))}`
+
+/** An SVG path's data, through `anchors` in turn, and back to the first if `closed`. */
+export function dOfAnchorValues(anchors: readonly unknown[], closed: boolean): string {
+	const all = anchors.map(partsOfAnchor)
+	const [first] = all
+	if (first === undefined) return ''
+	const stops = closed ? [...all.slice(1), first] : all.slice(1)
+	let from = first
+	const parts = [`M ${placeInD(first.at)}`]
+	for (const to of stops) {
+		parts.push(
+			from.out === undefined && to.in === undefined
+				? `L ${placeInD(to.at)}`
+				: `C ${placeInD(from.out ?? from.at)} ${placeInD(to.in ?? to.at)} ${placeInD(to.at)}`
+		)
+		from = to
+	}
+	if (closed) parts.push('Z')
+	return parts.join(' ')
+}
+
+const pathOfAnchors = (anchors: readonly unknown[], closed: boolean): PathValue => {
+	const d = dOfAnchorValues(anchors, closed)
+	return d === '' ? new PathValue(empty) : new PathValue(fromD(d))
+}
+
+/** A path through anchors, each of which can be worked on as it is, and its next rung is its data. */
+const makeAnchors = withExpansion(
+	withOptional(
+		makeTypedFn(
+			[anchorsType, booleanType],
+			pathType,
+			(anchors, closed) => pathOfAnchors(anchors as unknown[], closed as boolean),
+			['anchors', 'closed']
+		),
+		['closed']
+	),
+	([anchors, closed], { value }) =>
+		anchors === undefined
+			? null
+			: callOf('d', [lit(dOfAnchorValues(value(anchors) as unknown[], closed === undefined ? false : value(closed) === true))])
+)
+
 const makeDubinsChain = makeTypedFn(
 	[dubinsStopsType, numberOf(20)],
 	pathType,
@@ -1941,6 +2016,7 @@ withMembers(pathType, {
 	blendSteps: withDoc(makeBlendSteps, 'The shapes from `a` to `b`, with as many `steps` evenly between them.', 'Blend Steps'),
 	repeatAlong: withDoc(makeRepeatAlong, 'As many copies of `stamp` as `count` says, each with its middle on `path`, starting `offset` along it, turned the way it goes if `rotate` says.', 'Repeat Along'),
 	d: withDoc(makeD, 'A path from its data, as an SVG path has it.', 'Path Data'),
+	anchors: withDoc(makeAnchors, 'A path through `anchors` in turn, and back to the first if `closed`. Each is a place, or a place with handles, `in` and `out`, that the path curves toward on either side of it.', 'Path by Anchors'),
 	circle: withDoc(makeCircle, 'A circle around `center`, as far out as `radius`.', 'Circle'),
 	circleFromDiameter: withDoc(makeCircleFromDiameter, 'The circle with `a` and `b` at either end of a line through its center.', 'Circle from Diameter'),
 	circleThrough: withDoc(makeCircleThrough, 'The circle through `a`, `b` and `c`.', 'Circle through Points'),
@@ -2778,6 +2854,72 @@ const pointsGrip = (
 	move: delta => points.map((at, i) => change(i, add(at, delta))),
 })
 
+/**
+ * Take hold of a path by its anchors. Each moves with its handles, and a handle that goes the
+ * other way from the one across from it goes on doing so, as long as it stays, when that is moved.
+ * Each change is of that anchor only, so that anything else written in the vector stays.
+ */
+function anchorsGrip(anchors: readonly unknown[], closed: boolean): Grip {
+	const all = anchors.map(partsOfAnchor)
+	const written = (i: number, next: AnchorParts): unknown => {
+		const anchor = anchors[i]
+		if (Array.isArray(anchor)) return next.at
+		const keys = Object.keys(anchor as object) as (keyof AnchorParts)[]
+		return Object.fromEntries(keys.map(key => [key, next[key] ?? UNSET]))
+	}
+	const only = (i: number, next: AnchorParts): Change[] => [
+		change(0, anchors.map((_, j) => (j === i ? written(i, next) : UNSET))),
+	]
+	const movedBy = (anchor: AnchorParts, delta: Vec): AnchorParts => ({
+		at: add(anchor.at, delta),
+		...(anchor.in === undefined ? {} : { in: add(anchor.in, delta) }),
+		...(anchor.out === undefined ? {} : { out: add(anchor.out, delta) }),
+	})
+	/** `other`, turned to go on going the other way from `moved`, if it went that way from where it was. */
+	const across = (at: Vec, was: Vec, moved: Vec, other: Vec | undefined): Vec | undefined => {
+		if (other === undefined) return undefined
+		const a = sub(was, at)
+		const b = sub(other, at)
+		const cross = a[0] * b[1] - a[1] * b[0]
+		const dot = a[0] * b[0] + a[1] * b[1]
+		if (dot >= 0 || Math.abs(cross) > IN_LINE * Math.hypot(...a) * Math.hypot(...b)) return other
+		const toward = sub(moved, at)
+		const reach = Math.hypot(...toward)
+		if (reach === 0) return other
+		const length = Math.hypot(...b)
+		return [at[0] - (toward[0] / reach) * length, at[1] - (toward[1] / reach) * length]
+	}
+	const handles = all.flatMap((anchor, i): Handle[] => {
+		const pulled = (side: 'in' | 'out'): Handle[] => {
+			const at = anchor[side]
+			if (at === undefined) return []
+			const other = side === 'in' ? 'out' : 'in'
+			return [
+				{
+					kind: 'point',
+					at,
+					control: true,
+					to: to => only(i, { ...anchor, [side]: to, [other]: across(anchor.at, at, to, anchor[other]) }),
+				},
+			]
+		}
+		return [
+			...pulled('in'),
+			...pulled('out'),
+			{ kind: 'point', at: anchor.at, to: to => only(i, movedBy(anchor, sub(to, anchor.at))) },
+		]
+	})
+	const ats = all.map(anchor => anchor.at)
+	return {
+		handles,
+		guides: all.flatMap(anchor =>
+			[anchor.in, anchor.out].flatMap(handle => (handle === undefined ? [] : [line(anchor.at, handle)]))
+		),
+		snaps: { lines: linesThrough(ats, closed) },
+		move: delta => [change(0, all.map((anchor, i) => written(i, movedBy(anchor, delta))))],
+	}
+}
+
 /** Take hold of what has all of its places in one vector, as its first argument. */
 const placesGrip = (places: readonly Vec[]): Grip => ({
 	handles: places.map((at, i) => ({
@@ -3291,6 +3433,7 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 		},
 	],
 	[makePolyline, args => pointsGrip(args as Vec[], [], { lines: linesThrough(args as Vec[], false) })],
+	[makeAnchors, args => anchorsGrip(args[0] as unknown[], args[1] === true)],
 	[makePolygon, args => pointsGrip(args as Vec[], [], { lines: linesThrough(args as Vec[], true) })],
 	[
 		makeCubic,
@@ -4378,6 +4521,25 @@ const ofPlaces = (args: readonly unknown[]): BoxAnswer => ({
 	scaled: (x, y, about) => args.map((at, i) => change(i, scaledPlace(at as Vec, x, y, about))),
 	turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
 })
+/** Anchors, each of whose places, handles too, goes where the box takes it. */
+const ofAnchors = (args: readonly unknown[]): BoxAnswer => {
+	const anchors = args[0] as readonly unknown[]
+	const each = (place: (at: Vec) => Vec): Change[] => [
+		change(
+			0,
+			anchors.map(anchor =>
+				Array.isArray(anchor)
+					? place(anchor as unknown as Vec)
+					: Object.fromEntries(Object.entries(anchor as object).map(([key, at]) => [key, place(at as Vec)]))
+			)
+		),
+	]
+	return {
+		even: false,
+		scaled: (x, y, about) => each(at => scaledPlace(at, x, y, about)),
+		turned: (degrees, about) => each(at => turnedPlace(at, degrees, about)),
+	}
+}
 /** A center and lengths from it, which have only one scale to go by. */
 const centerAnd = (...lengths: readonly number[]) => (args: readonly unknown[]): BoxAnswer => ({
 	even: true,
@@ -4603,6 +4765,7 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 	[makeSpiral, centerAnd(1, 2)],
 	[makeLine, ofPlaces],
 	[makePolyline, ofPlaces],
+	[makeAnchors, ofAnchors],
 	[makePolygon, ofPlaces],
 	[makeCubic, ofPlaces],
 	[
