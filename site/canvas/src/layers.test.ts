@@ -1,8 +1,9 @@
-import { type AST, buildPrelude, evaluate, LetAST, parse, print, renameBinding } from '@glisp/lang'
+import { type AST, buildPrelude, evaluate, LetAST, print } from '@glisp/lang'
 import { combined, filtersFor, wrappedAt } from '@glisp/tweeq/filters'
-import { layersOf, moveBinding, viewOf, withLayerAdded } from '@glisp/tweeq/structure'
+import { layersOf, moveBinding, renameBindingAt, viewOf, withLayerAdded } from '@glisp/tweeq/structure'
 import { pastedRows, reach, withoutRows } from '@glisp/tweeq/rowsClipboard'
 import { keptReferences } from '@glisp/tweeq/keptReferences'
+import { bound, parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
@@ -32,11 +33,11 @@ describe('what a program draws', () => {
 
 	it('leaves out what is only named, even if it could be drawn', () => {
 		expect(drawn(`{base = ${P(1)} [a = (path.offset base 2)]}`)).toEqual(['a'])
-		expect(drawn(`{a = ${P(1)}}`)).toEqual([])
+		expect(drawn(`{a = ${P(1)} artboard = []}`)).toEqual([])
 	})
 
 	it('draws the same thing twice, if it is held twice', () => {
-		expect(drawn(`[a = ${P(1)} b = ${P(2)} a]`)).toEqual(['a', 'b', 'a'])
+		expect(drawn(`[a = ${P(1)} b = ${P(2)} a]`)).toEqual(['element:2', 'b', 'a'])
 	})
 
 	it('goes into a group, keeping its order in there, and draws what has no name', () => {
@@ -53,16 +54,16 @@ describe('a program from before', () => {
 	const after = (source: string) => print(withLayersFromOrder(parse(source), env))
 
 	it('holds what draws anything, what was drawn last coming first', () => {
-		expect(after(`{r = 10 a = ${P(1)} b = ${P(2)}}`)).toBe(`{r = 10 [b = ${P(2)} a = ${P(1)}]}`)
+		expect(after(`{r = 10 a = ${P(1)} b = ${P(2)}}`)).toBe(`{r = 10 artboard = [b = ${P(2)} a = ${P(1)}]}`)
 	})
 
 	it('has its groups come to hold what they did', () => {
-		expect(after(`{g = {a = ${P(1)} n = 1}}`)).toBe(`[g = {n = 1 [a = ${P(1)}]}]`)
+		expect(after(`{g = {a = ${P(1)} n = 1}}`)).toBe(`{artboard = [g = {n = 1 [a = ${P(1)}]}]}`)
 	})
 
 	it('has a vector, even with nothing in it, and is left alone once it has one', () => {
-		expect(after('{n = 1}')).toBe('{n = 1 []}')
-		const now = `{n = 1 [a = ${P(1)}]}`
+		expect(after('{n = 1}')).toBe('{n = 1 artboard = []}')
+		const now = `{n = 1 artboard = [a = ${P(1)}]}`
 		expect(after(now)).toBe(now)
 	})
 })
@@ -76,11 +77,11 @@ describe('editing what is drawn', () => {
 	it('lets go of what is removed, in what holds it too', () => {
 		const next = withoutRows(root(ABC), env, ['binding:b'])
 		expect(order(next)).toEqual(['a', 'c'])
-		expect((next as LetAST).bindings.map(([name]) => name)).toEqual(['a', 'c'])
+		expect(bound((next as LetAST)).map(([name]) => name)).toEqual(['c', 'a'])
 	})
 
 	it('follows a name, where it is held', () => {
-		expect(order(renameBinding(root(ABC), 'b', 'z'))).toEqual(['a', 'z', 'c'])
+		expect(order(renameBindingAt(root(ABC), env, 'binding:b', 'z'))).toEqual(['a', 'z', 'c'])
 	})
 
 	it('reorders what is held, by dragging beside it', () => {
@@ -176,14 +177,14 @@ describe('what is put around what is drawn', () => {
 		const next = wrappedAt(root, env, 'binding:b', filter([value], 'path.offset'))
 		expect(next).toBeInstanceOf(LetAST)
 		expect(layersOf(next as LetAST)).toEqual(['a', 'b', 'c'])
-		expect(print((next as LetAST).bindings[1]![1])).toContain('path.offset')
+		expect(print(bound((next as LetAST))[1]![1])).toContain('path.offset')
 	})
 
 	it('comes to one, where the frontmost of them was, and does not go on holding the rest', () => {
 		const root = parse(held) as LetAST
 		const rows = ['b', 'c']
 		const values = rows.map(name => valueOfRow(root, env, `binding:${name}`))
-		const given = rows.map(name => root.bindings.find(([bound]) => bound === name)![1])
+		const given = rows.map(name => bound(root).find(([bound]) => bound === name)![1])
 		const next = combined(root, env, rows, given, filter(values, 'path.unite'))
 		expect(next).not.toBeNull()
 		expect(layersOf(next!)).toEqual(['a', 'b'])
@@ -212,8 +213,8 @@ describe('what is put around what is drawn', () => {
 
 		it('goes on going there, whichever is the subject', () => {
 			for (const [names, center] of [
-				[['ngon', 'dots'], '/ngon/path:/subject:/center:'],
-				[['dots', 'ngon'], '/dots/path:/tool:/center:'],
+				[['ngon', 'dots'], '/artboard/ngon/path:/subject:/center:'],
+				[['dots', 'ngon'], '/artboard/dots/path:/tool:/center:'],
 			] as const) {
 				const next = on(styled)(...names)('path.subtract')
 				expect(next).not.toBeNull()
@@ -224,13 +225,13 @@ describe('what is put around what is drawn', () => {
 
 		it('has what referred to one from elsewhere follow it', () => {
 			const next = on(styled)('ngon', 'dots')('path.subtract')!
-			expect(print(next)).toContain('other = (path.circle /ngon/path:/tool:/a:/center: 1)')
+			expect(print(next)).toContain('other = (path.circle /artboard/ngon/path:/tool:/a:/center: 1)')
 			expect(problems(next)).toEqual([])
 		})
 
 		it('goes by a number, past those that have a name', () => {
 			const next = on(`[a = ${NGON} b = ${NGON} c = ${NGON} d = (path.circle /c/center: 1)]`)('a', 'b', 'c')('path.unite')!
-			expect(print(next)).toContain('d = (path.circle /a/others:/0/center: 1)')
+			expect(print(next)).toContain('d = (path.circle /artboard/a/others:/0/center: 1)')
 			expect(problems(next)).toEqual([])
 		})
 
@@ -543,14 +544,14 @@ describe('grouping inside of a group', () => {
 
 	it('lets go of a group where it is', () => {
 		const result = ungrouped(root, env, ['binding:o/binding:g'])!
-		expect(print(result.ast)).toBe(`[o = [a = ${X} b = ${Y} d = ${Z}] c = ${P(4)}]`)
+		expect(print(result.ast)).toBe(`{artboard = [o = [a = ${X} b = ${Y} d = ${Z}] c = ${P(4)}]}`)
 		expect(result.rows).toEqual(['binding:o/binding:a', 'binding:o/binding:b'])
 	})
 
 	it('groups where they are', () => {
 		const result = grouped(root, env, ['binding:o/binding:g', 'binding:o/binding:d'])!
 		expect(result.row).toBe('binding:o/binding:group1')
-		expect(print(result.ast)).toBe(`[o = [group1 = [g = [a = ${X} b = ${Y}] d = ${Z}]] c = ${P(4)}]`)
+		expect(print(result.ast)).toBe(`{artboard = [o = [group1 = [g = [a = ${X} b = ${Y}] d = ${Z}]] c = ${P(4)}]}`)
 	})
 
 	it('does not group across blocks', () => {
@@ -560,15 +561,15 @@ describe('grouping inside of a group', () => {
 	it('lets go of one in each of two blocks, at once', () => {
 		const two = parse(`[o = [g = [a = ${X}]] h = [b = ${Y}]]`) as LetAST
 		const result = ungrouped(two, env, ['binding:o/binding:g', 'binding:h'])!
-		expect(print(result.ast)).toBe(`[o = [a = ${X}] b = ${Y}]`)
+		expect(print(result.ast)).toBe(`{artboard = [o = [a = ${X}] b = ${Y}]}`)
 	})
 })
 
 describe('what is taken away, that something was drawn by', () => {
 	it('leaves that drawn where it was, at what it came to', () => {
-		const before = parse('[r = (path.rect [0 0] [100 40]) c = (path.circle [(lerp /r/origin:/0 (+ /r/origin:/0 /r/size:/0) 0.2) /r/origin:/1] 10)]')
+		const before = parse('[r = (path.rect [0 0] [100 40]) c = (path.circle [(lerp /artboard/r/origin:/0 (+ /artboard/r/origin:/0 /artboard/r/size:/0) 0.2) /artboard/r/origin:/1] 10)]')
 		const { ast, rows } = keptReferences(before, withoutRows(before, env, ['binding:r']), env)
-		expect(print(ast)).toBe('[c = (path.circle [20 0] 10)]')
+		expect(print(ast)).toBe('{artboard = [c = (path.circle [20 0] 10)]}')
 		expect(rows).toEqual(['binding:c/arg0'])
 	})
 })

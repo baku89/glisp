@@ -13,20 +13,25 @@ import {
 	LitAST,
 	lookupBareName,
 	MetaAST,
+	nameOf,
 	print,
 	SymAST,
 	type TypeValue,
 	UNIT,
+	unnamed,
 	VecAST,
 } from '@glisp/lang'
 
 import { readProgram } from './programSource'
 import {
 	actionsOf,
+	layersOf,
+	layersVectorOf,
 	type Slot,
 	viewOf,
 	type SlotAction,
 	type SlotCommand,
+	withLayerAdded,
 	withoutCastTo,
 	writtenAsType,
 } from './structure'
@@ -314,39 +319,52 @@ export function pastedRows(
 	text: string
 ): { ast: AST; paths: string[] } | null {
 	const reading = readProgram(text)
-	if (!('ast' in reading) || reading.ast.bindings.length === 0) return null
+	if (!('ast' in reading)) return null
+	// What was copied: what it binds, and what it draws, by name.
+	const clip = reading.ast
+	const clipLayered = layersVectorOf(clip)
+	const items: (readonly [string, AST])[] = [
+		...clip.bindings.filter(([name]) => name !== clipLayered?.name),
+		...(clipLayered?.vector.elements ?? []).flatMap(element => {
+			const name = nameOf(element)
+			return name === null ? [] : [[name, unnamed(element)] as const]
+		}),
+	]
+	if (items.length === 0) return null
 
 	const binding = after === null ? null : bindingOfRow(after)
 	const reached = binding === null ? null : reach(root, env, binding)
-	const holder = reached?.parent.kind === 'let' ? reached.parent : root
-	if (holder.kind !== 'let') return null
-	const placed = reached?.parent.kind === 'let' ? reached : null
+	const holds = (node: AST | undefined) => node?.kind === 'let' || node?.kind === 'vec'
+	const holder = holds(reached?.parent) ? reached!.parent : root
+	if (holder.kind !== 'let' && holder.kind !== 'vec') return null
+	const placed = holds(reached?.parent) ? reached : null
 
-	const taken = new Set(holder.bindings.map(([name]) => name))
+	const own = holder.kind === 'let' ? holder.bindings.map(([name]) => name) : []
+	const taken = new Set([...own, ...layersOf(holder)])
 	const seenFrom = placed?.chain.at(-1)?.env ?? env
 	const isTaken = (name: string) => taken.has(name) || lookupBareName(name, seenFrom) !== null
-	const added = reading.ast.bindings.map(([name, value]) => {
+	const added = items.map(([name, value]) => {
 		const free = freeName(name, isTaken)
 		taken.add(free)
 		return [free, value] as const
 	})
 
 	const afterName = placed?.chain.at(-1)?.key.slice(BINDING.length)
-	const found = holder.bindings.findIndex(([name]) => name === afterName)
-	const at = found < 0 ? holder.bindings.length : found + 1
-	const bindings = [...holder.bindings.slice(0, at), ...added, ...holder.bindings.slice(at)]
-	// What goes beside what its vector holds is held too, right after it, or else first.
-	const elements = holder.body?.kind === 'vec' ? holder.body.elements : null
-	const beside = elements?.findIndex(e => e.kind === 'sym' && e.name === afterName) ?? -1
-	const body =
-		elements !== null && (afterName === undefined || beside >= 0)
-			? new VecAST([
-					...elements.slice(0, beside + 1),
-					...added.map(([name]) => new SymAST(name)),
-					...elements.slice(beside + 1),
-				])
-			: holder.body
-	const next = new LetAST(bindings, body)
+	const elements = holder.kind === 'vec' ? holder.elements : (layersVectorOf(holder)?.vector.elements ?? null)
+	// Beside what is drawn it is drawn too, right after it, or else in front of all of it.
+	const beside = elements?.findIndex(e => nameOf(e) === afterName) ?? -1
+	let next: AST
+	if (elements !== null && (afterName === undefined || beside >= 0)) {
+		next = added.reduceRight<AST>(
+			(block, [name, value]) => withLayerAdded(block as LetAST | VecAST, name, value, beside + 1),
+			holder
+		)
+	} else {
+		if (holder.kind !== 'let') return null
+		const found = holder.bindings.findIndex(([name]) => name === afterName)
+		const at = found < 0 ? holder.bindings.length : found + 1
+		next = new LetAST([...holder.bindings.slice(0, at), ...added, ...holder.bindings.slice(at)], holder.body)
+	}
 
 	const prefix = placed ? binding!.split('/').slice(0, -1) : []
 	return {

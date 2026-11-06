@@ -1,4 +1,4 @@
-import { buildPrelude, type Env, type LetAST, print } from '@glisp/lang'
+import { buildPrelude, type Env, evaluate, type LetAST, print } from '@glisp/lang'
 import { parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
@@ -52,7 +52,7 @@ describe('arranged', () => {
 describe('grouped', () => {
 	it('has them in one, where the last of them was', () => {
 		const result = grouped(parse(program) as LetAST, env, ['binding:a', 'binding:c'])!
-		expect(print(result.ast)).toBe('[group1 = [a = 1 c = 3] b = 2 d = 4]')
+		expect(print(result.ast)).toBe('{artboard = [group1 = [a = 1 c = 3] b = 2 d = 4]}')
 		expect(result.row).toBe('binding:group1')
 	})
 
@@ -67,9 +67,11 @@ describe('grouped', () => {
 		expect(grouped(root, env, ['binding:a'])).not.toBeNull()
 	})
 
-	it('refuses what a path would no longer reach', () => {
+	it('has a path go on reaching what it did, however many levels away it is now', () => {
 		const root = parse('{a = (path.circle [0 0] 1) b = (path.rect ../a/center: [1 1])}') as LetAST
-		expect(grouped(root, env, ['binding:b'])).toBeNull()
+		const { ast } = grouped(root, env, ['binding:b'])!
+		expect(print(ast)).toBe('{artboard = [group1 = [b = (path.rect ../../a/center: [1 1])] a = (path.circle [0 0] 1)]}')
+		expect(evaluate(ast, env).diagnostics).toEqual([])
 	})
 
 	it('is nothing, with nothing to group', () => {
@@ -79,8 +81,8 @@ describe('grouped', () => {
 
 describe('ungrouped', () => {
 	it('lets them go, where it was', () => {
-		const result = ungrouped(parse('{b = 2 g = {a = 1 c = 3} d = 4}') as LetAST, env, ['binding:g'])!
-		expect(print(result.ast)).toBe('{b = 2 a = 1 c = 3 d = 4 []}')
+		const result = ungrouped(parse('{b = 2 artboard = [g = [a = 1 c = 3] d = 4]}') as LetAST, env, ['binding:g'])!
+		expect(print(result.ast)).toBe('{b = 2 artboard = [a = 1 c = 3 d = 4]}')
 		expect(result.rows).toEqual(['binding:a', 'binding:c'])
 	})
 
@@ -100,52 +102,52 @@ describe('ungrouped, of what a path is made from', () => {
 
 	it('leaves what is made from one path as that path, by the same name', () => {
 		const result = of(`[c = (path.offset ${R} 5)]`)!
-		expect(print(result.ast)).toBe(`[c = ${R}]`)
+		expect(print(result.ast)).toBe(`{artboard = [c = ${R}]}`)
 		expect(result.rows).toEqual(['binding:c'])
 	})
 
 	it('takes off only the one', () => {
-		expect(print(of(`[c = (path.roundCorners (path.offset ${R} 5) 3)]`)!.ast)).toBe(`[c = (path.offset ${R} 5)]`)
+		expect(print(of(`[c = (path.roundCorners (path.offset ${R} 5) 3)]`)!.ast)).toBe(`{artboard = [c = (path.offset ${R} 5)]}`)
 	})
 
 	it('has what it was made by and what it was drawn by go on', () => {
-		expect(print(of(`[c = (style (path.offset ${R} 5) fill: "#ff0000")]`)!.ast)).toBe(`[c = (style ${R} fill: "#ff0000")]`)
+		expect(print(of(`[c = (style (path.offset ${R} 5) fill: "#ff0000")]`)!.ast)).toBe(`{artboard = [c = (style ${R} fill: "#ff0000")]}`)
 	})
 
 	it('lets all of what is united go, where it was, each by what it is', () => {
 		const result = of(`[b = (path.circle [9 9] 1) c = (path.unite ${R} ${C}) d = (path.circle [8 8] 1)]`)!
-		expect(print(result.ast)).toBe(`[b = (path.circle [9 9] 1) rect1 = ${R} circle1 = ${C} d = (path.circle [8 8] 1)]`)
+		expect(print(result.ast)).toBe(`{artboard = [b = (path.circle [9 9] 1) rect1 = ${R} circle1 = ${C} d = (path.circle [8 8] 1)]}`)
 		expect(result.rows).toEqual(['binding:rect1', 'binding:circle1'])
 	})
 
 	it('has each of them drawn by what the whole was', () => {
 		expect(print(of(`[c = (style (path.subtract ${R} ${C}) fill: "#ff0000")]`)!.ast)).toBe(
-			`[rect1 = (style ${R} fill: "#ff0000") circle1 = (style ${C} fill: "#ff0000")]`
+			`{artboard = [rect1 = (style ${R} fill: "#ff0000") circle1 = (style ${C} fill: "#ff0000")]}`
 		)
 	})
 
 	it('goes for a style that is around what is in it, as that had nothing to say', () => {
 		expect(print(of(`[c = (style (path.offset (style ${R} fill: "#00ff00") 5) fill: "#ff0000")]`)!.ast)).toBe(
-			`[c = (style ${R} fill: "#ff0000")]`
+			`{artboard = [c = (style ${R} fill: "#ff0000")]}`
 		)
 	})
 
 	it('draws a row that was only referred to, and makes nothing new of it', () => {
 		const result = of(`{a = ${R} b = ${C} c = (path.unite a b) [c]}`)!
-		expect(print(result.ast)).toBe(`[a = ${R} b = ${C}]`)
+		expect(print(result.ast)).toBe(`{artboard = [a = ${R} b = ${C}]}`)
 		expect(result.rows).toEqual(['binding:a', 'binding:b'])
 	})
 
 	it('does not draw twice what is being drawn already', () => {
-		expect(print(of(`{a = ${R} b = ${C} c = (path.unite a b) [a c]}`)!.ast)).toBe(`[a = ${R} b = ${C}]`)
+		expect(print(of(`{a = ${R} b = ${C} c = (path.unite a b) [a c]}`)!.ast)).toBe(`{artboard = [a = ${R} b = ${C}]}`)
 	})
 
 	it('takes what is referred to of one, to be what it was made from', () => {
-		expect(print(of(`{a = ${R} c = (path.offset a 5) [c]}`)!.ast)).toBe(`{a = ${R} [c = a]}`)
+		expect(print(of(`{a = ${R} c = (path.offset a 5) [c]}`)!.ast)).toBe(`{a = ${R} artboard = [c = a]}`)
 	})
 
 	it('goes for what has no name', () => {
-		expect(print(of(`{k = 1 [(path.unite ${R} ${C})]}`, 'element:0')!.ast)).toBe(`{k = 1 [${R} ${C}]}`)
+		expect(print(of(`{k = 1 [(path.unite ${R} ${C})]}`, 'element:0')!.ast)).toBe(`{k = 1 artboard = [${R} ${C}]}`)
 	})
 
 	it('leaves what several refer to by a name that would be gone', () => {
@@ -272,11 +274,11 @@ describe('rowsAbout', () => {
 })
 
 describe('grouping what is referred to from the root', () => {
-	const program = '[a = [1 2] b = [[/a/1]] c = 0]'
+	const program = '{artboard = [a = [1 2] b = [[/artboard/a/1]] c = 0]}'
 
 	it('has it go on reaching it, in the group and out of it again', () => {
 		const { ast } = grouped(parse(program) as LetAST, env, ['binding:a'])!
-		expect(print(ast)).toBe('[group1 = [a = [1 2]] b = [[/group1/a/1]] c = 0]')
+		expect(print(ast)).toBe('{artboard = [group1 = [a = [1 2]] b = [[/artboard/group1/a/1]] c = 0]}')
 		const out = ungrouped(ast, env, ['binding:group1'])!
 		expect(print(out.ast)).toBe(program)
 	})
@@ -290,18 +292,18 @@ describe('withSolid', () => {
 
 	it('adds a row at the top, if nothing says it', () => {
 		expect(given('{c = 1}')).toEqual({
-			source: '{c = 1 [solid1 = (solid "#ffffff")]}',
+			source: '{c = 1 artboard = [solid1 = (solid "#ffffff")]}',
 			row: 'binding:solid1',
 		})
 	})
 
 	it('leaves what says it as it is, to be chosen from', () => {
 		const src = '{bg = (solid "#ff0000") c = 1}'
-		expect(given(src)).toEqual({ source: '{c = 1 [bg = (solid "#ff0000")]}', row: 'binding:bg' })
+		expect(given(src)).toEqual({ source: '{c = 1 artboard = [bg = (solid "#ff0000")]}', row: 'binding:bg' })
 	})
 
 	it('brings it out of being hidden', () => {
-		expect(given('{bg = #_(solid "#ff0000")}').source).toBe('[bg = (solid "#ff0000")]')
+		expect(given('{bg = #_(solid "#ff0000")}').source).toBe('{artboard = [bg = (solid "#ff0000")]}')
 	})
 })
 

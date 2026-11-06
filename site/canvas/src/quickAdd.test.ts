@@ -1,5 +1,6 @@
-import { buildPrelude, check, type Env, evaluate, type LetAST, parse, print } from '@glisp/lang'
+import { buildPrelude, check, type Env, evaluate, type LetAST, print } from '@glisp/lang'
 import { bounds } from 'pave/path/metrics'
+import { bound, parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { type PathValue, withGraphics } from './graphics'
@@ -87,7 +88,7 @@ describe('adding it', () => {
 	const added = (name: string, at: [number, number] = [200, 300]) => withAdded(EMPTY, env, name, at)!
 	const value = (name: string) => {
 		const { ast, row } = added(name)
-		return evaluate(parse(row.replace('binding:', '')), { ast, parent: env, bindings: new Map(ast.bindings.map(([n, v]) => [n, { ast: v, env }])) }).value
+		return evaluate(parse(row.replace('binding:', '')), { ast, parent: env, bindings: new Map(bound(ast).map(([n, v]) => [n, { ast: v, env }])) }).value
 	}
 
 	it('names it for what it is, and selects that', () => {
@@ -98,7 +99,7 @@ describe('adding it', () => {
 
 	it('goes in front of what is there', () => {
 		const next = withAdded(parse('[a = (path.circle [0 0] 5)]') as LetAST, env, 'path.rect', [0, 0])!
-		expect(print(next.ast)).toMatch(/^\[rect1 = /)
+		expect(print(next.ast)).toMatch(/^\{artboard = \[rect1 = /)
 	})
 
 	it.each(['path.circle', 'path.ellipse', 'path.rect', 'path.square', 'path.roundRect', 'path.superellipse', 'path.line', 'path.ngon', 'path.star', 'path.capsule'])(
@@ -196,10 +197,10 @@ describe('adding it', () => {
 	it('has a solid come in at the back, and a graph paper in front of it', () => {
 		const start = parse('[a = (path.circle [0 0] 5)]') as LetAST
 		const behind = withAdded(start, env, 'solid', [0, 0])!
-		expect(print(behind.ast)).toMatch(/^\[a = .*solid1 = \(solid /)
+		expect(print(behind.ast)).toMatch(/^\{artboard = \[a = .*solid1 = \(solid /)
 		expect(behind.row).toBe('binding:solid1')
 		const both = withAdded(behind.ast, env, 'graphPaper', [0, 0])!
-		expect(print(both.ast)).toMatch(/^\[a = .*graphPaper1 = \(graphPaper "dots"\) solid1 = /)
+		expect(print(both.ast)).toMatch(/^\{artboard = \[a = .*graphPaper1 = \(graphPaper "dots"\) solid1 = /)
 		expect(both.row).toBe('binding:graphPaper1')
 	})
 

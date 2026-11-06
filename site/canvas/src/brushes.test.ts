@@ -1,5 +1,6 @@
-import { buildPrelude, type Env, type LetAST, parse, print } from '@glisp/lang'
+import { buildPrelude, type Env, type LetAST, print } from '@glisp/lang'
 import { bounds } from 'pave/path/metrics'
+import { bound, parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -29,7 +30,7 @@ const go = <S,>(brush: Brush<S>, steps: readonly Step[], seed = 3): S =>
 const click = (at: Vec): Step[] => [['press', at], ['release', at]]
 const row = <S,>(brush: Brush<S>, state: S, final = true) => {
 	const ast = brushed(blank, env, brush, state, context, final)
-	return { ast, source: print(ast.bindings[0]?.[1] ?? blank), shapes: sceneOf(ast, env) }
+	return { ast, source: print(bound(ast)[0]?.[1] ?? blank), shapes: sceneOf(ast, env) }
 }
 
 describe('spray', () => {
@@ -37,7 +38,7 @@ describe('spray', () => {
 
 	it('is one row of a dab for each place, each its own color and size', () => {
 		const { ast, shapes } = row(spray, go(spray, stroke))
-		expect(ast.bindings).toHaveLength(1)
+		expect(bound(ast)).toHaveLength(1)
 		expect(shapes).toHaveLength(3)
 		expect(new Set(shapes.map(s => s.row)).size).toBe(1)
 		expect(new Set(shapes.map(s => s.paint?.fill)).size).toBeGreaterThan(1)
@@ -104,7 +105,7 @@ describe('triangleStrip', () => {
 	it('has a triangle for each place after the second, each mixed from the two colors', () => {
 		const state = go(triangleStrip, [...click([0, 0]), ...click([50, 0]), ...click([0, 50]), ...click([50, 50])])
 		const { ast, shapes } = row(triangleStrip, state)
-		expect(ast.bindings).toHaveLength(1)
+		expect(bound(ast)).toHaveLength(1)
 		expect(shapes).toHaveLength(2)
 		expect(shapes[0]!.paint?.fill).not.toBe(shapes[1]!.paint?.fill)
 	})
@@ -140,7 +141,7 @@ describe('radial', () => {
 		const pull = (from: Vec, to: Vec): Step[] => [['press', from], ['drag', to], ['release', to]]
 		const state = go(radial, [...click([0, 0]), ...pull([10, 0], [50, 0]), ...pull([0, 10], [0, 50])])
 		const { ast, shapes } = row(radial, state)
-		expect(ast.bindings).toHaveLength(1)
+		expect(bound(ast)).toHaveLength(1)
 		expect(shapes.map(({ row: at }) => at).sort()).toEqual(['binding:radial1/binding:line1', 'binding:radial1/binding:line2'])
 		expect(shapes.every(({ paint }) => paint?.fill === 'none')).toBe(true)
 	})
@@ -148,7 +149,7 @@ describe('radial', () => {
 	it('has no style with no color for its line, to be seen as what has none is', () => {
 		const state = go(radial, [...click([0, 0]), ['press', [10, 0]], ['drag', [50, 0]], ['release', [50, 0]]])
 		const none = brushed(blank, env, radial, state, { ...context, paint: NO_PAINT }, true)
-		expect(print(none.bindings[0]![1])).toBe('[line1 = (path.line [10 0] [50 0])]')
+		expect(print(bound(none)[0]![1])).toBe('[line1 = (path.line [10 0] [50 0])]')
 	})
 
 	it('leaves out a press that went nowhere', () => {

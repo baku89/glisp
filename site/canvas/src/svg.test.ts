@@ -1,5 +1,5 @@
-import { buildPrelude, type Env, evaluate, LetAST, print } from '@glisp/lang'
-import { parse } from './program.testing'
+import { buildPrelude, type Env, evaluate, format, LetAST, print } from '@glisp/lang'
+import { bound, parse } from './program.testing'
 import { copiedRows, pastedArguments, pastedRows } from '@glisp/tweeq/rowsClipboard'
 import { bounds } from 'pave/path/metrics'
 import { describe, expect, it } from 'vitest'
@@ -373,7 +373,7 @@ describe('a program as a file', () => {
 		expect(file).toContain('<path id="b"')
 		const { root: back, whole } = opened(file)
 		expect(whole).toBe(true)
-		expect(print(back)).toBe(print(root))
+		expect(format(print(back))).toBe(format(print(root)))
 	})
 
 	it('is kept, as an SVG with nothing to see, if nothing is drawn', () => {
@@ -384,7 +384,7 @@ describe('a program as a file', () => {
 			expect(file).not.toContain('<path')
 			const { root: back, whole } = opened(file)
 			expect(whole).toBe(true)
-			expect(print(back)).toBe(print(root))
+			expect(format(print(back))).toBe(format(print(root)))
 		}
 	})
 
@@ -423,7 +423,7 @@ describe('a program as a file', () => {
 		expect(file).toContain('fill="#ff0000"')
 		expect(file).toContain('url(#g)')
 		const { root: back } = opened(file)
-		expect(back.bindings.map(([name]) => name)).toEqual(['a', 'g', 'bg'])
+		expect(bound(back).map(([name]) => name)).toEqual(['bg', 'g', 'a'])
 	})
 
 	it('has no graph paper or solid of its own on the clipboard, or if only those are asked for', () => {
@@ -434,7 +434,7 @@ describe('a program as a file', () => {
 
 	it('can have nothing in it at all', () => {
 		const { root: back, whole } = opened(svgOfProgram(new LetAST([], null), env))
-		expect(back.bindings).toEqual([])
+		expect(bound(back)).toEqual([])
 		expect(whole).toBe(false)
 	})
 

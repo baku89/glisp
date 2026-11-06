@@ -1,4 +1,5 @@
-import { buildPrelude, type Env, evaluate, type LetAST, parse, print } from '@glisp/lang'
+import { buildPrelude, type Env, evaluate, type LetAST, print } from '@glisp/lang'
+import { bound, parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { type Vec, withGraphics } from './graphics'
@@ -14,7 +15,7 @@ const circle: Vec[] = Array.from({ length: 101 }, (_, i) => {
 	return [50 + Math.cos(angle) * 40, 50 + Math.sin(angle) * 40]
 })
 
-const source = (ast: LetAST) => print(ast.bindings.at(-1)![1])
+const source = (ast: LetAST) => print(bound(ast).at(-1)![1])
 const commands = (ast: LetAST, letter: string) => source(ast).split(letter).length - 1
 
 describe('a stroke of a pencil', () => {

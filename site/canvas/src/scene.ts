@@ -18,8 +18,11 @@ import {
 	lit,
 	lookupBareName,
 	MetaAST,
+	named,
+	nameOf,
 	parse,
 	pathTarget,
+	pushLetFrame,
 	print,
 	readByName,
 	solve,
@@ -33,11 +36,14 @@ import {
 	callParameters,
 	withoutCall,
 	withPathsInto,
+	withPathsMoved,
 } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
 import {
+	ARTBOARD,
 	elementOptionsOf,
 	isGroup,
+	layersVectorOf,
 	referenceTargetOf,
 	layersOf,
 	withLayerAdded,
@@ -1257,7 +1263,7 @@ export function penKind(anchors: readonly Anchor[], closed: boolean): PenKind {
 
 /** `kind` with the first number that `root` has not got yet. */
 export function nameOfKind(root: LetAST, kind: string): string {
-	const taken = new Set(root.bindings.map(([name]) => name))
+	const taken = new Set([...root.bindings.map(([name]) => name), ...layersOf(root)])
 	let n = 1
 	while (taken.has(`${kind}${n}`)) n++
 	return `${kind}${n}`
@@ -1676,17 +1682,12 @@ function workedOutDrawn(root: AST, env: Env, hidden: boolean): readonly Shape[] 
 		// What is drawn is what a block's vector holds, however it is bound. What comes first is
 		// in front, as it is on top in a list of layers, so it is drawn last.
 		const elements =
-			node.kind === 'vec' ? node.elements : node.kind === 'let' && node.body?.kind === 'vec' ? node.body.elements : null
+			node.kind === 'vec' ? node.elements : node.kind === 'let' ? (layersVectorOf(node)?.vector.elements ?? null) : null
 		if (elements === null) return []
 		const slots = new Map(viewOf(node, blockEnv).slots.map(slot => [slot.key, slot]))
-		const held = new Set(node.kind === 'let' ? layersOf(node) : [])
 		return [...elements.entries()].reverse().flatMap(([i, element]) => {
-			const key =
-				node.kind === 'vec'
-					? `${i}`
-					: element.kind === 'sym' && held.has(element.name)
-						? `binding:${element.name}`
-						: `element:${i}`
+			const name = nameOf(element)
+			const key = name !== null ? `binding:${name}` : node.kind === 'vec' ? `${i}` : `element:${i}`
 			const slot = slots.get(key)
 			if (slot === undefined) return []
 			const isOut = inHidden || isHidden(slot.ast)
@@ -1698,7 +1699,8 @@ function workedOutDrawn(root: AST, env: Env, hidden: boolean): readonly Shape[] 
 			return shapesIn(infer(readByName(slot.ast), slot.env), value, row)
 		})
 	}
-	return bare(root).kind === 'let' ? visit(root, env, '', false) : []
+	const kind = bare(root).kind
+	return kind === 'let' || kind === 'vec' ? visit(root, env, '', false) : []
 }
 
 /**
@@ -1766,30 +1768,67 @@ export function writtenAsNow(source: string): string {
 }
 
 /**
- * A program as it is written now, from when what it drew went by the order of its bindings: its
- * blocks with nothing to return come to hold what draws anything, in that order, and whatever
- * is a block like them. What refers to anything still refers to it.
+ * A program as it is written now, with what it draws as named elements of the vector it ends
+ * with, `artboard = [...]`, which is what it comes to. Before, a program drew its bindings, in
+ * their order, or those its vector held by name; and a group was a block like that. What a
+ * vector held by name goes there under that name, a binding that drew goes there too, what
+ * was drawn last coming first, and what only is bound stays where it was.
  */
 export function withLayersFromOrder(root: AST, env: Env): AST {
-	const holding = (block: LetAST, blockEnv: Env): LetAST => {
-		const inside = viewOf(block, blockEnv).slots
-		const names: string[] = []
-		const bindings = block.bindings.map(([name, value]) => {
-			const slot = inside.find(({ key }) => key === `binding:${name}`)!
-			const node = bare(value)
-			if (node.kind === 'let' && node.body === null) {
-				names.push(name)
-				const next = holding(node, slot.env)
-				return [name, value.kind === 'meta' ? new MetaAST(value.metadata, next) : next] as const
+	const holding = (block: LetAST, blockEnv: Env): { kept: (readonly [string, AST])[]; held: AST[] } => {
+		const inside = pushLetFrame(block, blockEnv)
+		const values = new Map(block.bindings)
+		// What the block's own vector holds of its bindings, once, by name, goes there.
+		const elements = block.body?.kind === 'vec' ? block.body.elements : null
+		const taken = new Set<string>()
+		const held: AST[] = []
+		if (elements !== null) {
+			for (const element of elements) {
+				const name = element.kind === 'sym' && values.has(element.name) && !taken.has(element.name) ? element.name : null
+				if (name === null) {
+					held.push(asGroup(element, inside))
+					continue
+				}
+				taken.add(name)
+				held.push(named(name, asGroup(values.get(name)!, inside)))
 			}
-			const read = readByName(value)
-			if (shapesIn(infer(read, slot.env), evaluate(read, slot.env).value, name).length > 0) names.push(name)
-			return [name, value] as const
-		})
-		// What was drawn last is what is in front, which comes first now.
-		return new LetAST(bindings, new VecAST(names.reverse().map(name => new SymAST(name))))
+		} else if (block.body === null) {
+			// What drew went by the order of the bindings, the last on top, which is first now.
+			for (const [name, value] of [...block.bindings].reverse()) {
+				const node = bare(value)
+				const read = readByName(value)
+				const draws =
+					(node.kind === 'let' && node.body === null) ||
+					shapesIn(infer(read, inside), evaluate(read, inside).value, name).length > 0
+				if (!draws) continue
+				taken.add(name)
+				held.push(named(name, asGroup(value, inside)))
+			}
+		}
+		return { kept: block.bindings.filter(([name]) => !taken.has(name)), held }
 	}
-	return root.kind === 'let' && root.body === null ? holding(root, env) : root
+	/** A group from before, a block holding what it draws, as the vector it is now. */
+	const asGroup = (value: AST, at: Env): AST => {
+		const node = bare(value)
+		if (node.kind !== 'let' || (node.body !== null && node.body.kind !== 'vec') || layersVectorOf(node)?.name) return value
+		const { kept, held } = holding(node, at)
+		const group = kept.length === 0 ? new VecAST(held) : new LetAST(kept, new VecAST(held))
+		return value.kind === 'meta' ? new MetaAST(value.metadata, group) : group
+	}
+	const node = bare(root)
+	if (node.kind !== 'let' && node.kind !== 'vec') return root
+	if (node.kind === 'let') {
+		const layered = layersVectorOf(node)
+		if (layered !== null && layered.name !== null) return root
+		if (node.body !== null && node.body.kind !== 'vec') return root
+	}
+	const { kept, held } = node.kind === 'vec' ? { kept: [], held: [...node.elements] } : holding(node, env)
+	const program = new LetAST([...kept, [ARTBOARD, node.kind === 'vec' ? root : new VecAST(held)]], null)
+	// What a path from the root went to by its name is in what the program draws now.
+	return held.reduce<AST>((moved, element) => {
+		const name = nameOf(element)
+		return name === null ? moved : withPathsMoved(moved, env, [name], [ARTBOARD, name])
+	}, program)
 }
 
 /** What a name comes to, in the program, however many names away, or a path to a call. */

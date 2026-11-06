@@ -1,5 +1,5 @@
 import { type AST, buildPrelude, check, type Env, evaluate, LetAST, print, Session, type TypedHostFn } from '@glisp/lang'
-import { parse } from './program.testing'
+import { bound, parse } from './program.testing'
 import { filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { extractedLiteralAt } from '@glisp/tweeq/multiRows'
 import { copiedRows, pastedArguments, pastedRows } from '@glisp/tweeq/rowsClipboard'
@@ -234,8 +234,8 @@ describe('what goes on being what it was to a parameter, with no parameter aroun
 	it('works out only what is in a cast, which goes on being what it says', () => {
 		const src = '{c = (: (vec2.add [1 2] [3 4]) point)}'
 		const next = (id: string) => print(actionOf(src, 'binding:c', id)!.apply!())
-		expect(next('all')).toBe('[c = (: [4 6] point)]')
-		expect(next('step')).toBe('[c = (: [4 6] point)]')
+		expect(next('all')).toBe('{artboard = [c = (: [4 6] point)]}')
+		expect(next('step')).toBe('{artboard = [c = (: [4 6] point)]}')
 	})
 
 	it('has nothing to work out of a cast of what is written', () => {
@@ -733,7 +733,7 @@ describe('changing only how a path is painted', () => {
 		const painted = (fill: string) =>
 			session.setAst(
 				new LetAST(
-					(parse(`{u = (style (path.unite ${RECT} ${CIRCLE}) fill: "${fill}")}`) as LetAST).bindings,
+					bound((parse(`{u = (style (path.unite ${RECT} ${CIRCLE}) fill: "${fill}")}`) as LetAST)),
 					null
 				)
 			)
@@ -904,14 +904,14 @@ describe('what wants a path, of what has a style', () => {
 
 	it('refers to the path in it when one is picked', () => {
 		expect(picked(`{a = ${STYLED} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
-			'o = (path.offset /a/path: 5)'
+			'o = (path.offset ../a/path: 5)'
 		)
 	})
 
 	it('finds it however a style is given it', () => {
 		const given = '(style fill: "#ff0000" path: (path.circle [0 0] 5))'
 		expect(picked(`{a = ${given} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
-			'o = (path.offset /a/path: 5)'
+			'o = (path.offset ../a/path: 5)'
 		)
 	})
 
@@ -919,7 +919,7 @@ describe('what wants a path, of what has a style', () => {
 		expect(picked(`{a = ${RECT} o = (path.offset ${RECT} 5)}`, 'binding:o/arg0', 'binding:a')).toContain(
 			'o = (path.offset a 5)'
 		)
-		expect(picked(`{a = ${STYLED} o = 0}`, 'binding:o', 'binding:a')).toContain('o = a')
+		expect(picked(`{a = ${STYLED} o = 0}`, 'binding:o', 'binding:a')).toContain('o = /artboard/a')
 	})
 
 	it('goes no further in than a style, to what only happens to fit', () => {
@@ -933,8 +933,8 @@ describe('what wants a path, of what has a style', () => {
 
 		it('goes to the path in it, drawing as it did', () => {
 			const next = styled()
-			expect(print(next)).toContain('o = (path.offset /a/path: 5)')
-			expect(print(next)).toContain('/a/path:)')
+			expect(print(next)).toContain('o = (path.offset ../a/path: 5)')
+			expect(print(next)).toContain('../a/path:)')
 			expect(errors(next)).toEqual([])
 			for (const row of ['binding:o', 'binding:u']) {
 				expect(toD(pathOfRow(next, env, row)!.path)).toBe(toD(pathOfRow(parse(SRC), env, row)!.path))
@@ -1030,7 +1030,7 @@ describe('what is moved, where it refers to a place on something else', () => {
 	it('can refer to the top of a circle, where going round is not exact', () => {
 		const root = parse('{a = (path.circle [100 100] 50) b = (path.circle [0 0] 20)}')
 		const top = snapPointsOf(root, env, sceneOf(root, env)).find(({ label, code }) => label === 'top' && code?.of === 'binding:a')!
-		expect(print(linked(root, env, 'binding:b', 0, top)!)).toContain('(- /a/center:/1 /a/radius:)')
+		expect(print(linked(root, env, 'binding:b', 0, top)!)).toContain('(- ../../../a/center:/1 ../../../a/radius:)')
 	})
 
 	it.each([[10, 0], [0, 5], [-7.5, 3.25]] as const)('moves it by %s, %s just as well', (x, y) => {
@@ -1711,7 +1711,7 @@ describe('the points of a path', () => {
 	describe('by their numbers', () => {
 		const SRC = `{a = ${d('M0,0 L10,0 L10,20')} b = ${d('M100,100 L110,100')}}`
 		const root = parse(SRC)
-		const dOf = (ast: AST | null, name: string) => print((ast as LetAST).bindings.find(([bound]) => bound === name)![1])
+		const dOf = (ast: AST | null, name: string) => print(bound((ast as LetAST)).find(([bound]) => bound === name)![1])
 
 		it('are of the box around some of them', () => {
 			const parts = [{ row: 'binding:a', parts: ['0:0', '0:1'] }]

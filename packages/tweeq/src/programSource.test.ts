@@ -1,4 +1,4 @@
-import { buildPrelude, type Env, LetAST, parse, print } from '@glisp/lang'
+import { type AST, buildPrelude, type Env, LetAST, named, parse, print, unnamed, VecAST } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { readProgram, rowsAcross, rowWritten, sourceOfProgram, writtenAt } from './programSource'
@@ -94,14 +94,20 @@ describe('what a row is, in what is written', () => {
 describe('what goes on over several lines', () => {
 	const program = (written: string) => (readProgram(written) as { ast: LetAST }).ast
 
+	/** What `written` binds first, held in a vector of its own under the same name. */
+	const heldIn = (written: string) => {
+		const [[name, value]] = program(written).bindings as [readonly [string, AST]]
+		return new LetAST([], new VecAST([named(name, value)]))
+	}
+
 	it('goes along with where it now is, having been written somewhere else', () => {
-		expect(sourceOfProgram(program('s = (style\n  (f)\n  k: 1)\n[s]'))).toBe('[\n  s = (style\n    (f)\n    k: 1)\n]')
-		expect(sourceOfProgram(program('[\n  s = (style\n    (f))\n]\nt = s'))).toContain('s = (style\n    (f))')
+		expect(sourceOfProgram(heldIn('s = (style\n  (f)\n  k: 1)'))).toBe('[\n  s = (style\n    (f)\n    k: 1)\n]')
 	})
 
 	it('goes back along, from further in', () => {
 		const inVector = program('[\n  s = (style\n    (f))\n]')
-		const out = new LetAST(inVector.bindings, null)
+		const [element] = (inVector.body as VecAST).elements
+		const out = new LetAST([['s', unnamed(element!)]], null)
 		expect(sourceOfProgram(out)).toBe('s = (style\n  (f))')
 	})
 
@@ -111,7 +117,7 @@ describe('what goes on over several lines', () => {
 	})
 
 	it('leaves the lines of a string, which are what it holds', () => {
-		expect(sourceOfProgram(program('s = (f "a\nb"\n  1)\n[s]'))).toBe('[\n  s = (f "a\nb"\n    1)\n]')
+		expect(sourceOfProgram(heldIn('s = (f "a\nb"\n  1)'))).toBe('[\n  s = (f "a\nb"\n    1)\n]')
 	})
 
 	it('comes to the same from how it was and from how it now is', () => {

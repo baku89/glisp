@@ -1,6 +1,8 @@
 import { type AST, buildPrelude, type Env, LetAST, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
+import { parse as program } from './program.testing'
+
 import { type Change, type Vec, withGraphics } from './graphics'
 import {
 	changed,
@@ -152,7 +154,7 @@ describe('the numbers of a shape just drawn', () => {
 	})
 
 	it('leave out where it starts, if that is something else’s', () => {
-		const from = parse('{o = (path.circle [50 50] 10)}') as LetAST
+		const from = program('{o = (path.circle [50 50] 10)}') as LetAST
 		const snap = {
 			at: [50, 50] as Vec,
 			target: 'binding:o/arg0',
@@ -160,7 +162,7 @@ describe('the numbers of a shape just drawn', () => {
 		}
 		const root = drawnFrom(from, env, 'c', 'rect', snap, [80, 90], false)
 		const { dimensions, first } = dimensionsDrawn(root, env, ROW)
-		expect(print(root)).toContain('/o/center')
+		expect(print(root)).toContain('o/center:')
 		expect(said(dimensions)).toEqual(['Width 30', 'Height 40'])
 		expect(first).toBe(0)
 	})

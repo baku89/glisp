@@ -26,6 +26,7 @@ import {
 	MetaAST,
 	PathAST,
 	HIDDEN,
+	NAME,
 	PIN,
 	RecordAST,
 	type RecordEntry,
@@ -219,6 +220,26 @@ export const isPinned = (ast: AST): boolean =>
 	ast.kind === 'meta' && ast.metadata.get(PIN) !== undefined
 /** `ast` without its `@`, keeping any other metadata. */
 export const unpin = (ast: AST): AST => unmarked(ast, PIN)
+
+/**
+ * `name = expr`: the name `expr` has where it stands, as metadata that changes no value. A name it
+ * had already goes. See syntax.md (Names).
+ */
+export function named(name: string, expr: AST): MetaAST {
+	const bare = unnamed(expr)
+	if (bare.kind !== 'meta') return new MetaAST(new RecordAST([[NAME, lit(name)]]), bare)
+	const { fields, optional } = bare.metadata
+	return new MetaAST(new RecordAST([[NAME, lit(name)], ...fields], optional), bare.expr)
+}
+const unnamedMemo: WeakMap<AST, AST> = new WeakMap()
+
+/** `ast` without its name, keeping any other metadata: the same node each time, for it to be compared. */
+export function unnamed(ast: AST): AST {
+	if (ast.kind !== 'meta' || ast.metadata.get(NAME) === undefined) return ast
+	let bare = unnamedMemo.get(ast)
+	if (bare === undefined) unnamedMemo.set(ast, (bare = unmarked(ast, NAME)))
+	return bare
+}
 
 /** `#_expr`: metadata that says this is not output, for a host to go by. */
 export const hide = (expr: AST): MetaAST => marked(expr, HIDDEN)

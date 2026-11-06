@@ -1,74 +1,111 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildPrelude, evaluate, LetAST, parse, print } from './index.js'
+import {
+	buildPrelude,
+	check,
+	evaluate,
+	freeRefs,
+	nameOf,
+	named,
+	parse,
+	print,
+	Runtime,
+	type LetAST,
+	type VecAST,
+} from './index.js'
 
 const env = buildPrelude()
 const valueOf = (src: string) => evaluate(parse(src), env)
+const problems = (src: string) => check(parse(src), env).map(({ message }) => message)
 
-/** As an edit leaves it, with the text it was written as gone. */
-const printedAfresh = (src: string): string => {
-	const ast = parse(src)
-	return print(ast.kind === 'let' ? new LetAST(ast.bindings, ast.body) : ast)
-}
-
-describe('a vector with names in it', () => {
-	it('is the block it is another way to write', () => {
-		const written = parse('[a = 1 b = (+ a 1) 3]') as LetAST
-		expect(written.kind).toBe('let')
-		expect(written.bindings.map(([name]) => name)).toEqual(['a', 'b'])
-		expect(print(written.body!)).toBe('[a b 3]')
-		expect(printedAfresh('{a = 1 b = (+ a 1) [a b 3]}')).toBe('[a = 1 b = (+ a 1) 3]')
+describe('a name, anywhere', () => {
+	it('is given to what is in a vector, a call or a record, and changes no value', () => {
+		expect(valueOf('[a = 1 b = 2]').value).toEqual([1, 2])
+		expect(valueOf('(+ a = 1 2)').value).toBe(3)
+		expect(valueOf('{x: c = 10}').value).toEqual({ x: 10 })
+		expect(valueOf('(take [1 2 3] n: k = 2)').value).toEqual([1, 2])
 	})
 
-	it('comes to an ordinary vector, whatever order the names are in', () => {
-		expect(valueOf('[a = 1 b = (+ a 1) 3]').value).toEqual([1, 2, 3])
-		expect(valueOf('[b = (+ a 1) a = 1]').value).toEqual([2, 1])
-		expect(valueOf('[a = 1 b = (+ a 1) 3]').diagnostics).toEqual([])
-	})
-
-	it('nests, seeing the names around it', () => {
-		expect(valueOf('{x = 2 [a = x g = [b = (+ a x)]]}').value).toEqual([2, [4]])
-	})
-
-	it('keeps what was written until it is edited', () => {
-		expect(print(parse('{a = 1 [a]}'))).toBe('{a = 1 [a]}')
-	})
-
-	it('reads back as it is printed', () => {
-		for (const source of [
-			'[a = 1 2]',
-			'[a = 1 a]',
-			'[a = 1 2 b = (+ a 1)]',
-			'{x = 2 [a = x]}',
-			'[a = [b = 1] 2]',
-			'[1 2]',
-		]) {
-			expect(printedAfresh(source)).toBe(source)
-			expect(printedAfresh(printedAfresh(source))).toBe(source)
+	it('stays where it is written, and prints as it is', () => {
+		const vector = parse('[a = 1 2]') as VecAST
+		expect(vector.kind).toBe('vec')
+		expect(nameOf(vector.elements[0]!)).toBe('a')
+		for (const source of ['[a = 1 2]', '(f a = 1 x: b = 2)', '{x: c = 10}', '[a = @10 b = #_2]', '[a = ^{label: "A"} 1]']) {
+			expect(print(parse(source))).toBe(source)
 		}
+		expect(print(named('c', parse('@10')))).toBe('c = @10')
 	})
 
-	it('is bound with the rest of the block it comes last in', () => {
-		const block = parse('{x = 2 [a = x]}') as LetAST
-		expect(block.bindings.map(([name]) => name)).toEqual(['x', 'a'])
-		expect(print(block.body!)).toBe('[a]')
-		expect(valueOf('{y = a [a = 2 y]}').value).toEqual([2, 2])
+	it('is seen from anything around it, the nearest first', () => {
+		expect(valueOf('[a = 1 (+ a 1)]').value).toEqual([1, 2])
+		expect(valueOf('[b = (+ a 1) a = 1]').value).toEqual([2, 1])
+		expect(valueOf('(+ a = 1 a)').value).toBe(2)
+		expect(valueOf('{x: c = 10 y: (* c 2)}').value).toEqual({ x: 10, y: 20 })
+		expect(valueOf('{c = 1 [c = 10 c]}').value).toEqual([10, 10])
+		expect(valueOf('{x = 10 y = (+ x = 2 (* x 3))}').value).toBe(8)
+		expect(valueOf('{x = 10 y = (+ x = 2 (* ../../x 3))}').value).toBe(32)
+		expect(valueOf('[a = 1 (+ a 1)]').diagnostics).toEqual([])
 	})
 
-	it('keeps what is only bound out of the vector, and in the block', () => {
-		expect(printedAfresh('{a = 1 b = 2 [a]}')).toBe('{b = 2 [a = 1]}')
-		expect(printedAfresh('{a = 1 [(+ a 1)]}')).toBe('{a = 1 [(+ a 1)]}')
+	it('is not seen from outside what it is in', () => {
+		expect(valueOf('{y = a [a = 2 y]}').diagnostics[0]?.message).toContain('a')
 	})
 
-	it('stays apart from a block that binds the same name', () => {
-		const block = parse('{a = 1 [a = 2 a]}') as LetAST
-		expect(block.bindings.map(([name]) => name)).toEqual(['a'])
-		expect(valueOf('{a = 1 [a = 2 a]}').value).toEqual([2, 2])
+	it('is not a key: a parameter is not in scope where it is given', () => {
+		expect(valueOf('{n = 5 (take [n 6] n: 1)}').value).toEqual([5])
+		expect(valueOf('{center = 7 [(take [1 2 3] n: 2) center]}').value).toEqual([[1, 2], 7])
 	})
 
-	it('stays as it is where a name is said twice, as the last says what it is', () => {
-		const source = '{a = 1 a = 2 [a a]}'
-		expect(printedAfresh(source)).toBe(source)
-		expect(valueOf(source).value).toEqual([2, 2])
+	it('is reached by a path, apart from a key', () => {
+		expect(valueOf('[c = 10 (+ ../c 1)]').value).toEqual([10, 11])
+		expect(valueOf('{v = (take [1 2 3] k = 2) w = ./v/k}').value).toBe(2)
+		expect(valueOf('{v = (take [1 2 3] k = 2) w = ./v/n:}').value).toBe(2)
+	})
+
+	it('is the last of those with the same name in what it is in', () => {
+		expect(valueOf('{v = [a = 1 a = 2] w = ./v/a}').value).toBe(2)
+		expect(valueOf('[a = 1 a = 2 a]').value).toEqual([1, 2, 2])
+	})
+
+	it('is one to an expression, and none to a spread', () => {
+		expect(() => parse('[a = b = 1]')).toThrow('one expression has one name')
+		expect(() => parse('[a = ...xs]')).toThrow('a spread takes no name')
+	})
+
+	it('is known to what is worked out without running', () => {
+		expect(problems('[a = 1 (+ a 1)]')).toEqual([])
+		expect(problems('{x: c = 10 y: (* c 2)}')).toEqual([])
+		expect(problems('[(+ a 1) [a = 1]]')).not.toEqual([])
+		const refs = freeRefs(parse('[a = 1 (+ a b)]'))
+		expect(refs.names.has('a')).toBe(false)
+		expect(refs.names.has('b')).toBe(true)
+	})
+
+	it('is followed by a Runtime, as anything else is', () => {
+		const runtime = new Runtime(env)
+		runtime.setRoot(parse('{r = [a = 1 b = (+ a 1)]}'))
+		expect(runtime.read('r').value).toEqual([1, 2])
+		runtime.setRoot(parse('{r = [a = 5 b = (+ a 1)]}'))
+		expect(runtime.read('r').value).toEqual([5, 6])
+		expect(runtime.read('r', 'b').value).toBe(6)
+	})
+})
+
+describe('a let-block', () => {
+	it('comes to its last entry, named or not', () => {
+		expect(valueOf('{a = 10 b = 20}').value).toBe(20)
+		expect(valueOf('{a = 10 r = (+ a 1)}').value).toBe(11)
+		expect(valueOf('{a = 10 b = 20 (+ a b)}').value).toBe(30)
+		expect(valueOf('{()}').value).toEqual(evaluate(parse('()'), env).value)
+	})
+
+	it('has only its last entry go without a name', () => {
+		expect(() => parse('{a = 10 (foo) (+ a 1)}')).toThrow()
+		expect(() => parse('{(foo) a = 1}')).toThrow('only the last entry of a let-block may go without a name')
+	})
+
+	it('keeps the order it was written in', () => {
+		const block = parse('{b = 1 a = 2}') as LetAST
+		expect(block.bindings.map(([name]) => name)).toEqual(['b', 'a'])
 	})
 })

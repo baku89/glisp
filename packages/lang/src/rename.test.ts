@@ -224,3 +224,19 @@ describe('mergeBindingIn', () => {
 		expect(merge('{x = 1}', 'x', 'x')).toBeNull()
 	})
 })
+
+describe('renameBinding, with names anywhere', () => {
+	const renamed = (source: string, from: string, to: string) => {
+		const block = parse(source) as LetAST
+		const next = renameBinding(block, from, to)
+		return next === null ? null : print(next)
+	}
+
+	it('leaves alone what a nearer name means', () => {
+		expect(renamed('{a = 1 b = [a = 2 a]}', 'a', 'z')).toBe('{z = 1 b = [a = 2 a]}')
+	})
+
+	it('does not have a name in a vector catch what it would mean', () => {
+		expect(renamed('{a = 1 b = [z = 2 a]}', 'a', 'z')).toBeNull()
+	})
+})

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildPrelude, evaluate, fromOlderSyntax, parse } from './index.js'
+import { buildPrelude, type CallAST, evaluate, fromOlderSyntax, nameOf, parse } from './index.js'
 
 const env = buildPrelude()
 const now = (source: string) => fromOlderSyntax(source, env)
@@ -12,8 +12,9 @@ describe('keyword arguments', () => {
 		expect(parse('(f 1 k: 2)').print()).toBe('(f 1 k: 2)')
 	})
 
-	it('are not written with `=`, and say how they are', () => {
-		expect(() => parse('(f 1 k=2)')).toThrow('a keyword argument is written `k: ...`')
+	it('are not written with `=`, which names what is passed by position', () => {
+		expect(nameOf((parse('(f 1 k=2)') as CallAST).args[1]!)).toBe('k')
+		expect(valueOf('(take [1 2 3] k = 2)').value).toEqual([1, 2])
 	})
 })
 

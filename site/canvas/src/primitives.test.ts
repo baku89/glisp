@@ -1,5 +1,5 @@
 import { type AST, buildPrelude, type Env, evaluate, expandLadder, LetAST, print } from '@glisp/lang'
-import { parse } from './program.testing'
+import { bound, parse } from './program.testing'
 import { numberOptionsAt, textOf, viewOf } from '@glisp/tweeq/structure'
 import { tangent as tangentOf } from 'pave/path/location'
 import { nearest as nearestOn } from 'pave/path/queries'
@@ -77,7 +77,7 @@ describe('taking hold of them', () => {
 		const handle = gripAt(root, env, ROW)!.handles[index]!
 		const at = handle.at!
 		const next = changed(root, env, ROW, handle.to(to(at), at)).ast as LetAST
-		return print(next.bindings[0]![1])
+		return print(bound(next)[0]![1])
 	}
 
 	it('pulls the two radii of a star apart', () => {
@@ -178,7 +178,7 @@ describe('drawing them', () => {
 	it('starts each from where it was dragged from', () => {
 		const root = parse('{a = 1}') as LetAST
 		const source = (tool: ShapeTool) =>
-			print(drawn(root, 'x', tool, [10, 10], [40, 50], false).bindings.at(-1)![1])
+			print(bound(drawn(root, 'x', tool, [10, 10], [40, 50], false)).at(-1)![1])
 		expect(source('star')).toBe('(path.star [10 10] 50 22.5 5 53.13)')
 		expect(source('capsule')).toBe('(path.capsule [10 10] [40 50] 12.5)')
 		expect(source('spiral')).toBe('(path.spiral [10 10] 0 50 3)')
@@ -188,7 +188,7 @@ describe('drawing them', () => {
 })
 
 describe('which way a polygon or a star faces', () => {
-	const source = (root: AST) => print((root as LetAST).bindings.at(-1)![1])
+	const source = (root: AST) => print(bound((root as LetAST)).at(-1)![1])
 	const pull = (src: string, index: number, to: Vec, even = false) => {
 		const root = parse(`{c = ${src}}`)
 		const handle = gripAt(root, env, ROW)!.handles[index]!
@@ -289,9 +289,9 @@ describe('what only says which way', () => {
 describe('a capsule, evenly', () => {
 	it('is drawn at 45 degrees', () => {
 		const root = parse('{a = 1}') as LetAST
-		const source = print(drawn(root, 'x', 'capsule', [0, 0], [30, 40], true).bindings.at(-1)![1])
+		const source = print(bound(drawn(root, 'x', 'capsule', [0, 0], [30, 40], true)).at(-1)![1])
 		expect(source).toMatch(/^\(path\.capsule \[0 0\] \[35\.3\d* 35\.3\d*\] 12\.5\)$/)
-		expect(print(drawn(root, 'x', 'capsule', [0, 0], [30, 40], false).bindings.at(-1)![1])).toBe(
+		expect(print(bound(drawn(root, 'x', 'capsule', [0, 0], [30, 40], false)).at(-1)![1])).toBe(
 			'(path.capsule [0 0] [30 40] 12.5)'
 		)
 	})
@@ -547,7 +547,7 @@ describe('an ellipse that is turned', () => {
 		const handle = gripAt(root, env, ROW)!.handles.find(h => h.kind === 'direction')!
 		expect(handle.pivot).toEqual([0, 0])
 		const { ast } = changed(root, env, ROW, handle.to([0, 60], handle.at!))
-		expect(print(ast!)).toBe('[c = (path.ellipse [0 0] [20 10] 90)]')
+		expect(print(ast!)).toBe('{artboard = [c = (path.ellipse [0 0] [20 10] 90)]}')
 		const [{ value }] = handle.to([30, 28], handle.at!, { even: true }) as [{ value: number }]
 		expect(value).toBe(45)
 	})
@@ -595,7 +595,7 @@ describe('an ellipse from its foci', () => {
 describe('drawn out from the center', () => {
 	const root = parse('{a = 1}') as LetAST
 	const of = (tool: ShapeTool, to: Vec, even = false) =>
-		print(drawn(root, 'x', tool, [100, 100], to, even, 0.01, false, true).bindings.at(-1)![1])
+		print(bound(drawn(root, 'x', tool, [100, 100], to, even, 0.01, false, true)).at(-1)![1])
 
 	it('goes both ways, whichever way it is dragged', () => {
 		expect(of('rect', [130, 120])).toBe('(path.rect [70 80] [60 40])')
@@ -613,7 +613,7 @@ describe('drawn out from the center', () => {
 
 	it('is as it was, without', () => {
 		const plain = (tool: ShapeTool, even = false) =>
-			print(drawn(root, 'x', tool, [100, 100], [130, 120], even, 0.01).bindings.at(-1)![1])
+			print(bound(drawn(root, 'x', tool, [100, 100], [130, 120], even, 0.01)).at(-1)![1])
 		expect(plain('rect')).toBe('(path.rect [100 100] [30 20])')
 		expect(plain('ellipse')).toBe('(path.ellipse [115 110] [15 10])')
 		expect(plain('rect', true)).toBe('(path.square [100 100] 30)')
@@ -624,8 +624,8 @@ describe('drawn out from the center', () => {
 		const from = parse('{o = (path.circle [50 50] 10)}') as LetAST
 		const snap = snapPointsOf(from, env, sceneOf(from, env)).find(p => p.target === 'binding:o/arg0')!
 		const source = (tool: ShapeTool) =>
-			print(drawnFrom(from, env, 'x', tool, snap, [80, 70], false, 0.01, true).bindings.at(-1)![1])
-		expect(source('ellipse')).toMatch(/^\(path\.ellipse \/o\/center: \[30 20\]\)$/)
+			print(bound(drawnFrom(from, env, 'x', tool, snap, [80, 70], false, 0.01, true)).at(-1)![1])
+		expect(source('ellipse')).toMatch(/^\(path\.ellipse \.\.\/o\/center: \[30 20\]\)$/)
 		expect(source('rect')).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 20\)\] \[60 40\]\)$/)
 	})
 })
@@ -634,7 +634,7 @@ describe('a handle, with the other side going the other way', () => {
 	const pull = (src: string, index: number, to: Vec, how: { symmetric?: boolean; even?: boolean }) => {
 		const root = parse(`{c = ${src}}`)
 		const handle = gripAt(root, env, ROW)!.handles[index]!
-		return print((changed(root, env, ROW, handle.to(to, handle.at!, how)).ast as LetAST).bindings[0]![1])
+		return print(bound((changed(root, env, ROW, handle.to(to, handle.at!, how)).ast as LetAST))[0]![1])
 	}
 
 	it('keeps the middle of a line, and of a capsule', () => {
@@ -835,7 +835,7 @@ describe('a place that no argument says', () => {
 		const snap = places[nth]
 		expect(snap, `${src} has a ${name} to refer to`).toBeDefined()
 		const next = drawnFrom(root, env, 'x', 'ellipse', snap!, [500, 500], false)
-		const written = print(next.bindings.at(-1)![1])
+		const written = print(bound(next).at(-1)![1])
 		expect(written).toMatch(/\/o\//)
 		const centerOf = (ast: AST) => {
 			const grip = gripAt(ast, env, 'binding:x')!
@@ -888,7 +888,7 @@ describe('a place that no argument says', () => {
 
 		it('stays on the place it snapped to, drawn up from a corner', () => {
 			const { snap, next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [260, -30])
-			const written = print(next.bindings.at(-1)![1])
+			const written = print(bound(next).at(-1)![1])
 			expect(written).toMatch(/\/o\//)
 			expect(evaluate(next, env).diagnostics).toEqual([])
 			expect(cornerOf(next)).toEqual([snap.at[0], snap.at[1] - 50])
@@ -898,7 +898,7 @@ describe('a place that no argument says', () => {
 
 		it('stays on it, drawn left and up from what is its origin', () => {
 			const { next } = drawnOn('(path.rect [100 100] [50 50])', 'top left', [70, 60])
-			expect(print(next.bindings.at(-1)![1])).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 40\)\] \[30 40\]\)$/)
+			expect(print(bound(next).at(-1)![1])).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 40\)\] \[30 40\]\)$/)
 			const moved = parse(print(next).replace('[100 100] [50 50]', '[200 300] [50 50]')) as LetAST
 			expect(cornerOf(moved)).toEqual([170, 260])
 		})
@@ -914,7 +914,7 @@ describe('a place that no argument says', () => {
 			const { next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [260, -30])
 			const handle = gripAt(next, env, 'binding:x')!.handles.find(h => h.name === 'top')!
 			const dragged = changed(next, env, 'binding:x', handle.to([handle.at![0], handle.at![1] - 11], handle.at!)).ast as LetAST
-			expect(print(dragged.bindings[0]![1])).toBe('(path.rect [10 20] [200 60])')
+			expect(print(bound(dragged)[0]![1])).toBe('(path.rect [10 20] [200 60])')
 			const grip = gripAt(dragged, env, 'binding:x')!
 			const bottom = grip.handles.find(h => h.name === 'bottom right')!.at!
 			expect(bottom).toEqual([260, 20])
@@ -922,7 +922,7 @@ describe('a place that no argument says', () => {
 
 		it('is the same for a rect with round corners', () => {
 			const { next } = drawnOn('(path.rect [10 20] [200 60])', 'top right', [260, -30], 'roundRect')
-			expect(print(next.bindings.at(-1)![1])).toMatch(/\/o\//)
+			expect(print(bound(next).at(-1)![1])).toMatch(/\/o\//)
 			expect(evaluate(next, env).diagnostics).toEqual([])
 		})
 	})
@@ -1094,37 +1094,37 @@ describe('what goes out and around, of which only one can change', () => {
 		// Facing +X, from 50 out. Across does nothing, and along is as far as it goes.
 		const { problem, source } = dragged('{c = (path.ngon [0 0] 50 5 @0)}', [70, 40])
 		expect(problem).toBeNull()
-		expect(source).toBe('[c = (path.ngon [0 0] 70 5 @0)]')
+		expect(source).toBe('{artboard = [c = (path.ngon [0 0] 70 5 @0)]}')
 	})
 
 	it('goes straight out at the angle it is pinned at', () => {
 		const { source } = dragged('{c = (path.ngon [0 0] 50 5 @90)}', [30, 80])
-		expect(source).toBe('[c = (path.ngon [0 0] 80 5 @90)]')
+		expect(source).toBe('{artboard = [c = (path.ngon [0 0] 80 5 @90)]}')
 	})
 
 	it('goes by what it refers to being pinned, as well', () => {
 		const { source } = dragged('{a = @0 c = (path.ngon [0 0] 50 5 a)}', [70, 40])
-		expect(source).toBe('{a = @0 [c = (path.ngon [0 0] 70 5 a)]}')
+		expect(source).toBe('{a = @0 artboard = [c = (path.ngon [0 0] 70 5 a)]}')
 	})
 
 	it('only turns, where it cannot go out', () => {
 		const { source } = dragged('{c = (path.ngon [0 0] @50 5 0)}', [0, 50])
-		expect(source).toBe('[c = (path.ngon [0 0] @50 5 90)]')
+		expect(source).toBe('{artboard = [c = (path.ngon [0 0] @50 5 90)]}')
 	})
 
 	it('does not go in past nothing', () => {
 		const { source } = dragged('{c = (path.ngon [0 0] 50 5 @0)}', [-20, 0])
-		expect(source).toBe('[c = (path.ngon [0 0] 0 5 @0)]')
+		expect(source).toBe('{artboard = [c = (path.ngon [0 0] 0 5 @0)]}')
 	})
 
 	it('is the same for a star', () => {
 		const { source } = dragged('{c = (path.star [0 0] 50 20 5 @0)}', [70, 40])
-		expect(source).toBe('[c = (path.star [0 0] 70 20 5 @0)]')
+		expect(source).toBe('{artboard = [c = (path.star [0 0] 70 20 5 @0)]}')
 	})
 
 	it('does both where it can, and says so where it can do neither', () => {
-		expect(dragged('{c = (path.ngon [0 0] 50 5 0)}', [0, 70]).source).toBe('[c = (path.ngon [0 0] 70 5 90)]')
-		expect(dragged('{c = (path.ngon [0 0] 50 5)}', [0, 70]).source).toBe('[c = (path.ngon [0 0] 70 5 90)]')
+		expect(dragged('{c = (path.ngon [0 0] 50 5 0)}', [0, 70]).source).toBe('{artboard = [c = (path.ngon [0 0] 70 5 90)]}')
+		expect(dragged('{c = (path.ngon [0 0] 50 5)}', [0, 70]).source).toBe('{artboard = [c = (path.ngon [0 0] 70 5 90)]}')
 		expect(dragged('{c = (path.ngon [0 0] @50 5 @0)}', [0, 70]).problem).toBe('locked')
 	})
 
@@ -1135,8 +1135,8 @@ describe('what goes out and around, of which only one can change', () => {
 			const { ast } = changed(root, env, ROW, handle.to(to, handle.at!))
 			return ast && print(ast)
 		}
-		expect(end('{c = (path.spiral [0 0] 0 50 @1)}', [70, 40])).toBe('[c = (path.spiral [0 0] 0 70 @1)]')
-		expect(end('{c = (path.spiral [0 0] 0 @50 1)}', [0, 50])).toBe('[c = (path.spiral [0 0] 0 @50 1.25)]')
+		expect(end('{c = (path.spiral [0 0] 0 50 @1)}', [70, 40])).toBe('{artboard = [c = (path.spiral [0 0] 0 70 @1)]}')
+		expect(end('{c = (path.spiral [0 0] 0 @50 1)}', [0, 50])).toBe('{artboard = [c = (path.spiral [0 0] 0 @50 1.25)]}')
 	})
 })
 
@@ -1148,8 +1148,8 @@ describe('a place of which only a part can change', () => {
 	}
 
 	it('goes as far as it can', () => {
-		expect(moved('{c = (path.circle [@1 2] 5)}', [7, 8]).source).toBe('[c = (path.circle [@1 8] 5)]')
-		expect(moved('{c = (path.circle [1 @2] 5)}', [7, 8]).source).toBe('[c = (path.circle [7 @2] 5)]')
+		expect(moved('{c = (path.circle [@1 2] 5)}', [7, 8]).source).toBe('{artboard = [c = (path.circle [@1 8] 5)]}')
+		expect(moved('{c = (path.circle [1 @2] 5)}', [7, 8]).source).toBe('{artboard = [c = (path.circle [7 @2] 5)]}')
 	})
 
 	it('says why, if it cannot go at all', () => {
@@ -1163,7 +1163,7 @@ describe('what refers to a place on something else', () => {
 	const moved = (a: string) => {
 		const root = parse(`{a = ${a} ${REF}}`)
 		const { ast } = changed(root, env, 'binding:b', [{ route: [0], value: [170, 120] }])
-		return ast && print((ast as LetAST).bindings[0]![1])
+		return ast && print(bound((ast as LetAST))[0]![1])
 	}
 
 	it('moves that, and leaves what it is', () => {

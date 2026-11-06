@@ -332,27 +332,7 @@ export class LetAST extends ASTNode {
 		super()
 	}
 
-	/** What is bound where its vector holds it, written there, as `{x = 1 [a = 2 x]}`. */
-	private printedWithVector(): string | null {
-		if (this.body?.kind !== 'vec') return null
-		const unplaced = new Map(this.bindings)
-		if (unplaced.size !== this.bindings.length) return null
-		const parts = this.body.elements.map(element => {
-			const value = element.kind === 'sym' ? unplaced.get(element.name) : undefined
-			if (element.kind !== 'sym' || value === undefined) return element.print()
-			unplaced.delete(element.name)
-			return `${element.name} = ${value.print()}`
-		})
-		if (unplaced.size === this.bindings.length) return null
-		const vector = `[${parts.join(' ')}]`
-		if (unplaced.size === 0) return vector
-		const rest = [...unplaced].map(([name, value]) => `${name} = ${value.print()}`)
-		return `{${[...rest, vector].join(' ')}}`
-	}
-
 	override printStructural(): string {
-		const withVector = this.printedWithVector()
-		if (withVector !== null) return withVector
 		const parts: string[] = []
 		for (const [name, expr] of this.bindings) {
 			parts.push(`${name} = ${expr.print()}`)
@@ -504,6 +484,15 @@ export class SpreadAST extends ASTNode {
 export const PIN = '@'
 /** The key of what `#_` means, which a host takes as not being output. */
 export const HIDDEN = '#_'
+/** The key of the name `name = expr` gives an expression, where it stands. See syntax.md (Names). */
+export const NAME = '='
+
+/** The name `name = expr` gives `ast`, or null if it has none. */
+export function nameOf(ast: AST): string | null {
+	if (ast.kind !== 'meta') return null
+	const given = ast.metadata.get(NAME)
+	return given?.kind === 'lit' && typeof given.value === 'string' ? given.value : null
+}
 
 /** What metadata is on. A path passes through metadata, as if it were not there. */
 export function withoutMeta(ast: AST): AST {
@@ -523,15 +512,17 @@ export class MetaAST extends ASTNode {
 		const { fields, optional } = this.metadata
 		const has = (key: string) =>
 			fields.some(f => !(f instanceof SpreadAST) && f[0] === key)
+		const name = nameOf(this)
 		const marks = (has(HIDDEN) ? HIDDEN : '') + (has(PIN) ? PIN : '')
 		const others = fields.filter(
-			f => f instanceof SpreadAST || (f[0] !== PIN && f[0] !== HIDDEN)
+			f => f instanceof SpreadAST || (f[0] !== PIN && f[0] !== HIDDEN && f[0] !== NAME)
 		)
+		const said = marks === '' && name === null
 		const prefix =
-			others.length === 0 && marks !== ''
+			others.length === 0 && !said
 				? ''
-				: `^${marks === '' ? this.metadata.print() : new RecordAST(others, optional).print()} `
-		return `${prefix}${marks}${this.expr.print()}`
+				: `^${said ? this.metadata.print() : new RecordAST(others, optional).print()} `
+		return `${name === null ? '' : `${name} = `}${prefix}${marks}${this.expr.print()}`
 	}
 }
 

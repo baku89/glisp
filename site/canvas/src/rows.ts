@@ -3,9 +3,9 @@
  * that of the vector the program comes to, and groups, which are vectors of their own.
  */
 
-import { AS_SOURCE, type AST, type Env, CallAST, enterNode, evaluate, hide, infer, isHidden, LetAST, lit, MetaAST, print, readByName, SymAST, unhide, VecAST, withPathsMoved } from '@glisp/lang'
+import { AS_SOURCE, type AST, type Env, CallAST, enterNode, evaluate, hide, infer, isHidden, LetAST, lit, MetaAST, named, nameOf, namedChildrenOf, print, readByName, unhide, unnamed, VecAST, withPathsFollowed, withPathsMoved } from '@glisp/lang'
 import { reach, withoutRows, withParent } from '@glisp/tweeq/rowsClipboard'
-import { isGroup, layersOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
+import { ARTBOARD, isGroup, type Layered, layersOf, layersVectorOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import { GraphPaperValue, type Path, type Vec } from './graphics'
@@ -128,8 +128,11 @@ export function withFileDropped(
 	const kept = withoutRows(file, env, [...new Set(canvasWide.map(({ row }) => row))]) as LetAST
 	if (!sceneOf(kept, env).some(({ draw }) => isOutlined(draw))) return null
 
-	const [only] = kept.bindings
-	const value = only !== undefined && kept.bindings.length === 1 ? only[1] : kept
+	const layered = layersVectorOf(kept)
+	const own = kept.bindings.filter(([name]) => name !== layered?.name)
+	const [only, ...others] = layered?.vector.elements ?? []
+	// One thing drawn, with nothing of its own to refer to, is that thing; anything more, all of it.
+	const value = own.length === 0 && only !== undefined && others.length === 0 ? unnamed(only) : groupOf(kept)
 	const name = freeName(root, nameFromFile(fileName))
 	const row = `binding:${name}`
 	const added = withLayerAdded(root, name, value)
@@ -149,13 +152,13 @@ function movedRow(root: LetAST, env: Env, row: string, by: Vec): LetAST {
 	}
 	const inner = reach(root, env, row)?.chain.at(-1)?.ast
 	const block = inner?.kind === 'meta' ? inner.expr : inner
-	if (block?.kind !== 'let') return root
+	if (block?.kind !== 'let' && block?.kind !== 'vec') return root
 	return layersOf(block).reduce((next, name) => movedRow(next, env, `${row}/${BINDING}${name}`, by), root)
 }
 
 /** A name that `root` does not have yet. */
-export function freeName(root: LetAST, stem: string): string {
-	const taken = new Set(root.bindings.map(([name]) => name))
+export function freeName(root: AST, stem: string): string {
+	const taken = namesIn(root)
 	let n = 1
 	while (taken.has(`${stem}${n}`)) n++
 	return `${stem}${n}`
@@ -182,15 +185,50 @@ function rowSaying(
 	)
 }
 
-const elementCount = (root: LetAST): number =>
-	root.body?.kind === 'vec' ? root.body.elements.length : 0
+/** What the vector of `block` holds. */
+const elementsIn = (block: Layered): readonly AST[] =>
+	block.kind === 'vec' ? block.elements : (layersVectorOf(block)?.vector.elements ?? [])
+
+const elementCount = (root: LetAST): number => elementsIn(root).length
+
+/** The key of the row of what is `i`th in the vector of `block`. */
+const keyIn = (block: Layered, element: AST, i: number): string => {
+	const name = nameOf(element)
+	return name !== null ? `${BINDING}${name}` : block.kind === 'vec' ? `${i}` : `element:${i}`
+}
+
+/** All the names given anywhere in `ast`, for what is new to be called otherwise. */
+function namesIn(ast: AST, into = new Set<string>()): Set<string> {
+	const node = ast.kind === 'meta' ? ast.expr : ast
+	for (const [name] of namedChildrenOf(node)) into.add(name)
+	const children: readonly AST[] =
+		node.kind === 'let'
+			? [...node.bindings.map(([, value]) => value), ...(node.body === null ? [] : [node.body])]
+			: node.kind === 'vec'
+				? node.elements
+				: node.kind === 'call'
+					? [...node.args, ...(node.kwargs?.values() ?? [])]
+					: node.kind === 'record'
+						? node.fields.flatMap(field => ('kind' in field ? [] : [field[1]]))
+						: []
+	for (const child of children) namesIn(child, into)
+	return into
+}
+
+/** What a program from somewhere else comes to as one row: what it draws, with what it has of its own. */
+const groupOf = (program: LetAST): AST => {
+	const layered = layersVectorOf(program)
+	if (layered === null) return program
+	const own = program.bindings.filter(([name]) => name !== layered.name)
+	return own.length === 0 ? layered.vector : new LetAST(own, layered.vector)
+}
 
 /** The place a new graph paper goes: right in front of a solid, which it could not be seen behind, or else the very back. */
 function inFrontOfSolid(root: LetAST, env: Env): number {
-	if (root.body?.kind !== 'vec') return 0
+	const elements = elementsIn(root)
 	const behind = new Set(solidRowsIn(root, env, false).map(({ row }) => row))
-	const found = root.body.elements.findIndex(e => e.kind === 'sym' && behind.has(`${BINDING}${e.name}`))
-	return found < 0 ? root.body.elements.length : found
+	const found = elements.findIndex((e, i) => behind.has(keyIn(root, e, i)))
+	return found < 0 ? elements.length : found
 }
 
 /** `root` with another solid of `color`, at the very back, and the row that says it. */
@@ -268,42 +306,50 @@ export function withGraphPaperAdded(root: LetAST, env: Env, kind: GraphPaperKind
 	}
 }
 
-/**
- * `root`, with the rows in a group of their own, where the last of them was. Null with
- * nothing to group, or if that would leave anything not coming to what it did: a path
- * counts how far it goes, so one that goes in or out of the group no longer gets there.
- */
-function groupedIn(
-	root: LetAST,
-	env: Env,
-	rows: readonly string[]
-): { ast: LetAST; row: string } | null {
-	const names = namesOf(rows)
-	const members = root.bindings.filter(([name]) => names.has(name))
-	if (members.length === 0) return null
-	const name = freeName(root, 'group')
-	const layers = layersOf(root).filter(layer => names.has(layer))
-	const inGroup = [...layers, ...members.map(([member]) => member).filter(member => !layers.includes(member))]
-	const group = new LetAST(members, new VecAST(inGroup.map(member => new SymAST(member))))
-	const bindings = [...root.bindings.filter(([bound]) => !names.has(bound)), [name, group] as const]
-	const elements = root.body?.kind === 'vec' ? root.body.elements : []
-	const isMember = (element: AST) => element.kind === 'sym' && names.has(element.name)
-	const first = elements.findIndex(isMember)
-	// Where the frontmost of them was, and in front of all if none of them was anywhere.
-	const held = elements.flatMap((element, i) =>
-		i === first ? [new SymAST(name)] : isMember(element) ? [] : [element]
-	)
-	const ast = members.reduce<AST>(
-		(moved, [member]) => withPathsMoved(moved, env, [member], [name, member]),
-		new LetAST(bindings, new VecAST(first < 0 ? [new SymAST(name), ...held] : held))
-	) as LetAST
-	return errorsIn(ast, env) > errorsIn(root, env) ? null : { ast, row: `${BINDING}${name}` }
+/** How a path from the root goes to what `block` holds, if it is the program's own. */
+const levelsTo = (root: AST, block: Layered): readonly string[] => {
+	const layered = root === block && block.kind === 'let' ? layersVectorOf(block) : null
+	return layered?.name ? [layered.name] : []
 }
 
 /**
- * `root`, with the groups among the rows let go of, what was in them being where they
- * were. Null if none of them is one, or what is in one would no longer come to the same.
+ * `block`, with the rows in a group of their own, where the frontmost of them was. Null with
+ * nothing to group, or if that would leave anything not coming to what it did: a path
+ * counts how far it goes, so one that goes in or out of the group no longer gets there.
  */
+function groupedIn<B extends Layered>(
+	block: B,
+	env: Env,
+	rows: readonly string[],
+	levels: readonly string[]
+): { ast: B; row: string } | null {
+	const names = namesOf(rows)
+	const elements = elementsIn(block)
+	const isMember = (element: AST) => names.has(nameOf(element) ?? '')
+	const members = elements.filter(isMember)
+	if (members.length === 0) return null
+	const name = freeName(block, 'group')
+	const first = elements.findIndex(isMember)
+	const held = elements.flatMap((element, i) =>
+		i === first ? [named(name, new VecAST(members))] : isMember(element) ? [] : [element]
+	)
+	const placed = withElementsIn(block, held)
+	const movedFromRoot = members.reduce<AST>((moved, member) => {
+		const called = nameOf(member)!
+		return withPathsMoved(moved, env, [...levels, called], [...levels, name, called])
+	}, placed)
+	// What a path reached, it goes on reaching, however many levels away it is now.
+	const ast = withPathsFollowed(block, movedFromRoot, env) as B
+	return errorsIn(ast, env) > errorsIn(block, env) ? null : { ast, row: `${BINDING}${name}` }
+}
+
+/** `block`, holding `elements` in its vector. */
+function withElementsIn<B extends Layered>(block: B, elements: readonly AST[]): B {
+	if (block.kind === 'vec') return new VecAST(elements) as B
+	const layered = layersVectorOf(block)
+	return (layered === null ? new LetAST(block.bindings, new VecAST(elements)) : layered.with(new VecAST(elements))) as B
+}
+
 /**
  * What a call that comes to a path is made from, among what it is given, without the call: each
  * under the style that was around it, which is what it was drawn by, as what is in it goes for
@@ -342,115 +388,114 @@ const stemOf = (value: AST): string => {
 	return head.slice(head.lastIndexOf('.') + 1)
 }
 
-function ungroupedIn(
-	root: LetAST,
+/**
+ * `block`, with the groups among the rows let go of, what was in them being where they
+ * were. Null if none of them is one, or what is in one would no longer come to the same.
+ */
+function ungroupedIn<B extends Layered>(
+	block: B,
 	env: Env,
-	rows: readonly string[]
-): { ast: LetAST; rows: string[] } | null {
-	const names = namesOf(rows)
-	const { slots } = viewOf(root, env)
+	rows: readonly string[],
+	levels: readonly string[]
+): { ast: B; rows: string[] } | null {
+	const { slots } = viewOf(block, env)
 	const envOf = (key: string): Env => slots.find(slot => slot.key === key)?.env ?? env
-	const elements = root.body?.kind === 'vec' ? root.body.elements : []
-	// What has no names goes where it is held, and what is not held has nowhere to go.
-	const isVecLetGo = (name: string, value: AST): boolean =>
-		elements.some(element => element.kind === 'sym' && element.name === name) &&
-		isVecOfDrawn(value, envOf(`${BINDING}${name}`))
-	const isFreed = ([name, value]: readonly [string, AST]) =>
-		names.has(name) && ((value.kind === 'let' && isGroup(value)) || isVecLetGo(name, value))
-	const isElementFreed = (element: AST, i: number): element is VecAST =>
-		rows.includes(`element:${i}`) && isVecOfDrawn(element, envOf(`element:${i}`))
-	const unwrapped = (name: string, value: AST): readonly AST[] | null =>
-		names.has(name) ? madeFrom(value, envOf(`${BINDING}${name}`)) : null
-	const isElementUnwrapped = (element: AST, i: number): boolean =>
-		rows.includes(`element:${i}`) && madeFrom(element, envOf(`element:${i}`)) !== null
-	if (
-		!root.bindings.some(isFreed) &&
-		!elements.some(isElementFreed) &&
-		!root.bindings.some(([name, value]) => unwrapped(name, value) !== null) &&
-		!elements.some(isElementUnwrapped)
-	) {
-		return null
-	}
-	const taken = new Set(root.bindings.filter(b => !isFreed(b)).map(([name]) => name))
-	const freed: string[] = []
+	const elements = elementsIn(block)
+	const taken = new Set(elements.flatMap(element => nameOf(element) ?? []))
 	const moves: (readonly [readonly string[], readonly string[]])[] = []
-	const heldBy = new Map<string, readonly AST[]>()
-	const bindings = root.bindings.flatMap((binding): (readonly [string, AST])[] => {
-		const inner = isFreed(binding) ? null : unwrapped(binding[0], binding[1])
-		if (inner !== null) {
-			// One of them goes on being what it was, for all that refers to it by name.
-			if (inner.length === 1) {
-				const [only] = inner
-				freed.push(`${BINDING}${binding[0]}`)
-				return [[binding[0], binding[1].kind === 'meta' ? new MetaAST(binding[1].metadata, only!) : only!]]
-			}
-			const bound: (readonly [string, AST])[] = []
-			const held = inner.map(path => {
-				// What is another row is already that row, and has only to be drawn.
-				if (path.kind === 'sym' && root.bindings.some(([name]) => name === path.name)) {
-					freed.push(`${BINDING}${path.name}`)
-					return new SymAST(path.name)
-				}
-				const stem = path.kind === 'sym' ? path.name : stemOf(path)
-				let n = 1
-				while (taken.has(`${stem}${n}`)) n++
-				const name = `${stem}${n}`
-				taken.add(name)
-				freed.push(`${BINDING}${name}`)
-				bound.push([name, path])
-				return new SymAST(name)
-			})
-			heldBy.set(binding[0], held)
-			return bound
-		}
-		if (!isFreed(binding)) return [binding]
-		if (binding[1].kind === 'vec') {
-			heldBy.set(binding[0], binding[1].elements)
-			return []
-		}
-		const group = binding[1] as LetAST
-		const members = group.bindings
-		if (members.some(([name]) => taken.has(name))) return [binding]
-		heldBy.set(binding[0], group.body?.kind === 'vec' ? group.body.elements : [])
-		for (const [name] of members) {
-			taken.add(name)
-			freed.push(`${BINDING}${name}`)
-			moves.push([[binding[0], name], [name]])
-		}
-		return [...members]
-	})
-	const held: AST[] = []
+	const out: { ast: AST; freed: boolean }[] = []
+	// What the block only binds, which what is let go of may come to draw.
+	const layered = block.kind === 'let' ? layersVectorOf(block) : null
+	const own = new Map(block.kind === 'let' ? block.bindings.filter(([bound]) => bound !== layered?.name) : [])
+	const moved = new Set<string>()
+	let changed = false
+	/** A name for what is let go of, of its own, as near what it was called as can be. */
+	const fresh = (stem: string): string => {
+		let n = 1
+		while (taken.has(`${stem}${n}`)) n++
+		taken.add(`${stem}${n}`)
+		return `${stem}${n}`
+	}
 	elements.forEach((element, i) => {
-		const made = isElementFreed(element, i) ? null : isElementUnwrapped(element, i) ? madeFrom(element, envOf(`element:${i}`)) : null
-		if (made !== null) {
-			freed.push(...made.map((_, at) => `element:${held.length + at}`))
-			held.push(...made)
+		const key = keyIn(block, element, i)
+		const name = nameOf(element)
+		const value = name === null ? element : unnamed(element)
+		if (!rows.includes(key)) {
+			out.push({ ast: element, freed: false })
 			return
 		}
-		const inside = isElementFreed(element, i)
-			? element.elements
-			: element.kind === 'sym'
-				? heldBy.get(element.name)
-				: undefined
-		for (const each of inside ?? [element]) {
-			// What is being drawn already is not to be drawn twice for having been made into this.
-			const isDrawn =
-				inside !== undefined &&
-				each.kind === 'sym' &&
-				(held.some(other => other.kind === 'sym' && other.name === each.name) ||
-					elements.some(other => other !== element && other.kind === 'sym' && other.name === each.name))
-			if (isDrawn) continue
-			if (inside !== undefined && each.kind !== 'sym') freed.push(`element:${held.length}`)
-			held.push(each)
+		const node = value.kind === 'meta' ? value.expr : value
+		const inner = node.kind === 'let' ? layersVectorOf(node) : null
+		// A group, with nothing of its own, goes where it was, what is in it keeping its names.
+		const group = node.kind === 'vec' && isGroup(node) ? node : inner !== null && node.kind === 'let' && node.bindings.length === (inner.name === null ? 0 : 1) ? inner.vector : null
+		if (group !== null) {
+			const clashes = group.elements.some(each => {
+				const called = nameOf(each)
+				return called !== null && called !== name && taken.has(called)
+			})
+			if (!clashes) {
+				if (name !== null) taken.delete(name)
+				for (const each of group.elements) {
+					const called = nameOf(each)
+					if (called !== null) {
+						taken.add(called)
+						if (name !== null) moves.push([[...levels, name, called], [...levels, called]])
+					}
+					out.push({ ast: each, freed: true })
+				}
+				changed = true
+				return
+			}
+		}
+		// What a spray comes to, a vector of what each draws with no names, goes where it was.
+		if (node.kind === 'vec' && isVecOfDrawn(node, envOf(key))) {
+			for (const each of node.elements) out.push({ ast: each, freed: true })
+			changed = true
+			return
+		}
+		const made = madeFrom(value, envOf(key))
+		if (made === null) {
+			out.push({ ast: element, freed: false })
+			return
+		}
+		changed = true
+		// One of them goes on being what it was, for all that refers to it by name.
+		if (made.length === 1 && name !== null) {
+			const [only] = made
+			out.push({ ast: named(name, value.kind === 'meta' ? new MetaAST(value.metadata, only!) : only!), freed: true })
+			return
+		}
+		if (name !== null) taken.delete(name)
+		for (const path of made) {
+			if (path.kind === 'sym') {
+				// What is drawn already is not drawn twice for having been made into this.
+				const isDrawn = (each: AST) => nameOf(each) === path.name
+				if (elements.some(isDrawn) || out.some(({ ast }) => isDrawn(ast))) continue
+				// What is only bound, and is referred to, comes to be drawn where it is, by its name.
+				const value = own.get(path.name)
+				if (value !== undefined && !moved.has(path.name)) {
+					moved.add(path.name)
+					out.push({ ast: named(path.name, value), freed: true })
+					continue
+				}
+			}
+			out.push({ ast: name === null ? path : named(fresh(path.kind === 'sym' ? path.name : stemOf(path)), path), freed: true })
 		}
 	})
-	const ast = moves.reduce<AST>(
-		(moved, [from, to]) => withPathsMoved(moved, env, from, to),
-		new LetAST(bindings, root.body?.kind === 'vec' ? new VecAST(held) : root.body)
-	) as LetAST
-	return freed.length === 0 || errorsIn(ast, env) > errorsIn(root, env)
-		? null
-		: { ast, rows: freed }
+	if (!changed) return null
+	const holding = withElementsIn(
+		block,
+		out.map(({ ast }) => ast)
+	)
+	const placed = (
+		holding.kind === 'let' && moved.size > 0
+			? new LetAST(holding.bindings.filter(([bound]) => !moved.has(bound)), holding.body)
+			: holding
+	) as B
+	const freed = out.flatMap(({ ast, freed }, i) => (freed ? [keyIn(block, ast, i)] : []))
+	const movedFromRoot = moves.reduce<AST>((moved, [from, to]) => withPathsMoved(moved, env, from, to), placed)
+	const ast = withPathsFollowed(block, movedFromRoot, env) as B
+	return freed.length === 0 || errorsIn(ast, env) > errorsIn(block, env) ? null : { ast, rows: freed }
 }
 
 const parentOf = (row: string): string => row.slice(0, Math.max(0, row.lastIndexOf('/')))
@@ -461,17 +506,20 @@ const inParent = (parent: string, row: string): string => (parent === '' ? row :
  * `root`, with `act` done to the block at the row `parent`, wherever that is, and what else it
  * says. Null if there is no block there, or nothing comes of it.
  */
-function inBlock<R extends { readonly ast: LetAST }>(
+function inBlock<R extends { readonly ast: Layered }>(
 	root: LetAST,
 	env: Env,
 	parent: string,
-	act: (block: LetAST, blockEnv: Env) => R | null
-): R | null {
-	if (parent === '') return act(root, env)
+	act: (block: Layered, blockEnv: Env, levels: readonly string[]) => R | null
+): (Omit<R, 'ast'> & { readonly ast: LetAST }) | null {
+	if (parent === '') {
+		const result = act(root, env, levelsTo(root, root))
+		return result === null ? null : { ...result, ast: result.ast as LetAST }
+	}
 	const slot = slotAlong(root, env, parent.split('/'))
 	const block = slot?.ast.kind === 'meta' ? slot.ast.expr : slot?.ast
-	if (!slot || !(block instanceof LetAST)) return null
-	const result = act(block, slot.env)
+	if (!slot || !(block instanceof LetAST || block instanceof VecAST)) return null
+	const result = act(block, slot.env, [])
 	if (result === null) return null
 	const next = slot.ast.kind === 'meta' ? new MetaAST(slot.ast.metadata, result.ast) : result.ast
 	return { ...result, ast: slot.replace(next) as LetAST }
@@ -485,7 +533,7 @@ export function grouped(
 ): { ast: LetAST; row: string } | null {
 	const parent = parentOf(rows[0] ?? '')
 	if (rows.some(row => parentOf(row) !== parent)) return null
-	const result = inBlock(root, env, parent, (block, blockEnv) => groupedIn(block, blockEnv, rows.map(keyOf)))
+	const result = inBlock(root, env, parent, (block, blockEnv, levels) => groupedIn(block, blockEnv, rows.map(keyOf), levels))
 	if (result === null || errorsIn(result.ast, env) > errorsIn(root, env)) return null
 	return { ast: result.ast, row: inParent(parent, result.row) }
 }
@@ -502,7 +550,7 @@ export function ungrouped(
 	const freed: string[] = []
 	for (const parent of parents) {
 		const keys = rows.filter(row => parentOf(row) === parent).map(keyOf)
-		const result = inBlock(ast, env, parent, (block, blockEnv) => ungroupedIn(block, blockEnv, keys))
+		const result = inBlock(ast, env, parent, (block, blockEnv, levels) => ungroupedIn(block, blockEnv, keys, levels))
 		if (result === null) continue
 		ast = result.ast
 		freed.push(...result.rows.map(row => inParent(parent, row)))

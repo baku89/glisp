@@ -31,6 +31,8 @@ import { reach, withParent } from './rowsClipboard'
 import {
 	elementOptionsOf,
 	isExpression,
+	layersOf,
+	layersVectorOf,
 	mentionsTypeVar,
 	numberOptionsAt,
 	nameOfType,
@@ -446,9 +448,13 @@ export function extractedAt(
 	name: string
 ): { ast: AST; name: string } | null {
 	if (root.kind !== 'let' || !canExtractAt(root, env, places)) return null
+	// What is drawn has what it refers to bound ahead of all it draws, where it can see it.
+	const layered = layersVectorOf(root)
+	const drawnAt = layered === null ? -1 : layered.name === null ? root.bindings.length : root.bindings.findIndex(([bound]) => bound === layered.name)
 	const at = places.map(({ path }) => {
 		const [key] = path.split('/')
-		return root.bindings.findIndex(([bound]) => `binding:${bound}` === key)
+		const bound = root.bindings.findIndex(([name]) => `binding:${name}` === key && name !== layered?.name)
+		return bound >= 0 ? bound : layersOf(root).some(name => `binding:${name}` === key) ? drawnAt : -1
 	})
 	if (at.some(i => i < 0)) return null
 

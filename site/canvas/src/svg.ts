@@ -5,9 +5,10 @@
  * becomes bindings.
  */
 
-import { type AST, buildPrelude, type Env, LetAST, lex, lit, lookupBareName, parse, print, SymAST, toAst, VecAST } from '@glisp/lang'
+import { type AST, buildPrelude, type Env, LetAST, lex, lit, lookupBareName, named, parse, print, SymAST, toAst, VecAST } from '@glisp/lang'
 import { readProgram, sourceOfProgram } from '@glisp/tweeq/programSource'
 import { copiedRows } from '@glisp/tweeq/rowsClipboard'
+import { ARTBOARD, layersVectorOf } from '@glisp/tweeq/structure'
 import Color from 'colorjs.io'
 import { bounds } from 'pave/path/metrics'
 import { toD } from 'pave/path/svg'
@@ -115,10 +116,11 @@ export function programInFile(text: string): { readonly source: string; readonly
 	if (code === null) return null
 	const reading = readProgram(code)
 	if (!('ast' in reading)) return null
-	const { bindings, body } = reading.ast
-	// Bindings on their own are in the order of what is in front, as a program's vector is.
-	const held = body ?? new VecAST(bindings.map(([name]) => new SymAST(name)))
-	return { source: print(new LetAST(bindings, held)), whole: body !== null }
+	const { ast } = reading
+	if (layersVectorOf(ast) !== null) return { source: print(ast), whole: true }
+	// Bindings on their own are what is drawn, in the order of what is in front, as a program's vector is.
+	const held = new VecAST(ast.bindings.map(([name, value]) => named(name, value)))
+	return { source: print(new LetAST([[ARTBOARD, held]], null)), whole: false }
 }
 
 function svgWith(

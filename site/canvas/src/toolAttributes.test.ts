@@ -1,4 +1,5 @@
 import { buildPrelude, type Env, LetAST, parse, print } from '@glisp/lang'
+import { bound } from './program.testing'
 import { describe, expect, it } from 'vitest'
 
 import { NO_PAINT, withGraphics } from './graphics'
@@ -22,7 +23,7 @@ const first = parse(FIRST_SOURCE) as LetAST
 const blank = parse('{[]}') as LetAST
 const RED = { ...NO_PAINT, fill: '#ff0000' }
 const source = (ast: LetAST, name: string) =>
-	print(ast.bindings.find(([other]) => other === name)![1])
+	print(bound(ast).find(([other]) => other === name)![1])
 
 describe('what tools share', () => {
 	it('starts as a drawing has always started', () => {

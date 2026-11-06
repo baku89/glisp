@@ -24,6 +24,7 @@ import {
 	type Env,
 	type FnAST,
 	type Frame,
+	nameOf,
 	type RecordAST,
 	type RecordEntry,
 	SpreadAST,
@@ -1360,10 +1361,12 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 
 		case 'let': {
 			const frame = pushLetFrame(ast, env)
-			if (ast.body === null) {
-				return ok(UNIT)
-			}
-			return evaluate(ast.body, frame)
+			if (ast.body !== null) return evaluate(ast.body, frame)
+			// With nothing after its bindings, it comes to the last of them.
+			const last = ast.bindings.at(-1)
+			if (last === undefined) return ok(UNIT)
+			const target = frame!.bindings!.get(last[0])!
+			return evaluate(target.ast, target.env)
 		}
 
 		case 'access': {
@@ -1528,13 +1531,45 @@ export function readByName(ast: AST): AST {
 }
 
 /**
- * Push a transparent ancestor frame onto `env` whose `ast` is `node`.
- * No bindings — bare-name lookup walks straight through it. Used so
- * paths inside calls / vecs / records / quotes can navigate
- * `./childIndex` and `..` correctly per docs/spec/eval.md.
+ * Push an ancestor frame onto `env` whose `ast` is `node`, so that paths inside calls, vectors
+ * and records can navigate. It binds the names of what is directly in it, as a let-block does
+ * its bindings, and has no bindings if nothing there has a name: bare-name lookup walks straight
+ * through it. See syntax.md (Names).
  */
 function pushAncestor(node: AST, env: Env): Env {
-	return { ast: node, parent: env }
+	const children = namedChildrenOf(node)
+	if (children.length === 0) return { ast: node, parent: env }
+	const map = new Map<string, BindingTarget>()
+	const frame: Frame = { ast: node, parent: env, bindings: map }
+	// The last of those with the same name is what it means, as in a let-block.
+	for (const [name, child] of children) map.set(name, { ast: readByName(child), env: frame })
+	return frame
+}
+
+const namedChildrenMemo: WeakMap<AST, ReadonlyArray<readonly [string, AST]>> = new WeakMap()
+
+/**
+ * What directly in `node` has a name, with it, in the order written: the elements of a vector,
+ * the arguments of a call and the fields of a record. A let-block's are its bindings.
+ */
+export function namedChildrenOf(node: AST): ReadonlyArray<readonly [string, AST]> {
+	if (node.kind === 'let') return node.bindings
+	const known = namedChildrenMemo.get(node)
+	if (known !== undefined) return known
+	const children: AST[] =
+		node.kind === 'vec'
+			? [...node.elements]
+			: node.kind === 'call'
+				? [...node.args, ...(node.kwargs?.values() ?? [])]
+				: node.kind === 'record'
+					? node.fields.flatMap(field => ('kind' in field ? [] : [field[1]]))
+					: []
+	const named = children.flatMap((child): (readonly [string, AST])[] => {
+		const name = nameOf(child)
+		return name === null ? [] : [[name, child]]
+	})
+	namedChildrenMemo.set(node, named)
+	return named
 }
 
 // -----------------------------------------------------------------------------
@@ -2501,12 +2536,10 @@ export function keySegment(key: string): string {
 
 /** What directly in `node` has the name `name`, the last of them if more than one has it. */
 function namedChildAt(node: AST, name: string): AST | null {
-	if (node.kind === 'let') {
-		const bindings = node.bindings
-		for (let i = bindings.length - 1; i >= 0; i--) {
-			const b = bindings[i]
-			if (b !== undefined && b[0] === name) return b[1]
-		}
+	const children = namedChildrenOf(node)
+	for (let i = children.length - 1; i >= 0; i--) {
+		const child = children[i]
+		if (child !== undefined && child[0] === name) return child[1]
 	}
 	return null
 }

@@ -276,7 +276,7 @@ Either way, a path comes to what it came to: `a/center:` becomes `a/path:/center
 
 A host evaluates what it edits against `session.hostEnv`, not `session.env`, which holds the let-block as it was: there, a path from the root would start at that.
 
-A host making a reference writes the shortest of what reaches it: a name, then a relative path, then a path from the root, the earlier one if they are as short (`shortestPath`). An edit moving a binding to another let-block tells `withPathsMoved(root, env, from, to)`, so that paths from the root go on reaching it.
+A host making a reference writes the shortest of what reaches it: a name, then a relative path, then a path from the root, the earlier one if they are as short (`shortestPath`). An edit moving a binding to another let-block tells `withPathsMoved(root, env, from, to)`, so that paths from the root go on reaching it. Any edit that moves things around can have every path go on reaching what it reached with `withPathsFollowed(before, after, env)`, where what was reached is the same node in `after`: a path that no longer gets there is written anew, the shortest of a relative path and one from the root.
 
 ## Working backward
 

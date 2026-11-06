@@ -32,13 +32,13 @@ describe('paintReferringTo', () => {
 
 	it('replaces what it says', () => {
 		const next = refer('binding:b', 'fill', 'binding:a/kw:fill')!
-		expect(print(next)).toContain('fill: /a/fill:')
+		expect(print(next)).toContain('fill: ../a/fill:')
 		expect(paintAt(next, env, 'binding:b')?.fill).toBe('#ff0000')
 	})
 
 	it('says what it did not, and keeps the rest', () => {
 		const next = refer('binding:b', 'width', 'binding:a/kw:width')!
-		expect(print(next)).toContain('fill: "#00ff00" width: /a/width:')
+		expect(print(next)).toContain('fill: "#00ff00" width: ../a/width:')
 		expect(paintAt(next, env, 'binding:b')?.width).toBe(3)
 	})
 
@@ -79,7 +79,7 @@ describe('withPaintThrough', () => {
 	it('has what it refers to come to it, and goes on referring', () => {
 		const next = print(withPaintThrough(parse(referring), env, 'binding:b', { fill: '#0000ff', width: 9 }))
 		expect(next).toContain('a = (style (path.rect [0 0] [1 1]) fill: "#0000ff" width: 9)')
-		expect(next).toContain('fill: /a/fill: width: /a/width:')
+		expect(next).toContain('fill: /artboard/a/fill: width: /artboard/a/width:')
 	})
 
 	it('writes what is only a value, or not said at all', () => {

@@ -10,6 +10,7 @@ import {
 	keySegment,
 	CallAST,
 	check,
+	enterNode,
 	type Env,
 	evaluate,
 	freeRefs,
@@ -20,6 +21,8 @@ import {
 	makeType,
 	makeTypedFn,
 	MetaAST,
+	named,
+	nameOf,
 	parse,
 	pushLetFrame,
 	resolveTypeSlot,
@@ -27,6 +30,7 @@ import {
 	toAst,
 	type TypedHostFn,
 	type TypeValue,
+	unnamed,
 	VecAST,
 	withOptional,
 	withoutMeta,
@@ -35,7 +39,7 @@ import {
 } from '@glisp/lang'
 
 import { reach, withParent } from './rowsClipboard'
-import { defaultFor } from './structure'
+import { defaultFor, layersVectorOf } from './structure'
 
 /**
  * Say what the rest of what `fn` takes starts as, going by what it is given, where there is no
@@ -227,21 +231,14 @@ function levelsWithin(holder: AST, node: AST, frame: Env): Levels | null {
 		: [keySegment(parameters.variadicName), index - parameters.names.length]
 }
 
-/**
- * `root` with the bindings `names` given to `filter`, each as `given`, in place of the last of
- * them and called what the first is, as `wrappedAt` leaves a name where it was. A path from the
- * root to what is given goes on to it, there. Null if one is not there, if what is given refers
- * to one by name or climbs out of itself, as neither says the same from there, or if that leaves
- * more wrong than there was: something else needed one that is gone, or what was given is not
- * what it takes. What it comes to goes through `around`, for what else a host has it be.
- */
-export function combined(
+/** `combined`, of what a block only binds: in place of the last of them, called what the first is. */
+function combinedBindings(
 	root: LetAST,
 	env: Env,
 	names: readonly string[],
 	given: readonly AST[],
 	filter: Filter,
-	around: (call: AST) => AST = call => call,
+	around: (call: AST) => AST
 ): LetAST | null {
 	const [as] = names
 	const bound = new Set(root.bindings.map(([name]) => name))
@@ -259,15 +256,65 @@ export function combined(
 		if (i === at) return [[as, call]]
 		return names.includes(binding[0]) ? [] : [binding]
 	})
-	const placed = new LetAST(bindings, heldAs(root.body, names, as))
+	const placed = new LetAST(bindings, root.body)
 	const before = pushLetFrame(root, env)
 	const after = pushLetFrame(placed, env)
 	const ast = names.reduce<AST>((moved, name, i) => {
-		const value = root.bindings.find(([bound]) => bound === name)?.[1]
+		const value = root.bindings.find(([other]) => other === name)?.[1]
 		const from = value && levelsWithin(value, inside[i]!, before)
 		const into = levelsWithin(call, made, after)
 		const to = levelsWithin(made, inside[i]!, after)
 		return from && into && to ? withPathsMoved(moved, env, [name, ...from], [as, ...into, ...to]) : moved
+	}, placed) as LetAST
+	return errorsIn(ast, env) > errorsIn(root, env) ? null : ast
+}
+
+/**
+ * `root` with the bindings `names` given to `filter`, each as `given`, in place of the last of
+ * them and called what the first is, as `wrappedAt` leaves a name where it was. A path from the
+ * root to what is given goes on to it, there. Null if one is not there, if what is given refers
+ * to one by name or climbs out of itself, as neither says the same from there, or if that leaves
+ * more wrong than there was: something else needed one that is gone, or what was given is not
+ * what it takes. What it comes to goes through `around`, for what else a host has it be.
+ */
+export function combined(
+	root: LetAST,
+	env: Env,
+	names: readonly string[],
+	given: readonly AST[],
+	filter: Filter,
+	around: (call: AST) => AST = call => call,
+): LetAST | null {
+	const [as] = names
+	// What is drawn, by name: what the program's vector holds.
+	const layered = layersVectorOf(root)
+	const elements = layered?.vector.elements ?? []
+	const drawn = new Map(elements.flatMap(element => (nameOf(element) === null ? [] : [[nameOf(element)!, element] as const])))
+	if (as === undefined) return null
+	if (layered === null || !names.every(name => drawn.has(name))) return combinedBindings(root, env, names, given, filter, around)
+	const inside = given.map(ast => (ast.kind === 'meta' ? ast.expr : ast))
+	const refersOut = (ast: AST): boolean => {
+		const refs = freeRefs(ast)
+		return names.some(name => refs.names.has(name)) || refs.paths.some(({ up }) => up !== Infinity)
+	}
+	if (inside.some(refersOut)) return null
+	const made = callOf(filter, inside, env)
+	const call = around(made)
+	// Where the frontmost of them was, and none of the rest.
+	const at = elements.findIndex(element => names.includes(nameOf(element) ?? ''))
+	const held = elements.flatMap((element, i) =>
+		i === at ? [named(as, call)] : names.includes(nameOf(element) ?? '') ? [] : [element]
+	)
+	const placed = layered.with(new VecAST(held))
+	const prefix = layered.name === null ? [] : [layered.name]
+	const before = enterNode(layered.vector, pushLetFrame(root, env))
+	const after = enterNode(layersVectorOf(placed)!.vector, pushLetFrame(placed, env))
+	const ast = names.reduce<AST>((moved, name, i) => {
+		const value = unnamed(drawn.get(name)!)
+		const from = levelsWithin(value, inside[i]!, before)
+		const into = levelsWithin(call, made, after)
+		const to = levelsWithin(made, inside[i]!, after)
+		return from && into && to ? withPathsMoved(moved, env, [...prefix, name, ...from], [...prefix, as, ...into, ...to]) : moved
 	}, placed) as LetAST
 	return errorsIn(ast, env) > errorsIn(root, env) ? null : ast
 }

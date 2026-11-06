@@ -137,9 +137,9 @@ describe('evaluate — let-block', () => {
 		expect(evaluate(ast, emptyEnv).value).toBe(10)
 	})
 
-	it('with no body yields unit', () => {
-		const ast = letBlock([['a', lit(10)]])
-		expect(evaluate(ast, emptyEnv).value).toBe(UNIT)
+	it('with no body comes to its last binding', () => {
+		expect(evaluate(letBlock([['a', lit(10)]]), emptyEnv).value).toBe(10)
+		expect(evaluate(letBlock([]), emptyEnv).value).toBe(UNIT)
 	})
 
 	it('bindings can refer to siblings (lazy / self-referential)', () => {

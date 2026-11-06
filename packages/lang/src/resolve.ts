@@ -19,7 +19,7 @@
  */
 
 import { desugar } from './desugar.js'
-import { argumentOf, type CallParameters, childAt, isHostLevel, isKeySegment, keyOfSegment, NO_ROOT } from './eval.js'
+import { argumentOf, type CallParameters, childAt, isHostLevel, isKeySegment, keyOfSegment, namedChildrenOf, NO_ROOT } from './eval.js'
 import { callParameters } from './infer.js'
 import {
 	type AST,
@@ -118,17 +118,20 @@ function computeFreeRefs(
 		case 'meta':
 			return merge([metadataRefs(ast), refs(ast.expr)])
 		case 'vec':
-			return enterFrame(merge(ast.elements.map(refs)))
+			return enterFrame(bindNamed(merge(ast.elements.map(refs)), ast))
 		case 'record':
 			return enterFrame(
-				merge(
-					ast.fields.map(entry =>
-						refs(entry instanceof SpreadAST ? entry.expr : entry[1])
-					)
+				bindNamed(
+					merge(
+						ast.fields.map(entry =>
+							refs(entry instanceof SpreadAST ? entry.expr : entry[1])
+						)
+					),
+					ast
 				)
 			)
 		case 'call':
-			return enterFrame(merge(callOperands(ast).map(refs)))
+			return enterFrame(bindNamed(merge(callOperands(ast).map(refs)), ast))
 		case 'let': {
 			const parts = ast.bindings.map(([, value]) => refs(value))
 			if (ast.body !== null) parts.push(refs(ast.body))
@@ -146,6 +149,12 @@ function computeFreeRefs(
 			return bind(merge([types, body]), ast.generics)
 		}
 	}
+}
+
+/** `refs`, with the names of what is directly in `node` bound there. See syntax.md (Names). */
+function bindNamed(refs: FreeRefs, node: AST): FreeRefs {
+	const named = namedChildrenOf(node)
+	return named.length === 0 ? refs : bind(refs, named.map(([name]) => name))
 }
 
 function climbCount(path: PathAST): number {
@@ -203,6 +212,8 @@ function enterFrame(refs: FreeRefs): FreeRefs {
 /** What a reference points at. */
 export type Target =
 	| { readonly kind: 'let'; readonly name: string; readonly binder: LetAST; readonly value: AST }
+	/** What has a name in a vector, a call or a record, `binder`. See syntax.md (Names). */
+	| { readonly kind: 'named'; readonly name: string; readonly binder: AST; readonly value: AST }
 	| { readonly kind: 'param'; readonly name: string; readonly binder: FnAST; readonly param: FnParam }
 	| { readonly kind: 'generic'; readonly name: string; readonly binder: FnAST }
 	| { readonly kind: 'env'; readonly name: string; readonly binding: BindingTarget }
@@ -287,12 +298,12 @@ class Walker {
 				this.walk(ast.metadata, scope)
 				return this.walk(ast.expr, scope)
 			case 'vec': {
-				const inside: Scope = { ast, parent: scope }
+				const inside = this.scopeOf(ast, scope)
 				for (const element of ast.elements) this.walk(element, inside)
 				return
 			}
 			case 'record': {
-				const inside: Scope = { ast, parent: scope }
+				const inside = this.scopeOf(ast, scope)
 				const seen = new Set<string>()
 				for (const entry of ast.fields) {
 					if (entry instanceof SpreadAST) {
@@ -307,7 +318,7 @@ class Walker {
 				return
 			}
 			case 'call': {
-				const inside: Scope = { ast, parent: scope }
+				const inside = this.scopeOf(ast, scope)
 				for (const operand of callOperands(ast)) this.walk(operand, inside)
 				return
 			}
@@ -325,6 +336,18 @@ class Walker {
 			case 'fn':
 				return this.walkFn(ast, scope)
 		}
+	}
+
+	/** The scope of a vector, a call or a record, which has the names of what is directly in it. */
+	private scopeOf(ast: AST, parent: Scope | null): Scope {
+		const named = namedChildrenOf(ast)
+		if (named.length === 0) return { ast, parent }
+		const names = new Map<string, Target>()
+		for (const [name, value] of named) {
+			if (names.has(name)) this.warn(value, `duplicate name: ${name}`)
+			names.set(name, { kind: 'named', name, binder: ast, value })
+		}
+		return { ast, parent, names }
 	}
 
 	/**

@@ -17,6 +17,7 @@ import {
 	fn,
 	letBlock,
 	lit,
+	named,
 	hide,
 	isHidden,
 	isPinned,
@@ -266,6 +267,22 @@ class Parser {
 		}
 	}
 
+	/** What stands in a vector, a call or a record, with the name `name = expr` gives it, if any. */
+	private element(): AST {
+		if (this.peek().kind !== 'identifier' || this.peek(1).kind !== '=') return this.expression()
+		const start = this.peek().start
+		const name = this.advance().value as string
+		this.advance() // '='
+		const next = this.peek()
+		if (next.kind === 'identifier' && this.peek(1).kind === '=') {
+			throw this.error(this.peek(1), 'one expression has one name')
+		}
+		if (next.kind === '...' || next.kind === '...~') {
+			throw this.error(next, 'a spread takes no name')
+		}
+		return this.stamp(start, named(name, this.expression()))
+	}
+
 	private colonHead(): AST {
 		const start = this.peek().start
 		this.advance()
@@ -296,19 +313,13 @@ class Parser {
 				throw this.error(this.peek(), 'unterminated `(`')
 			}
 			// kwarg: identifier `:` expression, as a record's field is written
-			if (this.peek().kind === 'identifier' && this.peek(1).kind === '=') {
-				throw this.error(
-					this.peek(1),
-					`a keyword argument is written \`${this.peek().text}: ...\``
-				)
-			}
 			if (
 				this.peek().kind === 'identifier' &&
 				this.peek(1).kind === ':'
 			) {
 				const nameTok = this.advance()
 				this.advance() // ':'
-				kwargs[nameTok.value as string] = this.expression()
+				kwargs[nameTok.value as string] = this.element()
 				sawKwarg = true
 				continue
 			}
@@ -318,7 +329,7 @@ class Parser {
 					'positional argument after keyword argument'
 				)
 			}
-			args.push(this.expression())
+			args.push(this.element())
 		}
 		this.advance() // ')'
 
@@ -429,25 +440,14 @@ class Parser {
 	private vectorForm(): AST {
 		this.advance() // '['
 		const elements: AST[] = []
-		const bindings: [string, AST][] = []
 		while (this.peek().kind !== ']') {
 			if (this.peek().kind === 'eof') {
 				throw this.error(this.peek(), 'unterminated `[`')
 			}
-			// `name = expr` says what the name is and that it goes here, as `{name = expr [name]}`.
-			if (this.peek().kind === 'identifier' && this.peek(1).kind === '=') {
-				const at = this.peek().start
-				const name = this.advance().value as string
-				elements.push(this.stamp(at, sym(name)))
-				this.advance() // '='
-				bindings.push([name, this.expression()])
-				continue
-			}
-			elements.push(this.expression())
+			elements.push(this.element())
 		}
 		this.advance() // ']'
-		// What was written is the block's. The vector inside it is not what was written.
-		return bindings.length === 0 ? vec(...elements) : letBlock(bindings, vec(...elements))
+		return vec(...elements)
 	}
 
 	// --- {...} — record / let-block ------------------------------------------
@@ -506,7 +506,7 @@ class Parser {
 				optional.add(name)
 			}
 			this.expect(':')
-			entries.push([name, this.expression()])
+			entries.push([name, this.element()])
 		}
 		this.advance() // '}'
 		return new RecordAST(entries, optional.size > 0 ? optional : undefined)
@@ -525,7 +525,11 @@ class Parser {
 				this.peek(1).kind === '='
 			) {
 				const name = this.advance().value as string
-				this.advance() // '='
+				const equals = this.advance() // '='
+				if (this.peek().kind === 'identifier' && this.peek(1).kind === '=') {
+					throw this.error(this.peek(1), 'one expression has one name')
+				}
+				if (body !== null) throw this.error(equals, 'only the last entry of a let-block may go without a name')
 				bindings.push([name, this.expression()])
 				continue
 			}
@@ -535,16 +539,7 @@ class Parser {
 					'a let-block may have at most one trailing expression'
 				)
 			}
-			const opensVector = this.peek().kind === '['
 			body = this.expression()
-			// A vector's names are bound with the rest of the block: order means nothing, here or there.
-			if (opensVector && body.kind === 'let') {
-				const inner = body
-				if (!inner.bindings.some(([name]) => bindings.some(([bound]) => bound === name))) {
-					bindings.push(...inner.bindings.map(([name, value]): [string, AST] => [name, value]))
-					body = inner.body
-				}
-			}
 		}
 		this.advance() // '}'
 		// `{()}` is how an empty let-block is written: it has no body, as `{a = 1}` has none.

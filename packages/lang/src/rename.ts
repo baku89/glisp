@@ -4,7 +4,7 @@
  */
 
 import { desugar } from './desugar.js'
-import { childAt, isKeySegment, keyOfSegment } from './eval.js'
+import { childAt, isKeySegment, keyOfSegment, namedChildrenOf } from './eval.js'
 import { parse } from './parse.js'
 import {
 	AccessAST,
@@ -177,6 +177,11 @@ function referredAs(
 				? { ast: sugar, parent: outer }
 				: outer
 		const inside: Scope = { ast: node, parent: scope }
+		// What has a name in a vector, a call or a record is seen from all that is in it.
+		const here =
+			node.kind === 'call' || node.kind === 'vec' || node.kind === 'record'
+				? within(names, namedChildrenOf(node).map(([name]) => name))
+				: names
 
 		switch (node.kind) {
 			case 'sym':
@@ -190,22 +195,22 @@ function referredAs(
 				return renamePath(node, scope)
 			case 'call':
 				return new CallAST(
-					go(node.head, names, inside),
-					node.args.map(arg => go(arg, names, inside)),
+					go(node.head, here, inside),
+					node.args.map(arg => go(arg, here, inside)),
 					node.kwargs === undefined
 						? undefined
 						: new Map(
-								[...node.kwargs].map(([k, v]) => [k, go(v, names, inside)])
+								[...node.kwargs].map(([k, v]) => [k, go(v, here, inside)])
 							)
 				)
 			case 'vec':
-				return new VecAST(node.elements.map(e => go(e, names, inside)))
+				return new VecAST(node.elements.map(e => go(e, here, inside)))
 			case 'record':
 				return new RecordAST(
 					node.fields.map(field =>
 						'kind' in field
-							? new SpreadAST(go(field.expr, names, inside))
-							: ([field[0], go(field[1], names, inside)] as const)
+							? new SpreadAST(go(field.expr, here, inside))
+							: ([field[0], go(field[1], here, inside)] as const)
 					),
 					node.optional
 				)

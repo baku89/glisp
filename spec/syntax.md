@@ -254,15 +254,16 @@ The last-wins rule keeps the language consistent with hosts whose serialization 
 
 A bare name is looked up by going up from where it is written, one node at a time, and at each among the names of what is directly in it. The nearest wins. Every node is looked in the same way, so there is one kind of name, and a let-block is only a node every entry of which has a name, but the last. A path reaches what has a name too (see [Path](#path-----and-)).
 
+<!-- test -->
 ```glisp
 [a = 1 b = 2]                  ;; → [1 2]
 [a = 1 (+ a 1)]                ;; → [1 2]
 (+ a = 1 a)                    ;; → 2
 {x: c = 10 y: (* c 2)}         ;; → {x: 10 y: 20}
-{c = 1 [c = 10 c]}             ;; → [10 10], the nearer c
-{x = 10 y = (+ x = 2 (* x 3))}        ;; → 8: x is the 2, named in the call nearer to it
-{x = 10 y = (+ x = 2 (* ../../x 3))}  ;; → 32: ./ is (* ...), ../ is (+ ...), ../../ the block
-[c = 10 (+ ../c 1)]            ;; a path reaches it too: ./ is the call, ../ the vector → [10 11]
+{c = 1 [c = 10 c]}             ;; → [10 10]  the nearer c
+{x = 10 y = (+ x = 2 (* x 3))}        ;; → 8  x is the 2, named in the call nearer to it
+{x = 10 y = (+ x = 2 (* ../../x 3))}  ;; → 32  ./ is (* ...), ../ is (+ ...), ../../ the block
+[c = 10 (+ ../c 1)]            ;; → [10 11]  a path reaches it too: ./ is the call, ../ the vector
 ```
 
 A key is not a name. A parameter's name is the callee's, and it is not in scope at the call: in `(circle center: [0 0] radius: center)`, `center` is not the argument, but whatever `center` is around the call.

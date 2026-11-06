@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, buildPrelude, fromOlderSyntax, LetAST, parse, print, type TypeValue } from '@glisp/lang'
+import { type AST, buildPrelude, LetAST, parse, print, type TypeValue, VecAST } from '@glisp/lang'
 import {
 	AstEditor,
 	AstMultiInspector,
@@ -10,7 +10,7 @@ import {
 } from '@glisp/tweeq'
 import { combined, type Filter, filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { copiedBySlotCommand, copiedRows, reach, slotCommandAt, withBlanks, withSlotCommand } from '@glisp/tweeq/rowsClipboard'
-import { layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
+import { ARTBOARD, layersOf, renameBindingAt, withLayerAdded, SLOT_COMMANDS, type SlotCommand, slotCommandOfKey } from '@glisp/tweeq/structure'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import type { mat2d } from 'linearly'
 import { App as TqApp } from 'tweeq/App'
@@ -94,7 +94,7 @@ watchEffect(() => {
 
 const EXAMPLE = `{
   radius = 60
-  [
+  artboard = [
     c = (path.circle [240 200] radius)
     r = (path.rect [360 140] [160 120])
     axes1 = (axes)
@@ -112,8 +112,9 @@ const NEW_SKETCH = `{
   gap = 20
   ring = (path.circle [0 0] size)
 
-  ; The vector is the sketch. What comes first is in front, and on top in Project.
-  [
+  ; What it draws is the artboard, which is what it comes to. What comes first is in front,
+  ; and on top in Project.
+  artboard = [
     ; A vector with names in it is a group, which goes on the canvas as one.
     marks = [
       left = (style (path.circle [-60 0] 16) fill: "#ffffff")
@@ -124,7 +125,7 @@ const NEW_SKETCH = `{
     disc = (style ring fill: "#1473e6")
     halo = (style (path.offset ring gap) stroke: "#1473e6" width: 2)
 
-    ; A name lets the rest of it refer to this, from anywhere.
+    ; A name lets the rest of it refer to this, by its name in here, or by a path from anywhere.
     plate = (style (path.rect [-200 -200] [400 400]) fill: "#f0ece2")
 
     ; These are layers like the rest: moved to the front, they cover what is behind.
@@ -144,7 +145,7 @@ const STORAGE_KEY = 'glisp.canvas.source'
  */
 const graphicsEnv = withGraphics(buildPrelude())
 function fromBefore(source: string): string {
-	const written = fromOlderSyntax(writtenAsNow(source), graphicsEnv)
+	const written = writtenAsNow(source)
 	try {
 		return print(withLayersFromOrder(parse(written), graphicsEnv))
 	} catch {
@@ -358,7 +359,7 @@ function readFile(text: string): { readonly root: LetAST; readonly whole: boolea
 }
 
 const blankProgram = (): LetAST =>
-	withLayerAdded(withLayerAdded(new LetAST([], null), 'graphPaper1', graphPaperCall('dots')) as LetAST, 'axes1', axesCall(), 0) as LetAST
+	withLayerAdded(withLayerAdded(new LetAST([[ARTBOARD, new VecAST([])]], null), 'graphPaper1', graphPaperCall('dots')) as LetAST, 'axes1', axesCall(), 0) as LetAST
 
 const files = useFileTabs({
 	document,

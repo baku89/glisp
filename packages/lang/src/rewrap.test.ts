@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { path } from './build.js'
+import { named, path } from './build.js'
 import { check } from './check.js'
 import { evaluate, pushLetFrame } from './eval.js'
 import { infer } from './infer.js'
@@ -8,7 +8,8 @@ import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
 import { renameBinding } from './rename.js'
-import { shortestPath, withoutCall, withPathsInto, withPathsMoved } from './rewrap.js'
+import { shortestPath, withoutCall, withPathsFollowed, withPathsInto, withPathsMoved } from './rewrap.js'
+import { VecAST } from './types.js'
 import { Runtime } from './runtime.js'
 import { type AST, CallAST, LetAST, MetaAST, PathAST, withoutMeta } from './types.js'
 
@@ -193,5 +194,23 @@ describe('paths from the root', () => {
 		expect(pick(path('..', '..', 'a'), path('/', 'a'))).toBe('/a')
 		expect(pick(path('..', 'a'), path('/', 'g', 'a'))).toBe('../a')
 		expect(pick(path('..', 'a', 'b'), path('/', 'ggg', 'b'))).toBe('../a/b')
+	})
+})
+
+describe('withPathsFollowed', () => {
+	const env = buildPrelude()
+
+	it('has a path reach what it reached, after what holds it moved', () => {
+		const before = parse('[a = 1 b = [../a]]') as VecAST
+		const [a, b] = before.elements
+		const after = new VecAST([named('g', new VecAST([b!])), a!])
+		const followed = withPathsFollowed(before, after, env)
+		expect(print(followed)).toBe('[g = [b = [/a]] a = 1]')
+		expect(evaluate(followed, env).value).toEqual([[[1]], 1])
+	})
+
+	it('leaves what still reaches it, and what reached nothing', () => {
+		const before = parse('[a = 1 b = ../nope c = ./a]')
+		expect(withPathsFollowed(before, before, env)).toBe(before)
 	})
 })

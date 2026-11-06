@@ -6,6 +6,7 @@
  */
 
 import { type AST, type Env, evaluate, LetAST, lit, parse, print, readByName } from '@glisp/lang'
+import { layersOf } from '@glisp/tweeq/structure'
 
 import { NO_PAINT, type Paint } from './graphics'
 import { paintAt, SHAPE_ATTRIBUTES, type ShapeAttributes, withPaint } from './scene'
@@ -60,7 +61,7 @@ export function loadedSource(kept: string | null | undefined): string {
 	if (!kept) return FIRST_SOURCE
 	try {
 		const ast = parse(kept)
-		return ast.kind === 'let' && ast.body?.kind === 'vec' && ast.bindings.some(([name]) => name === 'paint')
+		return ast.kind === 'let' && ast.body?.kind === 'vec' && layersOf(ast).includes('paint')
 			? kept
 			: FIRST_SOURCE
 	} catch {

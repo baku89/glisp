@@ -11,7 +11,8 @@
  */
 
 import { desugar } from './desugar.js'
-import { childAt, enterNode, isKeySegment, keySegment, lookupBareName, rootFrame, typeFits } from './eval.js'
+import { childAt, enterNode, isKeySegment, keySegment, lookupBareName, namedChildrenOf, pathTarget, readByName, rootFrame, typeFits } from './eval.js'
+import { childrenOf, withReplaced } from './naming.js'
 import { expectedTypeAt } from './expectedType.js'
 import { callParameters, infer } from './infer.js'
 import {
@@ -144,7 +145,7 @@ export function shortestPath(first: PathAST, ...others: readonly PathAST[]): Pat
  * The names a path from the root goes by to reach `frame`'s node, or null if no path
  * reaches it, as nothing does inside a function.
  */
-function fromRootTo(frame: Env): Segments | null {
+export function fromRootTo(frame: Env): Segments | null {
 	const root = rootFrame(frame)
 	const levels: Array<Segments[number]> = []
 	for (let at = frame; at !== root; at = at.parent) {
@@ -161,6 +162,9 @@ function levelOf(frame: NonNullable<Env>, node: AST): Segments[number] | null {
 	const holder = withoutMeta(frame.ast)
 	const is = (child: AST | undefined) => child !== undefined && withoutMeta(child) === node
 	if (holder.kind === 'let') return holder.bindings.find(([, value]) => is(value))?.[0] ?? null
+	// What has a name is reached by it, wherever it goes in what it is in.
+	const given = namedChildrenOf(holder).find(([, value]) => is(value))?.[0]
+	if (given !== undefined) return given
 	if (holder.kind === 'vec') {
 		const index = holder.elements.findIndex(is)
 		return index === -1 ? null : index
@@ -175,6 +179,73 @@ function levelOf(frame: NonNullable<Env>, node: AST): Segments[number] | null {
 	for (const [name, value] of holder.kwargs ?? []) if (is(value)) return keySegment(name)
 	const name = callParameters(holder, frame)?.names[holder.args.findIndex(is)]
 	return name === undefined ? null : keySegment(name)
+}
+
+/**
+ * The frame each node of `root` stands in, where it is written: the frame of what holds it.
+ * Not inside a function, which a path cannot go into.
+ */
+function framesIn(root: AST, env: Env): Map<AST, Env> {
+	const frames = new Map<AST, Env>()
+	const go = (ast: AST, frame: Env): void => {
+		frames.set(ast, frame)
+		const node = withoutMeta(ast)
+		if (node !== ast) frames.set(node, frame)
+		if (node.kind === 'fn') return
+		const isLevel = node.kind === 'let' || node.kind === 'vec' || node.kind === 'call' || node.kind === 'record'
+		const inner = isLevel ? enterNode(node, frame) : frame
+		for (const child of childrenOf(node)) go(child, inner)
+	}
+	go(root, env)
+	return frames
+}
+
+/**
+ * `after`, an edit of `before`, with each path that reached something there reaching it here
+ * too, wherever either of them went: by the shortest of a relative path and one from the root.
+ * What it reached has to be in `after` still, as the same node. A path that reaches it already,
+ * or reached nothing, stays as it is. See host-api.md (Editing).
+ */
+export function withPathsFollowed(before: AST, after: AST, env: Env): AST {
+	const framesBefore = framesIn(before, env)
+	const framesAfter = framesIn(after, env)
+	const reached = new Map<AST, AST>()
+	for (const [ast, frame] of framesBefore) {
+		if (ast.kind !== 'path') continue
+		const target = pathTarget(ast.segments, frame)
+		if (!('message' in target)) reached.set(ast, withoutMeta(target.ast))
+	}
+	const byNode = new Map<AST, AST>()
+	for (const ast of framesAfter.keys()) if (!byNode.has(withoutMeta(ast))) byNode.set(withoutMeta(ast), ast)
+	const replaced = new Map<AST, AST>()
+	for (const [ast, frame] of framesAfter) {
+		if (ast.kind !== 'path') continue
+		const target = reached.get(ast)
+		if (target === undefined) continue
+		const landsOn = (path: PathAST) => {
+			const landed = pathTarget(path.segments, frame)
+			return !('message' in landed) && withoutMeta(landed.ast) === target
+		}
+		if (landsOn(ast)) continue
+		const there = byNode.get(target)
+		const holder = there === undefined ? undefined : framesAfter.get(there)
+		if (there === undefined || holder === undefined || holder === null) continue
+		const above = fromRootTo(holder)
+		const last = levelOf(holder, target)
+		if (above === null || last === null) continue
+		const levels = [...above, last]
+		const candidates: PathAST[] = [new PathAST(['/', ...levels])]
+		let climbs = 0
+		for (let at: Env = frame; at !== null; at = at.parent, climbs++) {
+			const from = fromRootTo(at)
+			if (from === null || from.length > levels.length || !from.every((level, i) => level === levels[i])) continue
+			candidates.unshift(new PathAST([...new Array<'..'>(climbs).fill('..'), ...levels.slice(from.length)]))
+			break
+		}
+		const [first, ...others] = candidates.filter(landsOn)
+		if (first !== undefined) replaced.set(ast, shortestPath(first, ...others))
+	}
+	return withReplaced(after, replaced)
 }
 
 /**
@@ -281,7 +352,8 @@ export function withPathsInto(root: AST, env: Env, call: CallAST): AST {
 		for (let at = frame; at !== null; at = at.parent) {
 			const { ast } = at
 			if (ast.kind === 'fn' && ast.params.some(p => p.name === name.name)) return name
-			if (ast.kind === 'let' && ast.bindings.some(([, value]) => value === target.ast)) {
+			// Where it is given its name: a binding, or what has one in a vector, a call or a record.
+			if (namedChildrenOf(ast).some(([, value]) => value === target.ast || readByName(value) === target.ast)) {
 				const relative = new PathAST([...climbs, name.name, keySegment(parameter)])
 				const levels = fromRootTo(at)
 				return levels === null

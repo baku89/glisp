@@ -3,9 +3,9 @@
  * that goes unsaid.
  */
 
-import { type AST, type Env, lex, LetAST, parse, print } from '@glisp/lang'
+import { type AST, type Env, lex, LetAST, nameOf, parse, print, unnamed } from '@glisp/lang'
 
-import { layersOf, viewOf, type Slot } from './structure'
+import { layersVectorOf, viewOf, type Slot } from './structure'
 
 /** How far in the line that `ast` starts on is, where it was written. */
 function indentWritten({ source }: AST): number | null {
@@ -41,18 +41,19 @@ function printedAt(ast: AST, indent: number): string {
 
 /** What is only bound, a binding to a line, and then what the program's vector holds, one to a line. */
 export function sourceOfProgram(root: LetAST): string {
-	const held = new Set(layersOf(root))
+	const layered = layersVectorOf(root)
 	const lines = root.bindings
-		.filter(([name]) => !held.has(name))
+		.filter(([name]) => layered === null || layered.name !== name)
 		.map(([name, value]) => `${name} = ${printedAt(value, 0)}`)
-	if (root.body?.kind !== 'vec') return lines.join('\n')
-	const said = new Set<string>()
-	const elements = root.body.elements.map(element => {
-		if (element.kind !== 'sym' || !held.has(element.name) || said.has(element.name)) return printedAt(element, 2)
-		said.add(element.name)
-		return `${element.name} = ${printedAt(root.bindings.find(([name]) => name === element.name)![1], 2)}`
+	if (layered === null) {
+		return root.body === null ? lines.join('\n') : [...lines, printedAt(root.body, 0)].join('\n')
+	}
+	const elements = layered.vector.elements.map(element => {
+		const name = nameOf(element)
+		return name === null ? printedAt(element, 2) : `${name} = ${printedAt(unnamed(element), 2)}`
 	})
-	return [...lines, elements.length === 0 ? '[]' : `[\n${elements.map(line => `  ${line}`).join('\n')}\n]`].join('\n')
+	const vector = elements.length === 0 ? '[]' : `[\n${elements.map(line => `  ${line}`).join('\n')}\n]`
+	return [...lines, layered.name === null ? vector : `${layered.name} = ${vector}`].join('\n')
 }
 
 export type ProgramReading =
