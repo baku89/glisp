@@ -483,9 +483,13 @@ describe('several rows at once', () => {
 		expect(isMixed(field(1, 1).values)).toBe(false)
 	})
 
-	it('are nothing in common unless they are calls of the same', () => {
+	it('are nothing in common unless they are calls of the same, or come to the same kind of numbers', () => {
 		expect(inspectRows(parse('{a = (path.rect [0 0] [1 1]) b = (path.circle [0 0] 1)}'), env, rows)).toBeNull()
-		expect(inspectRows(parse('{a = 1 b = 2}'), env, rows)).toBeNull()
+		expect(inspectRows(parse('{a = 1 b = [2 3]}'), env, rows)).toBeNull()
+		// Numbers, however written, are numbers to edit together, and vectors of as many are their numbers.
+		expect(inspectRows(parse('{a = 1 b = (+ 1 1)}'), env, rows)!.args[0]!.fields[0]!.values).toEqual([1, 2])
+		const vectors = inspectRows(parse('{a = [1 2] b = [3 4]}'), env, rows)!
+		expect(vectors.args[0]!.fields.map(field => field.values)).toEqual([[1, 3], [2, 4]])
 	})
 
 	it('have numbers as well as vectors', () => {

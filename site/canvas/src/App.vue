@@ -529,11 +529,11 @@ const paintOfSelected = computed(() =>
 const paintable = computed(() =>
 	about.value.flatMap(row => rowsPaintedBy(document.root.value, document.env.value, row)).filter(row => {
 		const [root, env] = [document.root.value, document.env.value]
-		// A part of what a row is written as, such as a number, has no fill or line unless it is a path.
-		const isPart = !row.split('/').every(key => /^(binding|element):/.test(key))
 		// What holds many, each with a color of its own, has nothing to say of them as one.
 		if (Array.isArray(valueOfRow(root, env, row))) return false
-		return !isOfCanvasAt(root, env, row) && (!isPart || pathOfRow(root, env, row) !== null)
+		// Only a path has a fill or a line, whether it is a row of its own or a part of one: a number
+		// has none, however it is bound.
+		return !isOfCanvasAt(root, env, row) && pathOfRow(root, env, row) !== null
 	})
 )
 

@@ -17,6 +17,7 @@ import {
 	MetaAST,
 	pathTarget,
 	print,
+	readByName,
 	mergeBindingIn,
 	solve,
 	SymAST,
@@ -148,7 +149,7 @@ export function inspectRows(
 ): MultiInspection | null {
 	const rows = paths.map(path => argsOf(root, env, path))
 	const [first] = rows
-	if (!first || rows.some(row => row === null || row.fn !== first.fn)) return null
+	if (!first || rows.some(row => row === null || row.fn !== first.fn)) return inspectValues(root, env, paths)
 	const others = rows as NonNullable<(typeof rows)[number]>[]
 	const placesOf = (key: string, element: number | null): Place[] =>
 		paths.map(path => ({ path: `${path}/${key}`, element }))
@@ -199,6 +200,44 @@ export function inspectRows(
 		]
 	})
 	return { fn: first.fn, label: first.label, icon: first.icon, doc: first.doc, args }
+}
+
+/**
+ * What the rows at `paths` have in common as what they come to, where they are not calls of one
+ * thing: numbers, or vectors of as many numbers, however each is written. Null if they are not.
+ */
+function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInspection | null {
+	const slots = paths.map(path => reach(root, env, path)?.chain.at(-1))
+	if (slots.length < 2 || slots.some(slot => slot === undefined)) return null
+	const all = slots as Slot[]
+	const values = all.map(slot => evaluate(readByName(slot.ast), slot.env).value)
+	const placesOf = (element: number | null): Place[] => paths.map(path => ({ path, element }))
+	const written = all.every(slot => !isWorkedOut(slot, null))
+	if (values.every(value => typeof value === 'number')) {
+		const field: MultiField = {
+			places: placesOf(null),
+			label: null,
+			name: 'value',
+			options: numberOptionsAt(all[0]!),
+			values: values as number[],
+			canExtract: written,
+			workedOut: howWorkedOut(all, null),
+		}
+		return { fn: '', label: 'Numbers', icon: null, doc: null, args: [{ label: 'Value', fields: [field] }] }
+	}
+	const length = isNumbers(values[0]) ? values[0].length : 0
+	if (length === 0 || !values.every(value => isNumbers(value) && value.length === length)) return null
+	const areWritten = all.every(slot => bare(slot.ast).kind === 'vec')
+	const fields = Array.from({ length }, (_, element): MultiField => ({
+		places: placesOf(element),
+		label: null,
+		name: `value${element}`,
+		options: elementOptionsOf(all[0]!.expected, element),
+		values: (values as number[][]).map(value => value[element]!),
+		canExtract: areWritten,
+		workedOut: howWorkedOut(all, element),
+	}))
+	return { fn: '', label: 'Vectors', icon: null, doc: null, args: [{ label: 'Value', fields }] }
 }
 
 function elementTitle(slot: Slot, element: number): string | null {
