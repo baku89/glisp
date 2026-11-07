@@ -128,7 +128,7 @@ Size = (| number [number number])
 ^Size "big"         ;; → 0   (default = the first member's)
 ```
 
-`^T v` is the prefix form of the `v: T` annotation. A bare `(T v)` is rejected with a hint pointing to it.
+`^T v` says what `v` is to be. Calling a type makes a value of it: `(Point x: 1)` is `{x: 1 y: 0}` for `Point = {x: number y: number}`, and `(number "a")` is `0`, as `^number "a"` is.
 
 ## Pattern match: `?`
 

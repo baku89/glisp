@@ -23,6 +23,10 @@ import {
 	isTypedHostFn,
 	type TypedHostFn,
 	UNSET,
+	isTypeValue,
+	type TypeValue,
+	unwrapLazy,
+	writtenTypeOf,
 	lookupBareName,
 	pathTarget,
 	pushLetFrame,
@@ -202,6 +206,8 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 			if (head.ast.body === null) return stop(ast, at, 'has no body')
 			return next(head.ast.body, bodyEnv(head, ast, inside), wanted)
 		}
+		const made = isTypeValue(head) && head.apply === undefined ? head : writtenTypeOf(ast.head, inside)
+		if (made !== null) return backConstruct(ast, at, inside, made, wanted, next)
 		const inverse = isTypedHostFn(head) ? head.inverse : undefined
 		if (inverse === undefined) return stop(ast, at, 'has no way back')
 
@@ -219,6 +225,47 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 			if (edits !== null) return edits
 		}
 		return stop(ast, at, 'no argument can make that value')
+	}
+
+	/**
+	 * A value made by calling its type goes back to what it is made of: each element of a tuple to
+	 * what was given for it, each field of a record likewise, and one value to the one given. What
+	 * was not given is the default, and stays so.
+	 */
+	const backConstruct = (
+		ast: CallAST,
+		at: Env,
+		inside: Env,
+		type: TypeValue,
+		wanted: unknown,
+		next: (child: AST, childEnv: Env, childWanted: unknown) => Edits | null
+	): Edits | null => {
+		const given = ast.args
+		const current = evaluate(ast, at).value
+		const whole = given.length === 1 && ast.kwargs === undefined && type.fits(evaluate(given[0]!, inside).value)
+		if (whole) return next(given[0]!, inside, wanted)
+		const { shape } = unwrapLazy(type)
+		const parts = shape.kind === 'refine' ? unwrapLazy(shape.base).shape : shape
+		if (parts.kind === 'tuple' || parts.kind === 'vector') {
+			if (!Array.isArray(wanted) || !Array.isArray(current) || wanted.length !== current.length) {
+				return stop(ast, at, 'cannot become a value of another shape')
+			}
+			if (wanted.slice(given.length).some((part, i) => !same(current[given.length + i], part))) {
+				return stop(ast, at, 'has nothing written for what would change')
+			}
+			return merge(given.map((arg, i) => next(arg, inside, wanted[i])))
+		}
+		if (parts.kind === 'record') {
+			if (!isRecord(wanted) || !isRecord(current)) return stop(ast, at, 'cannot become a value of another shape')
+			const keys = [...parts.fields.keys()]
+			const edits = keys.map((key, i) => {
+				const arg = ast.kwargs?.get(key) ?? given[i]
+				if (arg !== undefined) return next(arg, inside, wanted[key])
+				return same(current[key], wanted[key]) ? NOTHING : null
+			})
+			return edits.includes(null) ? stop(ast, at, 'has nothing written for what would change') : merge(edits)
+		}
+		return given.length === 1 ? next(given[0]!, inside, wanted) : stop(ast, at, 'has nothing to change')
 	}
 
 	/** What an inverse says, one that fails on what it is given having nothing to say. */

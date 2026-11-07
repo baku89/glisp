@@ -35,6 +35,7 @@ import {
 	makeRecordType,
 	makeTupleType,
 	makeUnionType,
+	writtenTypeOf,
 	derivedFrom,
 	makeLiteralType,
 	omittable,
@@ -244,6 +245,18 @@ function applicationSlot(ast: CallAST, env: Env): TypeValue | null {
 	if (head.apply === undefined) return null
 	const result = head.apply(typeArgs)
 	return 'error' in result ? null : result
+}
+
+/**
+ * The type a call of `head` makes a value of, if `head` is a name of a type that takes no types:
+ * one a host gives, or one written as a vector, a record, a union or a derived type.
+ */
+function constructedBy(head: AST, env: Env): TypeValue | null {
+	// A vector of any length is written as one that takes the type of its elements, as `(vector T)`
+	const written = writtenTypeOf(head, env)
+	if (written !== null) return written.shape.kind === 'function' ? null : written
+	const type = head.kind === 'sym' ? bareTypeOf(head.name, env) : null
+	return type === null || type.apply !== undefined || type.shape.kind === 'function' ? null : type
 }
 
 function bareTypeOf(name: string, env: Env): TypeValue | null {
@@ -754,6 +767,10 @@ export function checkCall(
 
 	const overload = overloadOf(ast.head, inside)
 	if (overload !== null) return overloadReturnType(overload, ast, inside)
+
+	// A type that takes no types makes a value of it
+	const made = constructedBy(ast.head, inside)
+	if (made !== null) return made
 
 	const head = infer(ast.head, inside)
 	if (head === null) return null

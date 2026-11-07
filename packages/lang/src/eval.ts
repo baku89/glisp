@@ -1030,8 +1030,119 @@ export function isIO(v: unknown): v is IO {
 export { lookupBareName }
 
 // -----------------------------------------------------------------------------
-// Type-value head: parametric apply, or reject with `^T v` hint
+// Type-value head: parametric apply, or a value of it made of what is given
 // -----------------------------------------------------------------------------
+
+/**
+ * The type a name stands for when it is called, if it is bound to one that is written as a vector
+ * or a record of types, `[number number]` or `{x: number}`, or as a union of them. What is written
+ * of values, as `[1 2]`, is not one.
+ */
+export function writtenTypeOf(head: AST, env: Env): TypeValue | null {
+	if (head.kind !== 'sym') return null
+	const target = lookupBareName(head.name, env)
+	if (target === null) return null
+	const inner = target.ast.kind === 'meta' ? target.ast.expr : target.ast
+	const parts =
+		inner.kind === 'vec'
+			? inner.elements
+			: inner.kind === 'record'
+				? inner.fields.map(field => ('kind' in field ? field : field[1]))
+				: inner.kind === 'call' && inner.head.kind === 'sym' && (inner.head.name === '|' || inner.head.name === ':')
+					? [inner]
+					: null
+	if (parts === null || parts.length === 0) return null
+	const bare = (part: AST): AST => (part.kind === 'spread' ? bare(part.expr) : part.kind === 'meta' ? bare(part.expr) : part)
+	if (parts.some(part => bare(part).kind === 'lit')) return null
+	return resolveTypeSlot(head, env)
+}
+
+/**
+ * `(T ...)` for a type that takes no types: a value of it, made of what is given. A tuple takes
+ * its elements in order, a record its fields by name or in order, and any other type one value,
+ * as `^T v` does. What is not given is its default, and what does not fit comes to it, with a
+ * diagnostic. One argument that is a whole value of the type already is taken as it is.
+ */
+function construct(
+	type: TypeValue,
+	positional: ReadonlyArray<AST>,
+	kwargs: ReadonlyMap<string, AST> | undefined,
+	env: Env,
+	site: AST,
+	diagnostics: Diagnostic[]
+): EvalResult {
+	const values = positional.map(argAst => {
+		const r = evaluate(argAst, env)
+		push(diagnostics, r.diagnostics)
+		return r.value
+	})
+	const named = new Map(
+		[...(kwargs ?? [])].map(([key, argAst]) => {
+			const r = evaluate(argAst, env)
+			push(diagnostics, r.diagnostics)
+			return [key, r.value] as const
+		})
+	)
+	const fitted = (t: TypeValue, v: unknown, at: AST): unknown => {
+		if (v === UNIT) return t.default
+		if (t.fits(v)) return v
+		diagnostics.push(diag(at, env, `${t.typeName} doesn't accept ${describeType(v)} value`))
+		return t.default
+	}
+	if (values.length === 1 && named.size === 0 && type.fits(values[0])) {
+		return { value: values[0], diagnostics }
+	}
+
+	const made = (t: TypeValue): unknown => {
+		const { shape } = unwrapLazy(t)
+		switch (shape.kind) {
+			case 'refine':
+				return fitted(t, made(shape.base), site)
+			case 'tuple':
+			case 'vector': {
+				if (named.size > 0) diagnostics.push(diag(site, env, `${t.typeName} takes its elements in order`))
+				const elements = shape.kind === 'tuple' ? shape.elements : []
+				const rest = shape.kind === 'tuple' ? shape.rest : shape.element
+				if (rest === undefined && values.length > elements.length) {
+					diagnostics.push(diag(site, env, `${t.typeName} has ${elements.length} elements`))
+				}
+				const out = elements.map((element, i) =>
+					i < values.length ? fitted(element, values[i], positional[i]!) : element.default
+				)
+				if (rest !== undefined) {
+					for (let i = elements.length; i < values.length; i++) out.push(fitted(rest, values[i], positional[i]!))
+				}
+				return out
+			}
+			case 'record': {
+				const keys = [...shape.fields.keys()]
+				if (values.length > keys.length) diagnostics.push(diag(site, env, `${t.typeName} has ${keys.length} fields`))
+				for (const key of named.keys()) {
+					if (!shape.fields.has(key)) diagnostics.push(diag(kwargs!.get(key)!, env, `${t.typeName} has no field ${key}`))
+				}
+				const out: Record<string, unknown> = {}
+				keys.forEach((key, i) => {
+					const field = shape.fields.get(key)!
+					const byName = named.has(key)
+					if (!byName && i >= values.length) {
+						// What can be left out is, and anything else is what it is at first
+						if (!shape.optional.has(key)) out[key] = field.default
+						return
+					}
+					out[key] = fitted(field, byName ? named.get(key) : values[i], byName ? kwargs!.get(key)! : positional[i]!)
+				})
+				return out
+			}
+			case 'function':
+				diagnostics.push(diag(site, env, `${t.typeName} is made by writing a function, as (=> [x: number] x)`))
+				return t.default
+			default:
+				if (values.length + named.size > 1) diagnostics.push(diag(site, env, `${t.typeName} takes one value`))
+				return values.length === 0 ? t.default : fitted(t, values[0], positional[0]!)
+		}
+	}
+	return { value: made(type), diagnostics }
+}
 
 function evalTypeApply(
 	head: TypeValue,
@@ -1041,16 +1152,7 @@ function evalTypeApply(
 	site: AST,
 	diagnostics: Diagnostic[]
 ): EvalResult {
-	if (head.apply === undefined) {
-		diagnostics.push(
-			diag(
-				site,
-				env,
-				`${head.typeName} is a type — use ^${head.typeName} v for coercion`
-			)
-		)
-		return { value: UNIT, diagnostics }
-	}
+	if (head.apply === undefined) return construct(head, positional, kwargs, env, site, diagnostics)
 	const typeArgs: TypeValue[] = []
 	for (const argAst of positional) {
 		// An argument is a type slot, so that `[T U]` and `{x: T}` are types there.
@@ -1770,6 +1872,13 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	// non-parametric ones reject with a hint to use `^T v`.
 	if (isTypeValue(headValue)) {
 		return evalTypeApply(headValue, positional, kwargs, inside, ast, diagnostics)
+	}
+	// A vector or a record of types is a type, as where a type is wanted, and makes a value of it
+	const written = writtenTypeOf(ast.head, inside)
+	if (written !== null) {
+		// What it is bound to is a type, and not a value that would fail to be worked out as one
+		diagnostics.splice(0, headResult.diagnostics.length)
+		return construct(written, positional, kwargs, inside, ast, diagnostics)
 	}
 
 	// Vector → element access by integer index.

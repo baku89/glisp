@@ -382,3 +382,19 @@ describe('solve — a path into what is pinned', () => {
 		expect(ast && print(ast)).toBe('{z = [@1 5] r = ./z/1}')
 	})
 })
+
+describe('solve — a value its type makes', () => {
+	it('goes back to what it is made of', () => {
+		expect(edited('{V = [number number] r = (V 1 2) r}', [5, 6])).toBe('{V = [number number] r = (V 5 6) r}')
+		expect(edited('{P = {x: number y: number} r = (P x: 1 y: 2) r}', { x: 3, y: 2 })).toBe(
+			'{P = {x: number y: number} r = (P x: 3 y: 2) r}'
+		)
+		expect(edited('{r = (number 1) r}', 4)).toBe('{r = (number 4) r}')
+		expect(edited('{V = [number number] r = (V [1 2]) r}', [3, 4])).toBe('{V = [number number] r = (V [3 4]) r}')
+	})
+
+	it('cannot change what was not written', () => {
+		expect(reason('{V = [number number] r = (V 1) r}', [1, 5])).toContain('nothing written')
+		expect(edited('{V = [number number] r = (V 1) r}', [7, 0])).toBe('{V = [number number] r = (V 7) r}')
+	})
+})

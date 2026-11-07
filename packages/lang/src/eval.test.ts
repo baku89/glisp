@@ -545,11 +545,13 @@ describe('evaluate — type values (cast & match)', () => {
 		expect(evaluate(parse('^string 42'), envWithTypes()).value).toBe('')
 	})
 
-	it('(T v) is rejected with a hint to use ^T v', () => {
-		const r = evaluate(parse('(number 42)'), envWithTypes())
-		expect(
-			r.diagnostics.some(d => d.message.includes('^number v'))
-		).toBe(true)
+	it('(T v) makes a value of T, as ^T v does for one that has no parts', () => {
+		const env = envWithTypes()
+		expect(evaluate(parse('(number 42)'), env).value).toBe(42)
+		expect(evaluate(parse('(number)'), env).value).toBe(0)
+		const wrong = evaluate(parse('(number "a")'), env)
+		expect(wrong.value).toBe(0)
+		expect(wrong.diagnostics.map(d => d.message)).toEqual(["number doesn't accept string value"])
 	})
 
 	it('? matches a type pattern with cast (no default consumed)', () => {
@@ -1554,5 +1556,51 @@ describe('(: T ...) and ^T v', () => {
 	it('writes a record type after ^ in (: ...), as ^{ is metadata', () => {
 		expect(coerce(lit(1), parse('{x: number}')).print()).toBe('^(: {x: number}) 1')
 		expect(run('^(: {x: number}) {x: 1 y: 2}').value).toEqual({ x: 1, y: 2 })
+	})
+})
+
+describe('a type called', () => {
+	const env = buildPrelude()
+	const run = (src: string) => evaluate(parse(src), env)
+	const messages = (src: string) => run(src).diagnostics.map(d => d.message)
+
+	it('makes a tuple of its elements in order, what is not given being its default', () => {
+		expect(run('{V = [number number] (V 1 2)}').value).toEqual([1, 2])
+		expect(run('{V = [number number] (V 1)}').value).toEqual([1, 0])
+		expect(run('{V = [...number] (V 1 2 3)}').value).toEqual([1, 2, 3])
+		expect(run('{V = [...number] (V 1 2 3)}').diagnostics).toEqual([])
+		expect(run('{V = [number number] (V 1 "a")}').value).toEqual([1, 0])
+		expect(messages('{V = [number number] (V 1 2 3)}')).toEqual(['[number number] has 2 elements'])
+	})
+
+	it('takes one argument that is a whole value of it as it is', () => {
+		expect(run('{V = [number number] (V [3 4])}').value).toEqual([3, 4])
+	})
+
+	it('makes a record of its fields, by name or in order', () => {
+		expect(run('{P = {x: number y: number} (P x: 1)}').value).toEqual({ x: 1, y: 0 })
+		expect(run('{P = {x: number y: number} (P 1 2)}').value).toEqual({ x: 1, y: 2 })
+		expect(run('{P = {x: number y?: number} (P 5)}').value).toEqual({ x: 5 })
+		expect(messages('{P = {x: number} (P y: 1)}')).toEqual(['{x: number} has no field y'])
+	})
+
+	it('makes one value of anything else, which has to meet what a derived type asks', () => {
+		expect(run('{C = (| "a" "b") (C "b")}').value).toBe('b')
+		expect(run('{N = (: number #(>= % 0)) (N -1)}').value).toBe(0)
+		expect(run('{P = (: number min: 0) (P 5)}').value).toBe(5)
+	})
+
+	it('leaves what is written of values as it is, to be called as ever', () => {
+		expect(run('{xs = [1 2 3] (xs 0)}').value).toBe(1)
+		expect(run('{a = 1 b = 2 xs = [a b] (xs 1)}').value).toBe(2)
+	})
+
+	it('comes to the type it makes, for static analysis', () => {
+		const typeOf = (src: string) => infer(parse(src), env)?.typeName
+		expect(typeOf('{V = [number number] (V 1 2)}')).toBe('[number number]')
+		expect(typeOf('{P = {x: number y?: number} (P 5)}')).toBe('{x: number y?: number}')
+		expect(typeOf('{V = [...number] (V 1 2 3)}')).toBe('[...number]')
+		expect(typeOf('(number 5)')).toBe('number')
+		expect(typeOf('{xs = [1 2 3] (xs 0)}')).toBe('number')
 	})
 })

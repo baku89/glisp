@@ -120,7 +120,7 @@ All values are callable; the calling behavior is determined by the value's type:
 | Value type                  | `(value args...)`                |
 | --------------------------- | -------------------------------- |
 | Function                    | apply                            |
-| Type                        | rejected; use `^T v`          |
+| Type                        | a value of it, made of the arguments; see [types.md — Constructors](./types.md#constructors) |
 | vector                      | element access by integer index  |
 | Record                      | field access by string key       |
 | Other (number, string, ...) | type mismatch → default fallback |
@@ -499,7 +499,7 @@ The `|>` form interacts with `%` purely through this rule — a step like `#(+ 2
 ^number ()            ;; → 0  (default, silently)
 ```
 
-`^T v` is the **only** way to invoke the coerce/validate semantics on a type value. Calling a type value directly — `(number 42)` — is rejected with a diagnostic suggesting `^number 42`. See [types.md — Coercion](./types.md#coercion-t-v) for the full semantics.
+Calling a type of one value, as `(number 42)`, does the same, as its [constructor](./types.md#constructors) does. See [types.md — Coercion](./types.md#coercion-t-v) for the full semantics.
 
 ### Derived types — `(: T ...)`
 
