@@ -67,6 +67,19 @@ export function call(head: AST, ...args: ReadonlyArray<AST>): CallAST {
 	return new CallAST(head, args)
 }
 
+/** What a call of `^T v` is called: `v`, as a `T`. */
+export const COERCE = '^'
+
+/** `^T v`: `v` as a `T`, which is it if it fits, and what `T` gives otherwise. */
+export function coerce(value: AST, type: AST): CallAST {
+	return new CallAST(new SymAST(COERCE), [value, type])
+}
+
+/** Whether `ast` is `^T v`, under whatever is said of it. */
+export function isCoerce(ast: AST): ast is CallAST {
+	return ast.kind === 'call' && ast.head.kind === 'sym' && ast.head.name === COERCE && ast.args.length === 2
+}
+
 /**
  * Application with keyword arguments: `(head a b k1: v1 k2: v2)`.
  */

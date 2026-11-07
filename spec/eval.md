@@ -422,7 +422,7 @@ It goes down from the node to a literal, the only thing it changes:
 
 - A name goes to what it is bound to, and a path to what it lands on. Neither goes outside the root, so the prelude stays as it is.
 - A vector or a record goes into each element or field whose value differs, and `a.x` into `a`. The shape has to stay the same.
-- A let-block goes to what it gives. `(: v T)` and `~` go to what they hold.
+- A let-block goes to what it gives. `^T v` and `~` go to what they hold.
 - A call to a closure goes through its body, and a parameter leads to the argument as written. The literals of a function stay, since other calls share them.
 - A call to a host function asks its inverse what an argument would have to be. See [Which argument changes](#which-argument-changes).
 
@@ -465,7 +465,7 @@ This has the following consequences for a host:
 - An edit recomputes what depends on it. Everything else returns the same JS value, so an unchanged value is `===` across edits.
 - Restoring an earlier root is an undo served from the cache, as long as its entries have not been evicted.
 - Host functions must be pure, since a cached result outlives the root it was computed for. Values must not be mutated, since they may be shared between positions.
-- What is written alike, in the same scope, comes to one value, as metadata is no part of it. So `A = ^{icon: "x"} (refine number 1 p)` and `B = (refine number 1 p)` are `===`, and finding a name from such a value finds whichever is bound first.
+- What is written alike, in the same scope, comes to one value, as metadata is no part of it. So `A = ^{icon: "x"} (: number p default: 1)` and `B = (: number p default: 1)` are `===`, and finding a name from such a value finds whichever is bound first.
 - A cached diagnostic's `source` is the node that produced it first, which may belong to an earlier root.
 - A cached closure keeps the frame it captured, and through it that root, for as long as the entry lives.
 

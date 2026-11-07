@@ -162,12 +162,6 @@ export const ioType: TypeValue = makeIOType(topType)
  */
 const vectorType: TypeValue = makeTupleType([], topType)
 
-/**
- * What `refine` returns. Calling one is a type expression, so a
- * checker reads the type itself rather than stopping at this.
- */
-const typeType: TypeValue = makeType('type', isTypeValue, topType)
-
 const recordType: TypeValue = makeType(
 	'record',
 	v =>
@@ -815,10 +809,6 @@ export function buildPrelude(): Env {
 		// -----------------------------------------------------------------
 		// Type constructors
 		// -----------------------------------------------------------------
-		refine: bind(
-			'The values of `base` that meet `pred`, falling back to `default`.',
-			host(makeRefine())
-		),
 		'|': bind(
 			'The values of any of the types given. It defaults to the first one\'s default. `(|)` is a type no value fits.',
 			host(unionConstructor)
@@ -982,40 +972,6 @@ function makeReduce(): TypedHostFn {
 			},
 			A
 		)
-	)
-}
-
-// -----------------------------------------------------------------------------
-// Type constructors — refine
-// -----------------------------------------------------------------------------
-
-/**
- * `(refine base default pred)` — narrow `base` to the subset for which
- * `pred(v)` returns truthy. The default is provided by the caller (since
- * `base.default` may not satisfy `pred`).
- *
- * `pred` accepts either a Glisp closure or a host JS function — both are
- * callable JS values per host-api.md.
- */
-function makeRefine(): TypedHostFn {
-	return makeTypedFn(
-		[topType, topType, topType],
-		typeType,
-		(base, defaultV, pred) => {
-			if (!isTypeValue(base)) return base
-			const predicate =
-				typeof pred === 'function'
-					? (pred as (x: unknown) => unknown)
-					: () => false
-			const name = `(refine ${base.typeName})`
-			return makeType(
-				name,
-				v => base.fits(v) && Boolean(predicate(v)),
-				defaultV,
-				{ kind: 'refine', base }
-			)
-		},
-		['base', 'default', 'pred']
 	)
 }
 

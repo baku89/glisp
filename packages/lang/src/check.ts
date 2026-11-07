@@ -80,9 +80,11 @@ function walk(ast: AST, env: Env, diagnostics: Diagnostic[]): void {
 
 function walkCall(ast: CallAST, env: Env, diagnostics: Diagnostic[]): void {
 	const inside = enterNode(ast, env)
-	const isTypeSlotForm = ast.head.kind === 'sym' && ast.head.name === ':'
-	if (isTypeSlotForm) {
-		if (ast.args[0] !== undefined) walk(ast.args[0], inside, diagnostics)
+	// What a coercion is to is a type, and so is what a derived type is of
+	const typeAt = ast.head.kind !== 'sym' ? -1 : ast.head.name === '^' ? 1 : ast.head.name === ':' ? 0 : -1
+	if (typeAt >= 0) {
+		ast.args.forEach((arg, i) => i !== typeAt && walk(arg, inside, diagnostics))
+		ast.kwargs?.forEach(value => walk(value, inside, diagnostics))
 	} else {
 		if (ast.head.kind !== 'sym') walk(ast.head, inside, diagnostics)
 		for (const arg of ast.args) walk(arg, inside, diagnostics)

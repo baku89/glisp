@@ -19,7 +19,7 @@ describe('ray', () => {
 	})
 
 	it('can be written as a record', () => {
-		expect(valueOf('(: {origin: [1 2] angle: 45} ray)')).toEqual({ origin: [1, 2], angle: 45 })
+		expect(valueOf('^ray {origin: [1 2] angle: 45}')).toEqual({ origin: [1, 2], angle: 45 })
 	})
 
 	it('goes along a path, the way it goes there', () => {

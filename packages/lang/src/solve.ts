@@ -182,7 +182,7 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 	): Edits | null => {
 		const inside = enterNode(ast, at)
 		if (ast.head.kind === 'sym') {
-			if (ast.head.name === ':') {
+			if (ast.head.name === '^') {
 				const [expr] = ast.args
 				return expr === undefined
 					? stop(ast, at, 'has nothing to change')

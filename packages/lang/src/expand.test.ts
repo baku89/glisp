@@ -38,7 +38,7 @@ describe('expand', () => {
 
 	describe('function body as the next rung', () => {
 		it('leaves non-calls and host calls as fixed points', () => {
-			for (const src of ['42', '(+ 1 2)', '(: 1 number)']) {
+			for (const src of ['42', '(+ 1 2)', '^number 1']) {
 				const ast = parse(src)
 				expect(expand(ast, env())).toBe(ast)
 			}

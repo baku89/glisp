@@ -229,6 +229,12 @@ export class CallAST extends ASTNode {
 	}
 
 	override printStructural(): string {
+		// `^T v`, with a type that reads as one after `^`, and in `(: T)` otherwise
+		if (this.head.kind === 'sym' && this.head.name === '^' && this.args.length === 2 && this.kwargs === undefined) {
+			const [value, type] = this.args as [AST, AST]
+			const plain = ['sym', 'call', 'vec', 'path', 'lit', 'fn'].includes(type.kind)
+			return `^${plain ? type.print() : `(: ${type.print()})`} ${value.print()}`
+		}
 		const positional = [this.head, ...this.args].map(a => a.print())
 		const kw: string[] = []
 		if (this.kwargs) {

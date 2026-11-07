@@ -46,7 +46,7 @@ A type is a set of values, and a type fits another when all its values belong to
 - A record with extra fields fits, and a field declared `y?:` may be missing.
 - `(| "a" "b")` fits `string` and `(| "a" "b" "c")`.
 - A type fits `(| A B)` if it fits `A` or `B`, and `(| A B)` fits where both `A` and `B` do. Where only one of them does, a value of it is not known to be wrong, and so is not reported until it arrives as something that does not fit.
-- A `refine` fits its base.
+- A type made by `(: T ...)` fits `T`.
 - `(IO T)` and `[...T]` are covariant.
 - Function parameters match in either direction, so `_` in a slot's signature means "don't care".
 
@@ -84,7 +84,7 @@ A type constructor is a value that, when applied to one or more arguments, produ
 | `[...T]` | rest-only tuple — equivalent to "vector of `T`" with no fixed prefix |
 | `{k1: T1 k2: T2 ...}` | record with the given field types (same shape as a record value) |
 | `(=> [a: T1 b: T2 ...]: R)`, `(=> [T1 T2 ...]: R)` | Function type (parameter names are optional; not part of identity) |
-| `(refine T default pred)` | refinement: subset of `T` satisfying `pred: (=> [v: T]: boolean)`, with an explicit default for failed casts |
+| `(: T key: value ... pred ...)` | derived type: the values of `T` that meet each `pred`, with what each key says of them, falling back to `default:` if one is given. See [Derived types](#derived-types) |
 | `(\| T1 T2 ...)` | union: the values of any of `T1 T2 ...`, defaulting to the first one's default |
 | `42`, `"round"`, `true` | a value written as it is: the type of just that value, which is its own default |
 | `(IO T)` | parametric IO: a deferred effect that, when forced, produces a `T`. Compatibility is covariant in the payload (`(IO !)` fits `(IO _)`) |
@@ -100,22 +100,24 @@ Notes on tuple types:
 
 A value written as it is, where a type is wanted, is the type of just that value: `"round"` there holds `"round"` and nothing else. A finite set of values is a union of them, `(| "round" "butt" "square")`, which defaults to the first. `()` there is `unit`.
 
-`refine` is the mechanism for value-restricted subtypes — a base type narrowed by a predicate. Coercing through `(refine T default pred)` first checks that `v` fits `T`; if so, `pred(v)` is called; if `pred` returns true, the value is accepted, otherwise the result falls back to the explicit `default`. The default is supplied separately because `T`'s default need not satisfy `pred`.
+### Derived types
+
+`(: T key: value ... pred ...)` makes a type of `T`. Each `pred` after `T` narrows it to the values for which `pred` is true; a value has to fit `T` first. Each `key: value` says something of its values, as metadata does, and `default:` is what it falls back to, which has to be one of its values: a predicate `T`'s own default does not meet is a diagnostic unless there is one. What a key says is evaluated, as any type expression is, and kept as a literal, so `(: number max: w)` says the number `w` comes to. `(: T)` is `T`.
 
 <!-- test -->
 ```glisp
-ColorCode = (refine string "#000000"
-                    (=> [s: string]: boolean (starts-with s "#")))
+ColorCode = (: string #(starts-with % "#") default: "#000000")
 
-(: "#FF0000" ColorCode)  ;; → "#FF0000"
-(: "hello" ColorCode)    ;; → "#000000"  (default)
+^ColorCode "#FF0000"  ;; → "#FF0000"
+^ColorCode "hello"    ;; → "#000000"  (default)
 
-NonNegative = (refine number 0 (=> [n: number]: boolean (>= n 0)))
+NonNegative = (: number #(>= % 0))
+Percent = (: number min: 0 max: 100 suffix: "%")
 ```
 
 A `ColorCode` fits where a `string` is expected, but not the other way around.
 
-When `(: v T)` is used to coerce, a value that does not fit `T` produces a diagnostic in addition to falling back to the default. This is the same surfacing rule typed function slots use: explicit `(: v T)` and implicit slot share the diagnostic boundary so type mismatches are never silent.
+When `^T v` is used to coerce, a value that does not fit `T` produces a diagnostic in addition to falling back to the default. This is the same surfacing rule typed function slots use: explicit `^T v` and implicit slot share the diagnostic boundary so type mismatches are never silent.
 
 `|` is the mechanism for a slot that takes values of more than one type, such as a point or a point with handles. A value that fits any member is taken as it is, and one that fits none falls back to the first member's default, so the order of the members says only what the default is. It converts nothing: a value is not changed into another member.
 
@@ -123,10 +125,10 @@ When `(: v T)` is used to coerce, a value that does not fit `T` produces a diagn
 ```glisp
 Anchor = (| [number number] {at: [number number] in?: [number number] out?: [number number]})
 
-(: [10 20] Anchor)                          ;; → [10 20]
-(: {at: [0 0] out: [5 0]} Anchor)           ;; → {at: [0 0] out: [5 0]}
-(: "a" Anchor)                              ;; → [0 0]  (default, with a diagnostic)
-(: [[0 0] {at: [10 0]}] [...Anchor])        ;; → [[0 0] {at: [10 0]}]
+^Anchor [10 20]                          ;; → [10 20]
+^Anchor {at: [0 0] out: [5 0]}           ;; → {at: [0 0] out: [5 0]}
+^Anchor "a"                              ;; → [0 0]  (default, with a diagnostic)
+^[...Anchor] [[0 0] {at: [10 0]}]        ;; → [[0 0] {at: [10 0]}]
 ```
 
 A union inside a union is spread into its members, the same type is a member once, and a union of one type is that type: `(| number (| string number))` is `(| number string)`, and `(| number)` is `number`. Two unions are the same type if they have the same members, in any order. `(|)`, with no members, holds no value, as `!` does. The arguments of `|` are type slots, so `[T U]` and `{x: T}` are types there.
@@ -146,7 +148,7 @@ defines a recursive type. There is no anonymous recursive-type form (`(rec X ...
 
 ## Type interpretation at type slots
 
-A **type slot** is a position in the AST where a type is expected — the right of `:` in a parameter or record-field annotation, the return-type position of `(=> ... : T ...)`, the second argument of `(: v T)`, and the equivalent positions in metadata.
+A **type slot** is a position in the AST where a type is expected — the right of `:` in a parameter or record-field annotation, the return-type position of `(=> ... : T ...)`, the second argument of `^T v`, and the equivalent positions in metadata.
 
 At a type slot the AST is evaluated, then the resulting value is interpreted as a type:
 
@@ -174,24 +176,24 @@ A type-slot annotation like `x: number` always reads as "x has type `number`" �
 
 This rule keeps the meaning of every annotation unambiguous: the right side of `:` always describes the *kind of values* the slot accepts, never a specific value pinned by identity.
 
-## Coercion: `(: v T)`
+## Coercion: `^T v`
 
-Explicit type coercion uses the `:` special form, the prefix form of the annotation `v: T`. `T` must evaluate to a type value, `v` is the value to coerce:
+Explicit type coercion is written `^T v`. `T` must evaluate to a type value, `v` is the value to coerce:
 
 <!-- test -->
 ```glisp
 JoinType = (| "round" "butt" "square")
 
-(: 42 number)                 ;; → 42
-(: "hello" number)            ;; → 0  (default, with a diagnostic)
-(: [1 2 3] [...number])       ;; → [1 2 3]
-(: "round" JoinType)          ;; → "round"
+^number 42                 ;; → 42
+^number "hello"            ;; → 0  (default, with a diagnostic)
+^[...number] [1 2 3]       ;; → [1 2 3]
+^JoinType "round"          ;; → "round"
 ((=> [j: JoinType]: JoinType j) "butt")       ;; → "butt"
 ((=> [o: {j: JoinType}]: _ o) {j: "butt"})    ;; → {j: "butt"}
-(: "diamond" JoinType)        ;; → "round"  (default, with a diagnostic)
+^JoinType "diamond"        ;; → "round"  (default, with a diagnostic)
 ```
 
-`(: v T)` is the only way to invoke the cast/validate semantics on a type value. The bare-call form `(T v)` is **not** a cast — type values are not callable. Calling a type value emits a diagnostic suggesting `(: v T)`.
+`^T v` is the only way to invoke the cast/validate semantics on a type value. The bare-call form `(T v)` is **not** a cast — type values are not callable. Calling a type value emits a diagnostic suggesting `^T v`.
 
 The rule:
 
@@ -212,17 +214,17 @@ For non-fallback type tests (membership without consuming the default), pattern-
 
 ### Constant-function lifting
 
-When the target type of `(: v T)` is a function type `(=> [...]: R)` and the input `v` is **not** a function, the coercion tries to interpret `v` as the return value of a constant function:
+When the target type of `^T v` is a function type `(=> [...]: R)` and the input `v` is **not** a function, the coercion tries to interpret `v` as the return value of a constant function:
 
 - If `v` coerces to `R`, the result is a constant function `(=> [...]: R v)` — calling it ignores its arguments and returns `v`.
 - Otherwise, the standard default fallback applies.
 
 <!-- test -->
 ```glisp
-(map [1 2 3] (: 20 (=> [x: number]: number)))   ;; → [20 20 20]
+(map [1 2 3] ^(=> [x: number]: number) 20)   ;; → [20 20 20]
 ```
 
-Lifting only happens inside `(: v T)` against a function type. Outside it a value's identity is unchanged. This rule complements the ban on zero-parameter functions: instead of writing `(=> []: T body)` (which is a syntax error), pass `body` through `(: body T)` wherever a function is expected.
+Lifting only happens inside `^T v` against a function type. Outside it a value's identity is unchanged. This rule complements the ban on zero-parameter functions: instead of writing `(=> []: T body)` (which is a syntax error), pass `body` through `^T body` wherever a function is expected.
 
 ## Members
 
@@ -256,7 +258,7 @@ Metadata sits as a layer on top of the underlying value, and of it evaluation re
 ```glisp
 Percent = ^{min: 0 max: 100 suffix: "%"} number
 Half = ^{max: 50} Percent      ;; min, suffix, and a max of 50
-a = (: 20 Percent)             ;; : ^{min: 0 max: 100 suffix: "%"} number
+a = ^Percent 20             ;; : ^{min: 0 max: 100 suffix: "%"} number
 b = ^{min: 0} 5                ;; : ^{min: 0} number
 c = b                          ;; : ^{min: 0} number
 d = (+ b 1)                    ;; : number, since `+` says it returns a number
@@ -290,7 +292,7 @@ A value written as a type can have metadata of its own, which goes with it: `(| 
 
 Default substitution happens in any of these situations:
 
-- **`()` arrives at a typed slot**: function parameter, record field declared with `:`, `(: v T)`, predicate of `if`, etc. The slot's `default` is used.
+- **`()` arrives at a typed slot**: function parameter, record field declared with `:`, `^T v`, predicate of `if`, etc. The slot's `default` is used.
   - For required slots: a diagnostic is emitted at the substitution site.
   - A slot of a type that `()` fits, as `(| T unit)`, takes `()` as it is. This is what can be left out: `y?: T` is `y: (| T unit)`. Left out, it takes the default, which is `T`'s, silently. See [Left out](#left-out).
 - **Non-`()` type mismatch at a typed slot**: a diagnostic is emitted and the slot's `default` is used.
@@ -303,7 +305,7 @@ What can be left out is what can be `()`: a field or a parameter of a type that 
 <!-- test -->
 ```glisp
 Style = {width: number dash?: number}
-(: {width: 2} Style)                      ;; → {width: 2}
+^Style {width: 2}                      ;; → {width: 2}
 ((=> [d?: number]: _ d))                  ;; → 0   (left out: the default of number, silently)
 ((=> [d?: number]: _ d) ())               ;; → ()  (given as nothing, it stays so)
 ((=> [d: (| number unit)]: _ d))          ;; → 0
@@ -337,7 +339,7 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 
 Signatures are mandatory, so types flow locally rather than through a global solver. `infer(ast, env)` runs no value expression. The only thing it evaluates is a type expression, since types are values.
 
-- **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else. A slot also takes a literal for what it is, so `"round"` goes in a slot of `(| "round" "butt")` and `"z"` does not. This is true of what is written there, a vector or record of literals included. A name bound to `"round"` is a `string`, which `(: name J)` casts.
+- **A literal has its base type**, whatever `number` or `string` means in scope, since a program can bind those names to something else. A slot also takes a literal for what it is, so `"round"` goes in a slot of `(| "round" "butt")` and `"z"` does not. This is true of what is written there, a vector or record of literals included. A name bound to `"round"` is a `string`, which `^J name` casts.
 - **Generics are solved at a call**, one argument at a time, by matching types structurally: `(xs: [...T])` given `[1 2]` solves `T` as `number`. A generic seen twice takes whichever of the two types the other fits; if neither does, that is a diagnostic. An unsolved generic is `_`.
 - **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] #(+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
 - **Type constructors can be generic.** In `(=> {F T} [x: (F T)]: T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.

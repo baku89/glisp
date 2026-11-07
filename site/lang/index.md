@@ -99,6 +99,6 @@ The language core is in active implementation under `packages/lang`. The termina
 ## Where to look
 
 - [`syntax`](./spec/syntax.md): concrete syntax. Tokens, structure, functions, metadata.
-- [`types`](./spec/types.md): type system. Values-as-types, constructors, parametric IO, coercion via `(: v T)`.
+- [`types`](./spec/types.md): type system. Values-as-types, constructors, parametric IO, coercion via `^T v`.
 - [`eval`](./spec/eval.md): evaluation. Scopes, lazy semantics, the abstraction ladder, incremental evaluation.
 - [`host-api`](./spec/host-api.md): embedding API. `Runtime`, `Session`, host functions.

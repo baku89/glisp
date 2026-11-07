@@ -26,13 +26,13 @@ describe('union types', () => {
 	})
 
 	it('defaults to its first member', () => {
-		expect(run('(: true (| string number))').value).toBe('')
-		expect(run('(: () (| number string))').value).toBe(0)
+		expect(run('^(| string number) true').value).toBe('')
+		expect(run('^(| number string) ()').value).toBe(0)
 	})
 
 	it('casts nothing that already fits, and says when something does not', () => {
-		expect(run('(: "a" (| number string))').value).toBe('a')
-		const r = run('(: true (| number string))')
+		expect(run('^(| number string) "a"').value).toBe('a')
+		const r = run('^(| number string) true')
 		expect(r.value).toBe(0)
 		expect(r.diagnostics.length).toBeGreaterThan(0)
 	})
@@ -43,7 +43,7 @@ describe('union types', () => {
 		expect(t.fits({ at: [1, 2] })).toBe(true)
 		expect(t.fits({ at: 1 })).toBe(false)
 		const bound = run(
-			'{Anchor = (| [number number] {at: [number number]}) (: [[0 0] {at: [1 2]}] [...Anchor])}'
+			'{Anchor = (| [number number] {at: [number number]}) ^[...Anchor] [[0 0] {at: [1 2]}]}'
 		)
 		expect(bound.value).toEqual([[0, 0], { at: [1, 2] }])
 		expect(bound.diagnostics).toEqual([])
@@ -127,7 +127,7 @@ describe('what can be left out', () => {
 		const spelled = run('{f = (=> [y: (| number unit)]: _ y) (f)}')
 		expect(spelled.value).toBe(0)
 		expect(spelled.diagnostics).toEqual([])
-		expect(run('(: () (| unit number))').value).toBe(UNIT)
+		expect(run('^(| unit number) ()').value).toBe(UNIT)
 	})
 
 	it('is not known to be wrong where one of what it may be fits', () => {

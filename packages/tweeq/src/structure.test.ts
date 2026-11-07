@@ -57,9 +57,9 @@ describe('viewOf', () => {
 		const session = new Session(env)
 		session.exec('J = (| "a" "b")')
 		const read = (ast: AST, at: Env) => evaluate(ast, at)
-		const [fine] = viewOf(parse('(: "a" J)'), session.env).slots
+		const [fine] = viewOf(parse('^J "a"'), session.env).slots
 		expect(problemOf(fine!.ast, fine!.env, fine!.expected, read)).toBeNull()
-		const [wrong] = viewOf(parse('(: "z" J)'), session.env).slots
+		const [wrong] = viewOf(parse('^J "z"'), session.env).slots
 		expect(problemOf(wrong!.ast, wrong!.env, wrong!.expected, read)).toContain('type mismatch')
 	})
 
@@ -298,33 +298,31 @@ describe('sort', () => {
 
 describe('forms that are not calls', () => {
 	it('has no function in a cast', () => {
-		const v = view('(: 20 number)')
+		const v = view('^number 20')
 		expect(v.head).toBeNull()
 		expect(v.title).toBeNull()
 		expect(v.slots.map(s => s.label)).toEqual(['Number'])
 		expect(v.append).toBeNull()
 		expect(v.missing).toEqual([])
-		expect(kindIconOf(parse('(: 20 number)'))).toBe('mdi:tag-outline')
+		expect(kindIconOf(parse('^number 20'))).toBe('mdi:tag-outline')
 	})
 
 	it('says what a cast is, by what it is to', () => {
-		expect(view('(: 20 number)').castTo?.label).toBe('Number')
-		expect(view('(: 20 number)').castTo?.doc).not.toContain('`')
-		expect(view('(: 20 (| 20 30))').castTo?.label).toBeNull()
-		expect(view('(: 20)').castTo).toBeUndefined()
+		expect(view('^number 20').castTo?.label).toBe('Number')
+		expect(view('^number 20').castTo?.doc).not.toContain('`')
+		expect(view('^(| 20 30) 20').castTo?.label).toBeNull()
 	})
 
 	it('calls what is in a cast only what it is cast to, if that has a name', () => {
-		expect(view('(: 20 (| 20 30))').slots.map(s => s.label)).toEqual(['Value'])
-		expect(view('(: 20)').slots.map(s => s.label)).toEqual(['Value'])
+		expect(view('^(| 20 30) 20').slots.map(s => s.label)).toEqual(['Value'])
 	})
 
 	it('expects of a cast the type it casts to', () => {
 		const session = new Session(env)
 		session.exec('J = (| "a" "b")')
-		const [value] = viewOf(parse('(: "a" J)'), session.env).slots
+		const [value] = viewOf(parse('^J "a"'), session.env).slots
 		expect(viewOf(value!.ast, value!.env, value!.expected).editor?.kind).toBe('enum')
-		expect(print(value!.replace(parse('"b"')))).toBe('(: "b" J)')
+		expect(print(value!.replace(parse('"b"')))).toBe('^J "b"')
 	})
 
 	it('names the parts of a match', () => {
@@ -692,7 +690,7 @@ describe('kindIconOf', () => {
 		expect(kind('[1 x]')).toBe('mdi:code-brackets')
 		expect(kind('{a: x}')).toBe('mdi:code-braces')
 		expect(kind('^{label: "L"} (+ 1 2)')).toBe('mdi:function-variant')
-		expect(kind('(: 1 number)')).toBe('mdi:tag-outline')
+		expect(kind('^number 1')).toBe('mdi:tag-outline')
 		expect(kind('(? 1 1 2)')).toBe('mdi:call-split')
 		expect(kind('(|> 1 f)')).toBe('mdi:pipe')
 	})
@@ -954,7 +952,7 @@ describe('icons', () => {
 		expect(icon('"a"')).toBe('mdi:format-quote-close')
 		expect(icon('[1 "a"]')).toBe('mdi:code-brackets')
 		expect(icon('(map [1 2] #(* % 2))')).toBe('mdi:code-brackets')
-		expect(icon('(: 3 (refine number 1 (=> [x: number]: boolean (> x 0))))')).toBe(
+		expect(icon('^(: number (=> [x: number]: boolean (> x 0)) default: 1) 3')).toBe(
 			'mdi:pound'
 		)
 		expect(icon('(=> [x: number]: number x)')).toBe('mdi:function-variant')
@@ -988,13 +986,13 @@ describe('icons', () => {
 	it('takes the icon of a type a program defines', () => {
 		const session = new Session(env)
 		session.exec(
-			'Len = ^{icon: "mdi:ruler"} (refine number 1 (=> [x: number]: boolean (> x 0)))'
+			'Len = ^{icon: "mdi:ruler"} (: number (=> [x: number]: boolean (> x 0)) default: 1)'
 		)
-		session.exec('Plain = (refine number 1 (=> [x: number]: boolean (>= x 0)))')
+		session.exec('Plain = (: number (=> [x: number]: boolean (>= x 0)) default: 1)')
 		session.exec('f = (=> [x: number]: Len x)')
 		session.exec('g = (=> [x: number]: Plain x)')
 		expect(icon('(f 1)', session.env)).toBe('mdi:ruler')
-		expect(icon('(: 3 Len)', session.env)).toBe('mdi:ruler')
+		expect(icon('^Len 3', session.env)).toBe('mdi:ruler')
 		expect(icon('(g 1)', session.env)).toBe('mdi:pound')
 	})
 
@@ -1013,7 +1011,7 @@ describe('icons', () => {
 		expect(evaluate(parse('number'), env).value).toBe(
 			evaluate(parse('number'), buildPrelude()).value
 		)
-		expect(evaluate(parse('(: "a" number)'), env).value).toBe(0)
+		expect(evaluate(parse('^number "a"'), env).value).toBe(0)
 	})
 })
 
@@ -1497,7 +1495,7 @@ describe('adding an argument', () => {
 describe('what a type brings to a number field', () => {
 	it('brings an icon along', () => {
 		const session = new Session(env)
-		session.setAst(parse('{P = ^{icon: "mdi:percent"} number a = (: 1 P)}') as never)
+		session.setAst(parse('{P = ^{icon: "mdi:percent"} number a = ^P 1}') as never)
 		const row = viewOf(session.ast(), session.env).slots.find(s => s.key === 'binding:a')!
 		expect(iconOf(row.ast, row.env)).toBe('mdi:percent')
 	})
@@ -1516,7 +1514,7 @@ describe('what a type brings to a number field', () => {
 
 	it('reaches a value through its name and its type', () => {
 		expect(numberOptionsAt(rowOf(`{a = ^{suffix: "%"} 5 b = a}`, 'binding:b'))).toEqual({ suffix: '%' })
-		expect(numberOptionsAt(rowOf(`{${PERCENT} a = (: 5 Percent)}`, 'binding:a'))).toEqual(OPTIONS)
+		expect(numberOptionsAt(rowOf(`{${PERCENT} a = ^Percent 5}`, 'binding:a'))).toEqual(OPTIONS)
 	})
 
 	it('reaches an argument through a parameter, which keeps its own name', () => {

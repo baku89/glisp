@@ -200,7 +200,8 @@ class Reader {
 	private meta(): Value {
 		if (this.peek().kind !== '^') return this.elem()
 		this.advance()
-		const left: Elem = { kind: 'elem', parts: ['^', this.group()] }
+		// `^{...}` says something of what follows, and `^T` is what it is as
+		const left: Elem = { kind: 'elem', parts: ['^', this.peek().kind === '{' ? this.group() : this.atom()] }
 		return { kind: 'pair', left, between: ' ', by: '^', right: this.meta() }
 	}
 

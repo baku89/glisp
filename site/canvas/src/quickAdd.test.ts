@@ -118,7 +118,7 @@ describe('adding it', () => {
 	})
 
 	it.each([
-		['point', 'point1 = (: [200 300] point)', 'point'],
+		['point', 'point1 = ^point [200 300]', 'point'],
 		['vec2.lerp', 'lerp1 = (vec2.lerp [150 300] [250 300] 0.5)', 'point'],
 		['vec2.nudge', 'nudge1 = (vec2.nudge [200 300] [50 0])', 'point'],
 		['line.fromPoints', 'line1 = (line.fromPoints [200 250] [200 350])', 'line'],
@@ -139,7 +139,7 @@ describe('adding it', () => {
 	})
 
 	describe('from what is selected', () => {
-		const points = parse('[a = (: [0 0] point) b = (: [10 20] point) c = (path.circle [0 0] 5)]') as LetAST
+		const points = parse('[a = ^point [0 0] b = ^point [10 20] c = (path.circle [0 0] 5)]') as LetAST
 		const from = (name: string, selected: readonly string[]) =>
 			print(withAdded(points, env, name, [200, 300], selected)!.ast)
 
@@ -163,8 +163,8 @@ describe('adding it', () => {
 
 		it('keeps the points as they are', () => {
 			const written = from('line.fromPoints', ['binding:a', 'binding:b'])
-			expect(written).toContain('a = (: [0 0] point)')
-			expect(written).toContain('b = (: [10 20] point)')
+			expect(written).toContain('a = ^point [0 0]')
+			expect(written).toContain('b = ^point [10 20]')
 		})
 
 		it('goes on from one point to where it is asked for', () => {
@@ -175,7 +175,7 @@ describe('adding it', () => {
 
 		it('has no more of them than there is a place for', () => {
 			expect(from('line.at', ['binding:b', 'binding:a'])).toContain('line1 = (line.at b 90)')
-			expect(from('point', ['binding:a'])).toContain('point1 = (: [200 300] point)')
+			expect(from('point', ['binding:a'])).toContain('point1 = ^point [200 300]')
 		})
 
 		it('leaves out what is not a point', () => {

@@ -113,7 +113,7 @@ describe('solve — a call', () => {
 	})
 
 	it('reads what a coercion holds', () => {
-		expect(edited('{r = (: 1 number)}', 5)).toBe('{r = (: 5 number)}')
+		expect(edited('{r = ^number 1}', 5)).toBe('{r = ^number 5}')
 	})
 
 	it('goes through a closure to its arguments', () => {

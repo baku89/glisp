@@ -19,7 +19,7 @@ describe('format', () => {
 		expect(format('( =>  [x: number] : number (* x x))')).toBe('(=> [x: number]: number (* x x))')
 	expect(format('(=> { T  U } [x: T f: (=> [T]: U)]: U (f x))')).toBe('(=> {T U} [x: T f: (=> [T]: U)]: U (f x))')
 		expect(format('a . b')).toBe('a.b')
-		expect(format('(: 1  number)')).toBe('(: 1 number)')
+		expect(format('^number 1')).toBe('^number 1')
 		expect(format('^{doc: "x"}   (f)')).toBe('^{doc: "x"} (f)')
 		expect(format('[ ...xs  ~y  @z  #_w ]')).toBe('[...xs ~y @z #_w]')
 		expect(format('')).toBe('')

@@ -82,7 +82,7 @@ const scene = (src: string) =>
 describe('path', () => {
 	it('makes paths that a type can tell', () => {
 		expect(isPath(evaluate(parse('(path.circle [0 0] 10)'), env).value)).toBe(true)
-		expect(evaluate(parse('(: 1 path)'), env).value).toEqual(new PathValue({ curves: [] } as never))
+		expect(evaluate(parse('^path 1'), env).value).toEqual(new PathValue({ curves: [] } as never))
 	})
 
 	it('is a type that functions come with', () => {
@@ -126,7 +126,7 @@ describe('iconOfPath', () => {
 
 	it('is nothing for what is not a path, or has no size', () => {
 		expect(iconOfPath(1)).toBeNull()
-		expect(icon('(: 1 path)')).toBeNull()
+		expect(icon('^path 1')).toBeNull()
 	})
 })
 
@@ -136,7 +136,7 @@ describe('sceneOf', () => {
 	})
 
 	it('goes by the type, as not every vec2 is a point', () => {
-		expect(scene('{a = (: [1 2] point) b = (: [1 2] vec2)}')).toEqual(['binding:a point'])
+		expect(scene('{a = ^point [1 2] b = ^vec2 [1 2]}')).toEqual(['binding:a point'])
 	})
 
 	it('goes through a name, and into a vector', () => {
@@ -1245,9 +1245,9 @@ describe('color', () => {
 	})
 
 	it('is a type that what is not one falls back from', () => {
-		expect(value('(: "#ff0000" color)')).toBe('#ff0000')
-		expect(value('(: "red" color)')).toBe('red')
-		expect(value('(: 1 color)')).toBe('#000000')
+		expect(value('^color "#ff0000"')).toBe('#ff0000')
+		expect(value('^color "red"')).toBe('red')
+		expect(value('^color 1')).toBe('#000000')
 	})
 
 	it('goes back through what it was made of', () => {
@@ -1356,7 +1356,7 @@ describe('painting', () => {
 
 describe('rowsWithin', () => {
 	const scene = sceneOf(
-		parse('{a = (path.rect [0 0] [10 10]) b = (path.rect [20 20] [10 10]) p = (: [50 50] point)}'),
+		parse('{a = (path.rect [0 0] [10 10]) b = (path.rect [20 20] [10 10]) p = ^point [50 50]}'),
 		env
 	)
 
@@ -1496,8 +1496,8 @@ describe('grips', () => {
 	})
 
 	it('take a point that is all there is', () => {
-		expect(pulled('{c = (: [1 2] point)}', 0, [5, 6])).toBe('{main = [c = (: [5 6] point)]}')
-		expect(pulled('{d = (: [1 2] point) c = d}', 0, [5, 6])).toBe('{main = [c = d d = (: [5 6] point)]}')
+		expect(pulled('{c = ^point [1 2]}', 0, [5, 6])).toBe('{main = [c = ^point [5 6]]}')
+		expect(pulled('{d = ^point [1 2] c = d}', 0, [5, 6])).toBe('{main = [c = d d = ^point [5 6]]}')
 	})
 
 	describe('a path as its data', () => {
@@ -1839,7 +1839,7 @@ describe('lining up with a place', () => {
 })
 
 describe('the handles of a guide', () => {
-	const root = parse('{main = [p = (: [1 2] point) l = (line.fromPoints [0 0] [0 10]) f = (rect.new [0 0] [10 10]) c = (path.circle [0 0] 5)]}')
+	const root = parse('{main = [p = ^point [1 2] l = (line.fromPoints [0 0] [0 10]) f = (rect.new [0 0] [10 10]) c = (path.circle [0 0] 5)]}')
 	const rowsOf = (rows: readonly string[], isReachable = (_: string) => true) =>
 		withGuideHandles(null, root, env, sceneOf(root, env), rows, isReachable)?.rowOf ?? []
 
@@ -1868,7 +1868,7 @@ describe('the handles of a guide', () => {
 })
 
 describe('what is between two points', () => {
-	const root = parse('{main = [l = (vec2.lerp a b 0.25) a = (: [0 0] point) b = (: [100 0] point)]}')
+	const root = parse('{main = [l = (vec2.lerp a b 0.25) a = ^point [0 0] b = ^point [100 0]]}')
 	const grip = gripAt(root, env, 'binding:l')!
 
 	it('has a handle where it is, that says how far along', () => {
@@ -1885,14 +1885,14 @@ describe('what is between two points', () => {
 
 	it('moves as both of them do, wherever they are written', () => {
 		const moved = changed(root, env, 'binding:l', grip.move!([10, 5])).ast!
-		expect(print(moved)).toContain('a = (: [10 5] point)')
-		expect(print(moved)).toContain('b = (: [110 5] point)')
+		expect(print(moved)).toContain('a = ^point [10 5]')
+		expect(print(moved)).toContain('b = ^point [110 5]')
 		expect(print(moved)).toContain('(vec2.lerp a b 0.25)')
 	})
 })
 
 describe('what is nudged from a point', () => {
-	const root = parse('{main = [n = (vec2.nudge p [10 0]) p = (: [100 100] point)]}')
+	const root = parse('{main = [n = (vec2.nudge p [10 0]) p = ^point [100 100]]}')
 	const grip = gripAt(root, env, 'binding:n')!
 
 	it('has a handle where it has got to, that says how far', () => {
@@ -1907,13 +1907,13 @@ describe('what is nudged from a point', () => {
 
 	it('moves as where it is from does, and goes as far from it', () => {
 		const next = changed(root, env, 'binding:n', grip.move!([5, 5])).ast!
-		expect(print(next)).toContain('p = (: [105 105] point)')
+		expect(print(next)).toContain('p = ^point [105 105]')
 		expect(print(next)).toContain('(vec2.nudge p [10 0])')
 	})
 })
 
 describe('what comes to a point', () => {
-	it.each(['(: [5 0] point)', '(vec2.lerp [0 0] [10 0] 0.5)', '(vec2.nudge [0 0] [5 0])'])(
+	it.each(['^point [5 0]', '(vec2.lerp [0 0] [10 0] 0.5)', '(vec2.nudge [0 0] [5 0])'])(
 		'looks like one where it is, as %s',
 		code => {
 			const root = parse(`[p = ${code}]`)

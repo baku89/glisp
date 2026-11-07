@@ -20,7 +20,7 @@ const RECT = '(path.rect [0 0] [10 10])'
 const CIRCLE = '(path.circle [50 50] 5)'
 
 describe('several places, in a box around them', () => {
-	const SRC = '{a = (: [0 0] point) b = (: [100 0] point) c = (: [100 50] point)}'
+	const SRC = '{a = ^point [0 0] b = ^point [100 0] c = ^point [100 50]}'
 	const ROWS = ['binding:a', 'binding:b', 'binding:c']
 	const held = (src = SRC, rows = ROWS) => {
 		const root = parse(src)
@@ -55,7 +55,7 @@ describe('several places, in a box around them', () => {
 	})
 
 	it('turns all of them around the middle, from a corner, by as far as that is pulled round', () => {
-		const { root, gripped } = held('{a = (: [0 0] point) b = (: [100 0] point) c = (: [100 100] point)}')
+		const { root, gripped } = held('{a = ^point [0 0] b = ^point [100 0] c = ^point [100 100]}')
 		const turner = gripped.grip.handles.find(({ outsideCorner, at }) => outsideCorner && at![0] === 100 && at![1] === 100)!
 		// That corner goes from below and to the right of the middle to below and to the left.
 		const { ast } = changed(root, env, gripped.rowOf[0]!, turner.to([0, 100], turner.at!))
@@ -70,7 +70,7 @@ describe('several places, in a box around them', () => {
 	})
 
 	it('turns by steps, when asked', () => {
-		const { root, gripped } = held('{a = (: [0 0] point) b = (: [100 0] point) c = (: [100 100] point)}')
+		const { root, gripped } = held('{a = ^point [0 0] b = ^point [100 0] c = ^point [100 100]}')
 		const turner = gripped.grip.handles.find(({ outsideCorner, at }) => outsideCorner && at![0] === 100 && at![1] === 100)!
 		const { ast } = changed(root, env, gripped.rowOf[0]!, turner.to([10, 100], turner.at!, { even: true }))
 		near(places(ast), [[100, 0], [100, 100], [0, 100]])
@@ -78,12 +78,12 @@ describe('several places, in a box around them', () => {
 
 	it('only scales what cannot say how it turns, by one scale for what cannot go by two', () => {
 		const rows = ['binding:p', 'binding:s']
-		const withRect = held('{p = (: [0 0] point) s = (path.rect [50 50] [10 10])}', rows)
+		const withRect = held('{p = ^point [0 0] s = (path.rect [50 50] [10 10])}', rows)
 		expect(withRect.gripped.grip.handles.some(({ outsideCorner }) => outsideCorner)).toBe(false)
 		expect(withRect.gripped.grip.box!.even).toBe(false)
 		const { ast } = changed(withRect.root, env, 'binding:p', withRect.gripped.grip.box!.scaled(2, 2, [0, 0]))
 		expect(print(ast!)).toContain('(path.rect [100 100] [20 20])')
-		const withCircle = held('{p = (: [0 0] point) s = (path.circle [50 50] 10)}', rows)
+		const withCircle = held('{p = ^point [0 0] s = (path.circle [50 50] 10)}', rows)
 		expect(withCircle.gripped.grip.box!.even).toBe(true)
 	})
 
@@ -203,9 +203,9 @@ describe('what goes on being what it was to a parameter, with no parameter aroun
 	}
 
 	it.each([
-		['a place', `{c = ${R}}`, 'binding:c/arg0', 'origin = (: [0 0] point)'],
-		['a size', `{c = ${R}}`, 'binding:c/arg1', 'size2 = (: [10 10] size)'],
-		['a line', `{c = (path.mirror ${R} [[50 0] [0 10]])}`, 'binding:c/arg1', 'line2 = (: [[50 0] [0 10]] line)'],
+		['a place', `{c = ${R}}`, 'binding:c/arg0', 'origin = ^point [0 0]'],
+		['a size', `{c = ${R}}`, 'binding:c/arg1', 'size2 = ^size [10 10]'],
+		['a line', `{c = (path.mirror ${R} [[50 0] [0 10]])}`, 'binding:c/arg1', 'line2 = ^line [[50 0] [0 10]]'],
 	])('says what %s is, when pulled out', (_, src, path, written) => {
 		expect(extracted(src, path)).toContain(written)
 	})
@@ -213,7 +213,7 @@ describe('what goes on being what it was to a parameter, with no parameter aroun
 	it('has nothing to say of a number, which would be taken for one anyway', () => {
 		const next = extracted(`{c = (path.offset ${R} 5)}`, 'binding:c/arg1')
 		expect(next).toContain('distance = 5')
-		expect(next).not.toContain('(: 5')
+		expect(next).not.toContain('^distance 5')
 	})
 
 	it('is the same to what refers to it, and goes on being drawn', () => {
@@ -226,27 +226,27 @@ describe('what goes on being what it was to a parameter, with no parameter aroun
 	it('says so when copied as a row, and not when given to a parameter that says it for it', () => {
 		const root = parse(`{c = ${R} d = (path.rect [5 5] [1 1])}`)
 		const text = copiedRows(root, env, ['binding:c/arg0'])
-		expect(text).toBe('origin = (: [0 0] point)')
+		expect(text).toBe('origin = ^point [0 0]')
 		expect(print(pastedArguments(root, env, ['binding:d'], text)!)).toContain('d = (path.rect [0 0] [1 1])')
-		expect(print(pastedRows(root, env, null, text)!.ast)).toContain('origin = (: [0 0] point)')
+		expect(print(pastedRows(root, env, null, text)!.ast)).toContain('origin = ^point [0 0]')
 	})
 
 	it('works out only what is in a cast, which goes on being what it says', () => {
-		const src = '{c = (: (vec2.add [1 2] [3 4]) point)}'
+		const src = '{c = ^point (vec2.add [1 2] [3 4])}'
 		const next = (id: string) => print(actionOf(src, 'binding:c', id)!.apply!())
-		expect(next('all')).toBe('{main = [c = (: [4 6] point)]}')
-		expect(next('step')).toBe('{main = [c = (: [4 6] point)]}')
+		expect(next('all')).toBe('{main = [c = ^point [4 6]]}')
+		expect(next('step')).toBe('{main = [c = ^point [4 6]]}')
 	})
 
 	it('has nothing to work out of a cast of what is written', () => {
-		expect(actionOf('{c = (: [1 2] point)}', 'binding:c', 'all')).toBeUndefined()
-		expect(actionOf('{c = (: [1 2] point)}', 'binding:c', 'step')).toBeUndefined()
+		expect(actionOf('{c = ^point [1 2]}', 'binding:c', 'all')).toBeUndefined()
+		expect(actionOf('{c = ^point [1 2]}', 'binding:c', 'step')).toBeUndefined()
 	})
 })
 
 describe('what is cast to a type of the canvas', () => {
 	it('says what it is, as a function does', () => {
-		const { castTo, slots } = viewOf(parse('(: [1 2] point)'), env)
+		const { castTo, slots } = viewOf(parse('^point [1 2]'), env)
 		expect(castTo?.label).toBe('Point')
 		expect(castTo?.doc).toContain('A place')
 		const [value] = slots
@@ -326,7 +326,7 @@ describe('what is around a path', () => {
 	})
 
 	it('has percent be a type a program can say, as a number that says what it means', () => {
-		const { value, diagnostics } = evaluate(parse('(: 0.25 percent)'), env)
+		const { value, diagnostics } = evaluate(parse('^percent 0.25'), env)
 		expect(value).toBe(0.25)
 		expect(diagnostics).toEqual([])
 	})

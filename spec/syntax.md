@@ -120,7 +120,7 @@ All values are callable; the calling behavior is determined by the value's type:
 | Value type                  | `(value args...)`                |
 | --------------------------- | -------------------------------- |
 | Function                    | apply                            |
-| Type                        | rejected; use `(: v T)`          |
+| Type                        | rejected; use `^T v`          |
 | vector                      | element access by integer index  |
 | Record                      | field access by string key       |
 | Other (number, string, ...) | type mismatch → default fallback |
@@ -393,7 +393,7 @@ The `...` of a spread is always followed directly by an identifier or `~`. This 
 
 ## Special forms
 
-Four forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), `%` (partial-application placeholder), and `:` (coerce). They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
+Five forms have built-in semantics beyond ordinary function application: `?` (match), `|>` (pipe), `%` (partial-application placeholder), `^T v` (coerce), and `(: T ...)` (derived type). They occupy head positions or appear as bare tokens; the evaluator/expander treats them specially.
 
 ### Match — `?`
 
@@ -488,18 +488,29 @@ Only single-argument partial application is supported. For multi-argument anonym
 
 The `|>` form interacts with `%` purely through this rule — a step like `#(+ 2 %)` is a function, which `|>` applies. There is no separate "pipe placeholder" semantics; `%` means the same thing everywhere.
 
-### Coerce — `:`
+### Coerce — `^T v`
 
-`(: v T)` coerces a value through a type, as the prefix form of the annotation `v: T`. A `:` directly after `(` is this form; anywhere else it keeps its annotation or key role. `T` is evaluated first as a type value, then `v`. On match `v` flows through; on mismatch the call returns `T`'s default and emits a diagnostic. `()` always coerces silently to the default.
+`^T v` is `v` as a `T`: on match `v` flows through, and on mismatch it comes to `T`'s default with a diagnostic. `()` always comes to the default, silently. `T` is evaluated first as a type, then `v`. What follows `^` is a type when it is a name, a call, a vector, a function type, a path or a literal, as in `^number 1`, `^(IO number) x` and `^[number number] p`; `^{` is always [metadata](#metadata--). A record type is written `^(: {x: number}) r`. `^T` can wrap what has metadata, as `^Percent ^{label: "W"} 50`.
 
 <!-- test -->
 ```glisp
-(: 42 number)            ;; → 42
-(: "hi" number)          ;; → 0  (default, with a diagnostic)
-(: () number)            ;; → 0  (default, silently)
+^number 42            ;; → 42
+^number "hi"          ;; → 0  (default, with a diagnostic)
+^number ()            ;; → 0  (default, silently)
 ```
 
-`(: v T)` is the **only** way to invoke the coerce/validate semantics on a type value. Calling a type value directly — `(number 42)` — is rejected with a diagnostic suggesting `(: 42 number)`. See [types.md — Coercion](./types.md#coercion-v-t) for the full semantics.
+`^T v` is the **only** way to invoke the coerce/validate semantics on a type value. Calling a type value directly — `(number 42)` — is rejected with a diagnostic suggesting `^number 42`. See [types.md — Coercion](./types.md#coercion-t-v) for the full semantics.
+
+### Derived types — `(: T ...)`
+
+`(: T key: value ... pred ...)` is a type made of `T`: its values that meet each `pred`, with what each key says of them. A `:` directly after `(` is this form; anywhere else it keeps its annotation or key role. `default:` says what the type falls back to, and has to be one of its values. `(: T)` is `T`. See [types.md — Derived types](./types.md#derived-types).
+
+<!-- test -->
+```glisp
+Percent = (: number min: 0 max: 100 suffix: "%")
+NonNegative = (: number #(>= % 0))
+^NonNegative -3       ;; → 0  (default, with a diagnostic)
+```
 
 For non-fallback type tests (membership without consuming the default), pattern-match via `?`.
 
@@ -606,17 +617,17 @@ The built-in primitive types are `number`, `string`, `boolean`, `unit`, `_`, and
 
 ### Coercing through a type
 
-`(: v T)` casts/validates `v` as `T`:
+`^T v` casts/validates `v` as `T`:
 
 <!-- test -->
 ```glisp
 JoinType = (| "round" "butt" "square")
 
-(: 42 number)                     ;; → 42
-(: "hello" number)                ;; → 0  (default)
-(: [1 2 3] [...number])           ;; → [1 2 3]
-(: "round" JoinType)              ;; → "round"
-(: "diamond" JoinType)            ;; → "round"  (default)
+^number 42                     ;; → 42
+^number "hello"                ;; → 0  (default)
+^[...number] [1 2 3]           ;; → [1 2 3]
+^JoinType "round"              ;; → "round"
+^JoinType "diamond"            ;; → "round"  (default)
 ```
 
 ### Subtyping
@@ -660,7 +671,8 @@ See [eval.md](./eval.md#multi-step-evaluation--abstraction-ladder).
 | `(...)`       | function/value application                             |
 | `[...]`       | vector; a function's parameters, after `=>`            |
 | `{...}`       | record / let-block; a function's generics, after `=>`  |
-| `:`           | type annotation, return type, record key, keyword argument, metadata key; a key in a path; coerce form when directly after `(` |
+| `:`           | type annotation, return type, record key, keyword argument, metadata key; a key in a path; a derived type when directly after `(` |
+| `^T v`        | coerce `v` to `T`                                      |
 | `=`           | names an expression, binding the name for what is around it |
 | `=>`          | function literal                                       |
 | `^{...}`      | metadata attachment                                    |

@@ -99,7 +99,7 @@ const GUIDES: Readonly<
 		}
 	>
 > = {
-	point: { label: 'Point', stem: 'point', code: (x, y) => `(: [${x} ${y}] point)` },
+	point: { label: 'Point', stem: 'point', code: (x, y) => `^point [${x} ${y}]` },
 	'vec2.lerp': {
 		label: 'Lerp',
 		stem: 'lerp',

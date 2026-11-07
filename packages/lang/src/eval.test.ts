@@ -18,6 +18,7 @@ import {
 	spread,
 	sym,
 	vec,
+	coerce,
 } from './build.js'
 import {
 	emptyEnv,
@@ -528,26 +529,26 @@ describe('evaluate — type values (cast & match)', () => {
 			string: lit(stringType as never),
 		})
 
-	it('(: 42 number) returns 42 (coerce pass)', () => {
-		expect(evaluate(parse('(: 42 number)'), envWithTypes()).value).toBe(42)
+	it('^number 42 returns 42 (coerce pass)', () => {
+		expect(evaluate(parse('^number 42'), envWithTypes()).value).toBe(42)
 	})
 
-	it('(: "hi" number) falls back to default (0)', () => {
-		const r = evaluate(parse('(: "hi" number)'), envWithTypes())
+	it('^number "hi" falls back to default (0)', () => {
+		const r = evaluate(parse('^number "hi"'), envWithTypes())
 		expect(r.value).toBe(0)
 		expect(r.diagnostics.some(d => d.message.includes("doesn't accept"))).toBe(
 			true
 		)
 	})
 
-	it('(: 42 string) falls back to default ("")', () => {
-		expect(evaluate(parse('(: 42 string)'), envWithTypes()).value).toBe('')
+	it('^string 42 falls back to default ("")', () => {
+		expect(evaluate(parse('^string 42'), envWithTypes()).value).toBe('')
 	})
 
-	it('(T v) is rejected with a hint to use (: v T)', () => {
+	it('(T v) is rejected with a hint to use ^T v', () => {
 		const r = evaluate(parse('(number 42)'), envWithTypes())
 		expect(
-			r.diagnostics.some(d => d.message.includes('(: v number)'))
+			r.diagnostics.some(d => d.message.includes('^number v'))
 		).toBe(true)
 	})
 
@@ -1081,11 +1082,11 @@ describe('evaluate — coerce edge cases', () => {
 			string: lit(stringType as never),
 		})
 
-	it('(: <unresolvable-name> T) — silent default, no extra coerce-mismatch noise', () => {
+	it('^T <unresolvable-name> — silent default, no extra coerce-mismatch noise', () => {
 		// Unresolved name → `()` (silent failure per the "evaluation never
 		// throws" rule). `()` does not fit `number`, but coerce of an
 		// already-failed value is silent — only the lookup diagnostic surfaces.
-		const r = evaluate(parse('(: undefined-var number)'), env())
+		const r = evaluate(parse('^number undefined-var'), env())
 		expect(r.value).toBe(0)
 		// At least one diagnostic — for the lookup. We don't pin the exact
 		// shape, only that the coerce form does not silently swallow it.
@@ -1093,25 +1094,25 @@ describe('evaluate — coerce edge cases', () => {
 	})
 
 	it('coercion of () is silent (no diagnostic noise)', () => {
-		// (: () T) is the "give me the default" idiom — should not emit a
+		// ^T () is the "give me the default" idiom — should not emit a
 		// type-mismatch diagnostic.
-		const r = evaluate(parse('(: () number)'), env())
+		const r = evaluate(parse('^number ()'), env())
 		expect(r.value).toBe(0)
 		expect(
 			r.diagnostics.some(d => d.message.includes("doesn't accept"))
 		).toBe(false)
 	})
 
-	it('(: (: v T) T) is idempotent', () => {
-		const r = evaluate(parse('(: (: 42 number) number)'), env())
+	it('^T ^T v is idempotent', () => {
+		const r = evaluate(parse('^number ^number 42'), env())
 		expect(r.value).toBe(42)
 		expect(r.diagnostics).toHaveLength(0)
 	})
 
-	it('(: v unbound-name) — type fails to resolve', () => {
+	it('^unbound-name v — type fails to resolve', () => {
 		// `T` is not bound → evaluating it produces unit + diagnostic; the
 		// coerce form must not crash and must surface a useful message.
-		const r = evaluate(parse('(: 42 NoSuchType)'), env())
+		const r = evaluate(parse('^NoSuchType 42'), env())
 		// Result is the value verbatim or unit — but no exception.
 		expect(r.diagnostics.length).toBeGreaterThan(0)
 	})
@@ -1353,7 +1354,7 @@ describe('evaluate — path targets', () => {
 	})
 
 	it('keeps a resolved generic visible in the body', () => {
-		expect(run('((=> {T} [x: T]: T (: x T)) 1)').value).toBe(1)
+		expect(run('((=> {T} [x: T]: T ^T x) 1)').value).toBe(1)
 	})
 })
 
@@ -1387,26 +1388,26 @@ describe('default in metadata', () => {
 	const run = (src: string) => evaluate(parse(src), env)
 
 	it('is what a type falls back to', () => {
-		expect(run('(: "a" ^{default: 7} number)').value).toBe(7)
-		expect(run('{P = ^{default: 7} number (: "a" P)}').value).toBe(7)
+		expect(run('^(: number default: 7) "a"').value).toBe(7)
+		expect(run('{P = ^{default: 7} number ^P "a"}').value).toBe(7)
 		expect(run('{f = (=> [x: ^{default: 7} number]: number x) (f "a")}').value).toBe(7)
 		expect(run('{P = ^{default: 7} number f = (=> [x: P]: number x) (f "a")}').value).toBe(7)
 		expect(run('{f = (=> [x: ^{default: 7} number]: number x) (f ())}').value).toBe(7)
 	})
 
 	it('goes along with what is derived, until something goes over it', () => {
-		expect(run('{P = ^{default: 7} number Q = ^{max: 9} P (: "a" Q)}').value).toBe(7)
-		expect(run('{P = ^{default: 7} number Q = ^{default: 8} P (: "a" Q)}').value).toBe(8)
-		expect(run('{P = ^{default: 7} number Q = P (: "a" Q)}').value).toBe(7)
+		expect(run('{P = ^{default: 7} number Q = ^{max: 9} P ^Q "a"}').value).toBe(7)
+		expect(run('{P = ^{default: 7} number Q = ^{default: 8} P ^Q "a"}').value).toBe(8)
+		expect(run('{P = ^{default: 7} number Q = P ^Q "a"}').value).toBe(7)
 	})
 
 	it('can be worked out', () => {
-		expect(run('{k = 3 (: "a" ^{default: (+ k 1)} number)}').value).toBe(4)
+		expect(run('{k = 3 ^(: number default: (+ k 1)) "a"}').value).toBe(4)
 	})
 
 	it('still fits as what it is', () => {
-		expect(run('{P = ^{default: 7} number f = (=> [x: number]: number x) (f (: 1 P))}').value).toBe(1)
-		expect(run('(: 1 ^{default: 7} number)').value).toBe(1)
+		expect(run('{P = ^{default: 7} number f = (=> [x: number]: number x) (f ^P 1)}').value).toBe(1)
+		expect(run('^(: number default: 7) 1').value).toBe(1)
 		expect(check(parse('{P = ^{default: 7} number f = (=> [x: P]: number x) (f 1)}'), env)).toEqual([])
 		const typed = resolveTypeSlot(parse('^{default: 7} number'), env)!
 		const plain = resolveTypeSlot(parse('number'), env)!
@@ -1416,7 +1417,7 @@ describe('default in metadata', () => {
 	})
 
 	it('says so when it does not fit, and has no effect', () => {
-		expect(run('(: "a" ^{default: "b"} number)').value).toBe(0)
+		expect(run('^(: number default: "b") "a"').value).toBe(0)
 		expect(check(parse('{P = ^{default: "b"} number}'), env).map(d => d.message)).toContain(
 			'default does not fit number'
 		)
@@ -1456,8 +1457,8 @@ describe('members of a type', () => {
 	})
 
 	it('leave the type as a type', () => {
-		expect(run('(: [1 2] pair)').value).toEqual([1, 2])
-		expect(run('(: "a" pair)').value).toEqual([0, 0])
+		expect(run('^pair [1 2]').value).toEqual([1, 2])
+		expect(run('^pair "a"').value).toEqual([0, 0])
 		expect(run('{f = (=> [p: pair]: number p.0) (f [4 5])}').value).toBe(4)
 	})
 
@@ -1527,5 +1528,31 @@ describe('#_', () => {
 	it('is still checked', () => {
 		expect(check(parse('(+ 1 #_"a")'), env)).not.toEqual([])
 		expect(check(parse('{a = 1 #_nope}'), env)).not.toEqual([])
+	})
+})
+
+describe('(: T ...) and ^T v', () => {
+	const env = buildPrelude()
+	const run = (src: string) => evaluate(parse(src), env)
+
+	it('makes a type of T, narrowed by what is after it, with what its keys say', () => {
+		const t = run('{w = 40 (: number #(>= % 0) max: (+ w 2) suffix: "%")}').value as TypeValue
+		expect(t.fits(3)).toBe(true)
+		expect(t.fits(-1)).toBe(false)
+		// What a key says is kept as what it comes to
+		expect(t.meta?.get('max')?.print()).toBe('42')
+		expect(t.meta?.get('suffix')?.print()).toBe('"%"')
+		expect(run('(: number)').value).toBe(run('number').value)
+	})
+
+	it('says so when its default does not meet what it asks, unless one is said', () => {
+		expect([...run('(: number #(> % 0))').diagnostics].map(d => d.message).join()).toContain('default')
+		expect([...run('(: number #(> % 0) default: 1)').diagnostics]).toEqual([])
+		expect(run('^(: number #(> % 0) default: 1) -5').value).toBe(1)
+	})
+
+	it('writes a record type after ^ in (: ...), as ^{ is metadata', () => {
+		expect(coerce(lit(1), parse('{x: number}')).print()).toBe('^(: {x: number}) 1')
+		expect(run('^(: {x: number}) {x: 1 y: 2}').value).toEqual({ x: 1, y: 2 })
 	})
 })

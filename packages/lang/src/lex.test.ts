@@ -195,8 +195,8 @@ describe('lex — comment edge cases', () => {
 })
 
 describe('lex — `:` as coerce head', () => {
-	it('`(: v T)` lexes `:` as its own token', () => {
-		expect(kinds('(: v T)')).toEqual([
+	it('`(: T v)` lexes `:` as its own token', () => {
+		expect(kinds('(: T v)')).toEqual([
 			'(',
 			':',
 			'identifier',

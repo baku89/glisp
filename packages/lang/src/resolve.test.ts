@@ -53,7 +53,7 @@ describe('resolve — names', () => {
 	})
 
 	it('sees generics in the types and the body', () => {
-		const src = '(=> {T} [x: T]: T (: x T))'
+		const src = '(=> {T} [x: T]: T ^T x)'
 		expect(messages(src)).toEqual([])
 		expect(targetOf(src, 'T')?.kind).toBe('generic')
 	})
@@ -63,7 +63,7 @@ describe('resolve — names', () => {
 	})
 
 	it('does not treat special forms as references', () => {
-		expect(messages('(: 1 number)')).toEqual([])
+		expect(messages('^number 1')).toEqual([])
 		expect(messages('(|> 1 #(+ % 1))')).toEqual([])
 		expect(messages('(? 1 number 2 _ 3)')).toEqual([])
 	})
@@ -159,7 +159,7 @@ describe('freeRefs', () => {
 
 	it('does not count special forms or a catch-all', () => {
 		expect(freeNames('(? a number 1 _ 2)')).toEqual(['a', 'number'])
-		expect(freeNames('(: a number)')).toEqual(['a', 'number'])
+		expect(freeNames('^number a')).toEqual(['a', 'number'])
 	})
 
 	it('keeps paths that climb out and drops those that stay inside', () => {

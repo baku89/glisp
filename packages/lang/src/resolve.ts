@@ -39,7 +39,7 @@ import {
 } from './types.js'
 
 /** Call heads dispatched by name, which never refer to a binding. */
-const SPECIAL_FORMS = new Set(['?', '|>', ':', 'overload'])
+const SPECIAL_FORMS = new Set(['?', '|>', ':', '^', 'overload'])
 
 function isSpecialHead(ast: AST): ast is SymAST {
 	return ast.kind === 'sym' && SPECIAL_FORMS.has(ast.name)

@@ -59,6 +59,9 @@ import {
 	unpin,
 	unwrapLazy,
 	VecAST,
+	COERCE,
+	coerce,
+	isCoerce,
 } from '@glisp/lang'
 
 /**
@@ -896,7 +899,7 @@ function parameterInfo(
 }
 
 /** Forms written like a call, with no function to call: these are syntax. */
-const FORMS: ReadonlySet<string> = new Set([':', '?', '|>'])
+const FORMS: ReadonlySet<string> = new Set([COERCE, '?', '|>'])
 
 /** Whether a node is the `_` that a match takes as anything else. */
 const isWildcard = (ast: AST | undefined): boolean =>
@@ -940,13 +943,13 @@ export function writtenAsType(value: AST, type: TypeValue | null, env: Env): AST
 	if (written.kind !== 'lit' && written.kind !== 'vec') return value
 	const name = nameOfType(type, env)
 	if (name === null || nameOfType(infer(value, env), env) === name) return value
-	return new CallAST(new SymAST(':'), [value, new SymAST(name)])
+	return coerce(value, new SymAST(name))
 }
 
-/** What is cast, if `ast` says so of it, as `(: v T)`. */
+/** What is cast, if `ast` says so of it, as `^T v`. */
 const castValueOf = (ast: AST): AST | null => {
 	const bare = ast.kind === 'meta' ? ast.expr : ast
-	return bare.kind === 'call' && bare.head.kind === 'sym' && bare.head.name === ':' ? (bare.args[0] ?? null) : null
+	return isCoerce(bare) ? (bare.args[0] ?? null) : null
 }
 
 /** What is cast to what a place already says of it, without saying so again. */
@@ -982,7 +985,7 @@ function viewOfForm(ast: CallAST, env: Env, name: string): NodeView {
 	})
 	const has = (i: number) => i < ast.args.length
 
-	if (name === ':') {
+	if (name === COERCE) {
 		// What it is cast to says what control there is, and what that is called: there is
 		// nothing else to it to be taken hold of here, and it can be written otherwise as code.
 		const type = ast.args[1]
@@ -2116,7 +2119,7 @@ export function kindIconOf(ast: AST): string | null {
 			return kindIconOf(ast.expr)
 		case 'call':
 			if (ast.head.kind === 'sym') {
-				if (ast.head.name === ':') return 'mdi:tag-outline'
+				if (ast.head.name === COERCE) return 'mdi:tag-outline'
 				if (ast.head.name === '?') return 'mdi:call-split'
 				if (ast.head.name === '|>') return 'mdi:pipe'
 			}

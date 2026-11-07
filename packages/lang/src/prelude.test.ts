@@ -28,8 +28,8 @@ describe('prelude — identities', () => {
 })
 
 describe('coerce form with %', () => {
-	it('#(: % T) is a function that coerces its argument', () => {
-		const r = evaluate(parse('(map ["a" 1] #(: % number))'), buildPrelude())
+	it('#(identity ^T %) is a function that coerces its argument', () => {
+		const r = evaluate(parse('(map ["a" 1] #(identity ^number %))'), buildPrelude())
 		expect(r.value).toEqual([0, 1])
 	})
 })
@@ -143,22 +143,22 @@ describe('prelude — type constructors', () => {
 		expect(typeFits(about, plain) && typeFits(plain, about)).toBe(true)
 	})
 
-	it('(: v T) coerces an enum member through to its value', () => {
-		const r = evaluate(parse('{C = (| "r" "g" "b") (: "g" C)}'), env)
+	it('^T v coerces an enum member through to its value', () => {
+		const r = evaluate(parse('{C = (| "r" "g" "b") ^C "g"}'), env)
 		expect(r.value).toBe('g')
 	})
 
-	it('(: v T) on a non-member falls back to the first listed value', () => {
-		const r = evaluate(parse('{C = (| "r" "g" "b") (: "purple" C)}'), env)
+	it('^T v on a non-member falls back to the first listed value', () => {
+		const r = evaluate(parse('{C = (| "r" "g" "b") ^C "purple"}'), env)
 		expect(r.value).toBe('r')
 		expect(
 			r.diagnostics.some(d => d.message.includes("doesn't accept"))
 		).toBe(true)
 	})
 
-	it('refine narrows base type via (: v T)', () => {
+	it('(: T pred) narrows a type, falling back to its default', () => {
 		const pos = (arg: string): string =>
-			`{Pos = (refine number 1 (=> [x: number]: boolean (> x 0))) (: ${arg} Pos)}`
+			`{Pos = (: number (=> [x: number]: boolean (> x 0)) default: 1) ^Pos ${arg}}`
 		expect(evaluate(parse(pos('5')), env).value).toBe(5)
 		const fail = evaluate(parse(pos('-3')), env)
 		expect(fail.value).toBe(1) // declared default

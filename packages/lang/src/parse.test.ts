@@ -473,14 +473,14 @@ describe('parse — special forms (parser is permissive)', () => {
 	})
 
 	it('round-trips coerce form', () => {
-		const src = '(: 42 number)'
+		const src = '^number 42'
 		expect(roundTrip(src)).toBe(src)
 	})
 
 	it('`:` is only a coerce head directly after `(`', () => {
 		expect(() => parse('(x: number)')).toThrow()
 		expect(() => parse('(f : number)')).toThrow()
-		const fnAst = parse('(=> [x: number]: number (: x number))')
+		const fnAst = parse('(=> [x: number]: number ^number x)')
 		expect(fnAst.kind).toBe('fn')
 	})
 

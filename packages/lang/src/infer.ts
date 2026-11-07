@@ -736,10 +736,13 @@ export function checkCall(
 				return inferMatch(ast, inside)
 			case '|>':
 				return inferPipe(ast, inside)
-			case ':': {
+			case '^': {
 				const type = ast.args[1]
 				return type === undefined ? null : resolveTypeSlot(type, inside)
 			}
+			// `(: T ...)` is a type expression, as a name of a type is
+			case ':':
+				return resolveTypeSlot(ast, inside)
 			case 'overload':
 				return null
 		}
@@ -753,7 +756,7 @@ export function checkCall(
 	const shape = unwrapLazy(head).shape
 	if (shape.kind === 'function') {
 		const result = applyFunctionType(head, ast, inside, report)
-		// `(refine T d p)`: calling a type constructor is a type expression.
+		// Calling what makes a type, as `(enum ...)`, is a type expression.
 		return result?.typeName === 'type'
 			? (resolveTypeSlot(ast, inside) ?? result)
 			: result

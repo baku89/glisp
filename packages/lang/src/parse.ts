@@ -18,6 +18,7 @@ import {
 	letBlock,
 	lit,
 	named,
+	coerce,
 	hide,
 	isHidden,
 	lambda,
@@ -321,7 +322,7 @@ class Parser {
 			throw this.error(this.peek(), 'empty application — use `()` for unit')
 		}
 
-		// `(: v T)` — a `:` in head position is the coercion special form.
+		// `(: T ...)` — a `:` in head position makes a type of `T`, with what is said of it.
 		const head = this.peek().kind === ':' ? this.colonHead() : this.expression()
 		const args: AST[] = []
 		const kwargs: Record<string, AST> = {}
@@ -577,6 +578,15 @@ class Parser {
 
 	private metaForm(): AST {
 		this.advance() // '^'
+		// `^T v`: `v` as a `T`. What `T` is written as is one that `^{` cannot be mistaken for.
+		if (this.peek().kind !== '{') {
+			const at = this.peek()
+			if (!['identifier', '(', '[', 'pathSegments', '_', '!', 'string', 'number', 'boolean', '()'].includes(at.kind)) {
+				throw this.error(at, 'a type after `^`, as in `^number 1`, or what is said of it, as `^{label: "A"} 1`')
+			}
+			const type = this.atom()
+			return coerce(this.expression(), type)
+		}
 		this.expect('{')
 		const content: Record<string, AST> = {}
 		while (this.peek().kind !== '}') {
@@ -590,7 +600,7 @@ class Parser {
 		this.advance() // '}'
 		// Metadata cannot stack — `^{...} ^{...} expr` is a syntax error.
 		// Combine fields into a single `^{...}` instead.
-		if (this.peek().kind === '^') {
+		if (this.peek().kind === '^' && this.peek(1).kind === '{') {
 			throw this.error(
 				this.peek(),
 				'metadata cannot wrap another metadata; combine fields into a single ^{...}'

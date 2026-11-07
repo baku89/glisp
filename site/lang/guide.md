@@ -97,8 +97,8 @@ Types are first-class values. The prelude binds `number`, `string`, `boolean`, `
 ;; Enumeration of literal members
 Color = (| "red" "green" "blue")
 
-;; Refinement: a base type narrowed by a predicate, with a default
-Pos = (refine number 1 (=> [n: number]: boolean (> n 0)))
+;; A type narrowed by a predicate, with a default
+Pos = (: number #(> % 0) default: 1)
 
 ;; Union: the values of any of the types, defaulting to the first one's
 Size = (| number [number number])
@@ -107,28 +107,28 @@ Size = (| number [number number])
 (IO number)            ;; → (IO number)  (a type value)
 ```
 
-### Coercion: `:`
+### Coercion: `^T v`
 
-`(: v T)` coerces `v` through type `T`. If `v` fits, it's passed through; otherwise the type's `default` takes its place and a diagnostic is recorded.
+`^T v` coerces `v` through type `T`. If `v` fits, it's passed through; otherwise the type's `default` takes its place and a diagnostic is recorded.
 
 <!-- test -->
 ```glisp
-(: 42 number)          ;; → 42
-(: "oops" number)      ;; → 0   (default; diagnostic emitted)
+^number 42          ;; → 42
+^number "oops"      ;; → 0   (default; diagnostic emitted)
 Color = (| "red" "green" "blue")
-Pos = (refine number 1 (=> [n: number]: boolean (> n 0)))
+Pos = (: number #(> % 0) default: 1)
 
-(: "red" Color)        ;; → "red"
-(: "purple" Color)     ;; → "red"  (default = first member)
-(: 5 Pos)              ;; → 5
-(: -3 Pos)             ;; → 1   (default; predicate failed)
+^Color "red"        ;; → "red"
+^Color "purple"     ;; → "red"  (default = first member)
+^Pos 5              ;; → 5
+^Pos -3             ;; → 1   (default; predicate failed)
 Size = (| number [number number])
 
-(: [10 20] Size)       ;; → [10 20]
-(: "big" Size)         ;; → 0   (default = the first member's)
+^Size [10 20]       ;; → [10 20]
+^Size "big"         ;; → 0   (default = the first member's)
 ```
 
-`(: v T)` is the prefix form of the `v: T` annotation. A bare `(T v)` is rejected with a hint pointing to it.
+`^T v` is the prefix form of the `v: T` annotation. A bare `(T v)` is rejected with a hint pointing to it.
 
 ## Pattern match: `?`
 

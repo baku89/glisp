@@ -220,7 +220,7 @@ export interface TypeValue {
 	 * Optional type-constructor hook. When set, `(T arg ...)` is dispatched
 	 * here with the args evaluated as types, and the result is the
 	 * parameterized TypeValue. Most types do not have this; for them, a
-	 * `(T v)` call is rejected with a hint to use `(: v T)`.
+	 * `(T v)` call is rejected with a hint to use `^T v`.
 	 */
 	readonly apply?: (
 		typeArgs: ReadonlyArray<TypeValue>
@@ -232,7 +232,7 @@ export interface TypeValue {
  * `fits` predicate, default, and structural shape.
  *
  * Type values are **not** callable — `(T v)` is rejected by the
- * evaluator with a hint to use `(: v T)` instead. The cast machinery
+ * evaluator with a hint to use `^T v` instead. The cast machinery
  * still exists internally (typed slots, default fallback for missing
  * args) but goes through `coerceTo`, not through invocation.
  */
@@ -1027,7 +1027,7 @@ export function isIO(v: unknown): v is IO {
 export { lookupBareName }
 
 // -----------------------------------------------------------------------------
-// Type-value head: parametric apply, or reject with `(: v T)` hint
+// Type-value head: parametric apply, or reject with `^T v` hint
 // -----------------------------------------------------------------------------
 
 function evalTypeApply(
@@ -1043,7 +1043,7 @@ function evalTypeApply(
 			diag(
 				site,
 				env,
-				`${head.typeName} is a type — use (: v ${head.typeName}) for coercion`
+				`${head.typeName} is a type — use ^${head.typeName} v for coercion`
 			)
 		)
 		return { value: UNIT, diagnostics }
@@ -1719,8 +1719,10 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 				return evalMatch(ast, inside)
 			case '|>':
 				return evalPipe(ast, inside)
-			case ':':
+			case '^':
 				return evalCoerce(ast, inside)
+			case ':':
+				return evalDerive(ast, inside)
 			case 'overload':
 				return evalOverload(ast, inside)
 		}
@@ -1763,7 +1765,7 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 
 	// Type values: check before record fall-through (a TypeValue is a
 	// branded plain object). Parametric types dispatch through `apply`;
-	// non-parametric ones reject with a hint to use `(: v T)`.
+	// non-parametric ones reject with a hint to use `^T v`.
 	if (isTypeValue(headValue)) {
 		return evalTypeApply(headValue, positional, kwargs, inside, ast, diagnostics)
 	}
@@ -2210,7 +2212,57 @@ export function matchValue(value: unknown, pattern: unknown): boolean {
 }
 
 /**
- * `(: v T)` — explicit coercion. `T` must evaluate to a type value;
+ * `(: T key: value ... pred ...)`: the values of `T` that meet each `pred`, with what is said of
+ * them. What a key says is what it comes to, written as a literal, so that it can be read without
+ * evaluating anything; `default` is what the type gives where what is wanted does not fit, and
+ * has to be one of its values. `(: T)` is `T`.
+ */
+function evalDerive(ast: CallAST, env: Env): EvalResult {
+	const [baseAst, ...predAsts] = ast.args
+	if (baseAst === undefined) return fail(ast, env, '(: T ...) is of a type, as in (: number min: 0)')
+	const base = resolveTypeSlot(baseAst, env)
+	if (base === null) {
+		return fail(baseAst, env, `(: T ...): ${describeType(evaluate(baseAst, env).value)} is not a type`)
+	}
+	const diagnostics: Diagnostic[] = []
+
+	const preds: Array<(v: unknown) => unknown> = []
+	for (const predAst of predAsts) {
+		const { value, diagnostics: found } = evaluate(predAst, env)
+		push(diagnostics, found)
+		if (typeof value === 'function') preds.push(value as (v: unknown) => unknown)
+		else diagnostics.push(diag(predAst, env, `(: T ...): what is after the type is a predicate, got ${describeType(value)}`))
+	}
+	let type = base
+	if (preds.length > 0) {
+		type = makeType(
+			`(: ${base.typeName} ...)`,
+			v => base.fits(v) && preds.every(pred => Boolean(pred(v))),
+			base.default,
+			{ kind: 'refine', base }
+		)
+	}
+
+	const entries = [...(ast.kwargs ?? [])].map(([key, valueAst]): readonly [string, AST] => {
+		if (key === 'default' || valueAst.kind === 'lit') return [key, valueAst]
+		const { value, diagnostics: found } = evaluate(valueAst, env)
+		push(diagnostics, found)
+		return [key, toAst(value, env)]
+	})
+	if (entries.length > 0) {
+		const metadata = new RecordASTClass(entries)
+		const defaulted = withDefaultFrom(type, metadata, env)
+		push(diagnostics, defaulted.diagnostics)
+		type = withTypeMeta(defaulted.type, metadata)
+	}
+	if (preds.length > 0 && !type.fits(type.default)) {
+		diagnostics.push(diag(ast, env, `(: T ...): the default, ${toAst(type.default, env).print()}, does not meet what is asked, so say one with default:`))
+	}
+	return { value: type, diagnostics }
+}
+
+/**
+ * `^T v` — explicit coercion. `T` must evaluate to a type value;
  * `v` is then run through `T.fits`. On success the original `v` flows
  * through; on failure the call returns `T.default` and emits a
  * diagnostic. `()` always coerces silently to the type's default
@@ -2224,7 +2276,7 @@ function evalCoerce(ast: CallAST, env: Env): EvalResult {
 		return fail(
 			ast,
 			env,
-			': expects exactly 2 arguments: value and type'
+			'^T v has a type and a value'
 		)
 	}
 	const t = resolveTypeSlot(ast.args[1]!, env)
@@ -2237,7 +2289,7 @@ function evalCoerce(ast: CallAST, env: Env): EvalResult {
 				diag(
 					ast.args[1]!,
 					env,
-					`(: v T): second argument must be a type, got ${describeType(r.value)}`
+					`^T v: what is after ^ must be a type, got ${describeType(r.value)}`
 				),
 			],
 		}

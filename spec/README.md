@@ -31,7 +31,7 @@ These follow from the GUI-primary premise:
 5. **Diagnostics as a side channel**. Errors and warnings are accumulated on each evaluation node, with `(message, source)` structure, queryable by the host without disrupting evaluation.
 6. **Static name resolution**. Names and paths can be resolved without running the program, so the GUI can show types and references.
 7. **Incremental evaluation**. A result is cached on what a node refers to, so an edit recomputes what depends on it, and everything else stays `===`. See [eval.md](./eval.md#incremental-evaluation).
-8. **Values are callable**. Function → apply, vector → index, record → field. Types are the exception: coercion is written `(: v T)`. The GUI exposes one uniform "feed something in" affordance per node.
+8. **Values are callable**. Function → apply, vector → index, record → field. Types are the exception: coercion is written `^T v`. The GUI exposes one uniform "feed something in" affordance per node.
 9. **Metadata as a separate value-layer**. `^{...}` carries `default`, `label`, `color`, `icon`, `doc`, etc. The core only assigns meaning to `default`; the rest is for hosts.
 10. **Authored abstraction steps**. A function's body is its next rung on the ladder, and `~` keeps implementation details off it. `~` is transparent in `eval`, so the host can climb the ladder while the runtime gets the final value.
 

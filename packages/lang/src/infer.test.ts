@@ -148,19 +148,19 @@ describe('type constructors', () => {
 	it('solves a generic constructor', () => {
 		const id = '(=> {F T} [x: (F T)]: (F T) x)'
 		expect(typeOf(`(${id} [1 2])`)).toBe('[...number]')
-		expect(typeOf(`(${id} (: 1 (IO number)))`)).toBe('(IO number)')
+		expect(typeOf(`(${id} ^(IO number) 1)`)).toBe('(IO number)')
 	})
 
 	it('extracts through a generic constructor', () => {
-		const unwrap = '(=> {F T} [x: (F T)]: T (: () T))'
+		const unwrap = '(=> {F T} [x: (F T)]: T ^T ())'
 		expect(typeOf(`(${unwrap} ["a"])`)).toBe('string')
-		expect(typeOf(`(${unwrap} (: 1 (IO number)))`)).toBe('number')
+		expect(typeOf(`(${unwrap} ^(IO number) 1)`)).toBe('number')
 	})
 
 	it('builds a generic constructor around another type', () => {
-		const remap = '(=> {F T} [x: (F T)]: (F string) (: () (F string)))'
+		const remap = '(=> {F T} [x: (F T)]: (F string) ^(F string) ())'
 		expect(typeOf(`(${remap} [1 2])`)).toBe('[...string]')
-		expect(typeOf(`(${remap} (: 1 (IO number)))`)).toBe('(IO string)')
+		expect(typeOf(`(${remap} ^(IO number) 1)`)).toBe('(IO string)')
 	})
 
 	it('is covariant', () => {
@@ -184,7 +184,7 @@ describe('type slots', () => {
 		expect(resolveTypeSlot(parse('1'), env)?.typeName).toBe('1')
 		expect(resolveTypeSlot(parse('[1 "a"]'), env)?.typeName).toBe('[1 "a"]')
 		expect(resolveTypeSlot(parse('()'), env)?.typeName).toBe('unit')
-		expect(value('(: 2 1)')).toBe(1)
+		expect(value('^1 2')).toBe(1)
 	})
 
 	it('rejects what is not a type', () => {
@@ -194,19 +194,19 @@ describe('type slots', () => {
 	})
 
 	it('coerces through each of them', () => {
-		expect(value('(: [1 2] [...number])')).toEqual([1, 2])
-		expect(value('(: [1 "a"] [...number])')).toEqual([])
-		expect(value('(: [1 "a"] [number string])')).toEqual([1, 'a'])
-		expect(value('(: [1] [number string])')).toEqual([0, ''])
-		expect(value('(: {x: 1} {x: number})')).toEqual({ x: 1 })
-		expect(value('(: {x: "a"} {x: number})')).toEqual({ x: 0 })
-		expect(value('(: {} {x: number y?: string})')).toEqual({ x: 0, y: '' })
-		expect(value('(: {x: 1} {x: number y?: string})')).toEqual({ x: 1 })
+		expect(value('^[...number] [1 2]')).toEqual([1, 2])
+		expect(value('^[...number] [1 "a"]')).toEqual([])
+		expect(value('^[number string] [1 "a"]')).toEqual([1, 'a'])
+		expect(value('^[number string] [1]')).toEqual([0, ''])
+		expect(value('^(: {x: number}) {x: 1}')).toEqual({ x: 1 })
+		expect(value('^(: {x: number}) {x: "a"}')).toEqual({ x: 0 })
+		expect(value('^(: {x: number y?: string}) {}')).toEqual({ x: 0, y: '' })
+		expect(value('^(: {x: number y?: string}) {x: 1}')).toEqual({ x: 1 })
 	})
 
 	it('lifts a value to a constant function', () => {
-		expect(value('(map [1 2] (: 20 (=> [x: number]: number)))')).toEqual([20, 20])
-		const r = evaluate(parse('(: "s" (=> [x: number]: number))'), env)
+		expect(value('(map [1 2] ^(=> [x: number]: number) 20)')).toEqual([20, 20])
+		const r = evaluate(parse('^(=> [x: number]: number) "s"'), env)
 		expect(r.diagnostics.length).toBeGreaterThan(0)
 	})
 
@@ -218,7 +218,7 @@ describe('type slots', () => {
 
 	it('handles a recursive type', () => {
 		const tree = (v: string) =>
-			`{Tree = {value: number children: [...Tree]} (: ${v} Tree)}`
+			`{Tree = {value: number children: [...Tree]} ^Tree ${v}}`
 		const leaf = '{value: 1 children: []}'
 		expect(value(tree(`{value: 0 children: [${leaf}]}`))).toEqual({
 			value: 0,
@@ -263,7 +263,7 @@ describe('subtyping', () => {
 		expect(typeFits(slot('(| "a" "b")'), slot('number'))).toBe(false)
 		expect(typeFits(slot('string'), slot('(| "a" "b")'))).toBe(false)
 		expect(typeFits(slot('(| "a")'), slot('(| "a" "b")'))).toBe(true)
-		const positive = '(refine number 1 (=> [x: number]: boolean (> x 0)))'
+		const positive = '(: number (=> [x: number]: boolean (> x 0)) default: 1)'
 		expect(typeFits(slot(positive), slot('number'))).toBe(true)
 		expect(typeFits(slot('number'), slot(positive))).toBe(false)
 	})
@@ -296,13 +296,13 @@ describe('infer — forms', () => {
 	it('types calls on values', () => {
 		expect(typeOf('([1 "a"] 1)')).toBe('string')
 		expect(typeOf('({x: 1} "x")')).toBe('number')
-		expect(typeOf('((: [1] [...number]) 5)')).toBe('number')
+		expect(typeOf('(^[...number] [1] 5)')).toBe('number')
 	})
 
 	it('types ? by the clauses in common, or else by a union of them', () => {
 		expect(typeOf('(? 1 number 2 _ 3)')).toBe('number')
 		expect(typeOf('(? 1 number [1] _ [2 3])')).toBe('(| [number] [number number])')
-		expect(typeOf('(: 1 number)')).toBe('number')
+		expect(typeOf('^number 1')).toBe('number')
 		expect(typeOf('(? 1 number "n" _ 2)')).toBe('(| string number)')
 		expect(problems('(? 1 number "n" _ 2)')).toEqual([])
 	})
@@ -411,12 +411,12 @@ describe('metadata on a type', () => {
 	})
 
 	it('comes with a type, through a name and an alias', () => {
-		expect(typeIn(`{${PERCENT} a = (: 20 Percent)}`, 'a')).toBe(SAID)
-		expect(typeIn(`{${PERCENT} P = Percent a = (: 20 P)}`, 'a')).toBe(SAID)
+		expect(typeIn(`{${PERCENT} a = ^Percent 20}`, 'a')).toBe(SAID)
+		expect(typeIn(`{${PERCENT} P = Percent a = ^P 20}`, 'a')).toBe(SAID)
 	})
 
 	it('goes over what came before, key by key', () => {
-		expect(typeIn(`{${PERCENT} H = ^{max: 50} Percent a = (: 20 H)}`, 'a')).toBe(
+		expect(typeIn(`{${PERCENT} H = ^{max: 50} Percent a = ^H 20}`, 'a')).toBe(
 			'^{min: 0 suffix: "%" max: 50} number'
 		)
 	})
@@ -456,23 +456,23 @@ describe('metadata on a type', () => {
 			'(=> [x: number]: number)'
 		)
 		expect(typeIn('{a = 1}', 'pi')).toBe('number')
-		expect(typeIn('{a = (: 1 number)}', 'a')).toBe('number')
-		expect(typeIn('{P = ^{doc: "D" suffix: "%"} number a = (: 1 P)}', 'a')).toBe(
+		expect(typeIn('{a = ^number 1}', 'a')).toBe('number')
+		expect(typeIn('{P = ^{doc: "D" suffix: "%"} number a = ^P 1}', 'a')).toBe(
 			'^{suffix: "%"} number'
 		)
 	})
 
 	it('takes an icon along', () => {
-		expect(typeIn('{P = ^{icon: "i"} number Q = ^{min: 0} P a = (: 1 Q)}', 'a')).toBe(
+		expect(typeIn('{P = ^{icon: "i"} number Q = ^{min: 0} P a = ^Q 1}', 'a')).toBe(
 			'^{icon: "i" min: 0} number'
 		)
 	})
 
 	it('holds for a recursive type, and aliases in a circle', () => {
-		const src = '{Tree = ^{icon: "t"} {value: number children: [...Tree]} a = (: {value: 1 children: []} Tree)}'
+		const src = '{Tree = ^{icon: "t"} {value: number children: [...Tree]} a = ^Tree {value: 1 children: []}}'
 		expect(typeIn(src, 'a')).toContain('^{icon: "t"}')
 		const env = buildPrelude()
-		expect(() => resolveTypeSlot(parse('{p = q q = p (: 1 p)}'), env)).not.toThrow()
-		expect(() => check(parse('{p = q q = p (: 1 p)}'), env)).not.toThrow()
+		expect(() => resolveTypeSlot(parse('{p = q q = p ^p 1}'), env)).not.toThrow()
+		expect(() => check(parse('{p = q q = p ^p 1}'), env)).not.toThrow()
 	})
 })
