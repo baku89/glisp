@@ -38,6 +38,7 @@ import {
 	RecordAST,
 	type RecordEntry,
 	UNIT,
+	UNWRITTEN_RETURN,
 } from './types.js'
 
 // -----------------------------------------------------------------------------
@@ -370,8 +371,12 @@ class Parser {
 		if (params.length === 0) {
 			throw this.error(start, 'a function takes at least one parameter: use what it gives in its place')
 		}
-		this.expect(':')
-		const returnType = this.signatureType()
+		// Without a return type, what the body comes to is what is known of it
+		let returnType: AST = UNWRITTEN_RETURN
+		if (this.peek().kind === ':') {
+			this.advance()
+			returnType = this.signatureType()
+		}
 
 		let body: AST | null = null
 		if (this.peek().kind !== ')') {

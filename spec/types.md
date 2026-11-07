@@ -318,13 +318,13 @@ Evaluation never throws at the language level. Errors and warnings flow on a par
 ### Mandatory annotations
 
 - Function parameter types.
-- Function return type.
 
 ### Inferred
 
 - Local bindings in a let-block.
 - Sub-expression types within a function body.
 - Generic type parameters at call sites.
+- A function's return type, when it is left out or written `_`: what the body comes to, with each parameter of its declared type. Evaluated, such a return is `_`, so what the function gives is not turned into a default; only static analysis knows more of it.
 
 ```glisp
 (=> {T} [xs: [...T] i: number]: T (xs i))
@@ -342,8 +342,9 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 - **Function literals are inferred after other arguments**, against what those solved. In `(map [1 2] #(+ % 1))`, `%` is a `number`, so the result is `[...number]`. A parameter or return declared `_` takes what is known from the slot and from the body.
 - **Type constructors can be generic.** In `(=> {F T} [x: (F T)]: T ...)`, given `(IO number)`, `F` is `IO` and `T` is `number`; given `[1 2]`, `F` is `vector`.
 - **Inside a generic function's body, `T` is opaque**: it fits only itself.
-- **Unions are not inferred**, only written. A vector with no common element type is a vector of `_` when it meets `[...T]`, and clauses of `?` with no type in common are a diagnostic.
-- **`?`** has the type its clauses have in common. Clauses with none are a diagnostic.
+- **A return that says nothing comes from the body.** `(=> [x: number] (* x x))` is a `(=> [number]: number)`. While the body is read, a call of the function in it comes to `_`, so a recursive one still has a type, as `(* n (f (- n 1)))` is a `number`. A parameter declared `_` leaves it to what the function is given, as for `map`.
+- **Unions come only from `?`.** A vector with no common element type is a vector of `_` when it meets `[...T]`.
+- **`?`** has the type its clauses have in common, and with none, the union of them: `(? x 0 "zero" _ x)` is a `(| string number)`.
 
 `check(ast, env)` walks everything, including what evaluation would not reach: references, call arguments, return types, and clauses of `?`.
 
@@ -351,6 +352,6 @@ Signatures are mandatory, so types flow locally rather than through a global sol
 
 - Anonymous recursive types `(rec X ...)`. Currently named bindings cover the use cases; revisit if a clear motivation appears.
 - Whether function types carry their own metadata (e.g. purity/effect annotations).
-- Whether inference should make unions, as the type of `[1 "a"]` or of clauses of `?` that differ, and whether a clause of `?` should narrow the type of what it matched.
+- Whether inference should make a union of the elements of `[1 "a"]`, as it does of the clauses of `?`, and whether a clause of `?` should narrow the type of what it matched.
 - Tagged sums. A union of records that differ by a field, as `{kind: (| "a") ...}`, covers them for now.
 - **Type classes / constraint-based generics** (`(=> [T: Addable] (a: T b: T): T ...)`). v1 uses `overload` as a closed set of candidates. Type classes would add open extension (new instances declarable later) at the cost of a constraint syntax, instance declaration, and dictionary-passing implementation. Defer to v2; if introduced, `overload` may become syntactic sugar for a closed type-class definition.

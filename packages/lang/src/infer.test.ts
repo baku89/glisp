@@ -299,13 +299,23 @@ describe('infer — forms', () => {
 		expect(typeOf('((: [1] [...number]) 5)')).toBe('number')
 	})
 
-	it('types ? by the clauses in common', () => {
+	it('types ? by the clauses in common, or else by a union of them', () => {
 		expect(typeOf('(? 1 number 2 _ 3)')).toBe('number')
-		expect(typeOf('(? 1 number [1] _ [2 3])')).toBe(null)
+		expect(typeOf('(? 1 number [1] _ [2 3])')).toBe('(| [number] [number number])')
 		expect(typeOf('(: 1 number)')).toBe('number')
-		expect(problems('(? 1 number "n" _ 2)')).toEqual([
-			'? clauses have different types: string, number',
-		])
+		expect(typeOf('(? 1 number "n" _ 2)')).toBe('(| string number)')
+		expect(problems('(? 1 number "n" _ 2)')).toEqual([])
+	})
+
+	it('takes the return a function does not say from what its body comes to', () => {
+		expect(typeOf('(=> [x: number] (+ x 1))')).toBe('(=> [x: number]: number)')
+		expect(typeOf('(=> [x: number]: _ [x x])')).toBe('(=> [x: number]: [number number])')
+		expect(typeOf('{f = (=> [x: number] (* x 2)) (f 3)}')).toBe('number')
+		expect(typeOf('(=> [x: number] (? (< x 0) true "neg" _ x))')).toBe('(=> [x: number]: (| string number))')
+		// A call of itself, while its body is read, comes to `_`
+		expect(typeOf('{f = (=> [n: number] (? (== n 0) true 1 _ (* n (f (- n 1))))) (f 3)}')).toBe('number')
+		// What it is given says what a parameter that says nothing is
+		expect(typeOf('(map [1 2] (=> [x: _] (+ x 1)))')).toBe('[...number]')
 	})
 
 	it('types an overload call by the variant that fits', () => {

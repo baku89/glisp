@@ -19,7 +19,9 @@ import {
 	unquote,
 	vec,
 } from './build.js'
+import { evaluate } from './eval.js'
 import { parse, ParseError } from './parse.js'
+import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
 import { RecordAST, UNIT } from './types.js'
 
@@ -301,6 +303,16 @@ describe('parse — functions', () => {
 		expect(() => parse('#(f #(g %))')).toThrow(/not in it/)
 		expect(() => parse('#x')).toThrow()
 		expect(() => parse('# (f %)')).toThrow()
+	})
+
+	it('may leave out the return type', () => {
+		for (const src of ['(=> [x: number] (* x x))', '(=> {T} [x: T] x)', '(=> [number])', '(map xs (=> [x: number] [x x]))']) {
+			expect(roundTrip(src), src).toBe(src)
+			expect(parse(src).printStructural(), src).toBe(src)
+		}
+		// Evaluated, it is `_`, and so turns nothing into a default
+		expect(evaluate(parse('((=> [x: number] (? (< x 0) true () _ x)) -1)'), buildPrelude()).value).toBe(UNIT)
+		expect(evaluate(parse('((=> [x: number]: number (? (< x 0) true () _ x)) -1)'), buildPrelude()).value).toBe(0)
 	})
 
 	it('has its parameters in brackets, and its generics in braces', () => {

@@ -296,10 +296,11 @@ A let-block's bindings are where things are defined (see [Hiding](#hiding--_)). 
 (=> {T} [x: T]: T x)                                ;; generic
 (=> {T U} [a: T b: U]: T a)                         ;; multiple generics
 (=> [a: number b: number]: number)                  ;; function type (no body)
+(=> [x: number] (* x x))                            ;; return type left out, inferred
 (=> [number number]: number)                        ;; function type, parameter names omitted
 ```
 
-Argument signature and return type are mandatory. Inside the body, types are inferred.
+Parameter types are mandatory. The return type may be left out, as in `(=> [x: number] (* x x))`: it is then what the body comes to, for static analysis, and `_` where it is evaluated. Inside the body, types are inferred. See [types.md — Type inference](./types.md#type-inference).
 
 The parameters are in brackets, `[name: Type ...]`, and the names of the types a function is generic over, if any, in braces before them, `{T U}`. The brackets read as a tuple type with names: without the names, `[a: number ...rest: string]` is `[number ...string]`, the type of what the function is given. The braces name what is bound for the function's types and body, as a let-block does. What a generic is bound by, as in `{T: Show}`, is not supported yet.
 

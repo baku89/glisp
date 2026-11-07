@@ -303,18 +303,28 @@ function functionTypeOfLiteral(fn: FnAST, env: Env): TypeValue {
 			paramTypes.push(type)
 		}
 	}
-	const type = makeFunctionType(
-		paramTypes,
-		resolveTypeSlot(fn.returnType, typeEnv) ?? top(),
-		{
-			paramNames,
-			generics: fn.generics,
-			...(variadicTail !== undefined ? { variadicTail } : {}),
-			...(variadicName !== undefined ? { variadicName } : {}),
-		}
-	)
+	const declared = resolveTypeSlot(fn.returnType, typeEnv) ?? top()
+	const options = {
+		paramNames,
+		generics: fn.generics,
+		...(variadicTail !== undefined ? { variadicTail } : {}),
+		...(variadicName !== undefined ? { variadicName } : {}),
+	}
+	const type = makeFunctionType(paramTypes, declared, options)
 	memoSet(signatureMemo, fn, env, type)
-	return type
+	if (fn.body === null || declared.typeName !== '_') return type
+	// With a parameter that says nothing, what it is given says what the body comes to
+	if ([...paramTypes, ...(variadicTail === undefined ? [] : [variadicTail])].some(t => t.typeName === '_')) {
+		return type
+	}
+
+	// A return that says nothing, as `_` or by not being written, is what the body comes to. While
+	// the body is read, a call of the function in it comes to `_`, as the type above says.
+	const returned = infer(fn.body, bodyFrame(fn, env))
+	if (returned === null || returned.typeName === '_') return type
+	const inferred = makeFunctionType(paramTypes, returned, options)
+	memoSet(signatureMemo, fn, env, inferred)
+	return inferred
 }
 
 function functionTypeOfHost(fn: TypedHostFn): TypeValue {
@@ -723,7 +733,7 @@ export function checkCall(
 	if (ast.head.kind === 'sym') {
 		switch (ast.head.name) {
 			case '?':
-				return inferMatch(ast, inside, report)
+				return inferMatch(ast, inside)
 			case '|>':
 				return inferPipe(ast, inside)
 			case ':': {
@@ -943,27 +953,17 @@ export function bodyFrame(
 	return frame
 }
 
-/** The type of the clauses of `?`, when they have one in common. */
-function inferMatch(
-	ast: CallAST,
-	env: Env,
-	report: CallReporter
-): TypeValue | null {
+/** The type of the clauses of `?`: what they have in common, or else the union of them. */
+function inferMatch(ast: CallAST, env: Env): TypeValue | null {
 	const results: Array<TypeValue | null> = []
 	for (let i = 2; i < ast.args.length; i += 2) {
 		results.push(infer(ast.args[i]!, env))
 	}
 	const known = results.flatMap(type => (type === null ? [] : [type]))
 	if (known.length === 0) return null
-	const join = joinTypes(known)
-	if (join === null) {
-		report(
-			ast,
-			`? clauses have different types: ${known.map(t => t.typeName).join(', ')}`
-		)
-		return null
-	}
-	return known.length === results.length ? join : null
+	if (known.length !== results.length) return null
+	// Clauses with nothing in common come to any of them
+	return joinTypes(known) ?? makeUnionType(known)
 }
 
 function inferPipe(ast: CallAST, env: Env): TypeValue | null {

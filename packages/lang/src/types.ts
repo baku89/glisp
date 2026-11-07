@@ -201,6 +201,13 @@ export class SymAST extends ASTNode {
 	}
 }
 
+/**
+ * The return type of a function that does not say it, as `(=> [x: number] (* x x))`: `_` where it
+ * is evaluated, and what the body comes to for static analysis. This very node, so that it is
+ * written back as it was, without one.
+ */
+export const UNWRITTEN_RETURN: SymAST = new SymAST('_')
+
 /** What is written as a symbol but is syntax, and stays as it is. */
 const SYNTAX_SYMBOLS: ReadonlySet<string> = new Set(['?', ':', '_', '!', '%'])
 
@@ -408,7 +415,7 @@ export class FnAST extends ASTNode {
 			segments.push(`{${this.generics.map(writtenName).join(' ')}}`)
 		}
 		const params = this.params.map(printFnParam).join(' ')
-		segments.push(`[${params}]: ${this.returnType.print()}`)
+		segments.push(this.returnType === UNWRITTEN_RETURN ? `[${params}]` : `[${params}]: ${this.returnType.print()}`)
 		if (this.body !== null) {
 			segments.push(this.body.print())
 		}
