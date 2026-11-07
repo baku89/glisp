@@ -125,6 +125,15 @@ const GUIDES: Readonly<
 				: `(line.fromPoints [${x} ${y}] [${x} ${y}])`,
 	},
 	'line.at': { label: 'Line at an Angle', stem: 'line', places: 1, code: (x, y) => `(line.at [${x} ${y}] 90)` },
+	'ray.fromPoints': {
+		label: 'Ray Through Points',
+		stem: 'ray',
+		places: 2,
+		// From a point, it goes on through where it is asked for.
+		code: (x, y, given) =>
+			given === 0 ? `(ray.fromPoints [${x} ${y}] [${x + 100} ${y}])` : `(ray.fromPoints [${x} ${y}] [${x} ${y}])`,
+	},
+	'ray.at': { label: 'Ray at an Angle', stem: 'ray', places: 1, code: (x, y) => `(ray.at [${x} ${y}] 0)` },
 	'rect.new': {
 		label: 'Rect',
 		stem: 'rect',

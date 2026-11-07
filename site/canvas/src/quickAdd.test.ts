@@ -123,6 +123,8 @@ describe('adding it', () => {
 		['vec2.nudge', 'nudge1 = (vec2.nudge [200 300] [50 0])', 'point'],
 		['line.fromPoints', 'line1 = (line.fromPoints [200 250] [200 350])', 'line'],
 		['line.at', 'line1 = (line.at [200 300] 90)', 'line'],
+		['ray.fromPoints', 'ray1 = (ray.fromPoints [200 300] [300 300])', 'ray'],
+		['ray.at', 'ray1 = (ray.at [200 300] 0)', 'ray'],
 		['rect.new', 'rect1 = (rect.new [150 250] [100 100])', 'frame'],
 	])('adds %s as a guide where it is asked for', (name, written, draw) => {
 		const { ast, row } = added(name)
@@ -132,7 +134,7 @@ describe('adding it', () => {
 
 	it('has guides and the canvas be rows of their own, not taking what is selected', () => {
 		const alone = all.filter(item => item.alone).map(({ name }) => name)
-		expect(alone).toEqual(expect.arrayContaining(['point', 'line.fromPoints', 'line.at', 'rect.new', 'solid', 'graphPaper', 'axes']))
+		expect(alone).toEqual(expect.arrayContaining(['point', 'line.fromPoints', 'line.at', 'ray.fromPoints', 'ray.at', 'rect.new', 'solid', 'graphPaper', 'axes']))
 		expect(alone).not.toContain('path.circle')
 	})
 

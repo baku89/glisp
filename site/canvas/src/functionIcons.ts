@@ -1,4 +1,4 @@
-import { POINT_ICON, STRAIGHT_LINE_ICON } from './graphics'
+import { POINT_ICON, RAY_ICON, STRAIGHT_LINE_ICON } from './graphics'
 
 /** What a shape looks like as a tool, and as the function that makes it. */
 export const SHAPE_ICONS = {
@@ -28,6 +28,9 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.blendSteps': 'ph:stack-simple',
 	'line.fromPoints': STRAIGHT_LINE_ICON,
 	'line.at': STRAIGHT_LINE_ICON,
+	'ray.fromPoints': RAY_ICON,
+	'ray.at': RAY_ICON,
+	'ray.along': RAY_ICON,
 	'path.reflect': 'mdi:flip-horizontal',
 	'path.kaleidoscope': 'ph:flower',
 	'path.kaleidoscopeTile': 'ph:checkerboard',

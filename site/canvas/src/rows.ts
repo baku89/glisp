@@ -599,8 +599,8 @@ export function boundsOfRows(
 ): readonly [Vec, Vec] | null {
 	let [left, top, right, bottom] = [Infinity, Infinity, -Infinity, -Infinity]
 	for (const { row, draw, value } of sceneOf(root, env)) {
-		// A line goes on for ever, so it has no size to go by.
-		if (draw === 'line') continue
+		// A line or a ray goes on for ever, so it has no size to go by.
+		if (draw === 'line' || draw === 'ray') continue
 		if (rows && !rows.some(path => row === path || row.startsWith(`${path}/`))) continue
 		const [[l, t], [r, b]] =
 			isOutlined(draw) ? bounds(value as Path) : [value as Vec, value as Vec]

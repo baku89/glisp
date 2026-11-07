@@ -75,8 +75,9 @@ import { chamfer, fillet, flatten, reverse, subdivide, zigzag } from 'pave/path/
 import { blend, blendSeries, repeatAlong, type RepeatAlongOptions } from 'pave/path/layout'
 import { pixelate, type PixelateAnchors, type PixelateMode } from 'pave/path/pixelate'
 import { raycast } from 'pave/path/raycast'
+import { Ray } from 'geome'
 import { shadow, shadowFrom } from 'pave/path/shadow'
-import { normal } from 'pave/path/location'
+import { normal, ray as pathRay } from 'pave/path/location'
 import { offset, offsetStroke } from 'pave/path/offset'
 import { nearest } from 'pave/path/queries'
 import { fromD, toD } from 'pave/path/svg'
@@ -1371,6 +1372,56 @@ const lineOfType = withDefaultFrom(
 		bindings: new Map([['line', { ast: host(lineType), env: null }]]),
 	}
 ).type
+/** An arrow from where it starts, as a ray goes one way only. */
+export const RAY_ICON = 'ph:arrow-up-right'
+/**
+ * A ray, going on for ever one way: where it starts, and which way it goes, in degrees. It is
+ * what geome calls a Ray, and comes to the matrix whose x-axis goes along it.
+ */
+const rayType = withTypeMeta(
+	makeRecordType(
+		new Map([
+			['origin', withTypeMeta(point, new RecordAST([['title', lit('Origin')]]))],
+			['angle', angleType],
+		])
+	),
+	new RecordAST([
+		['draw', lit('ray')],
+		['icon', lit(RAY_ICON)],
+		['name', lit('ray')],
+		['summary', lit('Ray')],
+	])
+)
+const makeRayFromPoints = makeTypedFn(
+	[point, point],
+	rayType,
+	// Through where it starts, it goes the way it went before, which is along x
+	(origin, through) => Ray.fromPoints(origin as Vec, through as Vec) ?? Ray.of(origin as Vec, 0),
+	['origin', 'through']
+)
+const makeRayAt = withOptional(
+	makeTypedFn(
+		[point, angleType],
+		rayType,
+		(origin, angle) => Ray.of(origin as Vec, (angle ?? 0) as number),
+		['origin', 'angle']
+	),
+	['angle']
+)
+const makeRayAlong = withOptional(
+	makeTypedFn(
+		[pathType, distanceType],
+		rayType,
+		(path, at) => pathRay(pathOf(path), { offset: (at ?? 0) as number }),
+		['path', 'at']
+	),
+	['at']
+)
+withMembers(rayType, {
+	fromPoints: withDoc(makeRayFromPoints, 'The ray from `origin`, going through `through`.', 'Ray Through Points'),
+	at: withDoc(makeRayAt, 'The ray from `origin`, going toward `angle`, in degrees.', 'Ray at an Angle'),
+	along: withDoc(makeRayAlong, 'The ray from the place `at` that far along `path`, going the way the path goes there.', 'Ray Along a Path'),
+})
 /** What is across a line, which has to go some way for there to be an other side. */
 const acrossIt = (fn: (path: Path, axis: readonly [Vec, Vec]) => Path) =>
 	(path: unknown, across: unknown): PathValue => {
@@ -4283,6 +4334,40 @@ makers.set(makeLineAt, ([through, angle]) => {
 		move: delta => [change(0, add(p, delta))],
 	}
 })
+/** A ray, from where it starts to as far as it can be seen. */
+export const rayGuide = (ray: Ray): Path => line(ray.origin as Vec, Ray.at(ray, LINE_REACH) as Vec)
+makers.set(makeRayFromPoints, ([from, to]) => {
+	const [origin, through] = [from as Vec, to as Vec]
+	return {
+		guides: [rayGuide(Ray.fromPoints(origin, through) ?? Ray.of(origin, 0))],
+		handles: [
+			{ ...pointHandle(0, origin), linesUpWith: through },
+			{ ...pointHandle(1, through), linesUpWith: origin },
+		],
+		move: delta => [change(0, add(origin, delta)), change(1, add(through, delta))],
+	}
+})
+makers.set(makeRayAt, ([from, angle]) => {
+	const origin = from as Vec
+	const turned = (angle ?? 0) as number
+	const ray = Ray.of(origin, turned)
+	return {
+		guides: [rayGuide(ray)],
+		handles: [
+			pointHandle(0, origin),
+			{
+				// It turns the ray, as anything else that turns does, and does not pull along it.
+				kind: 'direction',
+				rotates: true,
+				at: Ray.at(ray, GIZMO_SIZE) as Vec,
+				pivot: origin,
+				angle: turned,
+				to: (to, _, how) => [change(1, angleHeld(origin, turned, to, how))],
+			},
+		],
+		move: delta => [change(0, add(origin, delta))],
+	}
+})
 /** A line that is only written out, as what it comes to has no handles of its own. */
 const gripOfLine = ([through, direction]: StraightLine, arg: number): Grip => {
 	const end = add(through, direction)
@@ -5095,6 +5180,7 @@ export const inkOn = (color: string): string =>
 const BINDINGS: Readonly<Record<string, unknown>> = {
 	path: pathType,
 	line: lineType,
+	ray: rayType,
 	rect: rectType,
 	percent: percentType,
 	color: colorType,

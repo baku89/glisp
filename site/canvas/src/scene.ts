@@ -4,6 +4,7 @@
  * from there with `solve`.
  */
 
+import { Ray } from 'geome'
 import {
 	type AST,
 	CallAST,
@@ -89,6 +90,7 @@ import {
 	PAINT_KEYS,
 	type Paint,
 	lineGuide,
+	rayGuide,
 	type Path,
 	type StraightLine,
 	styleOf,
@@ -133,6 +135,7 @@ export const isOutlined = (draw: string): boolean => draw === 'path' || draw ===
 /** What can be seen of a shape as a line, if it is not only a place. */
 export const lineOfShape = ({ draw, value }: Pick<Shape, 'draw' | 'value'>): Path | null => {
 	if (isOutlined(draw)) return value as Path
+	if (draw === 'ray') return rayGuide(value as Ray)
 	if (draw !== 'line') return null
 	const [through, direction] = value as StraightLine
 	return lineGuide(through, direction)
@@ -152,6 +155,11 @@ export function rowsWithin(scene: readonly Shape[], a: Vec, b: Vec): string[] {
 				([cx, cy]) => Math.sign((cx! - x) * dy - (cy! - y) * dx)
 			)
 			return Math.min(...sides) <= 0 && Math.max(...sides) >= 0 ? [row] : []
+		}
+		// A ray goes on for ever one way, so it is in what it starts in or goes through.
+		if (draw === 'ray') {
+			const ray = value as Ray
+			return inBox(ray.origin as Vec) || intersections(rayGuide(ray), box).length > 0 ? [row] : []
 		}
 		const [[l, t], [r, d]] =
 			isOutlined(draw) ? bounds(value as Path) : [value as Vec, value as Vec]
@@ -1715,6 +1723,9 @@ function movedBy(shape: Shape, m: Mat): Shape {
 		const [through, direction] = shape.value as StraightLine
 		return { ...shape, value: [vec2.transformMat2d(through, m as unknown as mat2d) as unknown as Vec, direction], ...clip }
 	}
+	if (shape.draw === 'ray') {
+		return { ...shape, value: Ray.transform(shape.value as Ray, m as unknown as mat2d) ?? shape.value, ...clip }
+	}
 	return { ...shape, ...clip }
 }
 
@@ -2000,7 +2011,8 @@ export function gripAt(
 }
 
 /** What is only there to see by and to refer to, whose handles are all there is to see of it. */
-export const isGuide = (draw: string): boolean => draw === 'point' || draw === 'line' || draw === 'frame'
+export const isGuide = (draw: string): boolean =>
+	draw === 'point' || draw === 'line' || draw === 'ray' || draw === 'frame'
 
 /**
  * `gripped`, with the handles of the guides among `shapes` after its own, as they can be taken
