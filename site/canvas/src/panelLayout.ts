@@ -143,6 +143,8 @@ export interface PanelBox {
 	/** What comes next to it within its stack. */
 	readonly joinedBefore: boolean
 	readonly joinedAfter: boolean
+	/** It starts at the start of the edge, under the title bar at a side, and so has no corners or line there. */
+	readonly flushStart: boolean
 	/** It goes all the way to the end of the edge, and so has no corners or line there. */
 	readonly flushEnd: boolean
 	/** How far it could reach, from where it starts, on the way that it grows. */
@@ -314,6 +316,7 @@ export function boxesOf(layout: PanelLayout, measured: Measured): ReadonlyMap<st
 					grows: 'back',
 					joinedBefore: i > 0,
 					joinedAfter: i < count - 1,
+					flushStart: i === 0 && after + lengthOfGroup(group) >= edge,
 					flushEnd: i === count - 1 && hi === edge,
 					room: Math.max(MIN_HEIGHT, hi - ceiling - fromEnd - rest),
 					neighbor: beforeName,
@@ -347,6 +350,7 @@ export function boxesOf(layout: PanelLayout, measured: Measured): ReadonlyMap<st
 				grows: afterFiller ? 'back' : 'forward',
 				joinedBefore: i > 0,
 				joinedAfter: !last,
+				flushStart: i === 0 && from === 0,
 				flushEnd: reachesEnd && last,
 				room: most,
 				neighbor,

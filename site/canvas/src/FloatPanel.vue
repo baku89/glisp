@@ -64,6 +64,7 @@ const box = computed<PanelBox>(
 			shown: true,
 			joinedBefore: false,
 			joinedAfter: false,
+			flushStart: false,
 			flushEnd: false,
 			room: 0,
 			neighbor: null,
@@ -324,6 +325,7 @@ function grabHeader(event: PointerEvent): void {
 				fitting: !fills && height === null,
 				'joined-before': box.joinedBefore,
 				'joined-after': box.joinedAfter,
+				'flush-start': box.flushStart,
 				'flush-end': box.flushEnd,
 			},
 		]"
@@ -522,33 +524,42 @@ else that blurs. */
 	bottom: 0;
 	border-bottom: none;
 }
+/* At the start of its edge it meets the title bar, or the wall, and goes straight into it. */
+.FloatPanel.upright.flush-start::before {
+	top: 0;
+	border-top: none;
+}
+.FloatPanel.lying.flush-start::before {
+	left: 0;
+	border-left: none;
+}
 .FloatPanel.upright.flush-end::before {
 	border-bottom: none;
 }
 .FloatPanel.lying.flush-end::before {
 	border-right: none;
 }
-/* What is next to it casts nothing onto it. */
-.FloatPanel.upright.joined-before::before {
+/* What is next to it casts nothing onto it, and nothing goes onto the title bar or the wall it starts from. */
+.FloatPanel.upright:is(.joined-before, .flush-start)::before {
 	clip-path: inset(0 -64px -64px -64px);
 }
 .FloatPanel.upright.joined-after::before {
 	clip-path: inset(-64px -64px 0 -64px);
 }
-.FloatPanel.upright.joined-before.joined-after::before {
+.FloatPanel.upright:is(.joined-before, .flush-start).joined-after::before {
 	clip-path: inset(0 -64px 0 -64px);
 }
-.FloatPanel.lying.joined-before::before {
+.FloatPanel.lying:is(.joined-before, .flush-start)::before {
 	clip-path: inset(-64px -64px -64px 0);
 }
 .FloatPanel.lying.joined-after::before {
 	clip-path: inset(-64px 0 -64px -64px);
 }
-.FloatPanel.lying.joined-before.joined-after::before {
+.FloatPanel.lying:is(.joined-before, .flush-start).joined-after::before {
 	clip-path: inset(-64px 0 -64px 0);
 }
-/* Where it meets another, or the end of its edge, it goes straight on. */
-.FloatPanel.upright.joined-before {
+/* Where it meets another, or either end of its edge, it goes straight on. */
+.FloatPanel.upright:is(.joined-before, .flush-start) {
 	--corner-tl: 0px;
 	--corner-tr: 0px;
 }
@@ -556,7 +567,7 @@ else that blurs. */
 	--corner-bl: 0px;
 	--corner-br: 0px;
 }
-.FloatPanel.lying.joined-before {
+.FloatPanel.lying:is(.joined-before, .flush-start) {
 	--corner-tl: 0px;
 	--corner-bl: 0px;
 }

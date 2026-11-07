@@ -74,7 +74,7 @@ describe('placeAt', () => {
 describe('boxesOf', () => {
 	it('starts from the top of the edge', () => {
 		const box = boxesOf([stack(['a'])], measured({ a: 200 })).get('a')!
-		expect(box).toMatchObject({ start: 0, end: null, grows: 'forward', flushEnd: false })
+		expect(box).toMatchObject({ start: 0, end: null, grows: 'forward', flushStart: true, flushEnd: false })
 	})
 
 	it('goes to the end of the window when full', () => {
@@ -84,7 +84,7 @@ describe('boxesOf', () => {
 
 	it('stays where it starts when full from further down', () => {
 		const box = boxesOf([stack(['a'], { along: 100, full: true })], measured({ a: 200 })).get('a')!
-		expect(box).toMatchObject({ start: 100, end: 0, flushEnd: true })
+		expect(box).toMatchObject({ start: 100, end: 0, flushStart: false, flushEnd: true })
 	})
 
 	it('goes one under the other when joined, sharing the line between', () => {
@@ -101,8 +101,14 @@ describe('boxesOf', () => {
 
 	it('builds up from the end of the window', () => {
 		const boxes = boxesOf([stack(['a', 'b'], { along: 'end' })], measured({ a: 200, b: 100 }))
-		expect(boxes.get('b')).toMatchObject({ start: null, end: 0, grows: 'back', flushEnd: true })
-		expect(boxes.get('a')).toMatchObject({ start: null, end: 99, flushEnd: false })
+		expect(boxes.get('b')).toMatchObject({ start: null, end: 0, grows: 'back', flushStart: false, flushEnd: true })
+		expect(boxes.get('a')).toMatchObject({ start: null, end: 99, flushStart: false, flushEnd: false })
+	})
+
+	it('reaches the top from the end of the window when tall enough', () => {
+		const boxes = boxesOf([stack(['a', 'b'], { along: 'end' })], measured({ a: 700, b: 101 }))
+		expect(boxes.get('a')).toMatchObject({ start: null, end: 100, flushStart: true, flushEnd: false })
+		expect(boxes.get('b')!.flushStart).toBe(false)
 	})
 
 	it('stops short of what is further down the same edge', () => {
