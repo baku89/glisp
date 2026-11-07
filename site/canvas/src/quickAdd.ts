@@ -134,11 +134,11 @@ const GUIDES: Readonly<
 			given === 0 ? `(ray.fromPoints [${x} ${y}] [${x + 100} ${y}])` : `(ray.fromPoints [${x} ${y}] [${x} ${y}])`,
 	},
 	'ray.at': { label: 'Ray at an Angle', stem: 'ray', places: 1, code: (x, y) => `(ray.at [${x} ${y}] 0)` },
-	'rect.new': {
+	rect: {
 		label: 'Rect',
 		stem: 'rect',
 		places: 1,
-		code: (x, y) => `(rect.new [${x - 50} ${y - 50}] [100 100])`,
+		code: (x, y) => `(rect [${x - 50} ${y - 50}] [100 100])`,
 	},
 }
 

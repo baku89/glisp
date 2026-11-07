@@ -511,13 +511,13 @@ describe('what else goes around a path', () => {
 		`(path.mirror ${Q} (line.fromPoints [40 0] [40 20]))`,
 		`(path.reflect ${Q} (line.fromPoints [40 0] [40 20]))`,
 		`(path.kaleidoscope ${Q} [20 10] 6)`,
-		`(path.kaleidoscopeTile ${Q} (path.rect [0 0] [40 20]) (rect.new [-40 -20] [120 60]))`,
+		`(path.kaleidoscopeTile ${Q} (path.rect [0 0] [40 20]) (rect [-40 -20] [120 60]))`,
 		`(path.zigzag ${Q} 2 10)`,
 		`(path.wave ${Q} 2 10)`,
 		`(path.twirl ${Q} [20 10] 30 90)`,
 		`(path.bulge ${Q} [20 10] 30 0.5)`,
-		`(path.pixelate ${Q} (rect.new [0 0] [10 10]))`,
-		`(path.pixelate ${Q} (rect.new [0 0] [10 10]) "overlap" "cells")`,
+		`(path.pixelate ${Q} (rect [0 0] [10 10]))`,
+		`(path.pixelate ${Q} (rect [0 0] [10 10]) "overlap" "cells")`,
 		`(path.dash ${Q} [5 5])`,
 		`(path.subdivide ${Q} 2)`,
 		`(path.flatten ${Q} 1)`,
@@ -583,7 +583,7 @@ describe('what else goes around a path', () => {
 		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.kaleidoscopeTile')!
 		expect(filter.more).toEqual([])
 		const next = wrappedAt(parse(`{c = ${Q}}`), env, 'binding:c', filter)!
-		expect(print(next)).toContain('(path.rect [0 0] [40 20]) (rect.new [-40 -20] [120 60])')
+		expect(print(next)).toContain('(path.rect [0 0] [40 20]) (rect [-40 -20] [120 60])')
 		const { value, diagnostics } = evaluate(next, env)
 		expect(diagnostics).toEqual([])
 		expect(value).not.toBeUndefined()
@@ -592,13 +592,13 @@ describe('what else goes around a path', () => {
 	it('starts pixelating with a cell at the corner of what it turns into cells', () => {
 		const filter = filtersFor([ofFilter(Q).value], env).find(({ name }) => name === 'path.pixelate')!
 		const next = wrappedAt(parse(`{c = ${Q}}`), env, 'binding:c', filter)!
-		expect(print(next)).toContain('(rect.new [0 0] [2.5 2.5])')
+		expect(print(next)).toContain('(rect [0 0] [2.5 2.5])')
 		expect(evaluate(next, env).diagnostics).toEqual([])
 	})
 
 	it('fills the cells that the mode says, with anchors where it says', () => {
 		const circle = '(path.circle [20 20] 13)'
-		const cell = '(rect.new [0 0] [10 10])'
+		const cell = '(rect [0 0] [10 10])'
 		const d = (args: string) => toD((ofFilter(`(path.pixelate ${circle} ${cell} ${args})`).value as PathValue).path)
 		expect(d('')).toBe(d('"center" "corners"'))
 		expect(d('"overlap"')).not.toBe(d('"center"'))
@@ -609,16 +609,16 @@ describe('what else goes around a path', () => {
 	it('leaves a path as it is while its cell has no size, or is too small for it', () => {
 		const same = toD((ofFilter(Q).value as PathValue).path)
 		const of = (cell: string) => toD((ofFilter(`(path.pixelate ${Q} ${cell})`).value as PathValue).path)
-		expect(of('(rect.new [0 0] [0 10])')).toBe(same)
-		expect(of('(rect.new [0 0] [0.001 0.001])')).toBe(same)
+		expect(of('(rect [0 0] [0 10])')).toBe(same)
+		expect(of('(rect [0 0] [0.001 0.001])')).toBe(same)
 	})
 
 	it('holds a cell by the handles of a rectangle, and moves the picture with its grid', () => {
-		const src = `(path.pixelate ${Q} (rect.new [0 0] [10 10]))`
+		const src = `(path.pixelate ${Q} (rect [0 0] [10 10]))`
 		const held = grip(src)
 		expect(held.handles.some(({ corner }) => corner)).toBe(true)
 		const moved = changed(parse(`{c = ${src}}`), env, 'binding:c', held.move!([3, 4]))
-		expect(print(moved.ast!)).toContain('(path.pixelate (path.rect [3 4] [40 20]) (rect.new [3 4] [10 10]))')
+		expect(print(moved.ast!)).toContain('(path.pixelate (path.rect [3 4] [40 20]) (rect [3 4] [10 10]))')
 	})
 
 	it('makes twice as many of a thing as there are mirrors', () => {
@@ -661,7 +661,7 @@ describe('what else goes around a path', () => {
 		})
 
 		it('moves all of a tiling', () => {
-			const root = parse('{c = (path.kaleidoscopeTile (path.circle [5 5] 8) (path.rect [0 0] [10 10]) (rect.new [1 1] [38 18]))}')
+			const root = parse('{c = (path.kaleidoscopeTile (path.circle [5 5] 8) (path.rect [0 0] [10 10]) (rect [1 1] [38 18]))}')
 			const { ast } = changed(root, env, 'binding:c', gripAt(root, env, 'binding:c')!.move!([30, -40]))
 			expectSame(of(ast!), transform(of(root), [1, 0, 0, 1, 30, -40]))
 		})
@@ -691,8 +691,8 @@ describe('what else goes around a path', () => {
 			return right - left
 		}
 		// Between the first, at 3 to 7, and the last, at 43 to 47
-		expect(widthOf('(rect.new [1 1] [48 8])')).toBeCloseTo(44)
-		expect(widthOf('(rect.new [1 1] [8 8])')).toBeCloseTo(4)
+		expect(widthOf('(rect [1 1] [48 8])')).toBeCloseTo(44)
+		expect(widthOf('(rect [1 1] [8 8])')).toBeCloseTo(4)
 	})
 
 	it.each([
@@ -701,7 +701,7 @@ describe('what else goes around a path', () => {
 	])('can tile with %s', (_, cell, around) => {
 		const [tile] = [cell]
 		const p = (ofFilter(
-			`(path.kaleidoscopeTile (path.circle [8 8] 1) ${tile} (rect.new [-300 -300] [600 600]))`
+			`(path.kaleidoscopeTile (path.circle [8 8] 1) ${tile} (rect [-300 -300] [600 600]))`
 		).value as PathValue).path
 		expect(p.curves.length).toBeGreaterThan(around)
 	})
@@ -709,14 +709,14 @@ describe('what else goes around a path', () => {
 	it.each(['(path.ngon [0 0] 50 5)', '(path.circle [0 0] 50)', '(path.rect [0 0] [0 0])'])(
 		'leaves it as it is, with a tile whose reflections do not fit together, %s',
 		cell => {
-			const { value, diagnostics } = ofFilter(`(path.kaleidoscopeTile ${Q} ${cell} (rect.new [0 0] [100 100]))`)
+			const { value, diagnostics } = ofFilter(`(path.kaleidoscopeTile ${Q} ${cell} (rect [0 0] [100 100]))`)
 			expect(diagnostics).toEqual([])
 			expect(toD((value as PathValue).path)).toBe(toD((ofFilter(Q).value as PathValue).path))
 		}
 	)
 
 	it('has the handles of the tile and of the area', () => {
-		const { handles, sources } = grip(`(path.kaleidoscopeTile ${Q} (path.rect [0 0] [40 20]) (rect.new [-40 -20] [120 60]))`)
+		const { handles, sources } = grip(`(path.kaleidoscopeTile ${Q} (path.rect [0 0] [40 20]) (rect [-40 -20] [120 60]))`)
 		expect(sources).toHaveLength(1)
 		const routes = new Set(handles.flatMap(handle => (handle.at === undefined ? [] : handle.to(handle.at, handle.at))).map(({ route }) => route[0]))
 		expect([...routes].sort()).toEqual([1, 2])

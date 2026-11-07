@@ -125,7 +125,7 @@ describe('adding it', () => {
 		['line.at', 'line1 = (line.at [200 300] 90)', 'line'],
 		['ray.fromPoints', 'ray1 = (ray.fromPoints [200 300] [300 300])', 'ray'],
 		['ray.at', 'ray1 = (ray.at [200 300] 0)', 'ray'],
-		['rect.new', 'rect1 = (rect.new [150 250] [100 100])', 'frame'],
+		['rect', 'rect1 = (rect [150 250] [100 100])', 'frame'],
 	])('adds %s as a guide where it is asked for', (name, written, draw) => {
 		const { ast, row } = added(name)
 		expect(print(ast)).toContain(written)
@@ -134,7 +134,7 @@ describe('adding it', () => {
 
 	it('has guides and the canvas be rows of their own, not taking what is selected', () => {
 		const alone = all.filter(item => item.alone).map(({ name }) => name)
-		expect(alone).toEqual(expect.arrayContaining(['point', 'line.fromPoints', 'line.at', 'ray.fromPoints', 'ray.at', 'rect.new', 'solid', 'graphPaper', 'axes']))
+		expect(alone).toEqual(expect.arrayContaining(['point', 'line.fromPoints', 'line.at', 'ray.fromPoints', 'ray.at', 'rect', 'solid', 'graphPaper', 'axes']))
 		expect(alone).not.toContain('path.circle')
 	})
 
@@ -170,7 +170,7 @@ describe('adding it', () => {
 		it('goes on from one point to where it is asked for', () => {
 			expect(from('line.fromPoints', ['binding:a'])).toContain('line1 = (line.fromPoints a [200 300])')
 			expect(from('line.at', ['binding:a'])).toContain('line1 = (line.at a 90)')
-			expect(from('rect.new', ['binding:a'])).toContain('rect1 = (rect.new a [100 100])')
+			expect(from('rect', ['binding:a'])).toContain('rect1 = (rect a [100 100])')
 		})
 
 		it('has no more of them than there is a place for', () => {
@@ -193,7 +193,7 @@ describe('adding it', () => {
 
 	it('lists the guides and the canvas with nothing asked', () => {
 		const listed = matching(all, '').map(({ name }) => name)
-		for (const name of ['point', 'vec2.lerp', 'line.fromPoints', 'line.at', 'rect.new', 'solid', 'graphPaper', 'axes']) expect(listed).toContain(name)
+		for (const name of ['point', 'vec2.lerp', 'line.fromPoints', 'line.at', 'rect', 'solid', 'graphPaper', 'axes']) expect(listed).toContain(name)
 	})
 
 	it('has a solid come in at the back, and a graph paper in front of it', () => {

@@ -19,14 +19,14 @@ import { artboardOfRow, gripAt, isArtboardRow, rowsHeldBy, rowTakenAt, sceneOf }
 const env = withGraphics(buildPrelude())
 
 const BOARD = `{main = [
-  desk = (artboard (rect.new [100 50] [300 200]) [a = (path.rect [10 10] [20 20])] fill: "#eeeeee")
+  desk = (artboard (rect [100 50] [300 200]) [a = (path.rect [10 10] [20 20])] fill: "#eeeeee")
   b = (path.rect [0 0] [5 5])
 ]}`
 
 describe('artboard', () => {
 	it('is an area with what is on it', () => {
 		const { value } = evaluate(
-			parsed('(artboard (rect.new [10 20] [300 200]) [a = (path.rect [0 0] [10 10])] fill: "#eeeeee")'),
+			parsed('(artboard (rect [10 20] [300 200]) [a = (path.rect [0 0] [10 10])] fill: "#eeeeee")'),
 			env
 		)
 		expect(value).toBeInstanceOf(ArtboardValue)
@@ -73,7 +73,7 @@ describe('artboard', () => {
 
 describe('a layer onto an artboard and off of it', () => {
 	const ON = `{main = [
-  desk = (artboard (rect.new [100 50] [300 200]) [a = (path.rect [10 10] [20 20])])
+  desk = (artboard (rect [100 50] [300 200]) [a = (path.rect [10 10] [20 20])])
   b = (path.rect [150 100] [5 5])
 ]}`
 	const at = (root: AST, row: string) => bounds(sceneOf(root, env).find(shape => shape.row === row)!.value as Path)
@@ -106,9 +106,9 @@ describe('a layer onto an artboard and off of it', () => {
 		const name = nameForArtboard(root)
 		expect(name).toBe('artboard1')
 		const drawn = artboardDrawn(root, name, [400, 250], [100, 50], 1)
-		expect(print(drawn)).toContain('artboard1 = (artboard (rect.new [100 50] [300 200]) [])')
+		expect(print(drawn)).toContain('artboard1 = (artboard (rect [100 50] [300 200]) [])')
 		const taken = withLayersTakenIn(drawn, env, ['binding:b', 'binding:c'], 'binding:artboard1')
-		expect(print(taken)).toContain('(artboard (rect.new [100 50] [300 200]) [b = (path.rect [50 50] [5 5])])')
+		expect(print(taken)).toContain('(artboard (rect [100 50] [300 200]) [b = (path.rect [50 50] [5 5])])')
 		expect(print(taken)).toContain('c = (path.rect [0 0] [500 500])')
 	})
 

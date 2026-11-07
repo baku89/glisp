@@ -165,11 +165,21 @@ makeTopLevel({
 
 It changes the type it is given, so make one of your own rather than giving members to `number`. A host value that is a plain record of these reads the same way, as `geom.rect.center`, and static analysis can see through both.
 
+### What it is called as
+
+A type is called as its [constructor](./types.md#constructors), which a tuple or a record makes of what it says it is made of. A type whose values are of a host's own making says nothing of what they are made of, so `withConstructor` gives it the function it is called as:
+
+```ts
+withConstructor(rectType, makeRect) // (rect [0 0] [10 10])
+```
+
+That function is the type's, and goes on being a function as any other: what it takes is what calling the type takes, and its inverse is how working backward goes through it.
+
 ### What a part of it is called
 
 A parameter's type can say what its values are for, with an `icon` of its own, which goes over that of the value in it: `[0 0]` is only a vector, but where a point is wanted it shows as a point.
 
-Metadata on the element types of a tuple is for showing one of its elements: `title` names it, and `prefix` or `fieldIcon` go in its field. A `fieldIcon` can be letters, as `char:X`.
+Metadata on the element types of a tuple is for showing one of its elements: `title` names it, also as the parameter it is to the type's constructor, and `prefix` or `fieldIcon` go in its field. A `fieldIcon` can be letters, as `char:X`.
 
 A `name` on a type is what a host calls it to someone reading it, in place of its `typeName`, which spells out what it is made of. A `summary` is what a host shows in place of a value that is not much to read.
 

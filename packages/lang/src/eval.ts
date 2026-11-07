@@ -217,6 +217,11 @@ export interface TypeValue {
 	/** What goes with this type, read as `T.name`. It says nothing about its values. */
 	readonly members?: Readonly<Record<string, unknown>>
 	/**
+	 * What a host says its type is called as, for one whose values are of its own making, so that
+	 * what they are made of is not to be read from it. See `constructorOf`.
+	 */
+	readonly construct?: TypedHostFn
+	/**
 	 * Optional type-constructor hook. When set, `(T arg ...)` is dispatched
 	 * here with the args evaluated as types, and the result is the
 	 * parameterized TypeValue. Most types do not have this; for them, a
@@ -942,6 +947,16 @@ export function withInverse<F extends TypedHostFn>(
 	return fn
 }
 
+/**
+ * Say what a type of a host's own making is called as: `fn`, from what its values are made of, as
+ * a rect is from where it is and how big. A type that says what it is made of, as a tuple or a
+ * record does, is called as that says, and needs none.
+ */
+export function withConstructor<T extends TypeValue>(type: T, fn: TypedHostFn): T {
+	Object.defineProperty(type, 'construct', { value: fn })
+	return type
+}
+
 /** Say what goes with a type, so that `vec2.add` is there along with `p: vec2`. */
 export function withMembers<T extends TypeValue>(
 	type: T,
@@ -1062,7 +1077,8 @@ const constructors: WeakMap<TypeValue, TypedHostFn | null> = new WeakMap()
 /**
  * The function a type is called as, which makes a value of it from what it is made of: a record
  * from its fields, a tuple from its elements, named by their `title` or else by where they are,
- * and anything else from one `value`. It is a function as any other, with what it takes and a way
+ * and anything else from one `value`, or for a type of a host's own making, what the host says.
+ * It is a function as any other, with what it takes and a way
  * back, and none of it has to be given: what is not is its default, and a field that can be left
  * out is. A type that takes types, or is of functions, has none.
  */
@@ -1074,6 +1090,7 @@ export function constructorOf(type: TypeValue): TypedHostFn | null {
 }
 
 function makeConstructor(type: TypeValue): TypedHostFn | null {
+	if (type.construct !== undefined) return type.construct
 	const { shape } = unwrapLazy(type)
 	// What takes types is applied to them, but for a vector, which `(vector T)` is written as
 	if (type.apply !== undefined && shape.kind !== 'vector') return null

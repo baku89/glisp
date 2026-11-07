@@ -38,6 +38,9 @@ import {
 	withDefaultFrom,
 	withOptional,
 	withTypeMeta,
+	constructorOf,
+	isTypeValue,
+	withConstructor,
 } from '@glisp/lang'
 import { withInitial } from '@glisp/tweeq/filters'
 import Color from 'colorjs.io'
@@ -365,7 +368,7 @@ export class RectValue {
 	) {}
 
 	[AS_SOURCE](): AST {
-		return new CallAST(parse('rect.new'), [toAst(this.origin, null), toAst(this.size, null)])
+		return new CallAST(parse('rect'), [toAst(this.origin, null), toAst(this.size, null)])
 	}
 }
 
@@ -1514,7 +1517,7 @@ const makeKaleidoscopeTile = withInitial(
 		const [w, h] = [width || height || 100, height || width || 100]
 		return [
 			new CallAST(parse('path.rect'), [toAst([left, top], null), toAst([w, h], null)]),
-			new CallAST(parse('rect.new'), [toAst([left - w, top - h], null), toAst([w * 3, h * 3], null)]),
+			new CallAST(parse('rect'), [toAst([left - w, top - h], null), toAst([w * 3, h * 3], null)]),
 		]
 	}
 )
@@ -1667,7 +1670,7 @@ const makePixelate = withInitial(
 	(path: unknown) => {
 		const [[left, top], [right, bottom]] = bounds(pathOf(path))
 		const side = Math.max(right - left, bottom - top) / 16 || 10
-		return [new CallAST(parse('rect.new'), [toAst([left, top], null), toAst([side, side], null)])]
+		return [new CallAST(parse('rect'), [toAst([left, top], null), toAst([side, side], null)])]
 	}
 )
 const makeDash = withOptional(
@@ -1877,6 +1880,8 @@ const makeConvexHull = makeTypedFn(
 withMembers(rectType, {
 	new: withDoc(makeArea, 'An area from its `origin`, of this `size`, such as a page to export.', 'Area'),
 })
+// What a rect is made of is where it is and how big, which is what calling it takes
+withConstructor(rectType, makeArea)
 
 // -----------------------------------------------------------------------------
 // An artboard: a page on the canvas, with what is on it measured from its corner
@@ -5037,8 +5042,10 @@ export const gripOf = (
 		if (!asked.has(arg)) asked.set(arg, inner(arg))
 		return asked.get(arg)!
 	}
-	const grip = makers.get(fn)?.(args, once, proportional, free) ?? null
-	const box = grip === null ? null : (BOX_ANSWERS.get(fn)?.(args, once) ?? null)
+	// A type called is its constructor, and is held as that is
+	const called = isTypeValue(fn) ? (constructorOf(fn) ?? fn) : fn
+	const grip = makers.get(called)?.(args, once, proportional, free) ?? null
+	const box = grip === null ? null : (BOX_ANSWERS.get(called)?.(args, once) ?? null)
 	return box === null ? grip : { ...grip!, box }
 }
 

@@ -148,7 +148,7 @@ export function artboardDrawn(root: LetAST, name: string, from: Vec, to: Vec, st
 
 /** `root` with a new artboard named `name` in front, at `origin`, as large as `size`. */
 export const withArtboardAdded = (root: LetAST, name: string, origin: Vec, size: Vec): LetAST =>
-	withLayerAdded(root, name, parse(`(artboard (rect.new [${origin[0]} ${origin[1]}] [${size[0]} ${size[1]}]) [])`))
+	withLayerAdded(root, name, parse(`(artboard (rect [${origin[0]} ${origin[1]}] [${size[0]} ${size[1]}]) [])`))
 
 /** The name for a new artboard, the first of `artboard1`, `artboard2`, … not taken. */
 export const nameForArtboard = (root: LetAST): string => nameOfKind(root, 'artboard')
