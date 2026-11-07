@@ -309,8 +309,11 @@ export function unwrapLazy(type: TypeValue): TypeValue {
 	return current
 }
 
-/** What is said about the name or the place it is written at, and not about values. */
-const STAYS_BEHIND: ReadonlySet<string> = new Set(['doc', 'label', 'params', PIN, HIDDEN])
+/**
+ * What marks the place it is written at, rather than saying anything of a value: a lock, what is
+ * hidden, a function of `%` and a name. All else goes along with a type.
+ */
+const STAYS_BEHIND: ReadonlySet<string> = new Set([PIN, HIDDEN, LAMBDA, NAME])
 
 /**
  * `type`, with `metadata` said about it as well, which goes over what it already
@@ -370,9 +373,9 @@ export function withDefaultFrom(
 
 /** A type as source, with what is said about it. */
 export function printType(type: TypeValue): string {
-	return type.meta === undefined
-		? type.typeName
-		: new MetaASTClass(type.meta, new SymASTClass(type.typeName)).print()
+	if (type.meta === undefined) return type.typeName
+	const said = type.meta.fields.flatMap(field => ('kind' in field ? [] : [`${field[0]}: ${field[1].print()}`]))
+	return `(: ${type.typeName} ${said.join(' ')})`
 }
 
 const literalTypes = new Map<unknown, TypeValue>()
@@ -1540,14 +1543,13 @@ function evaluateInner(ast: AST, env: Env): EvalResult {
 			if (ast.metadata.get(HIDDEN) !== undefined) {
 				return { value: UNIT, diagnostics: [] }
 			}
+			// What is said of a type is said of it as a value, not of the values it holds, which
+			// `(: T ...)` is for. A `default` is what nothing comes to.
 			const result = evaluate(ast.expr, env)
-			if (!isTypeValue(result.value)) return result
-			const { type, diagnostics } = withDefaultFrom(
-				result.value,
-				ast.metadata,
-				env
-			)
-			return { value: type, diagnostics: [...result.diagnostics, ...diagnostics] }
+			const field = ast.metadata.get('default')
+			if (result.value !== UNIT || field === undefined) return result
+			const fallback = evaluate(field, enterNode(ast.metadata, env))
+			return { value: fallback.value, diagnostics: [...result.diagnostics, ...fallback.diagnostics] }
 		}
 	}
 }
@@ -2218,16 +2220,28 @@ export function matchValue(value: unknown, pattern: unknown): boolean {
  * has to be one of its values. `(: T)` is `T`.
  */
 function evalDerive(ast: CallAST, env: Env): EvalResult {
-	const [baseAst, ...predAsts] = ast.args
+	const [baseAst] = ast.args
 	if (baseAst === undefined) return fail(ast, env, '(: T ...) is of a type, as in (: number min: 0)')
 	const base = resolveTypeSlot(baseAst, env)
 	if (base === null) {
 		return fail(baseAst, env, `(: T ...): ${describeType(evaluate(baseAst, env).value)} is not a type`)
 	}
-	const diagnostics: Diagnostic[] = []
+	const { type, diagnostics } = derivedFrom(base, ast, env)
+	return { value: type, diagnostics }
+}
 
+/**
+ * `base`, as `(: T ...)` makes a type of it: narrowed by what is after `T`, with what its keys
+ * say. Apart from where `T` is read, so that a type that refers to itself can be read as one.
+ */
+export function derivedFrom(
+	base: TypeValue,
+	ast: CallAST,
+	env: Env
+): { type: TypeValue; diagnostics: readonly Diagnostic[] } {
+	const diagnostics: Diagnostic[] = []
 	const preds: Array<(v: unknown) => unknown> = []
-	for (const predAst of predAsts) {
+	for (const predAst of ast.args.slice(1)) {
 		const { value, diagnostics: found } = evaluate(predAst, env)
 		push(diagnostics, found)
 		if (typeof value === 'function') preds.push(value as (v: unknown) => unknown)
@@ -2258,7 +2272,7 @@ function evalDerive(ast: CallAST, env: Env): EvalResult {
 	if (preds.length > 0 && !type.fits(type.default)) {
 		diagnostics.push(diag(ast, env, `(: T ...): the default, ${toAst(type.default, env).print()}, does not meet what is asked, so say one with default:`))
 	}
-	return { value: type, diagnostics }
+	return { type, diagnostics }
 }
 
 /**
@@ -2769,6 +2783,8 @@ import {
 	LitAST as LitASTClass,
 	MetaAST as MetaASTClass,
 	HIDDEN,
+	LAMBDA,
+	NAME,
 	PIN,
 	RecordAST as RecordASTClass,
 	SymAST as SymASTClass,

@@ -1034,7 +1034,7 @@ const styledType = withTypeMeta(
 /** An enum of how a line is drawn, each value saying what its icon is. */
 const enumOf = (icons: Readonly<Record<string, string>>): TypeValue => {
 	const values = Object.entries(icons).map(
-		([value, icon]) => `^{icon: ${JSON.stringify(icon)}} ${JSON.stringify(value)}`
+		([value, icon]) => `(: ${JSON.stringify(value)} icon: ${JSON.stringify(icon)})`
 	)
 	return evaluate(parse(`(| ${values.join(' ')})`), buildPrelude()).value as TypeValue
 }

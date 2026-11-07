@@ -39,7 +39,7 @@ describe('viewOf', () => {
 
 	it('gives an enum widget the icons its type says, one for each value', () => {
 		const session = new Session(env)
-		session.exec('Join = (| ^{icon: "a"} "round" ^{icon: "b"} "butt")')
+		session.exec('Join = (| (: "round" icon: "a") (: "butt" icon: "b"))')
 		session.exec('f = (=> [j: Join]: Join j)')
 		const slot = viewOf(parse('(f "butt")'), session.env).slots[0]!
 		expect(viewOf(slot.ast, slot.env, slot.expected).editor).toMatchObject({
@@ -47,7 +47,7 @@ describe('viewOf', () => {
 			icons: ['a', 'b'],
 		})
 
-		session.exec('Short = (| ^{icon: "a"} "round" "butt")')
+		session.exec('Short = (| (: "round" icon: "a") "butt")')
 		session.exec('g = (=> [j: Short]: Short j)')
 		const short = viewOf(parse('(g "butt")'), session.env).slots[0]!
 		expect(viewOf(short.ast, short.env, short.expected).editor).not.toHaveProperty('icons')
@@ -401,7 +401,7 @@ describe('docs', () => {
 
 	it('takes a doc from a parameter type', () => {
 		const session = new Session(env)
-		session.exec('f = (=> [w: ^{doc: "How wide."} number]: number w)')
+		session.exec('f = (=> [w: (: number doc: "How wide.")]: number w)')
 		expect(viewOf(parse('(f 1)'), session.env).slots[0]?.doc).toBe('How wide.')
 	})
 
@@ -806,7 +806,7 @@ describe('parameter labels', () => {
 
 	it('come from the metadata on a parameter type', () => {
 		const session = new Session(env)
-		session.exec('f = (=> [w: ^{label: "Width"} number h: number]: number w)')
+		session.exec('f = (=> [w: (: number label: "Width") h: number]: number w)')
 		expect(viewOf(parse('(f 1 2)'), session.env).slots.map(s => s.label)).toEqual([
 			'Width',
 			'h',
@@ -820,7 +820,7 @@ describe('parameter labels', () => {
 	})
 
 	it('work for a function written in place', () => {
-		const v = view('((=> [w: ^{label: "Width"} number]: number w) 1)')
+		const v = view('((=> [w: (: number label: "Width")]: number w) 1)')
 		expect(v.slots[0]?.label).toBe('Width')
 	})
 
@@ -909,7 +909,7 @@ describe('numberOptions', () => {
 
 	it('come from the metadata on a parameter type', () => {
 		const session = new Session(env)
-		session.exec('f = (=> [w: ^{min: 0 max: 100} number h: number]: number w)')
+		session.exec('f = (=> [w: (: number min: 0 max: 100) h: number]: number w)')
 		const [w, h] = viewOf(parse('(f 1 2)'), session.env).slots
 		expect(w?.numberOptions).toEqual({ min: 0, max: 100 })
 		expect(h?.numberOptions).toEqual({})
@@ -986,7 +986,7 @@ describe('icons', () => {
 	it('takes the icon of a type a program defines', () => {
 		const session = new Session(env)
 		session.exec(
-			'Len = ^{icon: "mdi:ruler"} (: number (=> [x: number]: boolean (> x 0)) default: 1)'
+			'Len = (: number (=> [x: number]: boolean (> x 0)) default: 1 icon: "mdi:ruler")'
 		)
 		session.exec('Plain = (: number (=> [x: number]: boolean (>= x 0)) default: 1)')
 		session.exec('f = (=> [x: number]: Len x)')
@@ -1495,7 +1495,7 @@ describe('adding an argument', () => {
 describe('what a type brings to a number field', () => {
 	it('brings an icon along', () => {
 		const session = new Session(env)
-		session.setAst(parse('{P = ^{icon: "mdi:percent"} number a = ^P 1}') as never)
+		session.setAst(parse('{P = (: number icon: "mdi:percent") a = ^P 1}') as never)
 		const row = viewOf(session.ast(), session.env).slots.find(s => s.key === 'binding:a')!
 		expect(iconOf(row.ast, row.env)).toBe('mdi:percent')
 	})
@@ -1505,7 +1505,7 @@ describe('what a type brings to a number field', () => {
 		session.setAst(parse(src) as never)
 		return viewOf(session.ast(), session.env).slots.find(s => s.key === key)!
 	}
-	const PERCENT = 'Percent = ^{label: "Pct" min: 0 max: 100 suffix: "%"} number'
+	const PERCENT = 'Percent = (: number label: "Pct" min: 0 max: 100 suffix: "%")'
 	const OPTIONS = { min: 0, max: 100, suffix: '%' }
 
 	it('reads prefix and suffix', () => {
@@ -1531,25 +1531,25 @@ describe('what a default is written as', () => {
 	const typeOf = (src: string, within: Env = env) => evaluate(parse(src), within).value as TypeValue
 
 	it('is the expression it was written as', () => {
-		expect(print(defaultFor(typeOf('^{default: (+ 1 2)} number'), env))).toBe('(+ 1 2)')
-		expect(typeOf('^{default: (+ 1 2)} number').default).toBe(3)
+		expect(print(defaultFor(typeOf('(: number default: (+ 1 2))'), env))).toBe('(+ 1 2)')
+		expect(typeOf('(: number default: (+ 1 2))').default).toBe(3)
 	})
 
 	it('is a new one each time, as a node is where it is', () => {
-		const type = typeOf('^{default: (+ 1 2)} number')
+		const type = typeOf('(: number default: (+ 1 2))')
 		expect(defaultFor(type, env)).not.toBe(defaultFor(type, env))
 	})
 
 	it('is what it comes to where it would not mean the same', () => {
 		const here: Env = { ast: new LetAST([], null), parent: env, bindings: new Map([['x', { ast: parse('3'), env }]]) }
-		expect(print(defaultFor(typeOf('^{default: x} number', here), env))).toBe('3')
+		expect(print(defaultFor(typeOf('(: number default: x)', here), env))).toBe('3')
 	})
 
 	it('has to be of the type', () => {
-		const type = typeOf('^{default: "no"} number')
+		const type = typeOf('(: number default: "no")')
 		expect(type.default).toBe(0)
 		expect(print(defaultFor(type, env))).toBe('0')
-		expect(check(parse('^{default: "no"} number'), env).some(({ level }) => level === 'error')).toBe(true)
+		expect(check(parse('(: number default: "no")'), env).some(({ level }) => level === 'error')).toBe(true)
 	})
 })
 

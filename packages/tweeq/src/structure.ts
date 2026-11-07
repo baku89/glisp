@@ -791,7 +791,7 @@ export function literalsOf(type: TypeValue | null): readonly unknown[] | null {
 }
 
 /**
- * What the values of a union of them are shown as, each saying so with `^{icon: ...}`, in the
+ * What the values of a union of them are shown as, each saying so with `(: v icon: ...)`, in the
  * order they are in. `null` unless all of them do, since a row of icons with a gap in it says nothing.
  */
 export function enumIconsOf(type: TypeValue | null): readonly string[] | null {
@@ -874,9 +874,11 @@ function parameterInfo(
 	const metadata = definition?.kind === 'meta' ? definition.metadata : null
 	const params = metadata?.get('params')
 	const fn = definition?.kind === 'meta' ? definition.expr : definition
-	const metadataOfType = (name: string) => {
+	/** What the type of a parameter says where it is written, as `(xs: (: [...T] label: "Items"))`. */
+	const metadataOfType = (name: string): RecordAST | null => {
 		const type = fn?.kind === 'fn' ? fn.params.find(p => p.name === name)?.type : null
-		return type?.kind === 'meta' ? type.metadata : null
+		if (type?.kind !== 'call' || type.head.kind !== 'sym' || type.head.name !== ':' || type.kwargs === undefined) return null
+		return new RecordAST([...type.kwargs])
 	}
 	const fromParams = (name: string): AST | undefined =>
 		params?.kind === 'record' ? params.get(name) : undefined

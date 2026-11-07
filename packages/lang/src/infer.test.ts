@@ -401,12 +401,12 @@ describe('metadata on a type', () => {
 		session.setAst(parse(src) as LetAST)
 		return printType(infer(parse(name), session.env)!)
 	}
-	const PERCENT = 'Percent = ^{min: 0 max: 100 suffix: "%"} number'
-	const SAID = '^{min: 0 max: 100 suffix: "%"} number'
+	const PERCENT = 'Percent = (: number min: 0 max: 100 suffix: "%")'
+	const SAID = '(: number min: 0 max: 100 suffix: "%")'
 
 	it('comes with a value, from where it is written and through names', () => {
-		expect(typeIn('{a = ^{min: 0} 5}', 'a')).toBe('^{min: 0} number')
-		expect(typeIn('{a = ^{min: 0} 5 b = a}', 'b')).toBe('^{min: 0} number')
+		expect(typeIn('{a = ^{min: 0} 5}', 'a')).toBe('(: number min: 0)')
+		expect(typeIn('{a = ^{min: 0} 5 b = a}', 'b')).toBe('(: number min: 0)')
 		expect(typeIn('{a = 5}', 'a')).toBe('number')
 	})
 
@@ -416,15 +416,15 @@ describe('metadata on a type', () => {
 	})
 
 	it('goes over what came before, key by key', () => {
-		expect(typeIn(`{${PERCENT} H = ^{max: 50} Percent a = ^H 20}`, 'a')).toBe(
-			'^{min: 0 suffix: "%" max: 50} number'
+		expect(typeIn(`{${PERCENT} H = (: Percent max: 50) a = ^H 20}`, 'a')).toBe(
+			'(: number min: 0 suffix: "%" max: 50)'
 		)
 	})
 
 	it('goes through a function, its generics, and no further than it says', () => {
 		const src = `{${PERCENT} f = (=> [p: Percent]: Percent p) id = (=> {T} [v: T]: T v) a = (f 1) b = ^{min: 0} 5 c = (id b) d = (+ b 1)}`
 		expect(typeIn(src, 'a')).toBe(SAID)
-		expect(typeIn(src, 'c')).toBe('^{min: 0} number')
+		expect(typeIn(src, 'c')).toBe('(: number min: 0)')
 		expect(typeIn(src, 'd')).toBe('number')
 	})
 
@@ -439,7 +439,7 @@ describe('metadata on a type', () => {
 
 	it('changes nothing about what fits', () => {
 		const env = buildPrelude()
-		const said = resolveTypeSlot(parse('^{min: 0} number'), env)!
+		const said = resolveTypeSlot(parse('(: number min: 0)'), env)!
 		const plain = resolveTypeSlot(parse('number'), env)!
 		expect(typeFits(said, plain)).toBe(true)
 		expect(typeFits(plain, said)).toBe(true)
@@ -449,28 +449,30 @@ describe('metadata on a type', () => {
 		expect(check(parse(`{${PERCENT} f = (=> [p: Percent]: number p) (f 1)}`), env)).toEqual([])
 	})
 
-	it('leaves behind what is said about a name or a place', () => {
+	it('takes along all that is said, and leaves behind only what marks a place', () => {
 		expect(typeIn('{a = @5}', 'a')).toBe('number')
-		expect(typeIn('{a = ^{doc: "D" label: "L" min: 0} @5}', 'a')).toBe('^{min: 0} number')
-		expect(typeIn('{f = ^{doc: "D"} (=> [x: number]: number x)}', 'f')).toBe(
-			'(=> [x: number]: number)'
-		)
-		expect(typeIn('{a = 1}', 'pi')).toBe('number')
+		expect(typeIn('{a = ^{doc: "D" label: "L" min: 0} @5}', 'a')).toBe('(: number doc: "D" label: "L" min: 0)')
+		// What is said of a name goes along with what refers to it
+		expect(typeIn('{a = 1}', 'pi')).toContain('doc: "A half turn')
 		expect(typeIn('{a = ^number 1}', 'a')).toBe('number')
-		expect(typeIn('{P = ^{doc: "D" suffix: "%"} number a = ^P 1}', 'a')).toBe(
-			'^{suffix: "%"} number'
+		expect(typeIn('{P = (: number doc: "D" suffix: "%") a = ^P 1}', 'a')).toBe(
+			'(: number doc: "D" suffix: "%")'
+		)
+		// What is written nearer goes over it
+		expect(typeIn('{P = (: number label: "P" suffix: "%") a = ^P ^{label: "A"} 1}', 'a')).toBe(
+			'(: number suffix: "%" label: "A")'
 		)
 	})
 
 	it('takes an icon along', () => {
-		expect(typeIn('{P = ^{icon: "i"} number Q = ^{min: 0} P a = ^Q 1}', 'a')).toBe(
-			'^{icon: "i" min: 0} number'
+		expect(typeIn('{P = (: number icon: "i") Q = (: P min: 0) a = ^Q 1}', 'a')).toBe(
+			'(: number icon: "i" min: 0)'
 		)
 	})
 
 	it('holds for a recursive type, and aliases in a circle', () => {
-		const src = '{Tree = ^{icon: "t"} {value: number children: [...Tree]} a = ^Tree {value: 1 children: []}}'
-		expect(typeIn(src, 'a')).toContain('^{icon: "t"}')
+		const src = '{Tree = (: {value: number children: [...Tree]} icon: "t") a = ^Tree {value: 1 children: []}}'
+		expect(typeIn(src, 'a')).toContain('icon: "t"')
 		const env = buildPrelude()
 		expect(() => resolveTypeSlot(parse('{p = q q = p ^p 1}'), env)).not.toThrow()
 		expect(() => check(parse('{p = q q = p ^p 1}'), env)).not.toThrow()

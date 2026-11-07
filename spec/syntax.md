@@ -538,17 +538,16 @@ For non-fallback type tests (membership without consuming the default), pattern-
 
 ## Metadata — `^{...}` prefix
 
-Any expression can be prefixed with `^{...}` to attach metadata:
+Any expression can be prefixed with `^{...}` to attach metadata, which says something of what it is written before:
 
 ```glisp
-^{default: 1 label: "Count"} number
 ^{doc: "Square the number"} (=> [x: number]: number (* x x))
 ^{label: "Width"} 100
 ^{label: "Origin"} {x: 0 y: 0}
-^{label: "2D Point"} [number number]
+^{label: "Head" color: "red"} (circle [0 0] 10)
 ```
 
-The `{...}` after `^` is a record literal (uses `:` for keys).
+The `{...}` after `^` is a record literal (uses `:` for keys). Before a type, it says something of the type itself; to say it of the values of a type, write [`(: T key: value ...)`](#derived-types--t-). See [types.md — Metadata](./types.md#metadata).
 
 ### Locking — `@`
 
@@ -581,17 +580,17 @@ A binding is where something is defined rather than used, so `#_` there has no e
 
 ### Metadata semantics
 
-- Equality: metadata does not affect type equality. `^{default: 1} number` and `^{default: 0} number` are the same type.
-- Inheritance: when a derived value/type is created, unset keys are inherited from the parent. Set keys override (last-write-wins merge).
+- Equality: metadata does not affect type equality. `(: number default: 1)` and `(: number default: 0)` are the same type.
+- Inheritance: every key goes along with a type, and what is written nearer goes over what came before, key by key. Only what marks a place, `@`, `#_`, `#` and a name, stays where it is written.
 - The `default` key is the only metadata key with semantic meaning to the language core: when type mismatch or runtime error occurs, the `default` of the expected type is returned.
-- `label` and `icon` are for editors. An editor shows a node by its own `label`, and a call by the `label` on the function's definition. `icon` is named the way the host names icons, and on a function's definition is the icon of that function where a call shows it. A value with no `icon` of its own can take the one on what its type is bound to, so `^{icon: "..."} number` is the icon of numbers.
-- A parameter is labelled by `label` on its type, as in `(xs: ^{label: "Items"} [...T])`, or by `params` on the function's definition, as in `^{params: {xs: "Items"}} (=> ...)`, which is how a host function does it. There, `{label: "Items" doc: "..."}` says what it is for as well, as `doc` on its type does.
+- `label` and `icon` are for editors. An editor shows a node by its own `label`, and a call by the `label` on the function's definition. `icon` is named the way the host names icons, and on a function's definition is the icon of that function where a call shows it. A value with no `icon` of its own takes its type's: `(: number icon: "...")` gives its values one, and `^{icon: "..."}` on what a type is bound to is the icon of that type and of its values.
+- A parameter is labelled by `label` on its type, as in `(xs: (: [...T] label: "Items"))`, or by `params` on the function's definition, as in `^{params: {xs: "Items"}} (=> ...)`, which is how a host function does it. There, `{label: "Items" doc: "..."}` says what it is for as well, as `doc` on its type does.
 - In a `doc`, a word in backticks that names a parameter stands for it, for an editor to show by its label.
-- `min`, `max` and `step` say what a number can be, for an editor's widget: `^{min: 0 max: 100} 50`, or on a type, as in `(w: ^{min: 0 max: 100} number)`. They do not limit the value. `prefix` and `suffix` are shown around it, as in `^{suffix: "%"} 50`. A type carries them wherever it goes, so `Percent = ^{suffix: "%"} number` makes `(w: Percent)` show its argument that way. See [Metadata](./types.md#metadata).
+- `min`, `max` and `step` say what a number can be, for an editor's widget: `^{min: 0 max: 100} 50`, or on a type, as in `(w: (: number min: 0 max: 100))`. They do not limit the value. `prefix` and `suffix` are shown around it, as in `^{suffix: "%"} 50`. A type carries them wherever it goes, so `Percent = (: number suffix: "%")` makes `(w: Percent)` show its argument that way. See [Metadata](./types.md#metadata).
 - `scale` says how many times what it is a number is shown as, for an editor: `^{min: 0 max: 1 scale: 100 suffix: "%"} 0.5` is 0.5, shown as `50%`. `min`, `max` and `step` stay in terms of the value. `prefix` and `suffix` are what goes around it where it is shown.
 - `changesFirst` on a parameter's type says that working backward is to change what refers to it before the other arguments of a call. See [Which argument changes](./eval.md#which-argument-changes).
 - `proportional` says that the numbers of a vector go together, for an editor: `^{proportional: true} [100 50]`. Changing one has the others keep their ratio to it, going by the numbers as they are, so the ratio is not written anywhere else. It comes along with a type as `min` does, so what refers to such a vector goes the same way, and `^{proportional: false} s` is how to have it not.
-- Metadata wraps cannot stack. `^{a: 1} ^{b: 2} expr` is a syntax error — combine the fields into a single `^{a: 1 b: 2}` instead. (Merge semantics for stacked metadata are intentionally not defined.)
+- Metadata wraps cannot stack. `^{a: 1} ^{b: 2} expr` is a syntax error — combine the fields into a single `^{a: 1 b: 2}` instead. A coercion can wrap metadata, as `^Percent ^{label: "W"} 50`, and what is nearer the value goes over what the type says.
 - Other keys (`label`, `color`, `icon`, `doc`, ...) have no effect on evaluation. The host attaches typed hints for these keys.
 
 ### `default` fallback timing

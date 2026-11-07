@@ -23,7 +23,7 @@ Types can be `let`-bound, passed as arguments, and returned from functions. `_` 
 Types are compared by their **structural form**, modulo metadata. Two types are equal iff they are built from the same primitive / constructor with equal arguments, regardless of whether they share memory identity. Two distinct AST nodes that construct the same type produce equal types.
 
 ```glisp
-^{default: 1} number  ==  ^{default: 0} number   ;; same type (metadata ignored for equality)
+(: number default: 1)  ==  (: number default: 0)   ;; same type (metadata ignored for equality)
 number  !=  string
 [...number]  ==  [...number]
 ```
@@ -238,36 +238,38 @@ Members say nothing about the type's values, so they take no part in what fits w
 
 ## Metadata
 
-Any value (including types) can be wrapped with metadata via `^{...}` prefix.
+What is said of a value is written `^{...}` before it, and is a type's annotations: what a type says of its values, other than which they are. There are two places to say it.
+
+- `^{...} v` says it of `v`, whatever `v` is: a value, a call, or a type, which is then said of the type itself, as `^{doc: "The type of angles"} Angle`. `^T v` is `v` as a `T`, and takes what `T` says. See [Coercion](#coercion-t-v).
+- `(: T key: value ...)` says it of the values of `T`, which makes a type of it. See [Derived types](#derived-types).
 
 ```glisp
-^{default: 1 label: "Count"} number
+Count = (: number default: 1 label: "Count")
 ^{doc: "Square"} (=> [x: number]: number (* x x))
-^{label: "Width"} 100
+^{label: "Width" color: "red"} (circle [0 0] 10)
 ```
 
 ### Semantics
 
-Metadata sits as a layer on top of the underlying value, and of it evaluation reads only a type's `default`. A type says what its values are, and metadata is part of that, such as that a number is a percentage. It does not change what fits what, so `^{suffix: "%"} number` holds the same values as `number`, and a `Percent` can be passed where an `Angle` is wanted. Metadata is consulted at three points:
+Evaluation reads only `default` of it: what `^{default: d} v` comes to where `v` comes to `()`, and what a type gives where what it is given does not fit. Annotations do not change what fits what, so `(: number suffix: "%")` holds the same values as `number`, and a `Percent` can be passed where an `Angle` is wanted. Hosts read the rest, for a label, a doc, a color, a range.
 
-1. **`default` fallback**. The `default` key, if present on the expected type, is the fallback value when type mismatch or runtime error occurs.
-2. **Host introspection**. Hosts read metadata for label, doc, color, etc. The language core treats these as opaque pass-through.
-3. **Inheritance**. Static analysis carries metadata along with a type, and what is written later goes over what came before, key by key. See below.
+Static analysis carries them along with a type, through names, parameters' and return types, and generics, and what is written nearer goes over what came before, key by key:
 
-
+<!-- test -->
 ```glisp
-Percent = ^{min: 0 max: 100 suffix: "%"} number
-Half = ^{max: 50} Percent      ;; min, suffix, and a max of 50
-a = ^Percent 20             ;; : ^{min: 0 max: 100 suffix: "%"} number
-b = ^{min: 0} 5                ;; : ^{min: 0} number
-c = b                          ;; : ^{min: 0} number
-d = (+ b 1)                    ;; : number, since `+` says it returns a number
-f = (=> [p: Percent]: number p)  ;; `p` is a Percent, and so is what is passed to it, for an editor
+Percent = (: number min: 0 max: 100 suffix: "%")
+Half = (: Percent max: 50)      ;; min, suffix, and a max of 50
+a = ^Percent 20                 ;; : (: number min: 0 max: 100 suffix: "%")
+b = ^{min: 0} 5                 ;; : (: number min: 0)
+c = b                           ;; : (: number min: 0)
+w = ^Percent ^{label: "W"} 20   ;; : (: number min: 0 max: 100 suffix: "%" label: "W")
+d = (+ b 1)                     ;; : number, since `+` says it returns a number
+f = (=> [p: Percent]: number p) ;; `p` is a Percent, and so is what is passed to it, for an editor
 ```
 
-A value takes its metadata from where it is written, and through names, parameters' and return types, and generics. Metadata stays out of type names in diagnostics. Apart from `default`, it is not evaluated: only what is written as a literal can be read back, as `^{max: a}` cannot be without running `a`. A `default` can be any expression whose value is of the type, and one that is not is a diagnostic and has no effect. A host that writes a default into a program, such as for an argument being added, writes that expression, so that `^{default: (mat2d.trs [50 0])} mat2d` starts as something that can be read, or what it comes to if it would not come to the same there.
+Every key goes along, `doc`, `label` and `icon` as much as `min`. A name is the label of where it is written, which is nearer than what a type says, so `(opacity: Percent)` is shown as `opacity` however `Percent` is labelled. What marks a place goes nowhere: `@`, `#_`, `#` and the name itself. Annotations stay out of type names in diagnostics.
 
-`doc`, `label`, `params` and `@` stay where they are written, since they are about a name or a place: `(opacity: Percent)` is still called `opacity`. Everything else goes along with the type, including `icon`.
+Only what is written as a literal can be read back from `^{...}`, as `^{max: a}` cannot be without running `a`. `(: T max: a)` evaluates `a`, as any type expression is evaluated, and keeps what it comes to. A `default` can be any expression whose value is of the type, and one that is not is a diagnostic and has no effect. A host that writes a default into a program, such as for an argument being added, writes that expression, so that `(: mat2d default: (mat2d.trs [50 0]))` starts as something that can be read, or what it comes to if it would not come to the same there.
 
 ### Reserved metadata keys
 
@@ -279,7 +281,7 @@ The language core assigns semantic meaning only to:
 
 All other keys are unrestricted. Hosts may register typed schemas for them via the host API.
 
-A value written as a type can have metadata of its own, which goes with it: `(| ^{icon: "ph:a"} "a" ^{icon: "ph:b"} "b")`. It is the same type as `(| "a" "b")`. As elsewhere, only what is written as a literal can be read back, so a value spread in, as in `(| ...xs)`, has none. An editor shows the values by their `icon` if all of them have one. What an icon's name means is up to the host.
+A value written as a type can have metadata of its own, which goes with it: `(| (: "a" icon: "ph:a") (: "b" icon: "ph:b"))`. It is the same type as `(| "a" "b")`. As elsewhere, only what is written as a literal can be read back, so a value spread in, as in `(| ...xs)`, has none. An editor shows the values by their `icon` if all of them have one. What an icon's name means is up to the host.
 
 ### `()` and default fallback
 

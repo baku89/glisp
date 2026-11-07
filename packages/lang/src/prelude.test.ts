@@ -132,7 +132,7 @@ describe('prelude — type constructors', () => {
 
 	it('keeps what is said about each value of a union of them, which is the same type without it', () => {
 		const env = buildPrelude()
-		const about = evaluate(parse('(| ^{icon: "x"} "r" "g")'), env).value as TypeValue
+		const about = evaluate(parse('(| (: "r" icon: "x") "g")'), env).value as TypeValue
 		const { shape } = unwrapLazy(about)
 		if (shape.kind !== 'union') throw new Error('not a union')
 		expect(shape.members[0]!.meta?.print()).toBe('{icon: "x"}')

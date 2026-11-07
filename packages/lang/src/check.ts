@@ -6,7 +6,7 @@
  * Spec: docs/spec/types.md — Type inference
  */
 
-import { argFits, enterNode, pushLetFrame, withDefaultFrom } from './eval.js'
+import { argFits, enterNode, evaluate, pushLetFrame, withDefaultFrom } from './eval.js'
 import { bodyFrame, checkCall, infer, resolveTypeSlot } from './infer.js'
 import { resolve } from './resolve.js'
 import {
@@ -85,6 +85,11 @@ function walkCall(ast: CallAST, env: Env, diagnostics: Diagnostic[]): void {
 	if (typeAt >= 0) {
 		ast.args.forEach((arg, i) => i !== typeAt && walk(arg, inside, diagnostics))
 		ast.kwargs?.forEach(value => walk(value, inside, diagnostics))
+		// A type is worked out where it is read, so what is wrong in making one is known here
+		if (typeAt === 0) {
+			const own = new Set<AST>([ast, ...(ast.kwargs?.values() ?? [])])
+			diagnostics.push(...evaluate(ast, env).diagnostics.filter(d => own.has(d.source.ast)))
+		}
 	} else {
 		if (ast.head.kind !== 'sym') walk(ast.head, inside, diagnostics)
 		for (const arg of ast.args) walk(arg, inside, diagnostics)

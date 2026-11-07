@@ -1389,16 +1389,16 @@ describe('default in metadata', () => {
 
 	it('is what a type falls back to', () => {
 		expect(run('^(: number default: 7) "a"').value).toBe(7)
-		expect(run('{P = ^{default: 7} number ^P "a"}').value).toBe(7)
-		expect(run('{f = (=> [x: ^{default: 7} number]: number x) (f "a")}').value).toBe(7)
-		expect(run('{P = ^{default: 7} number f = (=> [x: P]: number x) (f "a")}').value).toBe(7)
-		expect(run('{f = (=> [x: ^{default: 7} number]: number x) (f ())}').value).toBe(7)
+		expect(run('{P = (: number default: 7) ^P "a"}').value).toBe(7)
+		expect(run('{f = (=> [x: (: number default: 7)]: number x) (f "a")}').value).toBe(7)
+		expect(run('{P = (: number default: 7) f = (=> [x: P]: number x) (f "a")}').value).toBe(7)
+		expect(run('{f = (=> [x: (: number default: 7)]: number x) (f ())}').value).toBe(7)
 	})
 
 	it('goes along with what is derived, until something goes over it', () => {
-		expect(run('{P = ^{default: 7} number Q = ^{max: 9} P ^Q "a"}').value).toBe(7)
-		expect(run('{P = ^{default: 7} number Q = ^{default: 8} P ^Q "a"}').value).toBe(8)
-		expect(run('{P = ^{default: 7} number Q = P ^Q "a"}').value).toBe(7)
+		expect(run('{P = (: number default: 7) Q = (: P max: 9) ^Q "a"}').value).toBe(7)
+		expect(run('{P = (: number default: 7) Q = (: P default: 8) ^Q "a"}').value).toBe(8)
+		expect(run('{P = (: number default: 7) Q = P ^Q "a"}').value).toBe(7)
 	})
 
 	it('can be worked out', () => {
@@ -1406,23 +1406,23 @@ describe('default in metadata', () => {
 	})
 
 	it('still fits as what it is', () => {
-		expect(run('{P = ^{default: 7} number f = (=> [x: number]: number x) (f ^P 1)}').value).toBe(1)
+		expect(run('{P = (: number default: 7) f = (=> [x: number]: number x) (f ^P 1)}').value).toBe(1)
 		expect(run('^(: number default: 7) 1').value).toBe(1)
-		expect(check(parse('{P = ^{default: 7} number f = (=> [x: P]: number x) (f 1)}'), env)).toEqual([])
-		const typed = resolveTypeSlot(parse('^{default: 7} number'), env)!
+		expect(check(parse('{P = (: number default: 7) f = (=> [x: P]: number x) (f 1)}'), env)).toEqual([])
+		const typed = resolveTypeSlot(parse('(: number default: 7)'), env)!
 		const plain = resolveTypeSlot(parse('number'), env)!
 		expect(typeFits(typed, plain)).toBe(true)
 		expect(typeFits(plain, typed)).toBe(true)
-		expect(printType(typed)).toBe('^{default: 7} number')
+		expect(printType(typed)).toBe('(: number default: 7)')
 	})
 
 	it('says so when it does not fit, and has no effect', () => {
 		expect(run('^(: number default: "b") "a"').value).toBe(0)
-		expect(check(parse('{P = ^{default: "b"} number}'), env).map(d => d.message)).toContain(
+		expect(check(parse('{P = (: number default: "b")}'), env).map(d => d.message)).toContain(
 			'default does not fit number'
 		)
 		expect(check(parse('^{default: "b"} 1'), env)).toEqual([])
-		const result = run('{P = ^{default: "b"} number P}')
+		const result = run('{P = (: number default: "b") P}')
 		expect(result.diagnostics.map(d => d.message).join()).toContain('default does not fit')
 	})
 

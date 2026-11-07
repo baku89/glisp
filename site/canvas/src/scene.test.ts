@@ -445,7 +445,7 @@ describe('what a row is called, to read', () => {
 			const [, call] = slots(src)
 			return viewOf(call!.ast, call!.env).slots.map(titleOf)
 		}
-		expect(inner('{f = (=> [r: ^{label: "dB level"} number]: number r) y = (f 1)}')).toEqual(['dB level'])
+		expect(inner('{f = (=> [r: (: number label: "dB level")]: number r) y = (f 1)}')).toEqual(['dB level'])
 	})
 
 	it('is what is bound, as it is', () => {

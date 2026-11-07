@@ -35,6 +35,7 @@ import {
 	makeRecordType,
 	makeTupleType,
 	makeUnionType,
+	derivedFrom,
 	makeLiteralType,
 	omittable,
 	unitType as unitTypeValue,
@@ -127,15 +128,10 @@ export function resolveTypeSlot(ast: AST, env: Env): TypeValue | null {
 
 function computeTypeSlot(ast: AST, env: Env): TypeValue | null {
 	switch (ast.kind) {
-		case 'meta': {
-			const type = resolveTypeSlot(ast.expr, env)
-			return type === null
-				? null
-				: withTypeMeta(
-						withDefaultFrom(type, ast.metadata, env).type,
-						ast.metadata
-					)
-		}
+		// What is said of a type where one is wanted is said of it, and not of its values:
+		// that is `(: T ...)`
+		case 'meta':
+			return resolveTypeSlot(ast.expr, env)
 		case 'vec':
 			return tupleSlot(ast, env)
 		case 'record':
@@ -147,6 +143,10 @@ function computeTypeSlot(ast: AST, env: Env): TypeValue | null {
 		case 'sym':
 			return symbolSlot(ast.name, env) ?? typeFromEvaluating(ast, env)
 		case 'call':
+			if (ast.head.kind === 'sym' && ast.head.name === ':' && ast.args[0] !== undefined) {
+				const base = resolveTypeSlot(ast.args[0], env)
+				return base === null ? null : derivedFrom(base, ast, env).type
+			}
 			return applicationSlot(ast, env) ?? typeFromEvaluating(ast, env)
 		default:
 			return typeFromEvaluating(ast, env)
@@ -213,7 +213,8 @@ function recordSlot(ast: RecordAST, env: Env): TypeValue | null {
 function symbolSlot(name: string, env: Env): TypeValue | null {
 	const target = lookupBareName(name, env)
 	if (target === null) return null
-	if (!['vec', 'record', 'meta', 'sym'].includes(target.ast.kind)) return null
+	const derives = target.ast.kind === 'call' && target.ast.head.kind === 'sym' && target.ast.head.name === ':'
+	if (!derives && !['vec', 'record', 'meta', 'sym'].includes(target.ast.kind)) return null
 	const reentered = typeSlotsInProgress.get(target.ast)?.get(target.env)
 	if (reentered !== undefined) {
 		reentered.lazy ??= makeLazyType(name, () => reentered.resolved)
@@ -737,8 +738,11 @@ export function checkCall(
 			case '|>':
 				return inferPipe(ast, inside)
 			case '^': {
-				const type = ast.args[1]
-				return type === undefined ? null : resolveTypeSlot(type, inside)
+				const [value, typeAst] = ast.args
+				const type = typeAst === undefined ? null : resolveTypeSlot(typeAst, inside)
+				// What is said of the value, nearer than its type, goes over what the type says
+				const said = type !== null && value !== undefined ? infer(value, inside)?.meta : undefined
+				return said === undefined || type === null ? type : withTypeMeta(type, said)
 			}
 			// `(: T ...)` is a type expression, as a name of a type is
 			case ':':

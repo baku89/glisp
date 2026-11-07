@@ -499,10 +499,10 @@ describe('Runtime — metadata', () => {
 	})
 
 	it('recomputes for a default, and for what one refers to', () => {
-		const src = (d: number) => `{P = ^{default: ${d}} number a = ^P "x"}`
+		const src = (d: number) => `{P = (: number default: ${d}) a = ^P "x"}`
 		const direct = after(src(1), src(2), 'a')
 		expect([direct.first, direct.value]).toEqual([1, 2])
-		const via = (k: number) => `{k = ${k} P = ^{default: k} number a = ^P "x"}`
+		const via = (k: number) => `{k = ${k} P = (: number default: k) a = ^P "x"}`
 		const reference = after(via(1), via(2), 'a')
 		expect([reference.first, reference.value]).toEqual([1, 2])
 	})
