@@ -38,6 +38,7 @@ import {
 	type TypeValue,
 	toAst,
 	typeFits,
+	pushLetFrame,
 } from './eval.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
@@ -551,7 +552,7 @@ describe('evaluate — type values (cast & match)', () => {
 		expect(evaluate(parse('(number)'), env).value).toBe(0)
 		const wrong = evaluate(parse('(number "a")'), env)
 		expect(wrong.value).toBe(0)
-		expect(wrong.diagnostics.map(d => d.message)).toEqual(["number doesn't accept string value"])
+		expect(wrong.diagnostics.map(d => d.message)).toEqual(['type mismatch: expected number, got string'])
 	})
 
 	it('? matches a type pattern with cast (no default consumed)', () => {
@@ -1570,18 +1571,24 @@ describe('a type called', () => {
 		expect(run('{V = [...number] (V 1 2 3)}').value).toEqual([1, 2, 3])
 		expect(run('{V = [...number] (V 1 2 3)}').diagnostics).toEqual([])
 		expect(run('{V = [number number] (V 1 "a")}').value).toEqual([1, 0])
-		expect(messages('{V = [number number] (V 1 2 3)}')).toEqual(['[number number] has 2 elements'])
+		expect(messages('{V = [number number] (V 1 2 3)}')).toHaveLength(1)
 	})
 
-	it('takes one argument that is a whole value of it as it is', () => {
-		expect(run('{V = [number number] (V [3 4])}').value).toEqual([3, 4])
+	it('is a function as any other, with what it takes named', () => {
+		const named = (src: string) => callParameters(parse(src) as CallAST, env)?.names
+		expect(run('{V = [number number] (V _1: 5)}').value).toEqual([0, 5])
+		const block = parse('{P = {x: number y?: number} (P 1)}') as LetAST
+		expect(callParameters(block.body as CallAST, pushLetFrame(block, env))?.names).toEqual(['x', 'y'])
+		expect(named('(number 1)')).toEqual(['value'])
+		// A vector is turned into one by ^T, not by calling its type
+		expect(run('{V = [number number] ^V [3 4]}').value).toEqual([3, 4])
 	})
 
 	it('makes a record of its fields, by name or in order', () => {
 		expect(run('{P = {x: number y: number} (P x: 1)}').value).toEqual({ x: 1, y: 0 })
 		expect(run('{P = {x: number y: number} (P 1 2)}').value).toEqual({ x: 1, y: 2 })
 		expect(run('{P = {x: number y?: number} (P 5)}').value).toEqual({ x: 5 })
-		expect(messages('{P = {x: number} (P y: 1)}')).toEqual(['{x: number} has no field y'])
+		expect(messages('{P = {x: number} (P y: 1)}')).toEqual(['unknown keyword argument: y'])
 	})
 
 	it('makes one value of anything else, which has to meet what a derived type asks', () => {

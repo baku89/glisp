@@ -197,23 +197,23 @@ JoinType = (| "round" "butt" "square")
 
 ## Constructors
 
-A type that takes no types, called, is a value of it made of what it is given. A type that takes types, as `IO` and `vector`, is applied to them instead, as `(IO number)`.
+A type that takes no types, called, is its constructor: of the functions that make a value of it, the one that is most what it is, which for a type made of parts is putting them together. It is a function as any other, with the parameters below, so it is called, checked, labelled and reached by a path as any function is. A type that takes types, as `IO` and `vector`, is applied to them instead, as `(IO number)`.
 
-- A tuple takes its elements in order, `(vec2 1 2)`, and a vector of any length as many as it is given.
-- A record takes its fields by name, `(Point x: 1)`, or in the order they are declared.
-- Any other type takes one value, so `(Percent 50)` is `^Percent 50`.
+- A record takes its fields, by name or in the order they are declared: `(Point x: 1)`.
+- A tuple takes its elements in order, each named by its `title`, as `x` and `y` of a point, or else by where it is, `_0` and `_1`. A vector of any length takes as many as it is given.
+- Any other type takes one `value`, so `(Percent 50)` is `^Percent 50`.
 
-What is not given is its default, as a field that can be left out is left out, and what does not fit comes to the default, with a diagnostic, as at any typed slot. One argument that is a whole value of the type already is taken as it is, so `(vec2 [1 2])` is `[1 2]`. A name bound to a vector or a record of types, or to a union, is a type when it is called, as where a type is wanted; one bound to values, as `[1 2]`, is called as a vector is.
+None of it has to be given: what is not is its default, and a field that can be left out is left out. What does not fit comes to the default, with a diagnostic, as at any typed slot. Other ways to make a value of a type are functions of their own, as `rect.new`, and turning a value into one is `^T v`: `(Pair [4 5])` is `[0 0]`, with a diagnostic, as `[4 5]` is not a number, where `^Pair [4 5]` is `[4 5]`. A name bound to a vector or a record of types, or to a union or a derived type, is a type when it is called, as where a type is wanted; one bound to values, as `[1 2]`, is called as a vector is.
 
 <!-- test -->
 ```glisp
 {Point = {x: number y: number}
  Pair = [number number]
- [(Point x: 1) (Point 1 2) (Pair 3) (Pair [4 5]) (number "a")]}
-;; → [{x: 1 y: 0} {x: 1 y: 2} [3 0] [4 5] 0]
+ [(Point x: 1) (Point 1 2) (Pair 3) (Pair _1: 4) (number "a")]}
+;; → [{x: 1 y: 0} {x: 1 y: 2} [3 0] [0 4] 0]
 ```
 
-Working backward goes through a constructor to what it was given, so dragging a point made by `(vec2 1 2)` changes the `1` and the `2`.
+Working backward goes through a constructor to what it was given, all of its parts at once, so dragging a point made by `(point 1 2)` changes the `1` and the `2`.
 
 The rule:
 

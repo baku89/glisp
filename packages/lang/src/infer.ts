@@ -36,6 +36,7 @@ import {
 	makeTupleType,
 	makeUnionType,
 	writtenTypeOf,
+	constructorOf,
 	derivedFrom,
 	makeLiteralType,
 	omittable,
@@ -248,15 +249,14 @@ function applicationSlot(ast: CallAST, env: Env): TypeValue | null {
 }
 
 /**
- * The type a call of `head` makes a value of, if `head` is a name of a type that takes no types:
- * one a host gives, or one written as a vector, a record, a union or a derived type.
+ * The function a call of `head` is, if `head` is a name of a type that is called as one: one a
+ * host gives, or one written as a vector, a record, a union or a derived type. See `constructorOf`.
  */
-function constructedBy(head: AST, env: Env): TypeValue | null {
-	// A vector of any length is written as one that takes the type of its elements, as `(vector T)`
+function constructorAt(head: AST, env: Env): TypedHostFn | null {
 	const written = writtenTypeOf(head, env)
-	if (written !== null) return written.shape.kind === 'function' ? null : written
+	if (written !== null) return constructorOf(written)
 	const type = head.kind === 'sym' ? bareTypeOf(head.name, env) : null
-	return type === null || type.apply !== undefined || type.shape.kind === 'function' ? null : type
+	return type === null || type.apply !== undefined ? null : constructorOf(type)
 }
 
 function bareTypeOf(name: string, env: Env): TypeValue | null {
@@ -768,9 +768,9 @@ export function checkCall(
 	const overload = overloadOf(ast.head, inside)
 	if (overload !== null) return overloadReturnType(overload, ast, inside)
 
-	// A type that takes no types makes a value of it
-	const made = constructedBy(ast.head, inside)
-	if (made !== null) return made
+	// A type called is its constructor, a function as any other
+	const made = constructorAt(ast.head, inside)
+	if (made !== null) return applyFunctionType(functionTypeOfHost(made), ast, inside, report)
 
 	const head = infer(ast.head, inside)
 	if (head === null) return null
@@ -817,6 +817,8 @@ export function callParameters(
 		const variant = selectOverloadVariant(overload, call, env)
 		return variant === null ? null : parametersOfType(variant.type)
 	}
+	const made = constructorAt(call.head, env)
+	if (made !== null) return parametersOfType(functionTypeOfHost(made))
 	const head = infer(call.head, env)
 	return head === null ? null : parametersOfType(head)
 }

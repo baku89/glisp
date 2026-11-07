@@ -390,7 +390,6 @@ describe('solve — a value its type makes', () => {
 			'{P = {x: number y: number} r = (P x: 3 y: 2) r}'
 		)
 		expect(edited('{r = (number 1) r}', 4)).toBe('{r = (number 4) r}')
-		expect(edited('{V = [number number] r = (V [1 2]) r}', [3, 4])).toBe('{V = [number number] r = (V [3 4]) r}')
 	})
 
 	it('cannot change what was not written', () => {

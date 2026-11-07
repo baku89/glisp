@@ -1057,91 +1057,91 @@ export function writtenTypeOf(head: AST, env: Env): TypeValue | null {
 	return resolveTypeSlot(head, env)
 }
 
-/**
- * `(T ...)` for a type that takes no types: a value of it, made of what is given. A tuple takes
- * its elements in order, a record its fields by name or in order, and any other type one value,
- * as `^T v` does. What is not given is its default, and what does not fit comes to it, with a
- * diagnostic. One argument that is a whole value of the type already is taken as it is.
- */
-function construct(
-	type: TypeValue,
-	positional: ReadonlyArray<AST>,
-	kwargs: ReadonlyMap<string, AST> | undefined,
-	env: Env,
-	site: AST,
-	diagnostics: Diagnostic[]
-): EvalResult {
-	const values = positional.map(argAst => {
-		const r = evaluate(argAst, env)
-		push(diagnostics, r.diagnostics)
-		return r.value
-	})
-	const named = new Map(
-		[...(kwargs ?? [])].map(([key, argAst]) => {
-			const r = evaluate(argAst, env)
-			push(diagnostics, r.diagnostics)
-			return [key, r.value] as const
-		})
-	)
-	const fitted = (t: TypeValue, v: unknown, at: AST): unknown => {
-		if (v === UNIT) return t.default
-		if (t.fits(v)) return v
-		diagnostics.push(diag(at, env, `${t.typeName} doesn't accept ${describeType(v)} value`))
-		return t.default
-	}
-	if (values.length === 1 && named.size === 0 && type.fits(values[0])) {
-		return { value: values[0], diagnostics }
-	}
+const constructors: WeakMap<TypeValue, TypedHostFn | null> = new WeakMap()
 
-	const made = (t: TypeValue): unknown => {
-		const { shape } = unwrapLazy(t)
-		switch (shape.kind) {
-			case 'refine':
-				return fitted(t, made(shape.base), site)
-			case 'tuple':
-			case 'vector': {
-				if (named.size > 0) diagnostics.push(diag(site, env, `${t.typeName} takes its elements in order`))
-				const elements = shape.kind === 'tuple' ? shape.elements : []
-				const rest = shape.kind === 'tuple' ? shape.rest : shape.element
-				if (rest === undefined && values.length > elements.length) {
-					diagnostics.push(diag(site, env, `${t.typeName} has ${elements.length} elements`))
-				}
-				const out = elements.map((element, i) =>
-					i < values.length ? fitted(element, values[i], positional[i]!) : element.default
-				)
-				if (rest !== undefined) {
-					for (let i = elements.length; i < values.length; i++) out.push(fitted(rest, values[i], positional[i]!))
-				}
-				return out
-			}
-			case 'record': {
-				const keys = [...shape.fields.keys()]
-				if (values.length > keys.length) diagnostics.push(diag(site, env, `${t.typeName} has ${keys.length} fields`))
-				for (const key of named.keys()) {
-					if (!shape.fields.has(key)) diagnostics.push(diag(kwargs!.get(key)!, env, `${t.typeName} has no field ${key}`))
-				}
-				const out: Record<string, unknown> = {}
-				keys.forEach((key, i) => {
-					const field = shape.fields.get(key)!
-					const byName = named.has(key)
-					if (!byName && i >= values.length) {
-						// What can be left out is, and anything else is what it is at first
-						if (!shape.optional.has(key)) out[key] = field.default
-						return
-					}
-					out[key] = fitted(field, byName ? named.get(key) : values[i], byName ? kwargs!.get(key)! : positional[i]!)
-				})
-				return out
-			}
-			case 'function':
-				diagnostics.push(diag(site, env, `${t.typeName} is made by writing a function, as (=> [x: number] x)`))
-				return t.default
-			default:
-				if (values.length + named.size > 1) diagnostics.push(diag(site, env, `${t.typeName} takes one value`))
-				return values.length === 0 ? t.default : fitted(t, values[0], positional[0]!)
+/**
+ * The function a type is called as, which makes a value of it from what it is made of: a record
+ * from its fields, a tuple from its elements, named by their `title` or else by where they are,
+ * and anything else from one `value`. It is a function as any other, with what it takes and a way
+ * back, and none of it has to be given: what is not is its default, and a field that can be left
+ * out is. A type that takes types, or is of functions, has none.
+ */
+export function constructorOf(type: TypeValue): TypedHostFn | null {
+	if (constructors.has(type)) return constructors.get(type)!
+	const made = makeConstructor(type)
+	constructors.set(type, made)
+	return made
+}
+
+function makeConstructor(type: TypeValue): TypedHostFn | null {
+	const { shape } = unwrapLazy(type)
+	// What takes types is applied to them, but for a vector, which `(vector T)` is written as
+	if (type.apply !== undefined && shape.kind !== 'vector') return null
+	switch (shape.kind) {
+		case 'function':
+			return null
+		case 'refine': {
+			const base = constructorOf(shape.base)
+			if (base === null) return null
+			// Of one value, it is what that has to be, so that what does not fit says so
+			const one = base.paramNames?.length === 1 && base.paramNames[0] === 'value' && base.variadicTail === undefined
+			const fn = makeTypedFn(
+				one ? [type] : base.paramTypes,
+				type,
+				(...args) => coerceTo(type, base(...args)),
+				base.paramNames,
+				base.variadicTail,
+				base.variadicName
+			)
+			if (base.inverse !== undefined) withInverse(fn, base.inverse)
+			return withOptional(fn, base.paramNames ?? [])
+		}
+		case 'tuple':
+		case 'vector': {
+			const elements = shape.kind === 'tuple' ? shape.elements : []
+			const rest = shape.kind === 'tuple' ? shape.rest : shape.element
+			const names = partNames(elements)
+			const fn = makeTypedFn(elements, type, (...args) => args, names, rest, rest === undefined ? undefined : 'items')
+			withInverse(fn, (index, result) => (Array.isArray(result) ? result[index] : undefined))
+			return withOptional(fn, names)
+		}
+		case 'record': {
+			const keys = [...shape.fields.keys()]
+			// What can be left out is left out, rather than being its default
+			const takes = keys.map(key => {
+				const field = shape.fields.get(key)!
+				return shape.optional.has(key)
+					? (Object.create(field, { default: { value: UNIT } }) as TypeValue)
+					: field
+			})
+			const fn = makeTypedFn(takes, type, (...args) =>
+				Object.fromEntries(keys.flatMap((key, i) => (args[i] === UNIT && shape.optional.has(key) ? [] : [[key, args[i]]])))
+			, keys)
+			withInverse(fn, (index, result) =>
+				typeof result === 'object' && result !== null ? (result as Record<string, unknown>)[keys[index]!] : undefined
+			)
+			return withOptional(fn, keys)
+		}
+		default: {
+			const fn = makeTypedFn([type], type, v => v, ['value'])
+			withInverse(fn, (_, result) => result)
+			return withOptional(fn, ['value'])
 		}
 	}
-	return { value: made(type), diagnostics }
+}
+
+/** What the elements of a tuple are called as arguments: by their `title`, or by where they are. */
+function partNames(elements: ReadonlyArray<TypeValue>): string[] {
+	const used = new Set<string>()
+	return elements.map((element, i) => {
+		const title = element.meta?.get('title')
+		const said = title?.kind === 'lit' && typeof title.value === 'string' ? title.value : ''
+		const name = said.replace(/^./, c => c.toLowerCase())
+		const fine = /^[A-Za-z][\w-]*$/.test(name) && !used.has(name)
+		const chosen = fine ? name : `_${i}`
+		used.add(chosen)
+		return chosen
+	})
 }
 
 function evalTypeApply(
@@ -1152,7 +1152,14 @@ function evalTypeApply(
 	site: AST,
 	diagnostics: Diagnostic[]
 ): EvalResult {
-	if (head.apply === undefined) return construct(head, positional, kwargs, env, site, diagnostics)
+	if (head.apply === undefined) {
+		const made = constructorOf(head)
+		if (made === null) {
+			diagnostics.push(diag(site, env, `${head.typeName} is made by writing a function, as (=> [x: number] x)`))
+			return { value: UNIT, diagnostics }
+		}
+		return callTypedHostFn(made, positional, kwargs, env, site, diagnostics)
+	}
 	const typeArgs: TypeValue[] = []
 	for (const argAst of positional) {
 		// An argument is a type slot, so that `[T U]` and `{x: T}` are types there.
@@ -1878,7 +1885,8 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 	if (written !== null) {
 		// What it is bound to is a type, and not a value that would fail to be worked out as one
 		diagnostics.splice(0, headResult.diagnostics.length)
-		return construct(written, positional, kwargs, inside, ast, diagnostics)
+		const made = constructorOf(written)
+		if (made !== null) return callTypedHostFn(made, positional, kwargs, inside, ast, diagnostics)
 	}
 
 	// Vector → element access by integer index.
