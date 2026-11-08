@@ -695,6 +695,12 @@ describe('the part of a row that a handle is', () => {
 		expect(of('(path.rect [0 0] [10 10])', 4)).toBe('binding:c/arg0')
 	})
 
+	it('is the size, for the corner across from the origin, and nothing for a corner that moves both', () => {
+		expect(of('(path.rect [0 0] [10 20])', 7)).toBe('binding:c/arg1')
+		expect(of('(path.rect [0 0] [10 20])', 5)).toBeNull()
+		expect(of('(path.rect [0 0] [10 20])', 6)).toBeNull()
+	})
+
 	it('is the one number it is about', () => {
 		expect(of('(path.rect [0 0] [10 20])', 2)).toBe('binding:c/arg1/0')
 		expect(of('(path.rect [0 0] [10 20])', 3)).toBe('binding:c/arg1/1')

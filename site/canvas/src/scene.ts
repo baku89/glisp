@@ -2640,14 +2640,30 @@ export function rowsOfHandle(root: AST, env: Env, row: string, handle: Handle): 
 	}
 	if (handle.parts !== undefined) return handle.parts.flatMap(route => rowOf({ route }))
 	const { means, at } = handle
-	if (means !== undefined) return means.length === 1 ? rowOf(means[0]!) : []
+	if (means !== undefined && means.length === 1) return rowOf(means[0]!)
 	if (at === undefined || handle.place === 'self') return []
-	const changes = handle.to([at[0] + 1.37, at[1] + 2.11], at)
-	if (changes.length !== 1) return []
+	// Of several, only what it changes in value: a corner pulled leaves the corner across from it
+	// where it is, and says nothing of it, though it is written out along with the size. One alone
+	// is what it is about, even where so little a pull leaves a count where it was.
+	const all = handle.to([at[0] + 1.37, at[1] + 2.11], at)
+	const changing = all.length > 1 ? all.filter(change => !leavesAsIs(root, env, row, change)) : all
+	const changes = changing.length > 0 ? changing : all
+	if (changes.length === 0 || new Set(changes.map(({ route }) => route.join('/'))).size !== 1) return []
 	const { route, value } = changes[0]!
-	if (!Array.isArray(value) || !value.includes(UNSET)) return rowOf({ route })
+	if (changes.length > 1 || !Array.isArray(value) || !value.includes(UNSET)) return rowOf({ route })
 	const said = value.flatMap((element, i) => (element === UNSET ? [] : [i]))
 	return said.length === 1 ? rowOf({ route, index: said[0]! }) : []
+}
+
+/** Whether `change` would leave the argument it is of as it is, in all it says of it. */
+function leavesAsIs(root: AST, env: Env, row: string, { route, value }: Change): boolean {
+	const read = readAt(root, env, row, route)
+	if (read === null) return false
+	const same = (next: unknown, now: unknown): boolean =>
+		next === UNSET || (typeof next === 'number' && typeof now === 'number' && Math.abs(next - now) < 1e-9)
+	return Array.isArray(value) && Array.isArray(read.value)
+		? value.length === read.value.length && value.every((element, i) => same(element, (read.value as unknown[])[i]))
+		: same(value, read.value)
 }
 
 /** The number at a place in the row at `row`, as it is in `root`. */

@@ -2965,7 +2965,8 @@ useEventListener(window, 'pointerup', event => {
 		held.value = null
 	}
 	const wasHandle = pressed?.kind === 'handle'
-	const clicked = pressed?.kind === 'handle' && pressed.at === null ? pressed : null
+	// Letting go of a handle, dragged or not, is about the part of the row it is: unless it took others along.
+	const clicked = pressed?.kind === 'handle' && pressed.together === null ? pressed : null
 	// A click on one of several, not having moved them, is about that one.
 	if (pressed?.kind === 'move' && pressed.collapse && !pressed.moving) {
 		emit('select', [pressed.row])
