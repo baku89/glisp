@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { AST } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
+import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputEnum } from 'tweeq/InputEnum'
-import { InputString } from 'tweeq/InputString'
+import { InputNumberList } from 'tweeq/InputNumberList'
 import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTree, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { computed, inject, ref, watch } from 'vue'
@@ -11,6 +12,7 @@ import { type GlispDocument, LINKER, MixedNumber, SELECTION } from '@glisp/tweeq
 import { isMixed } from '@glisp/tweeq/multiRows'
 import { capitalCase, enumIconsOf, parseSource } from '@glisp/tweeq/structure'
 
+import { DASH_ICONS, DASH_KINDS, type DashKind, dashKindOf, dashOf } from './dashes'
 import { LINE_CAPS, LINE_JOINS, lineCapType, lineJoinType, NO_PAINT, type Paint } from './graphics'
 import PaintSwatches from './PaintSwatches.vue'
 import { paintArgument, paintReferringTo, paintSource, paintWritten, strokeWithWidth, withPaintsSwapped, withPaintThrough } from './paintArguments'
@@ -104,42 +106,19 @@ const joinIcons = enumIconsOf(lineJoinType) ?? undefined
 /** Whether all there is to a line is out. Most of the time its color and width will do. */
 const lineOpen = ref(false)
 
-const dashesIn = (text: string): number[] =>
-	text
-		.split(/[\s,]+/)
-		.map(Number.parseFloat)
-		.filter(length => length >= 0)
+/** The width a dash is seen against, which is what its kinds are in terms of. */
+const dashWidth = computed(() => Math.max(1, ...valuesOf('width')))
 
-/** As it is typed, since `4 ` is on its way to `4 2`, though it comes to the same as `4`. */
-const dashText = ref('')
-watch(
-	() => (mixed('dash') ? null : paint.value.dash),
-	dash => {
-		if (dash === null) dashText.value = ''
-		else if (dashesIn(dashText.value).join() !== dash.join()) dashText.value = dash.join(' ')
-	},
-	{ immediate: true }
-)
-
-function setDash(text: string): void {
-	dashText.value = text
-	set({ dash: dashesIn(text) })
-}
-
-/**
- * Patterns to start from, in terms of the line's width, which a dash is seen against: a dash
- * of three widths and a gap of two reads as dashed at any width. Typing says the rest.
- */
-const dashPresets = computed<MenuItem[]>(() => {
-	const width = Math.max(1, ...valuesOf('width'))
-	const by = (...times: number[]) => times.map(t => Math.round(t * width * 10) / 10).join(' ')
-	return [
-		{ label: 'Solid', perform: () => setDash('') },
-		{ label: 'Dashed', perform: () => setDash(by(3, 2)) },
-		{ label: 'Dotted', perform: () => setDash(by(1, 1)) },
-		{ label: 'Dash Dot', perform: () => setDash(by(3, 1, 1, 1)) },
-	]
+/** The kind of dash the lines have, if they have one kind, each at its own width. */
+const dashKind = computed<DashKind | null>(() => {
+	const kinds = new Set(paintsOf('dash').map(({ paint }) => dashKindOf(paint.dash, Math.max(1, paint.width))))
+	return kinds.size === 1 ? [...kinds][0]! : null
 })
+
+const dashIcons = DASH_KINDS.map(kind => DASH_ICONS[kind])
+
+const setDashKind = (kind: DashKind): void =>
+	set({ dash: dashOf(kind, dashWidth.value, mixed('dash') ? [] : paint.value.dash) })
 
 /** One selection with the rows of what holds these, so that only one row is ever selected. */
 const selection = inject(SELECTION)!
@@ -394,17 +373,36 @@ useEventListener(
 					</ParameterTreeItem>
 					<ParameterTreeItem
 						label="Dash"
-						:hint="{ title: 'Dash', description: 'How long a dash is, then a gap, and so on in turn, as 6 3. Nothing is a solid line. The chevron has patterns to start from.' }"
 						:selected="isSelected('dash')"
 						:menuItems="menuOf('dash')"
 						@select="select('dash')"
 					>
 						<div data-takes-reference @focusin="select('dash')">
-							<InputString
-								:modelValue="dashText"
-								:placeholder="mixed('dash') ? 'Mixed' : 'Solid'"
-								:presets="dashPresets"
-								@update:modelValue="setDash"
+							<!-- A list, since five kinds with their pictures do not fit in a row. -->
+							<InputDropdown
+								:modelValue="dashKind as DashKind"
+								:options="[...DASH_KINDS]"
+								:icons="dashIcons"
+								:labelizer="capitalCase"
+								@update:modelValue="setDashKind"
+							/>
+						</div>
+					</ParameterTreeItem>
+					<!-- The lengths themselves: a dash, then a gap, and so on in turn. Changing them makes the dash its own. -->
+					<ParameterTreeItem
+						v-if="!mixed('dash') && paint.dash.length > 0"
+						label="Pattern"
+						:hint="{ title: 'Pattern', description: 'How long a dash is, then a gap, and so on in turn.' }"
+						:selected="isSelected('dash')"
+						:menuItems="menuOf('dash')"
+						@select="select('dash')"
+					>
+						<div data-takes-reference @focusin="select('dash')">
+							<InputNumberList
+								:modelValue="paint.dash"
+								:min="0"
+								:atLeast="1"
+								@update:modelValue="set({ dash: $event })"
 							/>
 						</div>
 					</ParameterTreeItem>
