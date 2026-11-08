@@ -388,9 +388,13 @@ useEventListener(
 							/>
 						</div>
 					</ParameterTreeItem>
-					<!-- The lengths themselves: a dash, then a gap, and so on in turn. Changing them makes the dash its own. -->
+					<!--
+						The lengths themselves: a dash, then a gap, and so on in turn. Changing them makes
+						the dash its own. The rows stay whatever the dash is, so that nothing moves as it
+						changes, and only say when they have no part in it: a solid line has no lengths
+						and nothing to begin along.
+					-->
 					<ParameterTreeItem
-						v-if="!mixed('dash') && paint.dash.length > 0"
 						label="Pattern"
 						:hint="{ title: 'Pattern', description: 'How long a dash is, then a gap, and so on in turn.' }"
 						:selected="isSelected('dash')"
@@ -399,15 +403,15 @@ useEventListener(
 					>
 						<div data-takes-reference @focusin="select('dash')">
 							<InputNumberList
-								:modelValue="paint.dash"
+								:modelValue="mixed('dash') ? [] : paint.dash"
 								:min="0"
 								:atLeast="1"
+								:disabled="mixed('dash') || paint.dash.length === 0"
 								@update:modelValue="set({ dash: $event })"
 							/>
 						</div>
 					</ParameterTreeItem>
 					<ParameterTreeItem
-						v-if="valuesOf('dash').some(dash => dash.length > 0)"
 						label="Offset"
 						:selected="isSelected('dashOffset')"
 						:menuItems="menuOf('dashOffset')"
@@ -416,6 +420,7 @@ useEventListener(
 						<div data-takes-reference @focusin="select('dashOffset')">
 							<MixedNumber
 								:values="valuesOf('dashOffset')"
+								:disabled="valuesOf('dash').every(dash => dash.length === 0)"
 								@update:values="setNumbers('dashOffset', $event)"
 							/>
 						</div>
