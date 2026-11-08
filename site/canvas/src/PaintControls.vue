@@ -361,8 +361,8 @@ useEventListener(
 							/>
 						</div>
 					</ParameterTreeItem>
+					<!-- As many times the width a mitered corner may reach before it is cut off, which only a miter join goes by. -->
 					<ParameterTreeItem
-						v-if="valuesOf('join').includes('miter')"
 						label="Miter"
 						:selected="isSelected('miterLimit')"
 						:menuItems="menuOf('miterLimit')"
@@ -372,6 +372,7 @@ useEventListener(
 							<MixedNumber
 								:values="valuesOf('miterLimit')"
 								:min="1"
+								:disabled="!valuesOf('join').includes('miter')"
 								@update:values="setNumbers('miterLimit', $event)"
 							/>
 						</div>
