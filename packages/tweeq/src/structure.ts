@@ -44,6 +44,7 @@ import {
 	print,
 	pushLetFrame,
 	RecordAST,
+	SpreadAST,
 	renameBindingIn,
 	SymAST,
 	resolveTypeSlot,
@@ -91,6 +92,70 @@ export const isGroup = (ast: AST): boolean => {
 	const bare = ast.kind === 'meta' ? ast.expr : ast
 	if (bare.kind === 'let') return layersVectorOf(bare) !== null
 	return bare.kind === 'vec' && bare.elements.some(element => nameOf(element) !== null)
+}
+
+/**
+ * The slot of what `ast` is once gone into, where its type says by `holds` which parameter of a
+ * call to it has what it is made from: a style has a path, an artboard what is on it. Null where
+ * it is only what it is.
+ */
+export function heldSlotOf(ast: AST, env: Env): Slot | null {
+	const call = ast.kind === 'meta' ? ast.expr : ast
+	if (call.kind !== 'call') return null
+	const held = textOf(infer(readByName(ast), env)?.meta?.get('holds'))
+	if (held === null) return null
+	const index = callParameters(call, enterNode(call, env))?.names.indexOf(held) ?? -1
+	const keys = [`kw:${held}`, `arg${index}`]
+	return viewOf(ast, env).slots.find(({ key }) => keys.includes(key)) ?? null
+}
+
+/** `ast` and each of what it holds in turn, with the keys gone through to get there. */
+function heldChainOf(ast: AST, env: Env): { readonly node: AST; readonly env: Env; readonly through: readonly string[] }[] {
+	const chain = [{ node: ast, env, through: [] as string[] }]
+	for (;;) {
+		const last = chain.at(-1)!
+		const held = heldSlotOf(last.node, last.env)
+		if (held === null) return chain
+		chain.push({ node: held.ast, env: held.env, through: [...last.through, held.key] })
+	}
+}
+
+/** Not known, or gone wrong, which would fit anything: nothing to go by. */
+const isTold = (type: TypeValue | null): type is TypeValue =>
+	type !== null && type.typeName !== '_' && type.typeName !== '!'
+
+const isListType = (type: TypeValue): boolean => {
+	const { kind } = unwrapLazy(type).shape
+	return kind === 'vector' || kind === 'tuple'
+}
+
+/**
+ * The slots of `ast` to list among layers, `whole` being the types shown whole, with what they
+ * are made from under them. A vector of them lists all it holds, as a group does, and anything
+ * else lists what is of them in it, as its parameters say or, where they say nothing, as what
+ * is written there is. What only holds another, such as a style around a path, lists as that.
+ */
+export function listedSlots(ast: AST, env: Env, whole: readonly TypeValue[]): Slot[] {
+	const { node, env: at, through } = heldChainOf(ast, env).at(-1)!
+	const { slots } = viewOf(node, at)
+	const isWhole = (type: TypeValue | null, lists = false): boolean =>
+		isTold(type) && whole.some(shown => (!lists || isListType(shown)) && typeFits(type, shown))
+	const listed = isGroup(node) || isWhole(infer(readByName(node), at), true)
+		? [...slots]
+		: slots.filter(slot => isWhole(isTold(slot.expected) ? slot.expected : infer(readByName(slot.ast), slot.env)))
+	return through.length === 0 ? listed : listed.flatMap(({ key }) => slotAlong(ast, env, [...through, key]) ?? [])
+}
+
+/**
+ * What a row among layers is called when it has no name of its own: the name it refers to,
+ * or what makes it, past what only holds it.
+ */
+export function layerLabelOf(ast: AST, env: Env): string | null {
+	const labels = heldChainOf(ast, env).map(({ node, env: at }) => {
+		const bare = node.kind === 'meta' ? node.expr : node
+		return bare.kind === 'sym' ? bare.name : (viewOf(node, at).head?.label ?? null)
+	})
+	return labels.reverse().find(label => label !== null) ?? null
 }
 
 /** A level of a path that no path can go by, for what has no name: `#` is not in a name. */
@@ -2233,15 +2298,28 @@ function isSettled(ast: AST, env: Env): boolean {
 /**
  * `ast` one step on. It is what is selected that goes, not what is in it: what a host function
  * has no next rung for comes to its value. Only what comes back as itself, as what makes a path
- * from its data does, or what fails, goes by what it is given, one of them at a time.
+ * from its data does, or what fails, goes by what it is given, one of them at a time. A vector
+ * or a record has no rung of its own, so each of what is worked out in it goes a step together.
  */
 function steppedOnce(ast: AST, env: Env): AST {
 	// What it is cast to goes on being said, and what there is to work out is what is in it.
 	const cast = castValueOf(ast)
 	if (cast !== null) return isExpression(cast) ? withCastValue(ast, steppedOnce(cast, env)) : ast
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	if (bare.kind === 'vec' || bare.kind === 'record') {
+		const steppedIn = (node: AST): AST =>
+			node.kind !== 'spread' && isExpression(node) && !isPinned(node) ? steppedOnce(node, env) : node
+		const stepped =
+			bare.kind === 'vec'
+				? new VecAST(bare.elements.map(steppedIn))
+				: new RecordAST(
+						bare.fields.map(field => (field instanceof SpreadAST ? field : [field[0], steppedIn(field[1])] as const)),
+						bare.optional
+					)
+		return ast.kind === 'meta' ? new MetaAST(ast.metadata, stepped) : stepped
+	}
 	const next = expand(ast, env)
 	if (next !== ast) return next
-	const bare = ast.kind === 'meta' ? ast.expr : ast
 	const { value, diagnostics } = evaluate(ast, env)
 	const failed = diagnostics.some(d => d.level === 'error')
 	const written = failed ? null : toAst(value, env)
@@ -2285,6 +2363,7 @@ export function actionsOf(slot: Slot): SlotAction[] {
 	const canStep =
 		!isOnlyCast &&
 		(bare.kind === 'call' ||
+			((bare.kind === 'vec' || bare.kind === 'record') && isExpression(bare)) ||
 			((bare.kind === 'sym' || bare.kind === 'path') &&
 				hasValue(slot.ast) &&
 				slot.role !== 'function'))

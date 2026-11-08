@@ -1138,6 +1138,17 @@ describe('actionsOf', () => {
 		expect(step('[(** 2 3)]')).toBe('[(* 2 2 2)]')
 	})
 
+	it('steps each of what a vector or a record works out, together, as it has no rung of its own', () => {
+		const step = (src: string) => {
+			const found = action(src, 'Evaluate One Step')
+			return 'apply' in found ? print(found.apply()) : null
+		}
+		// The center of a circle, as two calls: one step gives the point.
+		expect(step('[[(+ 1 2) (** 2 3) 4]]')).toBe('[[3 (* 2 2 2) 4]]')
+		expect(step('[{a: (+ 1 2) b: 1}]')).toBe('[{a: 3 b: 1}]')
+		expect(menu('[[1 2]]')).not.toContain('Evaluate One Step')
+	})
+
 	it('leaves alone what fails', () => {
 		const found = action('[(+ 1 nope)]', 'Evaluate One Step')
 		expect('apply' in found && print(found.apply())).toBe('[(+ 1 nope)]')
