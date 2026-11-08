@@ -480,6 +480,7 @@ describe('several rows at once', () => {
 	it('have what they say to each argument', () => {
 		expect(inspected.fn).toBe('path.rect')
 		expect(inspected.label).toBe('Rectangle')
+		expect(inspected.heads).toEqual([{ fn: 'path.rect', label: 'Rectangle', icon: inspected.icon }])
 		expect(inspected.args.map(a => a.label)).toEqual(['Origin', 'Size'])
 		expect(field(1, 0).values).toEqual([10, 30])
 		expect(field(1, 0).label).toBe('Width')
@@ -508,6 +509,8 @@ describe('several rows at once', () => {
 		it('have the arguments that are called the same, with where each is in its own call', () => {
 			expect(mixed.fn).toBe('')
 			expect(mixed.label).toBe('Regular Polygon, Circle')
+			expect(mixed.heads.map(head => head.fn)).toEqual(['path.ngon', 'path.circle'])
+			expect(mixed.heads.every(head => head.icon !== null)).toBe(true)
 			expect(mixed.args.map(arg => arg.label)).toEqual(['Center', 'Radius'])
 			expect(mixed.args[1]!.fields[0]!.values).toEqual([10, 20])
 			expect(mixed.args[1]!.fields[0]!.places).toEqual([

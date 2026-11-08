@@ -76,14 +76,23 @@ export interface MultiArgument {
 	readonly fields: readonly MultiField[]
 }
 
-export interface MultiInspection {
-	/** The function they are all calls of. */
+/** A function that some of the rows are calls of, as it is shown. */
+export interface MultiHead {
 	readonly fn: string
-	/** What that function is called on screen. */
+	readonly label: string | null
+	readonly icon: string | null
+}
+
+export interface MultiInspection {
+	/** The function they are all calls of, or nothing where they are calls of several. */
+	readonly fn: string
+	/** What that function is called on screen, or what each of several is, together. */
 	readonly label: string | null
 	/** What that function says its icon is. */
 	readonly icon: string | null
 	readonly doc: string | null
+	/** Each function among them, once, in the order of the rows. */
+	readonly heads: readonly MultiHead[]
 	readonly args: readonly MultiArgument[]
 }
 
@@ -220,11 +229,12 @@ export function inspectRows(
 		const argument = argumentOf(paths, slots as Slot[])
 		return argument === null ? [] : [argument]
 	})
-	if (same) return { fn: first.fn, label: first.label, icon: first.icon, doc: first.doc, args }
+	const heads: MultiHead[] = [...new Map(others.map(row => [row.fn, { fn: row.fn, label: row.label, icon: row.icon }])).values()]
+	if (same) return { fn: first.fn, label: first.label, icon: first.icon, doc: first.doc, heads, args }
 	if (args.length === 0) return inspectValues(root, env, paths)
 	// Of several functions, there is no one of them to say what they are, only what each is called.
-	const labels = [...new Set(others.map(row => row.label ?? row.fn))]
-	return { fn: '', label: labels.join(', '), icon: null, doc: null, args }
+	const labels = [...new Set(heads.map(head => head.label ?? head.fn))]
+	return { fn: '', label: labels.join(', '), icon: null, doc: null, heads, args }
 }
 
 /**
@@ -248,7 +258,7 @@ function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInsp
 			canExtract: written,
 			workedOut: howWorkedOut(all, null),
 		}
-		return { fn: '', label: 'Numbers', icon: null, doc: null, args: [{ label: 'Value', fields: [field] }] }
+		return { fn: '', label: 'Numbers', icon: null, doc: null, heads: [], args: [{ label: 'Value', fields: [field] }] }
 	}
 	const length = isNumbers(values[0]) ? values[0].length : 0
 	if (length === 0 || !values.every(value => isNumbers(value) && value.length === length)) return null
@@ -262,7 +272,7 @@ function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInsp
 		canExtract: areWritten,
 		workedOut: howWorkedOut(all, element),
 	}))
-	return { fn: '', label: 'Vectors', icon: null, doc: null, args: [{ label: 'Value', fields }] }
+	return { fn: '', label: 'Vectors', icon: null, doc: null, heads: [], args: [{ label: 'Value', fields }] }
 }
 
 function elementTitle(slot: Slot, element: number): string | null {

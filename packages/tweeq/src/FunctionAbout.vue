@@ -1,17 +1,24 @@
 <script setup lang="ts">
 import { Icon } from 'tweeq/Icon'
+import { computed } from 'vue'
 
 /** What a function is called and what it does, above its arguments. */
-defineProps<{
+const props = defineProps<{
 	label: string | null
 	doc: string | null
 	icon: string | null
+	/** The icons of several functions, shown together, in place of the one. */
+	icons?: readonly string[]
 }>()
+
+const shown = computed(() => (props.icons && props.icons.length > 0 ? props.icons : props.icon === null ? [] : [props.icon]))
 </script>
 
 <template>
 	<div v-if="label !== null || doc !== null" class="FunctionAbout">
-		<Icon v-if="icon !== null" class="icon" :icon="icon" />
+		<div v-if="shown.length > 0" class="icons">
+			<Icon v-for="(each, i) in shown" :key="i" class="icon" :icon="each" />
+		</div>
 		<div class="text">
 			<p v-if="label !== null" class="label">{{ label }}</p>
 			<p v-if="doc !== null" class="doc">{{ doc }}</p>
@@ -28,7 +35,12 @@ defineProps<{
 	margin-block: 0 14px;
 	padding-inline: 3px;
 }
-.FunctionAbout > :deep(.TqIcon) {
+.icons {
+	display: flex;
+	flex: none;
+	gap: 2px;
+}
+.icons > :deep(.TqIcon) {
 	flex: none;
 	width: 28px;
 	height: 28px;

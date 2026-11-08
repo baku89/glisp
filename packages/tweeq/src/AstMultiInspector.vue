@@ -95,6 +95,7 @@ const extractItems = (field: MultiField): MenuItem[] =>
 			:label="inspection.label"
 			:doc="inspection.doc"
 			:icon="iconOfFunction?.(inspection.fn) ?? inspection.icon"
+			:icons="inspection.heads.flatMap(head => { const icon = iconOfFunction?.(head.fn) ?? head.icon; return icon === null ? [] : [icon] })"
 		/>
 		<ParameterTree name="glisp.inspector" :labelWidth="110">
 			<Parameter v-for="arg in inspection.args" :key="arg.label" :label="arg.label">
