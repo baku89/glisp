@@ -27,7 +27,7 @@ import {
 	isPinned,
 } from '@glisp/lang'
 
-import { iconOf } from './icons'
+import { iconOf, iconOfType } from './icons'
 import { reach, withParent } from './rowsClipboard'
 import {
 	elementOptionsOf,
@@ -60,6 +60,8 @@ export interface MultiField {
 	readonly places: readonly Place[]
 	/** Of the numbers in a vector, what this one is called. */
 	readonly label: string | null
+	/** What it is, as a row of its own would show: a number, mostly. */
+	readonly icon: string | null
 	/** What it would be called, as a binding. */
 	readonly name: string
 	readonly options: NumberOptions
@@ -182,6 +184,7 @@ function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgu
 				{
 					places: placesOf(null),
 					label: null,
+					icon,
 					name: slot.label,
 					options: optionsAcross(slots.map(numberOptionsAt)),
 					values: results as number[],
@@ -199,9 +202,11 @@ function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgu
 		icon,
 		fields: Array.from({ length }, (_, element): MultiField => {
 			const titled = slots.map(s => elementTitle(s, element)).find(title => title !== null) ?? null
+			const expected = slots.map(s => elementExpected(s, element)).find(type => type !== null) ?? null
 			return {
 				places: placesOf(element),
 				label: titled,
+				icon: expected === null ? null : iconOfType(expected, slot.env),
 				name: (titled ?? `${slot.label}${element}`).toLowerCase(),
 				options: optionsAcross(slots.map(s => elementOptionsOf(s.expected, element))),
 				values: (results as number[][]).map(r => r[element]!),
@@ -258,6 +263,7 @@ function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInsp
 		const field: MultiField = {
 			places: placesOf(null),
 			label: null,
+			icon: iconOf(all[0]!.ast, all[0]!.env, all[0]!.expected),
 			name: 'value',
 			options: numberOptionsAt(all[0]!),
 			values: values as number[],
@@ -272,6 +278,7 @@ function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInsp
 	const fields = Array.from({ length }, (_, element): MultiField => ({
 		places: placesOf(element),
 		label: null,
+		icon: (() => { const expected = elementExpected(all[0]!, element); return expected === null ? null : iconOfType(expected, all[0]!.env) })(),
 		name: `value${element}`,
 		options: elementOptionsOf(all[0]!.expected, element),
 		values: (values as number[][]).map(value => value[element]!),

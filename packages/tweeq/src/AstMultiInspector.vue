@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type MenuItem } from 'tweeq/Menu'
-import { Parameter, ParameterTree } from 'tweeq/ParameterGrid'
+import { ParameterTree, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
 
 import FunctionAbout from './FunctionAbout.vue'
@@ -40,6 +40,9 @@ const inspection = computed(() =>
 )
 
 const problem = ref<string | null>(null)
+
+/** Which arguments are open, each into a row for each of its numbers, by what they are called. */
+const opened = ref<Record<string, boolean>>({})
 
 function setValues(field: MultiField, values: readonly number[]): void {
 	const { ast, problem: why } = withValuesAt(
@@ -98,7 +101,15 @@ const extractItems = (field: MultiField): MenuItem[] =>
 			:icons="inspection.heads.flatMap(head => { const icon = iconOfFunction?.(head.fn) ?? head.icon; return icon === null ? [] : [icon] })"
 		/>
 		<ParameterTree name="glisp.inspector" :labelWidth="110">
-			<Parameter v-for="arg in inspection.args" :key="arg.label" :label="arg.label" :icon="arg.icon ?? undefined">
+			<ParameterTreeItem
+				v-for="arg in inspection.args"
+				:key="arg.label"
+				:label="arg.label"
+				:icon="arg.icon ?? undefined"
+				:expandable="arg.fields.length > 1"
+				:open="opened[arg.label] ?? false"
+				@update:open="opened[arg.label] = $event"
+			>
 				<div class="fields">
 					<MixedNumber
 						v-for="field in arg.fields"
@@ -111,7 +122,25 @@ const extractItems = (field: MultiField): MenuItem[] =>
 						@update:values="setValues(field, $event)"
 					/>
 				</div>
-			</Parameter>
+				<!-- Each of its numbers as a row of its own, as a vector's are for one row. -->
+				<template #children>
+					<ParameterTreeItem
+						v-for="field in arg.fields"
+						:key="field.name"
+						:label="field.label ?? field.name"
+						:icon="field.icon ?? undefined"
+					>
+						<MixedNumber
+							v-bind="displayedAs(field.options)"
+							:multiSelectData="field.places"
+							:values="field.values"
+							:workedOut="field.workedOut"
+							:items="extractItems(field)"
+							@update:values="setValues(field, $event)"
+						/>
+					</ParameterTreeItem>
+				</template>
+			</ParameterTreeItem>
 		</ParameterTree>
 		</template>
 		<!-- What a host has to say of them too, in rows of its own. -->
