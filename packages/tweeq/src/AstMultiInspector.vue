@@ -98,7 +98,7 @@ const extractItems = (field: MultiField): MenuItem[] =>
 			:icons="inspection.heads.flatMap(head => { const icon = iconOfFunction?.(head.fn) ?? head.icon; return icon === null ? [] : [icon] })"
 		/>
 		<ParameterTree name="glisp.inspector" :labelWidth="110">
-			<Parameter v-for="arg in inspection.args" :key="arg.label" :label="arg.label">
+			<Parameter v-for="arg in inspection.args" :key="arg.label" :label="arg.label" :icon="arg.icon ?? undefined">
 				<div class="fields">
 					<MixedNumber
 						v-for="field in arg.fields"

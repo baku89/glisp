@@ -34,6 +34,7 @@ import {
 	withGraphics,
 	NO_PAINT,
 	type Paint,
+	POINT_ICON,
 } from './graphics'
 import {
 	type Anchor,
@@ -482,6 +483,8 @@ describe('several rows at once', () => {
 		expect(inspected.label).toBe('Rectangle')
 		expect(inspected.heads).toEqual([{ fn: 'path.rect', label: 'Rectangle', icon: inspected.icon }])
 		expect(inspected.args.map(a => a.label)).toEqual(['Origin', 'Size'])
+		// Each argument shows what it is, as its row does for one of them.
+		expect(inspected.args.map(a => a.icon)).toEqual([POINT_ICON, 'ph:frame-corners'])
 		expect(field(1, 0).values).toEqual([10, 30])
 		expect(field(1, 0).label).toBe('Width')
 		expect(field(1, 0).options).toEqual({ min: 0, leftIcon: 'ph:arrows-horizontal' })
@@ -512,6 +515,7 @@ describe('several rows at once', () => {
 			expect(mixed.heads.map(head => head.fn)).toEqual(['path.ngon', 'path.circle'])
 			expect(mixed.heads.every(head => head.icon !== null)).toBe(true)
 			expect(mixed.args.map(arg => arg.label)).toEqual(['Center', 'Radius'])
+			expect(mixed.args[0]!.icon).toBe(POINT_ICON)
 			expect(mixed.args[1]!.fields[0]!.values).toEqual([10, 20])
 			expect(mixed.args[1]!.fields[0]!.places).toEqual([
 				{ path: 'binding:a/arg1', element: null },
@@ -783,17 +787,18 @@ describe('snapping', () => {
 	describe('where a line would go, if it went on', () => {
 		const edge = { at: [0, 0] as Vec, to: [10, 0] as Vec, target: null, label: 'edge' }
 
-		it('snaps there, saying so, on either side', () => {
-			expect(nearestSnap([edge], [20, 1], 2)).toMatchObject({ at: [20, 0], beyond: true, line: [[0, 0], [10, 0]] })
-			expect(nearestSnap([edge], [-20, 1], 2)).toMatchObject({ at: [-20, 0], beyond: true })
-			expect(nearestSnap([edge], [20, 3], 2)).toBeNull()
+		it('snaps there only when asked to, saying so, on either side', () => {
+			expect(nearestSnap([edge], [20, 1], 2)).toBeNull()
+			expect(nearestSnap([edge], [20, 1], 2, true)).toMatchObject({ at: [20, 0], beyond: true, line: [[0, 0], [10, 0]] })
+			expect(nearestSnap([edge], [-20, 1], 2, true)).toMatchObject({ at: [-20, 0], beyond: true })
+			expect(nearestSnap([edge], [20, 3], 2, true)).toBeNull()
 		})
 
 		it('has a line itself go before it, and a place before that', () => {
 			const other = { at: [19, -5] as Vec, to: [19, 5] as Vec, target: null, label: 'other' }
-			expect(nearestSnap([edge, other], [20, 1], 2)).toMatchObject({ at: [19, 1], label: 'other' })
+			expect(nearestSnap([edge, other], [20, 1], 2, true)).toMatchObject({ at: [19, 1], label: 'other' })
 			const place = { at: [20, 2] as Vec, target: null, label: 'place' }
-			expect(nearestSnap([edge, place], [20, 1], 2)).toMatchObject({ at: [20, 2], label: 'place' })
+			expect(nearestSnap([edge, place], [20, 1], 2, true)).toMatchObject({ at: [20, 2], label: 'place' })
 		})
 	})
 

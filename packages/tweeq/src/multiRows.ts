@@ -27,6 +27,7 @@ import {
 	isPinned,
 } from '@glisp/lang'
 
+import { iconOf } from './icons'
 import { reach, withParent } from './rowsClipboard'
 import {
 	elementOptionsOf,
@@ -73,6 +74,8 @@ export interface MultiField {
 /** An argument that the rows have, and the numbers in it. */
 export interface MultiArgument {
 	readonly label: string
+	/** What the argument is, as a row of one of them shows it: a point, an angle, a number. */
+	readonly icon: string | null
 	readonly fields: readonly MultiField[]
 }
 
@@ -169,10 +172,12 @@ function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgu
 	const results = slots.map(s => evaluate(s.ast, s.env).value)
 	const placesOf = (element: number | null): Place[] =>
 		paths.map((path, i) => ({ path: `${path}/${slots[i]!.key}`, element }))
+	const icon = slots.map(s => s.icon ?? iconOf(s.ast, s.env, s.expected)).find(each => each != null) ?? null
 
 	if (results.every(value => typeof value === 'number')) {
 		return {
 			label: titleOf(slot),
+			icon,
 			fields: [
 				{
 					places: placesOf(null),
@@ -191,6 +196,7 @@ function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgu
 	const areWritten = slots.every(s => bare(s.ast).kind === 'vec')
 	return {
 		label: titleOf(slot),
+		icon,
 		fields: Array.from({ length }, (_, element): MultiField => {
 			const titled = slots.map(s => elementTitle(s, element)).find(title => title !== null) ?? null
 			return {
@@ -258,7 +264,7 @@ function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInsp
 			canExtract: written,
 			workedOut: howWorkedOut(all, null),
 		}
-		return { fn: '', label: 'Numbers', icon: null, doc: null, heads: [], args: [{ label: 'Value', fields: [field] }] }
+		return { fn: '', label: 'Numbers', icon: null, doc: null, heads: [], args: [{ label: 'Value', icon: iconOf(all[0]!.ast, all[0]!.env, all[0]!.expected), fields: [field] }] }
 	}
 	const length = isNumbers(values[0]) ? values[0].length : 0
 	if (length === 0 || !values.every(value => isNumbers(value) && value.length === length)) return null
@@ -272,7 +278,7 @@ function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInsp
 		canExtract: areWritten,
 		workedOut: howWorkedOut(all, element),
 	}))
-	return { fn: '', label: 'Vectors', icon: null, doc: null, heads: [], args: [{ label: 'Value', fields }] }
+	return { fn: '', label: 'Vectors', icon: null, doc: null, heads: [], args: [{ label: 'Value', icon: iconOf(all[0]!.ast, all[0]!.env, all[0]!.expected), fields }] }
 }
 
 function elementTitle(slot: Slot, element: number): string | null {
