@@ -2592,14 +2592,15 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	}
 	linking.value = link
 	commit(next)
-	// A side taken past the other is the other one now, wherever it has been let go.
-	draggedHandle.value = nearestHandleOf(row, handle.kind, snap?.at ?? wanted)
-	const now = draggedHandle.value === null ? undefined : grip.value?.handles[draggedHandle.value]?.at
-	const pivot = symmetric ? (handle.middle ?? handle.pivot) : handle.pivot
-	evenLine.value = even && pivot !== undefined && now !== undefined ? [toScreen(pivot), toScreen(now)] : null
 	const isSide = handle.name === 'box' && handle.grip === true
 	// Whoever's it is, as what a corner is about is where it goes, even of what says its size.
 	const isBoxCorner = handle.corner === true && handle.at !== undefined
+	// A side or a corner of a box taken past the other is the other one now, wherever it has been
+	// let go. Any other handle stays the one taken hold of, however near the pointer comes to another.
+	if (isSide || isBoxCorner) draggedHandle.value = nearestHandleOf(row, handle.kind, snap?.at ?? wanted)
+	const now = draggedHandle.value === null ? undefined : grip.value?.handles[draggedHandle.value]?.at
+	const pivot = symmetric ? (handle.middle ?? handle.pivot) : handle.pivot
+	evenLine.value = even && pivot !== undefined && now !== undefined ? [toScreen(pivot), toScreen(now)] : null
 	const numbers =
 		props.dimensions && next.ast !== null && !handle.across && !pressed.together && !isSide && !isBoxCorner
 			? dimensionsHeld(next.ast, props.document.env.value, row, handle, rounded, base, snap?.at ?? wanted, {
