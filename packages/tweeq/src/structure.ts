@@ -733,6 +733,9 @@ export interface MemberChoices {
 export function memberChoicesOf(slot: Slot): MemberChoices | null {
 	const members = membersOf(slot.expected)
 	if (members === null || literalsOf(slot.expected) !== null) return null
+	// A union that says `choices: false` is what may be here, not what to choose among.
+	const offered = slot.expected?.meta?.get('choices')
+	if (offered?.kind === 'lit' && offered.value === false) return null
 	const current = memberOf(slot.expected, slot.ast, slot.env)
 	const choices = members.map((member): MemberChoice => {
 		const shape = unwrapLazy(member).shape
@@ -1884,13 +1887,8 @@ function heldFor(
 		const type = infer(here.ast, here.env)
 		if (type === null) return parts
 		if (typeFits(type, expected)) return at
-		const held = textOf(type.meta?.get('holds'))
-		const call = bareOf(here.ast)
-		if (held === null || call.kind !== 'call') return parts
-		const index = callParameters(call, enterNode(call, here.env))?.names.indexOf(held) ?? -1
-		const keys = [`kw:${held}`, `arg${index}`]
-		const slot = viewOf(here.ast, here.env).slots.find(({ key }) => keys.includes(key))
-		if (slot === undefined) return parts
+		const slot = heldSlotOf(here.ast, here.env)
+		if (slot === null) return parts
 		at = [...at, slot.key]
 	}
 }

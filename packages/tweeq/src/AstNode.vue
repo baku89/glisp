@@ -19,7 +19,7 @@ import { iconOf } from './icons'
 import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
-	HOST_KEY, ALSO_SELECTED, ISOLATED, LAYER_LABEL, LAYER_ROWS, LAYERS, LINKER, LOCKED, VALUE_PICKER, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SOLVER, TITLED, VALUE_ICON } from './selection'
+	HOST_KEY, ALSO_SELECTED, ISOLATED, LAYERS, LINKER, LOCKED, VALUE_PICKER, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SHOWN_WHOLE, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	slotAlong,
@@ -29,8 +29,9 @@ import {
 	holdsRows,
 	numbersFit,
 	type NumbersFit,
-	isGroup,
 	isProportional,
+	layerLabelOf,
+	listedSlots,
 	isSizeInput,
 	typeHintOf,
 	keepingRatio,
@@ -81,7 +82,8 @@ const icon = computed(() =>
 			undefined)
 )
 
-const isBinding = computed(() => props.entry.key.startsWith('binding:'))
+// A row listed from further in, as what is on an artboard is, goes by the last of its keys.
+const isBinding = computed(() => props.entry.key.split('/').at(-1)!.startsWith('binding:'))
 const isFunction = computed(() => props.entry.role === 'function')
 
 // A function says what it does; anything else, what it is expected to be.
@@ -136,8 +138,7 @@ const renamer = inject(RENAMER, null)
 const renaming = ref(false)
 
 const open = ref(inject(OPEN_ROW, null)?.() === props.path)
-const layerRows = inject(LAYER_ROWS, null)
-const layerLabel = inject(LAYER_LABEL, null)
+const shownWhole = inject(SHOWN_WHOLE, [])
 
 /** A short vector shows its elements on its own row, until it is opened. */
 const tree = inject(ParameterTreeContextKey, null)
@@ -158,7 +159,8 @@ const PAD_WIDTH = 26
  * Which of a union's members it is, chosen beside the member's own editor: a value or
  * nothing has nothing more to it, and stands alone.
  */
-const memberChoices = computed(() => memberChoicesOf(props.entry))
+// Among layers a row is only listed, with nothing to choose on it.
+const memberChoices = computed(() => (layers ? null : memberChoicesOf(props.entry)))
 const showsMember = computed(() => {
 	const choices = memberChoices.value
 	if (choices === null) return true
@@ -366,13 +368,7 @@ function toggle(id: 'pin' | 'hide'): void {
 }
 
 const children = computed(() => {
-	if (layers) {
-		if (isGroup(ast.value)) return view.value.slots
-		return (layerRows?.(props.path) ?? []).flatMap(row => {
-			const slot = slotAlong(ast.value, props.entry.env, row.slice(props.path.length + 1).split('/'))
-			return slot === null ? [] : [slot]
-		})
-	}
+	if (layers) return listedSlots(ast.value, props.entry.env, shownWhole)
 	// What it is a call of is said on its own row, if its field does not say.
 	return view.value.head === null || $value.value?.headInField
 		? view.value.slots
@@ -532,7 +528,7 @@ watch(
 	<ParameterTreeItem
 		ref="$item"
 		v-model:open="open"
-		:label="(layers && !isBinding ? layerLabel?.(path) : null) ?? view.label ?? (titled ? titleOf(entry) : entry.label)"
+		:label="(layers && !isBinding ? layerLabelOf(ast, entry.env) : null) ?? view.label ?? (titled ? titleOf(entry) : entry.label)"
 		:icon="icon"
 		:hint="hint"
 		:expandable="expandable"

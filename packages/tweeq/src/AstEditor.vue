@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Env, LetAST, print, solve, toAst } from '@glisp/lang'
+import { type AST, type Env, LetAST, print, solve, toAst, type TypeValue } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import { InputButton } from 'tweeq/InputButton'
 import { ParameterTree } from 'tweeq/ParameterGrid'
@@ -32,9 +32,8 @@ import type { MenuItem } from 'tweeq/Menu'
 import {
 	ALSO_SELECTED,
 	ISOLATED,
-	LAYER_LABEL,
-	LAYER_ROWS,
 	LAYERS,
+	SHOWN_WHOLE,
 	ROW_PICKER,
 	COMMANDS_FOR,
 	HOST_KEY,
@@ -87,10 +86,11 @@ const props = defineProps<{
 	alsoSelected?: readonly string[]
 	/** The rows gone through to one gone into, from elsewhere, such as a canvas. */
 	isolated?: readonly string[]
-	/** The rows to list among layers in one that is not a group, however deep in it they are written. */
-	layerRows?: (path: string) => readonly string[]
-	/** What a row with no name of its own is called among layers, if anything says. */
-	layerLabel?: (path: string) => string | null
+	/**
+	 * Among layers, the types shown whole, with what they are made from under them: a row lists
+	 * what is of these in it, and one that is a vector of them all it holds. Nothing else is listed.
+	 */
+	shownWhole?: readonly TypeValue[]
 	/** What a click on a row means to the app, with the keys held. False if it is not to be selected. */
 	pickRow?: (path: string, event: MouseEvent) => boolean
 	/** What rows are on a clipboard, if not their code, for what is outside of this. */
@@ -155,15 +155,11 @@ useEventListener(window, 'blur', event => {
 const shown = shallowRef({
 	root: props.document.root.value,
 	env: props.document.env.value,
-	layerRows: props.layerRows,
-	layerLabel: props.layerLabel,
 })
 watchEffect(() => {
 	const next = {
 		root: props.document.root.value,
 		env: props.document.env.value,
-		layerRows: props.layerRows,
-		layerLabel: props.layerLabel,
 	}
 	if (!pressedElsewhere.value) shown.value = next
 })
@@ -507,19 +503,7 @@ watch(
 )
 provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
 provide(ISOLATED, () => props.isolated ?? [])
-// What a host lists of a row reads the program as it is, so it is kept for the program as the rows
-// show it: asked again as it changes, it is what it was, until they show it as it is.
-const listedOf = new WeakMap<object, Map<string, readonly string[]>>()
-const labelsOf = new WeakMap<object, Map<string, string | null>>()
-function keptFor<T>(memo: WeakMap<object, Map<string, T>>, path: string, ask: () => T): T {
-	const at = shown.value
-	let kept = memo.get(at)
-	if (kept === undefined) memo.set(at, (kept = new Map()))
-	if (!kept.has(path)) kept.set(path, ask())
-	return kept.get(path)!
-}
-provide(LAYER_ROWS, path => keptFor(listedOf, path, () => shown.value.layerRows?.(path) ?? []))
-provide(LAYER_LABEL, path => keptFor(labelsOf, path, () => shown.value.layerLabel?.(path) ?? null))
+provide(SHOWN_WHOLE, props.shownWhole ?? [])
 provide(ROW_PICKER, (path, event) => props.pickRow?.(path, event) ?? true)
 useDeleteInInspector(selection, () => isInspector.value, removeNearest, removing)
 /** What was selected has just gone, so there is nothing to select again. */

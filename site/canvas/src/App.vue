@@ -37,7 +37,7 @@ import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
 import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
-import { ARTBOARD_ICON, AXES_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, type Path, PathValue, withGraphics, isRect, type RectValue, type Vec } from './graphics'
+import { ARTBOARD_ICON, AXES_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, type Path, PathValue, SHOWN_WHOLE, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
 import { alone, type Place } from './panelLayout'
@@ -65,7 +65,7 @@ import {
 	withAxesToggled,
 	withGraphPaperToggled,
 } from './rows'
-import { solidOf, canIsolate, diveAt, drawsAt, labelOfRow, rowsListedIn, axesCall, graphPaperCall, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, writtenAsNow, isOutlined, sceneOf } from './scene'
+import { solidOf, canIsolate, diveAt, drawsAt, axesCall, graphPaperCall, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, writtenAsNow, isOutlined, sceneOf } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -1488,8 +1488,7 @@ function selectInTree(row: string | null): void {
 							:iconOfValue="iconOfPath"
 							:alsoSelected="about"
 							:isolated="isolation"
-							:layerRows="row => rowsListedIn(document.root.value, document.env.value, row)"
-							:layerLabel="row => labelOfRow(document.root.value, document.env.value, row)"
+							:shownWhole="SHOWN_WHOLE"
 							:pickRow="pickInTree"
 							:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 							:pasteAs="bindingsOfSvg"

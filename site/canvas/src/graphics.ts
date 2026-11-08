@@ -19,6 +19,7 @@ import {
 	makeRecordType,
 	makeTupleType,
 	makeType,
+	makeLazyType,
 	makeUnionType,
 	makeTypedFn,
 	parse,
@@ -1051,7 +1052,7 @@ const makeInverted = withInverse(
 		return toHex(new Color('srgb', [1 - (r || 0), 1 - (g || 0), 1 - (b || 0)], color.alpha))
 	}
 )
-const styledType = withTypeMeta(
+export const styledType = withTypeMeta(
 	said(
 		makeType('styled', isStyled, new StyledValue(pathType.default as PathValue, NO_PAINT)),
 		'path',
@@ -1936,13 +1937,19 @@ export const artboardMatrix = ({ area }: ArtboardValue): Mat => [1, 0, 0, 1, are
 
 export const ARTBOARD_ICON = 'mdi:artboard'
 
-const artboardType = said(
-	makeType('artboard', isArtboard, new ArtboardValue(new RectValue([0, 0], [100, 100]), [], ARTBOARD_FILL, true)),
-	'artboard',
-	ARTBOARD_ICON
+export const artboardType = withTypeMeta(
+	said(
+		makeType('artboard', isArtboard, new ArtboardValue(new RectValue([0, 0], [100, 100]), [], ARTBOARD_FILL, true)),
+		'artboard',
+		ARTBOARD_ICON
+	),
+	// Gone into, an artboard is what is on it.
+	new RecordAST([['holds', lit('layers')]])
 )
 
-const layersType = makeTupleType([], makeType('_', () => true, UNIT))
+/** A sketch, before it is defined below: what an artboard holds is one, and a sketch holds artboards. */
+let sketchType: TypeValue | null = null
+const sketchRef = makeLazyType('Sketch', () => sketchType)
 
 /** Whether `fn` makes an artboard, whose argument at 1 is what is on it. */
 export const makesArtboard = (fn: unknown): boolean => fn === makeArtboard
@@ -1953,7 +1960,7 @@ export const ARTBOARD_LAYERS = 1
 const makeArtboard = withDoc(
 	withOptional(
 		makeTypedFn(
-			[rectType, layersType, colorOf(ARTBOARD_FILL), withDefault(booleanType, true)],
+			[rectType, sketchRef, colorOf(ARTBOARD_FILL), withDefault(booleanType, true)],
 			artboardType,
 			(area, layers, fill, clip) =>
 				new ArtboardValue(area as RectValue, (layers as unknown[]) ?? [], fill as string, clip as boolean),
@@ -1964,6 +1971,33 @@ const makeArtboard = withDoc(
 	'A page of the canvas, over an `area` filled with `fill`, holding `layers` that are measured from its top left corner, and cut off at its edge if it `clip`s. It is exported by itself as that area.',
 	'Artboard'
 )
+
+/**
+ * What is on a sketch, as far as a canvas goes: a path, styled or not, a guide, an artboard, or
+ * a sketch of its own. A sketch is a vector of these, so what a program draws (`main`), what an
+ * artboard holds, and a group are all one type, and go the same way.
+ */
+sketchType = withTypeMeta(
+	makeTupleType(
+		[],
+		withTypeMeta(
+			makeUnionType([pathType, styledType, point, lineType, rayType, rectType, artboardType, sketchRef]),
+			// Any of these may be on a sketch: it is not for one of them to be chosen over another.
+			new RecordAST([['choices', lit(false)]])
+		)
+	),
+	new RecordAST([
+		['name', lit('Sketch')],
+		['summary', lit('Sketch')],
+		['icon', lit('ph:tree-view')],
+	])
+)
+
+/**
+ * What is shown whole among layers, with what it is made from under it, rather than left to an
+ * inspector: a sketch lists all it holds, and anything else what is of these in it.
+ */
+export const SHOWN_WHOLE: readonly TypeValue[] = [pathType, styledType, artboardType, sketchType]
 
 
 // -----------------------------------------------------------------------------
@@ -5238,6 +5272,7 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 	triangleStrip: makeTriangleStrip,
 	solid: makeSolid,
 	artboard: makeArtboard,
+	Sketch: sketchType,
 	graphPaper: makeGraphPaper,
 	axes: makeAxes,
 	vec2,
@@ -5250,6 +5285,10 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 /** What is said of a name, for people to read, as what it is written at and not what it comes to. */
 const ABOUT: Readonly<Record<string, { readonly label: string; readonly doc: string }>> = {
 	point: { label: 'Point', doc: 'A place on the canvas, for other things to go by.' },
+	artboard: {
+		label: 'Artboard',
+		doc: 'A page of the canvas, over an `area` filled with `fill`, holding `layers` that are measured from its top left corner, and cut off at its edge if it `clip`s. It is exported by itself as that area.',
+	},
 }
 
 export function withGraphics(parent: Env): Env {

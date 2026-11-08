@@ -193,11 +193,8 @@ export const ALSO_SELECTED: InjectionKey<() => readonly string[]> = Symbol('also
 /** The rows gone through to one gone into, from elsewhere, such as a canvas, told from being selected. */
 export const ISOLATED: InjectionKey<() => readonly string[]> = Symbol('isolated')
 
-/** The rows to list among layers in one that is not a group, however deep in it they are written. */
-export const LAYER_ROWS: InjectionKey<(path: string) => readonly string[]> = Symbol('layer-rows')
-
-/** What a row with no name of its own is called among layers, if anything says. */
-export const LAYER_LABEL: InjectionKey<(path: string) => string | null> = Symbol('layer-label')
+/** The types shown whole among layers, with what they are made from under them, which lists what is of them. */
+export const SHOWN_WHOLE: InjectionKey<readonly TypeValue[]> = Symbol('shown-whole')
 
 /**
  * What a host does with a click on a row, for what it means to it with the keys held.

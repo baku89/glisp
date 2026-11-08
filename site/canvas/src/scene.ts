@@ -50,6 +50,8 @@ import {
 	layersOf,
 	withLayerAdded,
 	isProportional,
+	layerLabelOf,
+	listedSlots,
 	keepingRatio,
 	type NumberOptions,
 	numberOptionsAt,
@@ -104,6 +106,7 @@ import {
 	isRect,
 	outlineOf,
 	otherControl,
+	SHOWN_WHOLE,
 } from './graphics'
 
 export interface Shape {
@@ -2529,23 +2532,17 @@ export function diveAt(
 	return { rows, isolated: first === held ? null : first.slice(0, first.lastIndexOf('/')) }
 }
 
-/** What to list in a row that is not a group: what it holds with no names, or what it is made from. */
+/** What is listed in a row, as the project lists it: what is shown whole in it, where it is written. */
 export function rowsListedIn(root: AST, env: Env, row: string): string[] {
 	const found = rowAt(root, env, row)
 	if (found === null) return []
-	if (isVecOfDrawn(found.node, found.env)) {
-		return viewOf(bare(found.node), found.env).slots.map(({ key }) => `${row}/${key}`)
-	}
-	// What goes by a name is listed where it is written.
-	return innerPathsOf(root, env, row).filter(inner => inner.startsWith(`${row}/`))
+	return listedSlots(found.node, found.env, SHOWN_WHOLE).map(({ key }) => `${row}/${key}`)
 }
 
 /** What a row with no name of its own is called: what makes it, past its style, or the name it refers to. */
 export function labelOfRow(root: AST, env: Env, row: string): string | null {
-	const found = rowAt(root, env, paintedRow(root, env, row))
-	if (found === null) return null
-	const node = bare(found.node)
-	return node.kind === 'sym' ? node.name : (viewOf(node, found.env).head?.label ?? null)
+	const found = rowAt(root, env, row)
+	return found === null ? null : layerLabelOf(found.node, found.env)
 }
 
 /** All that there is to select at once, from where it is isolated, as a press would take it. */

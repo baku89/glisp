@@ -1,4 +1,4 @@
-import { type AST, buildPrelude, evaluate, LetAST, print } from '@glisp/lang'
+import { type AST, buildPrelude, check, evaluate, infer, LetAST, parse as expression, print, typeFits, type TypeValue } from '@glisp/lang'
 import { combined, filtersFor, nameMadeBy, wrappedAt } from '@glisp/tweeq/filters'
 import { layersOf, moveBinding, renameBindingAt, viewOf, withLayerAdded } from '@glisp/tweeq/structure'
 import { pastedRows, reach, withoutRows } from '@glisp/tweeq/rowsClipboard'
@@ -522,6 +522,37 @@ describe('what is listed in a row that is not a group', () => {
 		expect(labelOfRow(root, env, 'binding:s/0')).toBe('Circle')
 		expect(labelOfRow(root, env, 'binding:n/arg0')).toBe('Offset')
 		expect(labelOfRow(root, env, 'binding:o/arg0')).toBe('r')
+	})
+
+	it('is what is on an artboard, each where it is written, and the artboard is called so', () => {
+		const boards = parse(`[
+			b = (artboard (rect [0 0] [10 10]) [a = ${P(1)} c = [d = ${P(2)}]] fill: "#ffffff")
+			t = [(artboard (rect [0 0] [10 10]) [])]
+		]`)
+		expect(rowsListedIn(boards, env, 'binding:b')).toEqual(['binding:b/arg1/binding:a', 'binding:b/arg1/binding:c'])
+		expect(rowsListedIn(boards, env, 'binding:b/arg1/binding:c')).toEqual(['binding:b/arg1/binding:c/binding:d'])
+		expect(labelOfRow(boards, env, 'binding:t/0')).toBe('Artboard')
+	})
+})
+
+describe('a sketch', () => {
+	const Sketch = evaluate(expression('Sketch'), env).value as TypeValue
+	const fits = (source: string) => typeFits(infer(expression(source), env)!, Sketch)
+
+	it('is a vector of what is drawn, of sketches among them, however deep', () => {
+		expect(fits('[]')).toBe(true)
+		expect(fits(`[${P(1)} (style ${P(2)} fill: "#000000") [1 2] (artboard (rect [0 0] [1 1]) [])]`)).toBe(true)
+		expect(fits(`[[${P(1)} [${P(2)}]]]`)).toBe(true)
+	})
+
+	it('is not a vector of anything else', () => {
+		expect(fits('[1 2]')).toBe(false)
+		expect(fits(`[${P(1)} "a"]`)).toBe(false)
+	})
+
+	it('is what an artboard holds', () => {
+		expect(check(expression(`(artboard (rect [0 0] [1 1]) [${P(1)}])`), env)).toEqual([])
+		expect(check(expression('(artboard (rect [0 0] [1 1]) ["a"])'), env)).not.toEqual([])
 	})
 })
 
