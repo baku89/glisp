@@ -6,6 +6,7 @@ import { NO_PAINT, withGraphics } from './graphics'
 import { drawn, drawnFrom, paintAt, penned, pencilled, SHAPE_ATTRIBUTES, sceneOf, withPaint } from './scene'
 import {
 	ATTRIBUTES_OF_TOOL,
+	FIRST_PAINT,
 	FIRST_SOURCE,
 	loadedSource,
 	PAINT_ROW,
@@ -31,7 +32,20 @@ const source = (ast: LetAST, name: string) =>
 describe('what tools share', () => {
 	it('starts as a drawing has always started', () => {
 		expect(shapeAttributesOf(first, env)).toEqual(SHAPE_ATTRIBUTES)
-		expect(paintOfAttributes(first, env)).toEqual(NO_PAINT)
+		expect(paintOfAttributes(first, env)).toEqual(FIRST_PAINT)
+		expect(FIRST_PAINT.fill).not.toBe('none')
+		expect(FIRST_PAINT.stroke).not.toBe('none')
+	})
+
+	it('comes back with its first paint from being kept with none, and the rest as it was kept', () => {
+		const none = withAttribute(withPaintTaken(first, env, NO_PAINT), 'sides', 7)
+		expect(paintOfAttributes(none, env)).toEqual(NO_PAINT)
+		const kept = parse(loadedSource(sourceOfAttributes(none))) as LetAST
+		expect(paintOfAttributes(kept, env)).toEqual(FIRST_PAINT)
+		expect(shapeAttributesOf(kept, env).sides).toBe(7)
+		const old = loadedSource('{sides = 7 [paint = (path.line [0 0] [1 0])]}')
+		expect(paintOfAttributes(parse(old) as LetAST, env)).toEqual(FIRST_PAINT)
+		expect(shapeAttributesOf(parse(old) as LetAST, env).sides).toBe(7)
 	})
 
 	it('has a paint that is read as it is written, and comes back from being kept', () => {

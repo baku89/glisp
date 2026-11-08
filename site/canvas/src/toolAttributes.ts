@@ -5,8 +5,8 @@
  * choosing a color is not an edit to the drawing, and what is drawn has a copy of the values.
  */
 
-import { type AST, type Env, evaluate, LetAST, lit, parse, print, readByName } from '@glisp/lang'
-import { layersOf } from '@glisp/tweeq/structure'
+import { type AST, type Env, evaluate, LetAST, lit, parse, print, readByName, VecAST } from '@glisp/lang'
+import { layerOf, withLayerAdded, withoutBinding } from '@glisp/tweeq/structure'
 
 import { ARTBOARD_PRESETS } from './artboards'
 import { NO_PAINT, type Paint, PathValue } from './graphics'
@@ -15,9 +15,22 @@ import { paintAt, SHAPE_ATTRIBUTES, type ShapeAttributes, valueOfRow, withPaint 
 /** The row of it that says how what is drawn is painted. */
 export const PAINT_ROW = 'binding:paint'
 
+/**
+ * How what is drawn is painted at first: a black line around white, as a drawing has always
+ * started, so that the first shape is there to see on a light or a dark canvas alike.
+ */
+export const FIRST_PAINT: Paint = { ...NO_PAINT, fill: '#ffffff', stroke: '#000000' }
+
+const FIRST_PAINT_SOURCE = `(style (path.line [0 0] [1 0]) fill: ${JSON.stringify(FIRST_PAINT.fill)} stroke: ${JSON.stringify(FIRST_PAINT.stroke)})`
+
 export const FIRST_SOURCE = `{${Object.entries(SHAPE_ATTRIBUTES)
 	.map(([name, value]) => `${name} = ${JSON.stringify(value)}`)
-	.join(' ')} [paint = (path.line [0 0] [1 0])]}`
+	.join(' ')} [paint = ${FIRST_PAINT_SOURCE}]}`
+
+const isStyle = (ast: AST): boolean => {
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	return bare.kind === 'call' && print(bare.head) === 'style'
+}
 
 /** One of a tool's own, for what edits it. */
 export interface AttributeOfTool {
@@ -90,14 +103,20 @@ export const ATTRIBUTES_OF_TOOL: Readonly<Record<string, readonly AttributeOfToo
 	],
 }
 
-/** What was kept, if it can still be what this is, or else what it is at first. */
+/**
+ * What was kept, if it can still be what this is, or else what it is at first. A paint that had
+ * gone to none of either, which draws nothing, is not kept over a start: it is the first again.
+ */
 export function loadedSource(kept: string | null | undefined): string {
 	if (!kept) return FIRST_SOURCE
 	try {
 		const ast = parse(kept)
-		return ast.kind === 'let' && ast.body?.kind === 'vec' && layersOf(ast).includes('paint')
-			? kept
-			: FIRST_SOURCE
+		if (ast.kind !== 'let' || ast.body?.kind !== 'vec') return FIRST_SOURCE
+		const paint = layerOf(ast, 'paint')
+		if (paint === undefined) return FIRST_SOURCE
+		if (isStyle(paint)) return kept
+		const at = ast.body.elements.findIndex(element => layerOf(new VecAST([element]), 'paint') !== undefined)
+		return print(withLayerAdded(withoutBinding(ast, 'paint'), 'paint', parse(FIRST_PAINT_SOURCE), at))
 	} catch {
 		return FIRST_SOURCE
 	}
