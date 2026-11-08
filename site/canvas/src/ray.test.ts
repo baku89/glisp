@@ -48,7 +48,9 @@ describe('ray', () => {
 		const root = parse('[r = (ray.at [0 0] 0)]') as LetAST
 		const row = sceneOf(root, env)[0]!.row
 		const grip = gripAt(root, env, row)!
-		expect(grip.handles.map(({ kind }) => kind)).toEqual(['point', 'direction'])
+		expect(grip.handles.map(({ kind }) => kind)).toEqual(['translate', 'direction'])
+		expect(grip.handles[1]).toMatchObject({ rotates: true, pointing: true })
+		expect(grip.handles[0]!.to([5, 7], [0, 0])).toEqual([{ route: [0], value: [5, 7] }])
 		const turn = grip.handles[1]!.to([0, 80], [0, 0])
 		expect(turn).toHaveLength(1)
 		expect(print(parse('(ray.at [0 0] 0)'))).toBe('(ray.at [0 0] 0)')

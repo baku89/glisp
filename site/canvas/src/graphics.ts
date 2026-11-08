@@ -2253,6 +2253,11 @@ export interface Handle {
 	readonly pivot?: Vec
 	/** A `direction` that turns something around, rather than saying which way something goes. */
 	readonly rotates?: boolean
+	/**
+	 * A `direction` that is which way something goes, as a ray's is, and so looks like the head of
+	 * an arrow on it, even where it `rotates` the whole.
+	 */
+	readonly pointing?: boolean
 	/** An `arrow` that pulls one side of a box, and so looks like what lies along that side. */
 	readonly grip?: boolean
 	/** It turns something by a corner of the box around it, from outside of that corner, and `at` is the corner. */
@@ -4361,11 +4366,14 @@ makers.set(makeRayAt, ([from, angle]) => {
 	return {
 		guides: [rayGuide(ray)],
 		handles: [
-			pointHandle(0, origin),
+			// Its origin takes the whole ray along, as a center does, with the angle staying.
+			{ kind: 'translate', name: 'origin', place: 0, at: origin, to: to => [change(0, to)] },
 			{
-				// It turns the ray, as anything else that turns does, and does not pull along it.
+				// It turns the ray, as anything else that turns does, and does not pull along it,
+				// and is the head of the arrow the ray is drawn as.
 				kind: 'direction',
 				rotates: true,
+				pointing: true,
 				at: Ray.at(ray, GIZMO_SIZE) as Vec,
 				pivot: origin,
 				angle: turned,

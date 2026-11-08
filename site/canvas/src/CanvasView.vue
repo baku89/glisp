@@ -853,7 +853,7 @@ function drawHandle(
 		context.lineCap = 'round'
 		edged(GRIP)
 		context.stroke(GRIP)
-	} else if (handle.kind === 'dia' || handle.rotates) {
+	} else if (handle.kind === 'dia' || (handle.rotates && !handle.pointing)) {
 		context.lineWidth = 1
 		edged(DIAMOND)
 		context.fill(DIAMOND)
