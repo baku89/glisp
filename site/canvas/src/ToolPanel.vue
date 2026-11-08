@@ -65,7 +65,7 @@ const take = (paint: Paint): void =>
 				<Icon icon="ph:eyedropper" />
 			</button>
 		</template>
-		<ScrollArea>
+		<ScrollArea class="fields">
 			<ParameterTree v-if="own.length > 0" name="glisp.canvas.tool" :labelWidth="140">
 				<ParameterTreeItem v-for="attribute in own" :key="attribute.name" :label="attribute.label">
 					<InputDropdown
@@ -103,6 +103,12 @@ const take = (paint: Paint): void =>
 </template>
 
 <style scoped>
+/* Room for the ring of a focused input, which it would clip, taken from around it as the
+inspector's tree has it, so that the rows of the two line up. */
+.fields {
+	margin: -1px;
+	padding: 3px;
+}
 .title {
 	display: flex;
 	gap: 6px;
