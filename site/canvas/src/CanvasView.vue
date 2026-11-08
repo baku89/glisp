@@ -219,7 +219,9 @@ let pencilBase: LetAST | null = null
 let pencilFit: PencilFit = NOTHING_SETTLED
 let pencilSteady: Steady | null = null
 /** A brush while it is in the middle of something, which can take any number of presses. */
-let brush: { readonly def: Brush; state: unknown; readonly base: LetAST } | null = null
+let brush: { readonly def: Brush; state: unknown; readonly base: LetAST; readonly at: Vec } | null = null
+/** The artboard that what is being drawn will go onto, by where it was begun, while it is drawn. */
+const drawingOnto = shallowRef<string | null>(null)
 const brushGuides = shallowRef<Guides | null>(null)
 /** Where the pointer is, for a brush that shows how far around it reaches. */
 const brushPointer = shallowRef<Vec | null>(null)
@@ -1258,8 +1260,10 @@ function draw(): void {
 		const name = nameOfRow(shape.row)
 		const width = context.measureText(name).width
 		context.globalAlpha = isOutside(shape.row, isolation.value) ? OUTSIDE_ALPHA : 1
-		context.fillStyle = isMarked(shape) ? accent : ink
-		if (!isMarked(shape)) context.globalAlpha *= ARTBOARD_LABEL_ALPHA
+		// Lit while something is being drawn onto it, so that where it will go is seen before it has.
+		const lit = isMarked(shape) || shape.row === drawingOnto.value
+		context.fillStyle = lit ? accent : ink
+		if (!lit) context.globalAlpha *= ARTBOARD_LABEL_ALPHA
 		context.fillText(name, x, y - ARTBOARD_LABEL_GAP)
 		artboardLabels.push({ row: shape.row, x, y: y - ARTBOARD_LABEL_GAP - ARTBOARD_LABEL_HEIGHT, width, height: ARTBOARD_LABEL_HEIGHT })
 	}
@@ -1511,6 +1515,7 @@ watchEffect(() => {
 		snapMark.value,
 		readout.value,
 		props.addingAt,
+		drawingOnto.value,
 	]
 	// Once a frame, however many things changed in it.
 	if (drawing === null) {
@@ -1985,6 +1990,7 @@ function onPointerDown(event: PointerEvent): void {
 	} else if (props.drawing === 'pencil') {
 		const points = snapPoints()
 		pencilStroke.value = [snapAt(points, x, y)?.at ?? fromScreen(x, y)]
+		beginOnto(pencilStroke.value[0]!)
 		pencilBase = props.document.root.value
 		pencilFit = NOTHING_SETTLED
 		pencilSteady = steadied(null, [x, y], event.timeStamp, pencilSmoothness())
@@ -2006,6 +2012,7 @@ function onPointerDown(event: PointerEvent): void {
 	} else if (props.drawing) {
 		const base = props.document.root.value
 		const snap = snapAt(snapPoints(), x, y)
+		beginOnto(snap?.at ?? fromScreen(x, y))
 		pressed = {
 			kind: 'draw',
 			tool: props.drawing,
@@ -2292,6 +2299,7 @@ function penDown(x: number, y: number, valueOnly: boolean, even: boolean): void 
 		pen = { base, name: '', anchors: [] }
 	}
 	const { at, snap } = penNext(x, y, even)
+	if (pen.anchors.length === 0) beginOnto(at)
 	pen.anchors = [
 		...pen.anchors,
 		{
@@ -2378,6 +2386,7 @@ function finishPencil(end: SnapPoint | null): void {
 		const added = layersOf(props.document.root.value as LetAST).find(name => !layersOf(pencilBase as LetAST).includes(name))
 		if (added !== undefined) ontoBoardAt(`binding:${added}`, was[0])
 	}
+	drawingOnto.value = null
 	pencilStroke.value = null
 	pencilBase = null
 	props.document.release()
@@ -2405,7 +2414,9 @@ function pressBrush(name: BrushName, x: number, y: number): void {
 		// All of it, over however many presses, undoes as one. Its seed is chosen here, as an edit
 		// is, and is only a number in the program from then on.
 		props.document.hold()
-		brush = { def, base, state: def.start(Math.floor(Math.random() * BRUSH_SEEDS)) }
+		const at = fromScreen(x, y)
+		brush = { def, base, state: def.start(Math.floor(Math.random() * BRUSH_SEEDS)), at }
+		beginOnto(at)
 	}
 	brush.state = brush.def.press(brush.state, fromScreen(x, y), brushContext())
 	pressed = { kind: 'brush' }
@@ -2437,8 +2448,15 @@ function finishArtboard({ base, name, at, moved }: { base: LetAST; name: string;
 	emit('select', [row])
 }
 
+/** Says, while drawing, which artboard what is begun at `at` will go onto. */
+function beginOnto(at: Vec): void {
+	const { root, env } = props.document
+	drawingOnto.value = boardAt(root.value, env.value, at)?.row ?? null
+}
+
 /** What was just drawn at `row`, on the artboard `at` is on, staying where it is. Its row then. */
 function ontoBoardAt(row: string, at: Vec): string {
+	drawingOnto.value = null
 	const { root, env } = props.document
 	const board = boardAt(root.value, env.value, at, [row])
 	if (board === null) return row
@@ -2452,13 +2470,31 @@ function ontoBoardAt(row: string, at: Vec): string {
 function finishBrush(): void {
 	if (brush === null) return
 	writeBrush(true)
-	const { base, def } = brush
+	const { base, def, at } = brush
 	const drew = props.document.root.value !== base
 	if (!drew) props.document.rewind(base)
+	// All it drew goes on the artboard it was begun on, a stroke of several rows and all.
+	let selected = `binding:${nameOfKind(base, def.kind)}`
+	if (drew) {
+		const added = layersOf(props.document.root.value as LetAST).filter(name => !layersOf(base).includes(name))
+		for (const name of added) {
+			const moved = ontoBoardAt(`binding:${name}`, at)
+			if (`binding:${name}` === selected) selected = moved
+		}
+	}
+	drawingOnto.value = null
 	brush = null
 	brushGuides.value = null
 	props.document.release()
-	emit('select', drew && def.selectedAfter ? [`binding:${nameOfKind(base, def.kind)}`] : [])
+	emit('select', drew && def.selectedAfter ? [selected] : [])
+}
+
+/** The path the pen has drawn goes on the artboard it was begun on, now that it is done. */
+function penOntoBoard(): void {
+	if (pen === null || pen.name === '' || pen.anchors.length < 2) return
+	const row = `binding:${pen.name}`
+	const moved = ontoBoardAt(row, pen.anchors[0]!.at)
+	if (moved !== row) emit('select', [moved])
 }
 
 /** That is the path, as far as it went. With only one place, it is no path at all. */
@@ -2468,7 +2504,10 @@ function finishPen(): void {
 	if (pen !== null && pen.anchors.length < 2) {
 		props.document.setRoot(pen.base)
 		emit('select', [])
+	} else {
+		penOntoBoard()
 	}
+	drawingOnto.value = null
 	pen = null
 	penLine.value = null
 }
@@ -2981,6 +3020,8 @@ useEventListener(window, 'pointerup', event => {
 	// That is how it comes back, and it is done.
 	if (pressed?.kind === 'closing') {
 		penPulled.value = null
+		penOntoBoard()
+		drawingOnto.value = null
 		pen = null
 		penLine.value = null
 	}
@@ -2990,6 +3031,7 @@ useEventListener(window, 'pointerup', event => {
 		const row = ontoBoardAt(`binding:${pressed.name}`, pressed.snap?.at ?? fromScreen(pressed.at[0], pressed.at[1]))
 		if (row !== `binding:${pressed.name}`) emit('select', [row])
 	}
+	if (pressed?.kind === 'draw') drawingOnto.value = null
 	// What is dragged goes on the artboard it is let go over, or off of any.
 	if (pressed?.kind === 'move' && pressed.moving && !event.defaultPrevented) {
 		const at = fromScreen(event.offsetX, event.offsetY)
