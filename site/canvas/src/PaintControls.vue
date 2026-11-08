@@ -126,6 +126,21 @@ function setDash(text: string): void {
 	set({ dash: dashesIn(text) })
 }
 
+/**
+ * Patterns to start from, in terms of the line's width, which a dash is seen against: a dash
+ * of three widths and a gap of two reads as dashed at any width. Typing says the rest.
+ */
+const dashPresets = computed<MenuItem[]>(() => {
+	const width = Math.max(1, ...valuesOf('width'))
+	const by = (...times: number[]) => times.map(t => Math.round(t * width * 10) / 10).join(' ')
+	return [
+		{ label: 'Solid', perform: () => setDash('') },
+		{ label: 'Dashed', perform: () => setDash(by(3, 2)) },
+		{ label: 'Dotted', perform: () => setDash(by(1, 1)) },
+		{ label: 'Dash Dot', perform: () => setDash(by(3, 1, 1, 1)) },
+	]
+})
+
 /** One selection with the rows of what holds these, so that only one row is ever selected. */
 const selection = inject(SELECTION)!
 
@@ -379,6 +394,7 @@ useEventListener(
 					</ParameterTreeItem>
 					<ParameterTreeItem
 						label="Dash"
+						:hint="{ title: 'Dash', description: 'How long a dash is, then a gap, and so on in turn, as 6 3. Nothing is a solid line. The chevron has patterns to start from.' }"
 						:selected="isSelected('dash')"
 						:menuItems="menuOf('dash')"
 						@select="select('dash')"
@@ -387,6 +403,7 @@ useEventListener(
 							<InputString
 								:modelValue="dashText"
 								:placeholder="mixed('dash') ? 'Mixed' : 'Solid'"
+								:presets="dashPresets"
 								@update:modelValue="setDash"
 							/>
 						</div>
