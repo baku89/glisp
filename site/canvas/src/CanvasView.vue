@@ -777,8 +777,8 @@ const POINTER = new Path2D('M -8 -6 L 0 0 L -8 6')
 /** How far out from a corner of a box the line is that turns it, and how far to either side of that it can be taken hold of. */
 const TURNER_RADIUS = 13
 const TURNER_REACH = 7
-/** What pulls one side of a box, lying along the side: three lines, as what is taken hold of is. */
-const GRIP = new Path2D('M -3 -5 V 5 M 0 -5 V 5 M 3 -5 V 5')
+/** What pulls one side of a box: two lines along the side, one either side of it, with the side between. */
+const GRIP = new Path2D('M -3 -5 V 5 M 3 -5 V 5')
 /** Which way something goes, for a button that has a way to go. */
 const BUTTON_ARROW = new Path2D('M -4 0 H 4 M 1 -3 L 4 0 L 1 3')
 /** How far either side of an outline the marks of what moves it are, and how far they bend. */
