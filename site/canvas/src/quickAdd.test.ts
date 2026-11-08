@@ -120,6 +120,7 @@ describe('adding it', () => {
 	it.each([
 		['point', 'point1 = ^point [200 300]', 'point'],
 		['vec2.lerp', 'lerp1 = (vec2.lerp [150 300] [250 300] 0.5)', 'point'],
+		['vec2.midpoint', 'midpoint1 = (vec2.midpoint [150 300] [250 300])', 'point'],
 		['vec2.nudge', 'nudge1 = (vec2.nudge [200 300] [50 0])', 'point'],
 		['line.fromPoints', 'line1 = (line.fromPoints [200 250] [200 350])', 'line'],
 		['line.at', 'line1 = (line.at [200 300] 90)', 'line'],
@@ -152,6 +153,13 @@ describe('adding it', () => {
 			expect(from('vec2.lerp', ['binding:a', 'binding:b'])).toContain('lerp1 = (vec2.lerp a b 0.5)')
 			expect(from('vec2.lerp', ['binding:a'])).toContain('lerp1 = (vec2.lerp a [200 300] 0.5)')
 			const { ast, row } = withAdded(points, env, 'vec2.lerp', [200, 300], ['binding:a', 'binding:b'])!
+			expect(sceneOf(ast, env).find(shape => shape.row === row)).toMatchObject({ draw: 'point', value: [5, 10] })
+		})
+
+		it('goes halfway between two points, by referring to them', () => {
+			expect(from('vec2.midpoint', ['binding:a', 'binding:b'])).toContain('midpoint1 = (vec2.midpoint a b)')
+			expect(from('vec2.midpoint', ['binding:a'])).toContain('midpoint1 = (vec2.midpoint a [200 300])')
+			const { ast, row } = withAdded(points, env, 'vec2.midpoint', [200, 300], ['binding:a', 'binding:b'])!
 			expect(sceneOf(ast, env).find(shape => shape.row === row)).toMatchObject({ draw: 'point', value: [5, 10] })
 		})
 

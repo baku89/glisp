@@ -108,6 +108,14 @@ const GUIDES: Readonly<
 		code: (x, y, given) =>
 			given === 0 ? `(vec2.lerp [${x - 50} ${y}] [${x + 50} ${y}] 0.5)` : `(vec2.lerp [${x} ${y}] [${x} ${y}] 0.5)`,
 	},
+	'vec2.midpoint': {
+		label: 'Midpoint',
+		stem: 'midpoint',
+		places: 2,
+		// From a point, it is halfway to where it is asked for, and so goes on as far again.
+		code: (x, y, given) =>
+			given === 0 ? `(vec2.midpoint [${x - 50} ${y}] [${x + 50} ${y}])` : `(vec2.midpoint [${x} ${y}] [${x} ${y}])`,
+	},
 	'vec2.nudge': {
 		label: 'Nudge',
 		stem: 'nudge',

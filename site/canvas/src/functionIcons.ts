@@ -59,6 +59,7 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	style: 'ph:paint-brush',
 	point: POINT_ICON,
 	'vec2.lerp': POINT_ICON,
+	'vec2.midpoint': POINT_ICON,
 	'vec2.nudge': 'ph:arrow-right',
 	'rect.new': 'mdi:crop-free',
 	rect: 'mdi:crop-free',

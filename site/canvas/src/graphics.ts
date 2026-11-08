@@ -206,6 +206,29 @@ const makeLerp = makeTypedFn(
 	['a', 'b', 'ratio']
 )
 
+/**
+ * The place halfway from `a` to `b`: `lerp` with its ratio given, which is what it comes to one
+ * rung down. Moved, it takes `b` along, or `a` if `b` cannot go.
+ */
+const makeMidpoint = withExpansion(
+	withInverse(
+		makeTypedFn(
+			[point, point],
+			point,
+			(a, b) => {
+				const [[ax, ay], [bx, by]] = [a as Vec, b as Vec]
+				return [(ax + bx) / 2, (ay + by) / 2]
+			},
+			['a', 'b']
+		),
+		(index, result, args) => {
+			const [[mx, my], [ox, oy]] = [result as Vec, args[1 - index] as Vec]
+			return [2 * mx - ox, 2 * my - oy]
+		}
+	),
+	([a, b]) => (a === undefined || b === undefined ? null : new CallAST(parse('vec2.lerp'), [a, b, lit(0.5)]))
+)
+
 /** A place moved `by` this much, which comes to a point as well. */
 const makeNudge = makeTypedFn(
 	[point, translationType],
@@ -224,6 +247,7 @@ withMembers(vec2, {
 		['a', 'by']
 	),
 	lerp: withDoc(makeLerp, 'The place `ratio` of the way from `a` to `b`.', 'Lerp'),
+	midpoint: withDoc(makeMidpoint, 'The place halfway from `a` to `b`.', 'Midpoint'),
 	nudge: withDoc(makeNudge, 'A `point` moved `by` this much, as a place of its own.', 'Nudge'),
 })
 
@@ -4276,6 +4300,14 @@ const flipHandle = (at: Vec, direction: Vec, flipped: () => Change[]): Handle =>
 	to: flipped,
 })
 // It stays between its two, and is taken along the way from one to the other.
+makers.set(makeMidpoint, ([from, to]) => {
+	const [a, b] = [from as Vec, to as Vec]
+	return {
+		guides: [line(a, b)],
+		handles: [],
+		move: delta => [change(0, add(a, delta)), change(1, add(b, delta))],
+	}
+})
 makers.set(makeLerp, ([from, to, ratio]) => {
 	const [a, b, t] = [from as Vec, to as Vec, ratio as number]
 	const along = sub(b, a)
