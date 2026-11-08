@@ -1236,6 +1236,16 @@ function draw(): void {
 				context.restore()
 			}
 			context.restore()
+			// An artboard has a faint edge, a pixel wide at any zoom, so that it is seen against
+			// the canvas however it is filled. It is outside the clip, so that nothing on it covers it.
+			if (shape.draw === 'artboard' && !isMarked(shape)) {
+				context.save()
+				context.globalAlpha *= ARTBOARD_EDGE_ALPHA
+				context.strokeStyle = ink
+				context.lineWidth = 1
+				context.stroke(onScreenPath)
+				context.restore()
+			}
 		}
 	}
 	context.globalAlpha = 1
@@ -1610,6 +1620,8 @@ const ARTBOARD_LABEL_FONT = '11px system-ui, sans-serif'
 const ARTBOARD_LABEL_GAP = 4
 const ARTBOARD_LABEL_HEIGHT = 14
 const ARTBOARD_LABEL_ALPHA = 0.6
+/** How faint the hairline around an artboard is, which tells it from a canvas of the same color. */
+const ARTBOARD_EDGE_ALPHA = 0.15
 
 /** Where the name of each artboard was last drawn, on screen. */
 let artboardLabels: { row: string; x: number; y: number; width: number; height: number }[] = []
