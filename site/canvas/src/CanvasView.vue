@@ -801,6 +801,10 @@ function facing(angle: number): number {
 	return Math.atan2(b * x + d * y, a * x + c * y)
 }
 
+/** How far either way along its arc the handle that swings something round is drawn, and how long its heads are. */
+const SWING_REACH = 9
+const SWING_HEAD = 3.5
+
 function drawHandle(
 	context: CanvasRenderingContext2D,
 	handle: Handle,
@@ -853,7 +857,30 @@ function drawHandle(
 		context.lineCap = 'round'
 		edged(GRIP)
 		context.stroke(GRIP)
-	} else if (handle.kind === 'dia' || (handle.rotates && !handle.pointing)) {
+	} else if (handle.swings && handle.pivot !== undefined) {
+		// The arc it swings along, around what it turns, with a head each way it can go: across the
+		// line it is on, as that is the way it is pulled, and not along it.
+		const [px, py] = toScreen(handle.pivot)
+		const r = Math.hypot(px - x, py - y)
+		const sweep = SWING_REACH / r
+		const swing = new Path2D()
+		swing.arc(-r, 0, r, -sweep, sweep)
+		for (const way of [1, -1]) {
+			const [ex, ey] = [-r + r * Math.cos(sweep), way * r * Math.sin(sweep)]
+			// Back from the end, along the tangent, and in toward the arc either side of it.
+			const [tx, ty] = [Math.sin(sweep), -way * Math.cos(sweep)]
+			const [nx, ny] = [-ty, tx]
+			for (const side of [1, -1]) {
+				swing.moveTo(ex + (tx + side * nx) * SWING_HEAD, ey + (ty + side * ny) * SWING_HEAD)
+				swing.lineTo(ex, ey)
+			}
+		}
+		context.rotate(facing(handle.angle ?? 0))
+		context.lineJoin = 'round'
+		context.lineCap = 'round'
+		edged(swing)
+		context.stroke(swing)
+	} else if (handle.kind === 'dia' || handle.rotates) {
 		context.lineWidth = 1
 		edged(DIAMOND)
 		context.fill(DIAMOND)
