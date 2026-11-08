@@ -801,7 +801,11 @@ function facing(angle: number): number {
 	return Math.atan2(b * x + d * y, a * x + c * y)
 }
 
-/** How far either way along its arc the handle that swings something round is drawn, and how long its heads are. */
+/**
+ * The handle that swings something round: the radius its arc is drawn with, which is bent enough
+ * to say it goes round, however far out it is, how far either way along it goes, and how long its heads are.
+ */
+const SWING_RADIUS = 14
 const SWING_REACH = 9
 const SWING_HEAD = 3.5
 
@@ -858,10 +862,10 @@ function drawHandle(
 		edged(GRIP)
 		context.stroke(GRIP)
 	} else if (handle.swings && handle.pivot !== undefined) {
-		// The arc it swings along, around what it turns, with a head each way it can go: across the
-		// line it is on, as that is the way it is pulled, and not along it.
-		const [px, py] = toScreen(handle.pivot)
-		const r = Math.hypot(px - x, py - y)
+		// An arc around what it turns, with a head each way it can go: across the line it is on, as
+		// that is the way it is pulled, and not along it. It is bent more than the circle it is on,
+		// which is as good as straight this far out, for it to say that it goes round at all.
+		const r = SWING_RADIUS
 		const sweep = SWING_REACH / r
 		const swing = new Path2D()
 		swing.arc(-r, 0, r, -sweep, sweep)
