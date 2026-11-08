@@ -787,17 +787,18 @@ describe('snapping', () => {
 	describe('where a line would go, if it went on', () => {
 		const edge = { at: [0, 0] as Vec, to: [10, 0] as Vec, target: null, label: 'edge' }
 
-		it('snaps there, saying so, on either side', () => {
-			expect(nearestSnap([edge], [20, 1], 2)).toMatchObject({ at: [20, 0], beyond: true, line: [[0, 0], [10, 0]] })
-			expect(nearestSnap([edge], [-20, 1], 2)).toMatchObject({ at: [-20, 0], beyond: true })
-			expect(nearestSnap([edge], [20, 3], 2)).toBeNull()
+		it('snaps there only when asked to, saying so, on either side', () => {
+			expect(nearestSnap([edge], [20, 1], 2)).toBeNull()
+			expect(nearestSnap([edge], [20, 1], 2, true)).toMatchObject({ at: [20, 0], beyond: true, line: [[0, 0], [10, 0]] })
+			expect(nearestSnap([edge], [-20, 1], 2, true)).toMatchObject({ at: [-20, 0], beyond: true })
+			expect(nearestSnap([edge], [20, 3], 2, true)).toBeNull()
 		})
 
 		it('has a line itself go before it, and a place before that', () => {
 			const other = { at: [19, -5] as Vec, to: [19, 5] as Vec, target: null, label: 'other' }
-			expect(nearestSnap([edge, other], [20, 1], 2)).toMatchObject({ at: [19, 1], label: 'other' })
+			expect(nearestSnap([edge, other], [20, 1], 2, true)).toMatchObject({ at: [19, 1], label: 'other' })
 			const place = { at: [20, 2] as Vec, target: null, label: 'place' }
-			expect(nearestSnap([edge, place], [20, 1], 2)).toMatchObject({ at: [20, 2], label: 'place' })
+			expect(nearestSnap([edge, place], [20, 1], 2, true)).toMatchObject({ at: [20, 2], label: 'place' })
 		})
 	})
 
@@ -812,9 +813,9 @@ describe('snapping', () => {
 	})
 
 	describe('refers to what it is on, along a line', () => {
-		const onto = (other: string, at: Vec): string | null => {
+		const onto = (other: string, at: Vec, beyond = false): string | null => {
 			const both = parse(`{o = ${other} c = (path.line [200 200] [300 300])}`) as LetAST
-			const snap = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), at, 5)!
+			const snap = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), at, 5, beyond)!
 			const next = linked(both, env, 'binding:c', 0, snap)
 			return next && print(bound((next as LetAST)).find(([name]) => name === 'c')![1])
 		}
@@ -826,13 +827,15 @@ describe('snapping', () => {
 
 		it('only across, where a level or upright edge would go on, being only lined up with it', () => {
 			// A named argument is reached by its name, whichever way a path says that.
-			expect(onto('(path.rect [0 0] [100 40])', [130, 0.5])).toMatch(/^\(path\.line \[130 (?:\.\.\/)*o\/origin:\/1\] \[300 300\]\)$/)
-			expect(onto('(path.rect [0 0] [100 40])', [100.5, 60])).toMatch(/^\(path\.line \[\(\+ (?:\.\.\/)*o\/origin:\/0 (?:\.\.\/)*o\/size:\/0\) 60\] \[300 300\]\)$/)
-			expect(onto('(path.rect [0 0] [100 40])', [-30, 0.5])).toMatch(/^\(path\.line \[-30 (?:\.\.\/)*o\/origin:\/1\] \[300 300\]\)$/)
+			expect(onto('(path.rect [0 0] [100 40])', [130, 0.5], true)).toMatch(/^\(path\.line \[130 (?:\.\.\/)*o\/origin:\/1\] \[300 300\]\)$/)
+			expect(onto('(path.rect [0 0] [100 40])', [100.5, 60], true)).toMatch(/^\(path\.line \[\(\+ (?:\.\.\/)*o\/origin:\/0 (?:\.\.\/)*o\/size:\/0\) 60\] \[300 300\]\)$/)
+			expect(onto('(path.rect [0 0] [100 40])', [-30, 0.5], true)).toMatch(/^\(path\.line \[-30 (?:\.\.\/)*o\/origin:\/1\] \[300 300\]\)$/)
 		})
 
-		it('and where it would go, if it went on', () => {
-			expect(onto('(path.line [0 0] [100 100])', [150, 149])).toBe('(path.line [(lerp ../../../o/start:/0 ../../../o/end:/0 1.495) (lerp ../../../o/start:/1 ../../../o/end:/1 1.495)] [300 300])')
+		it('and where it would go, if it went on, when asked to', () => {
+			expect(onto('(path.line [0 0] [100 100])', [150, 149], true)).toBe('(path.line [(lerp ../../../o/start:/0 ../../../o/end:/0 1.495) (lerp ../../../o/start:/1 ../../../o/end:/1 1.495)] [300 300])')
+			const both = parse('{o = (path.line [0 0] [100 100]) c = (path.line [200 200] [300 300])}') as LetAST
+			expect(nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), [150, 149], 5)).toBeNull()
 		})
 
 		it('and goes on being there as the line moves', () => {

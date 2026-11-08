@@ -135,6 +135,8 @@ const props = defineProps<{
 	dimensions?: boolean
 	/** A drag or a drawing goes to what it comes near. */
 	snapping?: boolean
+	/** It goes as well to where a line would be if it went on past its ends. */
+	snappingBeyond?: boolean
 	/** Where something is about to be added, to say so while it is being chosen. */
 	addingAt?: Vec | null
 }>()
@@ -317,7 +319,7 @@ const SNAP_MISS = 0.5
 
 /** The nearest of `points` within reach of `at` in the program's coordinates, unless turned off. */
 const snapNear = (points: readonly SnapPoint[], at: Vec): SnapPoint | null =>
-	props.snapping ? nearestSnap(points, at, SNAP_REACH / view.value[0]) : null
+	props.snapping ? nearestSnap(points, at, SNAP_REACH / view.value[0], props.snappingBeyond) : null
 
 /** Everywhere there is to snap to, on what `root` draws. */
 function snapPoints(
@@ -2567,7 +2569,8 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 	if (found !== null && !together) {
 		const off = (at: Vec | null): boolean => at === null || Math.hypot(at[0] - snap!.at[0], at[1] - snap!.at[1]) > SNAP_MISS / view.value[0]
 		let landed = landedAt(attempt.next.ast, row, handle, attempt.pulledTo)
-		const onLine = landed !== null && off(landed) ? alongSnapped(found, landed, SNAP_REACH / view.value[0]) : null
+		const met = landed !== null && off(landed) ? alongSnapped(found, landed, SNAP_REACH / view.value[0]) : null
+		const onLine = met !== null && (met.beyond !== true || props.snappingBeyond) ? met : null
 		if (onLine !== null) {
 			snap = onLine
 			attempt = pulled(onLine.at)

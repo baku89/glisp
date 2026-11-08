@@ -307,6 +307,8 @@ const dimensionsOn = useAppConfigStore().ref('glisp.canvas.dimensions', false)
 
 /** A drag or a drawing goes to what it comes near. */
 const snappingOn = useAppConfigStore().ref('glisp.canvas.snapping', true)
+/** It goes as well to where a line would be if it went on past its ends, which is most often not meant. */
+const snappingBeyond = useAppConfigStore().ref('glisp.canvas.snappingBeyond', false)
 
 /** What is laid over the canvas to see by, as the program says. */
 const toggleAxes = (): void => {
@@ -1258,6 +1260,7 @@ actions.register([
 			{ id: 'view_tool', label: 'Toggle Tool Options', icon: 'ph:palette', perform: () => panels.toggle('glisp.canvas.tool') },
 			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', bind: 'd', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
 			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
+			{ id: 'view_snapping_beyond', label: 'Toggle Snapping Beyond Lines', icon: 'ph:line-segments', perform: () => (snappingBeyond.value = !snappingBeyond.value) },
 			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGraphPaper('dots') },
 			{ id: 'view_lines', label: 'Toggle Lines', icon: 'ph:grid-four', perform: () => toggleGraphPaper('lines') },
 			{ id: 'view_axes', label: 'Toggle Axes', icon: AXES_ICON, perform: toggleAxes },
@@ -1438,6 +1441,7 @@ function selectInTree(row: string | null): void {
 					:attributes="toolAttributes"
 					:dimensions="dimensionsOn"
 					:snapping="snappingOn"
+					:snappingBeyond="snappingBeyond"
 					:addingAt="quickAddAt !== null && quickFillAt === null ? quickAddPlace : null"
 					v-model:keptRow="keptRow"
 					v-model:isolation="isolation"

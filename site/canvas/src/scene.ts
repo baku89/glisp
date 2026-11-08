@@ -477,11 +477,15 @@ function along(from: Vec, to: Vec, at: Vec): { at: Vec; beyond: boolean; t: numb
 	return { at: [from[0] + dx * t, from[1] + dy * t], beyond: length !== 0 && (t < 0 || t > 1), t }
 }
 
-/** The nearest of `points` to `at`, within `tolerance`, one with a row before one without. */
+/**
+ * The nearest of `points` to `at`, within `tolerance`, one with a row before one without. Where a
+ * line would go if it went on counts only with `beyond`, as that is most often not meant.
+ */
 export function nearestSnap(
 	points: readonly SnapPoint[],
 	at: Vec,
-	tolerance: number
+	tolerance: number,
+	beyond = false
 ): SnapPoint | null {
 	let best: SnapPoint | null = null
 	let bestDistance = tolerance
@@ -496,7 +500,7 @@ export function nearestSnap(
 	if (best !== null) return best
 	// Only with no place in reach, as a place is more of a place than a line is, and a
 	// line more than where it would go if it went on.
-	for (const onward of [false, true]) {
+	for (const onward of beyond ? [false, true] : [false]) {
 		for (const point of points) {
 			if (point.to === undefined) continue
 			const on = alongSnapped({ ...point, line: [point.at, point.to] }, at, tolerance)!
