@@ -300,6 +300,7 @@ Both operations agree on the final value: `eval(AST, env)` equals `eval(expand(A
 ### One step
 
 - A call to a closure steps to the closure's body, with each parameter replaced by the argument expression as written. A `?` at the tail of the body resolves within the same step, so the rung is the selected clause.
+- A relative path in an argument goes on reaching what it reached from the call. The argument was a child of the call, and the rung stands where the call did: where the body puts the argument further in, or makes it the rung itself, each path that leads out of the argument goes up by that many more levels, or fewer.
 - A bare `?` steps to its selected clause, or to `()` when none matches.
 - A call to a host function steps to what its expansion says, if it has one (see [Host functions](#host-functions)).
 - Everything else is a fixed point: literals, let-blocks, vectors, records, function literals, and other calls to host functions. `expand` returns the same node, and the value comes from `eval`.

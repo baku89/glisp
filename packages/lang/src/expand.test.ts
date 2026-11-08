@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { evaluate } from './eval.js'
+import { enterNode, evaluate } from './eval.js'
 import { expand, expandLadder } from './expand.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { print } from './print.js'
 import { Session } from './session.js'
-import { type Env, LetAST, LitAST } from './types.js'
+import { type AST, type Env, LetAST, LitAST } from './types.js'
 
 describe('expand', () => {
 	let session: Session
@@ -34,6 +34,37 @@ describe('expand', () => {
 		expect(print(next)).toBe('[60 60]')
 		const [first, second] = (next as unknown as { elements: unknown[] }).elements
 		expect(first).not.toBe(second)
+	})
+
+	describe('a path in an argument', () => {
+		const lerp = 'lerp2 = (=> [a: number b: number t: number]: number (+ a (* (- b a) t)))'
+
+		it('goes on reaching what it did, where the body puts it further in', () => {
+			define(lerp)
+			const src = '[c = 10 (lerp2 (+ ../c 1) (* ../c 2) 0.5)]'
+			const root = parse(src)
+			const call = (root as never as { elements: AST[] }).elements[1]!
+			const inside = enterNode(root, env())
+			const next = expand(call, inside)
+			expect(print(next)).toBe('(+ (+ ../c 1) (* (- (* ../../../c 2) (+ ../../../c 1)) 0.5))')
+			const rung = new (root.constructor as new (e: AST[]) => AST)([(root as never as { elements: AST[] }).elements[0]!, next])
+			expect(evaluate(rung, env()).value).toEqual(evaluate(root, env()).value)
+		})
+
+		it('goes up one less where the body is the parameter itself', () => {
+			define('same = (=> [x: number]: number x)')
+			const root = parse('[c = 10 (same (+ ../../c 1))]')
+			const call = (root as never as { elements: AST[] }).elements[1]!
+			expect(print(expand(call, enterNode(root, env())))).toBe('(+ ../c 1)')
+		})
+
+		it('has what was given to a variadic parameter reach out of the vector made of it', () => {
+			define('sum = (=> [...xs: number]: number (+ ...xs))')
+			const root = parse('[c = 10 (sum ../c 1)]') as never as { elements: AST[]; constructor: new (e: AST[]) => AST }
+			const next = expand(root.elements[1]!, enterNode(root as never, env()))
+			expect(print(next)).toBe('(+ ...[../c 1])')
+			expect(evaluate(new root.constructor([root.elements[0]!, next]), env()).value).toEqual([10, 11])
+		})
 	})
 
 	describe('function body as the next rung', () => {

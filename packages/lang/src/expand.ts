@@ -43,6 +43,7 @@ import {
 	LetAST,
 	LitAST,
 	MetaAST,
+	PathAST,
 	RecordAST,
 	type RecordEntry,
 	SpreadAST,
@@ -143,13 +144,65 @@ type Subst = ReadonlyMap<string, AST | null>
  */
 class Step {
 	private readonly passedAlong = new Set<AST>()
+	/** The vectors made here of what was given to a variadic parameter. */
+	private readonly wrapped = new Set<AST>()
 
 	constructor(private readonly env: Env) {}
 
 	/** The next rung of a call, or null when it has none. */
 	callStep(ast: CallAST): AST | null {
 		const body = this.reduceHead(ast)
-		return body === null ? null : this.lower(body)
+		return body === null ? null : this.lower(this.rebased(body))
+	}
+
+	/**
+	 * `rung`, with a path in an argument going on reaching what it did from the call. An argument
+	 * was a child of the call, and the rung stands where the call did: where it is now further in,
+	 * or is the rung itself, a path out of it goes up by as much more or less. A vector made of what
+	 * was given to a variadic parameter was not there, so what is in it is as if it were a child.
+	 */
+	private rebased(rung: AST): AST {
+		const placed = (node: AST, depth: number, spread = false): AST => {
+			if (this.passedAlong.has(node)) {
+				const shift = depth - 1
+				const next = this.wrapped.has(node) && node.kind === 'vec'
+					? new VecAST(node.elements.map(element => outward(element, spread ? shift : shift + 1)))
+					: outward(node, shift)
+				if (next !== node) this.passedAlong.add(next)
+				return next
+			}
+			const level = isLevel(node, spread) ? depth + 1 : depth
+			const within = (child: AST): AST => placed(child, level)
+			switch (node.kind) {
+				case 'call':
+					return new CallAST(within(node.head), node.args.map(within), mapValues(node.kwargs, within))
+				case 'vec':
+					return new VecAST(node.elements.map(within))
+				case 'record':
+					return new RecordAST(
+						node.fields.map(entry =>
+							entry instanceof SpreadAST ? new SpreadAST(within(entry.expr)) : ([entry[0], within(entry[1])] as const)
+						),
+						node.optional
+					)
+				case 'let':
+					return new LetAST(
+						node.bindings.map(([n, v]) => [n, within(v)] as const),
+						node.body === null ? null : within(node.body)
+					)
+				case 'meta':
+					return new MetaAST(node.metadata, within(node.expr))
+				case 'unquote':
+					return new UnquoteAST(within(node.expr))
+				case 'spread':
+					return new SpreadAST(placed(node.expr, level, true))
+				case 'access':
+					return new AccessAST(within(node.target), node.key)
+				default:
+					return node
+			}
+		}
+		return placed(rung, 0)
 	}
 
 	/** Step a call to its body, resolving any `?` at the body's tail. */
@@ -240,8 +293,9 @@ class Step {
 		for (const param of closure.ast.params) {
 			let arg: AST
 			if (param.variadic) {
-				arg =
-					call.kwargs?.get(param.name) ?? new VecAST(call.args.slice(next))
+				const given = call.kwargs?.get(param.name)
+				arg = given ?? new VecAST(call.args.slice(next))
+				if (given === undefined) this.wrapped.add(arg)
 				next = call.args.length
 			} else {
 				arg =
@@ -368,6 +422,61 @@ function mapValues(
 ): ReadonlyMap<string, AST> | undefined {
 	if (map === undefined) return undefined
 	return new Map([...map].map(([k, v]) => [k, fn(v)] as const))
+}
+
+/**
+ * Whether a path counts a node as a level: `./` is the node a path is written in, `../` the one
+ * around that. A vector that is spread is not one, as what is in it goes where the vector is.
+ */
+const isLevel = (ast: AST, spread = false): boolean =>
+	ast.kind === 'let' || (ast.kind === 'vec' && !spread) || ast.kind === 'call' || ast.kind === 'record'
+
+/**
+ * `ast`, moved `shift` levels further in, so that each relative path in it that reaches out of
+ * it goes up that many more levels, or fewer. A path that stays within `ast` is left alone.
+ */
+function outward(ast: AST, shift: number): AST {
+	if (shift === 0) return ast
+	const moved = (node: AST, depth: number, spread = false): AST => {
+		if (node.kind === 'path') {
+			if (node.segments[0] === '/') return node
+			const ups = node.segments.findIndex(segment => segment !== '..')
+			const up = ups === -1 ? node.segments.length : ups
+			if (up < depth) return node
+			return new PathAST([...new Array<'..'>(Math.max(0, up + shift)).fill('..'), ...node.segments.slice(up)])
+		}
+		const level = isLevel(node, spread) ? depth + 1 : depth
+		const within = (child: AST): AST => moved(child, level)
+		switch (node.kind) {
+			case 'call':
+				return new CallAST(within(node.head), node.args.map(within), mapValues(node.kwargs, within))
+			case 'vec':
+				return new VecAST(node.elements.map(within))
+			case 'record':
+				return new RecordAST(
+					node.fields.map(entry =>
+						entry instanceof SpreadAST ? new SpreadAST(within(entry.expr)) : ([entry[0], within(entry[1])] as const)
+					),
+					node.optional
+				)
+			case 'let':
+				return new LetAST(
+					node.bindings.map(([n, v]) => [n, within(v)] as const),
+					node.body === null ? null : within(node.body)
+				)
+			case 'meta':
+				return new MetaAST(node.metadata, within(node.expr))
+			case 'unquote':
+				return new UnquoteAST(within(node.expr))
+			case 'spread':
+				return new SpreadAST(moved(node.expr, level, true))
+			case 'access':
+				return new AccessAST(within(node.target), node.key)
+			default:
+				return node
+		}
+	}
+	return moved(ast, 0)
 }
 
 interface Scope {
