@@ -3095,7 +3095,19 @@ export function changed(
 	}
 	const inOrder = [...changes.filter(written), ...changes.filter(change => !written(change))]
 	let next = root
-	for (const { route, value, row: elsewhere } of inOrder) {
+	// What the rest of the changes say stays as they say it, so that one of them is not had by
+	// way of another: a corner pulled down grows the height, and does not move the top.
+	const saidBy = (change: Change): AST[] => {
+		const found = rowAt(next, env, change.row ?? row)
+		const node = found && nodeAt(found.node, found.env, change.route)
+		return node ? partsSaid(node, change.value) : []
+	}
+	const heldFor = (change: Change): ReadonlySet<AST> => {
+		const own = new Set(saidBy(change))
+		return new Set(inOrder.filter(other => other !== change).flatMap(saidBy).filter(node => !own.has(node)))
+	}
+	for (const change of inOrder) {
+		const { route, value, row: elsewhere } = change
 		const of = elsewhere ?? row
 		const found = rowAt(next, env, of)
 		const node = found && nodeAt(found.node, found.env, route)
@@ -3105,9 +3117,10 @@ export function changed(
 			next = added
 			continue
 		}
-		const { ast, diagnostics } = solve(next, env, node, value)
+		const held = heldFor(change)
+		const { ast, diagnostics } = solve(next, env, node, value, { held })
 		// A place that can go only one way goes as far as it can: the rest stays.
-		const some = ast ?? partsChanged(next, env, of, route, value)
+		const some = ast ?? partsChanged(next, env, of, route, value, held)
 		if (some === null) {
 			return { ast: null, problem: diagnostics[0]?.message ?? 'cannot be moved' }
 		}
@@ -3116,13 +3129,24 @@ export function changed(
 	return { ast: next, problem: null }
 }
 
+/** The parts of `node` that `value` says anything of: each element it says, or all of it. */
+function partsSaid(node: AST, value: unknown): AST[] {
+	if (value === UNSET) return []
+	const written = bare(node)
+	if (Array.isArray(value) && written.kind === 'vec' && written.elements.length === value.length) {
+		return written.elements.flatMap((element, i) => partsSaid(element, value[i]))
+	}
+	return node === written ? [node] : [node, written]
+}
+
 /** `root`, with each part of what is wanted that can be there, or null if none can. */
 function partsChanged(
 	root: AST,
 	env: Env,
 	row: string,
 	route: readonly number[],
-	value: unknown
+	value: unknown,
+	held: ReadonlySet<AST>
 ): AST | null {
 	if (!Array.isArray(value)) return null
 	let next = root
@@ -3131,7 +3155,7 @@ function partsChanged(
 		const found = rowAt(next, env, row)
 		const node = found && nodeAt(found.node, found.env, route)
 		const only = value.map((_, j) => (j === i ? part : UNSET))
-		next = (node && solve(next, env, node, only).ast) ?? next
+		next = (node && solve(next, env, node, only, { held }).ast) ?? next
 	}
 	return next === root ? null : next
 }

@@ -291,10 +291,10 @@ A host making a reference writes the shortest of what reaches it: a name, then a
 ## Working backward
 
 ```ts
-solve(root, env, node, value)  // { ast, diagnostics }: `root`, edited so that `node` gives `value`
+solve(root, env, node, value, { held })  // { ast, diagnostics }: `root`, edited so that `node` gives `value`
 ```
 
-`node` is somewhere in `root`, which stands in `env`. `value` can have `UNSET` in it for a part that can be whatever it comes to. `ast` is null, with a diagnostic saying where it stopped, if there is no way to the value. See [Working backward](./eval.md#working-backward).
+`node` is somewhere in `root`, which stands in `env`. `value` can have `UNSET` in it for a part that can be whatever it comes to. `held` is a set of nodes that stay as they are for this edit, as `@` would have them: what the host has set already in the same gesture. `ast` is null, with a diagnostic saying where it stopped, if there is no way to the value. See [Working backward](./eval.md#working-backward).
 
 ## Checking and reflection
 

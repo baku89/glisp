@@ -166,6 +166,27 @@ describe('solve — @', () => {
 	})
 })
 
+describe('solve — held', () => {
+	it('leaves a held node where it is, as if pinned, and goes another way', () => {
+		const root = parse('{a = 1 b = 2 r = (+ a b)}') as LetAST
+		const node = root.bindings.find(([name]) => name === 'r')![1]
+		const b = root.bindings.find(([name]) => name === 'b')![1]
+		expect(print(solve(root, env, node, 10).ast!)).toBe('{a = 1 b = 9 r = (+ a b)}')
+		expect(print(solve(root, env, node, 10, { held: new Set([b]) }).ast!)).toBe('{a = 8 b = 2 r = (+ a b)}')
+		const a = root.bindings.find(([name]) => name === 'a')![1]
+		const both = solve(root, env, node, 10, { held: new Set([a, b]) })
+		expect(both.ast).toBeNull()
+		expect(both.diagnostics[0]?.message).toBe('held where it is by this edit')
+	})
+
+	it('is no stop for a held node that already is what is wanted', () => {
+		const root = parse('{a = 1 r = [a 2]}') as LetAST
+		const node = root.bindings.find(([name]) => name === 'r')![1]
+		const a = root.bindings.find(([name]) => name === 'a')![1]
+		expect(print(solve(root, env, node, [1, 5], { held: new Set([a]) }).ast!)).toBe('{a = 1 r = [a 5]}')
+	})
+})
+
 describe('solve — what cannot add up', () => {
 	it('reports a name that would need two values', () => {
 		const f = 'f = (=> [x: number]: [number number] [x x])'

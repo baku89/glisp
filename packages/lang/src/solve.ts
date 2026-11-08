@@ -60,11 +60,20 @@ const MAX_STEPS = 10_000
 const TOLERANCE = 1e-9
 const SIGNIFICANT_DIGITS = 12
 
+export interface SolveOptions {
+	/**
+	 * Nodes that stay as they are for this edit, as if pinned: what a host has just set, for the
+	 * rest of what it does not to move it.
+	 */
+	readonly held?: ReadonlySet<AST>
+}
+
 /**
  * `root` in `env`, edited so that `node`, somewhere in it, evaluates to `value`.
  * What is unchanged stays `===`.
  */
-export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
+export function solve(root: AST, env: Env, node: AST, value: unknown, options: SolveOptions = {}): Solved {
+	const held = options.held ?? new Set<AST>()
 	const places = placesIn(root, env)
 	const nodeEnv = places.get(node)
 	if (nodeEnv === undefined) {
@@ -100,6 +109,7 @@ export function solve(root: AST, env: Env, node: AST, value: unknown): Solved {
 			return stop(ast, at, 'too far to work backward')
 		}
 		if (same(evaluate(ast, at).value, wanted)) return NOTHING
+		if (held.has(ast)) return stop(ast, at, 'held where it is by this edit')
 		const next = (child: AST, childEnv: Env, childWanted: unknown) =>
 			back(child, childEnv, childWanted, depth + 1)
 

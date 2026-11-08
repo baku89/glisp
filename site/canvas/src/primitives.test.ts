@@ -158,6 +158,17 @@ describe('taking hold of them', () => {
 		expect(handle.at![0]).toBeCloseTo(100)
 		expect(handle.to([130, 50], handle.at!)).toEqual([{ route: [2], value: 130 }])
 	})
+
+	it('grows a rect down from a corner, and not up, when its height is the way to another', () => {
+		// The height reaches a square below: pulling the bottom down keeps the top where the hand
+		// left it, and the square goes down, rather than the top going up for the height to grow.
+		const root = parse('{c = (path.rect [0 -20] [100 (- ../../../s/origin:/1 ../../origin:/1)]) s = (path.square [0 100] 50)}')
+		const corner = gripAt(root, env, ROW)!.handles.find(h => h.name === 'bottom left')!
+		expect(corner.at).toEqual([0, 100])
+		const next = changed(root, env, ROW, corner.to([0, 150], corner.at!)).ast as LetAST
+		expect(print(bound(next)[0]![1])).toBe('(path.rect [0 -20] [100 (- ../../../s/origin:/1 ../../origin:/1)])')
+		expect(print(bound(next)[1]![1])).toBe('(path.square [0 150] 50)')
+	})
 })
 
 describe('drawing them', () => {
