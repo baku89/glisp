@@ -143,7 +143,59 @@ const howWorkedOut = (slots: readonly Slot[], element: number | null): MultiFiel
 	return count === 0 ? 'none' : count === slots.length ? 'all' : 'some'
 }
 
-/** What the rows at `paths` have in common, or null if they are not calls of the same. */
+/**
+ * The numbers that `slots`, one to each of the rows at `paths`, have as one argument: a number
+ * each, or vectors of as many numbers each. Nothing, if they are neither.
+ */
+function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgument | null {
+	const [slot] = slots
+	if (slot === undefined) return null
+	const results = slots.map(s => evaluate(s.ast, s.env).value)
+	const placesOf = (element: number | null): Place[] =>
+		paths.map((path, i) => ({ path: `${path}/${slots[i]!.key}`, element }))
+
+	if (results.every(value => typeof value === 'number')) {
+		return {
+			label: titleOf(slot),
+			fields: [
+				{
+					places: placesOf(null),
+					label: null,
+					name: slot.label,
+					options: numberOptionsAt(slot),
+					values: results as number[],
+					canExtract: true,
+					workedOut: howWorkedOut(slots, null),
+				},
+			],
+		}
+	}
+	const length = isNumbers(results[0]) ? results[0].length : 0
+	if (length === 0 || !results.every(r => isNumbers(r) && r.length === length)) return null
+	const areWritten = slots.every(s => bare(s.ast).kind === 'vec')
+	const shape = slot.expected
+	return {
+		label: titleOf(slot),
+		fields: Array.from({ length }, (_, element): MultiField => {
+			const titled = elementTitle(slot, element)
+			return {
+				places: placesOf(element),
+				label: titled,
+				name: (titled ?? `${slot.label}${element}`).toLowerCase(),
+				options: elementOptionsOf(shape, element),
+				values: (results as number[][]).map(r => r[element]!),
+				canExtract: areWritten,
+				workedOut: howWorkedOut(slots, element),
+			}
+		}),
+	}
+}
+
+/**
+ * What the rows at `paths` have in common: each argument, if they are calls of the same, or
+ * else the arguments called the same thing, as a polygon and a circle both have a radius. Null
+ * if they are not calls, or have nothing in common but what they come to.
+ */
 export function inspectRows(
 	root: AST,
 	env: Env,
@@ -151,57 +203,22 @@ export function inspectRows(
 ): MultiInspection | null {
 	const rows = paths.map(path => argsOf(root, env, path))
 	const [first] = rows
-	if (!first || rows.some(row => row === null || row.fn !== first.fn)) return inspectValues(root, env, paths)
+	if (!first || rows.some(row => row === null)) return inspectValues(root, env, paths)
 	const others = rows as NonNullable<(typeof rows)[number]>[]
-	const placesOf = (key: string, element: number | null): Place[] =>
-		paths.map(path => ({ path: `${path}/${key}`, element }))
+	const same = others.every(row => row.fn === first.fn)
 
-	const args: MultiArgument[] = first.slots.flatMap((slot, arg) => {
-		const slots = others.map(row => row.slots[arg])
+	const args = first.slots.flatMap((slot, arg): MultiArgument[] => {
+		// Of one function, an argument is the same by where it is, whatever each is called.
+		const slots = others.map(row => (same ? row.slots[arg] : row.slots.find(other => titleOf(other) === titleOf(slot))))
 		if (slots.some(s => s === undefined)) return []
-		const results = (slots as Slot[]).map(s => evaluate(s.ast, s.env).value)
-
-		if (results.every(value => typeof value === 'number')) {
-			return [
-				{
-					label: titleOf(slot),
-					fields: [
-						{
-							places: placesOf(slot.key, null),
-							label: null,
-							name: slot.label,
-							options: numberOptionsAt(slot),
-							values: results as number[],
-							canExtract: true,
-							workedOut: howWorkedOut(slots as Slot[], null),
-						},
-					],
-				},
-			]
-		}
-		const length = isNumbers(results[0]) ? results[0].length : 0
-		if (length === 0 || !results.every(r => isNumbers(r) && r.length === length)) return []
-		const areWritten = (slots as Slot[]).every(s => bare(s.ast).kind === 'vec')
-		const shape = slot.expected
-		return [
-			{
-				label: titleOf(slot),
-				fields: Array.from({ length }, (_, element): MultiField => {
-					const titled = elementTitle(slot, element)
-					return {
-						places: placesOf(slot.key, element),
-						label: titled,
-						name: (titled ?? `${slot.label}${element}`).toLowerCase(),
-						options: elementOptionsOf(shape, element),
-						values: (results as number[][]).map(r => r[element]!),
-						canExtract: areWritten,
-						workedOut: howWorkedOut(slots as Slot[], element),
-					}
-				}),
-			},
-		]
+		const argument = argumentOf(paths, slots as Slot[])
+		return argument === null ? [] : [argument]
 	})
-	return { fn: first.fn, label: first.label, icon: first.icon, doc: first.doc, args }
+	if (same) return { fn: first.fn, label: first.label, icon: first.icon, doc: first.doc, args }
+	if (args.length === 0) return inspectValues(root, env, paths)
+	// Of several functions, there is no one of them to say what they are, only what each is called.
+	const labels = [...new Set(others.map(row => row.label ?? row.fn))]
+	return { fn: '', label: labels.join(', '), icon: null, doc: null, args }
 }
 
 /**

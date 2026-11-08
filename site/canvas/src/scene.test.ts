@@ -472,6 +472,7 @@ describe('what heads an inspector', () => {
 
 describe('several rows at once', () => {
 	const rows = ['binding:a', 'binding:b']
+	const mixed_root = () => parse('{a = (path.ngon [0 0] 10 5) b = (path.circle [3 4] 20)}')
 	const root = parse('{a = (path.rect [0 0] [10 20]) b = (path.rect [5 5] [30 20])}')
 	const inspected = inspectRows(root, env, rows)!
 	const field = (arg: number, element: number) => inspected.args[arg]!.fields[element]!
@@ -487,8 +488,8 @@ describe('several rows at once', () => {
 		expect(isMixed(field(1, 1).values)).toBe(false)
 	})
 
-	it('are nothing in common unless they are calls of the same, or come to the same kind of numbers', () => {
-		expect(inspectRows(parse('{a = (path.rect [0 0] [1 1]) b = (path.circle [0 0] 1)}'), env, rows)).toBeNull()
+	it('are nothing in common unless they share an argument, or come to the same kind of numbers', () => {
+		expect(inspectRows(parse('{a = (path.rect [0 0] [1 1]) b = (+ 1 2)}'), env, rows)).toBeNull()
 		expect(inspectRows(parse('{a = 1 b = [2 3]}'), env, rows)).toBeNull()
 		// Numbers, however written, are numbers to edit together, and vectors of as many are their numbers.
 		expect(inspectRows(parse('{a = 1 b = (+ 1 1)}'), env, rows)!.args[0]!.fields[0]!.values).toEqual([1, 2])
@@ -499,6 +500,39 @@ describe('several rows at once', () => {
 	it('have numbers as well as vectors', () => {
 		const circles = inspectRows(parse('{a = (path.circle [0 0] 1) b = (path.circle [0 0] 2)}'), env, rows)!
 		expect(circles.args[1]!.fields[0]!.values).toEqual([1, 2])
+	})
+
+	describe('of different functions', () => {
+		const mixed = inspectRows(parse('{a = (path.ngon [0 0] 10 5) b = (path.circle [3 4] 20)}'), env, rows)!
+
+		it('have the arguments that are called the same, with where each is in its own call', () => {
+			expect(mixed.fn).toBe('')
+			expect(mixed.label).toBe('Regular Polygon, Circle')
+			expect(mixed.args.map(arg => arg.label)).toEqual(['Center', 'Radius'])
+			expect(mixed.args[1]!.fields[0]!.values).toEqual([10, 20])
+			expect(mixed.args[1]!.fields[0]!.places).toEqual([
+				{ path: 'binding:a/arg1', element: null },
+				{ path: 'binding:b/arg1', element: null },
+			])
+			expect(mixed.args[0]!.fields.map(field => field.values)).toEqual([[0, 3], [0, 4]])
+		})
+
+		it('go by what each is called, wherever it is, and not by what is only the same kind of number', () => {
+			// A star has an outer and an inner radius, and points, which are not a polygon's radius and sides.
+			const star = inspectRows(parse('{a = (path.star [0 0] 10 4 5 30) b = (path.ngon [0 0] 20 6 45)}'), env, rows)!
+			expect(star.args.map(arg => arg.label)).toEqual(['Center', 'Angle'])
+			expect(star.args[1]!.fields[0]!.values).toEqual([30, 45])
+			expect(star.args[1]!.fields[0]!.places.map(place => place.path)).toEqual(['binding:a/arg4', 'binding:b/arg3'])
+		})
+
+		it('can be set together', () => {
+			const { ast } = withValuesAt(mixed_root(), env, mixed.args[1]!.fields[0]!.places, [15, 15])
+			expect(print(ast!)).toBe('{main = [b = (path.circle [3 4] 15) a = (path.ngon [0 0] 15 5)]}')
+		})
+
+		it('are nothing where only the kind of value is shared under a different name', () => {
+			expect(inspectRows(parse('{a = (path.rect [0 0] [1 1]) b = (path.spiral [0 0] 0 5 3)}'), env, rows)).toBeNull()
+		})
 	})
 
 	describe('are worked out', () => {
