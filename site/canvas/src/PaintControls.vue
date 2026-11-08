@@ -106,6 +106,12 @@ const joinIcons = enumIconsOf(lineJoinType) ?? undefined
 /** Whether all there is to a line is out. Most of the time its color and width will do. */
 const lineOpen = ref(false)
 
+/**
+ * Whether the lengths of the dash, and where it begins, are out. They are a dash's own, under
+ * it, and come out with it: choosing a kind of dash opens them, as there is then something there.
+ */
+const dashOpen = ref(false)
+
 /** The width a dash is seen against, which is what its kinds are in terms of. */
 const dashWidth = computed(() => Math.max(1, ...valuesOf('width')))
 
@@ -117,8 +123,10 @@ const dashKind = computed<DashKind | null>(() => {
 
 const dashIcons = DASH_KINDS.map(kind => DASH_ICONS[kind])
 
-const setDashKind = (kind: DashKind): void =>
+function setDashKind(kind: DashKind): void {
 	set({ dash: dashOf(kind, dashWidth.value, mixed('dash') ? [] : paint.value.dash) })
+	if (kind !== 'solid') dashOpen.value = true
+}
 
 /** One selection with the rows of what holds these, so that only one row is ever selected. */
 const selection = inject(SELECTION)!
@@ -372,7 +380,9 @@ useEventListener(
 						</div>
 					</ParameterTreeItem>
 					<ParameterTreeItem
+						v-model:open="dashOpen"
 						label="Dash"
+						expandable
 						:selected="isSelected('dash')"
 						:menuItems="menuOf('dash')"
 						@select="select('dash')"
@@ -387,43 +397,45 @@ useEventListener(
 								@update:modelValue="setDashKind"
 							/>
 						</div>
-					</ParameterTreeItem>
-					<!--
-						The lengths themselves: a dash, then a gap, and so on in turn. Changing them makes
-						the dash its own. The rows stay whatever the dash is, so that nothing moves as it
-						changes, and only say when they have no part in it: a solid line has no lengths
-						and nothing to begin along.
-					-->
-					<ParameterTreeItem
-						label="Pattern"
-						:hint="{ title: 'Pattern', description: 'How long a dash is, then a gap, and so on in turn.' }"
-						:selected="isSelected('dash')"
-						:menuItems="menuOf('dash')"
-						@select="select('dash')"
-					>
-						<div data-takes-reference @focusin="select('dash')">
-							<InputNumberList
-								:modelValue="mixed('dash') ? [] : paint.dash"
-								:min="0"
-								:atLeast="1"
-								:disabled="mixed('dash') || paint.dash.length === 0"
-								@update:modelValue="set({ dash: $event })"
-							/>
-						</div>
-					</ParameterTreeItem>
-					<ParameterTreeItem
-						label="Offset"
-						:selected="isSelected('dashOffset')"
-						:menuItems="menuOf('dashOffset')"
-						@select="select('dashOffset')"
-					>
-						<div data-takes-reference @focusin="select('dashOffset')">
-							<MixedNumber
-								:values="valuesOf('dashOffset')"
-								:disabled="valuesOf('dash').every(dash => dash.length === 0)"
-								@update:values="setNumbers('dashOffset', $event)"
-							/>
-						</div>
+						<template #children>
+						<!--
+							The lengths themselves: a dash, then a gap, and so on in turn. Changing them makes
+							the dash its own. The rows stay whatever the dash is, so that nothing moves as it
+							changes, and only say when they have no part in it: a solid line has no lengths
+							and nothing to begin along.
+						-->
+						<ParameterTreeItem
+							label="Pattern"
+							:hint="{ title: 'Pattern', description: 'How long a dash is, then a gap, and so on in turn.' }"
+							:selected="isSelected('dash')"
+							:menuItems="menuOf('dash')"
+							@select="select('dash')"
+						>
+							<div data-takes-reference @focusin="select('dash')">
+								<InputNumberList
+									:modelValue="mixed('dash') ? [] : paint.dash"
+									:min="0"
+									:atLeast="1"
+									:disabled="mixed('dash') || paint.dash.length === 0"
+									@update:modelValue="set({ dash: $event })"
+								/>
+							</div>
+						</ParameterTreeItem>
+						<ParameterTreeItem
+							label="Offset"
+							:selected="isSelected('dashOffset')"
+							:menuItems="menuOf('dashOffset')"
+							@select="select('dashOffset')"
+						>
+							<div data-takes-reference @focusin="select('dashOffset')">
+								<MixedNumber
+									:values="valuesOf('dashOffset')"
+									:disabled="valuesOf('dash').every(dash => dash.length === 0)"
+									@update:values="setNumbers('dashOffset', $event)"
+								/>
+							</div>
+						</ParameterTreeItem>
+						</template>
 					</ParameterTreeItem>
 				</template>
 			</ParameterTreeItem>
