@@ -549,6 +549,15 @@ const paintable = computed(() =>
 		return !isOfCanvasAt(root, env, row) && pathOfRow(root, env, row) !== null
 	})
 )
+/**
+ * What the Tool Options paint: with a tool for drawing, what it will draw; with the tool for
+ * selecting, what is selected, so that a style is changed where it is seen, with nothing to open.
+ */
+const painted = computed(() =>
+	drawing.value === null && paintable.value.length > 0
+		? { document, rows: paintable.value }
+		: { document: toolDocument, rows: [PAINT_ROW] }
+)
 
 // A solid goes up through the title bar, and the window's own where it has one.
 const solid = computed(() => solidOf(document.root.value, document.env.value))
@@ -1592,6 +1601,7 @@ function selectInTree(row: string | null): void {
 					:label="tool === 'select' || tool === 'points' ? 'Tool Options' : toolInHand.label"
 					:icon="toolInHand.icon"
 					:paintOfSelected="paintOfSelected"
+					:painted="painted"
 				/>
 				<div
 					v-if="panelJoining"

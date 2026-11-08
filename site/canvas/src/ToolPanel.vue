@@ -13,7 +13,7 @@ import { computed, provide, shallowRef } from 'vue'
 import FloatPanel from './FloatPanel.vue'
 import type { Paint } from './graphics'
 import PaintControls from './PaintControls.vue'
-import { ATTRIBUTES_OF_TOOL, PAINT_ROW, shapeAttributesOf, withAttribute, withPaintTaken } from './toolAttributes'
+import { ATTRIBUTES_OF_TOOL, shapeAttributesOf, withAttribute, withPaintTaken } from './toolAttributes'
 
 /**
  * What the tool in hand makes things from, over the tools. What is said here goes for what is
@@ -27,6 +27,8 @@ const props = defineProps<{
 	icon: string
 	/** How what is selected is painted, to take for this, if one thing is. */
 	paintOfSelected: Paint | null
+	/** What its paint controls are of: what the tool draws, or what is selected, as the tool has it. */
+	painted: { document: GlispDocument; rows: readonly string[] }
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -97,7 +99,7 @@ const take = (paint: Paint): void =>
 					/>
 				</ParameterTreeItem>
 			</ParameterTree>
-			<PaintControls treeName="glisp.canvas.tool" :labelWidth="140" :document="document" :rows="[PAINT_ROW]" />
+			<PaintControls treeName="glisp.canvas.tool" :labelWidth="140" :document="painted.document" :rows="painted.rows" />
 		</ScrollArea>
 	</FloatPanel>
 </template>
