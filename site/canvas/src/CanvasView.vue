@@ -806,7 +806,7 @@ function facing(angle: number): number {
  * to say it goes round, however far out it is, how far either way along it goes, and how long its heads are.
  */
 const SWING_RADIUS = 40
-const SWING_REACH = 10
+const SWING_REACH = 14
 const SWING_HEAD = 3.5
 
 function drawHandle(
