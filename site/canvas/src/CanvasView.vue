@@ -773,11 +773,13 @@ function color(name: string): string {
 /** What a handle looks like, around where it is, facing the way it pulls. */
 const ARROW = new Path2D('M 15 0 H -15 M -9 -5 L -15 0 L -9 5 M 9 -5 L 15 0 L 9 5')
 const CROSS = new Path2D('M 12 0 H -12 M 0 12 V -12')
-const DIAMOND = new Path2D('M 7 0 L 0 7 L -7 0 L 0 -7 Z')
+const DIAMOND = new Path2D('M 5 0 L 0 5 L -5 0 L 0 -5 Z')
 /** What only says which way: the head of an arrow, at the end of its line. */
 const POINTER = new Path2D('M -8 -6 L 0 0 L -8 6')
 /** How far out from a corner of a box the line is that turns it, and how far to either side of that it can be taken hold of. */
 const TURNER_RADIUS = 13
+/** How far around the corner the arc goes, either way from straight out of it. */
+const TURNER_SWEEP = Math.PI / 6
 const TURNER_REACH = 7
 /** What pulls one side of a box: two lines along the side, one either side of it, with the side between. */
 const GRIP = new Path2D('M -3 -5 V 5 M 3 -5 V 5')
@@ -823,14 +825,15 @@ function drawHandle(
 ): void {
 	context.strokeStyle = accent
 	context.lineWidth = active ? HOVER_WIDTH : 1
-	// Under what is about to be drawn, for it to be told from what is the same color as it.
-	const edged = (path?: Path2D): void => {
+	// Under what is only a stroke, for it to be told from what is the same color as it. The
+	// outline of a shape is the one that goes faintly, as it lies right on the shape's own edge.
+	const edged = (path?: Path2D, faintly = false): void => {
 		const width = context.lineWidth
 		const alpha = context.globalAlpha
 		// Of what it is seen over: what the program says is behind everything, or else the window.
 		context.strokeStyle = solid.value ?? paper
 		context.lineWidth = width + HANDLE_EDGE * 2
-		context.globalAlpha = alpha * HANDLE_EDGE_ALPHA
+		context.globalAlpha = faintly ? alpha * HANDLE_EDGE_ALPHA : alpha
 		if (path) context.stroke(path)
 		else context.stroke()
 		context.globalAlpha = alpha
@@ -839,7 +842,7 @@ function drawHandle(
 	}
 	if (handle.path !== undefined) {
 		const path = pathOnScreen(handle.path)
-		edged(path)
+		edged(path, true)
 		context.setLineDash(handle.dashed && !active ? DASH : [])
 		context.stroke(path)
 		context.setLineDash([])
@@ -855,7 +858,7 @@ function drawHandle(
 		context.rotate(facing(handle.angle ?? 0))
 		context.lineCap = 'round'
 		context.beginPath()
-		context.arc(0, 0, TURNER_RADIUS, -Math.PI / 4, Math.PI / 4)
+		context.arc(0, 0, TURNER_RADIUS, -TURNER_SWEEP, TURNER_SWEEP)
 		edged()
 		context.stroke()
 	} else if (handle.grip) {
@@ -888,7 +891,6 @@ function drawHandle(
 		context.stroke(swing)
 	} else if (handle.kind === 'dia' || handle.rotates) {
 		context.lineWidth = 1
-		edged(DIAMOND)
 		context.fill(DIAMOND)
 		context.stroke(DIAMOND)
 	} else if (handle.kind === 'offset') {
@@ -921,7 +923,6 @@ function drawHandle(
 		context.lineWidth = 1
 		context.beginPath()
 		context.arc(0, 0, HANDLE_RADIUS + 3, 0, Math.PI * 2)
-		edged()
 		context.fill()
 		context.stroke()
 		context.strokeStyle = active ? paper : accent
@@ -941,7 +942,7 @@ function drawHandle(
 			context.save()
 			context.rotate(facing(handle.angle ?? 0))
 			context.lineWidth = 1
-			edged(handle.kind === 'arrow' ? ARROW : CROSS)
+			if (handle.kind === 'arrow') edged(ARROW)
 			context.stroke(handle.kind === 'arrow' ? ARROW : CROSS)
 			context.restore()
 		}
@@ -957,7 +958,7 @@ function drawHandle(
 		} else {
 			context.arc(0, 0, handle.control ? CONTROL_RADIUS : HANDLE_RADIUS, 0, Math.PI * 2)
 		}
-		edged()
+		// What is filled is seen well enough by its fill and its edge, without paper around it.
 		context.fill()
 		context.stroke()
 	}
@@ -988,8 +989,7 @@ function drawExtended(context: CanvasRenderingContext2D, [ax, ay]: Vec, [bx, by]
 function drawSnap(
 	context: CanvasRenderingContext2D,
 	{ at, label, line, beyond, target, code }: SnapPoint,
-	accent: string,
-	paper: string
+	accent: string
 ): void {
 	const [x, y] = toScreen(at, view.value)
 	context.save()
@@ -1008,8 +1008,7 @@ function drawSnap(
 		context.arc(x, y, HANDLE_RADIUS + 2, 0, Math.PI * 2)
 		context.stroke()
 	}
-	// Bare, with an edge of the paper to stay readable over what is under it, and bold
-	// if it will be referred to, rather than only being the same.
+	// Bare, and bold if it will be referred to, rather than only being the same.
 	if (label === '') {
 		context.restore()
 		return
@@ -1017,10 +1016,6 @@ function drawSnap(
 	context.font = target === null && code === undefined ? SNAP_LABEL_FONT : `bold ${SNAP_LABEL_FONT}`
 	context.textBaseline = 'middle'
 	const [left, top] = [x + 11, y - 13]
-	context.lineJoin = 'round'
-	context.lineWidth = 3
-	context.strokeStyle = paper
-	context.strokeText(label, left, top)
 	context.fillStyle = accent
 	context.fillText(label, left, top)
 	context.restore()
@@ -1349,7 +1344,7 @@ function draw(): void {
 	}
 
 	if (snapMark.value !== null) {
-		drawSnap(context, snapMark.value, snapMark.value === linking.value ? expression : accent, paper)
+		drawSnap(context, snapMark.value, snapMark.value === linking.value ? expression : accent)
 	}
 
 	if (props.addingAt != null) {
@@ -1704,7 +1699,7 @@ function handleAt(x: number, y: number): number | null {
 		const across = Math.abs(Math.hypot(hx - x, hy - y) - TURNER_RADIUS)
 		const off = Math.atan2(y - hy, x - hx) - facing(angle ?? 0)
 		const round = Math.abs(Math.atan2(Math.sin(off), Math.cos(off)))
-		if (across <= TURNER_REACH && round <= Math.PI / 4 + 0.2) return i
+		if (across <= TURNER_REACH && round <= TURNER_SWEEP + 0.2) return i
 	}
 	if (!context) return null
 	context.save()
