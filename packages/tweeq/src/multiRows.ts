@@ -143,9 +143,16 @@ const howWorkedOut = (slots: readonly Slot[], element: number | null): MultiFiel
 	return count === 0 ? 'none' : count === slots.length ? 'all' : 'some'
 }
 
+/** What is said of the argument by any of the rows, the first that says each thing having it. */
+const optionsAcross = (options: readonly NumberOptions[]): NumberOptions =>
+	options.reduceRight((all, each) => ({ ...all, ...each }), {} as NumberOptions)
+
 /**
  * The numbers that `slots`, one to each of the rows at `paths`, have as one argument: a number
- * each, or vectors of as many numbers each. Nothing, if they are neither.
+ * each, or vectors of as many numbers each. Nothing, if they are neither. What is said of it,
+ * its limits, icons and what its numbers are called, comes from whichever of the rows says it,
+ * the first of them first: a circle's center says it is a point, which a function of its own
+ * taking any vector need not.
  */
 function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgument | null {
 	const [slot] = slots
@@ -162,7 +169,7 @@ function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgu
 					places: placesOf(null),
 					label: null,
 					name: slot.label,
-					options: numberOptionsAt(slot),
+					options: optionsAcross(slots.map(numberOptionsAt)),
 					values: results as number[],
 					canExtract: true,
 					workedOut: howWorkedOut(slots, null),
@@ -173,16 +180,15 @@ function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgu
 	const length = isNumbers(results[0]) ? results[0].length : 0
 	if (length === 0 || !results.every(r => isNumbers(r) && r.length === length)) return null
 	const areWritten = slots.every(s => bare(s.ast).kind === 'vec')
-	const shape = slot.expected
 	return {
 		label: titleOf(slot),
 		fields: Array.from({ length }, (_, element): MultiField => {
-			const titled = elementTitle(slot, element)
+			const titled = slots.map(s => elementTitle(s, element)).find(title => title !== null) ?? null
 			return {
 				places: placesOf(element),
 				label: titled,
 				name: (titled ?? `${slot.label}${element}`).toLowerCase(),
-				options: elementOptionsOf(shape, element),
+				options: optionsAcross(slots.map(s => elementOptionsOf(s.expected, element))),
 				values: (results as number[][]).map(r => r[element]!),
 				canExtract: areWritten,
 				workedOut: howWorkedOut(slots, element),

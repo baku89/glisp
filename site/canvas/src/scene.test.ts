@@ -530,6 +530,17 @@ describe('several rows at once', () => {
 			expect(print(ast!)).toBe('{main = [b = (path.circle [3 4] 15) a = (path.ngon [0 0] 15 5)]}')
 		})
 
+		it('take what any of them says of an argument, as its limits, icons and what its numbers are called', () => {
+			const plain = '{f = (=> [center: vec2 radius: number] (path.circle center radius)) a = (f [0 0] 1) b = (path.circle [3 4] 2)}'
+			const own = inspectRows(parse(plain), env, rows)!
+			const circles = inspectRows(parse('{a = (path.circle [0 0] 1) b = (path.circle [3 4] 2)}'), env, rows)!
+			expect(own.args.map(arg => arg.label)).toEqual(['Center', 'Radius'])
+			expect(own.args[0]!.fields.map(field => field.label)).toEqual(['X', 'Y'])
+			expect(own.args[0]!.fields.map(field => field.options)).toEqual(circles.args[0]!.fields.map(field => field.options))
+			expect(own.args[0]!.fields[0]!.options).toMatchObject({ leftIcon: 'char:X' })
+			expect(own.args[1]!.fields[0]!.options).toEqual(circles.args[1]!.fields[0]!.options)
+		})
+
 		it('are nothing where only the kind of value is shared under a different name', () => {
 			expect(inspectRows(parse('{a = (path.rect [0 0] [1 1]) b = (path.spiral [0 0] 0 5 3)}'), env, rows)).toBeNull()
 		})
