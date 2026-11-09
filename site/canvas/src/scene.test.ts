@@ -853,7 +853,8 @@ describe('snapping', () => {
 			const { root, crossings } = crossingIn('{l = (line.fromPoints [-20 3] [-10 3]) r = (path.rect [0 0] [10 10]) c = (path.line [200 200] [300 300])}')
 			expect(crossings.map(({ at }) => at)).toEqual([[10, 3], [0, 3]])
 			expect(put(root, crossings[1]!)).toBe(
-				'(path.line (line.intersection l (line.fromPoints [../../../../r/origin:/0 (+ ../../../../../r/origin:/1 ../../../../../r/size:/1)] [../../../../r/origin:/0 ../../../../r/origin:/1])) [300 300])'
+				// The corner that is the origin is that, as a whole, and the other is worked out from it.
+				'(path.line (line.intersection l (line.fromPoints [../../../../r/origin:/0 (+ ../../../../../r/origin:/1 ../../../../../r/size:/1)] ../../../r/origin:)) [300 300])'
 			)
 		})
 
