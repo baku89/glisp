@@ -899,7 +899,7 @@ export function pulledOnto(root: AST, before: AST, env: Env, row: string, handle
  * the corner it was drawn to. A place there that is an argument of its own is that; one that is
  * worked out goes by what is written as a number, other than what says where it is, if it can.
  */
-export function drawnOnto(root: AST, env: Env, row: string, snap: SnapPoint): AST | null {
+export function drawnOnto(root: AST, env: Env, row: string, snap: SnapPoint, tolerance = SAME_END): AST | null {
 	if (!canRefer(snap)) return null
 	const call = callOfRow(root, env, row)
 	if (call === null) return null
@@ -908,9 +908,12 @@ export function drawnOnto(root: AST, env: Env, row: string, snap: SnapPoint): AS
 		const node = reach(root, env, `${inside}/${path}`)?.chain.at(-1)?.ast
 		return node !== undefined && bare(node).kind === 'lit'
 	}
-	const places = snapPointsOf(root, env, sceneOf(root, env).filter(shape => shape.row === row)).filter(
-		point => canRefer(point) && Math.hypot(point.at[0] - snap.at[0], point.at[1] - snap.at[1]) < SAME_END
-	)
+	// The place of it that was drawn to what `snap` is: as near as its numbers, rounded as they were
+	// drawn, come to it, the nearest first. Going by `snap`, it is then exactly there.
+	const away = (point: SnapPoint): number => Math.hypot(point.at[0] - snap.at[0], point.at[1] - snap.at[1])
+	const places = snapPointsOf(root, env, sceneOf(root, env).filter(shape => shape.row === row))
+		.filter(point => canRefer(point) && away(point) <= tolerance)
+		.sort((a, b) => away(a) - away(b))
 	for (const place of places) {
 		const own = place.target?.startsWith(`${inside}/arg`) ? /^arg(\d+)$/.exec(place.target.slice(inside.length + 1))?.[1] : undefined
 		const next =

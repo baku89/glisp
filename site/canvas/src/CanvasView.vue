@@ -2799,7 +2799,11 @@ function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): vo
 			? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep(), false, fromCenter, shape)
 			: drawnFrom(base, env.value, name, tool, snap, to, even, pointerStep(), fromCenter, shape)
 	// What it is drawn to, it is drawn to as much as from what it starts at.
-	const ended = end === null || valueOnly || byDiameter ? null : drawnOnto(started, env.value, `binding:${name}`, end)
+	// Its numbers are rounded to the step, which can leave its corner a little short of what it was
+	// drawn to, and no further than the step each way.
+	const ended = end === null || valueOnly || byDiameter ? null : drawnOnto(started, env.value, `binding:${name}`, end, pointerStep() * 1.5)
+	// The mark says that it refers to what it was drawn to, when it does, as a handle's does.
+	linking.value = ended?.kind === 'let' ? end : null
 	props.document.setRoot(painted(ended?.kind === 'let' ? ended : started, name))
 	if (name !== pressed.name) emit('select', [`binding:${name}`])
 	pressed.name = name

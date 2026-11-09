@@ -981,6 +981,19 @@ describe('snapping', () => {
 			expect(end[1]).toBeCloseTo(120)
 		})
 
+		it('and to a place its numbers, rounded as they are drawn, fall a little short of', () => {
+			const both = parse('{a = (path.circle [100.5 50.5] 20)}') as LetAST
+			const center = nearestSnap(snapPointsOf(both, env, sceneOf(both, env)), [100.5, 50.5], 1)!
+			// Begun anywhere, with whole numbers only, as on a screen with one pixel to a unit.
+			const started = drawnFrom(both, env, 'c', 'rect', { at: [20.3, 10.7], target: null, label: '' }, center.at, false, 1)
+			expect(print(started)).toContain('(path.rect [20 11] [80 40])')
+			expect(drawnOnto(started, env, 'binding:c', center)).toBeNull()
+			const ended = drawnOnto(started, env, 'binding:c', center, 1.5)!
+			expect(ended).not.toBeNull()
+			const corner = gripAt(ended, env, 'binding:c')!.handles.find(h => h.name === 'bottom right')!.at!
+			expect(corner).toEqual([100.5, 50.5])
+		})
+
 		it('goes with what it is on, rather than changing shape, as it is moved', () => {
 			const both = parse('{a = (path.circle [0 0] 10) b = (path.circle [30 0] 20)}')
 			const left = snapPointsOf(both, env, sceneOf(both, env).filter(s => s.row === 'binding:b')).find(p => p.label === 'left' && p.code !== undefined)!
