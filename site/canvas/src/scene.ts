@@ -516,6 +516,22 @@ function crossingOf(a: SnapPoint, b: SnapPoint): Vec | null {
 }
 
 /** The crossing of two lines as code, if each line is a row of its own or goes between places. */
+/**
+ * `place` as the point it is the across and down of, if it is that: `[a b]`, where `a` is `p/0` and
+ * `b` is `p/1`, is `p`. A line's end that is itself a reference, as a corner of something else, can
+ * only be referred to as a whole, there being nothing written out there to go in to.
+ */
+function wholePoint(place: Place, which: string): Place {
+	const written = place.ast.kind === 'meta' ? place.ast.expr : place.ast
+	if (written.kind !== 'vec' || written.elements.length !== 2) return place
+	const [across, down] = written.elements.map(element => (element.kind === 'sym' ? place.parts.get(element.name) : undefined))
+	if (across === undefined || down === undefined || !across.endsWith('/0') || !down.endsWith('/1')) return place
+	const point = across.slice(0, -2)
+	if (down.slice(0, -2) !== point) return place
+	const name = `__end${which}`
+	return { ast: new SymAST(name), parts: new Map([[name, point]]) }
+}
+
 function crossingCodeOf(a: SnapPoint, b: SnapPoint): Place | null {
 	const lineOf = ({ lineRow, ends }: SnapPoint, which: string): Place | null => {
 		if (lineRow !== undefined) {
@@ -523,9 +539,10 @@ function crossingCodeOf(a: SnapPoint, b: SnapPoint): Place | null {
 			return { ast: new SymAST(name), parts: new Map([[name, lineRow]]) }
 		}
 		if (ends === undefined) return null
+		const [from, to] = [wholePoint(ends.from, `${which}0`), wholePoint(ends.to, `${which}1`)]
 		return {
-			ast: new CallAST(parse('line.fromPoints'), [ends.from.ast, ends.to.ast]),
-			parts: new Map([...ends.from.parts, ...ends.to.parts]),
+			ast: new CallAST(parse('line.fromPoints'), [from.ast, to.ast]),
+			parts: new Map([...from.parts, ...to.parts]),
 		}
 	}
 	const [first, second] = [lineOf(a, 'A'), lineOf(b, 'B')]
@@ -942,6 +959,24 @@ function numbersGiven(root: AST, env: Env, inside: string): Map<string, number> 
 	return numbers
 }
 
+const isPoint = (value: unknown): value is Vec =>
+	Array.isArray(value) && value.length === 2 && value.every(n => typeof n === 'number')
+
+/**
+ * If the row at `row` is a point written out as two numbers, what to put in their place: a point
+ * as it is, or one cast again as it was, as `^point [1 2]` stays a point whatever it refers to.
+ */
+function writtenPointAs(root: AST, env: Env, row: string): ((ast: AST) => AST) | null {
+	const node = reach(root, env, row)?.chain.at(-1)?.ast
+	const written = node && bare(node)
+	const isNumbers = (ast: AST | undefined): boolean =>
+		ast?.kind === 'vec' && ast.elements.length === 2 && ast.elements.every(element => bare(element).kind === 'lit')
+	if (isNumbers(written)) return ast => ast
+	if (written?.kind !== 'call' || written.head.kind !== 'sym' || written.head.name !== '^') return null
+	const [value, ...rest] = written.args
+	return isNumbers(value && bare(value)) ? ast => new CallAST(written.head, [ast, ...rest], written.kwargs) : null
+}
+
 /**
  * `root`, in which `handle` of the row at `row` has been pulled, from where it was in `before`,
  * for it to be on what `snap` is the place of: with what it changed going by that, so that it
@@ -949,6 +984,17 @@ function numbersGiven(root: AST, env: Env, inside: string): Map<string, number> 
  */
 export function pulledOnto(root: AST, before: AST, env: Env, row: string, handle: Handle, snap: SnapPoint): AST | null {
 	if (!canRefer(snap)) return null
+	// A point that is only a point, written out, has no arguments to go by: it is what the snap
+	// says, as a whole, as where two lines cross or a corner of something else.
+	const as = handle.place === 'self' ? writtenPointAs(before, env, row) : null
+	if (as !== null) {
+		const target = 'target'
+		const code = snap.target !== null ? { ast: new SymAST(target), parts: new Map([[target, snap.target]]) } : snap.code!
+		const next = writtenAt(root, env, row, as(code.ast), code.parts)
+		if (next === null || errorsIn(next, env) > errorsIn(root, env)) return null
+		const at = valueOfRow(next, env, row)
+		return isPoint(at) && Math.hypot(at[0] - snap.at[0], at[1] - snap.at[1]) < SAME_END ? next : null
+	}
 	const call = callOfRow(root, env, row)
 	if (call === null) return null
 	const { inside } = call
