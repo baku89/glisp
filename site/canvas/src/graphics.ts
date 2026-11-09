@@ -2442,6 +2442,8 @@ export interface Snaps {
 		readonly from: Vec
 		readonly to: Vec
 		readonly name: string
+		/** It is the whole straight line through `from` and `to`, and not only what is between them. */
+		readonly endless?: true
 	}[]
 }
 
@@ -3229,6 +3231,11 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						name,
 						code: CIRCLE_SIDES[name]!,
 					})),
+					// Its axes, which go on past it, as a line through its middle is what most lines up with it.
+					lines: [
+						{ from: c, to: add(c, toward(0, r)), name: 'horizontal', endless: true },
+						{ from: c, to: add(c, toward(90, r)), name: 'vertical', endless: true },
+					],
 				},
 				move: delta => [change(0, add(c, delta))],
 			}
@@ -3317,6 +3324,11 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						{ at: on(0, ry), name: 'bottom', ...side('bottom') },
 						{ at: on(-rx, 0), name: 'left', ...side('left') },
 						{ at: on(0, -ry), name: 'top', ...side('top') },
+					],
+					// Its axes, which go on past it, and go round with it.
+					lines: [
+						{ from: c, to: on(rx, 0), name: first === 0 ? 'horizontal' : 'x axis', endless: true },
+						{ from: c, to: on(0, ry), name: first === 0 ? 'vertical' : 'y axis', endless: true },
 					],
 				},
 				move: delta => [change(0, add(c, delta))],
@@ -3483,11 +3495,12 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 				guides: [],
 				snaps: {
 					points: [{ at: middle, name: 'center', code: rectPlace(2, 2) }],
+					// Its sides go on past its corners, as what is set along a rect is set along its line.
 					lines: [
-						{ from: s, to: [e[0], s[1]], name: 'top' },
-						{ from: [e[0], s[1]], to: e, name: 'right' },
-						{ from: e, to: [s[0], e[1]], name: 'bottom' },
-						{ from: [s[0], e[1]], to: s, name: 'left' },
+						{ from: s, to: [e[0], s[1]], name: 'top', endless: true },
+						{ from: [e[0], s[1]], to: e, name: 'right', endless: true },
+						{ from: e, to: [s[0], e[1]], name: 'bottom', endless: true },
+						{ from: [s[0], e[1]], to: s, name: 'left', endless: true },
 					],
 				},
 				move: moved,
@@ -3543,11 +3556,12 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 						{ at: [e[0], s[1]], name: 'top right', code: squarePlace(1, 0) },
 						{ at: [s[0], e[1]], name: 'bottom left', code: squarePlace(0, 1) },
 					],
+					// Its sides go on past its corners, as what is set along a rect is set along its line.
 					lines: [
-						{ from: s, to: [e[0], s[1]], name: 'top' },
-						{ from: [e[0], s[1]], to: e, name: 'right' },
-						{ from: e, to: [s[0], e[1]], name: 'bottom' },
-						{ from: [s[0], e[1]], to: s, name: 'left' },
+						{ from: s, to: [e[0], s[1]], name: 'top', endless: true },
+						{ from: [e[0], s[1]], to: e, name: 'right', endless: true },
+						{ from: e, to: [s[0], e[1]], name: 'bottom', endless: true },
+						{ from: [s[0], e[1]], to: s, name: 'left', endless: true },
 					],
 				},
 				move: moved,

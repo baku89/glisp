@@ -994,13 +994,16 @@ function drawExtended(context: CanvasRenderingContext2D, [ax, ay]: Vec, [bx, by]
  */
 function drawSnap(
 	context: CanvasRenderingContext2D,
-	{ at, label, line, beyond, target, code }: SnapPoint,
+	{ at, label, line, beyond, endless, target, code }: SnapPoint,
 	accent: string
 ): void {
 	const [x, y] = toScreen(at, view.value)
 	context.save()
 	context.strokeStyle = accent
-	if (line) {
+	if (line && endless) {
+		// All of it goes on, so none of it is drawn as the part that is there.
+		drawExtended(context, toScreen(line[0], view.value), toScreen(line[1], view.value))
+	} else if (line) {
 		const [[ax, ay], [bx, by]] = [toScreen(line[0], view.value), toScreen(line[1], view.value)]
 		context.lineWidth = 2
 		context.beginPath()

@@ -802,6 +802,27 @@ describe('snapping', () => {
 		})
 	})
 
+	describe('a line that goes on without end, as the axes of a circle do', () => {
+		it('is had by a circle, through its center, and by an ellipse along its own axes', () => {
+			const has = (point: object) => expect(points).toContainEqual(expect.objectContaining(point))
+			has({ at: [100, 100], to: [110, 100], endless: true, label: 'horizontal' })
+			has({ at: [100, 100], to: [100, 110], endless: true, label: 'vertical' })
+			has({ at: [0, 0], to: [10, 0], endless: true, label: 'top' })
+			const turned = parse('{e = (path.ellipse [0 0] [10 5] 90)}')
+			const axes = snapPointsOf(turned, env, sceneOf(turned, env)).filter(p => p.endless)
+			expect(axes.map(p => p.label)).toEqual(['x axis', 'y axis'])
+			expect(axes[0]!.to[0]).toBeCloseTo(0)
+			expect(axes[0]!.to[1]).toBeCloseTo(10)
+		})
+
+		it('snaps anywhere along it, far past the circle, without being asked to go beyond', () => {
+			expect(nearestSnap(points, [300, 101], 2)).toMatchObject({ at: [300, 100], label: 'horizontal', endless: true })
+			expect(nearestSnap(points, [300, 101], 2)!.beyond).toBeUndefined()
+			expect(nearestSnap(points, [101, -50], 2)).toMatchObject({ at: [100, -50], label: 'vertical' })
+			expect(nearestSnap(points, [300, 104], 2)).toBeNull()
+		})
+	})
+
 	it('has a place go before a line', () => {
 		expect(nearestSnap(points, [10.5, 8], 4)!.at).toEqual([10, 10])
 	})
@@ -830,6 +851,26 @@ describe('snapping', () => {
 			expect(onto('(path.rect [0 0] [100 40])', [130, 0.5], true)).toMatch(/^\(path\.line \[130 (?:\.\.\/)*o\/origin:\/1\] \[300 300\]\)$/)
 			expect(onto('(path.rect [0 0] [100 40])', [100.5, 60], true)).toMatch(/^\(path\.line \[\(\+ (?:\.\.\/)*o\/origin:\/0 (?:\.\.\/)*o\/size:\/0\) 60\] \[300 300\]\)$/)
 			expect(onto('(path.rect [0 0] [100 40])', [-30, 0.5], true)).toMatch(/^\(path\.line \[-30 (?:\.\.\/)*o\/origin:\/1\] \[300 300\]\)$/)
+		})
+
+		it('only across or down, anywhere along an axis of a circle, as it is through its center', () => {
+			expect(onto('(path.circle [50 50] 20)', [130, 50.5])).toMatch(/^\(path\.line \[130 (?:\.\.\/)*o\/center:\/1\] \[300 300\]\)$/)
+			expect(onto('(path.circle [50 50] 20)', [50.5, -30])).toMatch(/^\(path\.line \[(?:\.\.\/)*o\/center:\/0 -30\] \[300 300\]\)$/)
+			// Between its center and its side, it is as much of the way from the one to the other.
+			expect(onto('(path.circle [50 50] 20)', [60, 50.5])).toMatch(/^\(path\.line \[\(lerp (?:\.\.\/)*o\/center:\/0 \(\+ (?:\.\.\/)*o\/center:\/0 (?:\.\.\/)*o\/radius:\) 0\.5\) (?:\.\.\/)*o\/center:\/1\] \[300 300\]\)$/)
+		})
+
+		it('past the corners of a rect, along its sides, without being asked to go beyond', () => {
+			expect(onto('(path.rect [0 0] [100 40])', [130, 0.5])).toMatch(/^\(path\.line \[130 (?:\.\.\/)*o\/origin:\/1\] \[300 300\]\)$/)
+			expect(onto('(path.rect [0 0] [100 40])', [100.5, 60])).toMatch(/^\(path\.line \[\(\+ (?:\.\.\/)*o\/origin:\/0 (?:\.\.\/)*o\/size:\/0\) 60\] \[300 300\]\)$/)
+		})
+
+		it('and not past the vertices of a regular polygon, whose sides end there', () => {
+			const gon = parse('{g = (path.ngon [0 0] 10 4 45)}')
+			const sides = snapPointsOf(gon, env, sceneOf(gon, env))
+			const top = 10 * Math.sin(Math.PI / 4)
+			expect(nearestSnap(sides, [0, top + 1], 2)).toMatchObject({ label: 'edge' })
+			expect(nearestSnap(sides, [30, top + 1], 2)).toBeNull()
 		})
 
 		it('and where it would go, if it went on, when asked to', () => {

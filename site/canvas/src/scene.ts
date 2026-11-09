@@ -374,6 +374,8 @@ export interface SnapPoint {
 	readonly code?: Place
 	/** It is a line, from `at` to here, that snaps anywhere along it. */
 	readonly to?: Vec
+	/** The line goes on past both ends: it is the whole straight line through `at` and `to`. */
+	readonly endless?: true
 	/** What was snapped to along, with `at` being where on it. */
 	readonly line?: readonly [Vec, Vec]
 	/** It is where that line would go, if it went on. */
@@ -446,13 +448,14 @@ export function snapPointsOf(
 		}
 		return [
 			...points,
-			...(grip.snaps?.lines ?? []).map(({ from, to, name }) => {
+			...(grip.snaps?.lines ?? []).map(({ from, to, name, endless }) => {
 				const [start, end] = [endAt(from), endAt(to)]
 				return {
 					at: from,
 					to,
 					label: name,
 					target: null,
+					...(endless === undefined ? {} : { endless }),
 					...(start === null || end === null ? {} : { ends: { from: start, to: end } }),
 				}
 			}),
@@ -518,20 +521,23 @@ export function nearestSnap(
 
 /**
  * What was snapped to along a line, somewhere else along it, nearest `at`: as it is for what can
- * only go one way, which can get to the line, and only where its way meets it.
+ * only go one way, which can get to the line, and only where its way meets it. An endless line
+ * has no beyond: all of it is as much the line as what is between the two places that say it.
  */
 export function alongSnapped(snap: SnapPoint, at: Vec, tolerance: number): SnapPoint | null {
 	if (snap.line === undefined) return null
 	const [from, to] = snap.line
-	const { at: on, beyond, t } = along(from, to, at)
-	const { label, line, ends } = snap
-	const extra = beyond ? { beyond } : {}
+	const { at: on, beyond: past, t } = along(from, to, at)
+	const { label, line, ends, endless } = snap
+	const beyond = past && endless !== true
+	const extra = { ...(beyond ? { beyond } : {}), ...(endless === undefined ? {} : { endless }) }
 	if (ends === undefined) return { at: on, target: null, label, line, ...extra }
-	// Where a level or upright line would go on, it is only lined up with: one of where it is.
+	// Where a level or upright line goes on past the places that say it, it is only lined up
+	// with: one of where it is. Between them it is as much of the way along, endless or not.
 	const level = from[1] === to[1] && from[0] !== to[0]
 	const upright = from[0] === to[0] && from[1] !== to[1]
 	const placed =
-		beyond && (level || upright)
+		past && (level || upright)
 			? inLineWith(ends[t > 1 ? 'to' : 'from'], level ? 1 : 0, on, tolerance)
 			: onLineBetween(ends, from, to, t, tolerance)
 	return placed === null ? { at: on, target: null, label, line, ...extra } : { ...placed, label, line, ends, ...extra }
