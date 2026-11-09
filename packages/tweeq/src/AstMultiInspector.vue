@@ -4,8 +4,8 @@ import { ParameterTree, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
 
 import FunctionAbout from './FunctionAbout.vue'
-import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
-import { computed, provide, ref, shallowRef } from 'vue'
+import { MULTI_SELECT_HOST, useMultiSelectStore } from 'tweeq/stores/multiSelect'
+import { computed, nextTick, provide, ref, shallowRef, watch } from 'vue'
 
 import { displayedAs } from './numberField'
 import { type GlispDocument } from './document'
@@ -28,6 +28,8 @@ const props = defineProps<{
 	rows: readonly string[]
 	/** A function's icon, by how its head is written, over what it says of itself. */
 	iconOfFunction?: (fn: string) => string | null
+	/** Rows of arguments picked out elsewhere, as handles on a canvas, whose fields are then selected here. */
+	picked?: readonly string[]
 }>()
 
 provide(MULTI_SELECT_HOST, multiSelectHostOf(props.document))
@@ -37,6 +39,28 @@ useDeleteInInspector(selection)
 
 const inspection = computed(() =>
 	inspectRows(props.document.root.value, props.document.env.value, props.rows)
+)
+
+/** What a field stands for: a place, or several, as a field of several rows does. */
+const placesOf = (data: unknown): readonly { path: string; element: number | null }[] =>
+	Array.isArray(data) ? (data as { path: string; element: number | null }[]) : data ? [data as { path: string; element: number | null }] : []
+/** Whether a place is among the rows picked: as a whole, or as the one number of it that is. */
+const isPicked =
+	(picked: readonly string[]) =>
+	({ path, element }: { path: string; element: number | null }): boolean =>
+		picked.includes(path) || (element !== null && picked.includes(`${path}/${element}`))
+
+const multiSelect = useMultiSelectStore()
+// Once the fields are there to be selected, which is after what they are of has been drawn.
+watch(
+	() => [props.picked ?? [], inspection.value] as const,
+	async ([picked], before) => {
+		if (picked.length === 0 || (before && picked.join() === before[0].join() && inspection.value === before[1])) return
+		// Once the fields are there to be selected, which is after what they are of has been drawn.
+		await nextTick()
+		multiSelect.selectWhere(data => placesOf(data).some(isPicked(picked)))
+	},
+	{ immediate: true }
 )
 
 const problem = ref<string | null>(null)

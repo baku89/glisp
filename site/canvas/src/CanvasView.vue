@@ -106,6 +106,8 @@ import {
 	type Measured,
 	type PartsOfRow,
 	gripOfPointsOrNot,
+	partKeyOf,
+	placePartOf,
 	gripWithoutSegments,
 	pointsWithin,
 	canRefer,
@@ -149,6 +151,8 @@ const emit = defineEmits<{
 	menu: [x: number, y: number, row: string | null]
 	/** One of what the tools draw from has been changed from the canvas, as by a key while drawing. */
 	attribute: [name: keyof ShapeAttributes, value: number]
+	/** The parts of rows that have been chosen, as the rows of the arguments they are, for the inspector to pick out too. */
+	chosen: [rows: readonly string[]]
 }>()
 
 const SOURCE_ALPHA = 0.5
@@ -1791,7 +1795,7 @@ function rowOfBoxAt(x: number, y: number, adding: boolean): string | null {
 const chosenKey = (row: string, part: string): string => `${row}\n${part}`
 const rowOfChosen = (key: string): string => key.slice(0, key.lastIndexOf('\n'))
 const partOfChosen = (key: string): string => key.slice(key.lastIndexOf('\n') + 1)
-const partOf = ({ vertex, segment }: Handle): string | undefined => vertex ?? segment
+const partOf = partKeyOf
 const isChosenAt = (i: number): boolean => {
 	const part = partOf(grip.value!.handles[i]!)
 	return part !== undefined && chosenPoints.value.includes(chosenKey(gripped.value!.rowOf[i]!, part))
@@ -1801,21 +1805,54 @@ watch([taken, () => props.byPoints], () => {
 	chosenPoints.value = props.byPoints ? chosenPoints.value.filter(key => taken.value.includes(rowOfChosen(key))) : []
 })
 
-/** A handle to go by for each row with something chosen, as it is what can say so of them all, and what. */
+/**
+ * A handle to go by for each row with something chosen, as it is what can say so of them all, and
+ * what: one for all of a path's points, as any of them moves the rest, and one for each place.
+ */
 function chosenByRow(): { row: string; handle: Handle; parts: readonly string[] }[] {
 	return partsChosen.value.flatMap(({ row, parts }) => {
 		const all = grippedAtAll.value
-		const at = all?.rowOf.findIndex((owner, i) => {
-			const part = partOf(all.grip.handles[i]!)
-			return owner === row && part !== undefined && parts.includes(part)
-		}) ?? -1
-		return at < 0 ? [] : [{ row, handle: all!.grip.handles[at]!, parts }]
+		if (!all) return []
+		const own = all.grip.handles.filter((_, i) => all.rowOf[i] === row)
+		const ofPath = own.find(handle => {
+			const part = handle.vertex ?? handle.segment
+			return part !== undefined && parts.includes(part)
+		})
+		const pathParts = parts.filter(part => own.some(handle => (handle.vertex ?? handle.segment) === part))
+		const places = own.filter(handle => {
+			const place = placePartOf(handle)
+			return place !== undefined && parts.includes(place)
+		})
+		return [
+			...(ofPath === undefined ? [] : [{ row, handle: ofPath, parts: pathParts }]),
+			...places.map(handle => ({ row, handle, parts: [placePartOf(handle)!] })),
+		]
 	})
 }
 
 /** The first of what is chosen, if a press inside of the box around it is to take hold of it all. */
 function chosenInsideBox(x: number, y: number, adding: boolean): number | null {
 	const around = gripped.value?.around
+/** The rows of the arguments that the places chosen are, for them to be picked out in the inspector as one. */
+const chosenRows = computed((): readonly string[] => {
+	const all = grippedAtAll.value
+	if (!all || chosenPoints.value.length === 0) return []
+	const { root, env } = props.document
+	return [
+		...new Set(
+			all.grip.handles.flatMap((handle, i) => {
+				const place = placePartOf(handle)
+				const row = all.rowOf[i]!
+				if (place === undefined || !chosenPoints.value.includes(chosenKey(row, place))) return []
+				return rowsOfHandle(root.value, env.value, row, handle)
+			})
+		),
+	]
+})
+watch(chosenRows, (rows, before) => {
+	if (rows.join() !== before.join()) emit('chosen', rows)
+})
+
 	if (!props.byPoints || adding || !around) return null
 	const [px, py] = fromScreen(x, y)
 	const [[left, top], [right, bottom]] = around
@@ -1831,11 +1868,15 @@ useHostDelete(() => {
 	const [first] = going
 	if (first === undefined) return false
 	const changes = going.flatMap(({ row, handle, parts }) =>
-		handle.to(handle.at ?? [0, 0], handle.at ?? [0, 0], { removing: parts }).map(change => ({ ...change, row }))
+		handle.vertex === undefined && handle.segment === undefined
+			? []
+			: handle.to(handle.at ?? [0, 0], handle.at ?? [0, 0], { removing: parts }).map(change => ({ ...change, row }))
 	)
+	// Only a path's points are there to be removed: a place is an argument, which stays.
 	commit(apply(first.row, changes))
 	chosenPoints.value = []
 	return true
+	if (changes.length === 0) return false
 })
 
 /** How far a press has to go to be a move, so that a click does not nudge anything. */

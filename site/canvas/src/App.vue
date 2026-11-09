@@ -535,6 +535,8 @@ const heldInInspector = ref<string | null>(null)
 const about = computed(() => rowsAbout(selected.value, keptRow.value ?? heldInInspector.value))
 /** What is picked out in the inspector of what it is about. */
 const pickedOut = computed(() => (about.value === selected.value ? [] : selected.value))
+/** The rows of the arguments whose places are chosen on the canvas, with the tool that goes by parts. */
+const chosenParts = ref<readonly string[]>([])
 /** How the one thing selected is painted, for a tool to take that, if one thing is. */
 const paintOfSelected = computed(() =>
 	paintable.value.length === 1 ? paintAt(document.root.value, document.env.value, paintable.value[0]!) : null
@@ -1457,6 +1459,7 @@ function selectInTree(row: string | null): void {
 					@select="selectOnCanvas"
 					@menu="openCanvasMenu"
 					@attribute="(name, value) => toolDocument.setRoot(withAttribute(toolDocument.root.value, name, value))"
+					@chosen="chosenParts = $event"
 				/>
 				<IsolationBar v-if="crumbs.length > 0" :crumbs="crumbs" @back="backOneLevel" @go="goToCrumb" />
 				<QuickAdd
@@ -1572,6 +1575,7 @@ function selectInTree(row: string | null): void {
 						:document="document"
 						:rows="insideRows"
 						:iconOfFunction="iconOfFunction"
+						:picked="chosenParts"
 					>
 						<PaintControls v-if="paintable.length > 0" :document="document" :rows="paintable" />
 					</AstMultiInspector>
@@ -1581,7 +1585,7 @@ function selectInTree(row: string | null): void {
 						:inspect="inspected"
 						ref="$inspector"
 						:valuePicker="valuePicker"
-						:alsoSelected="pickedOut"
+						:alsoSelected="pickedOut.length > 0 ? pickedOut : chosenParts"
 						:iconOfValue="iconOfPath"
 						:fillBlank="fillBlank"
 						@select="pickInInspector"

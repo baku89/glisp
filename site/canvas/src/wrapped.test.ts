@@ -12,7 +12,7 @@ import { fromD, toD } from 'pave/path/svg'
 import { describe, expect, it } from 'vitest'
 
 import { BOX_ANSWERS, type PathValue, withGraphics } from './graphics'
-import { isPlaceOf, boundsOfRows, boxHandlesOf, changed, gripAt, boxMeasured, gripOfPointsOrNot, gripOfRows, hasSizeMeasured, innerPathsOf, boxWithCornerAt, numbersDifferent, placeOfNumbers, pointsWithin, whatStayed, withBoxMeasured, withBoxOfParts, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
+import { isPlaceOf, boundsOfRows, boxHandlesOf, changed, gripAt, boxMeasured, gripOfPointsOrNot, gripOfRows, hasSizeMeasured, innerPathsOf, boxWithCornerAt, numbersDifferent, placeOfNumbers, pointsWithin, placePartOf, whatStayed, withBoxMeasured, withBoxOfParts, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const grip = (src: string) => gripAt(parse(`{c = ${src}}`), env, 'binding:c')!
@@ -1584,6 +1584,22 @@ describe('the points of a path', () => {
 		return change === undefined ? null : (change.value as string)
 	}
 
+	it('have the places of what is not a path beside them, for the tool that goes by them, which moves them as one', () => {
+		const root = parse('{a = (path.circle [10 10] 5) b = (path.line [0 0] [20 0])}')
+		const parts = gripOfPointsOrNot(gripOfRows(root, env, ['binding:a', 'binding:b']), true)!
+		const places = parts.grip.handles.map((handle, i) => [parts.rowOf[i], placePartOf(handle)] as const).filter(([, place]) => place !== undefined)
+		expect(places).toEqual([
+			['binding:a', 'arg0'],
+			['binding:b', 'arg0'],
+			['binding:b', 'arg1'],
+		])
+		// Nothing that pulls a length or turns, which is not a place.
+		expect(parts.grip.handles.every(handle => placePartOf(handle) !== undefined)).toBe(true)
+		// Around the circle's center and one end of the line, with both going together.
+		const boxed = withBoxOfParts(parts, [{ row: 'binding:a', parts: ['arg0'] }, { row: 'binding:b', parts: ['arg1'] }])!
+		expect(boxed.around).toEqual([[10, 0], [20, 10]])
+	})
+
 	it('are not there for the tool that goes by the whole of things, and are all there is for the one that goes by them', () => {
 		const data = 'M0,0 C10,0 10,10 20,10 L30,0'
 		const root = parse(`{c = (style ${d(data)} fill: "#000")}`)
@@ -1685,9 +1701,14 @@ describe('the points of a path', () => {
 		expect(gone('M0,0 L1,0 L1,1 Z', ['segment 0:0'])).toBe('M 0,0 L 1,0 L 1,1')
 	})
 
-	it('are found by where they are on the canvas, for each row', () => {
+	it('are found by where they are on the canvas, for each row, along with the places of what is not a path', () => {
 		const root = parse(`{a = ${d('M0,0 L10,0 L10,10')} b = ${d('M100,100 L105,105')} c = (path.rect [0 0] [5 5])}`)
-		expect(pointsWithin(root, env, ['binding:a', 'binding:b', 'binding:c'], [-1, -1], [10, 5])).toEqual([{ row: 'binding:a', points: ['0:0', '0:1'] }])
+		// The rectangle's corner is a place, its origin, and is gone round like a point.
+		expect(pointsWithin(root, env, ['binding:a', 'binding:b', 'binding:c'], [-1, -1], [10, 5])).toEqual([
+			{ row: 'binding:a', points: ['0:0', '0:1'] },
+			{ row: 'binding:c', points: ['arg0'] },
+		])
+		expect(pointsWithin(root, env, ['binding:c'], [1, 1], [10, 10])).toEqual([])
 		expect(pointsWithin(root, env, ['binding:a', 'binding:b'], [110, 110], [8, 8])).toEqual([
 			{ row: 'binding:a', points: ['0:2'] },
 			{ row: 'binding:b', points: ['0:0', '0:1'] },

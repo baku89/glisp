@@ -4,8 +4,8 @@ import { useEventListener } from '@vueuse/core'
 import { InputButton } from 'tweeq/InputButton'
 import { ParameterTree } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
-import { MULTI_SELECT_HOST } from 'tweeq/stores/multiSelect'
-import { computed, provide, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
+import { MULTI_SELECT_HOST, useMultiSelectStore } from 'tweeq/stores/multiSelect'
+import { computed, nextTick, provide, ref, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 
 import { useNumberFieldEdits } from './numberFieldEdits'
 
@@ -194,6 +194,24 @@ function addBinding(): void {
 }
 
 provide(MULTI_SELECT_HOST, multiSelectHostOf(props.document))
+// Several parts of the row picked out elsewhere, as handles on a canvas, are its fields selected
+// here as one, to be dragged together. One alone is picked out as a row, which says enough.
+const multiSelect = useMultiSelectStore()
+watch(
+	() => props.alsoSelected ?? [],
+	async (also, before) => {
+		// A list of layers has rows, not fields, and what is selected among them is said already.
+		if (props.layers || also.length < 2 || also.join() === (before ?? []).join()) return
+		// Once the fields are there to be selected, which is after what they are of has been drawn.
+		await nextTick()
+		multiSelect.selectWhere(data => {
+			const place = data as { path?: string; element?: number | null } | null
+			if (!place?.path) return false
+			return also.includes(place.path) || (place.element != null && also.includes(`${place.path}/${place.element}`))
+		})
+	},
+	{ immediate: true }
+)
 
 provide(REVEALER, {
 	target: revealTarget,

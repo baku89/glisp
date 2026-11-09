@@ -2053,13 +2053,32 @@ export function withGuideHandles(
 }
 
 /**
- * `gripped` for a tool that goes by the points of a path, with only what is for that, or for one
- * that goes by the whole of things, with none of it. The rest is in the way of each.
+ * The part of a row that a handle is, for the tool that goes by parts, where it is a place: an
+ * argument that is a point, or the whole of what it is of. A path's own points say so themselves.
+ */
+export const placePartOf = (handle: Handle): string | undefined =>
+	handle.vertex === undefined &&
+	handle.segment === undefined &&
+	typeof handle.place === 'number' &&
+	handle.at !== undefined &&
+	(handle.kind === 'point' || handle.kind === 'translate')
+		? `arg${handle.place}`
+		: undefined
+
+/** What part of a row a handle is, if it is one: a point or a segment of a path, or a place. */
+export const partKeyOf = (handle: Handle): string | undefined => handle.vertex ?? handle.segment ?? placePartOf(handle)
+
+/**
+ * `gripped` for a tool that goes by the parts of things, with only what is for that: a path's
+ * points, and the places of anything else, to be chosen together and moved as one. Or for a tool
+ * that goes by the whole of things, with none of a path's points. The rest is in the way of each.
  */
 export function gripOfPointsOrNot<G extends { grip: Grip; rowOf: readonly string[] }>(gripped: G | null, ofPoints: boolean): G | null {
 	if (gripped === null) return null
 	const handles = gripped.grip.handles.map((handle, i) => ({ handle, row: gripped.rowOf[i]! }))
-	const kept = handles.filter(({ handle }) => (handle.ofPoints === true) === ofPoints)
+	const kept = handles.filter(({ handle }) =>
+		ofPoints ? handle.ofPoints === true || placePartOf(handle) !== undefined : handle.ofPoints !== true
+	)
 	// What is between the points goes under them, for them to be seen and to be reached for.
 	const inOrder = [...kept.filter(({ handle }) => handle.segment), ...kept.filter(({ handle }) => !handle.segment)]
 	return {
@@ -2093,9 +2112,12 @@ export interface PartsOfRow {
 /** The corners around `chosen`, going by the points that there are of them. Null if that is nothing. */
 function boxOfParts(grips: readonly { handles: readonly Handle[]; parts: readonly string[] }[]): readonly [Vec, Vec] | null {
 	const places = grips.flatMap(({ handles, parts }) =>
-		handles.flatMap(({ vertex, segment, ends, at }): Vec[] => {
+		handles.flatMap((handle): Vec[] => {
+			const { vertex, segment, ends, at } = handle
 			if (vertex !== undefined && parts.includes(vertex) && at !== undefined) return [at]
-			return segment !== undefined && parts.includes(segment) && ends ? [...ends] : []
+			if (segment !== undefined && parts.includes(segment) && ends) return [...ends]
+			const place = placePartOf(handle)
+			return place !== undefined && parts.includes(place) && at !== undefined ? [at] : []
 		})
 	)
 	if (places.length === 0) return null
@@ -2111,9 +2133,15 @@ function changesOfParts(
 	map: (at: Vec) => Vec
 ): Change[] {
 	return grips.flatMap(({ row, handles, parts }) => {
-		const handle = handles.find(({ vertex, segment }) => parts.includes(vertex ?? segment ?? ''))
-		if (handle === undefined) return []
-		return handle.to([0, 0], [0, 0], { mapping: { parts, map } }).map(change => ({ ...change, row }))
+		// A path's points go by one handle of theirs, which maps them all; a place goes by itself.
+		const ofPath = handles.find(({ vertex, segment }) => parts.includes(vertex ?? segment ?? ''))
+		const pathChanges = ofPath === undefined ? [] : ofPath.to([0, 0], [0, 0], { mapping: { parts, map } })
+		const places = handles.filter(handle => {
+			const place = placePartOf(handle)
+			return place !== undefined && parts.includes(place)
+		})
+		const placeChanges = places.flatMap(handle => handle.to(map(handle.at!), handle.at!))
+		return [...pathChanges, ...placeChanges].map(change => ({ ...change, row }))
 	})
 }
 
@@ -2295,10 +2323,13 @@ export function pointsWithin(root: AST, env: Env, rows: readonly string[], a: Ve
 		const grip = gripAt(root, env, row)
 		if (grip === null) return []
 		const [ma, mb, mc, md, me, mf] = grip.transform
-		const points = grip.handles.flatMap(({ vertex, at }) => {
-			if (vertex === undefined || at === undefined) return []
+		const points = grip.handles.flatMap(handle => {
+			// A point of a path, or a place of anything else: what is between points is not gone round.
+			const part = handle.vertex ?? placePartOf(handle)
+			const { at } = handle
+			if (part === undefined || at === undefined) return []
 			const [x, y] = [ma * at[0] + mc * at[1] + me, mb * at[0] + md * at[1] + mf]
-			return x >= left && x <= right && y >= top && y <= bottom ? [vertex] : []
+			return x >= left && x <= right && y >= top && y <= bottom ? [part] : []
 		})
 		return points.length === 0 ? [] : [{ row, points }]
 	})
