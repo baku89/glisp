@@ -563,7 +563,24 @@ watch(
 
 /** What the pointer has snapped to, and where that is, to say so. */
 const snapMark = shallowRef<SnapPoint | null>(null)
-const cursor = ref('default')
+/**
+ * The arrow of the system, as near as can be drawn, with its fill white instead: the tool that
+ * goes by parts has always been the white arrow, beside the black one that goes by the whole.
+ */
+const WHITE_ARROW_PATH = 'M4 2.5v16.6l4.2-4 2.8 6.6 2.9-1.2-2.8-6.6h6.2z'
+const WHITE_ARROW_CURSOR = (() => {
+	const svg =
+		`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">` +
+		`<path d="${WHITE_ARROW_PATH}" fill="white" stroke="black" stroke-width="1" stroke-linejoin="round"/>` +
+		`</svg>`
+	return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 4 2, default`
+})()
+/** The cursor over nothing in particular, which says which of the two arrows is in hand. */
+const baseCursor = computed(() => (props.byPoints ? WHITE_ARROW_CURSOR : 'default'))
+const cursor = ref(baseCursor.value)
+watch(baseCursor, (now, before) => {
+	if (cursor.value === before) cursor.value = now
+})
 /** Why what was asked for could not be, until the next press. */
 const problem = ref<string | null>(null)
 
@@ -1833,9 +1850,6 @@ function chosenByRow(): { row: string; handle: Handle; parts: readonly string[] 
 	})
 }
 
-/** The first of what is chosen, if a press inside of the box around it is to take hold of it all. */
-function chosenInsideBox(x: number, y: number, adding: boolean): number | null {
-	const around = gripped.value?.around
 /** The rows of the arguments that the places chosen are, for them to be picked out in the inspector as one. */
 const chosenRows = computed((): readonly string[] => {
 	const all = grippedAtAll.value
@@ -1856,6 +1870,9 @@ watch(chosenRows, (rows, before) => {
 	if (rows.join() !== before.join()) emit('chosen', rows)
 })
 
+/** The first of what is chosen, if a press inside of the box around it is to take hold of it all. */
+function chosenInsideBox(x: number, y: number, adding: boolean): number | null {
+	const around = gripped.value?.around
 	if (!props.byPoints || adding || !around) return null
 	const [px, py] = fromScreen(x, y)
 	const [[left, top], [right, bottom]] = around
@@ -1870,16 +1887,16 @@ useHostDelete(() => {
 	const going = chosenByRow()
 	const [first] = going
 	if (first === undefined) return false
+	// Only a path's points are there to be removed: a place is an argument, which stays.
 	const changes = going.flatMap(({ row, handle, parts }) =>
 		handle.vertex === undefined && handle.segment === undefined
 			? []
 			: handle.to(handle.at ?? [0, 0], handle.at ?? [0, 0], { removing: parts }).map(change => ({ ...change, row }))
 	)
-	// Only a path's points are there to be removed: a place is an argument, which stays.
+	if (changes.length === 0) return false
 	commit(apply(first.row, changes))
 	chosenPoints.value = []
 	return true
-	if (changes.length === 0) return false
 })
 
 /** How far a press has to go to be a move, so that a click does not nudge anything. */
@@ -1995,7 +2012,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 useEventListener(window, 'keyup', (event: KeyboardEvent) => {
 	if (event.code !== 'Space') return
 	spaceDown = false
-	if (pressed === null) cursor.value = 'default'
+	if (pressed === null) cursor.value = baseCursor.value
 })
 
 function onPointerDown(event: PointerEvent): void {
@@ -2874,7 +2891,7 @@ function onPointerMove(event: PointerEvent): void {
 			? 'grab'
 			: index !== null
 				? cursorOf(grip.value!.handles[index]!, x, y)
-				: 'default'
+				: baseCursor.value
 		return
 	}
 	switch (pressed.kind) {
@@ -3058,7 +3075,7 @@ useEventListener(window, 'pointerup', event => {
 	if (pressed?.kind === 'move' && pressed.collapse && !pressed.moving) {
 		emit('select', [pressed.row])
 	}
-	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : 'default'
+	if (pressed?.kind === 'pan') cursor.value = spaceDown ? 'grab' : baseCursor.value
 	if (pressed?.kind === 'pencil') finishPencil(snapMark.value)
 	if (pressed?.kind === 'brush' && brush !== null) {
 		brush.state = brush.def.release(brush.state, fromScreen(event.offsetX, event.offsetY))
@@ -3130,7 +3147,7 @@ useEventListener(window, 'pointerup', event => {
 		}
 		// The pointer is back, and is over whatever it has got to.
 		if (event.target === $canvas.value) onPointerMove(event)
-		else cursor.value = 'default'
+		else cursor.value = baseCursor.value
 	}
 })
 </script>
