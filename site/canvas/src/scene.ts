@@ -382,6 +382,8 @@ export interface SnapPoint {
 	readonly beyond?: boolean
 	/** The two ends of a line, as places, for a place on it to be worked out from them. */
 	readonly ends?: { readonly from: Place; readonly to: Place }
+	/** The row that is this line itself, as a guide line is, for where it crosses another to refer to it. */
+	readonly lineRow?: string
 }
 
 /** How far apart two places on what is drawn can be, and be taken for the same place. */
@@ -404,15 +406,25 @@ export function snapPointsOf(
 	shapes: readonly Shape[],
 	except: ReadonlySet<string> = new Set()
 ): SnapPoint[] {
-	return [...new Set(shapes.map(({ row }) => row))].flatMap(row => {
-		if (except.has(row)) return []
+	const byRow = [...new Set(shapes.map(({ row }) => row))].map(row => ({
+		row,
+		points: except.has(row) ? [] : snapPointsOfRow(root, env, shapes, row),
+	}))
+	const points = byRow.flatMap(({ points }) => points)
+	return [...points, ...crossingsOf(byRow, points)]
+}
+
+/** Everywhere on the row at `row` that something can snap to. */
+function snapPointsOfRow(root: AST, env: Env, shapes: readonly Shape[], row: string): SnapPoint[] {
+	{
 		const grip = gripAt(root, env, row)
 		// In the coordinates of what is drawn, as a row inside a matrix is not.
 		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []
 		const inside = grip.within === undefined ? row : `${row}/${grip.within}`
-		// What is there only to turn or count by is no place on what is drawn.
-		const handles: SnapPoint[] = grip.handles.flatMap(({ at, place, name, code }) =>
-			at === undefined || (place === undefined && code === undefined && name === undefined)
+		const isLine = shapes.some(shape => shape.row === row && shape.draw === 'line')
+		// What is there only to turn or count by, or to press, is no place on what is drawn.
+		const handles: SnapPoint[] = grip.handles.flatMap(({ at, place, name, code, kind }) =>
+			at === undefined || kind === 'button' || (place === undefined && code === undefined && name === undefined)
 				? []
 				: [
 						{
@@ -457,10 +469,71 @@ export function snapPointsOf(
 					target: null,
 					...(endless === undefined ? {} : { endless }),
 					...(start === null || end === null ? {} : { ends: { from: start, to: end } }),
+					...(isLine && endless ? { lineRow: inside } : {}),
 				}
 			}),
 		]
-	})
+	}
+}
+
+/**
+ * Where the lines among `points` cross, one row's with another's, as places: each refers to
+ * both lines, so that it goes on being where they cross as they move. A line only crosses between
+ * its ends, unless it is endless, and a crossing that is a place already, as a corner is, is not one more.
+ */
+function crossingsOf(byRow: readonly { row: string; points: readonly SnapPoint[] }[], points: readonly SnapPoint[]): SnapPoint[] {
+	const lines = byRow.flatMap(({ row, points }) => points.flatMap(point => (point.to === undefined ? [] : [{ row, point }])))
+	const near = (a: Vec, b: Vec): boolean => Math.hypot(a[0] - b[0], a[1] - b[1]) <= SAME_END
+	const crossings: SnapPoint[] = []
+	for (const [i, a] of lines.entries()) {
+		for (const b of lines.slice(i + 1)) {
+			if (a.row === b.row) continue
+			const at = crossingOf(a.point, b.point)
+			if (at === null) continue
+			if (points.some(point => point.to === undefined && near(point.at, at)) || crossings.some(had => near(had.at, at))) continue
+			const code = crossingCodeOf(a.point, b.point)
+			crossings.push({ at, label: 'intersection', target: null, ...(code === null ? {} : { code }) })
+		}
+	}
+	return crossings
+}
+
+/**
+ * Where two lines cross, if they do where each of them is: anywhere along one that goes on
+ * without end, as the sides of a rect and the axes of a circle do, so that where two of those
+ * would meet is a place to snap to, as much as where they are.
+ */
+function crossingOf(a: SnapPoint, b: SnapPoint): Vec | null {
+	const [p, q] = [a.at, b.at]
+	const u: Vec = [a.to![0] - p[0], a.to![1] - p[1]]
+	const v: Vec = [b.to![0] - q[0], b.to![1] - q[1]]
+	const across = u[0] * v[1] - u[1] * v[0]
+	if (Math.abs(across) < 1e-9) return null
+	const t = ((q[0] - p[0]) * v[1] - (q[1] - p[1]) * v[0]) / across
+	const s = ((q[0] - p[0]) * u[1] - (q[1] - p[1]) * u[0]) / across
+	const on = (along: number, { endless }: SnapPoint): boolean => endless === true || (along >= -1e-9 && along <= 1 + 1e-9)
+	return on(t, a) && on(s, b) ? [p[0] + u[0] * t, p[1] + u[1] * t] : null
+}
+
+/** The crossing of two lines as code, if each line is a row of its own or goes between places. */
+function crossingCodeOf(a: SnapPoint, b: SnapPoint): Place | null {
+	const lineOf = ({ lineRow, ends }: SnapPoint, which: string): Place | null => {
+		if (lineRow !== undefined) {
+			const name = `__line${which}`
+			return { ast: new SymAST(name), parts: new Map([[name, lineRow]]) }
+		}
+		if (ends === undefined) return null
+		return {
+			ast: new CallAST(parse('line.fromPoints'), [ends.from.ast, ends.to.ast]),
+			parts: new Map([...ends.from.parts, ...ends.to.parts]),
+		}
+	}
+	const [first, second] = [lineOf(a, 'A'), lineOf(b, 'B')]
+	if (first === null || second === null) return null
+	return {
+		ast: new CallAST(parse('line.intersection'), [first.ast, second.ast]),
+		parts: new Map([...first.parts, ...second.parts]),
+	}
 }
 
 /**

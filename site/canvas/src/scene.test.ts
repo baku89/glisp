@@ -833,6 +833,54 @@ describe('snapping', () => {
 		expect(places.every(p => p.label !== '')).toBe(true)
 	})
 
+	describe('where two lines cross', () => {
+		const crossingIn = (src: string) => {
+			const root = parse(src) as LetAST
+			const points = snapPointsOf(root, env, sceneOf(root, env), new Set(['binding:c']))
+			return { root, crossings: points.filter(({ label }) => label === 'intersection') }
+		}
+		const put = (root: LetAST, snap: SnapPoint) => print(bound(linked(root, env, 'binding:c', 0, snap) as LetAST).find(([name]) => name === 'c')![1])
+
+		it('is a place, which refers to both lines, so that it stays where they cross', () => {
+			const { root, crossings } = crossingIn('{a = (line.fromPoints [0 0] [10 10]) b = (line.fromPoints [0 10] [10 0]) c = (path.line [200 200] [300 300])}')
+			expect(crossings.map(({ at }) => at)).toEqual([[5, 5]])
+			expect(put(root, crossings[0]!)).toBe('(path.line (line.intersection a b) [300 300])')
+			const moved = parse('{a = (line.fromPoints [0 0] [10 10]) b = (line.fromPoints [0 20] [10 10]) c = (path.line (line.intersection a b) [300 300])}')
+			expect(gripAt(moved, env, 'binding:c')!.handles.find(h => h.place === 0)!.at).toEqual([10, 10])
+		})
+
+		it('is where a line goes on past its handles, and where it meets an edge, by that edge\'s ends', () => {
+			const { root, crossings } = crossingIn('{l = (line.fromPoints [-20 3] [-10 3]) r = (path.rect [0 0] [10 10]) c = (path.line [200 200] [300 300])}')
+			expect(crossings.map(({ at }) => at)).toEqual([[10, 3], [0, 3]])
+			expect(put(root, crossings[1]!)).toBe(
+				'(path.line (line.intersection l (line.fromPoints [../../../../r/origin:/0 (+ ../../../../../r/origin:/1 ../../../../../r/size:/1)] [../../../../r/origin:/0 ../../../../r/origin:/1])) [300 300])'
+			)
+		})
+
+		it('is not a corner that is a place already, nor where lines never meet', () => {
+			expect(crossingIn('{l = (line.fromPoints [0 0] [10 10]) r = (path.rect [0 0] [10 10]) c = (path.line [200 200] [300 300])}').crossings).toEqual([])
+			expect(crossingIn('{a = (line.fromPoints [0 0] [10 0]) b = (line.fromPoints [0 5] [10 5]) c = (path.line [200 200] [300 300])}').crossings).toEqual([])
+		})
+
+		it('is where the sides of two rects, going on, meet, on a side or past both', () => {
+			const { root, crossings } = crossingIn('{r = (path.rect [0 0] [10 10]) s = (path.rect [3 20] [10 10]) c = (path.line [200 200] [300 300])}')
+			expect(crossings.map(({ at }) => at)).toEqual([[13, 0], [3, 0], [10, 20], [10, 30], [13, 10], [3, 10], [0, 20], [0, 30]])
+			expect(put(root, crossings[0]!)).toMatch(/^\(path\.line \(line\.intersection \(line\.fromPoints /)
+			// Two rects apart, each side of the one meeting two of the other.
+			expect(crossingIn('{r = (path.rect [0 0] [10 10]) s = (path.rect [20 20] [10 10]) c = (path.line [200 200] [300 300])}').crossings).toHaveLength(8)
+		})
+
+		it('is where the axis of a circle meets the side of a rect, going on', () => {
+			const { crossings } = crossingIn('{o = (path.circle [100 100] 10) r = (path.rect [0 0] [10 10]) c = (path.line [200 200] [300 300])}')
+			expect(crossings.map(({ at }) => at)).toContainEqual([100, 0])
+			expect(crossings.map(({ at }) => at)).toContainEqual([0, 100])
+		})
+
+		it('is a place of its own, which `line.intersection` works out', () => {
+			expect(evaluate(parse('(line.intersection (line.fromPoints [0 0] [10 10]) (line.at [0 10] 0))'), env).value).toEqual([10, 10])
+		})
+	})
+
 	describe('refers to what it is on, along a line', () => {
 		const onto = (other: string, at: Vec, beyond = false): string | null => {
 			const both = parse(`{o = ${other} c = (path.line [200 200] [300 300])}`) as LetAST

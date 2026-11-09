@@ -1388,9 +1388,24 @@ const makeLineAt = withOptional(
 	),
 	['angle']
 )
+/** Where two lines cross, as a place: nothing, where they go the same way and never do. */
+const makeLineIntersection = makeTypedFn(
+	[lineType, lineType],
+	point,
+	(a, b) => {
+		const [[px, py], [ux, uy]] = a as StraightLine
+		const [[qx, qy], [vx, vy]] = b as StraightLine
+		const across = ux * vy - uy * vx
+		if (Math.abs(across) < 1e-12) return UNIT
+		const t = ((qx - px) * vy - (qy - py) * vx) / across
+		return [px + ux * t, py + uy * t]
+	},
+	['a', 'b']
+)
 withMembers(lineType, {
 	fromPoints: withDoc(makeLineFromPoints, 'The line through `from` and `to`, going that way.', 'Line Through Points'),
 	at: withDoc(makeLineAt, 'The line `through` a place, going toward `angle`, in degrees.', 'Line at an Angle'),
+	intersection: withDoc(makeLineIntersection, 'The place where the lines `a` and `b` cross, if they do.', 'Intersection'),
 })
 /** A line to start from, which says how it is one, for it to have handles to take hold of. */
 const lineOfType = withDefaultFrom(
@@ -4325,9 +4340,11 @@ const showingPath =
 		}
 	}
 
+/** The place that the argument `arg` is, which is a place on what is drawn, to be snapped to and selected. */
 const pointHandle = (arg: number, at: Vec): Handle => ({
 	kind: 'point',
 	at,
+	place: arg,
 	to: to => [change(arg, to)],
 })
 
@@ -4402,6 +4419,8 @@ makers.set(makeLineFromPoints, ([from, to]) => {
 				change(1, start),
 			]),
 		],
+		// All of it, for anything to go along it, and for where it crosses another line to be a place.
+		snaps: { lines: [{ from: start, to: end, name: 'line', endless: true }] },
 		move: delta => [change(0, add(start, delta)), change(1, add(end, delta))],
 	}
 })
@@ -4411,6 +4430,7 @@ makers.set(makeLineAt, ([through, angle]) => {
 	const direction = toward(turned, GIZMO_SIZE)
 	return {
 		guides: [lineGuide(p, direction)],
+		snaps: { lines: [{ from: p, to: add(p, direction), name: 'line', endless: true }] },
 		handles: [
 			pointHandle(0, p),
 			{
