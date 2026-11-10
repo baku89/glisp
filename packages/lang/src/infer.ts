@@ -812,15 +812,21 @@ export function callParameters(
 	call: CallAST,
 	env: Env
 ): CallParameters | null {
+	const called = calledType(call, env)
+	return called === null ? null : parametersOfType(called)
+}
+
+/**
+ * What a call's head is as a function, without running anything: the variant of an overload
+ * that fits the arguments, or the constructor of a type that is called, as `(rect …)` is, or
+ * else what the head is inferred to be. Null when nothing says.
+ */
+export function calledType(call: CallAST, env: Env): TypeValue | null {
 	const overload = overloadOf(call.head, env)
-	if (overload !== null) {
-		const variant = selectOverloadVariant(overload, call, env)
-		return variant === null ? null : parametersOfType(variant.type)
-	}
+	if (overload !== null) return selectOverloadVariant(overload, call, env)?.type ?? null
 	const made = constructorAt(call.head, env)
-	if (made !== null) return parametersOfType(functionTypeOfHost(made))
-	const head = infer(call.head, env)
-	return head === null ? null : parametersOfType(head)
+	if (made !== null) return functionTypeOfHost(made)
+	return infer(call.head, env)
 }
 
 function parametersOfType(type: TypeValue): CallParameters | null {

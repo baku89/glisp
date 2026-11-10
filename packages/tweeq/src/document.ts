@@ -40,6 +40,11 @@ export interface GlispDocument {
 	readonly copiedReference: ShallowRef<{ readonly path: string; readonly written: string } | null>
 	/** Replace the whole program. */
 	setRoot(next: LetAST): void
+	/**
+	 * Replace the whole program by what is no edit of it, as a row being opened is: not a step
+	 * of its own to undo, nor the end of the one before it.
+	 */
+	adjust(next: LetAST): void
 	/** Have every `setRoot` that `write` makes undo as one. */
 	batch(write: () => void): void
 	/** Have every `setRoot` from now until `release` undo as one, as typing in a field does. */
@@ -114,6 +119,7 @@ export function useGlispDocument(
 			record()
 			install(next)
 		},
+		adjust: install,
 		batch(write) {
 			if (batching) return write()
 			batching = true

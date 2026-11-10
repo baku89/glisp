@@ -39,6 +39,7 @@ import {
 	gripAt,
 	gripOfRows,
 	diveAt,
+	diveIntoRow,
 	innerPathsOf,
 	isOutside,
 	isWithin,
@@ -732,6 +733,7 @@ useZUI($canvas, delta => {
 })
 
 defineExpose({
+	diveInto,
 	leaveIsolated,
 	/** The row of what is drawn at a place on the screen, if anything is. */
 	rowAtPoint(clientX: number, clientY: number): string | null {
@@ -758,12 +760,14 @@ defineExpose({
 		const middle: vec2 = [size.value[0] / 2, size.value[1] / 2]
 		view.value = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
 	},
-	/** The same as it was, with this as how far in it is. */
-	zoomTo(zoom: number): void {
+	/** The same as it was, with this as how far in it is: at once, or going over to it with `glide`. */
+	zoomTo(zoom: number, glide = false): void {
 		stopGliding()
 		const factor = zoom / view.value[0]
 		const middle: vec2 = [size.value[0] / 2, size.value[1] / 2]
-		view.value = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
+		const next = mat2d.mul(mat2d.fromScaling([factor, factor], middle), view.value)
+		if (glide) glideTo(next)
+		else view.value = next
 	},
 	size: () => size.value,
 	/** The view as it is, to come back to. */
@@ -799,6 +803,8 @@ const CROSS = new Path2D('M 12 0 H -12 M 0 12 V -12')
 const DIAMOND = new Path2D('M 5 0 L 0 5 L -5 0 L 0 -5 Z')
 /** What only says which way: the head of an arrow, at the end of its line. */
 const POINTER = new Path2D('M -8 -6 L 0 0 L -8 6')
+/** The head at the end of a line, which is taken hold of: its point is where it is, and the line comes into it. */
+const CHEVRON = new Path2D('M -7 -7 L 0 0 L -7 7')
 /** How far out from a corner of a box the line is that turns it, and how far to either side of that it can be taken hold of. */
 const TURNER_RADIUS = 13
 /** How far around the corner the arc goes, either way from straight out of it. */
@@ -953,6 +959,13 @@ function drawHandle(
 		context.lineCap = 'round'
 		context.lineJoin = 'round'
 		context.stroke(BUTTON_ARROW)
+	} else if (handle.kind === 'chevron') {
+		context.rotate(facing(handle.angle ?? 0))
+		context.lineWidth = active ? 2 : 1.5
+		context.lineJoin = 'miter'
+		context.lineCap = 'round'
+		edged(CHEVRON)
+		context.stroke(CHEVRON)
 	} else if (handle.kind === 'direction') {
 		context.rotate(facing(handle.angle ?? 0))
 		context.lineJoin = 'round'
@@ -963,7 +976,8 @@ function drawHandle(
 		// Which way an arrow pulls is for when it is reached for, along with the cursor.
 		if (handle.kind === 'translate' || (handle.kind === 'arrow' && active)) {
 			context.save()
-			context.rotate(facing(handle.angle ?? 0))
+			// A crosshair is square with the axes it is the origin of, if they are turned.
+			context.rotate(facing(handle.kind === 'arrow' ? (handle.angle ?? 0) : (handle.turn ?? 0)))
 			context.lineWidth = 1
 			if (handle.kind === 'arrow') edged(ARROW)
 			context.stroke(handle.kind === 'arrow' ? ARROW : CROSS)
@@ -1618,6 +1632,17 @@ function onDoubleClick(event: MouseEvent): void {
 	// What was about to be taken was the whole of it, which it no longer is.
 	hovered.value = null
 	emit('select', dive.rows)
+}
+
+/** Into a row, as a double click on what it draws goes, from a list of them: true if it went anywhere. */
+function diveInto(row: string): boolean {
+	const { root, env } = props.document
+	const dive = diveIntoRow(root.value, env.value, row, isolation.value, props.selected)
+	if (dive === null) return false
+	isolation.value = dive.isolation
+	hovered.value = null
+	emit('select', dive.rows)
+	return true
 }
 
 /** All the way out, with what it had gone into, as a whole, being what is selected. */

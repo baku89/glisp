@@ -5,7 +5,7 @@
 
 import { AS_SOURCE, type AST, type Env, CallAST, enterNode, evaluate, hide, infer, isHidden, LetAST, lit, MetaAST, named, nameOf, namedChildrenOf, print, readByName, unhide, unnamed, VecAST, withPathsFollowed, withPathsMoved } from '@glisp/lang'
 import { reach, withoutRows, withParent } from '@glisp/tweeq/rowsClipboard'
-import { MAIN, isGroup, type Layered, layersOf, layersVectorOf, slotAlong, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
+import { MAIN, isGroup, type Layered, layersOf, layersVectorOf, slotAlong, titleOf, viewOf, withLayerAdded, withLayersOrdered } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 
 import { GraphPaperValue, type Path, type Vec } from './graphics'
@@ -690,7 +690,9 @@ export function crumbsOf(root: AST, env: Env, gone: readonly string[]): Crumb[] 
 		if (last !== undefined && rowWorkedOn(root, env, last.through.at(-1)!) === row) {
 			crumbs[crumbs.length - 1] = { ...last, through: gone.slice(0, i + 1) }
 		} else {
-			const label = nameOfRow(row) ?? labelOfRow(root, env, row) ?? row
+			// A part of something, as a point it is given, is called what the inspector calls it.
+			const slot = reach(root, env, row)?.chain.at(-1)
+			const label = nameOfRow(row) ?? labelOfRow(root, env, row) ?? (slot === undefined ? row : titleOf(slot))
 			crumbs.push({ row, label, through: gone.slice(0, i + 1) })
 		}
 	})

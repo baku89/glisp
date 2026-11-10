@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, type Env, LetAST, print, solve, toAst, type TypeValue } from '@glisp/lang'
+import { type AST, type Env, isPinned, LetAST, print, solve, toAst, type TypeValue } from '@glisp/lang'
 import { useEventListener } from '@vueuse/core'
 import { InputButton } from 'tweeq/InputButton'
 import { ParameterTree } from 'tweeq/ParameterGrid'
@@ -32,9 +32,11 @@ import type { MenuItem } from 'tweeq/Menu'
 import {
 	ALSO_SELECTED,
 	ISOLATED,
+	LOCKED,
 	LAYERS,
 	SHOWN_WHOLE,
 	ROW_PICKER,
+	ROW_DIVER,
 	COMMANDS_FOR,
 	HOST_KEY,
 	LINKER,
@@ -42,6 +44,7 @@ import {
 	BLANK_FILLER,
 	type ValuePicker,
 	OPEN_ROW,
+	QUIETLY,
 	RENAMER,
 	REVEALER,
 	SELECTION,
@@ -64,6 +67,7 @@ import {
 	type Slot,
 	viewOf,
 	slotCommandOfKey,
+	aboutType,
 } from './structure'
 
 const props = defineProps<{
@@ -93,6 +97,11 @@ const props = defineProps<{
 	shownWhole?: readonly TypeValue[]
 	/** What a click on a row means to the app, with the keys held. False if it is not to be selected. */
 	pickRow?: (path: string, event: MouseEvent) => boolean
+	/**
+	 * What a double click on a row does to the app, as going into it does: true if it did anything.
+	 * Otherwise it opens or closes the row.
+	 */
+	diveInto?: (path: string) => boolean
 	/** What rows are on a clipboard, if not their code, for what is outside of this. */
 	copyAs?: (rows: readonly string[]) => string | null
 	/** What is on a clipboard from outside of this, as code, if it can be. */
@@ -346,10 +355,22 @@ function move(source: string, target: string, position: DropPosition): void {
 	if (next !== null) replaceRoot(next)
 }
 
-function replaceRoot(next: AST): void {
-	if (next.kind === 'let') {
-		props.document.setRoot(next)
+/** Whether what is being written is no edit, as a row being opened is. */
+let quiet = false
+provide(QUIETLY, write => {
+	const was = quiet
+	quiet = true
+	try {
+		write()
+	} finally {
+		quiet = was
 	}
+})
+
+function replaceRoot(next: AST): void {
+	if (next.kind !== 'let') return
+	if (quiet) props.document.adjust(next)
+	else props.document.setRoot(next)
 }
 
 // The whole program as code, a binding to a line. It can only be a block of them, so
@@ -375,24 +396,31 @@ const inspected = computed(() => {
 	const chain: Slot[] = []
 	let node: AST = props.document.root.value
 	let env: Env = props.document.env.value
+	// What each slot wants goes down with it, as a cast's type does to what is in it.
+	let expected: TypeValue | null = null
 	for (const key of parts) {
-		const slots: readonly Slot[] = viewOf(node, env).slots
+		const slots: readonly Slot[] = viewOf(node, env, expected).slots
 		const slot = slots.find(s => s.key === key)
 		if (slot === undefined) return null
 		chain.push(slot)
 		node = slot.ast
 		env = slot.env
+		expected = slot.expected
 	}
 	// A cast says what it is, and what there is to it is what is in it.
-	const castTo = viewOf(node, env).castTo ?? null
-	const value = castTo === null ? undefined : viewOf(node, env).slots[0]
+	const castTo = viewOf(node, env, expected).castTo ?? null
+	const value = castTo === null ? undefined : viewOf(node, env, expected).slots[0]
 	if (value !== undefined) {
 		chain.push(value)
 		node = value.ast
 		env = value.env
+		expected = value.expected
 	}
-	const view = viewOf(node, env, value?.expected ?? null)
+	const view = viewOf(node, env, expected)
 	const own = chain.at(-1)!
+	// What is neither a call nor a cast says what it is by the type it is wanted as, as a point does.
+	const type = view.head === null && castTo === null ? aboutType(expected, env) : null
+	const docs = [own.doc ?? null, type?.doc ?? null].filter((doc): doc is string => doc !== null)
 	const path = value === undefined ? (props.inspect ?? '') : `${props.inspect}/${value.key}`
 	return {
 		chain,
@@ -400,12 +428,16 @@ const inspected = computed(() => {
 		parentPath: value === undefined ? parent : props.inspect,
 		view,
 		castTo,
-		icon: castTo === null ? null : iconOf(chain.at(-2)!.ast, chain.at(-2)!.env),
+		icon: castTo === null ? (type?.icon ?? null) : iconOf(chain.at(-2)!.ast, chain.at(-2)!.env),
+		label: view.head?.label ?? castTo?.label ?? type?.label ?? null,
 		// With nothing inside it, what there is to see of it is itself.
 		alone: view.slots.length === 0 && view.missing.length === 0 && view.append === null,
-		doc: view.head?.doc ?? castTo?.doc ?? own.doc ?? null,
+		doc: view.head?.doc ?? castTo?.doc ?? (docs.length === 0 ? null : docs.join('\n\n')),
 	}
 })
+
+// What is inspected is locked if it is, or anything it is in is, as its rows would be in a tree.
+if (isInspector.value) provide(LOCKED, () => inspected.value?.chain.some(slot => isPinned(slot.ast)) ?? false)
 
 const inspectedFnIcon = computed(() => {
 	const head = inspected.value?.view.head
@@ -523,6 +555,7 @@ provide(ALSO_SELECTED, () => props.alsoSelected ?? [])
 provide(ISOLATED, () => props.isolated ?? [])
 provide(SHOWN_WHOLE, props.shownWhole ?? [])
 provide(ROW_PICKER, (path, event) => props.pickRow?.(path, event) ?? true)
+provide(ROW_DIVER, path => props.diveInto?.(path) ?? false)
 useDeleteInInspector(selection, () => isInspector.value, removeNearest, removing)
 /** What was selected has just gone, so there is nothing to select again. */
 let reselectNothing = false
@@ -842,7 +875,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 		<ScrollArea class="tree">
 			<template v-if="inspected !== null">
 				<FunctionAbout
-					:label="inspected.view.head?.label ?? inspected.castTo?.label ?? null"
+					:label="inspected.label"
 					:doc="inspected.doc"
 					:icon="inspectedFnIcon"
 				/>

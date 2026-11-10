@@ -14,7 +14,7 @@ import {
 import { ArtboardValue, type Path, withGraphics } from './graphics'
 import { parse } from './program.testing'
 import { svgOfArtboard, svgOfProgram } from './svg'
-import { artboardOfRow, gripAt, isArtboardRow, rowsHeldBy, rowTakenAt, sceneOf } from './scene'
+import { artboardOfRow, changed, gripAt, isArtboardRow, rowsHeldBy, rowTakenAt, sceneOf } from './scene'
 
 const env = withGraphics(buildPrelude())
 
@@ -147,5 +147,20 @@ describe('an artboard moved', () => {
 
 	it('is not taken along by what is moved on it', () => {
 		expect(rowsHeldBy(parse(BOARD), env, new Set(['binding:desk/arg1/binding:a']))).toEqual([])
+	})
+})
+
+describe('an artboard whose area is locked', () => {
+	it('has none of its handles change it, nor the size inside it', () => {
+		const root = parse(`{main = [
+			a = (artboard @(rect [0 0] [1920 1080]) [])
+		]}`)
+		const { handles, move } = gripAt(root, env, 'binding:a')!
+		for (const handle of handles) {
+			if (handle.at === undefined) continue
+			const to: [number, number] = [handle.at[0] + 50, handle.at[1] + 30]
+			expect(changed(root, env, 'binding:a', handle.to(to, handle.at)), handle.name).toEqual({ ast: null, problem: 'locked' })
+		}
+		expect(changed(root, env, 'binding:a', move!([10, 10])).ast).toBeNull()
 	})
 })

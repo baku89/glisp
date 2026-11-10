@@ -208,3 +208,12 @@ export const OPEN_ROW: InjectionKey<() => string | null> = Symbol('open-row')
 
 /** Rows are for reading, so that what they show is a title rather than a name. */
 export const TITLED: InjectionKey<boolean> = Symbol('titled')
+
+/**
+ * Have the edits that `write` makes be no edits, as opening a row is: the program says it, but
+ * there is nothing to undo. Without it, they are edits like any other.
+ */
+export const QUIETLY: InjectionKey<(write: () => void) => void> = Symbol('glisp-quietly')
+
+/** What a double click on a row does, as it does on what the row draws: true if it did anything. */
+export const ROW_DIVER: InjectionKey<(path: string) => boolean> = Symbol('glisp-row-diver')

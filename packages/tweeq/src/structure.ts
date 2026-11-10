@@ -11,6 +11,7 @@ import {
 	isTypedHostFn,
 	type AST,
 	CallAST,
+	calledType,
 	callParameters,
 	check,
 	type Diagnostic,
@@ -808,6 +809,30 @@ export function asMember(ast: AST, member: TypeValue, env: Env): AST {
 	return defaultFor(member, env)
 }
 
+/** The metadata that says a row is open, in an inspector or a tree: for a host, and nothing to a value. */
+const OPEN = 'open'
+
+/** Whether `ast` says that its row is open. */
+export const isOpenRow = (ast: AST): boolean => {
+	if (ast.kind !== 'meta') return false
+	const said = ast.metadata.get(OPEN)
+	return said?.kind === 'lit' && said.value === true
+}
+
+/** `ast`, saying that its row is open, or saying nothing of it, which is that it is not. */
+export function withOpenRow(ast: AST, open: boolean): AST {
+	if (isOpenRow(ast) === open) return ast
+	if (open) {
+		if (ast.kind !== 'meta') return new MetaAST(new RecordAST([[OPEN, new LitAST(true)]]), ast)
+		const { fields, optional } = ast.metadata
+		return new MetaAST(new RecordAST([...fields, [OPEN, new LitAST(true)]], optional), ast.expr)
+	}
+	if (ast.kind !== 'meta') return ast
+	const { fields, optional } = ast.metadata
+	const others = fields.filter(field => 'kind' in field || field[0] !== OPEN)
+	return others.length === 0 ? ast.expr : new MetaAST(new RecordAST(others, optional), ast.expr)
+}
+
 /** The value a type accepts as its default, as source. */
 export function defaultFor(type: TypeValue | null, env: Env): AST {
 	if (type === null) return new LitAST(0)
@@ -987,6 +1012,24 @@ function isIfElse(args: readonly AST[]): boolean {
 const readableDocOf = (metadata: MetaAST['metadata'] | null): string | null => {
 	const doc = textOf(metadata?.get('doc'))
 	return doc === null ? null : readableDoc(doc, capitalCase)
+}
+
+/**
+ * What a type is, to someone who sees a value of it: what it is called and what it is, as where
+ * it is bound says, and the icon it says it has. Null if it goes by no name to say.
+ */
+export function aboutType(
+	type: TypeValue | null,
+	env: Env
+): { readonly label: string; readonly doc: string | null; readonly icon: string | null } | null {
+	const name = nameOfType(type, env)
+	if (name === null) return null
+	const about = metadataOf(name, env)
+	return {
+		label: textOf(about?.get('label')) ?? capitalCase(name),
+		doc: readableDocOf(about) ?? readableDocOf(type?.meta ?? null),
+		icon: textOf(type?.meta?.get('icon')) ?? textOf(about?.get('icon')),
+	}
 }
 
 /** What a type goes by where it is seen from, or that of what it says more about. */
@@ -1320,7 +1363,8 @@ function parameterTypes(
 	ast: CallAST,
 	env: Env
 ): ((index: number) => TypeValue | null) | null {
-	const head = infer(ast.head, env)
+	// A type that is called is its constructor, with what each of its parts is, as `(rect …)` has.
+	const head = calledType(ast, env)
 	if (head === null) return null
 	const shape = unwrapLazy(head).shape
 	if (shape.kind !== 'function') return null

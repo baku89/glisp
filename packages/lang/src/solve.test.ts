@@ -418,3 +418,30 @@ describe('solve — a value its type makes', () => {
 		expect(edited('{V = [number number] r = (V 1) r}', [7, 0])).toBe('{V = [number number] r = (V 7) r}')
 	})
 })
+
+describe('solve — a node inside what is pinned', () => {
+	const inside = (src: string, at: (r: AST) => AST, value: unknown) => {
+		const root = parse(src) as LetAST
+		return solve(root, env, at(root.bindings.find(([name]) => name === 'r')![1]), value)
+	}
+	const bare = (ast: AST): AST => (ast.kind === 'meta' ? ast.expr : ast)
+
+	it('leaves it, as what it is in is locked as a whole', () => {
+		const second = (r: AST) => (bare(r) as CallAST).args[1]!
+		const { ast, diagnostics } = inside('{r = @(+ 1 2)}', second, 5)
+		expect(ast).toBeNull()
+		expect(diagnostics[0]?.message).toBe('locked')
+	})
+
+	it('leaves it however deep it is', () => {
+		const deep = (r: AST) => ((bare(r) as CallAST).args[0] as CallAST).args[0]!
+		expect(inside('{r = @(+ (* 2 3) 4)}', deep, 5).ast).toBeNull()
+		expect(inside('{r = ^{label: "R"} @(+ (* 2 3) 4)}', deep, 5).ast).toBeNull()
+	})
+
+	it('changes what is beside it, which is not in it', () => {
+		const first = (r: AST) => (bare(r) as CallAST).args[0]!
+		const { ast } = inside('{r = (+ 1 @2)}', first, 5)
+		expect(ast && print(ast)).toBe('{r = (+ 5 @2)}')
+	})
+})

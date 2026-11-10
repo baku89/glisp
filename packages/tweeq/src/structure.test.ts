@@ -2,7 +2,7 @@ import { type AST, buildPrelude, check, type Env, evaluate, host, isPinned, LetA
 import { describe, expect, it } from 'vitest'
 
 import { iconOf, withIcons } from './icons'
-import { holdsRows, slotAlong, slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
+import { isOpenRow, withOpenRow, holdsRows, slotAlong, slotCommandOfKey, actionsOf, rowsWithAbsent, canSolve, elementAt, keepingRatio, numberOptionsAt, referenceAt, writtenReference, missingReferringTo, missingWritten, editorOfValue, defaultFor, hasValue, isExpression, isGroup, isProportional, withProportional, expressionForNumber, expressionFromField, canStack, fitsInline, typeHintOf, numbersFit, kindIconOf, literalOf, moveBetween, moveBinding, readableDoc, referenceTargetOf, renameBindingAt, parseSource, problemOf, viewOf, withLiteral } from './structure'
 
 const env = withIcons(buildPrelude())
 const view = (src: string) => viewOf(parse(src), env)
@@ -1648,5 +1648,29 @@ describe('holdsRows', () => {
 		expect(holdsRows([[0, 0], [1, 1]])).toBe(true)
 		expect(holdsRows([0, 90])).toBe(false)
 		expect(holdsRows(3)).toBe(false)
+	})
+})
+
+describe('a row that is open', () => {
+	const open = (src: string) => print(withOpenRow(parse(src), true))
+	const closed = (src: string) => print(withOpenRow(parse(src), false))
+
+	it('says so in its metadata, keeping what else is said', () => {
+		expect(open('[1 2]')).toBe('^{open: true} [1 2]')
+		expect(open('^{label: "A"} [1 2]')).toBe('^{label: "A" open: true} [1 2]')
+		expect(isOpenRow(parse('^{open: true} [1 2]'))).toBe(true)
+		expect(isOpenRow(parse('[1 2]'))).toBe(false)
+	})
+
+	it('says nothing of it once it is closed, which is what a row is until it is opened', () => {
+		expect(closed('^{open: true} [1 2]')).toBe('[1 2]')
+		expect(closed('^{label: "A" open: true} [1 2]')).toBe('^{label: "A"} [1 2]')
+		const bare = parse('[1 2]')
+		expect(withOpenRow(bare, false)).toBe(bare)
+	})
+
+	it('is the same row, with the same slots, open or not', () => {
+		const labelsOf = (src: string) => viewOf(parse(src), env).slots.map(s => s.label)
+		expect(labelsOf('^{open: true} {x: 1 y: 2}')).toEqual(labelsOf('{x: 1 y: 2}'))
 	})
 })

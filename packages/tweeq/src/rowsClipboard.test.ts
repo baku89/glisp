@@ -231,6 +231,13 @@ describe('pastedArguments', () => {
 		expect(given('{a = (take [1 2 3] 1)}', ['binding:a/arg1'], 'radius = "x"')).toBeNull()
 	})
 
+	it('takes as much of it as fits into a row that is a part, the nearest first', () => {
+		expect(given('{a = (take [1 2 3] 1)}', ['binding:a/arg1'], 'b = (take [4 5] 9)')).toBe(
+			'{a = (take [1 2 3] 9)}'
+		)
+		expect(given('{a = (take [1 2 3] 1)}', ['binding:a/arg1'], 'b = (take ["x"] "y")')).toBeNull()
+	})
+
 	it('leaves what is said about what it replaces', () => {
 		expect(given('{a = (take [1] ^{max: 9} 1)}', ['binding:a'], 'n = 2')).toBe(
 			'{a = (take [1] ^{max: 9} 2)}'

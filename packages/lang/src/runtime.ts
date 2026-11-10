@@ -340,7 +340,11 @@ class SignatureStore implements EvalStore {
 			case 'spread':
 				return `... ${id(ast.expr)}`
 			case 'meta':
-				// Of metadata, evaluation reads only `#_` and a `default`.
+				// Of metadata, evaluation reads only `#_` and a `default`. Without them it is what it is
+				// said of, so that saying something of it, as that it is open, leaves it the same.
+				if (ast.metadata.get(HIDDEN) === undefined && ast.metadata.get('default') === undefined) {
+					return this.contentKey(ast.expr)
+				}
 				return `meta ${ast.metadata.get(HIDDEN) === undefined ? '' : '#_ '}${id(ast.expr)} ${
 					ast.metadata.get('default') === undefined
 						? ''

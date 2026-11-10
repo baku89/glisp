@@ -75,6 +75,23 @@ describe('Runtime — incremental evaluation', () => {
 		expect(H.runs).toBe(1)
 	})
 
+	it('changes nothing for metadata that is not a default or a type, as a row being open', () => {
+		const H = counter()
+		const rt = new Runtime(prelude)
+		const values = ['', '^{open: true} ', '^{open: true label: "Shape"} '].map(meta => {
+			rt.setRoot(program(H.ast, `{a = ${meta}[(H 1) {x: (H 2)}] b = (+ (H 3) 1) [a b]}`))
+			return rt.evaluate().value as unknown[]
+		})
+		expect(H.runs).toBe(3)
+		expect(values[1]).toBe(values[0])
+		expect(values[2]).toBe(values[0])
+		// Inside of what refers to it, too.
+		rt.setRoot(program(H.ast, `{a = [(H 1) ^{open: true} {x: (H 2)}] b = (+ (H 3) 1) [a b]}`))
+		const inner = rt.evaluate().value as unknown[]
+		expect(inner[0]).toEqual(values[0]![0])
+		expect(H.runs).toBe(3)
+	})
+
 	it('keeps an unchanged value identical across edits', () => {
 		const rt = new Runtime(prelude)
 		const root = (b: number) => parse(`{shape: [1 2 3] nested: {x: 1} b: ${b}}`)

@@ -1,4 +1,4 @@
-import { AXES_ICON, POINT_ICON, RAY_ICON, STRAIGHT_LINE_ICON } from './graphics'
+import { ARTBOARD_ICON, AXES_ICON, POINT_ICON, RAY_ICON, STRAIGHT_LINE_ICON } from './graphics'
 
 /** What a shape looks like as a tool, and as the function that makes it. */
 export const SHAPE_ICONS = {
@@ -55,6 +55,7 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.arcThrough': 'stroke:M4 17A9 9 0 0 1 20 17',
 	'path.cubic': 'ph:bezier-curve',
 	'path.transform': 'ph:bounding-box',
+	artboard: ARTBOARD_ICON,
 	'path.replicate': 'ph:copy-simple',
 	style: 'ph:paint-brush',
 	point: POINT_ICON,

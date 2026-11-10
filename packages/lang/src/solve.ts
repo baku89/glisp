@@ -74,11 +74,15 @@ export interface SolveOptions {
  */
 export function solve(root: AST, env: Env, node: AST, value: unknown, options: SolveOptions = {}): Solved {
 	const held = options.held ?? new Set<AST>()
-	const places = placesIn(root, env)
+	const locks = new Map<AST, AST>()
+	const places = placesIn(root, env, locks)
 	const nodeEnv = places.get(node)
 	if (nodeEnv === undefined) {
 		return failure(node, env, 'not a node that can be edited')
 	}
+	// What is in something locked is locked too, as a path into it is.
+	const lockedBy = locks.get(node)
+	if (lockedBy !== undefined) return failure(lockedBy, env, 'locked')
 
 	/** Set while working out what to call a function with: all that may change. */
 	let probe: LitAST | null = null
@@ -414,11 +418,23 @@ function refersToChangedFirst(arg: AST, env: Env): boolean {
  * The nodes of `root` that an edit can reach, with the env of each. A function
  * literal's insides are not among them, and neither is what `%` makes one of.
  */
-function placesIn(root: AST, env: Env): Map<AST, Env> {
+/**
+ * Each node of `root` that can be edited, with the env it stands in. Into `locks`, if given, what
+ * of them is inside something locked, by the outermost `@` around it.
+ */
+function placesIn(root: AST, env: Env, locks?: Map<AST, AST>): Map<AST, Env> {
 	const places = new Map<AST, Env>()
+	let lock: AST | null = null
 	const visit = (ast: AST, at: Env): void => {
 		if (ast.kind !== 'fn' && desugar(ast).kind === 'fn') return
 		places.set(ast, at)
+		if (lock !== null) locks?.set(ast, lock)
+		if (ast.kind === 'meta' && isPinned(ast) && lock === null) {
+			lock = ast
+			visit(ast.expr, at)
+			lock = null
+			return
+		}
 		switch (ast.kind) {
 			case 'let': {
 				const inside = pushLetFrame(ast, at)

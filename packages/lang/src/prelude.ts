@@ -532,12 +532,12 @@ export function buildPrelude(): Env {
 		// -----------------------------------------------------------------
 		// Types
 		// -----------------------------------------------------------------
-		number: bind('The base numeric type. Default `0`.', host(numberType)),
-		string: bind('The base string type. Default `""`.', host(stringType)),
-		boolean: bind('The base boolean type. Default `false`.', host(booleanType)),
+		number: bind('A number, whole or not, positive or negative.', host(numberType)),
+		string: bind('A piece of text.', host(stringType)),
+		boolean: bind('`true` or `false`.', host(booleanType)),
 		unit: bind('The type of `()`, which is its only value.', host(unitType)),
-		_: bind('Top type. Accepts every value. Default `()`.', host(topType)),
-		'!': bind('Bottom type. Accepts no value. Default `()`.', host(bottomType)),
+		_: bind('Anything: every value fits it.', host(topType)),
+		'!': bind('Nothing: no value fits it.', host(bottomType)),
 		vector: bind(
 			'Any vector. `(vector T)` is a vector of `T`, also written `[...T]`.',
 			host(vectorType)

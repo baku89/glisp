@@ -2,9 +2,9 @@ import { type AST, buildPrelude, check, type Env, evaluate, LetAST, print, Sessi
 import { bound, parse } from './program.testing'
 import { filtersFor, wrappedAt } from '@glisp/tweeq/filters'
 import { extractedLiteralAt } from '@glisp/tweeq/multiRows'
-import { copiedRows, pastedArguments, pastedRows } from '@glisp/tweeq/rowsClipboard'
+import { copiedRows, pastedArguments, pastedRows, reach } from '@glisp/tweeq/rowsClipboard'
 import { withSlotCommand } from '@glisp/tweeq/rowsClipboard'
-import { actionsOf, renameBindingAt, isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, referenceAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
+import { aboutType, actionsOf, defaultFor, renameBindingAt, isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, referenceAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
 import { bounds } from 'pave/path/metrics'
 import { transform } from 'pave/path/modifiers'
 import { transform } from 'pave/path/modifiers'
@@ -832,8 +832,8 @@ describe('what is copied by a matrix', () => {
 		expect([a, d, tx, ty].map(n => Math.round(n * 1e6) / 1e6)).toEqual([0, 0, 10, 20])
 		expect([b, c].map(n => Math.round(n * 1e6) / 1e6)).toEqual([2, -2])
 		const held = grip(`(path.replicate ${RECT} (mat2d.trs [0 0]) 0 3)`)
-		const corner = held.handles.find(({ kind }) => kind === 'point')!
-		expect(corner.to(corner.at!, corner.at!).map(({ route }) => route)).toEqual([[1, 1], [1, 2]])
+		const axis = held.handles.find(({ kind }) => kind === 'chevron')!
+		expect(axis.to(axis.at!, axis.at!).map(({ route }) => route)).toEqual([[1, 1], [1, 2]])
 	})
 
 	it('is held at the next copy, and pulling that says where it goes', () => {
@@ -1003,20 +1003,43 @@ describe('what a matrix goes around', () => {
 		expect(evaluate(parse('(mat2d.trs [10 0] 90 [2 2] [0 0])'), env).value).toEqual(
 			evaluate(parse('(mat2d.trs [10 0] 90 [2 2])'), env).value
 		)
-		expect(handles('(mat2d.trs [10 0])').find(h => h.name === 'pivot')!.at).toEqual([0, 0])
 	})
 
-	it('can be taken hold of, saying what comes before it', () => {
+	it('is where its origin is held, which is where the pivot goes', () => {
+		expect(handles('(mat2d.trs [10 0])').find(h => h.name === 'origin')!.at).toEqual([10, 0])
+		expect(handles('(mat2d.trs [10 0] 0 [1 1] [5 5])').find(h => h.name === 'origin')!.at).toEqual([15, 5])
+	})
+
+	it('goes with Option, leaving what it is applied to where it is, and saying what comes before it', () => {
+		for (const src of ['(mat2d.trs [10 0])', '(mat2d.trs [10 0] 90 [2 3] [5 5])']) {
+			const root = parse(`{c = ${src}}`)
+			const origin = gripAt(root, env, 'binding:c')!.handles.find(h => h.name === 'origin')!
+			const { ast: next } = changed(root, env, 'binding:c', origin.to([30, 40], origin.at!, { symmetric: true }))
+			const written = print(next!).match(/\(mat2d\.trs .*\)/)![0]
+			const was = applied(src, [7, -3])
+			expect(applied(written, [7, -3]).map(n => Number(n.toFixed(4)))).toEqual(was.map(n => Number(n.toFixed(4))))
+			expect(handles(written).find(h => h.name === 'origin')!.at!.map(n => Number(n.toFixed(6)))).toEqual([30, 40])
+		}
 		const root = parse('{c = (mat2d.trs [10 0])}')
-		const pivot = gripAt(root, env, 'binding:c')!.handles.find(h => h.name === 'pivot')!
-		const { ast: next } = changed(root, env, 'binding:c', pivot.to([30, 40], [0, 0]))
-		expect(print(next!)).toContain('(mat2d.trs [10 0] 0 [1 1] [30 40])')
+		const origin = gripAt(root, env, 'binding:c')!.handles.find(h => h.name === 'origin')!
+		expect(print(changed(root, env, 'binding:c', origin.to([30, 40], [10, 0], { symmetric: true })).ast!)).toContain(
+			'(mat2d.trs [10 0] 0 [1 1] [20 40])'
+		)
 	})
 
-	it('stays where it is while the rest is at the next copy', () => {
-		const copies = handles('(path.replicate (path.rect [100 100] [20 20]) (mat2d.trs [30 0] 0 [1 1] [50 50]) 0 3)')
-		expect(copies.find(h => h.name === 'pivot')!.at).toEqual([50, 50])
-		expect(copies.at(-1)!.at).toEqual([140, 110])
+	it('scales along each axis by its arrow, and both by as much with Shift', () => {
+		const [x, y] = handles('(mat2d.trs [0 0] 0 [1 2])').filter(h => h.kind === 'chevron')
+		expect(x!.at).toEqual([80, 0])
+		expect(y!.at!.map(n => Number(n.toFixed(6)) + 0)).toEqual([0, 160])
+		expect(x!.to([160, 30], x!.at!)).toEqual([{ route: [1], value: 0 }, { route: [2], value: [2, 2] }])
+		expect(x!.to([160, 30], x!.at!, { even: true })).toEqual([{ route: [1], value: 0 }, { route: [2], value: [2, 4] }])
+		expect(y!.to([30, 80], y!.at!)).toEqual([{ route: [1], value: 0 }, { route: [2], value: [1, 1] }])
+	})
+
+	it('turns by what is a little past the end of its X axis', () => {
+		const turner = handles('(mat2d.trs [0 0] 0 [1 1])').find(h => h.rotates)!
+		expect(turner.at![0]).toBeGreaterThan(80)
+		expect(turner.to([0, 100], turner.at!)).toEqual([{ route: [1], value: 90 }])
 	})
 })
 
@@ -1841,3 +1864,77 @@ describe('the points of a path', () => {
 	})
 })
 
+describe('pasted onto an input of a type of the canvas', () => {
+	const root = parse(`{
+		shape = (style (path.circle [3 4] 10) fill: "red")
+		other = (path.mirror (path.rect [0 0] [1 1]) [[1 2] [0 1]])
+		m = (path.mirror (path.d "") [[0 0] [1 0]])
+	}`)
+	const pasted = (from: string, to: string) =>
+		print(pastedArguments(root, env, [to], copiedRows(root, env, [from]))!)
+
+	it('is the path of a shape, for a path', () => {
+		expect(pasted('binding:shape', 'binding:m/arg0')).toContain('m = (path.mirror (path.circle [3 4] 10) [[0 0] [1 0]])')
+	})
+
+	it('is the line or the point in it, for a line or a point', () => {
+		expect(pasted('binding:other', 'binding:m/arg1')).toContain('m = (path.mirror (path.d "") [[1 2] [0 1]])')
+		expect(pasted('binding:shape', 'binding:other/arg0/arg0')).toContain('other = (path.mirror (path.rect [3 4] [1 1])')
+	})
+})
+
+describe('a matrix', () => {
+	it('starts as one that does nothing, written as how it is easiest to change one', () => {
+		const root = parse('{a = (path.transform (path.circle [0 0] 10))}')
+		const a = reach(root, env, 'binding:a')!.chain.at(-1)!
+		const missing = viewOf(a.ast, a.env).missing.find(m => m.parameter === 'by')!
+		expect(print(defaultFor(missing.expected, a.env))).toBe('(mat2d.trs [0 0])')
+	})
+
+	it('has its numbers named as SVG names them', () => {
+		const root = parse('{a = (path.transform (path.circle [0 0] 10) [1 0 0 1 5 6])}')
+		const by = reach(root, env, 'binding:a/arg1')!.chain.at(-1)!
+		expect(viewOf(by.ast, by.env, by.expected).slots.map(s => s.label)).toEqual(['a', 'b', 'c', 'd', 'tx', 'ty'])
+	})
+
+	it('cast as one, is its six numbers, and no more can be added', () => {
+		const root = parse('{m = ^mat2d [1 0 0 1 0 0]}')
+		const inside = reach(root, env, 'binding:m/arg0')!.chain.at(-1)!
+		const view = viewOf(inside.ast, inside.env, inside.expected)
+		expect(view.slots.map(s => s.label)).toEqual(['a', 'b', 'c', 'd', 'tx', 'ty'])
+		expect(view.append).toBeNull()
+		expect(reach(root, env, 'binding:m/arg0/4')!.chain.at(-1)!.label).toBe('tx')
+	})
+})
+
+describe('what a type is, said where a value of it is inspected', () => {
+	const about = (row: string) => {
+		const root = parse('{r = (path.rect [0 0] [10 10]) t = (path.transform (path.circle [0 0] 3) [1 0 0 1 0 0])}')
+		const slot = reach(root, env, row)!.chain.at(-1)!
+		return aboutType(slot.expected, slot.env)
+	}
+
+	it('is what it is called, what it is, and its icon', () => {
+		const point = about('binding:r/arg0')!
+		expect(point.label).toBe('Point')
+		expect(point.doc).toMatch(/place on the canvas/)
+		expect(point.icon).toBeTruthy()
+	})
+
+	it('is said of each type of the canvas a value is wanted as', () => {
+		expect(about('binding:r/arg1')).toMatchObject({ label: 'Size', icon: 'ph:frame-corners' })
+		expect(about('binding:t/arg1')).toMatchObject({ label: 'Matrix', icon: 'tabler:matrix' })
+		expect(about('binding:t/arg1')!.doc).toMatch(/where the origin goes/)
+	})
+})
+
+describe('a type that is called', () => {
+	it('has each of its parts wanted as what its constructor takes, as a rect has a point and a size', () => {
+		const root = parse('{a = (artboard (rect [-4 -2] [773 648]) [])}')
+		const area = reach(root, env, 'binding:a/arg0')!.chain.at(-1)!
+		const [origin, size] = viewOf(area.ast, area.env, area.expected).slots
+		expect(aboutType(origin!.expected, origin!.env)?.label).toBe('Point')
+		expect(aboutType(size!.expected, size!.env)?.label).toBe('Size')
+		expect(isTranslatable(origin!.expected)).toBe(true)
+	})
+})

@@ -50,14 +50,16 @@ export function reach(root: AST, env: Env, path: string): Reached | null {
 	let node = root
 	let nodeEnv = env
 	let parent = root
+	let expected: TypeValue | null = null
 	for (const key of path.split('/')) {
-		const slots: readonly Slot[] = viewOf(node, nodeEnv).slots
+		const slots: readonly Slot[] = viewOf(node, nodeEnv, expected).slots
 		const slot = slots.find(s => s.key === key)
 		if (slot === undefined) return null
 		chain.push(slot)
 		parent = node
 		node = slot.ast
 		nodeEnv = slot.env
+		expected = slot.expected
 	}
 	return { chain, parent }
 }
@@ -238,9 +240,28 @@ function fits(value: AST, expected: TypeValue | null, env: Env): boolean {
 }
 
 /**
+ * `value` if it fits, or else the nearest of what it is made of that does and is known to:
+ * the path a shape is drawn with, for a place that wants a path. Null if nothing in it fits.
+ */
+function fittedPart(value: AST, expected: TypeValue | null, env: Env): AST | null {
+	if (fits(value, expected, env)) return value
+	if (expected === null) return null
+	const queue = [{ ast: value, env }]
+	for (const { ast, env } of queue) {
+		for (const slot of viewOf(ast, env).slots) {
+			if (!isArgument(slot)) continue
+			const type = infer(slot.ast, slot.env)
+			if (type !== null && argFits(slot.ast, type, expected)) return unnamed(slot.ast)
+			queue.push({ ast: slot.ast, env: slot.env })
+		}
+	}
+	return null
+}
+
+/**
  * The program with `value` where the row at `path` has a place for it. By name, among the
  * parameters of what the row is made of. Or else in the row itself, which was chosen by
- * hand, if `alone` says that nothing else is coming to it too.
+ * hand, if `alone` says that nothing else is coming to it too, as much of it as fits there.
  */
 function landed(
 	root: AST,
@@ -258,9 +279,9 @@ function landed(
 
 	const named = places.find(place => place.name === name)
 	if (named) return named.put(value)
-	return alone && !isBindingKey(row.key) && fits(value, row.expected, row.env)
-		? program(keepingMeta(row.ast, value))
-		: null
+	if (!alone || isBindingKey(row.key)) return null
+	const part = fittedPart(value, row.expected, row.env)
+	return part === null ? null : program(keepingMeta(row.ast, part))
 }
 
 /**

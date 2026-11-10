@@ -1657,7 +1657,9 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 	if (held === null || row === undefined || said === undefined) return held
 	if (held.grip.transform.join() !== IDENTITY.join()) return held
 	const several = said.across === true
-	const hasItsOwn = !several && held.grip.handles.some(({ rotates, pivot }) => rotates && pivot !== undefined)
+	// What turns it of its own, but for one that is apart from the box, as a gizmo's is.
+	const turnsIt = ({ rotates, pivot, apart }: Handle): boolean => rotates === true && pivot !== undefined && apart !== true
+	const hasItsOwn = !several && held.grip.handles.some(turnsIt)
 	// Along axes that are turned, one scale each way would not be what it looks like.
 	const answer: BoxAnswer =
 		said.angle === undefined && !hasItsOwn && turn % 360 !== 0 ? { ...said, angle: turn, even: true } : said
@@ -1671,7 +1673,7 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 	// What turns it goes to the corners of the box, and what it was held out on goes with it.
 	const turning = several
 		? (turningAll(around, answer) ?? undefined)
-		: (held.grip.handles.find(({ rotates, pivot }) => rotates && pivot !== undefined) ??
+		: (held.grip.handles.find(turnsIt) ??
 			(answer.round ? undefined : (turningAll(around, answer) ?? undefined)))
 	const turners = turning ? cornerTurners(around, answer.angle ?? 0, turning) : []
 	const kept = held.grip.handles.map(handle => handle !== turning)
@@ -2670,6 +2672,9 @@ export function isOutside(row: string, gone: readonly string[]): boolean {
 	return isolated !== undefined && !isWithin(row, isolated) && !gone.some(through => isWithin(through, row))
 }
 
+/** Whether a row is there, in the program as it is, for it to go on being gone into. */
+export const hasRow = (root: AST, env: Env, row: string): boolean => rowAt(root, env, row) !== null
+
 /** Whether there is an inside to a row to go to: a group, or a path made from others. */
 export const canIsolate = (root: AST, env: Env, row: string): boolean =>
 	holdsRows(root, env, row) || innerPathsOf(root, env, row).length > 0
@@ -2693,6 +2698,26 @@ export function diveAt(
 	const [first] = rows
 	if (first === undefined) return null
 	return { rows, isolated: first === held ? null : first.slice(0, first.lastIndexOf('/')) }
+}
+
+/**
+ * What a double click on a row in a list comes to, as it does on what the row draws: going into
+ * what it is made of, if it has an inside, or else into the row itself, as a point it is given,
+ * with that selected. What it adds to `isolation`, which is nothing if it is in there already.
+ */
+export function diveIntoRow(
+	root: AST,
+	env: Env,
+	row: string,
+	isolation: readonly string[],
+	before: readonly string[]
+): { readonly rows: readonly string[]; readonly isolation: readonly string[] } | null {
+	const dive = diveAt(root, env, row, undefined, before)
+	if (dive !== null) {
+		return { rows: dive.rows, isolation: dive.isolated === null ? isolation : [...new Set([...isolation, row, dive.isolated])] }
+	}
+	if (isolation.at(-1) === row || rowAt(root, env, row) === null) return null
+	return { rows: [row], isolation: [...isolation, row] }
 }
 
 /** What is listed in a row, as the project lists it: what is shown whole in it, where it is written. */
@@ -3028,6 +3053,7 @@ const STACKED_BY = 26
 export const saysOutside = ({ kind, name }: Handle): boolean =>
 	kind === 'offset' ||
 	kind === 'arrow' ||
+	kind === 'chevron' ||
 	kind === 'direction' ||
 	(kind === 'point' && name === 'vertex')
 

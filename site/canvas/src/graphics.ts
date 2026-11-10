@@ -306,9 +306,21 @@ const scaleType = withTypeMeta(
 		['name', lit('scale')],
 	])
 )
-/** Six numbers that are not much to read in a row, so it goes by what it is, as a path's data does. */
-const mat2d = withTypeMeta(
-	makeTupleType([number, number, number, number, number, number]),
+/**
+ * Six numbers that are not much to read in a row, so it goes by what it is, as a path's data does.
+ * They are named as SVG's `matrix(a b c d e f)` has them, with the last two for how far it moves.
+ */
+const matrixType = withTypeMeta(
+	makeTupleType(
+		[
+			['a', 'Scale X'],
+			['b', 'Skew Y'],
+			['c', 'Skew X'],
+			['d', 'Scale Y'],
+			['tx', 'Translate X'],
+			['ty', 'Translate Y'],
+		].map(([title, doc]) => part([['title', title!], ['doc', doc!]]))
+	),
 	new RecordAST([
 		['icon', lit('tabler:matrix')],
 		['name', lit('matrix')],
@@ -317,21 +329,21 @@ const mat2d = withTypeMeta(
 )
 const makeTranslation = makeTypedFn(
 	[translationType],
-	mat2d,
+	matrixType,
 	by => Mat2d.fromTranslation(by as Vec),
 	['by']
 )
 const makeRotation = makeTypedFn(
 	[angleType],
-	mat2d,
+	matrixType,
 	angle => Mat2d.fromRotation(angle as number),
 	['angle']
 )
-const makeScaling = makeTypedFn([scaleType], mat2d, by => Mat2d.fromScaling(by as Vec), ['by'])
+const makeScaling = makeTypedFn([scaleType], matrixType, by => Mat2d.fromScaling(by as Vec), ['by'])
 const makeTRS = withOptional(
 	makeTypedFn(
 		[translationType, angleType, scaleType, point],
-		mat2d,
+		matrixType,
 		(translation, rotation, scale, pivot) =>
 			// Adding 0 is for the -0 that turning by nothing comes to, which is not anything to write.
 			Mat2d.pivot(Mat2d.trs(translation as Vec, rotation as number, scale as Vec), pivot as Vec).map(n => n + 0),
@@ -341,19 +353,32 @@ const makeTRS = withOptional(
 )
 const multiply = makeTypedFn(
 	[],
-	mat2d,
+	matrixType,
 	(...matrices) =>
 		(matrices as Mat[]).reduce<Mat>((a, b) => Mat2d.mul(a, b) as unknown as Mat, Mat2d.I as unknown as Mat),
 	[],
-	mat2d
+	matrixType
 )
-withMembers(mat2d, {
+const matrixMembers = {
 	translate: withDoc(makeTranslation, 'A matrix that moves `by` this much.', 'Translation'),
 	rotate: withDoc(makeRotation, 'A matrix that turns by `angle`, in degrees, around the origin.', 'Rotation'),
 	scale: withDoc(makeScaling, 'A matrix that scales `by` this much each way, from the origin.', 'Scaling'),
 	trs: withDoc(makeTRS, 'A matrix that scales by `scale` and turns by `rotation` in degrees, both around `pivot`, then moves by `translation`.', 'Translate, Rotate, Scale'),
 	mul: withDoc(multiply, 'One matrix after another, the last applied first.', 'Multiply'),
-})
+}
+withMembers(matrixType, matrixMembers)
+/** A matrix, starting as one that does nothing, written as how it is easiest to change one. */
+const mat2d = withDefaultFrom(
+	matrixType,
+	new RecordAST([['default', parse('(mat2d.trs [0 0])')]]),
+	{
+		ast: new LetAST([], null),
+		parent: buildPrelude(),
+		bindings: new Map([['mat2d', { ast: host(matrixType), env: null }]]),
+	}
+).type
+// What a type has as members is its own, and not of what it is made from.
+withMembers(mat2d, matrixMembers)
 
 /**
  * A path, to the language: what is in it is pave's business, and could as well be in
@@ -2294,7 +2319,11 @@ export interface Handle {
 	 * `dia` a count, and `path` is its own line, such as an edge.
 	 */
 	/** A `button` does what it does when pressed, with nowhere to be pulled. */
-	readonly kind: 'point' | 'translate' | 'arrow' | 'offset' | 'direction' | 'dia' | 'path' | 'button'
+	/**
+	 * A `chevron` pulls a length as an `arrow` does, and is the head at the end of the line that
+	 * length is, which together look like an arrow, as an axis does.
+	 */
+	readonly kind: 'point' | 'translate' | 'arrow' | 'chevron' | 'offset' | 'direction' | 'dia' | 'path' | 'button'
 	/** Where it is, but for a `path`, which is everywhere along `path`. */
 	readonly at?: Vec
 	readonly path?: Path
@@ -2334,6 +2363,13 @@ export interface Handle {
 	readonly swings?: boolean
 	/** An `arrow` that pulls one side of a box, and so looks like what lies along that side. */
 	readonly grip?: boolean
+	/**
+	 * How far round it is drawn, in degrees, as the crosshair at the origin of axes that are turned is.
+	 * It says nothing of which way it pulls, which is `angle`.
+	 */
+	readonly turn?: number
+	/** It is of its own, as a gizmo's are, and stays where it is when there is a box around what it is of. */
+	readonly apart?: boolean
 	/** It turns something by a corner of the box around it, from outside of that corner, and `at` is the corner. */
 	readonly outsideCorner?: boolean
 	/** It goes across several rows, each change saying of which, with no numbers of any one of them. */
@@ -2885,6 +2921,9 @@ const polarCode =
 		`[(+ ${p('arg0/0')} (* ${radius(p)} (cos (to-rad ${angle(p)})))) (+ ${p('arg0/1')} (* ${radius(p)} (sin (to-rad ${angle(p)}))))]`
 
 const GIZMO_SIZE = 80
+/** How far past the end of the X axis what turns a matrix is, and how far round its arc goes either way. */
+const GIZMO_TURN_GAP = 16
+const GIZMO_TURN_SWEEP = 12
 const NGON_RING = 20
 /** How far past an ellipse its axis goes, to what turns it. */
 const ELLIPSE_FACING = 40
@@ -4051,51 +4090,82 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			const r = (rotation ?? 0) as number
 			const [sx, sy] = (scale ?? [1, 1]) as Vec
 			const p = (pivot ?? [0, 0]) as Vec
-			// Where the pivot goes, which is what all of the rest is around.
+			// Where the pivot goes, which is what all of the rest is around: its origin.
 			const t = add(p, moved)
-			const turned = toward(r, GIZMO_SIZE)
-			const across = toward(r + 90, GIZMO_SIZE)
-			const corner: Vec = [
-				t[0] + turned[0] * sx + across[0] * sy,
-				t[1] + turned[1] * sx + across[1] * sy,
-			]
+			const ux = toward(r, 1)
+			const uy = toward(r + 90, 1)
+			// Its axes, as long as it scales them, each with a head at its end, which is what is pulled.
+			const tipX: Vec = add(t, toward(r, sx * GIZMO_SIZE))
+			const tipY: Vec = add(t, toward(r + 90, sy * GIZMO_SIZE))
+			// What is said of it goes in order, so a scale needs a rotation to come after.
+			const scaled = (x: number, y: number): readonly Change[] => [change(1, r), change(2, [x, y])]
+			const along = (to: Vec, u: Vec): number => {
+				const [x, y] = sub(to, t)
+				return (x * u[0] + y * u[1]) / GIZMO_SIZE
+			}
+			// The other axis goes by as much, with Shift, for one scale each way.
+			const linked = (was: number, now: number, other: number): number => (was === 0 ? now : (other * now) / was)
+			// Turning is a little past the end of the X axis, on an arc around the origin.
+			const reach = Math.abs(sx) * GIZMO_SIZE + GIZMO_TURN_GAP
+			const turner = add(t, toward(r, reach))
+			const turned = (to: Vec, from: Vec, how?: HandleDrag): readonly Change[] =>
+				[change(1, angleHeld(t, r, add(t, toward(r + degrees(sub(to, t)) - degrees(sub(from, t)), 1)), how))]
 			return {
 				handles: [
 					{
+						kind: 'chevron',
+						fine: true,
+						at: tipX,
+						angle: degrees(sub(tipX, t)),
+						to: (to, _, how) => {
+							const x = along(to, ux)
+							return scaled(x, how?.even ? linked(sx, x, sy) : sy)
+						},
+					},
+					{
+						kind: 'chevron',
+						fine: true,
+						at: tipY,
+						angle: degrees(sub(tipY, t)),
+						to: (to, _, how) => {
+							const y = along(to, uy)
+							return scaled(how?.even ? linked(sy, y, sx) : sx, y)
+						},
+					},
+					{
+						kind: 'path',
+						dashed: true,
+						path: arc(t, reach, r - GIZMO_TURN_SWEEP, r + GIZMO_TURN_SWEEP),
+						to: turned,
+					},
+					{
 						kind: 'direction',
 						rotates: true,
-						at: add(t, turned),
+						apart: true,
+						at: turner,
 						pivot: t,
 						angle: r,
 						to: (to, _, how) => [change(1, angleHeld(t, r, to, how))],
 					},
 					{
-						kind: 'point',
-						fine: true,
-						at: corner,
-						// What is said of it goes in order, so a scale needs a rotation to come after.
-						to: to => {
-							const [x, y] = sub(to, t)
-							return [
-								change(1, r),
-								change(2, [
-									(x * turned[0] + y * turned[1]) / GIZMO_SIZE ** 2,
-									(x * across[0] + y * across[1]) / GIZMO_SIZE ** 2,
-								]),
-							]
+						kind: 'translate',
+						name: 'origin',
+						at: t,
+						turn: r,
+						// With Option it is the pivot that goes, and what it is applied to stays where it is.
+						to: (to, _, how) => {
+							if (!how?.symmetric) return [change(0, sub(to, p))]
+							const det = sx * sy
+							if (det === 0) return []
+							// Where `to` is before the matrix, which is the pivot that has it stay.
+							const [dx, dy] = sub(to, t)
+							const back: Vec = [(dx * ux[0] + dy * ux[1]) / sx, (dx * uy[0] + dy * uy[1]) / sy]
+							const nextPivot = add(p, back)
+							return [change(0, sub(to, nextPivot)), change(1, r), change(2, [sx, sy]), change(3, nextPivot)]
 						},
 					},
-					{
-						kind: 'translate',
-						name: 'pivot',
-						at: p,
-						stays: true,
-						// What is said of it goes in order, so a pivot needs all that comes before.
-						to: to => [change(1, r), change(2, [sx, sy]), change(3, to)],
-					},
-					{ kind: 'translate', at: t, to: to => [change(0, sub(to, p))] },
 				],
-				guides: [line(p, t), line(t, add(t, turned)), line(t, corner)],
+				guides: [line(t, tipX), line(t, tipY)],
 				move: delta => [change(0, add(moved, delta))],
 			}
 		},
@@ -4156,8 +4226,10 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 	[
 		makeTransformed,
 		([, matrix], inner) => {
-			const m = matrix as Mat
 			const shape = inner(0)
+			// Not written yet, it does nothing, and there is nothing of it to take hold of.
+			if (matrix === undefined) return shape ?? { handles: [], guides: [] }
+			const m = matrix as Mat
 			const own = inner(1) ?? matrixGrip(m, 1)
 			const [a, b, c, d] = m
 			const det = a * d - b * c
@@ -5011,13 +5083,42 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 		// One scale from a place is one scale from where that place is inside, whatever the matrix is.
 		makeTransformed,
 		([, matrix], inner) => {
+			// What the matrix says of itself comes first, as that is what this call is about.
+			const own = inner(1)?.box
+			if (own !== undefined) return own
 			const within = inner(0)?.box
-			const undo = Mat2d.invert(matrix as Mat) as unknown as Mat | null
+			const undo = matrix === undefined ? null : (Mat2d.invert(matrix as Mat) as unknown as Mat | null)
 			if (within === undefined || undo === null) return null
 			return {
 				even: true,
 				scaled: (x, _, [ax, ay]) =>
 					within.scaled(x, x, [undo[0] * ax + undo[2] * ay + undo[4], undo[1] * ax + undo[3] * ay + undo[5]]),
+			}
+		},
+	],
+	// A matrix scaled from a place is its scale, and how far it moves, so as to leave that place where it is.
+	// The box goes round with it, so that its axes are the box's, each scaled by itself.
+	[
+		makeTRS,
+		([translation, rotation, scale, pivot]) => {
+			const moved = translation as Vec
+			const r = finite(rotation ?? 0)
+			const [sx, sy] = (scale ?? [1, 1]) as Vec
+			const p = (pivot ?? [0, 0]) as Vec
+			const t = add(p, moved)
+			const [cos, sin] = [Math.cos((r * Math.PI) / 180), Math.sin((r * Math.PI) / 180)]
+			return {
+				even: false,
+				...(r % 360 === 0 ? {} : { angle: r }),
+				scaled: (x, y, about) => {
+					const [dx, dy] = sub(t, about)
+					const along = (dx * cos + dy * sin) * x
+					const across = (dy * cos - dx * sin) * y
+					const to: Vec = [about[0] + along * cos - across * sin, about[1] + along * sin + across * cos]
+					return [change(0, sub(to, p)), change(2, [sx * x, sy * y])]
+				},
+				// Turned around a place, it is its rotation, and how far it moves, so as to leave that place where it is.
+				turned: (degrees, about) => [change(0, sub(turnedPlace(t, degrees, about), p)), change(1, r + degrees)],
 			}
 		},
 	],
@@ -5319,6 +5420,18 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 /** What is said of a name, for people to read, as what it is written at and not what it comes to. */
 const ABOUT: Readonly<Record<string, { readonly label: string; readonly doc: string }>> = {
 	point: { label: 'Point', doc: 'A place on the canvas, for other things to go by.' },
+	vec2: { label: 'Vector', doc: 'Two numbers, X and Y, which say nothing more of what they are.' },
+	size: { label: 'Size', doc: 'How wide and how tall something is, which is nowhere on the canvas by itself.' },
+	mat2d: {
+		label: 'Matrix',
+		doc: 'How a place is moved, turned, scaled and skewed, as six numbers: `a b c d` for the axes, and `tx ty` for where the origin goes.',
+	},
+	path: { label: 'Path', doc: 'Lines and curves on the canvas, open or closed, as an SVG path has them.' },
+	line: { label: 'Line', doc: 'A straight line that goes on and on both ways: a place it goes through, and which way it goes.' },
+	ray: { label: 'Ray', doc: 'A straight line that starts at a place and goes on and on one way.' },
+	rect: { label: 'Rect', doc: 'An area on the canvas: where its top left corner is, and its size.' },
+	percent: { label: 'Percent', doc: 'How much of something, from 0 to 1, shown as a percentage.' },
+	color: { label: 'Color', doc: 'A color, written as CSS and SVG would read it.' },
 	artboard: {
 		label: 'Artboard',
 		doc: 'A page of the canvas, over an `area` filled with `fill`, holding `layers` that are measured from its top left corner, and cut off at its edge if it `clip`s. It is exported by itself as that area.',

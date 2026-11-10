@@ -65,7 +65,7 @@ import {
 	withAxesToggled,
 	withGraphPaperToggled,
 } from './rows'
-import { solidOf, canIsolate, diveAt, drawsAt, axesCall, graphPaperCall, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, writtenAsNow, isOutlined, sceneOf } from './scene'
+import { solidOf, canIsolate, hasRow, diveAt, drawsAt, axesCall, graphPaperCall, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, writtenAsNow, isOutlined, sceneOf } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -590,12 +590,13 @@ const $canvas = useTemplateRef<{
 	placeAt(clientX: number, clientY: number): Vec
 	glideTo(next: mat2d): void
 	zoomBy(factor: number): void
-	zoomTo(zoom: number): void
+	zoomTo(zoom: number, glide?: boolean): void
 	zoom(): number
 	view(): mat2d
 	jumpTo(next: mat2d): void
 	rowAtPoint(x: number, y: number): string | null
 	leaveIsolated(): void
+	diveInto(row: string): boolean
 	size(): readonly [number, number]
 }>('$canvas')
 const zoom = computed(() => $canvas.value?.zoom() ?? 1)
@@ -606,7 +607,7 @@ const MIN_ZOOM = 0.01
 const zoomPresets = computed<MenuItem[]>(() => [
 	...[0.5, 1, 2].map(zoom => ({
 		label: `${zoom * 100}%`,
-		perform: () => $canvas.value?.zoomTo(zoom),
+		perform: () => $canvas.value?.zoomTo(zoom, true),
 	})),
 	{ separator: true },
 	{ label: 'Fit All', icon: 'mdi:fit-to-screen-outline', bindIcon: ['⇧', '1'], perform: () => fit() },
@@ -632,7 +633,8 @@ watch(
 	() => document.root.value,
 	root => {
 		const at = isolated.value
-		if (at !== null && !canIsolate(root, document.env.value, at)) isolation.value = []
+		// A row gone into by itself, as a point is, has only to be there still.
+		if (at !== null && !canIsolate(root, document.env.value, at) && !hasRow(root, document.env.value, at)) isolation.value = []
 	}
 )
 
@@ -973,6 +975,19 @@ function pickInInspector(row: string | null): void {
 }
 /** Whether what is picked out of the shape kept was picked in the inspector, to go back from there. */
 let keptByInspector = false
+
+/**
+ * Into a row from a list of them, as a double click on what it draws goes: what is gone into is
+ * what the inspector is about, and not a part picked out of the shape it is in.
+ */
+function diveIntoRow(row: string): boolean {
+	const [kept, held, byInspector] = [keptRow.value, heldInInspector.value, keptByInspector]
+	keptRow.value = heldInInspector.value = null
+	keptByInspector = false
+	if ($canvas.value?.diveInto(row)) return true
+	;[keptRow.value, heldInInspector.value, keptByInspector] = [kept, held, byInspector]
+	return false
+}
 // Anything else selected, from anywhere, is not the shape that was held any more.
 watch(selected, rows => {
 	const held = heldInInspector.value
@@ -1506,6 +1521,7 @@ function selectInTree(row: string | null): void {
 							:isolated="isolation"
 							:shownWhole="SHOWN_WHOLE"
 							:pickRow="pickInTree"
+							:diveInto="diveIntoRow"
 							:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 							:pasteAs="bindingsOfSvg"
 							@select="selectInTree"
@@ -1588,6 +1604,7 @@ function selectInTree(row: string | null): void {
 						:alsoSelected="pickedOut.length > 0 ? pickedOut : chosenParts"
 						:iconOfValue="iconOfPath"
 						:fillBlank="fillBlank"
+						:diveInto="diveIntoRow"
 						@select="pickInInspector"
 						@kept="sayKept"
 						:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"

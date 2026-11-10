@@ -19,7 +19,7 @@ import { iconOf } from './icons'
 import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
-	HOST_KEY, ALSO_SELECTED, ISOLATED, LAYERS, LINKER, LOCKED, VALUE_PICKER, ROW_PICKER, OPEN_ROW, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SHOWN_WHOLE, SOLVER, TITLED, VALUE_ICON } from './selection'
+	HOST_KEY, ALSO_SELECTED, ISOLATED, LAYERS, LINKER, LOCKED, VALUE_PICKER, ROW_PICKER, ROW_DIVER, OPEN_ROW, QUIETLY, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SHOWN_WHOLE, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
 	slotAlong,
@@ -29,6 +29,7 @@ import {
 	holdsRows,
 	numbersFit,
 	type NumbersFit,
+	isOpenRow,
 	isProportional,
 	layerLabelOf,
 	listedSlots,
@@ -45,6 +46,7 @@ import {
 	type Slot,
 	sourceOf,
 	viewOf,
+	withOpenRow,
 	withProportional,
 } from './structure'
 
@@ -137,7 +139,35 @@ const layers = inject(LAYERS, false)
 const renamer = inject(RENAMER, null)
 const renaming = ref(false)
 
-const open = ref(inject(OPEN_ROW, null)?.() === props.path)
+/**
+ * Whether the row is open, which the program says, so that it stays so. What is not written yet has
+ * nowhere to say it, and the row that an inspector is of is open only there.
+ */
+const openHere = ref(inject(OPEN_ROW, null)?.() === props.path)
+/** Opened or closed, until the program says so, which is after what else this did, as adding to it. */
+const opening = ref<boolean | null>(null)
+const quietly = inject(QUIETLY, (write: () => void) => write())
+const diver = inject(ROW_DIVER, null)
+/** A double click goes into what the row is, as it does on what it draws, but for what is not written yet. */
+const dive = (): boolean => !props.entry.absent && (diver?.(props.path) ?? false)
+const open = computed({
+	get: () => opening.value ?? (openHere.value || (!props.entry.absent && isOpenRow(ast.value))),
+	set: next => {
+		if (next === open.value) return
+		if (!next) openHere.value = false
+		if (props.entry.absent) {
+			openHere.value = next
+			return
+		}
+		opening.value = next
+		void nextTick(() => {
+			const wanted = opening.value
+			opening.value = null
+			if (wanted === null || isOpenRow(ast.value) === wanted) return
+			quietly(() => update(withOpenRow(ast.value, wanted)))
+		})
+	},
+})
 const shownWhole = inject(SHOWN_WHOLE, [])
 
 /** A short vector shows its elements on its own row, until it is opened. */
@@ -528,6 +558,7 @@ watch(
 	<ParameterTreeItem
 		ref="$item"
 		v-model:open="open"
+		:activate="dive"
 		:label="(layers && !isBinding ? layerLabelOf(ast, entry.env) : null) ?? view.label ?? (titled ? titleOf(entry) : entry.label)"
 		:icon="icon"
 		:hint="hint"

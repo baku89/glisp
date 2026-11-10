@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { type Handle, type Vec, withGraphics } from './graphics'
 import { parse } from './program.testing'
-import { boundsOfRows, changed, cornersOfBox, gripOfRows, sceneOf, withBoxHandles } from './scene'
+import { boundsOfRows, changed, cornersOfBox, gripAt, gripOfRows, sceneOf, withBoxHandles } from './scene'
 
 const env = withGraphics(buildPrelude())
 const ROWS = ['binding:a', 'binding:b']
@@ -136,5 +136,59 @@ describe('a box around several things, turned', () => {
 		const size = ([[l, t], [r, b]]: typeof before) => [r - l, b - t]
 		expect(size(after)[0]).toBeCloseTo(size(before)[0]!)
 		expect(size(after)[1]).toBeCloseTo(size(before)[1]!)
+	})
+})
+
+describe('the box around what a matrix is applied to', () => {
+	const ROW = ['binding:t']
+	const dragged = (source: string, pick: (handle: Handle) => boolean, by: Vec) => {
+		const root = parse(source)
+		const gripped = withBoxHandles(gripOfRows(root, env, ROW), sceneOf(root, env), ROW)!
+		const at = gripped.grip.handles.findIndex(pick)
+		const handle = gripped.grip.handles[at]!
+		const to: Vec = [handle.at![0] + by[0], handle.at![1] + by[1]]
+		return print(changed(root, env, gripped.rowOf[at]!, handle.to(to, handle.at!)).ast!)
+	}
+	const isCorner = ({ corner, rotates, outsideCorner }: Handle) => corner === true && rotates !== true && !outsideCorner
+
+	it('scales the matrix, and leaves the path as it is', () => {
+		const next = dragged('{t = (path.transform (path.circle [0 0] 10) (mat2d.trs [100 0]))}', isCorner, [5, 5])
+		expect(next).toContain('(path.circle [0 0] 10)')
+		// From the corner across, which stays where it is.
+		expect(next).toContain('(mat2d.trs [102.5 2.5] scale: [0.75 0.75])')
+	})
+
+	it('turns the matrix', () => {
+		const next = dragged('{t = (path.transform (path.circle [0 0] 10) (mat2d.trs [100 0]))}', ({ rotates }) => rotates === true, [0, 10])
+		expect(next).toContain('(path.circle [0 0] 10)')
+		expect(next).toMatch(/\(mat2d\.trs \[100 0\] -?\d/)
+	})
+
+	it('goes round with a matrix that is turned, each of its axes scaled by itself', () => {
+		const source = '{t = (path.transform (path.rect [0 0] [10 10]) (mat2d.trs [100 0] 30))}'
+		const { box } = gripOfRows(parse(source), env, ROW)!.grip
+		expect(box!.angle).toBe(30)
+		expect(box!.even).toBe(false)
+		const next = dragged(source, ({ corner, rotates, outsideCorner, at }) => corner === true && !rotates && !outsideCorner && at !== undefined, [0, 0])
+		expect(next).toContain('(path.rect [0 0] [10 10])')
+		expect(next).toMatch(/\(mat2d\.trs \[[\d.-]+ [\d.-]+\] 30/)
+	})
+
+	it('keeps the turning of the matrix where it is drawn, and turns the matrix from a corner of the box too', () => {
+		const root = parse('{t = (path.transform (path.circle [0 0] 10) (mat2d.trs [100 0]))}')
+		const gripped = withBoxHandles(gripOfRows(root, env, ROW), sceneOf(root, env), ROW)!
+		expect(gripped.grip.handles.some(({ rotates, apart }) => rotates && apart)).toBe(true)
+		expect(gripped.grip.handles.some(({ outsideCorner }) => outsideCorner)).toBe(true)
+	})
+
+	it('scales the path inside, for a matrix that cannot say so', () => {
+		const next = dragged('{t = (path.transform (path.circle [0 0] 10) (mat2d.translate [100 0]))}', isCorner, [5, 5])
+		expect(next).toContain('(mat2d.translate [100 0])')
+		expect(next).not.toContain('(path.circle [0 0] 10)')
+	})
+
+	it('is of the path alone, while there is no matrix', () => {
+		const root = parse('{t = (path.transform (path.rect [0 0] [10 10]))}')
+		expect(gripAt(root, env, 'binding:t')!.handles.length).toBeGreaterThan(0)
 	})
 })

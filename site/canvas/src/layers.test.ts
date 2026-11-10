@@ -1,6 +1,6 @@
 import { type AST, buildPrelude, check, evaluate, infer, LetAST, parse as expression, print, typeFits, type TypeValue } from '@glisp/lang'
 import { combined, filtersFor, nameMadeBy, wrappedAt } from '@glisp/tweeq/filters'
-import { layersOf, moveBinding, renameBindingAt, viewOf, withLayerAdded } from '@glisp/tweeq/structure'
+import { layersOf, moveBinding, renameBindingAt, viewOf, withLayerAdded, withOpenRow } from '@glisp/tweeq/structure'
 import { pastedRows, reach, withoutRows } from '@glisp/tweeq/rowsClipboard'
 import { keptReferences } from '@glisp/tweeq/keptReferences'
 import { bound, parse } from './program.testing'
@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { withGraphics } from './graphics'
 import { allPaintedRows, arranged, crumbsOf, grouped, ungrouped, withSolid, withGraphPaperToggled } from './rows'
 import { svgOfRows } from './svg'
-import { canIsolate, changed, diveAt, gripAt, isGroupRow, isOutside, labelOfRow, paintAt, rowsListedIn, rowInGroup, rowsPaintedBy, rowsToTake, rowTakenAt, sceneOf, valueOfRow, paintedRow, withLayersFromOrder, withPaint, withPaintOfRows } from './scene'
+import { canIsolate, changed, diveAt, diveIntoRow, hasRow, gripAt, isGroupRow, isOutside, labelOfRow, paintAt, rowsListedIn, rowInGroup, rowsPaintedBy, rowsToTake, rowTakenAt, sceneOf, valueOfRow, paintedRow, withLayersFromOrder, withPaint, withPaintOfRows } from './scene'
 import { bounds } from 'pave/path/metrics'
 import type { Path } from './graphics'
 
@@ -622,5 +622,60 @@ describe('what is taken away, that something was drawn by', () => {
 		const { ast, rows } = keptReferences(before, withoutRows(before, env, ['binding:r']), env)
 		expect(print(ast)).toBe('{main = [c = (path.circle [20 0] 10)]}')
 		expect(rows).toEqual(['binding:c/arg0'])
+	})
+})
+
+describe('rows that are open', () => {
+	const SOURCE =
+		'{main = [a = (path.circle [0 0] 10) g = {b = (path.rect [0 0] [5 5]) [b]} m = ^mat2d [1 0 0 1 0 0] t = (path.transform (path.circle [0 0] 3) (mat2d.trs [5 0]))]}'
+	const ROWS = ['binding:a', 'binding:a/arg0', 'binding:g', 'binding:g/binding:b', 'binding:m', 'binding:m/arg0', 'binding:t', 'binding:t/arg1']
+	const opened = (root: AST, path: string): AST => {
+		const chain = reach(root, env, path)!.chain
+		let next = chain.at(-1)!.replace(withOpenRow(chain.at(-1)!.ast, true))
+		for (let i = chain.length - 2; i >= 0; i--) next = chain[i]!.replace(next)
+		return next
+	}
+
+	it('are drawn, listed and held as they were, all of them open', () => {
+		const root = parse(SOURCE)
+		const open = ROWS.reduce(opened, root)
+		const drawn = (ast: AST) => sceneOf(ast, env).map(({ row, draw }) => `${row}:${draw}`)
+		expect(print(open)).toContain('a = ^{open: true} (path.circle ^{open: true} [0 0] 10)')
+		expect(drawn(open)).toEqual(drawn(root))
+		expect(layersOf(open as LetAST)).toEqual(layersOf(root as LetAST))
+		for (const row of ROWS) expect(reach(open, env, row), row).not.toBeNull()
+		const handles = (ast: AST) => gripAt(ast, env, 'binding:t')!.handles.map(({ kind, at }) => [kind, at])
+		expect(handles(open)).toEqual(handles(root))
+	})
+})
+
+describe('a double click on a row in a list', () => {
+	const root = parse(
+		'{main = [r = (path.rect [0 0] [10 10]) g = {a = (path.circle [0 0] 5) [a]} t = (path.transform (path.circle [0 0] 3) (mat2d.trs [5 0]))]}'
+	)
+	const dive = (row: string, isolation: readonly string[] = []) => diveIntoRow(root, env, row, isolation, [])
+
+	it('goes into what a row is made of, as on what it draws', () => {
+		expect(dive('binding:t')).toEqual({ rows: ['binding:t/arg0'], isolation: ['binding:t'] })
+	})
+
+	it('goes into the row itself, where it has no inside, as a point it is given', () => {
+		expect(dive('binding:r')).toEqual({ rows: ['binding:r'], isolation: ['binding:r'] })
+		expect(dive('binding:r/arg0', ['binding:r'])).toEqual({ rows: ['binding:r/arg0'], isolation: ['binding:r', 'binding:r/arg0'] })
+	})
+
+	it('stays in a part it went into while that is there, as a point given to a rect', () => {
+		expect(canIsolate(root, env, 'binding:r/arg0')).toBe(false)
+		expect(hasRow(root, env, 'binding:r/arg0')).toBe(true)
+		expect(hasRow(root, env, 'binding:r/arg9')).toBe(false)
+	})
+
+	it('is called what the inspector calls it, for a part of something', () => {
+		expect(crumbsOf(root, env, ['binding:r/arg0']).map(({ label }) => label)).toEqual(['Origin'])
+	})
+
+	it('goes nowhere it is already, or that is not there', () => {
+		expect(dive('binding:r', ['binding:r'])).toBeNull()
+		expect(dive('binding:nothing')).toBeNull()
 	})
 })

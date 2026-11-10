@@ -57,6 +57,8 @@ const shown = computed(() => (props.icons && props.icons.length > 0 ? props.icon
 }
 .doc {
 	line-height: 1.4;
+	/* What it is where it is, and then what it is of, each a paragraph. */
+	white-space: pre-line;
 	color: var(--tq-color-text-mute);
 }
 </style>

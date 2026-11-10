@@ -147,3 +147,23 @@ describe('going over to something else', () => {
 		expect(document.root.value).toBe(other)
 	})
 })
+
+describe('adjust', () => {
+	it('is no step to undo, nor the end of the one before it', () => {
+		const document = useGlispDocument('{a = 1}')
+		document.setRoot(program('{a = 2}'))
+		document.adjust(program('{a = ^{open: true} 2}'))
+		expect(print(document.root.value)).toBe('{a = ^{open: true} 2}')
+		document.undo()
+		expect(print(document.root.value)).toBe('{a = 1}')
+		expect(document.canUndo.value).toBe(false)
+	})
+
+	it('leaves what is redone as it was', () => {
+		const document = useGlispDocument('{a = 1}')
+		document.setRoot(program('{a = 2}'))
+		document.undo()
+		document.adjust(program('{a = ^{open: true} 1}'))
+		expect(document.canRedo.value).toBe(true)
+	})
+})
