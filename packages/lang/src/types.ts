@@ -665,6 +665,8 @@ export interface Diagnostic {
 	readonly level: DiagnosticLevel
 	readonly message: string
 	readonly source: EvaluationNode
+	/** The key of what a host function had to do without, for the host to bring. */
+	readonly awaiting?: string
 }
 
 /**

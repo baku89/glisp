@@ -344,6 +344,12 @@ export interface NumberOptions {
 	readonly prefix?: string
 	readonly suffix?: string
 	readonly leftIcon?: string
+	/** `min` is only where a slider starts, and it can go below it, as a ratio can. */
+	readonly clampMin?: false
+	/** `max` is only where a slider ends, and it can go past it. */
+	readonly clampMax?: false
+	/** It is an angle in degrees, which can be brought within one turn. */
+	readonly angle?: true
 }
 
 /**
@@ -453,7 +459,11 @@ const LEAF: NodeView = {
 	append: null,
 }
 
-/** `min`, `max` and `step`, from metadata. A min and max out of order say nothing. */
+/**
+ * `min`, `max` and `step`, from metadata. A min and max out of order say nothing. `softMin` and
+ * `softMax` are where a slider goes from and to, which can be typed or dragged past, and are what
+ * it shows in place of `min` and `max`.
+ */
 function numberOptionsOf(metadata: MetaAST['metadata'] | null | undefined): NumberOptions {
 	const read = (key: string): number | undefined => {
 		const field = metadata?.get(key)
@@ -461,13 +471,17 @@ function numberOptionsOf(metadata: MetaAST['metadata'] | null | undefined): Numb
 			? field.value
 			: undefined
 	}
-	const [min, max, step, scale] = [read('min'), read('max'), read('step'), read('scale')]
+	const [hardMin, hardMax, step, scale] = [read('min'), read('max'), read('step'), read('scale')]
+	const [softMin, softMax] = [read('softMin'), read('softMax')]
+	const [min, max] = [softMin ?? hardMin, softMax ?? hardMax]
 	const prefix = textOf(metadata?.get('prefix'))
 	const suffix = textOf(metadata?.get('suffix'))
 	// Not `icon`, which is the type's own, for the row.
 	const leftIcon = textOf(metadata?.get('fieldIcon'))
 	const ordered = min === undefined || max === undefined || min < max
 	return {
+		...(softMin === undefined ? {} : { clampMin: false as const }),
+		...(softMax === undefined ? {} : { clampMax: false as const }),
 		...(ordered && min !== undefined ? { min } : {}),
 		...(ordered && max !== undefined ? { max } : {}),
 		...(step !== undefined && step > 0 ? { step } : {}),
@@ -2344,13 +2358,18 @@ function isSettled(ast: AST, env: Env): boolean {
  * or a record has no rung of its own, so each of what is worked out in it goes a step together.
  */
 function steppedOnce(ast: AST, env: Env): AST {
-	// What it is cast to goes on being said, and what there is to work out is what is in it.
+	// What it is cast to goes on being said, and what there is to work out is what is in it, which
+	// is one level in, for a path to go up from there.
 	const cast = castValueOf(ast)
-	if (cast !== null) return isExpression(cast) ? withCastValue(ast, steppedOnce(cast, env)) : ast
+	if (cast !== null) {
+		return isExpression(cast) ? withCastValue(ast, steppedOnce(cast, enterNode(ast.kind === 'meta' ? ast.expr : ast, env))) : ast
+	}
 	const bare = ast.kind === 'meta' ? ast.expr : ast
 	if (bare.kind === 'vec' || bare.kind === 'record') {
+		// What is in it is one level in, as a path in it goes up from there.
+		const inside = enterNode(bare, env)
 		const steppedIn = (node: AST): AST =>
-			node.kind !== 'spread' && isExpression(node) && !isPinned(node) ? steppedOnce(node, env) : node
+			node.kind !== 'spread' && isExpression(node) && !isPinned(node) ? steppedOnce(node, inside) : node
 		const stepped =
 			bare.kind === 'vec'
 				? new VecAST(bare.elements.map(steppedIn))
@@ -2419,8 +2438,8 @@ export function actionsOf(slot: Slot): SlotAction[] {
 		actions.push({
 			...SLOT_COMMANDS.all,
 			apply: () => {
-				const worked = cast ?? slot.ast
-				const { value, diagnostics } = evaluate(worked, slot.env)
+				const { value, diagnostics } =
+					cast === null ? evaluate(slot.ast, slot.env) : evaluate(cast, enterNode(bare, slot.env))
 				if (diagnostics.some(d => d.level === 'error') || typeof value === 'function') return slot.replace(slot.ast)
 				const written = toAst(value, slot.env)
 				return slot.replace(

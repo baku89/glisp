@@ -118,6 +118,8 @@ const props = defineProps<{
 const emit = defineEmits<{
 	/** A row has been selected, or nothing is any more. */
 	select: [path: string | null]
+	/** The rows selected together here, as wholes, each of them a parameter, one or more. */
+	selectTogether: [paths: readonly string[]]
 	/** The whole program is to be edited as code, which is elsewhere among layers. */
 	code: []
 	/** These rows have just been pasted. */
@@ -203,6 +205,19 @@ function addBinding(): void {
 }
 
 provide(MULTI_SELECT_HOST, multiSelectHostOf(props.document))
+// What is selected here together, row by row, for what is written of them to be selected elsewhere too.
+const $editor = useTemplateRef<HTMLElement>('$editor')
+const selectedTogether = computed(() =>
+	useMultiSelectStore().selectedInputs.flatMap(({ whole, data, el }) => {
+		// The store has what each of them is unwrapped, as a store does.
+		const path = (data as { path?: string } | null | undefined)?.path
+		const element = el instanceof HTMLElement ? el : null
+		return whole === true && path !== undefined && element !== null && ($editor.value?.contains(element) ?? false) ? [path] : []
+	})
+)
+watch(selectedTogether, (paths, before) => {
+	if (paths.join() !== before.join()) emit('selectTogether', paths)
+})
 // Several parts of the row picked out elsewhere, as handles on a canvas, are its fields selected
 // here as one, to be dragged together. One alone is picked out as a row, which says enough.
 const multiSelect = useMultiSelectStore()
@@ -871,7 +886,7 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 </script>
 
 <template>
-	<div v-if="isInspector" class="AstEditor inspector" data-selects-rows>
+	<div v-if="isInspector" ref="$editor" class="AstEditor inspector" data-selects-rows>
 		<ScrollArea class="tree">
 			<template v-if="inspected !== null">
 				<FunctionAbout
@@ -969,6 +984,11 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 }
 .AstEditor.inspector .tree {
 	flex: 0 1 auto;
+	/* A knob grows as much as this past its row while it is pointed at, which the last row has no
+	room below it for: that much more inside, and that much taken back from outside, as above. */
+	--knob-grows: calc(var(--tq-input-height) * 0.4);
+	padding-bottom: calc(3px + var(--knob-grows));
+	margin-bottom: calc(-1px - var(--knob-grows));
 }
 /* Names alone: the value's column goes, with what resizes it. */
 .layers :deep(.TqParameterGrid.grid) {

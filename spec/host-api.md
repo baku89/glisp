@@ -208,6 +208,19 @@ class Path {
 
 What it writes should come to a value the same as itself. It is the last rung of its ladder, and `solve` goes back through it like any other call.
 
+### A type that takes another's values
+
+A type made with `makeType` can take the values of other types as its own, as a path takes a rect as its outline. It says which with `includes`, a function, so that a type can name one made after it. Its own `fits` takes those values too, and what it is given then has to be read as one of its own by whatever uses it.
+
+```ts
+const pathType: TypeValue = {
+	...makeType('path', v => v instanceof Path || v instanceof Rect, emptyPath),
+	includes: () => [rectType],
+}
+```
+
+`typeFits` goes by it, so that a rect fits wherever a path is wanted, when the program is checked as when it runs. A value stays what it is: `^path r`, of a rect `r`, is `r`.
+
 ### Overloads
 
 `new OverloadValue([fn1, fn2])`, bound with `host`, dispatches to the first variant whose parameters fit the arguments. In Glisp, `(overload f g)`. Order the variants from most to least specific.
@@ -222,6 +235,22 @@ new IO('description', () => {
 	return []
 })
 ```
+
+### What the host has yet to bring
+
+Evaluation does not wait. What comes from outside a program, such as a font, or a result read back from a GPU, is the host's to bring, and until it has, a host function does without: it says so with `awaiting(key)`, and goes on to return what it can.
+
+```ts
+const outline = makeTypedFn([stringType], pathType, name => {
+	const font = fonts.get(name)
+	if (font === undefined) awaiting(`font:${name}`)
+	return outlineWith(font ?? fallbackFont)
+})
+```
+
+- The call gives a diagnostic of level `info` with the key as its `awaiting`, so a host reads what to bring from the diagnostics of a result.
+- A result that did without, and anything worked out from it, is not kept. Once the host has what was asked for, it evaluates again, with no edit, and only that is worked out anew.
+- What a key gives must not change once the host has it, as results from then on are kept. A key that names its content, as a hash does, comes to the same on any machine.
 
 ## Building ASTs
 
@@ -334,7 +363,10 @@ interface Diagnostic {
 	level: 'error' | 'warning' | 'info'
 	message: string
 	source: { ast: AST; env: Env }
+	awaiting?: string
 }
 ```
+
+`awaiting` is the key of [what the host has yet to bring](#what-the-host-has-yet-to-bring).
 
 `source.ast.source`, when present, is `{ text, start, end }`: the range in the source it was parsed from. A result cached by `Runtime` keeps the diagnostic from when it was computed, so this may belong to an earlier root.

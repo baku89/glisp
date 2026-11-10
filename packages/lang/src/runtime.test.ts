@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { evaluate, makeTypedFn, type TypeValue } from './eval.js'
+import { awaiting, evaluate, makeTypedFn, type TypeValue } from './eval.js'
 import { parse } from './parse.js'
 import { buildPrelude } from './prelude.js'
 import { Runtime } from './runtime.js'
@@ -593,5 +593,79 @@ describe('a frame a runtime has adopted', () => {
 		edit(2)
 		expect(evaluate(parse('a'), session.env).value).toBe(2)
 		expect(heavy.runs).toBe(2)
+	})
+})
+
+describe('what the host has yet to bring', () => {
+	/** `F` gives what the host has for a key, and 0 for what it does not have yet. */
+	function resources() {
+		const state = { had: new Map<string, number>(), runs: 0, ast: null as unknown as AST }
+		const stringType = evaluate(parse('string'), prelude).value as TypeValue
+		state.ast = new HostAST(
+			makeTypedFn(
+				[stringType],
+				numberType,
+				key => {
+					state.runs++
+					const found = state.had.get(key as string)
+					if (found === undefined) awaiting(key as string)
+					return found ?? 0
+				},
+				['key']
+			)
+		)
+		return state
+	}
+
+	const program = (state: { ast: AST }, body: string) =>
+		new LetAST(
+			[['F', state.ast], ['a', parse('(F "k")')], ['b', parse('(+ a 1)')], ['c', parse('(+ 2 3)')]],
+			parse(body)
+		)
+
+	it('gives what it can, and says what it did without', () => {
+		const state = resources()
+		const runtime = new Runtime(prelude)
+		runtime.setRoot(program(state, 'b'))
+		const { value, diagnostics } = runtime.evaluate()
+		expect(value).toBe(1)
+		expect(diagnostics.map(d => d.awaiting)).toEqual(['k'])
+		expect(diagnostics[0].level).toBe('info')
+	})
+
+	it('comes to the value once the host has it, with no edit', () => {
+		const state = resources()
+		const runtime = new Runtime(prelude)
+		runtime.setRoot(program(state, '[b c]'))
+		const before = runtime.evaluate().value as unknown[]
+		expect(before).toEqual([1, 5])
+		state.had.set('k', 10)
+		const after = runtime.evaluate()
+		expect(after.value).toEqual([11, 5])
+		expect(after.diagnostics).toEqual([])
+	})
+
+	it('keeps the result from then on', () => {
+		const state = resources()
+		const runtime = new Runtime(prelude)
+		runtime.setRoot(program(state, 'b'))
+		runtime.evaluate()
+		state.had.set('k', 10)
+		runtime.evaluate()
+		const runs = state.runs
+		runtime.evaluate()
+		expect(state.runs).toBe(runs)
+	})
+
+	it('says each key once for a call', () => {
+		const twice = new HostAST(
+			makeTypedFn([], numberType, () => {
+				awaiting('k')
+				awaiting('k')
+				return 0
+			})
+		)
+		const { diagnostics } = evaluate(new LetAST([['T', twice]], parse('(T)')), prelude)
+		expect(diagnostics.map(d => d.awaiting)).toEqual(['k'])
 	})
 })

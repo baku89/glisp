@@ -1,10 +1,18 @@
+<script lang="ts">
+import type { InjectionKey } from 'vue'
+
+/** That what a row holds is numbers opened, each a row of its own, for each to say no more than its row. */
+const NUMBERS_OPEN: InjectionKey<() => boolean> = Symbol('glisp-numbers-open')
+</script>
+
 <script setup lang="ts">
-import { type AST, type Diagnostic, type Env, isHidden, isPinned, MetaAST, nameOf, readByName, toAst } from '@glisp/lang'
+import { type AST, type Diagnostic, type Env, isHidden, isPinned, LitAST, MetaAST, nameOf, readByName, toAst, UNIT } from '@glisp/lang'
 import { Icon } from 'tweeq/Icon'
 import { InputDropdown } from 'tweeq/InputDropdown'
 import { InputRotary } from 'tweeq/InputRotary'
 import { InputTranslate } from 'tweeq/InputTranslate'
-import { type MenuItem } from 'tweeq/Menu'
+import { Menu, type MenuItem } from 'tweeq/Menu'
+import { Popover } from 'tweeq/Popover'
 import { ParameterTreeContextKey, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { useMultiSelectStore } from 'tweeq/stores/multiSelect'
 import { vTooltip } from 'tweeq/Tooltip'
@@ -210,6 +218,19 @@ const valuePicker = inject(VALUE_PICKER, null)
 const pointable = computed(
 	() => !isFunction.value && !props.entry.absent && !locked.value && (valuePicker?.wants(props.entry.expected) ?? false)
 )
+/**
+ * What can be chosen by pointing at it, however it is written: its mark is pulled onto what it
+ * is to be, as After Effects' pick whip is, or pressed to start choosing.
+ */
+const whippable = computed(
+	() =>
+		!props.entry.absent &&
+		!locked.value &&
+		valuePicker !== null &&
+		// Any parameter, written as a value or worked out: what it is to be is chosen by what it is pulled onto.
+		(props.entry.parameter !== undefined || valuePicker.wants(props.entry.expected))
+)
+const PICK_WHIP_ICON = 'ph:spiral'
 const solver = inject(SOLVER, null)
 const titled = inject(TITLED, false)
 const roomFor = (count: number): NumbersFit =>
@@ -218,6 +239,17 @@ const fit = computed(() => roomFor(view.value.slots.length))
 /** Whether its numbers are there to read as they change, on its row or the rows of them. */
 const numbersInView = computed(() => inline.value || open.value || roomFor(2) !== 'stacked')
 // Numbers have ways of making room, where anything else goes by how much it needs.
+/**
+ * Numbers that are opened are each a row of their own, to be locked, hidden or referred to one by
+ * one, and what they are together is not written out again above them: as a point is its X and its
+ * Y, under the pad that moves both.
+ */
+const numbersOpen = computed(
+	() => open.value && bareKind.value === 'vec' && !holdsRows(placeValue.value) && canStack(placeValue.value)
+)
+/** Whether this is one of the numbers of what is opened, whose row already says which one it is. */
+const isOpenNumber = inject(NUMBERS_OPEN, () => false)
+provide(NUMBERS_OPEN, () => numbersOpen.value)
 const inline = computed(
 	() =>
 		bareKind.value === 'vec' &&
@@ -261,10 +293,14 @@ const referred = computed(() => {
 // else is an expression is for its field to show.
 const kindIcon = computed(() =>
 	isFunction.value || props.entry.display !== undefined || referred.value === null
-		? null
+		? whippable.value
+			? PICK_WHIP_ICON
+			: null
 		: kindIconOf(ast.value)
 )
-const kindHint = computed(() => (referred.value === null ? undefined : sourceOf(referred.value)))
+const kindHint = computed(() =>
+	referred.value === null ? (whippable.value ? 'Pull onto what it is to be, or click to select it' : undefined) : sourceOf(referred.value)
+)
 const expandable = computed(
 	() =>
 		children.value.length > 0 ||
@@ -278,7 +314,7 @@ const isReference = computed(() => {
 	const bare = ast.value.kind === 'meta' ? ast.value.expr : ast.value
 	return (bare.kind === 'sym' || bare.kind === 'path') && linker !== null
 })
-const whip = ref<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
+const whip = ref<{ x1: number; y1: number; x2: number; y2: number; lands?: boolean } | null>(null)
 let whipped = false
 let hovered: Element | null = null
 let hoveredField: Element | null = null
@@ -331,29 +367,43 @@ function linkableAt(x: number, y: number): { row: Element; path: string } | null
 }
 
 function onKindPress(event: PointerEvent): void {
-	if (!isReference.value || event.button !== 0) return
+	if ((!isReference.value && !whippable.value) || event.button !== 0) return
 	event.preventDefault()
 	const icon = (event.currentTarget as Element).getBoundingClientRect()
 	const [x1, y1] = [icon.left + icon.width / 2, icon.top + icon.height / 2]
 	const [startX, startY] = [event.clientX, event.clientY]
 	whipped = false
+	// What can be pointed at is whatever it lands on, in a list of rows or drawn, that the host takes.
+	const byHost = whippable.value && valuePicker !== null
+	let over: string | null = null
+	// Another parameter in the inspector is referred to as it is, before anything the host has.
+	let overParameter = false
 
 	const onMove = (move: PointerEvent) => {
 		if (!whipped && Math.hypot(move.clientX - startX, move.clientY - startY) < 4) return
 		whipped = true
 		window.document.body.classList.add('glisp-linking')
-		whip.value = { x1, y1, x2: move.clientX, y2: move.clientY }
-		setHovered(linkableAt(move.clientX, move.clientY)?.row ?? null)
-		openOnHover(
-			window.document
-				.elementFromPoint(move.clientX, move.clientY)
-				?.closest('.TqParameterTreeItem') ?? null
-		)
+		const item =
+			window.document.elementFromPoint(move.clientX, move.clientY)?.closest('.TqParameterTreeItem') ?? null
+		const linkable = linkableAt(move.clientX, move.clientY)
+		overParameter = byHost && linkable !== null
+		if (byHost && linkable === null) {
+			over = valuePicker.over?.(props.path, [move.clientX, move.clientY]) ?? null
+			setHovered(over === null ? null : item)
+		} else {
+			if (byHost) valuePicker.over?.(props.path, null)
+			over = linkable?.path ?? null
+			setHovered(linkable?.row ?? null)
+		}
+		whip.value = { x1, y1, x2: move.clientX, y2: move.clientY, lands: over !== null }
+		openOnHover(item)
 	}
-	const onUp = (up: PointerEvent) => {
-		const landed = whipped ? linkableAt(up.clientX, up.clientY) : null
+	const onUp = () => {
+		const landed = whipped ? over : null
 		endWhip?.()
-		if (landed) linker?.link(props.path, landed.path)
+		if (landed === null) return
+		if (byHost && !overParameter) valuePicker.pick?.(props.path, landed)
+		else linker?.link(props.path, landed)
 	}
 	const onKey = (key: KeyboardEvent) => {
 		if (key.key === 'Escape') endWhip?.()
@@ -362,6 +412,7 @@ function onKindPress(event: PointerEvent): void {
 		window.removeEventListener('pointermove', onMove)
 		window.removeEventListener('pointerup', onUp)
 		window.removeEventListener('keydown', onKey)
+		if (byHost) valuePicker.over?.(props.path, null)
 		setHovered(null)
 		openOnHover(null)
 		window.document.body.classList.remove('glisp-linking')
@@ -379,10 +430,37 @@ function onKind(): void {
 		whipped = false
 		return
 	}
+	if (whippable.value) {
+		// Nothing referred to yet: choosing starts. A reference has that and more to choose from.
+		if (referred.value === null) valuePicker?.toggle(props.path, $kind.value!)
+		else kindMenuOpen.value = true
+		return
+	}
 	const target = referenceTarget.value
 	if (target !== null && revealer) revealer.target.value = { path: target }
 	else if (expandable.value) open.value = !open.value
 }
+
+const $kind = useTemplateRef<HTMLElement>('$kind')
+const kindMenuOpen = ref(false)
+const BLANK = new LitAST(UNIT)
+const kindMenu = computed((): MenuItem[] => {
+	const target = referenceTarget.value
+	return [
+		{ label: 'Select', icon: PICK_WHIP_ICON, perform: () => valuePicker?.toggle(props.path, $kind.value!) },
+		{
+			label: 'Clear',
+			icon: 'mdi:close',
+			perform: () => update(ast.value.kind === 'meta' ? new MetaAST(ast.value.metadata, BLANK) : BLANK),
+		},
+		...(target !== null && revealer
+			? [
+					{ separator: true as const },
+					{ label: `Go to ${kindHint.value}`, icon: 'mdi:arrow-top-right', perform: () => (revealer.target.value = { path: target }) },
+				]
+			: []),
+	]
+})
 
 const pinned = computed(() => isPinned(ast.value))
 const lockedAround = inject(LOCKED, null)
@@ -603,6 +681,7 @@ watch(
 				v-if="turnable && showsMember"
 				:modelValue="placeValue as number"
 				:angleOffset="0"
+				:menuItems="slotMenuLater"
 				@update:modelValue="moveTo($event)"
 			/>
 			<div v-if="!showsMember" ref="$anchor" />
@@ -616,9 +695,12 @@ watch(
 					@change="update"
 				/>
 			</div>
+			<!-- Its numbers are the rows under it, and the pad is all there is of it here. -->
+			<div v-else-if="numbersOpen" ref="$anchor" class="numbers-open" />
 			<AstValue
 				v-else-if="!isFunction"
 				ref="$value"
+				:bare="isOpenNumber()"
 				:entry="entry"
 				:beside="translatable ? PAD_WIDTH : 0"
 				:path="path"
@@ -629,18 +711,6 @@ watch(
 				@select="pick"
 			/>
 			<div v-else ref="$anchor" />
-			<button
-				v-if="pointable"
-				v-tooltip="'Pick from the Canvas'"
-				class="point-at"
-				:class="{ active: valuePicker?.isFor(path) }"
-				type="button"
-				aria-label="Pick from the Canvas"
-				@click.stop="valuePicker?.toggle(path, $event.currentTarget as Element)"
-				@dblclick.stop
-			>
-				<Icon icon="ph:eyedropper" />
-			</button>
 			<button
 				v-if="sized"
 				class="chain"
@@ -697,11 +767,17 @@ watch(
 			</button>
 			<button
 				v-if="kindIcon !== null"
+				ref="$kind"
 				v-tooltip="kindHint"
 				class="end kind"
-				:class="{ pressable: kindPressable || isReference, reference: isReference }"
+				:class="{
+					pressable: kindPressable || isReference || whippable,
+					reference: isReference,
+					active: valuePicker?.isFor(path),
+					'whip-only': !isReference && whippable,
+				}"
 				type="button"
-				:disabled="!kindPressable && !isReference"
+				:disabled="!kindPressable && !isReference && !whippable"
 				:aria-label="kindHint"
 				@pointerdown="onKindPress"
 				@click.stop="onKind"
@@ -710,10 +786,20 @@ watch(
 				<Icon :icon="kindIcon" />
 			</button>
 			<span v-else class="end kept" />
+			<Popover
+				v-if="kindMenuOpen"
+				:reference="$kind"
+				placement="bottom-end"
+				:open="true"
+				teleport=".TqViewport"
+				@update:open="kindMenuOpen = $event"
+			>
+				<Menu :items="kindMenu" @close="kindMenuOpen = false" />
+			</Popover>
 		</template>
 
 		<Teleport v-if="whip" to=".TqViewport">
-			<svg class="whip">
+			<svg class="whip" :class="{ lands: whip.lands }">
 				<line :x1="whip.x1" :y1="whip.y1" :x2="whip.x2" :y2="whip.y2" />
 				<circle :cx="whip.x2" :cy="whip.y2" r="3" />
 			</svg>
@@ -774,7 +860,8 @@ watch(
 	display: none;
 }
 .row:hover .end.reveals,
-.TqParameterTreeItem.selected .end.reveals {
+.TqParameterTreeItem.selected > .label .end.reveals,
+.TqParameterTreeItem:focus-within > .label .end.reveals {
 	display: block;
 }
 /* The last column is kept for a reference, so long as there is anything else to line up. */
@@ -782,7 +869,8 @@ watch(
 	display: none;
 }
 .row:hover .end.kept,
-.TqParameterTreeItem.selected .end.kept,
+.TqParameterTreeItem.selected > .label .end.kept,
+.TqParameterTreeItem:focus-within > .label .end.kept,
 .pin:not(.reveals) ~ .end.kept {
 	display: block;
 }
@@ -791,7 +879,8 @@ watch(
 	margin-right: var(--end-width);
 }
 .row:hover .end.locked:has(+ .end.reveals),
-.TqParameterTreeItem.selected .end.locked:has(+ .end.reveals) {
+.TqParameterTreeItem.selected > .label .end.locked:has(+ .end.reveals),
+.TqParameterTreeItem:focus-within > .label .end.locked:has(+ .end.reveals) {
 	margin-right: 0;
 }
 .value-row {
@@ -835,7 +924,7 @@ watch(
 .value-row:has(> .chain) :deep(.value + .value .icon.left) {
 	left: calc(var(--tq-input-height) * 0.3);
 }
-.value-row > :not(.TqInputTranslate, .TqInputRotary, .point-at) {
+.value-row > :not(.TqInputTranslate, .TqInputRotary) {
 	flex: 1;
 	min-width: 0;
 }
@@ -856,28 +945,6 @@ watch(
 	outline: 2px solid var(--tq-color-accent);
 	outline-offset: 1px;
 }
-.point-at {
-	display: grid;
-	flex: none;
-	place-items: center;
-	width: var(--tq-input-height);
-	height: var(--tq-input-height);
-	border-radius: var(--tq-radius-input);
-	background: var(--tq-color-input);
-	color: var(--tq-color-text-mute);
-	cursor: pointer;
-}
-.point-at:hover {
-	background: var(--tq-color-input-hover);
-}
-.point-at.active {
-	background: var(--tq-color-accent);
-	color: var(--tq-color-on-accent, white);
-}
-.point-at > * {
-	width: 14px;
-	height: 14px;
-}
 .inline-anchor {
 	display: grid;
 	min-width: 0;
@@ -896,6 +963,10 @@ watch(
 }
 .whip circle {
 	fill: var(--tq-color-info);
+}
+/* Over what it would be, if let go there. */
+.whip.lands circle {
+	r: 5px;
 }
 /* What comes after it is together, at the end of the label column, whatever the label's length. */
 .label-end {
@@ -933,6 +1004,16 @@ watch(
 .kind.pressable {
 	cursor: pointer;
 }
+/* Only where it is reached for, or on a row that is selected or being edited, there being one on every parameter. */
+.TqParameterTreeItem:not(.selected, :focus-within) > .label .row:not(:hover) .kind.whip-only:not(.active) {
+	opacity: 0;
+}
+/* Being chosen for, by pointing at something. */
+.kind.kind.active {
+	border-radius: 50%;
+	color: var(--tq-color-on-accent, white);
+	background: var(--tq-color-accent);
+}
 /* A name for something else, and not what this row does: a filled mark. */
 .kind.reference {
 	height: var(--end-width);
@@ -969,5 +1050,13 @@ watch(
 .row:has(> .row-problem) > .icon {
 	color: var(--tq-color-error);
 	opacity: 1;
+}
+/*
+ * Each row of the tree is drawn on its own, after the one above it, so a knob that grows while it is
+ * pointed at or turned would go under the row below: that row is drawn over the others while it is.
+ */
+.TqParameterTreeItem:has(.TqInputRotary:hover),
+.TqParameterTreeItem:has(.TqInputRotary.tweaking) {
+	z-index: 1;
 }
 </style>

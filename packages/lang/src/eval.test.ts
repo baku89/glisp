@@ -1611,3 +1611,12 @@ describe('a type called', () => {
 		expect(typeOf('{xs = [1 2 3] (xs 0)}')).toBe('number')
 	})
 })
+
+describe('a path that comes back to itself', () => {
+	it('is a circular reference, said where the path is, rather than a stack that runs out', () => {
+		const env = buildPrelude()
+		// The first number of the first place, by going up out of it and back down to it.
+		const { diagnostics } = evaluate(parse('{p = [[../../p/0/0 1] [3 4]] p}'), env)
+		expect(diagnostics.some(({ message }) => message.startsWith('circular reference'))).toBe(true)
+	})
+})

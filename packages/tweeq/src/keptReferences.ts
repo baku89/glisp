@@ -7,9 +7,12 @@
 
 import {
 	type AST,
+	CallAST,
 	type Env,
 	evaluate,
+	isCoerce,
 	MetaAST,
+	print,
 	readByName,
 	resolve,
 	toAst,
@@ -43,10 +46,19 @@ function trimmed(value: unknown): unknown {
 	return value
 }
 
-/** `ast` as `value`, with what else was said of it. */
+/** `ast` as `value`, with what else was said of it, and what it is cast to, as `^point` is. */
 function frozen(ast: AST, value: unknown, env: Env): AST {
 	const written = toAst(trimmed(value), env)
-	return ast.kind === 'meta' ? new MetaAST(ast.metadata, written) : written
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	const kept = isCoerce(bare) ? new CallAST(bare.head, [written, ...bare.args.slice(1)], bare.kwargs) : written
+	return ast.kind === 'meta' ? new MetaAST(ast.metadata, kept) : kept
+}
+
+/** Whether `ast` only works out a number, or puts values together, and so is that as a whole. */
+function isWorkedOut(ast: AST, value: unknown): boolean {
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	if (bare.kind === 'vec' || bare.kind === 'record') return true
+	return bare.kind === 'call' && !isCoerce(bare) && typeof value === 'number'
 }
 
 /** What `keptReferences` comes to: the program, and the rows in it now written as values. */
@@ -57,10 +69,12 @@ export interface Kept {
 
 /**
  * `after`, which is `before` with something taken away, with each reference that that has
- * left with nothing to refer to written as what it came to in `before`. It is the whole of
- * the outermost row it is in that comes to a plain value, so that `(lerp a b 0.2)` is one
- * number, not a sum of numbers: and a row that comes to something else, such as a shape, is
- * gone into for that. A reference to what cannot be written so stays as it is.
+ * left with nothing to refer to written as what it came to in `before`. It is the reference
+ * itself that is, as nearly as it can be: `(vec2.lerp a b 0.2)` goes on being a lerp, of what
+ * `b` was. What only works out a number from it, or puts it together with others, is what it came
+ * to as a whole, so that `(+ b 1)` is one number, not a sum of numbers. Where the reference is not
+ * a plain value, it is what holds it, out as far as one is. A reference to what cannot be written
+ * so stays as it is.
  */
 export function keptReferences(before: AST, after: AST, env: Env): Kept {
 	// What cannot be found now, that could be: a name, or the start of a path.
@@ -72,18 +86,31 @@ export function keptReferences(before: AST, after: AST, env: Env): Kept {
 	const hasBroken = (ast: AST, at: Env): boolean =>
 		resolve(ast, at).references.some(({ node }) => broken.has(node))
 
-	const changes: { path: string; ast: AST }[] = []
-	const visit = (ast: AST, at: Env, path: string): void => {
+	let changes: { path: string; ast: AST }[] = []
+	// Whether anything in it has been written as what it came to, the innermost first.
+	const visit = (ast: AST, at: Env, path: string): boolean => {
+		let kept = false
 		for (const slot of viewOf(ast, at).slots) {
 			if (slot.absent) continue
 			const here = path === '' ? slot.key : `${path}/${slot.key}`
 			if (!hasBroken(slot.ast, slot.env)) continue
 			// As it was, where it was: what it came to then.
 			const was = reach(before, env, here)?.chain.at(-1)
-			const value = was?.ast === slot.ast ? evaluate(readByName(was.ast), was.env).value : undefined
-			if (value !== undefined && isPlain(value)) changes.push({ path: here, ast: frozen(slot.ast, value, slot.env) })
-			else visit(slot.ast, slot.env, here)
+			const value = was !== undefined && print(was.ast) === print(slot.ast) ? evaluate(readByName(was.ast), was.env).value : undefined
+			const plain = value !== undefined && isPlain(value)
+			if (visit(slot.ast, slot.env, here)) {
+				kept = true
+				// Arithmetic, or what only puts values together, is what it comes to as a whole,
+				// as `(+ a 1)` is one number: what is more than that goes on being what it is.
+				if (!plain || !isWorkedOut(slot.ast, value)) continue
+				changes = changes.filter(({ path: inside }) => !inside.startsWith(`${here}/`))
+			} else if (!plain) {
+				continue
+			}
+			changes.push({ path: here, ast: frozen(slot.ast, value, slot.env) })
+			kept = true
 		}
+		return kept
 	}
 	visit(after, env, '')
 

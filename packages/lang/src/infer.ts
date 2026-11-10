@@ -45,6 +45,7 @@ import {
 	makeTypeVar,
 	numberType,
 	type OverloadValue,
+	PATH_CYCLE_DEPTH,
 	pathTarget,
 	pushLetFrame,
 	stringType,
@@ -609,6 +610,9 @@ const inProgress = new Map<AST, Set<Env>>()
  * The type of `ast` in `env`, or `null` if it cannot be determined. Never runs
  * a value expression.
  */
+/** What is being inferred by way of a path, which comes to it in a frame of its own each time. */
+const pathsInProgress = new Map<AST, number>()
+
 export function infer(ast: AST, env: Env): TypeValue | null {
 	const node = desugar(ast)
 	const known = memoGet(inferMemo, node, env)
@@ -647,7 +651,18 @@ function inferNode(ast: AST, env: Env): TypeValue | null {
 		}
 		case 'path': {
 			const target = pathTarget(ast.segments, env)
-			return 'message' in target ? null : infer(target.ast, target.env)
+			if ('message' in target) return null
+			// Where it goes is found anew each time, in a frame of its own, so what comes back to
+			// itself by a path is told by where it comes to, as a point that refers to itself would.
+			const depth = pathsInProgress.get(target.ast) ?? 0
+			if (depth >= PATH_CYCLE_DEPTH) return null
+			pathsInProgress.set(target.ast, depth + 1)
+			try {
+				return infer(target.ast, target.env)
+			} finally {
+				if (depth === 0) pathsInProgress.delete(target.ast)
+				else pathsInProgress.set(target.ast, depth)
+			}
 		}
 		case 'fn':
 			return functionTypeOfLiteral(ast, env)

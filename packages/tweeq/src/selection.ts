@@ -160,6 +160,13 @@ export interface ValuePicker {
 	isFor(path: string): boolean
 	/** Start choosing for it, from what is pressed, or stop. */
 	toggle(path: string, from: Element): void
+	/**
+	 * What there is at a place on screen that the value at `path` could be, if anything, as
+	 * the pointer is pulled over it, for a host to show it. Null for the place once it has gone.
+	 */
+	over?(path: string, at: readonly [number, number] | null): string | null
+	/** Have the value at `path` be what `row` is. False if it cannot. */
+	pick?(path: string, row: string): boolean
 }
 export const VALUE_PICKER: InjectionKey<ValuePicker> = Symbol('glisp-value-picker')
 

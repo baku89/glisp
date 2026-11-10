@@ -627,6 +627,13 @@ describe('how a number is shown', () => {
 		expect(numberOptionsAt(slot)).toEqual({ min: 0, max: 1, scale: 100, suffix: '%' })
 	})
 
+	it('has a slider go where softMin and softMax say, which can be gone past', () => {
+		const slot = view('[^{softMin: 0 softMax: 1 scale: 100} 1.5]').slots[0]!
+		expect(numberOptionsAt(slot)).toEqual({ min: 0, max: 1, clampMin: false, clampMax: false, scale: 100 })
+		const one = view('[^{min: -1 softMax: 1} 3]').slots[0]!
+		expect(numberOptionsAt(one)).toEqual({ min: -1, max: 1, clampMax: false })
+	})
+
 	it('says nothing by a scale that would leave nothing to show', () => {
 		const slot = view('[^{scale: 0} 0.5]').slots[0]!
 		expect(numberOptionsAt(slot)).toEqual({})

@@ -205,6 +205,8 @@ When forcing `(AST, env)`:
 
 Examples like `{a: ./b:  b: ./a:}` resolve via this rule: each field becomes `()`, which is then coerced to its declared type's default at the next typed slot.
 
+A path reaches what it refers to in a frame of its own each time, so a node that refers back to itself by a path, as a point to its own number (`[../points:/0/0 0]` as the first point), is not caught by the env it is in. It is caught by the node: coming to the same node by a path 32 times, each inside the last, is a cycle, whose path is `()` with the diagnostic `circular reference`. The 32 leave room for a function that calls itself, which comes to the same node by a path a few times over.
+
 ### `~` during evaluation
 
 `~` is **transparent during evaluation**: `eval` produces the same value as if it were not present, and it does not count as a level for paths. It only matters for `expand` (see [Multi-step evaluation](#multi-step-evaluation--abstraction-ladder)).
@@ -466,6 +468,7 @@ This has the following consequences for a host:
 - An edit recomputes what depends on it. Everything else returns the same JS value, so an unchanged value is `===` across edits.
 - Restoring an earlier root is an undo served from the cache, as long as its entries have not been evicted.
 - Host functions must be pure, since a cached result outlives the root it was computed for. Values must not be mutated, since they may be shared between positions.
+- A result that did without [what the host has yet to bring](./host-api.md#what-the-host-has-yet-to-bring) is not cached, and neither is anything depending on it, so evaluating again once the host has it comes to the value.
 - What is written alike, in the same scope, comes to one value, as metadata is no part of it. So `A = ^{icon: "x"} (: number p default: 1)` and `B = (: number p default: 1)` are `===`, and finding a name from such a value finds whichever is bound first.
 - A cached diagnostic's `source` is the node that produced it first, which may belong to an earlier root.
 - A cached closure keeps the frame it captured, and through it that root, for as long as the entry lives.

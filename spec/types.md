@@ -47,6 +47,7 @@ A type is a set of values, and a type fits another when all its values belong to
 - `(| "a" "b")` fits `string` and `(| "a" "b" "c")`.
 - A type fits `(| A B)` if it fits `A` or `B`, and `(| A B)` fits where both `A` and `B` do. Where only one of them does, a value of it is not known to be wrong, and so is not reported until it arrives as something that does not fit.
 - A type made by `(: T ...)` fits `T`.
+- A host type can take another's values as its own, as a path takes a rect, which then fits it. The value stays what it is. See [A type that takes another's values](host-api.md#a-type-that-takes-anothers-values).
 - `(IO T)` and `[...T]` are covariant.
 - Function parameters match in either direction, so `_` in a slot's signature means "don't care".
 

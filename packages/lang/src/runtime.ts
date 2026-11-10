@@ -25,6 +25,7 @@
  */
 
 import {
+	awaitedSoFar,
 	childAt,
 	enterNode,
 	evaluate,
@@ -209,6 +210,7 @@ class SignatureStore implements EvalStore {
 
 		const computation: Computation = { children: [] }
 		const startedAt = performance.now()
+		const awaitedBefore = awaitedSoFar()
 		this.stack.push(computation)
 		let result: EvalResult
 		try {
@@ -218,6 +220,13 @@ class SignatureStore implements EvalStore {
 		}
 		const cost = performance.now() - startedAt
 		this.computed++
+
+		// What did without something is not kept, and neither is anything computed from it, so
+		// that evaluating again once the host has it gives what it comes to.
+		if (awaitedSoFar() !== awaitedBefore) {
+			this.stack.at(-1)?.children.push(...computation.children)
+			return result
+		}
 
 		if (!this.isTransient(env) || cost >= this.heavyMs) {
 			const entry: Entry = {

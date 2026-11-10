@@ -112,16 +112,55 @@ export function isGlispClosure(v: unknown): v is GlispClosure {
  */
 let activeJSCallSink: Diagnostic[] | null = null
 
-function withJSCallSink<T>(fn: () => T): { value: T; diagnostics: Diagnostic[] } {
+function withJSCallSink<T>(
+	fn: () => T
+): { value: T; diagnostics: Diagnostic[]; awaited: string[] } {
 	const prev = activeJSCallSink
+	const prevAwaited = activeAwaited
 	const sink: Diagnostic[] = []
+	const awaited: string[] = []
 	activeJSCallSink = sink
+	activeAwaited = awaited
 	try {
 		const value = fn()
-		return { value, diagnostics: sink }
+		return { value, diagnostics: sink, awaited }
 	} finally {
 		activeJSCallSink = prev
+		activeAwaited = prevAwaited
 	}
+}
+
+/** What a host function did without during the call in progress, by key. */
+let activeAwaited: string[] | null = null
+
+/**
+ * For a host function to say that it had to do without something the host has yet to bring,
+ * such as a font. It goes on to return what it can, and the call gives a diagnostic with the
+ * key, which a `Runtime` takes as a reason not to keep the result.
+ */
+export function awaiting(key: string): void {
+	if (activeAwaited === null) return
+	activeAwaited.push(key)
+	awaited++
+}
+
+let awaited = 0
+
+/**
+ * How many times a host function has done without something so far. What is worked out while
+ * this goes up is not to be kept, by `evaluate` or by an `EvalStore`.
+ */
+export function awaitedSoFar(): number {
+	return awaited
+}
+
+/** The diagnostics for what a host call did without, at the call. */
+function awaitedAt(keys: readonly string[], ast: AST, env: Env): Diagnostic[] {
+	return [...new Set(keys)].map(key => ({
+		...diag(ast, env, `awaiting ${key}`),
+		level: 'info' as const,
+		awaiting: key,
+	}))
 }
 
 function invokeClosureFromJS(c: GlispClosure, args: unknown[]): unknown {
@@ -216,6 +255,12 @@ export interface TypeValue {
 	readonly plain?: TypeValue
 	/** What goes with this type, read as `T.name`. It says nothing about its values. */
 	readonly members?: Readonly<Record<string, unknown>>
+	/**
+	 * The other types whose values are values of this one as well, for a host type that takes them as
+	 * it would its own: a path takes a rect as its outline. What fits one of them fits this. Its own
+	 * `fits` says so of the values, which a host keeps to.
+	 */
+	readonly includes?: () => ReadonlyArray<TypeValue>
 	/**
 	 * What a host says its type is called as, for one whose values are of its own making, so that
 	 * what they are made of is not to be read from it. See `constructorOf`.
@@ -653,6 +698,8 @@ function fitsGuarded(
 	// it fits one of its members.
 	if (a.kind === 'union') return a.members.every(t => fits(t, expected))
 	if (e.kind === 'union') return e.members.some(t => fits(actual, t))
+	// What a type says it takes as its own, as a path takes a rect, fits it as its own does.
+	if (expected.includes?.().some(t => fits(actual, t))) return true
 	if (a.kind === 'var' || e.kind === 'var') {
 		return a.kind === 'var' && e.kind === 'var' && a.name === e.name
 	}
@@ -1338,10 +1385,11 @@ function callTypedHostFn(
 	}
 
 	try {
-		const { value, diagnostics: bubbled } = withJSCallSink(() =>
+		const { value, diagnostics: bubbled, awaited } = withJSCallSink(() =>
 			fn(...argValues)
 		)
 		for (const d of bubbled) diagnostics.push(d)
+		for (const d of awaitedAt(awaited, site, env)) diagnostics.push(d)
 		return { value: fn.written?.(value, positional) ?? value, diagnostics }
 	} catch (e) {
 		if (mustUnwind(e)) throw e
@@ -1422,6 +1470,7 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 	if (evaluationDepth === 0) workDone = 0
 	if (++workDone > MAX_WORK) throw new TooMuchWork()
 	evaluationDepth++
+	const awaitedBefore = awaited
 	try {
 		const result =
 			activeStore === null
@@ -1429,7 +1478,9 @@ export function evaluate(ast: AST, env: Env): EvalResult {
 				: activeStore.memoize(desugared, env, () =>
 						evaluateInner(desugared, env)
 					)
-		storeMemo(desugared, env, { kind: 'computed', result })
+		// What did without something the host has yet to bring is worked out again next time.
+		if (awaited !== awaitedBefore) memo.get(desugared)?.delete(env ?? ROOT_ENV_KEY)
+		else storeMemo(desugared, env, { kind: 'computed', result })
 		return result
 	} catch (e) {
 		// Unwinding: this evaluation did not finish, so it must not look like a
@@ -1976,10 +2027,11 @@ function evalCall(ast: CallAST, env: Env): EvalResult {
 			)
 		}
 		try {
-			const { value, diagnostics: bubbled } = withJSCallSink(() =>
+			const { value, diagnostics: bubbled, awaited } = withJSCallSink(() =>
 				(headValue as (...args: unknown[]) => unknown)(...argValues)
 			)
 			for (const d of bubbled) diagnostics.push(d)
+			for (const d of awaitedAt(awaited, ast, inside)) diagnostics.push(d)
 			return { value, diagnostics }
 		} catch (e) {
 			if (mustUnwind(e)) throw e
@@ -2690,15 +2742,34 @@ function evalPipe(ast: CallAST, env: Env): EvalResult {
 // path
 // -----------------------------------------------------------------------------
 
+/**
+ * What is being worked out by way of a path. A path comes to what it refers to in a frame of its
+ * own each time, so what refers to itself by a path, as a point to its own number, is told by
+ * where it comes to: that is an error where the path is, and not a stack that runs out.
+ */
+const pathsEvaluating = new Map<AST, number>()
+/**
+ * How many times over the same place can be come to by a path, each inside the last, before that
+ * is taken for coming back to itself: a function that calls itself does, a few times, with a path.
+ */
+export const PATH_CYCLE_DEPTH = 32
+
 function evalPath(
 	segments: ReadonlyArray<'..' | string | number>,
 	env: Env,
 	source: AST
 ): EvalResult {
 	const target = pathTarget(segments, env)
-	return 'message' in target
-		? fail(source, env, target.message)
-		: evaluate(readByName(target.ast), target.env)
+	if ('message' in target) return fail(source, env, target.message)
+	const depth = pathsEvaluating.get(target.ast) ?? 0
+	if (depth >= PATH_CYCLE_DEPTH) return fail(source, env, 'circular reference: this refers back to itself')
+	pathsEvaluating.set(target.ast, depth + 1)
+	try {
+		return evaluate(readByName(target.ast), target.env)
+	} finally {
+		if (depth === 0) pathsEvaluating.delete(target.ast)
+		else pathsEvaluating.set(target.ast, depth)
+	}
 }
 
 /**

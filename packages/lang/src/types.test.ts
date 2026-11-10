@@ -85,3 +85,15 @@ describe('Diagnostic — smoke', () => {
 		expect(d.source.ast).toBe(ast)
 	})
 })
+
+describe('a host type that takes the values of another as its own', () => {
+	it('is fitted by that type, and not the other way', async () => {
+		const { makeType, typeFits } = await import('./eval')
+		class Box {}
+		class Shape {}
+		const box = makeType('box', v => v instanceof Box, new Box())
+		const shape = { ...makeType('shape', v => v instanceof Shape || v instanceof Box, new Shape()), includes: () => [box] }
+		expect(typeFits(box, shape)).toBe(true)
+		expect(typeFits(shape, box)).toBe(false)
+	})
+})
