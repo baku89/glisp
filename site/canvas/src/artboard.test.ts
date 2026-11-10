@@ -14,7 +14,7 @@ import {
 import { ArtboardValue, type Path, withGraphics } from './graphics'
 import { parse } from './program.testing'
 import { svgOfArtboard, svgOfProgram } from './svg'
-import { artboardOfRow, changed, gripAt, isArtboardRow, rowsHeldBy, rowTakenAt, sceneOf } from './scene'
+import { artboardOfRow, changed, gripAt, isArtboardRow, rowTakenAt, sceneOf } from './scene'
 
 const env = withGraphics(buildPrelude())
 
@@ -137,8 +137,13 @@ describe('an artboard exported', () => {
 })
 
 describe('an artboard moved', () => {
-	it('takes nothing on it along a second time', () => {
-		expect(rowsHeldBy(parse(BOARD), env, new Set(['binding:desk']))).toEqual([])
+	const moved = (row: string) => {
+		const root = parse(BOARD)
+		return print(changed(root, env, row, gripAt(root, env, row)!.move!([5, 7])).ast!)
+	}
+
+	it('takes what is on it along, as it is measured from it, and nothing more', () => {
+		expect(moved('binding:desk')).toContain('(artboard (rect [105 57] [300 200]) [a = (path.rect [10 10] [20 20])]')
 	})
 
 	it('has what is on it taken hold of each by itself', () => {
@@ -146,7 +151,7 @@ describe('an artboard moved', () => {
 	})
 
 	it('is not taken along by what is moved on it', () => {
-		expect(rowsHeldBy(parse(BOARD), env, new Set(['binding:desk/arg1/binding:a']))).toEqual([])
+		expect(moved('binding:desk/arg1/binding:a')).toContain('(artboard (rect [100 50] [300 200]) [a = (path.rect [15 17] [20 20])]')
 	})
 })
 

@@ -23,6 +23,7 @@ import { withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { describe, expect, it } from 'vitest'
 
 import {
+	type Change,
 	iconOfPath,
 	isPath,
 	LINE_CAPS,
@@ -49,19 +50,26 @@ import {
 	linked,
 	nameFor,
 	axesThrough,
+	axesCrossing,
+	alignmentsNear,
 	gripOfRows,
 	withGuideHandles,
+	isDirectlyIn,
+	numbersChanged,
 	nearestSnap,
+	lineSnappedTo,
+	withAcquired,
 	alongSnapped,
 	movedOnto,
 	pulledOnto,
+	valueOfRow,
 	drawnOnto,
 	drawnThrough,
-	rowsHeldBy,
 	paintedRow,
 	closingPulled,
 	penGuided,
 	penned,
+	placeOnRow,
 	dimensionAt,
 	readoutOf,
 	roundedChanges,
@@ -71,7 +79,10 @@ import {
 	hiddenShapesOf,
 	paintAt,
 	sceneOf,
+	snappableIn,
 	snapPointsOf,
+	referredOnto,
+	lineNear,
 	withPaint,
 	withPaintOfRows,
 } from './scene'
@@ -361,7 +372,7 @@ describe('the pen', () => {
 		it('can be taken hold of as what it is', () => {
 			const { ast, name } = penned(root, env, clicks([0, 0], [1, 1], [2, 0]), false)
 			expect(sceneOf(ast, env).map(s => s.row)).toEqual([`binding:${name}`])
-			expect(gripAt(ast, env, `binding:${name}`)!.handles).toHaveLength(3)
+			expect(gripAt(ast, env, `binding:${name}`)!.handles.filter(h => !h.between)).toHaveLength(3)
 		})
 
 		it('refers to what a place was put down on', () => {
@@ -490,6 +501,25 @@ describe('several rows at once', () => {
 		expect(field(1, 0).options).toEqual({ min: 0, leftIcon: 'ph:arrows-horizontal' })
 		expect(isMixed(field(1, 0).values)).toBe(true)
 		expect(isMixed(field(1, 1).values)).toBe(false)
+	})
+
+	it('have a row for an argument with no numbers, which stands for the whole of it, and is pulled out as one', () => {
+		const two = ['binding:a', 'binding:b']
+		const same = parse('{main = [a = (vec2.reflect [0 0] (line.fromPoints [5 0] [5 10])) b = (vec2.reflect [1 1] (line.fromPoints [5 0] [5 10]))]}')
+		const line = inspectRows(same, env, two)!.args.find(arg => arg.label === 'Line')!
+		expect(line.fields).toEqual([])
+		expect(line.summary).toBe('Line Through Points')
+		expect(line.places).toEqual([{ path: 'binding:a/arg1', element: null }, { path: 'binding:b/arg1', element: null }])
+		const pulled = print(extractedAt(same, env, line.places, line.shared!, 'line')!.ast)
+		// `line` is the type of lines, so it is called something near that.
+		expect(pulled).toBe('{line2 = (line.fromPoints [5 0] [5 10]) main = [a = (vec2.reflect [0 0] line2) b = (vec2.reflect [1 1] line2)]}')
+		// A point's row is the whole of it, and its numbers are its fields, which are not.
+		const point = inspectRows(same, env, two)!.args.find(arg => arg.label === 'Point')!
+		expect(point.places.every(({ element }) => element === null)).toBe(true)
+		expect(point.fields.map(({ places }) => places[0]!.element)).toEqual([0, 1])
+		const differ = parse('{main = [a = (vec2.reflect [0 0] (line.fromPoints [5 0] [5 10])) b = (vec2.reflect [1 1] (line.at [0 0] 30))]}')
+		const mixed = inspectRows(differ, env, two)!.args.find(arg => arg.label === 'Line')!
+		expect([mixed.summary, mixed.shared]).toEqual(['Mixed', null])
 	})
 
 	it('are nothing in common unless they share an argument, or come to the same kind of numbers', () => {
@@ -877,8 +907,72 @@ describe('snapping', () => {
 			expect(crossings.map(({ at }) => at)).toContainEqual([0, 100])
 		})
 
+		it('is where a horizontal and a vertical line cross, as `line.at` would be at 0 and 90 degrees', () => {
+			const { crossings } = crossingIn('{h = (line.horizontal [0 30]) v = (line.vertical [70 0]) c = (path.line [200 200] [300 300])}')
+			expect(crossings.map(({ at }) => at)).toEqual([[70, 30]])
+			expect(evaluate(parse('(line.intersection (line.horizontal [0 30]) (line.vertical [70 0]))'), env).value).toEqual([70, 30])
+		})
+
 		it('is a place of its own, which `line.intersection` works out', () => {
 			expect(evaluate(parse('(line.intersection (line.fromPoints [0 0] [10 10]) (line.at [0 10] 0))'), env).value).toEqual([10, 10])
+		})
+	})
+
+	describe('stepped, one rung down', () => {
+		it('is a place that refers to the axes, as the numbers it comes to, in a vector as much as alone', () => {
+			const root = parse('{line1 = (style (path.line [../../../axes1/origin:/0 216] [../../../axes1/origin:/0 ../../../axes1/origin:/1]) stroke: "#000000") axes1 = (axes [0 0])}') as LetAST
+			expect(print(withSlotCommand(root, env, ['binding:line1/arg0/arg0'], 'step')!)).toContain('(path.line [0 216] [../../../axes1/origin:/0')
+			expect(print(withSlotCommand(root, env, ['binding:line1/arg0/arg1'], 'step')!)).toContain('(path.line [../../../axes1/origin:/0 216] [0 0])')
+		})
+
+		it('is `line.at` for a level or upright line, not what it comes to', () => {
+			const root = parse('{reflect1 = (vec2.reflect [-91.9 49.2] (line.vertical ../../axes1/origin:)) axes1 = (axes @[0 0])}') as LetAST
+			expect(print(withSlotCommand(root, env, ['binding:reflect1/arg1'], 'step')!)).toContain('(vec2.reflect [-91.9 49.2] (line.at ../../axes1/origin: 90))')
+		})
+	})
+
+	describe('on the axes, which have nothing to take hold of but are there to snap to', () => {
+		const dropped = (axes: string, at: Vec): { label: string | undefined; p: string | null } => {
+			const root = parse(`{p = ^point [500 500] l = (line.fromPoints [0 0] [100 100]) a = ${axes}}`) as LetAST
+			const snap = nearestSnap(snapPointsOf(root, env, snappableIn(root, env), new Set(['binding:p'])), at, 3)
+			const next = snap && pulledOnto(root, root, env, 'binding:p', gripAt(root, env, 'binding:p')!.handles[0]!, snap)
+			return { label: snap?.label, p: next && print(bound(next as LetAST).find(([name]) => name === 'p')![1]) }
+		}
+
+		it('are its origin, as a point', () => {
+			expect(dropped('(axes origin: [10 20])', [11, 21])).toEqual({ label: 'origin', p: '^point [../../a/origin:/0 ../../a/origin:/1]' })
+			expect(dropped('(axes [10 20])', [11, 21])).toEqual({ label: 'origin', p: '^point [../../a/origin:/0 ../../a/origin:/1]' })
+		})
+
+		it('are the two lines through it, across and down, on and on', () => {
+			expect(dropped('(axes origin: [10 20])', [200, 21])).toEqual({ label: 'x axis', p: '^point [200 ../../a/origin:/1]' })
+			expect(dropped('(axes origin: [10 20])', [11, -300])).toEqual({ label: 'y axis', p: '^point [../../a/origin:/0 -300]' })
+		})
+
+		it('are where those lines cross another', () => {
+			expect(dropped('(axes origin: [10 20])', [20.5, 20])).toEqual({ label: 'intersection', p: '^point (line.intersection l (line.horizontal ../../../a/origin:))' })
+		})
+
+		it('are lines, for what asks for a line to refer to, as what to reflect across', () => {
+			const root = parse('{p = ^point [500 500] q = (vec2.reflect p (line.at [0 0] 45)) a = (axes origin: [10 20])}') as LetAST
+			const points = snapPointsOf(root, env, snappableIn(root, env), new Set(['binding:q']))
+			const across = lineNear(points, [300, 21], 3)!
+			expect(across.label).toBe('x axis')
+			expect(print(referredOnto(root, env, 'binding:q/arg1', across)!)).toContain('q = (vec2.reflect p (line.horizontal ../../a/origin:))')
+			const down = lineNear(points, [11, -300], 3)!
+			expect(print(referredOnto(root, env, 'binding:q/arg1', down)!)).toContain('q = (vec2.reflect p (line.vertical ../../a/origin:))')
+			expect(lineNear(points, [300, 40], 3)).toBeNull()
+		})
+
+		it('are where the origin is, unwritten, which is said for it to be referred to', () => {
+			const root = parse('{a = (axes)}') as LetAST
+			const points = snapPointsOf(root, env, snappableIn(root, env))
+			expect(points.map(({ label, at }) => [label, at])).toEqual([['origin', [0, 0]], ['x axis', [0, 0]], ['y axis', [0, 0]]])
+			const drawn = parse('{p = ^point [500 500] a = (axes)}') as LetAST
+			const snap = nearestSnap(snapPointsOf(drawn, env, snappableIn(drawn, env), new Set(['binding:p'])), [200, 1], 3)!
+			const next = pulledOnto(drawn, drawn, env, 'binding:p', gripAt(drawn, env, 'binding:p')!.handles[0]!, snap)!
+			expect(print(next)).toContain('p = ^point [200 ../../a/origin:/1]')
+			expect(print(next)).toContain('a = (axes @[0 0])')
 		})
 	})
 
@@ -892,7 +986,127 @@ describe('snapping', () => {
 
 		it('as much of the way along an edge, by its ends', () => {
 			expect(onto('(path.rect [0 0] [100 40])', [30, 1])).toBe('(path.line [(lerp ../../../o/origin:/0 (+ ../../../../o/origin:/0 ../../../../o/size:/0) 0.3) ../../o/origin:/1] [300 300])')
-			expect(onto('(path.polyline [0 0] [100 0] [100 100])', [99, 37])).toBe('(path.line [(lerp ../../../o/points:/1/0 ../../../o/points:/2/0 0.37) (lerp ../../../o/points:/1/1 ../../../o/points:/2/1 0.37)] [300 300])')
+		})
+
+		it('as `vec2.lerp` of the two points, where each end of the edge is one', () => {
+			expect(onto('(path.polyline [0 0] [100 0] [100 100])', [99, 37])).toBe('(path.line (vec2.lerp ../../o/points:/1 ../../o/points:/2 0.37) [300 300])')
+			// The edge that closes a polygon goes from its last point back to its first.
+			expect(onto('(path.polygon [0 0] [100 0] [100 100])', [30, 31])).toBe('(path.line (vec2.lerp ../../o/points:/2 ../../o/points:/0 0.695) [300 300])')
+		})
+
+		it('as `vec2.midpoint` of the two points, at the middle of an edge', () => {
+			expect(onto('(path.polygon [0 0] [100 0] [100 100])', [50, 51])).toBe('(path.line (vec2.midpoint ../../o/points:/2 ../../o/points:/0) [300 300])')
+			expect(onto('(path.polyline [0 0] [100 0] [100 100])', [101, 50])).toBe('(path.line (vec2.midpoint ../../o/points:/1 ../../o/points:/2) [300 300])')
+		})
+
+		it('as a point that is only a point, let go on an edge, which stays a point', () => {
+			const both = parse('{p = ^point [500 500] o = (path.polygon [0 0] [100 0] [100 100])}') as LetAST
+			const snap = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:p'])), [100.5, 30], 5)!
+			const handle = gripAt(both, env, 'binding:p')!.handles[0]!
+			const next = pulledOnto(both, both, env, 'binding:p', handle, snap)!
+			expect(print(bound(next as LetAST).find(([name]) => name === 'p')![1])).toBe('^point (vec2.lerp ../../o/points:/1 ../../o/points:/2 0.3)')
+		})
+
+		it('as `line.project` onto a line of its own, which has no ends to go by', () => {
+			const both = parse('{g = (line.at [0 0] 30) c = (path.line [200 200] [300 300])}') as LetAST
+			const snap = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), [200, 116], 5)!
+			const next = linked(both, env, 'binding:c', 0, snap)!
+			const c = (ast: AST) => print(bound(ast as LetAST).find(([name]) => name === 'c')![1])
+			expect(c(next)).toBe('(path.line (line.project g [200.2 115.6]) [300 300])')
+			// It stays on the line as the line turns, as near as it can be to where it was.
+			const turned = parse(print(next).replace('(line.at [0 0] 30)', '(line.at [0 0] 90)'))
+			expect(gripAt(turned, env, 'binding:c')!.handles.find(h => h.place === 0)!.at![0]).toBeCloseTo(0)
+			// Dragged across, it goes along the line as far across as that.
+			const start = gripAt(next, env, 'binding:c')!.handles.find(h => h.place === 0)!
+			const dragged = changed(next, env, 'binding:c', start.to([300, 120], start.at!)).ast!
+			expect(c(dragged)).toMatch(/^\(path\.line \(line\.project g \[300 173\.2050807\d*\]\) \[300 300\]\)$/)
+		})
+
+		it('is where two line primitives would cross if they went on, asked to go beyond, referring to both', () => {
+			const src =
+				'{main = [point1 = ^point [432 -555] line2 = (style (path.line [564 -645] [852 -599]) stroke: "#32db86" width: 11) line1 = (style (path.line [523 -895] [747 -1292]) stroke: "#32db86" width: 11)]}'
+			const root = parse(src) as LetAST
+			const points = snapPointsOf(root, env, sceneOf(root, env), new Set(['binding:point1']))
+			const crossing = points.find(({ label, beyond }) => label === 'intersection' && beyond === true)!
+			expect(crossing).toBeDefined()
+			// A place, as where they are is, without being asked to go beyond, and shown with both lines going on to it.
+			expect(nearestSnap(points, crossing.at, 5)).toBe(crossing)
+			expect(crossing.crossed).toHaveLength(2)
+			const handle = gripAt(root, env, 'binding:point1')!.handles.find(({ place }) => place === 'self')!
+			const next = pulledOnto(root, root, env, 'binding:point1', handle, crossing)!
+			const written = print(bound(next as LetAST).find(([name]) => name === 'point1')![1])
+			expect(written).toMatch(/^\^point \(line\.intersection \(line\.fromPoints .*line\d.*\) \(line\.fromPoints .*line\d.*\)\)$/)
+			expect(written).toContain('line1')
+			expect(written).toContain('line2')
+			const [x, y] = valueOfRow(next, env, 'binding:point1') as number[]
+			expect(Math.hypot(x! - crossing.at[0], y! - crossing.at[1])).toBeLessThan(1e-6)
+		})
+
+		it('is on past the ends of a line primitive, without being asked to go beyond, as as much of the way as that is', () => {
+			const root = parse('{l = (style (path.line [0 0] [100 50]) stroke: "#000") p = ^point [500 500]}') as LetAST
+			const points = snapPointsOf(root, env, sceneOf(root, env), new Set(['binding:p']))
+			const snap = nearestSnap(points, [151, 75], 5)!
+			expect(snap.beyond).toBe(true)
+			expect(snap.at[0]).toBeCloseTo(150.4, 0)
+			const handle = gripAt(root, env, 'binding:p')!.handles.find(({ place }) => place === 'self')!
+			const next = pulledOnto(root, root, env, 'binding:p', handle, snap)!
+			// As much of the way as it is, past 1, which goes on past the end.
+			expect(print(bound(next as LetAST).find(([name]) => name === 'p')![1])).toBe('^point (vec2.lerp ../../l/path:/start: ../../l/path:/end: 1.508)')
+			// What is only an edge of something does not go on, unless asked to.
+			const edge = parse('{o = (path.polygon [0 0] [100 50] [0 100]) p = ^point [500 500]}') as LetAST
+			expect(nearestSnap(snapPointsOf(edge, env, sceneOf(edge, env), new Set(['binding:p'])), [151, 75], 5)).toBeNull()
+		})
+
+		it('goes on past the ends of an edge, once that has been snapped to, and is where it would cross others', () => {
+			const root = parse('{o = (path.polygon [0 0] [100 0] [100 100]) q = (path.polyline [300 -50] [300 150]) p = ^point [500 500]}') as LetAST
+			const points = snapPointsOf(root, env, sceneOf(root, env), new Set(['binding:p']))
+			const tolerance = 5
+			// Past the end of the top edge, it is nothing, until that edge has been snapped to.
+			expect(nearestSnap(points, [200, 1], tolerance)).toBeNull()
+			const onEdge = nearestSnap(points, [30, 1], tolerance)!
+			const edge = lineSnappedTo(points, onEdge)!
+			expect(edge).not.toBeNull()
+			const acquired = withAcquired(points, [edge])
+			const past = nearestSnap(acquired, [200, 1], tolerance)!
+			expect(past.beyond).toBe(true)
+			expect(past.at[1]).toBeCloseTo(0)
+			// And where it would cross the line of the polyline, going on, which is a place.
+			const crossing = acquired.find(({ label, at }) => label === 'intersection' && Math.hypot(at[0] - 300, at[1]) < 1e-6)
+			expect(crossing).toBeDefined()
+			expect(nearestSnap(acquired, [301, 2], tolerance)).toBe(crossing)
+		})
+
+		it('is not where a curve would go on, which only lines do', () => {
+			const root = parse('{a = (path.line [0 0] [10 0]) b = (path.arc [100 100] 10 0 90) c = (path.line [200 200] [300 300])}') as LetAST
+			const points = snapPointsOf(root, env, sceneOf(root, env), new Set(['binding:c']))
+			expect(points.filter(({ beyond, label }) => beyond === true && label === 'intersection')).toEqual([])
+		})
+
+		it('on past the ends of a straight path, along `line.along` it, which goes on both ways', () => {
+			const both = parse('{l = (path.line [0 0] [100 0]) g = (line.along l) c = (path.line [200 200] [300 300])}') as LetAST
+			const [through, direction] = evaluate(parse('(line.along (path.line [0 0] [100 0]))'), env).value as [Vec, Vec]
+			expect(through).toEqual([0, 0])
+			expect(direction[0]).toBeCloseTo(1)
+			expect(direction[1]).toBeCloseTo(0)
+			// Well past where the path ends, it is still on the line.
+			const snap = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), [250, 1], 5)!
+			expect(snap.at[1]).toBeCloseTo(0)
+			const next = linked(both, env, 'binding:c', 0, snap)!
+			expect(print(bound(next as LetAST).find(([name]) => name === 'c')![1])).toMatch(/^\(path\.line .*\bg\b.* \[300 300\]\)$/)
+			// The path turned, it goes on the way the path goes now.
+			const turned = parse(print(next).replace('(path.line [0 0] [100 0])', '(path.line [0 0] [0 100])'))
+			expect(gripAt(turned, env, 'binding:c')!.handles.find(h => h.place === 0)!.at![0]).toBeCloseTo(0)
+		})
+
+		it('and stays on the edge, sliding along it, as it is dragged', () => {
+			const both = parse('{o = (path.polygon [0 0] [100 0] [100 100]) c = (path.line [200 200] [300 300])}') as LetAST
+			const snap = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), [101, 30], 5)!
+			const next = linked(both, env, 'binding:c', 0, snap)!
+			const start = gripAt(next, env, 'binding:c')!.handles.find(h => h.place === 0)!
+			const dragged = changed(next, env, 'binding:c', start.to([120, 60], start.at!)).ast!
+			expect(print(bound(dragged as LetAST).find(([name]) => name === 'c')![1])).toBe('(path.line (vec2.lerp ../../o/points:/1 ../../o/points:/2 0.6) [300 300])')
+			const moved = parse(print(dragged).replace('[100 100]', '[100 200]'))
+			expect(gripAt(moved, env, 'binding:c')!.handles.find(h => h.place === 0)!.at).toEqual([100, 120])
 		})
 
 		it('only across, where a level or upright edge would go on, being only lined up with it', () => {
@@ -922,10 +1136,13 @@ describe('snapping', () => {
 			expect(nearestSnap(sides, [30, top + 1], 2)).toBeNull()
 		})
 
-		it('and where it would go, if it went on, when asked to', () => {
-			expect(onto('(path.line [0 0] [100 100])', [150, 149], true)).toBe('(path.line [(lerp ../../../o/start:/0 ../../../o/end:/0 1.495) (lerp ../../../o/start:/1 ../../../o/end:/1 1.495)] [300 300])')
-			const both = parse('{o = (path.line [0 0] [100 100]) c = (path.line [200 200] [300 300])}') as LetAST
-			expect(nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:c'])), [150, 149], 5)).toBeNull()
+		it('and where it would go, if it went on: of a line primitive anyway, and of an edge when asked to', () => {
+			expect(onto('(path.line [0 0] [100 100])', [150, 149], true)).toBe('(path.line (vec2.lerp ../../o/start: ../../o/end: 1.495) [300 300])')
+			expect(onto('(path.line [0 0] [100 100])', [150, 149], false)).toBe('(path.line (vec2.lerp ../../o/start: ../../o/end: 1.495) [300 300])')
+			const edge = parse('{o = (path.polygon [0 0] [100 100] [0 100]) c = (path.line [200 200] [300 300])}') as LetAST
+			const points = snapPointsOf(edge, env, sceneOf(edge, env), new Set(['binding:c']))
+			expect(nearestSnap(points, [150, 149], 5)).toBeNull()
+			expect(nearestSnap(points, [150, 149], 5, true)?.beyond).toBe(true)
 		})
 
 		it('and goes on being there as the line moves', () => {
@@ -1030,6 +1247,45 @@ describe('snapping', () => {
 			expect(end[1]).toBeCloseTo(120)
 		})
 
+		it('keeps what its start was drawn along, when its end is drawn only across from something', () => {
+			const root = parse('{a = (path.rect [0 0] [100 40])}') as LetAST
+			const points = snapPointsOf(root, env, sceneOf(root, env))
+			// Begun along the top of `a`, past its right, and drawn up and left onto where its right side goes on.
+			const start = nearestSnap(points, [150, 0.3], 3)!
+			const end = nearestSnap(points, [100.3, -30], 3)!
+			const started = drawnFrom(root, env, 'b', 'rect', start, end.at, false, 0.1)
+			// Its bottom is the top of `a`: as far above it as it is high, by its own size, which stays a number.
+			expect(print(started)).toMatch(/b = \(path\.rect \[100 \(- (?:\.\.\/)*a\/origin:\/1 (?:\.\.\/)*size:\/1\)\] \[50 30\]\)/)
+			const ended = drawnOnto(started, env, 'binding:b', end, 0.15)!
+			expect(ended).not.toBeNull()
+			expect(print(ended)).toMatch(/b = \(path\.rect \[\(\+ (?:\.\.\/)*a\/origin:\/0 (?:\.\.\/)*a\/size:\/0\) \(- (?:\.\.\/)*a\/origin:\/1 (?:\.\.\/)*size:\/1\)\] \[50 30\]\)/)
+			// Its bottom left is the top right of `a`: it goes with `a`, as it is, whatever size `a` comes to.
+			const of = (source: string) => gripAt(parse(source), env, 'binding:b')!.handles
+			const bottomLeft = (source: string) => of(source).find(h => h.name === 'bottom left')!.at
+			expect(bottomLeft(print(ended).replace('[0 0] [100 40]', '[10 5] [120 80]'))).toEqual([130, 5])
+			const size = (source: string) => { const [tl, br] = ['top left', 'bottom right'].map(n => of(source).find(h => h.name === n)!.at!); return [br[0] - tl[0], br[1] - tl[1]] }
+			expect(size(print(ended).replace('[0 0] [100 40]', '[10 5] [120 80]'))).toEqual([50, 30])
+		})
+
+		it('from a corner, drawn back from it, stays at that corner by its own size, which stays a number', () => {
+			const root = parse('{a = (path.rect [0 0] [100 40])}') as LetAST
+			const corner = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [100, 0], 1)!
+			const drawn = drawnFrom(root, env, 'b', 'rect', corner, [60, -30], false, 0.1)
+			expect(print(drawn)).toMatch(/b = \(path\.rect \[\(- \(\+ (?:\.\.\/)*a\/origin:\/0 (?:\.\.\/)*a\/size:\/0\) (?:\.\.\/)*size:\/0\) \(- (?:\.\.\/)*a\/origin:\/1 (?:\.\.\/)*size:\/1\)\] \[40 30\]\)/)
+			const bottomRight = gripAt(parse(print(drawn).replace('[40 30]', '[70 50]')), env, 'binding:b')!.handles.find(h => h.name === 'bottom right')!.at
+			expect(bottomRight).toEqual([100, 0])
+			const upRight = drawnFrom(root, env, 'b', 'rect', corner, [140, -30], false, 0.1)
+			expect(print(upRight)).toMatch(/b = \(path\.rect \[\(\+ (?:\.\.\/)*a\/origin:\/0 (?:\.\.\/)*a\/size:\/0\) \(- (?:\.\.\/)*a\/origin:\/1 (?:\.\.\/)*size:\/1\)\] \[40 30\]\)/)
+		})
+
+		it('drawn to a place from nowhere in particular, has its origin go by that, and its size stay a number', () => {
+			const root = parse('{a = (path.rect [0 0] [100 40])}') as LetAST
+			const corner = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [100, 40], 1)!
+			const started = drawnFrom(root, env, 'b', 'rect', { at: [50, 10], target: null, label: '' }, corner.at, false, 0.1)
+			const ended = drawnOnto(started, env, 'binding:b', corner, 0.15)!
+			expect(print(ended)).toMatch(/b = \(path\.rect \[\(- \(\+ (?:\.\.\/)*a\/origin:\/0 (?:\.\.\/)*a\/size:\/0\) (?:\.\.\/)*size:\/0\) \(- \(\+ (?:\.\.\/)*a\/origin:\/1 (?:\.\.\/)*a\/size:\/1\) (?:\.\.\/)*size:\/1\)\] \[50 30\]\)/)
+		})
+
 		it('and to a place its numbers, rounded as they are drawn, fall a little short of', () => {
 			const both = parse('{a = (path.circle [100.5 50.5] 20)}') as LetAST
 			const center = nearestSnap(snapPointsOf(both, env, sceneOf(both, env)), [100.5, 50.5], 1)!
@@ -1048,14 +1304,8 @@ describe('snapping', () => {
 			const left = snapPointsOf(both, env, sceneOf(both, env).filter(s => s.row === 'binding:b')).find(p => p.label === 'left' && p.code !== undefined)!
 			const right = nearestSnap(snapPointsOf(both, env, sceneOf(both, env), new Set(['binding:b'])), [10, 0], 1)!
 			const on = movedOnto(both, env, 'binding:b', left, right)!
-			// What it is on is held by it, and nothing is held by what is on nothing.
-			expect(rowsHeldBy(on, env, new Set(['binding:b']))).toEqual(['binding:a'])
-			expect(rowsHeldBy(on, env, new Set(['binding:a']))).toEqual([])
-			// Moved as a canvas moves it: what it is on first, then itself, each from where it was.
-			const moved = ['binding:a', 'binding:b'].reduce(
-				(next, row) => changed(next, env, row, gripAt(on, env, row)!.move!([5, 7])).ast!,
-				on
-			)
+			// Worked back to, where it is goes by where what it is on is, and not by how big that is.
+			const moved = changed(on, env, 'binding:b', gripAt(on, env, 'binding:b')!.move!([5, 7])).ast!
 			const center = (row: string) => gripAt(moved, env, row)!.handles.find(h => h.name === 'center')!.at!
 			expect(center('binding:a')).toEqual([5, 7])
 			expect(center('binding:b')[0]).toBeCloseTo(35)
@@ -1162,10 +1412,11 @@ describe('snapping', () => {
 		const drawnAs = (tool: 'rect' | 'roundRect' | 'ellipse', to: Vec, even = false) =>
 			print(bound(drawnFrom(root, env, 'x', tool, start, to, even)).at(-1)![1])
 		expect(drawnAs('rect', [130, 120])).toBe('(path.rect ../c/center: [30 20])')
-		expect(drawnAs('rect', [90, 90])).toMatch(/^\(path\.rect \[\(- \S*c\/center:\/0 10\) \(- \S*c\/center:\/1 10\)\] \[10 10\]\)$/)
-		expect(drawnAs('rect', [130, 90])).toMatch(/^\(path\.rect \[\S*c\/center:\/0 \(- \S*c\/center:\/1 10\)\] \[30 10\]\)$/)
-		expect(drawnAs('rect', [90, 90], true)).toMatch(/^\(path\.square \[\(- \S*c\/center:\/0 10\) \(- \S*c\/center:\/1 10\)\] 10\)$/)
-		expect(drawnAs('roundRect', [90, 90])).toMatch(/^\(path\.roundRect \[\(- \S*c\/center:\/0 10\) \(- \S*c\/center:\/1 10\)\] \[10 10\] /)
+		// Drawn back from there, it is short of it by its own size, so that it stays there as it grows.
+		expect(drawnAs('rect', [90, 90])).toMatch(/^\(path\.rect \[\(- \S*c\/center:\/0 \S*size:\/0\) \(- \S*c\/center:\/1 \S*size:\/1\)\] \[10 10\]\)$/)
+		expect(drawnAs('rect', [130, 90])).toMatch(/^\(path\.rect \[\S*c\/center:\/0 \(- \S*c\/center:\/1 \S*size:\/1\)\] \[30 10\]\)$/)
+		expect(drawnAs('rect', [90, 90], true)).toMatch(/^\(path\.square \[\(- \S*c\/center:\/0 \S*size:\) \(- \S*c\/center:\/1 \S*size:\)\] 10\)$/)
+		expect(drawnAs('roundRect', [90, 90])).toMatch(/^\(path\.roundRect \[\(- \S*c\/center:\/0 \S*size:\/0\) \(- \S*c\/center:\/1 \S*size:\/1\)\] \[10 10\] /)
 		expect(drawnAs('ellipse', [120, 130])).toBe('(path.ellipse ../c/center: [20 30])')
 		expect(drawnAs('ellipse', [120, 130], true)).toBe('(path.circle ../c/center: 30)')
 	})
@@ -1345,8 +1596,8 @@ describe('a square', () => {
 		const center = nearestSnap(snapPointsOf(root, env, sceneOf(root, env)), [100, 100], 1)!
 		const drawnAs = (to: Vec) => print(bound(drawnFrom(root, env, 'x', 'rect', center, to, true)).at(-1)![1])
 		expect(drawnAs([130, 120])).toBe('(path.square ../c/center: 30)')
-		expect(drawnAs([70, 80])).toMatch(/^\(path\.square \[\(- \S*c\/center:\/0 30\) \(- \S*c\/center:\/1 30\)\] 30\)$/)
-		expect(drawnAs([130, 80])).toMatch(/^\(path\.square \[\S*c\/center:\/0 \(- \S*c\/center:\/1 30\)\] 30\)$/)
+		expect(drawnAs([70, 80])).toMatch(/^\(path\.square \[\(- \S*c\/center:\/0 \S*size:\) \(- \S*c\/center:\/1 \S*size:\)\] 30\)$/)
+		expect(drawnAs([130, 80])).toMatch(/^\(path\.square \[\S*c\/center:\/0 \(- \S*c\/center:\/1 \S*size:\)\] 30\)$/)
 	})
 })
 
@@ -1609,8 +1860,22 @@ describe('grips', () => {
 
 	it('take a point of as many as there are', () => {
 		const source = '{c = (path.polyline [0 0] [1 1] [2 2])}'
-		expect(kinds(source)).toEqual(['point', 'point', 'point'])
+		expect(kinds(source)).toEqual(['point', 'point', 'point', 'offset', 'offset'])
 		expect(pulled(source, 2, [5, 5])).toBe('{main = [c = (path.polyline [0 0] [1 1] [5 5])]}')
+	})
+
+	it('take an edge as the two points it is between, moved alike', () => {
+		const polyline = '{c = (path.polyline [0 0] [10 0] [10 10])}'
+		const edges = gripAt(parse(polyline), env, row)!.handles.filter(h => h.between)
+		expect(edges.map(h => h.between)).toEqual([['arg0', 'arg1'], ['arg1', 'arg2']])
+		expect(pulled(polyline, 4, [5, 3], [5, 0])).toBe('{main = [c = (path.polyline [0 0] [10 3] [10 13])]}')
+		const polygon = '{c = (path.polygon [0 0] [10 0] [10 10])}'
+		expect(gripAt(parse(polygon), env, row)!.handles.filter(h => h.between).map(h => h.between)).toEqual([
+			['arg0', 'arg1'],
+			['arg1', 'arg2'],
+			['arg2', 'arg0'],
+		])
+		expect(pulled(polygon, 5, [2, 5], [5, 5])).toBe('{main = [c = (path.polygon [-3 0] [10 0] [7 10])]}')
 	})
 
 	it('have a whole number of sides, of at least three, on an ngon', () => {
@@ -1807,7 +2072,7 @@ describe('what cannot be worked out', () => {
 		expect(held('{c = (path.circle /nope/center: 1)}').handles.at(-1)!.at).toEqual([0, 0])
 		expect(held('{c = (path.circle [0 0] ../nope)}').handles[0]!.at).toEqual([0, 0])
 		expect(held('{c = (path.rect "x" [1 1])}').handles).toHaveLength(8)
-		expect(held('{c = (path.polyline [../nope: 0] [1 1])}').handles).toHaveLength(2)
+		expect(held('{c = (path.polyline [../nope: 0] [1 1])}').handles.filter(h => !h.between)).toHaveLength(2)
 	})
 
 	it('can be drawn, snapped to and moved all the same', () => {
@@ -1922,8 +2187,8 @@ describe('where a pen goes next', () => {
 	const drawn = (...places: readonly (readonly [number, number])[]) => places.map(at => ({ at: at as [number, number] }))
 
 	it('lines up across and down with where it last was', () => {
-		expect(penGuided(drawn([0, 0]), [100, 3], 5, false)).toEqual({ at: [100, 0], lines: [[[0, 0], [100, 0]]] })
-		expect(penGuided(drawn([0, 0]), [3, 100], 5, false)).toEqual({ at: [0, 100], lines: [[[0, 0], [0, 100]]] })
+		expect(penGuided(drawn([0, 0]), [100, 3], 5, false)).toEqual({ at: [100, 0], lines: [[[0, 0], [100, 0]]], lined: [{ axis: 1, anchor: 0 }] })
+		expect(penGuided(drawn([0, 0]), [3, 100], 5, false)).toEqual({ at: [0, 100], lines: [[[0, 0], [0, 100]]], lined: [{ axis: 0, anchor: 0 }] })
 	})
 
 	it('is free of that where it is not near', () => {
@@ -1932,13 +2197,14 @@ describe('where a pen goes next', () => {
 	})
 
 	it('comes to a corner, in line with two of what it has drawn', () => {
-		const { at, lines } = penGuided(drawn([0, 0], [100, 0], [100, 80]), [3, 78], 5, false)!
+		const { at, lines, lined } = penGuided(drawn([0, 0], [100, 0], [100, 80]), [3, 78], 5, false)!
 		expect(at).toEqual([0, 80])
 		expect(lines).toEqual([[[0, 0], [0, 80]], [[100, 80], [0, 80]]])
+		expect(lined).toEqual([{ axis: 0, anchor: 0 }, { axis: 1, anchor: 2 }])
 	})
 
 	it('comes right to what it has drawn, with nothing to show of a line', () => {
-		expect(penGuided(drawn([0, 0], [100, 40], [200, 90]), [102, 42], 5, false)).toEqual({ at: [100, 40], lines: [] })
+		expect(penGuided(drawn([0, 0], [100, 40], [200, 90]), [102, 42], 5, false)).toEqual({ at: [100, 40], lines: [], lined: [{ axis: 0, anchor: 1 }, { axis: 1, anchor: 1 }] })
 	})
 
 	it('goes by even angles from where it last was, held even', () => {
@@ -1948,10 +2214,90 @@ describe('where a pen goes next', () => {
 	})
 
 	it('stops where that crosses in line with what it has drawn', () => {
-		const { at, lines } = penGuided(drawn([100, 50], [0, 0]), [102, 10], 5, true)!
+		const { at, lines, lined } = penGuided(drawn([100, 50], [0, 0]), [102, 10], 5, true)!
 		expect(at[0]).toBeCloseTo(100)
 		expect(at[1]).toBeCloseTo(0)
 		expect(lines).toHaveLength(2)
+		// Level with the last, which it refers to for that, and upright from the first.
+		expect(lined).toEqual([{ axis: 1, anchor: 1 }, { axis: 0, anchor: 0 }])
+	})
+
+	it('refers to the last for being level with it or upright from it, held even, so that it stays so', () => {
+		expect(penGuided(drawn([0, 0]), [100, 3], 0, true)!.lined).toEqual([{ axis: 1, anchor: 0 }])
+		expect(penGuided(drawn([0, 0]), [3, 100], 0, true)!.lined).toEqual([{ axis: 0, anchor: 0 }])
+		// At 45 degrees, there is nothing of it that is the same.
+		expect(penGuided(drawn([0, 0]), [100, 95], 0, true)!.lined).toEqual([])
+		// Each edge of a zigzag drawn so goes on being level or upright, as the one before it moves.
+		const anchors = [{ at: [0, 0] as Vec }, { at: [100, 0] as Vec, lined: [{ axis: 1 as const, anchor: 0 }] }, { at: [100, 50] as Vec, lined: [{ axis: 0 as const, anchor: 1 }] }]
+		const { ast } = penned(parse('[]') as LetAST, env, anchors, false)
+		const moved = parse(print(ast).replace('[0 0]', '[0 20]'))
+		const places = gripAt(moved, env, 'binding:polyline1')!.handles.filter(h => typeof h.place === 'number').map(h => h.at)
+		expect(places).toEqual([[0, 20], [100, 20], [100, 50]])
+	})
+
+	it('refers to what it lined up with, for that, so that it stays lined up with it', () => {
+		const { ast } = penned(parse('[]') as LetAST, env, [{ at: [0, 0] }, { at: [100, 0] }, { at: [100, 50], lined: [{ axis: 0, anchor: 1 }] }], false)
+		const [, written] = bound(ast).at(-1)!
+		expect(print(written)).toMatch(/^\(path\.polyline \[0 0\] \[100 0\] \[\S+ 50\]\)$/)
+		const moved = parse(print(ast).replace('[100 0]', '[130 0]'))
+		expect(gripAt(moved, env, 'binding:polyline1')!.handles.find(h => h.place === 2)!.at).toEqual([130, 50])
+	})
+})
+
+describe('what is lined up with where a handle goes by, being dragged', () => {
+	it('refers to that place for it, as much as to a place it is put on', () => {
+		const root = parse('{main = [l = (line.fromPoints [0 0] [100 30])]}') as LetAST
+		const start = placeOnRow(root, env, 'binding:l', [0, 0])!
+		const snap = nearestSnap(axesThrough([0, 0], [100, 2], start), [100, 2], 5)!
+		expect(snap.at).toEqual([100, 0])
+		const next = linked(root, env, 'binding:l', 1, snap)!
+		expect(print(next)).toMatch(/\(line\.fromPoints \[0 0\] \[100 \S+\]\)/)
+		const moved = parse(print(next).replace('[0 0]', '[0 40]'))
+		expect(gripAt(moved, env, 'binding:l')!.handles.find(h => h.place === 1)!.at).toEqual([100, 40])
+	})
+})
+
+describe('where going across from one place meets going down from another', () => {
+	it('is a place, referring to both, so that a point dragged there stays there as they move', () => {
+		const src = (last: string) =>
+			parse(`{main = [g = (path.polygon [-75.6 119.4] [../points:/0/0 -154.4] [113.3 ../points:/1/1] [../points:/2/0 -320.1] [326 ../points:/3/1] ${last})]}`) as LetAST
+		const root = src('[301.5 93.2]')
+		const of = (at: Vec) => ({ at, code: placeOnRow(root, env, 'binding:g', at) })
+		const crossing = axesCrossing(of([-75.6, 119.4]), of([326, -320.1]))
+		expect(crossing.at).toEqual([326, 119.4])
+		expect(crossing.crossed).toHaveLength(2)
+		const next = linked(src('[326 119.4]'), env, 'binding:g', 5, crossing)!
+		expect(print(next)).toContain('[326 ../points:/3/1] [../points:/4/0 ../points:/0/1])')
+	})
+})
+
+describe('a point lined up with itself', () => {
+	it('does not refer to itself, which would be a circular reference', () => {
+		const root = parse('{main = [p = (path.polyline [54.5 15.5] [150 15.5] [150 100])]}') as LetAST
+		const self = placeOnRow(root, env, 'binding:p', [54.5, 15.5])
+		const snap = nearestSnap(axesThrough([54.5, 15.5], [54.5, 60], self), [55, 60], 5)!
+		expect(linked(parse('{main = [p = (path.polyline [54.5 60] [150 15.5] [150 100])]}') as LetAST, env, 'binding:p', 0, snap)).toBeNull()
+	})
+})
+
+describe('what is lined up with, across or down, while drawing', () => {
+	const root = parse('{a = ^point [0 0] b = ^point [100 -50] c = (path.line [300 300] [400 300])}') as LetAST
+	const points = snapPointsOf(root, env, sceneOf(root, env), new Set(['binding:c']))
+
+	it('is the place nearest each way, and where going down from one meets going across from the other', () => {
+		const lined = alignmentsNear(points, [102, 3], 5)
+		expect(lined.map(({ label }) => label)).toEqual(['vertical', 'horizontal', 'intersection'])
+		const crossing = nearestSnap([...points, ...lined], [102, 3], 5)!
+		expect(crossing.at).toEqual([100, 0])
+		// Put there, it refers to both, for each of what it is lined up by.
+		const next = linked(parse('{a = ^point [0 0] b = ^point [100 -50] c = (path.line [100 0] [400 300])}') as LetAST, env, 'binding:c', 0, crossing)!
+		// A point cast as one is not gone into, and its numbers are its first and last.
+		expect(print(next)).toContain('c = (path.line [(first b) (last a)] [400 300])')
+	})
+
+	it('is nothing, away from everything, and only a place where it is near both ways', () => {
+		expect(alignmentsNear(points, [200, 200], 5)).toEqual([])
+		expect(alignmentsNear(points, [1, 1], 5)).toEqual([])
 	})
 })
 
@@ -2001,9 +2347,19 @@ describe('the handles of a guide', () => {
 	const rowsOf = (rows: readonly string[], isReachable = (_: string) => true) =>
 		withGuideHandles(null, root, env, sceneOf(root, env), rows, isReachable)?.rowOf ?? []
 
-	it('are there with nothing selected, and of no other shape', () => {
-		const rows = new Set(rowsOf([]))
-		expect(rows).toEqual(new Set(['binding:p', 'binding:l', 'binding:f']))
+	it('are there with nothing selected, only as what it is itself, and of no other shape', () => {
+		// What a line or a frame is made from is there once it is selected, as it is for any shape.
+		expect(new Set(rowsOf([]))).toEqual(new Set(['binding:p']))
+		const reflected = parse('{main = [r = (vec2.reflect [1 2] (line.vertical [0 0]))]}')
+		const held = withGuideHandles(null, reflected, env, sceneOf(reflected, env), [], () => true)!
+		expect(held.grip.handles.map(({ name, place }) => [name, place])).toEqual([['image', 'self']])
+	})
+
+	it('are there only as it is directly in the sketch shown', () => {
+		expect(isDirectlyIn('binding:p', null)).toBe(true)
+		expect(isDirectlyIn('binding:g/arg0/binding:p', null)).toBe(false)
+		expect(isDirectlyIn('binding:g/arg0/binding:p', 'binding:g')).toBe(true)
+		expect(isDirectlyIn('binding:h/arg0/binding:p', 'binding:g')).toBe(false)
 	})
 
 	it('leave out what is selected, which has its own, and what cannot be reached', () => {
@@ -2014,7 +2370,6 @@ describe('the handles of a guide', () => {
 	it('have no button, which is for when it is selected', () => {
 		const held = withGuideHandles(null, root, env, sceneOf(root, env), [], () => true)!
 		expect(held.grip.handles.some(({ kind }) => kind === 'button')).toBe(false)
-		expect(held.rowOf.filter(row => row === 'binding:l')).toHaveLength(2)
 	})
 
 	it('go after those of what is selected, which stay where they are', () => {
@@ -2035,10 +2390,11 @@ describe('what is between two points', () => {
 		expect(value).toBeCloseTo(0.6)
 	})
 
-	it('stays between the two, however far it is taken', () => {
+	it('goes on past either of the two, as far as it is taken', () => {
 		const ratioAt = (x: number) => (grip.handles[0]!.to([x, 0], [25, 0])[0] as { value: number }).value
-		expect(ratioAt(-50)).toBe(0)
-		expect(ratioAt(500)).toBe(1)
+		expect(ratioAt(-50)).toBe(-0.5)
+		expect(ratioAt(500)).toBe(5)
+		expect(evaluate(parse('(vec2.lerp [0 0] [100 0] 1.5)'), env).value).toEqual([150, 0])
 	})
 
 	it('moves as both of them do, wherever they are written', () => {
@@ -2070,8 +2426,80 @@ describe('what is nudged from a point', () => {
 	})
 })
 
+describe('what is across a line from a point', () => {
+	const root = parse('{main = [i = (vec2.reflect p (line.fromPoints [50 0] [50 100])) p = ^point [10 20]]}')
+	const grip = gripAt(root, env, 'binding:i')!
+
+	it('is as far from the line on the other side, straight across', () => {
+		expect(evaluate(parse('(vec2.reflect [10 20] (line.fromPoints [50 0] [50 100]))'), env).value).toEqual([90, 20])
+		const [x, y] = evaluate(parse('(vec2.reflect [0 10] (line.at [0 0] 45))'), env).value as Vec
+		expect(x).toBeCloseTo(10)
+		expect(y).toBeCloseTo(0)
+	})
+
+	it('has a handle at the point and one at its image, each lined up with the other', () => {
+		const [at, image] = grip.handles
+		expect([at!.at, image!.at]).toEqual([[10, 20], [90, 20]])
+		expect([at!.linesUpWith, image!.linesUpWith]).toEqual([[90, 20], [10, 20]])
+	})
+
+	it('is taken by its image, which takes the point along across the line, wherever it is written', () => {
+		const next = changed(root, env, 'binding:i', grip.handles[1]!.to([80, 40], [90, 20])).ast!
+		expect(print(next)).toContain('p = ^point [20 40]')
+		expect(print(next)).toContain('(vec2.reflect p (line.fromPoints [50 0] [50 100]))')
+	})
+
+	it('is a place to refer to, as are the ends of the line written in it, from where they are written', () => {
+		const snaps = snapPointsOf(root, env, sceneOf(root, env).filter(({ row }) => row === 'binding:i'))
+		const placeOf = (label: string | undefined, at: Vec) => snaps.find(snap => snap.label === (label ?? '') && Math.hypot(snap.at[0] - at[0], snap.at[1] - at[1]) < 1e-6)!
+		expect(placeOf('image', [90, 20]).target).toBe('binding:i')
+		const end = placeOf(undefined, [50, 0])
+		expect(end.target).toBeNull()
+		expect([...end.code!.parts.values()]).toEqual(['binding:i/arg1/arg0'])
+		const through = parse('{main = [i = (vec2.reflect p (line.fromPoints [50 0] [50 100])) p = ^point [10 20] c = (path.line [200 200] [300 300])]}')
+		const put = (snap: SnapPoint) => print(bound(linked(through, env, 'binding:c', 0, snap) as LetAST).find(([name]) => name === 'c')![1])
+		expect(put(placeOf('image', [90, 20]))).toBe('(path.line i [300 300])')
+		expect(put(end)).toBe('(path.line ../i/line:/from: [300 300])')
+	})
+
+	it('comes back to the point it is of, as a place it is asked to be', () => {
+		const node = bound(root as LetAST).find(([name]) => name === 'i')![1]
+		expect(print(solve(root, env, node, [70, 0]).ast!)).toContain('p = ^point [30 0]')
+	})
+})
+
 describe('what comes to a point', () => {
-	it.each(['^point [5 0]', '(vec2.lerp [0 0] [10 0] 0.5)', '(vec2.nudge [0 0] [5 0])'])(
+	it('is between two points, which are its handles, with an arrow from one to the other to pull it along', () => {
+		const root = parse('[p = (vec2.lerp [0 0] [10 0] 0.5)]')
+		expect(sceneOf(root, env)).toMatchObject([{ draw: 'point', value: [5, 0] }])
+		const grip = gripAt(root, env, 'binding:p')!
+		expect(grip.handles).toMatchObject([
+			// Where it is, it looks like the point it is, whatever taking it there does.
+			{ kind: 'arrow', at: [5, 0], angle: 0, crosshair: true },
+			{ kind: 'point', at: [0, 0], place: 0 },
+			{ kind: 'point', at: [10, 0], place: 1 },
+		])
+		// The line it goes along, and a head at the end it goes toward.
+		expect(grip.guides).toHaveLength(2)
+	})
+
+	it('is a point to take all of it by, where what makes it has no handle there', () => {
+		const root = parse('{main = [p = (vec2.reflect [10 0] (line.fromPoints [0 -10] [0 10]))]}')
+		const handles = gripAt(root, env, 'binding:p')!.handles
+		expect(handles.filter(({ at }) => at !== undefined && Math.hypot(at[0] + 10, at[1]) < 1e-9).map(({ kind }) => kind)).toContain('translate')
+	})
+
+	it('has the handles of what it is cast from, which moving them goes through', () => {
+		const root = parse('{main = [p = ^point (vec2.lerp a [10 0] 0.5) a = ^point [0 0]]}')
+		const grip = gripAt(root, env, 'binding:p')!
+		expect(grip.handles.map(({ kind }) => kind)).toEqual(['arrow', 'point', 'point'])
+		const moved = changed(root, env, 'binding:p', grip.handles[0]!.to([15, 0], [5, 0])).ast!
+		expect(print(moved)).toContain('p = ^point (vec2.lerp a [10 0] 1.5)')
+		// What is cast from what has no handles of its own is a point, all of it.
+		expect(gripAt(parse('{main = [p = ^point [5 0]]}'), env, 'binding:p')!.handles).toMatchObject([{ kind: 'translate', place: 'self' }])
+	})
+
+	it.each(['^point [5 0]', '(vec2.nudge [0 0] [5 0])'])(
 		'looks like one where it is, as %s',
 		code => {
 			const root = parse(`[p = ${code}]`)
@@ -2143,5 +2571,66 @@ describe('what there is for colors', () => {
 		expect(value('(color.alphaOf "#ff000080")')).toBeCloseTo(0.5, 1)
 		expect(value('(color.lightnessOf (color.oklch 0.5 0 0))')).toBeCloseTo(0.5, 1)
 		expect(value('(color.alphaOf (color.oklch 0.5 0.1 30 0.5))')).toBeCloseTo(0.5, 1)
+	})
+})
+
+describe('a place pulled from a row onto what is drawn', () => {
+	it('refers to the place it is let go on, and not to itself', () => {
+		const root = parse('{main = [a = (path.circle [0 0] 5) b = (path.circle [30 40] 6)]}')
+		const centerOf = (row: string) =>
+			snapPointsOf(root, env, sceneOf(root, env).filter(shape => shape.row === row)).find(point => point.label === 'center')!
+		expect(print(referredOnto(root, env, 'binding:a/arg0', centerOf('binding:b'))!)).toContain('a = (path.circle ../b/center: 5)')
+		expect(referredOnto(root, env, 'binding:a/arg0', centerOf('binding:a'))).toBeNull()
+	})
+})
+
+describe('what is moved, by what it is put on', () => {
+	const root = parse(
+		'{main = [c1 = (path.circle [(+ (+ /main/c2/center:/0 /main/c2/radius:) ../../radius:) 217.6] 48.3) c2 = (path.circle [99.3 110.4] 48.3)]}'
+	)
+	const moved = (row: string, by: Vec) => print(changed(root, env, row, gripAt(root, env, row)!.move!(by)).ast!)
+
+	it('moves that only the ways it goes by it, and changes the shape of neither', () => {
+		expect(moved('binding:c1', [10, 20])).toBe(
+			'{main = [c1 = (path.circle [(+ (+ /main/c2/center:/0 /main/c2/radius:) ../../radius:) 237.6] 48.3) c2 = (path.circle [109.3 110.4] 48.3)]}'
+		)
+		expect(moved('binding:c1', [10.37, 20])).toContain('c2 = (path.circle [109.67 110.4] 48.3)')
+	})
+
+	it('moves the center it is put by, when its own is dragged', () => {
+		const center = gripAt(root, env, 'binding:c1')!.handles.find(h => h.name === 'center')!
+		const next = changed(root, env, 'binding:c1', center.to([205.9, 237.6], center.at!)).ast!
+		expect(print(next)).toContain('c2 = (path.circle [109.3 110.4] 48.3)')
+		expect(print(next)).toContain('237.6] 48.3)')
+	})
+})
+
+describe('a side pulled, of what is written to be about its middle', () => {
+	const centered =
+		'{main = [r = (path.rect [(- ../../../../a/origin:/0 (/ ../../../size:/0 2)) (- ../../../../a/origin:/1 (/ ../../../size:/1 2))] [173.5 176.9]) a = (axes @[0 0])]}'
+	const pulled = (src: string, symmetric: boolean) => {
+		const root = parse(src)
+		const right = gripAt(root, env, 'binding:r')!.handles.find(({ name }) => name === 'right')!
+		const next = changed(root, env, 'binding:r', right.to([right.at![0] + 20, 0], right.at!, { symmetric })).ast!
+		return { root, next, changed: numbersChanged(root, next) }
+	}
+
+	it('changes fewer numbers going about its middle, which is what it is written to do', () => {
+		const [aside, about] = [pulled(centered, false), pulled(centered, true)]
+		// Keeping the left side where it was could only be by changing the 2 that halves it.
+		expect(print(aside.next)).toContain('2.')
+		expect(print(about.next)).toContain('(/ ../../../size:/0 2)) (- ../../../../a/origin:/1 (/ ../../../size:/1 2))] [213.5 176.9])')
+		expect(about.changed).toBeLessThan(aside.changed)
+	})
+
+	it('changes fewer numbers keeping the other side, where it is written as where it starts', () => {
+		const plain = '{main = [r = (path.rect [0 0] [10 10])]}'
+		expect(pulled(plain, false).changed).toBeLessThan(pulled(plain, true).changed)
+	})
+
+	it('counts only the numbers that differ, and all of them where more than numbers do', () => {
+		expect(numbersChanged(parse('[1 2 3]'), parse('[1 5 3]'))).toBe(1)
+		expect(numbersChanged(parse('[1 2 3]'), parse('[1 2 3]'))).toBe(0)
+		expect(numbersChanged(parse('[1 2]'), parse('(+ 1 2)'))).toBe(2)
 	})
 })

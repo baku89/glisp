@@ -10,8 +10,11 @@
 import {
 	type AST,
 	CallAST,
+	callParameters,
+	enterNode,
 	type Env,
 	evaluate,
+	isTypedHostFn,
 	LitAST,
 	MetaAST,
 	parse,
@@ -21,7 +24,7 @@ import {
 	VecAST,
 } from '@glisp/lang'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
-import { referenceAt } from '@glisp/tweeq/structure'
+import { defaultFor, referenceAt } from '@glisp/tweeq/structure'
 
 import type { PlaceCode } from './graphics'
 
@@ -125,8 +128,9 @@ export const between = (a: AST, b: AST, t: number): AST =>
 	print(a) === print(b) ? a : call('lerp', a, b, new LitAST(t))
 
 /** What the parts of `place` are now, by the rows they are of, as numbers where they are. */
-export function valuesOfParts(root: AST, env: Env, parts: ReadonlyMap<string, string>): Map<string, AST> | null {
+export function valuesOfParts(root: AST, env: Env, given: ReadonlyMap<string, string>): Map<string, AST> | null {
 	const values = new Map<string, AST>()
+	const parts = keyedIn(root, env, given)
 	for (const [name, path] of parts) {
 		const slot = reach(root, env, path)?.chain.at(-1)
 		const value = slot === undefined ? partOfWhole(root, env, path) : evaluate(slot.ast, slot.env).value
@@ -187,10 +191,155 @@ function deeper(path: PathAST, depth: number): PathAST {
 }
 
 /**
+ * `parts`, each path to an argument by where it is, `argN`, as it is written there: by its name,
+ * `kw:name`, where it is given by name, as `(axes origin: [10 20])` gives its origin.
+ */
+function keyedIn(root: AST, env: Env, parts: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
+	if (![...parts.values()].some(path => /(^|\/)arg\d+(\/|$)/.test(path))) return parts
+	return new Map([...parts].map(([name, path]) => [name, keyed(root, env, path)]))
+}
+
+function keyed(root: AST, env: Env, path: string): string {
+	const keys = path.split('/')
+	for (const [i, key] of keys.entries()) {
+		const at = /^arg(\d+)$/.exec(key)
+		if (at === null || i === 0) continue
+		const within = keys.slice(0, i).join('/')
+		const last = reach(root, env, within)?.chain.at(-1)
+		const node = last && (last.ast.kind === 'meta' ? last.ast.expr : last.ast)
+		if (!last || node?.kind !== 'call' || reach(root, env, `${within}/${key}`) !== null) continue
+		const named = callParameters(node, enterNode(node, last.env))?.names[Number(at[1])]
+		if (named !== undefined && reach(root, env, `${within}/kw:${named}`) !== null) keys[i] = `kw:${named}`
+	}
+	return keys.join('/')
+}
+
+/**
  * `root`, with what is at the row `source` being `ast`, each part in it a reference to the row it
  * is of, from where it is. Null if a part cannot be reached from there.
  */
-export function writtenAt(root: AST, env: Env, source: string, ast: AST, parts: ReadonlyMap<string, string>): AST | null {
+export function writtenAt(root: AST, env: Env, source: string, ast: AST, given: ReadonlyMap<string, string>): AST | null {
+	const written = (at: AST): AST | null => {
+		const parts = keyedIn(at, env, given)
+		const whole = asWholes(ast, parts)
+		return (whole && writtenAtAsIs(at, env, source, whole.ast, whole.parts)) ?? writtenAtAsIs(at, env, source, ast, parts)
+	}
+	// What is left unsaid, to be what it is by default, cannot be referred to until it is said.
+	const said = withUnsaidSaid(root, env, given)
+	return written(root) ?? (said === null ? null : written(said))
+}
+
+/**
+ * `root`, with each argument that `parts` go into, left unsaid, said as what it is by default:
+ * as the origin of `(axes)` is, for a point there to refer to it. Null if there is none, or if one
+ * has no default to say.
+ */
+function withUnsaidSaid(root: AST, env: Env, parts: ReadonlyMap<string, string>): AST | null {
+	let next = root
+	for (const path of new Set(parts.values())) {
+		const keys = path.split('/')
+		for (const [i, key] of keys.entries()) {
+			const at = /^arg(\d+)$/.exec(key)
+			if (at === null || i === 0) continue
+			const within = keys.slice(0, i).join('/')
+			if (reach(next, env, `${within}/${key}`) !== null || reach(next, env, keyed(next, env, `${within}/${key}`)) !== null) continue
+			const reached = reach(next, env, within)
+			const last = reached?.chain.at(-1)
+			const call = last && (last.ast.kind === 'meta' ? last.ast.expr : last.ast)
+			if (!reached || !last || call?.kind !== 'call') return null
+			const index = Number(at[1])
+			const head = evaluate(call.head, last.env).value
+			const type = isTypedHostFn(head) ? head.paramTypes[index] : undefined
+			const name = callParameters(call, enterNode(call, last.env))?.names[index]
+			if (type?.default === undefined || name === undefined || index < call.args.length) return null
+			// As the type says to write it, locked if it is, as the origin of the axes is.
+			const value = defaultFor(type, last.env)
+			// Said by its name, as what comes before it may be unsaid too.
+			const added =
+				index === call.args.length
+					? new CallAST(call.head, [...call.args, value], call.kwargs)
+					: new CallAST(call.head, call.args, new Map([...(call.kwargs ?? []), [name, value]]))
+			next = withParent(reached.chain, last.replace(last.ast.kind === 'meta' ? new MetaAST(last.ast.metadata, added) : added))
+			break
+		}
+	}
+	return next === root ? null : next
+}
+
+/**
+ * `ast`, with each place in it as much of the way from one point to another, said across and down
+ * apart, as `vec2.lerp` of the two points, wherever it is: as it is in what casts it to a point.
+ * Null if there is none.
+ */
+function asWholes(ast: AST, parts: ReadonlyMap<string, string>): Place | null {
+	const all = new Map(parts)
+	let found = false
+	const fold = (node: AST): AST => {
+		const whole = lerpOfWholes(node, parts)
+		if (whole !== null) {
+			found = true
+			for (const [name, path] of whole.parts) all.set(name, path)
+			return whole.ast
+		}
+		if (node.kind === 'call') return new CallAST(node.head, node.args.map(fold), node.kwargs)
+		if (node.kind === 'vec') return new VecAST(node.elements.map(fold))
+		if (node.kind === 'meta') return new MetaAST(node.metadata, fold(node.expr))
+		return node
+	}
+	const next = fold(ast)
+	return found ? { ast: next, parts: all } : null
+}
+
+/**
+ * A place between two points, said across and down apart, as a call on the two points as wholes:
+ * as much of the way from one to the other as `vec2.lerp`, whose ratio slides it along the line
+ * through them, past either as well, or halfway as `vec2.midpoint`, which is `lerp` with its ratio given.
+ * Where each point is a row.
+ */
+function lerpOfWholes(ast: AST, parts: ReadonlyMap<string, string>): Place | null {
+	const bare = ast.kind === 'meta' ? ast.expr : ast
+	if (bare.kind !== 'vec' || bare.elements.length !== 2) return null
+	const [x, y] = bare.elements.map(betweenOf)
+	if (!x || !y || x.t !== y.t) return null
+	// The row both of a point's parts are of, across and down.
+	const pointOf = (across: AST, down: AST): string | null => {
+		if (across.kind !== 'sym' || down.kind !== 'sym') return null
+		const [a, d] = [parts.get(across.name), parts.get(down.name)]
+		if (a === undefined || d === undefined || !a.endsWith('/0') || !d.endsWith('/1')) return null
+		const row = a.slice(0, -2)
+		return d.slice(0, -2) === row ? row : null
+	}
+	const [from, to] = [pointOf(x.a, y.a), pointOf(x.b, y.b)]
+	if (from === null || to === null) return null
+	const [a, b] = [partName(), partName()]
+	const ends = [new SymAST(a), new SymAST(b)]
+	return {
+		ast:
+			x.t === 'middle'
+				? new CallAST(parse('vec2.midpoint'), ends)
+				: new CallAST(parse('vec2.lerp'), [...ends, new LitAST(x.t)]),
+		parts: new Map([[a, from], [b, to]]),
+	}
+}
+
+/** `(lerp a b t)`, with `t` a number, or `(/ (+ a b) 2)`, halfway, as what is between `a` and `b`. */
+function betweenOf(ast: AST): { a: AST; b: AST; t: number | 'middle' } | null {
+	if (ast.kind !== 'call' || ast.head.kind !== 'sym' || ast.args.length < 2) return null
+	const [first, second, third] = ast.args
+	if (ast.head.name === 'lerp' && third !== undefined && third.kind === 'lit' && typeof third.value === 'number') {
+		return { a: first!, b: second!, t: third.value }
+	}
+	const by = second && (second.kind === 'meta' ? second.expr : second)
+	if (ast.head.name === '/' && ast.args.length === 2 && by?.kind === 'lit' && by.value === 2) {
+		const sum = first!
+		if (sum.kind === 'call' && sum.head.kind === 'sym' && sum.head.name === '+' && sum.args.length === 2) {
+			return { a: sum.args[0]!, b: sum.args[1]!, t: 'middle' }
+		}
+	}
+	return null
+}
+
+function writtenAtAsIs(root: AST, env: Env, source: string, ast: AST, parts: ReadonlyMap<string, string>): AST | null {
 	const references = new Map<string, AST>()
 	for (const name of partsIn(ast, parts)) {
 		const reference = referenceFrom(root, env, source, parts.get(name)!)
@@ -199,10 +348,7 @@ export function writtenAt(root: AST, env: Env, source: string, ast: AST, parts: 
 	}
 	// What is further in than where it is written refers out from there.
 	const placed = (node: AST, depth: number): AST => {
-		if (node.kind === 'sym' && references.has(node.name)) {
-			const reference = references.get(node.name)!
-			return reference.kind === 'path' ? deeper(reference, depth) : reference
-		}
+		if (node.kind === 'sym' && references.has(node.name)) return placedReference(references.get(node.name)!, depth)
 		if (node.kind === 'call') return new CallAST(node.head, node.args.map(arg => placed(arg, depth + 1)), node.kwargs)
 		if (node.kind === 'vec') return new VecAST(node.elements.map(element => placed(element, depth + 1)))
 		if (node.kind === 'meta') return new MetaAST(node.metadata, placed(node.expr, depth))
@@ -213,6 +359,13 @@ export function writtenAt(root: AST, env: Env, source: string, ast: AST, parts: 
 	if (!reached || !last) return null
 	const next = placed(ast, 0)
 	return withParent(reached.chain, last.replace(last.ast.kind === 'meta' ? new MetaAST(last.ast.metadata, next) : next))
+}
+
+/** A reference, written `depth` further in than where it refers from: a path in it, as in `(first p)`, further still. */
+function placedReference(reference: AST, depth: number): AST {
+	if (reference.kind === 'path') return deeper(reference, depth)
+	if (reference.kind === 'call') return new CallAST(reference.head, reference.args.map(arg => placedReference(arg, depth + 1)), reference.kwargs)
+	return reference
 }
 
 /**
@@ -227,5 +380,16 @@ function referenceFrom(root: AST, env: Env, source: string, target: string): AST
 	const element = /^(.*)\/(\d+)$/.exec(target)
 	const whole = element === null ? undefined : reach(root, env, element[1]!)?.chain.at(-1)?.ast
 	const bare = whole?.kind === 'meta' ? whole.expr : whole
-	return bare?.kind === 'path' && bare.segments[0] === '/' ? new PathAST([...bare.segments, Number(element![2])]) : null
+	if (bare?.kind === 'path' && bare.segments[0] === '/') return new PathAST([...bare.segments, Number(element![2])])
+	// Of a point that is worked out, or cast, there is nothing written to go in to: its two numbers
+	// are its first and its last.
+	const index = element === null ? null : Number(element[2])
+	if (index !== 0 && index !== 1) return null
+	const slot = reach(root, env, element![1]!)?.chain.at(-1)
+	const value = slot && evaluate(slot.ast, slot.env).value
+	if (!Array.isArray(value) || value.length !== 2) return null
+	const referred = referenceAt(root, env, source, element![1]!)
+	const toWhole = referred && reach(referred, env, source)?.chain.at(-1)?.ast
+	if (!toWhole) return null
+	return new CallAST(new SymAST(index === 0 ? 'first' : 'last'), [toWhole.kind === 'meta' ? toWhole.expr : toWhole])
 }

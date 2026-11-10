@@ -7,6 +7,7 @@ import { lit, UNIT } from '@glisp/lang'
 import type { MultiSelectCommand, MultiSelectHost } from 'tweeq/stores/multiSelect'
 
 import type { GlispDocument } from './document'
+import { isExpression } from './structure'
 import {
 	bindingsAt,
 	canExtractAt,
@@ -20,6 +21,7 @@ import {
 	misfitAt,
 	nameFor,
 	type Place,
+	sharedWrittenAt,
 	valuesAt,
 	withBindingsMerged,
 	withReferencesFrom,
@@ -158,6 +160,42 @@ function commandsOfPlaces(
 	const root = document.root.value
 	const env = document.env.value
 	const values = valuesAt(root, env, places)
+	// Places that all have the same thing written can share it by one name, as numbers can: what is
+	// worked out goes by how it is written, and not by the number it comes to.
+	const written = places.length < 2 ? null : sharedWrittenAt(root, env, places)
+	const asWritten = written !== null && isExpression(written)
+	const shared = written !== null && (asWritten || values === null || !values.every(isLiteral)) ? written : null
+	const extractShared: MultiSelectCommand[] =
+		shared === null
+			? []
+			: [
+					{
+						label: 'Extract Parameter',
+						icon: 'mdi:variable',
+						perform: () => {
+							const now = document.root.value
+							const result = extractedAt(now, env, places, shared, nameFor(now, env, places))
+							if (result === null) return 'that cannot be pulled out from here'
+							if (result.ast.kind === 'let') document.setRoot(result.ast)
+						},
+					},
+				]
+	return [...extractShared, ...commandsOfValues(document, places, fields, values, !asWritten)]
+}
+
+/**
+ * What can be done to the places by the values at them, if they are values. `byValue` is whether
+ * the number they come to is what there is to pull out, which how they are written may be instead.
+ */
+function commandsOfValues(
+	document: GlispDocument,
+	places: readonly Place[],
+	fields: Fields,
+	values: ReturnType<typeof valuesAt>,
+	byValue: boolean
+): MultiSelectCommand[] {
+	const root = document.root.value
+	const env = document.env.value
 	// A vector and a number are not two of anything, to swap or to be the same.
 	if (values !== null && new Set(values.map(kindOf).filter(kind => kind !== null)).size > 1) return []
 	if (fields.length >= 2 && values !== null && !values.every(isLiteral)) {
@@ -228,7 +266,7 @@ function commandsOfPlaces(
 		...(mixed
 			? [{ label: 'Merge', icon: 'mdi:call-merge', children: options(merge) }]
 			: []),
-		...(canExtractAt(root, env, places)
+		...(byValue && canExtractAt(root, env, places)
 			? [
 					mixed
 						? {

@@ -338,7 +338,7 @@ sq     = (=> [x: number]: number (* ~x ~x))
 
 ### Host functions
 
-A host function has no body, so by default a call to it has no next rung: `expand` returns the same node, and the value comes from `eval`. It can say otherwise with `withExpansion`, which receives the argument expressions as written and a context for working out only those it needs. It returns the next rung, or null for none. `**` uses this, so `(** (+ 1 1) 3)` expands to `(* (+ 1 1) (+ 1 1) (+ 1 1))`, while `(** 2 0.5)` has no next rung.
+A host function has no body, so by default a call to it has no next rung: `expand` returns the same node, and the value comes from `eval`. It can say otherwise with `withExpansion`, which receives the argument expressions as written and a context for working out only those it needs. It returns the next rung, or null for none. `**` uses this, so `(** (+ 1 1) 3)` expands to `(* (+ 1 1) (+ 1 1) (+ 1 1))`, while `(** 2 0.5)` has no next rung. A path in an argument that goes up to the call and down to one of its own arguments, as a corner written by its size does, goes to where that argument is in the next rung: with `(square (origin) side)` expanding to `(rect origin [side side])`, `../size:` in the origin becomes `../size:/0` in its x and `../size:/1` in its y, as the one that is across or down from it. A path going up past the call goes up as much further as its argument now is.
 
 ### Termination of `expand`
 
@@ -441,7 +441,7 @@ It stops at `@`, including a path that goes through something locked to what is 
 
 Of a call's arguments, it tries a literal first, as that changes nothing else, and then a later one before an earlier one, as what comes later is less of what a call is. `(+ a 1)` changes the `1`, `(+ a @1)` changes `a`, and `(+ a b)` changes `b`, or `a` if `b` cannot change. The first that works is the one, so a program steers it with `@`.
 
-After a literal, and before going by the order, comes a path through a parameter whose type says `changesFirst: true`, of a host function. A host says this of what can change without what a thing is changing, such as where it is: with `(circle (center: Place) radius)`, `(+ ../a/center: ../a/radius:)` changes the center, whichever way around it is written, and the radius only if the center cannot change.
+After a literal, and before going by the order, comes a path through a parameter whose type says `changesFirst: true`, of a host function. A host says this of what can change without what a thing is changing, such as where it is: with `(circle (center: Place) radius)`, `(+ ../a/center: ../a/radius:)` changes the center, whichever way around it is written, and the radius only if the center cannot change. A call as an argument counts as such a path where the argument it would go into first is one, so that `(+ (+ /a/center: /a/radius:) /b)` changes the center too, but `(+ (+ /a/center: 3) /b)` does not, as its `3` comes first.
 
 ### What cannot add up
 

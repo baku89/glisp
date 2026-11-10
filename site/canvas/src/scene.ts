@@ -9,6 +9,7 @@ import {
 	type AST,
 	CallAST,
 	coerceTo,
+	isCoerce,
 	enterNode,
 	type Env,
 	evaluate,
@@ -384,6 +385,25 @@ export interface SnapPoint {
 	readonly ends?: { readonly from: Place; readonly to: Place }
 	/** The row that is this line itself, as a guide line is, for where it crosses another to refer to it. */
 	readonly lineRow?: string
+	/**
+	 * The one place a level or upright line goes through, without end, as an axis goes through its
+	 * origin: what is on it is lined up with that place, and goes on being so.
+	 */
+	readonly through?: Place
+	/**
+	 * The row of a straight path that is all of this line, as a line primitive is, for where it
+	 * would cross another, going on, to refer to it with `line.along`.
+	 */
+	readonly pathRow?: string
+	/**
+	 * It goes on past its ends without being asked to, as a line primitive does, and an edge that
+	 * has been snapped to while dragging does from then on.
+	 */
+	readonly goesOn?: true
+	/** The lines it is where they cross, from end to end, for them to be shown going on to it. */
+	readonly crossed?: readonly (readonly [Vec, Vec])[]
+	/** It is only being lined up with the place it goes from, anywhere along it, across or down. */
+	readonly linesUp?: true
 }
 
 /** How far apart two places on what is drawn can be, and be taken for the same place. */
@@ -422,6 +442,17 @@ function snapPointsOfRow(root: AST, env: Env, shapes: readonly Shape[], row: str
 		if (grip === null || grip.transform.join() !== IDENTITY.join()) return []
 		const inside = grip.within === undefined ? row : `${row}/${grip.within}`
 		const isLine = shapes.some(shape => shape.row === row && shape.draw === 'line')
+		// A path that is one straight piece, from its start to its end, and nothing else.
+		const segment = shapes.flatMap(shape => {
+			if (shape.row !== row || shape.draw !== 'path') return []
+			const [curve, ...others] = (shape.value as { curves?: readonly { closed: boolean; vertices: readonly { point: Vec; command: string }[] }[] } | null)?.curves ?? []
+			if (curve === undefined || others.length > 0 || curve.closed || curve.vertices.length !== 2) return []
+			return curve.vertices[1]!.command === 'L' ? [curve.vertices.map(({ point }) => point)] : []
+		})
+		const isSegmentOf = (from: Vec, to: Vec): boolean =>
+			segment.length === 1 &&
+			Math.hypot(segment[0]![0]![0] - from[0], segment[0]![0]![1] - from[1]) <= SAME_END &&
+			Math.hypot(segment[0]![1]![0] - to[0], segment[0]![1]![1] - to[1]) <= SAME_END
 		// What is there only to turn or count by, or to press, is no place on what is drawn.
 		const handles: SnapPoint[] = grip.handles.flatMap(({ at, place, name, code, kind }) =>
 			at === undefined || kind === 'button' || (place === undefined && code === undefined && name === undefined)
@@ -469,7 +500,9 @@ function snapPointsOfRow(root: AST, env: Env, shapes: readonly Shape[], row: str
 					target: null,
 					...(endless === undefined ? {} : { endless }),
 					...(start === null || end === null ? {} : { ends: { from: start, to: end } }),
+					...(endless && start !== null && end === null && (from[0] === to[0]) !== (from[1] === to[1]) ? { through: start } : {}),
 					...(isLine && endless ? { lineRow: inside } : {}),
+					...(!isLine && isSegmentOf(from, to) ? { pathRow: inside, goesOn: true as const } : {}),
 				}
 			}),
 		]
@@ -488,14 +521,62 @@ function crossingsOf(byRow: readonly { row: string; points: readonly SnapPoint[]
 	for (const [i, a] of lines.entries()) {
 		for (const b of lines.slice(i + 1)) {
 			if (a.row === b.row) continue
-			const at = crossingOf(a.point, b.point)
-			if (at === null) continue
+			const crossing = crossingOf(a.point, b.point)
+			if (crossing === null) continue
+			const { at, beyond } = crossing
 			if (points.some(point => point.to === undefined && near(point.at, at)) || crossings.some(had => near(had.at, at))) continue
 			const code = crossingCodeOf(a.point, b.point)
-			crossings.push({ at, label: 'intersection', target: null, ...(code === null ? {} : { code }) })
+			if (beyond && code === null) continue
+			const crossed = [[a.point.at, a.point.to!], [b.point.at, b.point.to!]] as const
+			crossings.push({ at, label: 'intersection', target: null, ...(beyond ? { beyond, crossed } : {}), ...(code === null ? {} : { code }) })
 		}
 	}
 	return crossings
+}
+
+/** Whether two snaps are the same line, from the same place to the same place. */
+const sameLine = (a: SnapPoint, b: SnapPoint): boolean =>
+	b.to !== undefined &&
+	a.to !== undefined &&
+	Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]) <= SAME_END &&
+	Math.hypot(a.to[0] - b.to[0], a.to[1] - b.to[1]) <= SAME_END
+
+/** Of `points`, the line that `snap`, somewhere along a line, is on, if it is one of them. */
+export const lineSnappedTo = (points: readonly SnapPoint[], snap: SnapPoint): SnapPoint | null => {
+	const line = snap.line
+	if (line === undefined) return null
+	return points.find(point => point.to !== undefined && sameLine(point, { at: line[0], to: line[1], label: '', target: null })) ?? null
+}
+
+/**
+ * `points`, with the lines among them that are `acquired` going on past their ends, as a line
+ * primitive does, and with where they would cross the others, going on, as places: what has been
+ * snapped to while dragging is more to go by from then on, and only that, for there not to be too
+ * much to snap to at once.
+ */
+export function withAcquired(points: readonly SnapPoint[], acquired: readonly SnapPoint[]): SnapPoint[] {
+	if (acquired.length === 0) return points as SnapPoint[]
+	const isAcquired = (point: SnapPoint): boolean => acquired.some(line => sameLine(line, point))
+	const extended = points.map(point =>
+		point.to !== undefined && point.goesOn !== true && point.endless !== true && isAcquired(point) ? { ...point, goesOn: true as const } : point
+	)
+	const near = (a: Vec, b: Vec): boolean => Math.hypot(a[0] - b[0], a[1] - b[1]) <= SAME_END
+	const lines = extended.filter(point => point.to !== undefined)
+	const crossings: SnapPoint[] = []
+	for (const a of lines.filter(isAcquired)) {
+		for (const b of lines) {
+			if (sameLine(a, b)) continue
+			const crossing = crossingOf(a, b)
+			if (crossing === null || !crossing.beyond) continue
+			const { at } = crossing
+			if ([...extended, ...crossings].some(point => point.to === undefined && near(point.at, at))) continue
+			const code = crossingCodeOf(a, b)
+			if (code === null) continue
+			const crossed = [[a.at, a.to!], [b.at, b.to!]] as const
+			crossings.push({ at, label: 'intersection', target: null, beyond: true, crossed, code })
+		}
+	}
+	return [...extended, ...crossings]
 }
 
 /**
@@ -503,7 +584,7 @@ function crossingsOf(byRow: readonly { row: string; points: readonly SnapPoint[]
  * without end, as the sides of a rect and the axes of a circle do, so that where two of those
  * would meet is a place to snap to, as much as where they are.
  */
-function crossingOf(a: SnapPoint, b: SnapPoint): Vec | null {
+function crossingOf(a: SnapPoint, b: SnapPoint): { at: Vec; beyond: boolean } | null {
 	const [p, q] = [a.at, b.at]
 	const u: Vec = [a.to![0] - p[0], a.to![1] - p[1]]
 	const v: Vec = [b.to![0] - q[0], b.to![1] - q[1]]
@@ -512,7 +593,12 @@ function crossingOf(a: SnapPoint, b: SnapPoint): Vec | null {
 	const t = ((q[0] - p[0]) * v[1] - (q[1] - p[1]) * v[0]) / across
 	const s = ((q[0] - p[0]) * u[1] - (q[1] - p[1]) * u[0]) / across
 	const on = (along: number, { endless }: SnapPoint): boolean => endless === true || (along >= -1e-9 && along <= 1 + 1e-9)
-	return on(t, a) && on(s, b) ? [p[0] + u[0] * t, p[1] + u[1] * t] : null
+	// Where they would cross if they went on, which only a line that can go on as itself does:
+	// each that is not there being one that goes on.
+	const goesOn = ({ endless, goesOn }: SnapPoint): boolean => endless === true || goesOn === true
+	if ((!on(t, a) && !goesOn(a)) || (!on(s, b) && !goesOn(b))) return null
+	const beyond = !(on(t, a) && on(s, b))
+	return { at: [p[0] + u[0] * t, p[1] + u[1] * t], beyond }
 }
 
 /** The crossing of two lines as code, if each line is a row of its own or goes between places. */
@@ -532,20 +618,37 @@ function wholePoint(place: Place, which: string): Place {
 	return { ast: new SymAST(name), parts: new Map([[name, point]]) }
 }
 
-function crossingCodeOf(a: SnapPoint, b: SnapPoint): Place | null {
-	const lineOf = ({ lineRow, ends }: SnapPoint, which: string): Place | null => {
-		if (lineRow !== undefined) {
-			const name = `__line${which}`
-			return { ast: new SymAST(name), parts: new Map([[name, lineRow]]) }
-		}
-		if (ends === undefined) return null
-		const [from, to] = [wholePoint(ends.from, `${which}0`), wholePoint(ends.to, `${which}1`)]
-		return {
-			ast: new CallAST(parse('line.fromPoints'), [from.ast, to.ast]),
-			parts: new Map([...from.parts, ...to.parts]),
-		}
+/**
+ * The line that `point`, a line to snap to, goes along, as code: the row that is it, the path it
+ * is all of, the place a level or upright line goes through, or its two ends. Null if nothing says so.
+ */
+export function lineCodeOf(point: SnapPoint, which = ''): Place | null {
+	const { lineRow, pathRow, ends, through } = point
+	if (lineRow !== undefined) {
+		const name = `__line${which}`
+		return { ast: new SymAST(name), parts: new Map([[name, lineRow]]) }
 	}
-	const [first, second] = [lineOf(a, 'A'), lineOf(b, 'B')]
+	// A line primitive whose ends cannot be referred to is the line it goes along, both ways.
+	if (ends === undefined && pathRow !== undefined) {
+		const name = `__path${which}`
+		return { ast: new CallAST(parse('line.along'), [new SymAST(name)]), parts: new Map([[name, pathRow]]) }
+	}
+	// A level or upright line through one place is the horizontal or the vertical line through it.
+	if (ends === undefined && through !== undefined) {
+		const at = wholePoint(through, `${which}0`)
+		const level = point.at[1] === point.to![1]
+		return { ast: new CallAST(parse(level ? 'line.horizontal' : 'line.vertical'), [at.ast]), parts: at.parts }
+	}
+	if (ends === undefined) return null
+	const [from, to] = [wholePoint(ends.from, `${which}0`), wholePoint(ends.to, `${which}1`)]
+	return {
+		ast: new CallAST(parse('line.fromPoints'), [from.ast, to.ast]),
+		parts: new Map([...from.parts, ...to.parts]),
+	}
+}
+
+function crossingCodeOf(a: SnapPoint, b: SnapPoint): Place | null {
+	const [first, second] = [lineCodeOf(a, 'A'), lineCodeOf(b, 'B')]
 	if (first === null || second === null) return null
 	return {
 		ast: new CallAST(parse('line.intersection'), [first.ast, second.ast]),
@@ -557,10 +660,92 @@ function crossingCodeOf(a: SnapPoint, b: SnapPoint): Place | null {
  * What `at` can line up by, with a place: straight across from it, and straight down. Each goes
  * as far as `at` does, to be shown going from that place to where it has got.
  */
-export const axesThrough = (place: Vec, at: Vec): SnapPoint[] => [
-	{ at: place, to: [at[0], place[1]], label: 'horizontal', target: null },
-	{ at: place, to: [place[0], at[1]], label: 'vertical', target: null },
-]
+export const axesThrough = (place: Vec, at: Vec, code: Place | null = null): SnapPoint[] => {
+	// Going by the place, lined up with it: across, being as high, and down, being as far along.
+	const by = code === null ? {} : { ends: { from: code, to: code }, endless: true as const, linesUp: true as const }
+	return [
+		{ at: place, to: [at[0], place[1]], label: 'horizontal', target: null, ...by },
+		{ at: place, to: [place[0], at[1]], label: 'vertical', target: null, ...by },
+	]
+}
+
+/** How the place `at` on the row at `row` is said, as code to refer to it by, if it is one of its places. */
+/**
+ * Where what goes across one place meets what goes down another, as a place: as high as `across`
+ * and as far along as `down`, referring to each of them for that, where both are written out as
+ * their two numbers.
+ */
+export function axesCrossing(
+	across: { readonly at: Vec; readonly code: Place | null },
+	down: { readonly at: Vec; readonly code: Place | null }
+): SnapPoint {
+	const at: Vec = [down.at[0], across.at[1]]
+	// Each of a place's two numbers, as what refers to it: of a point that is only referred to as a
+	// whole, as one cast to a point is, they are its first and last.
+	const parts = (place: Place | null, which: string): Place | null => {
+		if (place === null) return null
+		const bare = place.ast.kind === 'meta' ? place.ast.expr : place.ast
+		const whole = (name: string, row: string): Place => {
+			const of = (fn: string) => new CallAST(new SymAST(fn), [new SymAST(name)])
+			return { ast: new VecAST([of('first'), of('last')]), parts: new Map([[name, row]]) }
+		}
+		if (bare.kind === 'sym') {
+			const row = place.parts.get(bare.name)
+			return row === undefined ? null : whole(bare.name, row)
+		}
+		if (bare.kind !== 'vec' || bare.elements.length !== 2) return null
+		// The two numbers of a row that is a point, which cannot be gone into, are its first and last.
+		const [x, y] = bare.elements.map(element => (element.kind === 'sym' ? place.parts.get(element.name) : undefined))
+		const row = x?.slice(0, -2)
+		if (row !== undefined && x!.endsWith('/0') && y === `${row}/1` && !row.includes('/')) return whole(`__whole${which}`, row)
+		return place
+	}
+	const [a, d] = [parts(across.code, 'Across'), parts(down.code, 'Down')]
+	const [[, ay] = [], [dx] = []] = [a === null ? [] : partsOf(a) ?? [], d === null ? [] : partsOf(d) ?? []]
+	const code =
+		ay === undefined || dx === undefined
+			? undefined
+			: { ast: new VecAST([dx, ay]), parts: new Map([...a!.parts, ...d!.parts]) }
+	// Both are shown, going on, to say where it is.
+	const crossed = [[across.at, at], [down.at, at]] as const
+	return { at, label: 'intersection', target: null, crossed, ...(code === undefined ? {} : { code }) }
+}
+
+/**
+ * What `at` lines up with, among the places in `points` that can be referred to: down from the one
+ * nearest it across, across from the one nearest it down, within `tolerance`, and where those two
+ * meet. Only the nearest each way, for there not to be a line through every place there is.
+ */
+export function alignmentsNear(points: readonly SnapPoint[], at: Vec, tolerance: number): SnapPoint[] {
+	const places = points.filter(point => point.to === undefined && point.beyond !== true && placeOfSnap(point) !== null)
+	const nearest = (axis: 0 | 1): SnapPoint | null => {
+		let best: SnapPoint | null = null
+		let away = tolerance
+		for (const point of places) {
+			const distance = Math.abs(point.at[axis] - at[axis])
+			// What is near both ways is a place to snap to as it is.
+			if (distance < away && Math.abs(point.at[axis === 0 ? 1 : 0] - at[axis === 0 ? 1 : 0]) > tolerance) [best, away] = [point, distance]
+		}
+		return best
+	}
+	const [down, across] = [nearest(0), nearest(1)]
+	const of = (point: SnapPoint) => ({ at: point.at, code: placeOfSnap(point) })
+	const line = (point: SnapPoint, label: 'vertical' | 'horizontal') => axesThrough(point.at, at, placeOfSnap(point)).filter(axis => axis.label === label)
+	return [
+		...(down === null ? [] : line(down, 'vertical')),
+		...(across === null ? [] : line(across, 'horizontal')),
+		...(down !== null && across !== null && down !== across ? [axesCrossing(of(across), of(down))] : []),
+	]
+}
+
+export function placeOnRow(root: AST, env: Env, row: string, at: Vec): Place | null {
+	for (const point of snapPointsOf(root, env, sceneOf(root, env).filter(shape => shape.row === row))) {
+		if (point.to !== undefined || Math.hypot(point.at[0] - at[0], point.at[1] - at[1]) > SAME_END) continue
+		const place = placeOfSnap(point)
+		if (place !== null) return place
+	}
+	return null
+}
 
 /** The nearest place to `at` along a line, from `from` to `to`. */
 function along(from: Vec, to: Vec, at: Vec): { at: Vec; beyond: boolean; t: number } {
@@ -572,7 +757,8 @@ function along(from: Vec, to: Vec, at: Vec): { at: Vec; beyond: boolean; t: numb
 
 /**
  * The nearest of `points` to `at`, within `tolerance`, one with a row before one without. Where a
- * line would go if it went on counts only with `beyond`, as that is most often not meant.
+ * line would go if it went on counts only with `beyond`, as that is most often not meant, but for
+ * a line primitive, which is only a piece of a line, drawn.
  */
 export function nearestSnap(
 	points: readonly SnapPoint[],
@@ -582,7 +768,8 @@ export function nearestSnap(
 ): SnapPoint | null {
 	let best: SnapPoint | null = null
 	let bestDistance = tolerance
-	for (const point of points) {
+	// Where lines would cross if they went on is a place as well, though not before one that is there.
+	for (const point of [...points.filter(({ beyond }) => beyond !== true), ...points.filter(({ beyond }) => beyond === true)]) {
 		if (point.to !== undefined) continue
 		const distance = Math.hypot(point.at[0] - at[0], point.at[1] - at[1])
 		if (distance < bestDistance || (distance === bestDistance && best?.target === null)) {
@@ -593,9 +780,10 @@ export function nearestSnap(
 	if (best !== null) return best
 	// Only with no place in reach, as a place is more of a place than a line is, and a
 	// line more than where it would go if it went on.
-	for (const onward of beyond ? [false, true] : [false]) {
+	// A line primitive goes on past its ends anyway, being only a piece of a line drawn.
+	for (const onward of [false, true]) {
 		for (const point of points) {
-			if (point.to === undefined) continue
+			if (point.to === undefined || (onward && !beyond && point.goesOn !== true)) continue
 			const on = alongSnapped({ ...point, line: [point.at, point.to] }, at, tolerance)!
 			if ((on.beyond ?? false) !== onward) continue
 			const distance = Math.hypot(on.at[0] - at[0], on.at[1] - at[1])
@@ -610,6 +798,29 @@ export function nearestSnap(
 }
 
 /**
+ * The line among `points` nearest `at`, within `tolerance`, that can be referred to as a whole
+ * line, as one is asked for: marked as all of it, with its code. A line that does not go on
+ * is only near where it is.
+ */
+export function lineNear(points: readonly SnapPoint[], at: Vec, tolerance: number): SnapPoint | null {
+	let best: SnapPoint | null = null
+	let bestDistance = tolerance
+	for (const point of points) {
+		if (point.to === undefined) continue
+		const code = lineCodeOf(point)
+		if (code === null) continue
+		const { at: on, beyond } = along(point.at, point.to, at)
+		if (beyond && point.endless !== true && point.goesOn !== true) continue
+		const distance = Math.hypot(on[0] - at[0], on[1] - at[1])
+		if (distance >= bestDistance) continue
+		const line: [Vec, Vec] = [point.at, point.to]
+		best = { at: on, target: null, label: point.label, code, line, endless: true }
+		bestDistance = distance
+	}
+	return best
+}
+
+/**
  * What was snapped to along a line, somewhere else along it, nearest `at`: as it is for what can
  * only go one way, which can get to the line, and only where its way meets it. An endless line
  * has no beyond: all of it is as much the line as what is between the two places that say it.
@@ -621,16 +832,42 @@ export function alongSnapped(snap: SnapPoint, at: Vec, tolerance: number): SnapP
 	const { label, line, ends, endless } = snap
 	const beyond = past && endless !== true
 	const extra = { ...(beyond ? { beyond } : {}), ...(endless === undefined ? {} : { endless }) }
-	if (ends === undefined) return { at: on, target: null, label, line, ...extra }
+	if (ends === undefined) {
+		// A line of its own, with nothing to say where along it, is what is on it projected onto it.
+		const projected =
+			snap.lineRow !== undefined
+				? projectedOnRow(snap.lineRow, from, to, on, tolerance)
+				: snap.through !== undefined
+					? inLineWith(snap.through, from[1] === to[1] ? 1 : 0, on, tolerance)
+					: null
+		return { ...(projected ?? { at: on, target: null }), label, line, ...extra }
+	}
 	// Where a level or upright line goes on past the places that say it, it is only lined up
 	// with: one of where it is. Between them it is as much of the way along, endless or not.
 	const level = from[1] === to[1] && from[0] !== to[0]
 	const upright = from[0] === to[0] && from[1] !== to[1]
 	const placed =
-		past && (level || upright)
+		(past || snap.linesUp) && (level || upright)
 			? inLineWith(ends[t > 1 ? 'to' : 'from'], level ? 1 : 0, on, tolerance)
 			: onLineBetween(ends, from, to, t, tolerance)
 	return placed === null ? { at: on, target: null, label, line, ...extra } : { ...placed, label, line, ends, ...extra }
+}
+
+/**
+ * The place on the line that is the row at `row` nearest `on`, as `line.project` works it out:
+ * which goes on being as near it as the line moves. `on` is rounded no more than `tolerance`, and
+ * where it is is where that comes to on the line, from `from` to `to`.
+ */
+function projectedOnRow(row: string, from: Vec, to: Vec, on: Vec, tolerance: number): { at: Vec; target: null; code: Place } {
+	const digits = Math.max(0, Math.min(6, Math.ceil(-Math.log10(tolerance / 10))))
+	const near: Vec = [Number(on[0].toFixed(digits)), Number(on[1].toFixed(digits))]
+	const at = along(from, to, near).at
+	const name = '__line'
+	return {
+		at,
+		target: null,
+		code: { ast: new CallAST(parse('line.project'), [new SymAST(name), new VecAST(near.map(n => new LitAST(n)))]), parts: new Map([[name, row]]) },
+	}
 }
 
 /**
@@ -703,13 +940,60 @@ export const placesTakenBy = (
 	tolerance: number
 ): SnapPoint[] => own.filter(({ at }) => Math.hypot(at[0] - x, at[1] - y) <= tolerance)
 
-/** Where `snap` is, `by` short of it, by referring to it. */
-function offsetFrom(snap: SnapPoint, by: Vec, step: number): Place | null {
+/**
+ * Where `snap` is, `by` short of it, by referring to it. Along an axis that it only has a number
+ * for, as a place along a level or upright line does, that number is what is short of it. Where
+ * `shortBy` names a row that is what it is short by, as a box's size is where its far corner was
+ * drawn from the snap, it is short by that row, so that the far corner stays there as the box grows.
+ */
+function offsetFrom(
+	snap: SnapPoint,
+	by: Vec,
+	step: number,
+	shortBy: (axis: 0 | 1) => { readonly row: string; readonly half?: boolean } | null = () => null
+): Place | null {
 	const place = placeOfSnap(snap)
 	const parts = place && partsOf(place)
 	if (place === null || parts === null) return null
-	const short = (part: AST, i: number): AST => less(part, new LitAST(roundedTo(by[i]!, step)))
-	return { ast: new VecAST([short(parts[0], 0), short(parts[1], 1)]), parts: place.parts }
+	const named = new Map(place.parts)
+	const short = (part: AST, i: 0 | 1): AST => {
+		const plain = bare(part)
+		if (plain.kind === 'lit' && typeof plain.value === 'number') return new LitAST(roundedTo(plain.value - by[i], step))
+		const whole = Math.abs(by[i]) < SAME_PLACE ? null : shortBy(i)
+		if (whole === null) return less(part, new LitAST(roundedTo(by[i], step)))
+		named.set(`__short${i}`, whole.row)
+		const much = new SymAST(`__short${i}`)
+		return less(part, whole.half ? new CallAST(new SymAST('/'), [much, new LitAST(2)]) : much)
+	}
+	return { ast: new VecAST([short(parts[0], 0), short(parts[1], 1)]), parts: named }
+}
+
+/**
+ * The axes along which the code of a place says only a number: where it was, and nothing it goes
+ * by, as a place along a level or upright line says nothing of how far along it is.
+ */
+function freeAxesOf(place: Place | null): Set<0 | 1> {
+	const parts = place && partsOf(place)
+	return new Set(parts === null ? [] : ([0, 1] as const).filter(i => bare(parts[i]).kind === 'lit'))
+}
+
+/**
+ * `snap`, with its code keeping what the vector at `source` says along each axis the code is
+ * free along, if that says anything: a start drawn along the top of one thing stays along it, as
+ * the end is drawn to the side of another. The axes left are those the snap still says anything about.
+ */
+function keepingFreeAxes(root: AST, env: Env, source: string, snap: SnapPoint): { snap: SnapPoint; axes: readonly (0 | 1)[] } {
+	const all: readonly (0 | 1)[] = [0, 1]
+	const free = freeAxesOf(snap.code ?? null)
+	if (snap.code === undefined || free.size === 0) return { snap, axes: all }
+	const current = reach(root, env, source)?.chain.at(-1)?.ast
+	const vector = current === undefined ? null : bare(current)
+	if (vector?.kind !== 'vec' || vector.elements.length !== 2) return { snap, axes: all }
+	const kept = all.filter(i => free.has(i) && bare(vector.elements[i]!).kind !== 'lit')
+	if (kept.length === 0) return { snap, axes: all }
+	const parts = partsOf(snap.code)!
+	const ast = new VecAST(all.map(i => (kept.includes(i) ? vector.elements[i]! : parts[i])))
+	return { snap: { ...snap, code: { ast, parts: snap.code.parts } }, axes: all.filter(i => !kept.includes(i)) }
 }
 
 /**
@@ -743,7 +1027,14 @@ export function drawnFrom(
 		const call = reached && bare(reached.node)
 		if (call?.kind !== 'call' || call.args[0] === undefined) return next
 		const origin = evaluate(call.args[0], reached!.env).value as Vec
-		const code = offsetFrom(snap, [snap.at[0] - origin[0], snap.at[1] - origin[1]], step)
+		// What it is short of the snap by is its own size, each way it was drawn back from there,
+		// or half of it, drawn out from the middle: its size stays a number, and its origin goes by
+		// the snap, so that what it is on carries it as it is rather than changing its shape.
+		const square = print(call.head) === 'path.square'
+		const code = offsetFrom(snap, [snap.at[0] - origin[0], snap.at[1] - origin[1]], step, axis => ({
+			row: square ? `binding:${name}/arg1` : `binding:${name}/arg1/${axis}`,
+			...(fromCenter ? { half: true } : {}),
+		}))
 		const offset = code && referred(next, env, source, { ...snap, target: null, code })
 		return offset?.kind === 'let' ? offset : next
 	}
@@ -769,6 +1060,15 @@ function referred(root: AST, env: Env, source: string, snap: SnapPoint): AST | n
 	return snap.code === undefined ? null : writtenAt(root, env, source, snap.code.ast, snap.code.parts)
 }
 
+/**
+ * `root` with what is at `source` referring to what `snap` is, as a place pulled onto it from a
+ * row of an inspector does: null if it cannot, or if that comes back to itself.
+ */
+export function referredOnto(root: AST, env: Env, source: string, snap: SnapPoint): AST | null {
+	const next = referred(root, env, source, snap)
+	return next !== null && errorsIn(next, env) <= errorsIn(root, env) ? next : null
+}
+
 /** How far apart two places can be, and be the same one but for arithmetic. */
 const SAME_PLACE = 1e-9
 
@@ -786,13 +1086,14 @@ export function linked(
 ): AST | null {
 	const within = gripAt(root, env, row)?.within
 	const inside = within === undefined ? row : `${row}/${within}`
-	const next = referred(root, env, `${inside}/arg${place}`, snap)
+	const kept = keepingFreeAxes(root, env, `${inside}/arg${place}`, snap)
+	const next = referred(root, env, `${inside}/arg${place}`, kept.snap)
 	if (next === null) return null
 	// Going round in a circle comes to the default, which can be just where it was.
 	if (errorsIn(next, env) > errorsIn(root, env)) return null
 	const reached = gripAt(next, env, row)?.handles.find(handle => handle.place === place)?.at
 	// As near as arithmetic comes: what goes round by a circle is not exact at its top.
-	return reached !== undefined && Math.hypot(reached[0] - snap.at[0], reached[1] - snap.at[1]) < SAME_PLACE ? next : null
+	return reached !== undefined && kept.axes.every(i => Math.abs(reached[i] - snap.at[i]) < SAME_PLACE) ? next : null
 }
 
 /**
@@ -866,9 +1167,12 @@ export function attached(
 	const nameOf = new Map([...own.parts].flatMap(([name, path]) => (relative(path) === null ? [] : [[relative(path)!, name] as const])))
 	const at = rowAt(root, env, inside)?.env ?? env
 
-	// What each part is to be, by the part of the call it goes by.
+	// What each part is to be, by the part of the call it goes by: along the axes the snap says
+	// anything about, the others being only where it was, which what is there already is near enough.
+	const free = freeAxesOf(target)
 	const writes: { by: string; ast: AST }[] = []
 	for (const axis of [0, 1] as const) {
+		if (free.has(axis)) continue
 		const expr = ownParts[axis]
 		const paths = partsIn(expr, own.parts).flatMap(name => relative(own.parts.get(name)!) ?? [])
 		const by = pick(paths)
@@ -910,7 +1214,7 @@ export function attached(
 	}
 	if (next === null || next === root || errorsIn(next, env) > errorsIn(root, env)) return null
 	const now = whereIs(next, env, own, at)
-	return now !== null && Math.hypot(now[0] - snap.at[0], now[1] - snap.at[1]) < SAME_END ? next : null
+	return now !== null && ([0, 1] as const).every(i => free.has(i) || Math.abs(now[i] - snap.at[i]) < SAME_END) ? next : null
 }
 
 /**
@@ -978,6 +1282,47 @@ function writtenPointAs(root: AST, env: Env, row: string): ((ast: AST) => AST) |
 }
 
 /**
+ * `root`, in which the points at `rows`, lined up by a box squashed flat, go by the one of them that
+ * stayed where it was in `before` that way: each as far along as it, or as high, so as to stay lined
+ * up with it whatever it does. The other way each says what it said. Null if they are not lined up,
+ * or were already, or none stayed.
+ */
+export function alignedByReference(root: AST, before: AST, env: Env, rows: readonly string[]): AST | null {
+	const pointsIn = (ast: AST) =>
+		rows.map(row => ({ row, handle: gripAt(ast, env, row)?.handles.find(({ place }) => place === 'self') }))
+	const now = pointsIn(root)
+	const was = pointsIn(before)
+	if (now.length < 2 || now.some(({ handle }) => handle?.at === undefined)) return null
+	const at = (i: number) => now[i]!.handle!.at!
+	const lined = (points: readonly Vec[], axis: 0 | 1) => points.every(point => Math.abs(point[axis] - points[0]![axis]) < SAME_PLACE)
+	const axis = ([0, 1] as const).find(i => lined(now.map((_, j) => at(j)), i))
+	const wasAt = was.map(({ handle }) => handle?.at)
+	if (axis === undefined || wasAt.some(point => point === undefined) || lined(wasAt as Vec[], axis)) return null
+	// What did not move is what the rest go by.
+	const anchor = now.findIndex((_, i) => Math.hypot(at(i)[0] - wasAt[i]![0], at(i)[1] - wasAt[i]![1]) < SAME_PLACE)
+	if (anchor < 0) return null
+	const place = placeOnRow(root, env, now[anchor]!.row, at(anchor))
+	const written = place && bare(place.ast)
+	if (place === null || written === null) return null
+	// Its number that way: of two written out, that one, or else the first or last of all of it.
+	const part = written.kind === 'vec' && written.elements.length === 2 ? written.elements[axis]! : new CallAST(new SymAST(axis === 0 ? 'first' : 'last'), [written])
+	let next: AST = root
+	now.forEach(({ row }, i) => {
+		if (i === anchor) return
+		// Only its number that way: the other way, it says what it said, however it says it.
+		const node = reach(next, env, row)?.chain.at(-1)?.ast
+		const own = node && bare(node)
+		const inCast = own?.kind === 'call' && isCoerce(own)
+		const vector = inCast ? own.args[0] && bare(own.args[0]) : own
+		if (vector?.kind !== 'vec' || vector.elements.length !== 2) return
+		const written = writtenAt(next, env, `${row}/${inCast ? 'arg0/' : ''}${axis}`, part, place.parts)
+		if (written !== null && errorsIn(written, env) <= errorsIn(next, env)) next = written
+	})
+	return next === root ? null : next
+}
+
+/**
+ * `root`, in which `handle` of the row at `row` has been pulled, from where it was in `before`,/**
  * `root`, in which `handle` of the row at `row` has been pulled, from where it was in `before`,
  * for it to be on what `snap` is the place of: with what it changed going by that, so that it
  * stays on it. A corner of a box, pulled onto another, has its size go by where that is.
@@ -1006,8 +1351,15 @@ export function pulledOnto(root: AST, before: AST, env: Env, row: string, handle
 				: placeTaken(before, env, row, { at: handle.at, label: handle.name ?? '', target: null }, [handle.at])
 	if (own === null) return null
 	const was = numbersGiven(before, env, inside)
-	const now = numbersGiven(root, env, inside)
-	const moved = [...now].flatMap(([path, value]) => (was.get(path) === value ? [] : [path]))
+	const changedIn = (after: AST): string[] => [...numbersGiven(after, env, inside)].flatMap(([path, value]) => (was.get(path) === value ? [] : [path]))
+	// Let go of where it already was, nothing has changed: what it changes is what moving it would.
+	const trial = (): string[] => {
+		if (handle.at === undefined) return []
+		const nudged = changed(before, env, row, handle.to([handle.at[0] + 1, handle.at[1] + 1], handle.at)).ast
+		return nudged === null ? [] : changedIn(nudged)
+	}
+	const dragged = changedIn(root)
+	const moved = dragged.length > 0 ? dragged : trial()
 	return attached(root, env, inside, own, snap, paths => paths.find(path => moved.includes(path)))
 }
 
@@ -1040,44 +1392,16 @@ export function drawnOnto(root: AST, env: Env, row: string, snap: SnapPoint, tol
 				? linked(root, env, row, Number(own), snap)
 				: place.code !== undefined
 					? attached(root, env, inside, place.code, snap, paths => {
+							// Where it is, rather than how big it is, while that is only a number: what it
+							// was drawn to then carries it as it is, rather than changing its shape.
 							const free = paths.filter(written)
-							return free.find(path => anchor === null || !path.startsWith(anchor)) ?? free.at(-1)
+							const own = (path: string): boolean => anchor !== null && (path === anchor || path.startsWith(`${anchor}/`))
+							return free.find(own) ?? free.find(path => !own(path)) ?? free.at(-1)
 						})
 					: null
 		if (next !== null) return next
 	}
 	return null
-}
-
-/**
- * What the rows at `rows` are put on, and what that is put on in turn, among what is drawn: to be
- * moved along with them, so that moving them is only moving them, and nothing they go by has to
- * change shape for them to go where they are taken. A shape drawn from the corner of another to
- * the corner of a third goes with both.
- *
- * It is what, moved by itself, has them come out somewhere else as they are written: what refers
- * to them instead would have to be changed to move, and is left to follow them as it does.
- */
-export function rowsHeldBy(root: AST, env: Env, rows: ReadonlySet<string>): string[] {
-	const written = (ast: AST, row: string): string | null => {
-		const found = rowAt(ast, env, row)
-		return found === null ? null : print(found.node)
-	}
-	const before = new Map([...rows].map(row => [row, written(root, row)]))
-	const held: string[] = []
-	for (const row of new Set(sceneOf(root, env).map(shape => shape.row))) {
-		if (rows.has(row)) continue
-		// What is on an artboard that is moved goes with it already, being measured from it, and
-		// what is moved on an artboard is only on it, and does not take it along.
-		if ([...rows].some(own => row.startsWith(`${own}/`) || own.startsWith(`${row}/`))) continue
-		const changes = gripAt(root, env, row)?.move?.([1.37, 2.11])
-		if (changes === undefined || changes.length === 0) continue
-		const { ast } = changed(root, env, row, changes)
-		if (ast === null) continue
-		const moved = rowsChanged(root, ast, env)
-		if ([...rows].some(own => moved.has(own) && written(ast, own) === before.get(own))) held.push(row)
-	}
-	return held
 }
 
 /** A place a circle is drawn through, and what it was put on, if it was put on anything. */
@@ -1193,6 +1517,14 @@ export interface Anchor {
 	readonly into?: Vec
 	/** What it was put down on, to refer to if it can. */
 	readonly snap?: SnapPoint
+	/** The anchors before it that it is lined up with, across or down, to refer to for that. */
+	readonly lined?: readonly AnchorLined[]
+}
+
+/** That an anchor is as far along `axis` as the anchor at `anchor` is, 0 being across. */
+export interface AnchorLined {
+	readonly axis: 0 | 1
+	readonly anchor: number
 }
 
 /** What a curve comes into `anchor` by: the other way from what it goes out by. */
@@ -1233,6 +1565,8 @@ export function anchorsAlong(
 export interface PenGuided {
 	readonly at: Vec
 	readonly lines: readonly (readonly [Vec, Vec])[]
+	/** What it went by, of the anchors, to refer to. */
+	readonly lined: readonly AnchorLined[]
 }
 
 /**
@@ -1251,43 +1585,58 @@ export function penGuided(
 	if (last === undefined) return null
 	const rounded = ([x, y]: Vec): Vec => [roundedTo(x, step), roundedTo(y, step)]
 	// The nearest first, for what was last drawn to be what it goes by, of those alike.
-	const others = anchors.slice(0, -1).reverse().map(({ at }) => at)
+	const others = anchors
+		.slice(0, -1)
+		.map(({ at }, index) => ({ at, index }))
+		.reverse()
 	if (even) {
 		const free = evenlyFrom(last, to)
 		const reach = Math.hypot(free[0] - last[0], free[1] - last[1])
 		if (reach === 0) return null
 		const way: Vec = [(free[0] - last[0]) / reach, (free[1] - last[1]) / reach]
-		let best: { at: Vec; by: Vec } | null = null
+		let best: { at: Vec; by: Vec; lined: AnchorLined } | null = null
 		let away = tolerance
 		for (const other of others) {
 			for (const axis of [0, 1] as const) {
 				if (Math.abs(way[axis]) < 1e-9) continue
-				const along = (other[axis] - last[axis]) / way[axis]
+				const along = (other.at[axis] - last[axis]) / way[axis]
 				if (along <= 0) continue
 				const at: Vec = [last[0] + way[0] * along, last[1] + way[1] * along]
 				const distance = Math.hypot(at[0] - free[0], at[1] - free[1])
-				if (distance < away) [best, away] = [{ at, by: other }, distance]
+				if (distance < away) [best, away] = [{ at, by: other.at, lined: { axis, anchor: other.index } }, distance]
 			}
 		}
 		const at = rounded(best?.at ?? free)
-		return { at, lines: [[last, at], ...(best === null ? [] : [[best.by, at] as const])] }
+		// Level with the last, or upright from it, it goes on being, by referring to it for that.
+		const fromLast: AnchorLined[] =
+			Math.abs(way[1]) < 1e-9
+				? [{ axis: 1, anchor: anchors.length - 1 }]
+				: Math.abs(way[0]) < 1e-9
+					? [{ axis: 0, anchor: anchors.length - 1 }]
+					: []
+		return {
+			at,
+			lines: [[last, at], ...(best === null ? [] : [[best.by, at] as const])],
+			lined: [...fromLast, ...(best === null ? [] : [best.lined])],
+		}
 	}
-	const inLine = (axis: 0 | 1): Vec | null => {
-		let best: Vec | null = null
+	const inLine = (axis: 0 | 1): { at: Vec; index: number } | null => {
+		let best: { at: Vec; index: number } | null = null
 		let away = tolerance
-		for (const other of [last, ...others]) {
-			const distance = Math.abs(other[axis] - to[axis])
+		for (const other of [{ at: last, index: anchors.length - 1 }, ...others]) {
+			const distance = Math.abs(other.at[axis] - to[axis])
 			if (distance < away) [best, away] = [other, distance]
 		}
 		return best
 	}
 	const [across, down] = [inLine(0), inLine(1)]
 	if (across === null && down === null) return null
-	const at: Vec = [across?.[0] ?? to[0], down?.[1] ?? to[1]]
+	const at: Vec = [across?.at[0] ?? to[0], down?.at[1] ?? to[1]]
 	const lines = [across, down].flatMap(by =>
-		by === null || (by[0] === at[0] && by[1] === at[1]) ? [] : [[by, at] as const]
+		by === null || (by.at[0] === at[0] && by.at[1] === at[1]) ? [] : [[by.at, at] as const]
 	)
-	return { at, lines }
+	const lined = ([[0, across], [1, down]] as const).flatMap(([axis, by]) => (by === null ? [] : [{ axis, anchor: by.index }]))
+	return { at, lines, lined }
 }
 
 /**
@@ -1450,10 +1799,23 @@ export function penned(
 	const kind = penKind(anchors, closed)
 	const name = nameOfKind(root, kind)
 	let ast: AST = withLayerAdded(root, name, parse(penSource(anchors, closed, kind)))
-	anchors.forEach(({ snap }, i) => {
+	anchors.forEach(({ snap, lined, at }, i) => {
 		const arg = argOfAnchor(kind, i)
-		if (snap === undefined || arg === null) return
-		ast = referred(ast, env, `binding:${name}/arg${arg}`, snap) ?? ast
+		if (arg === null) return
+		const source = `binding:${name}/arg${arg}`
+		if (snap !== undefined) {
+			ast = referred(ast, env, source, snap) ?? ast
+			return
+		}
+		// Lined up with an anchor before it, it goes by that anchor for that, and stays lined up with it.
+		const by = (lined ?? []).flatMap(({ axis, anchor }) => {
+			const of = argOfAnchor(kind, anchor)
+			return of === null || anchor === i ? [] : [{ axis, path: `binding:${name}/arg${of}/${axis}` }]
+		})
+		if (by.length === 0) return
+		const parts = new Map(by.map(({ axis, path }) => [`__lined${axis}`, path]))
+		const written = ([0, 1] as const).map(axis => (parts.has(`__lined${axis}`) ? new SymAST(`__lined${axis}`) : lit(at[axis])))
+		ast = writtenAt(ast, env, source, new VecAST(written), parts) ?? ast
 	})
 	return { ast: ast as LetAST, name }
 }
@@ -1583,7 +1945,12 @@ export function cornerTurners(
  * The handles of the box around something, which is the same for everything, with what is on the
  * sides only for what can go by a different scale each way, as `box` has said.
  */
-export function boxHandlesOf([[left, top], [right, bottom]]: readonly [Vec, Vec], box: BoxAnswer): Handle[] {
+export function boxHandlesOf(
+	[[left, top], [right, bottom]]: readonly [Vec, Vec],
+	box: BoxAnswer,
+	/** What moving all of it by as much comes to, for a side of a box with nothing across it. */
+	move?: (delta: Vec) => readonly Change[]
+): Handle[] {
 	const angle = box.angle ?? 0
 	const middle: Vec = [(left + right) / 2, (top + bottom) / 2]
 	const placeOf = (way: -1 | 0 | 1, low: number, mid: number, high: number): number =>
@@ -1594,6 +1961,24 @@ export function boxHandlesOf([[left, top], [right, bottom]]: readonly [Vec, Vec]
 			const at: Vec = [placeOf(wx, left, middle[0], right), placeOf(wy, top, middle[1], bottom)]
 			const opposite: Vec = [placeOf(wx, right, middle[0], left), placeOf(wy, bottom, middle[1], top)]
 			const isCorner = wx !== 0 && wy !== 0
+			// A side of a box that is flat that way has nothing to scale: it moves all of it across instead.
+			const flat = !isCorner && move !== undefined && (wx !== 0 ? left === right : top === bottom)
+			if (flat) {
+				const axis = wx !== 0 ? 0 : 1
+				return [
+					{
+						kind: 'arrow',
+						name: 'box',
+						grip: true,
+						at: turnedBy(at, angle),
+						angle: (Math.atan2(wy, wx) * 180) / Math.PI + angle,
+						to(toOnCanvas) {
+							const by = turnedBy(toOnCanvas, -angle)[axis] - at[axis]
+							return move(turnedBy(axis === 0 ? [by, 0] : [0, by], angle))
+						},
+					},
+				]
+			}
 			return [
 				{
 					kind: isCorner ? 'point' : 'arrow',
@@ -1609,7 +1994,7 @@ export function boxHandlesOf([[left, top], [right, bottom]]: readonly [Vec, Vec]
 							const across = at[i] - about[i]
 							return way === 0 || across === 0
 								? 1
-								: Math.max((to[i] - about[i]) / across, LEAST_SCALE)
+								: Math.max((to[i] - about[i]) / across, box.flattens ? 0 : LEAST_SCALE)
 						}
 						const [x, y] = [along(0, wx), along(1, wy)]
 						const even = isCorner && (box.even || how?.even)
@@ -1644,6 +2029,12 @@ function turningAll([[left, top], [right, bottom]]: readonly [Vec, Vec], box: Bo
 	}
 }
 
+/**
+ * How near a handle of a box is to one of the grip's own for it to be that one: the bounds of what
+ * is turned are worked out from its curves, a little off, and a handle there twice flickers as it turns.
+ */
+const SAME_HANDLE = 1e-3
+
 /** The same grip, with the box around what is selected that it has for it, under what is its own. */
 export function withBoxHandles<G extends { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] }>(
 	held: G | null,
@@ -1667,9 +2058,9 @@ export function withBoxHandles<G extends { grip: Grip & { readonly transform: Ma
 	if (around === null) return held
 	const own = held.grip.handles.flatMap(({ at }) => (at === undefined ? [] : [at]))
 	// Where it has one of its own already, that says more than a box can.
-	const handles = boxHandlesOf(around, answer)
+	const handles = boxHandlesOf(around, answer, held.grip.move)
 		.map(handle => (several ? { ...handle, across: true } : handle))
-		.filter(({ at }) => !own.some(place => Math.hypot(place[0] - at![0], place[1] - at![1]) < SAME_PLACE))
+		.filter(({ at }) => !own.some(place => Math.hypot(place[0] - at![0], place[1] - at![1]) < SAME_HANDLE))
 	// What turns it goes to the corners of the box, and what it was held out on goes with it.
 	const turning = several
 		? (turningAll(around, answer) ?? undefined)
@@ -1742,7 +2133,13 @@ export const axesRowsIn = (root: AST, env: Env, hidden: boolean): Shape[] =>
 	drawnIn(root, env, hidden).filter(({ draw }) => draw === 'axes')
 
 /** A row of a program that draws the axes. */
-export const axesCall = (): AST => parse('(axes)')
+export const axesCall = (): AST => parse('(axes @[0 0])')
+
+/**
+ * What is drawn that there is anything on to snap to: the shapes, and the axes, which are not
+ * found by where they are, but whose origin and lines are places all the same.
+ */
+export const snappableIn = (root: AST, env: Env): Shape[] => [...sceneOf(root, env), ...axesRowsIn(root, env, false)]
 
 const drawnMemo = [new WeakMap<AST, WeakMap<object, readonly Shape[]>>(), new WeakMap<AST, WeakMap<object, readonly Shape[]>>()] as const
 const atRowMemo = new WeakMap<readonly Shape[], ReadonlyMap<string, readonly Shape[]>>()
@@ -2041,7 +2438,27 @@ const argsOf = (call: CallAST, env: Env) => {
 function gripAtNode(start: AST, startEnv: Env, root: AST, rootEnv: Env): Grip | null {
 	const found = follow(start, startEnv)
 	if (found === null) return null
-	const { node, env } = found
+	const grip = gripOfNode(found.node, found.env, root, rootEnv)
+	if (grip === null || grip.handles.length === 0) return grip
+	if (drawOf(infer(readByName(found.node), found.env)) !== 'point') return grip
+	return asPointHeld(grip, evaluate(readByName(found.node), found.env).value as Vec)
+}
+
+/**
+ * What comes to a point looks like one where it is, a crosshair, whatever its handle there does:
+ * and what has no handle there has one of a point, to take all of it by.
+ */
+function asPointHeld(grip: Grip, at: Vec): Grip {
+	const isThere = (handle: Handle): boolean =>
+		handle.at !== undefined && Math.hypot(handle.at[0] - at[0], handle.at[1] - at[1]) <= SAME_END
+	if (!grip.handles.some(isThere)) return { ...grip, handles: [...gripOfPoint(at).handles, ...grip.handles] }
+	return {
+		...grip,
+		handles: grip.handles.map(handle => (isThere(handle) && handle.kind !== 'translate' ? { ...handle, crosshair: true as const } : handle)),
+	}
+}
+
+function gripOfNode(node: AST, env: Env, root: AST, rootEnv: Env): Grip | null {
 	const call = bare(node)
 	if (call.kind === 'call') {
 		const { inside, head, args } = argsOf(call, env)
@@ -2065,6 +2482,13 @@ function gripAtNode(start: AST, startEnv: Env, root: AST, rootEnv: Env): Grip | 
 			}
 		)
 		if (grip !== null) return grip
+		// What is cast to a point has the handles of what it is, if that has any, as `lerp` has
+		// its ends and how far along: and is otherwise a point, all of it, to be taken anywhere.
+		const [cast] = call.args
+		if (isCoerce(call) && cast !== undefined) {
+			const inner = gripAtNode(cast, inside, root, rootEnv)
+			if (inner !== null && inner.handles.length > 0) return under(0, inner)
+		}
 	}
 	const value = evaluate(readByName(node), env).value
 	if (drawOf(infer(readByName(node), env)) === 'point') return gripOfPoint(value as Vec)
@@ -2147,6 +2571,36 @@ export function gripAt(
 	return grip === null ? null : { ...grip, transform: found.transform }
 }
 
+/** The numbers written in `ast`, in order, and what is written around them. */
+const numbersIn = (ast: AST): { numbers: string[]; around: string } => {
+	const numbers: string[] = []
+	const around = print(ast).replace(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g, number => {
+		numbers.push(number)
+		return '#'
+	})
+	return { numbers, around }
+}
+
+/**
+ * How many of the numbers written in `before` are different in `after`, as an edit that only
+ * changes numbers makes them: and as many as there are, where more than numbers changed.
+ */
+export function numbersChanged(before: AST, after: AST): number {
+	const [was, now] = [numbersIn(before), numbersIn(after)]
+	if (was.around !== now.around || was.numbers.length !== now.numbers.length) return Math.max(was.numbers.length, now.numbers.length)
+	return was.numbers.filter((number, i) => number !== now.numbers[i]).length
+}
+
+/** How many rows deep a row is, by the names it goes through. */
+const depthOf = (row: string): number => row.split('/').filter(part => part.startsWith('binding:')).length
+
+/**
+ * Whether the row at `row` is one of what the sketch at `sketch` has, and not in one of those: of
+ * what the program draws, with none.
+ */
+export const isDirectlyIn = (row: string, sketch: string | null): boolean =>
+	(sketch === null || row.startsWith(`${sketch}/`)) && depthOf(row) === (sketch === null ? 0 : depthOf(sketch)) + 1
+
 /** What is only there to see by and to refer to, whose handles are all there is to see of it. */
 export const isGuide = (draw: string): boolean =>
 	draw === 'point' || draw === 'line' || draw === 'ray' || draw === 'frame'
@@ -2170,7 +2624,8 @@ export function withGuideHandles(
 		.flatMap(row => {
 			const grip = gripAt(root, env, row)
 			if (grip === null || grip.transform.join() !== transform.join()) return []
-			return grip.handles.filter(({ kind }) => kind !== 'button').map(handle => ({ row, handle }))
+			// Not selected, only what it is itself: what it is made from is there once it is.
+			return grip.handles.filter(({ kind, place }) => kind !== 'button' && place === 'self').map(handle => ({ row, handle }))
 		})
 	if (guides.length === 0) return gripped
 	return {
@@ -2189,11 +2644,30 @@ export function withGuideHandles(
 export const placePartOf = (handle: Handle): string | undefined =>
 	handle.vertex === undefined &&
 	handle.segment === undefined &&
-	typeof handle.place === 'number' &&
 	handle.at !== undefined &&
 	(handle.kind === 'point' || handle.kind === 'translate')
-		? `arg${handle.place}`
+		? typeof handle.place === 'number'
+			? `arg${handle.place}`
+			: // A point that is all there is to a row, as a point row is, is a part of it too: all of it.
+				handle.place === 'self'
+				? SELF_PART
+				: // A place that is worked out from what is written, as the other corners of a rect are, by its name.
+					handle.code !== undefined && handle.name !== undefined && handle.kind === 'point'
+					? `${WORKED_OUT}${handle.name}`
+					: undefined
 		: undefined
+
+/** What the part of a row that is a place worked out from it starts with, before its name. */
+export const WORKED_OUT = '@'
+
+/** The row and the name of a place worked out from it, if `path` is that, as `binding:r/@top right` is. */
+export function workedOutAt(path: string): { readonly row: string; readonly name: string } | null {
+	const at = path.lastIndexOf(`/${WORKED_OUT}`)
+	return at < 0 ? null : { row: path.slice(0, at), name: path.slice(at + 2) }
+}
+
+/** The part of a row that is all of it, as a point row's one place is. */
+export const SELF_PART = 'self'
 
 /** What part of a row a handle is, if it is one: a point or a segment of a path, or a place. */
 export const partKeyOf = (handle: Handle): string | undefined => handle.vertex ?? handle.segment ?? placePartOf(handle)
@@ -2210,7 +2684,8 @@ export function gripOfPointsOrNot<G extends { grip: Grip; rowOf: readonly string
 		ofPoints ? handle.ofPoints === true || placePartOf(handle) !== undefined : handle.ofPoints !== true
 	)
 	// What is between the points goes under them, for them to be seen and to be reached for.
-	const inOrder = [...kept.filter(({ handle }) => handle.segment), ...kept.filter(({ handle }) => !handle.segment)]
+	const isBetween = (handle: Handle) => handle.segment !== undefined || handle.between !== undefined
+	const inOrder = [...kept.filter(({ handle }) => isBetween(handle)), ...kept.filter(({ handle }) => !isBetween(handle))]
 	return {
 		...gripped,
 		grip: {
@@ -2240,8 +2715,12 @@ export interface PartsOfRow {
 }
 
 /** The corners around `chosen`, going by the points that there are of them. Null if that is nothing. */
-function boxOfParts(grips: readonly { handles: readonly Handle[]; parts: readonly string[] }[]): readonly [Vec, Vec] | null {
-	const places = grips.flatMap(({ handles, parts }) =>
+function boxOfParts(
+	grips: readonly { handles: readonly Handle[]; parts: readonly string[] }[],
+	/** How far round the box is turned: it is around them along its own sides, turned back by this to be on the canvas. */
+	angle = 0
+): readonly [Vec, Vec] | null {
+	const placesOnCanvas = grips.flatMap(({ handles, parts }) =>
 		handles.flatMap((handle): Vec[] => {
 			const { vertex, segment, ends, at } = handle
 			if (vertex !== undefined && parts.includes(vertex) && at !== undefined) return [at]
@@ -2250,6 +2729,7 @@ function boxOfParts(grips: readonly { handles: readonly Handle[]; parts: readonl
 			return place !== undefined && parts.includes(place) && at !== undefined ? [at] : []
 		})
 	)
+	const places = angle === 0 ? placesOnCanvas : placesOnCanvas.map(at => turnedBy(at, -angle))
 	if (places.length === 0) return null
 	return [
 		[Math.min(...places.map(([x]) => x)), Math.min(...places.map(([, y]) => y))],
@@ -2281,10 +2761,12 @@ function changesOfParts(
  */
 export function withBoxOfParts<G extends { grip: Grip & { readonly transform: Mat }; rowOf: readonly string[] }>(
 	gripped: G | null,
-	chosen: readonly PartsOfRow[]
-): (G & { readonly around: readonly [Vec, Vec] | null }) | null {
+	chosen: readonly PartsOfRow[],
+	/** How far round they have been turned, which the box goes on being turned by, as one around shapes does. */
+	turn = 0
+): (G & { readonly around: readonly [Vec, Vec] | null; readonly angle: number }) | null {
 	if (gripped === null) return null
-	const none = { ...gripped, around: null }
+	const none = { ...gripped, around: null, angle: 0 }
 	const [first] = chosen
 	if (first === undefined || gripped.grip.transform.join() !== IDENTITY.join()) return none
 	const grips = chosen.map(({ row, parts }) => ({
@@ -2292,25 +2774,37 @@ export function withBoxOfParts<G extends { grip: Grip & { readonly transform: Ma
 		parts,
 		handles: gripped.grip.handles.filter((_, i) => gripped.rowOf[i] === row),
 	}))
-	const around = boxOfParts(grips)
+	const angle = turn % 360 === 0 ? 0 : turn
+	const around = boxOfParts(grips, angle)
 	if (around === null) return none
 	const [[left, top], [right, bottom]] = around
 	if (left === right && top === bottom) return none
 	const answer: BoxAnswer = {
 		even: false,
-		scaled: (x, y, [ax, ay]) => changesOfParts(grips, ([px, py]) => [ax + (px - ax) * x, ay + (py - ay) * y]),
+		...(angle === 0 ? {} : { angle }),
+		// Along the sides of the box, each its own way, as points can be, however it is turned.
+		scaled: (x, y, about) =>
+			changesOfParts(grips, at => {
+				const [dx, dy] = turnedBy([at[0] - about[0], at[1] - about[1]], -angle)
+				const [sx, sy] = turnedBy([dx * x, dy * y], angle)
+				return [about[0] + sx, about[1] + sy]
+			}),
 		turned: (by, [ax, ay]) => {
 			const [cos, sin] = [Math.cos((by * Math.PI) / 180), Math.sin((by * Math.PI) / 180)]
 			return changesOfParts(grips, ([px, py]) => [ax + (px - ax) * cos - (py - ay) * sin, ay + (px - ax) * sin + (py - ay) * cos])
 		},
 	}
-	const box = boxHandlesOf(around, answer).map(handle => ({ ...handle, across: true }))
+	const box = boxHandlesOf(around, answer, delta => changesOfParts(grips, at => [at[0] + delta[0], at[1] + delta[1]])).map(handle => ({
+		...handle,
+		across: true,
+	}))
 	const turning = turningAll(around, answer)
-	const turners = turning ? cornerTurners(around, 0, turning) : []
+	const turners = turning ? cornerTurners(around, angle, turning) : []
 	const added = [...box, ...turners]
 	return {
 		...gripped,
 		around,
+		angle,
 		grip: { ...gripped.grip, handles: [...gripped.grip.handles, ...added] },
 		rowOf: [...gripped.rowOf, ...added.map(() => first.row)],
 	}
@@ -2479,6 +2973,7 @@ function boxOfRows(grips: readonly { row: string; grip: Grip }[]): { box: BoxAns
 		box: {
 			across: true,
 			even: answers.some(({ box }) => box.even || (box.angle ?? 0) !== 0),
+			...(answers.every(({ box }) => box.flattens) ? { flattens: true } : {}),
 			scaled: (x, y, about) => answers.flatMap(({ row, box }) => ofRow(row, box.scaled(x, y, about))),
 			...(answers.every(({ box }) => box.turned !== undefined)
 				? {
@@ -2825,6 +3320,8 @@ export function rowsOfHandle(root: AST, env: Env, row: string, handle: Handle): 
 	if (handle.parts !== undefined) return handle.parts.flatMap(route => rowOf({ route }))
 	const { means, at } = handle
 	if (means !== undefined && means.length === 1) return rowOf(means[0]!)
+	// What is all of the row is the row.
+	if (handle.place === 'self' && at !== undefined && (handle.kind === 'point' || handle.kind === 'translate')) return [row]
 	if (at === undefined || handle.place === 'self') return []
 	// Of several, only what it changes in value: a corner pulled leaves the corner across from it
 	// where it is, and says nothing of it, though it is written out along with the size. One alone
@@ -3351,13 +3848,66 @@ function partsChanged(
 	held: ReadonlySet<AST>
 ): AST | null {
 	if (!Array.isArray(value)) return null
-	let next = root
-	for (const [i, part] of value.entries()) {
-		if (part === UNSET) continue
+	const inOrder = (order: readonly number[]): AST => {
+		let next = root
+		for (const i of order) {
+			const part = value[i]
+			if (part === UNSET) continue
+			const found = rowAt(next, env, row)
+			const node = found && nodeAt(found.node, found.env, route)
+			const only = value.map((_, j) => (j === i ? part : UNSET))
+			next = (node && solve(next, env, node, only, { held }).ast) ?? next
+		}
+		return next
+	}
+	const order = value.map((_, i) => i)
+	// What can go only along a slant, as along a line, goes by one axis or the other: whichever
+	// comes nearer to where it is wanted. What each axis says of its own comes to the same either way.
+	const tries = value.length === 2 ? [inOrder(order), inOrder([...order].reverse())] : [inOrder(order)]
+	const missBy = (next: AST): number => {
 		const found = rowAt(next, env, row)
 		const node = found && nodeAt(found.node, found.env, route)
-		const only = value.map((_, j) => (j === i ? part : UNSET))
-		next = (node && solve(next, env, node, only, { held }).ast) ?? next
+		const got = node && evaluate(node, found.env).value
+		if (!Array.isArray(got)) return Infinity
+		return Math.hypot(...value.map((part, i) => (part === UNSET || typeof part !== 'number' || typeof got[i] !== 'number' ? 0 : got[i] - part)))
 	}
-	return next === root ? null : next
+	const changed = tries.filter(next => next !== root)
+	if (changed.length === 0) return null
+	return changed.reduce((best, next) => (missBy(next) < missBy(best) ? next : best))
+}
+
+/** Where a box is drawn from or to, and what is there, if anything. */
+export interface Corner {
+	readonly at: Vec
+	readonly snap: SnapPoint | null
+}
+
+/**
+ * The corners a box is drawn between, as the one it goes from, up and left, and the one it goes
+ * to: each way, the one that is less that way, with what it is on that way. Drawn back the other
+ * way, what it ends on is where it goes from, that way, and what it started on is how far it goes,
+ * as it would be drawn forwards. Null for a corner on nothing either way.
+ */
+export function cornersInOrder(start: Corner, end: Corner): { from: Corner; to: Corner } {
+	const lessOn = (axis: 0 | 1): readonly [Corner, Corner] => (end.at[axis] < start.at[axis] ? [end, start] : [start, end])
+	const [[fromX, toX], [fromY, toY]] = [lessOn(0), lessOn(1)]
+	return { from: cornerOf(fromX, fromY), to: cornerOf(toX, toY) }
+}
+
+/** A corner across as `across` is, and down as `down` is, on what each of them is on that way. */
+function cornerOf(across: Corner, down: Corner): Corner {
+	if (across === down) return across
+	const at: Vec = [across.at[0], down.at[1]]
+	const part = ({ at, snap }: Corner, axis: 0 | 1): Place | null => {
+		const place = snap === null || !canRefer(snap) ? null : placeOfSnap(snap)
+		if (place === null) return null
+		const parts = partsOf(place)
+		if (parts !== null) return { ast: parts[axis], parts: place.parts }
+		return { ast: new CallAST(new SymAST(axis === 0 ? 'first' : 'last'), [place.ast]), parts: place.parts }
+	}
+	const [x, y] = [part(across, 0), part(down, 1)]
+	if (x === null && y === null) return { at, snap: null }
+	const written = (place: Place | null, axis: 0 | 1): AST => place?.ast ?? new LitAST(at[axis])
+	const code: Place = { ast: new VecAST([written(x, 0), written(y, 1)]), parts: new Map([...(x?.parts ?? []), ...(y?.parts ?? [])]) }
+	return { at, snap: { at, target: null, label: '', code } }
 }

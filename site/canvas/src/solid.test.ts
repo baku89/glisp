@@ -98,7 +98,7 @@ describe('axes', () => {
 		const off = toggled(on)
 		expect(off).toBe('{main = [x = #_(axes origin: [1 2])]}')
 		expect(toggled(off)).toBe(on)
-		expect(toggled('[a = (path.circle [0 0] 1)]')).toContain('axes1 = (axes)')
+		expect(toggled('[a = (path.circle [0 0] 1)]')).toContain('axes1 = (axes @[0 0])')
 	})
 
 	it('say only what is not as it would be anyway', () => {

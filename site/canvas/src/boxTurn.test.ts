@@ -139,6 +139,19 @@ describe('a box around several things, turned', () => {
 	})
 })
 
+describe('the box of an ellipse turned', () => {
+	it('has the same handles at every angle, none of them twice where its own are', () => {
+		const counts = new Set<number>()
+		for (let angle = 0; angle < 360; angle += 0.5) {
+			const root = parse(`{e = (path.ellipse [0 0] [100 50] ${angle})}`)
+			const grip = gripAt(root, env, 'binding:e')!
+			const held = withBoxHandles({ grip, rowOf: grip.handles.map(() => 'binding:e') }, sceneOf(root, env), ['binding:e'])!
+			counts.add(held.grip.handles.length)
+		}
+		expect([...counts]).toHaveLength(1)
+	})
+})
+
 describe('the box around what a matrix is applied to', () => {
 	const ROW = ['binding:t']
 	const dragged = (source: string, pick: (handle: Handle) => boolean, by: Vec) => {

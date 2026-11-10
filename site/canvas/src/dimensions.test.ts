@@ -610,3 +610,13 @@ describe('a size that goes in proportion', () => {
 		expect(print(changed(root, env, ROW, changes).ast!)).toBe(rect('[-200 -100]', '[300 150]'))
 	})
 })
+
+describe('a number worked out by an expression', () => {
+	it('is typed by changing what it is worked out from, and the expression stays', () => {
+		const root = parse('{w = 50 c = (path.rect [0 0] [(* w 2) 100])}')
+		const dimension = dimensionAt(root, env, ROW, { route: [1], index: 0 })!
+		expect(dimension.expression).toBe(true)
+		const next = changed(root, env, ROW, dimensionChanges(root, env, ROW, dimension, 300)).ast!
+		expect(print(next)).toBe('{w = 50 c = (path.rect [0 0] [(* w 6) 100])}')
+	})
+})

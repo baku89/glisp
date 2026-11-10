@@ -1,5 +1,9 @@
 import { ARTBOARD_ICON, AXES_ICON, POINT_ICON, RAY_ICON, STRAIGHT_LINE_ICON } from './graphics'
 
+/** A straight line going across, and one going up and down, as the diagonal one is any other way. */
+const HORIZONTAL_LINE_ICON = 'stroke:M1 12H23'
+const VERTICAL_LINE_ICON = 'stroke:M12 1V23'
+
 /** What a shape looks like as a tool, and as the function that makes it. */
 export const SHAPE_ICONS = {
 	circle: 'ph:circle',
@@ -28,14 +32,19 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	'path.blendSteps': 'ph:stack-simple',
 	'line.fromPoints': STRAIGHT_LINE_ICON,
 	'line.at': STRAIGHT_LINE_ICON,
+	'line.horizontal': HORIZONTAL_LINE_ICON,
+	'line.vertical': VERTICAL_LINE_ICON,
+	'line.along': STRAIGHT_LINE_ICON,
 	'ray.fromPoints': RAY_ICON,
 	'ray.at': RAY_ICON,
 	'ray.along': RAY_ICON,
 	'path.reflect': 'mdi:flip-horizontal',
+	'path.trim': 'ph:scissors',
 	'path.kaleidoscope': 'ph:flower',
 	'path.kaleidoscopeTile': 'ph:checkerboard',
 	'path.pixelate': 'ph:grid-four',
 	'path.dash': 'mdi:vector-polyline-minus',
+	'path.close': 'mdi:vector-polygon',
 	'path.subtract': 'mdi:vector-difference-ba',
 	'path.intersect': 'mdi:vector-intersection',
 	'path.exclude': 'mdi:vector-difference',
@@ -61,7 +70,9 @@ const FUNCTION_ICONS: Readonly<Record<string, string>> = {
 	point: POINT_ICON,
 	'vec2.lerp': POINT_ICON,
 	'vec2.midpoint': POINT_ICON,
+	'line.project': POINT_ICON,
 	'vec2.nudge': 'ph:arrow-right',
+	'vec2.reflect': 'mdi:flip-horizontal',
 	'rect.new': 'mdi:crop-free',
 	rect: 'mdi:crop-free',
 	solid: 'ph:paint-bucket',

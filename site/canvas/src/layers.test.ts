@@ -623,6 +623,20 @@ describe('what is taken away, that something was drawn by', () => {
 		expect(print(ast)).toBe('{main = [c = (path.circle [20 0] 10)]}')
 		expect(rows).toEqual(['binding:c/arg0'])
 	})
+
+	it('leaves what a point is between, and how far, as it was: only the end it lost is what it came to', () => {
+		const before = parse(
+			'[point2 = ^point (vec2.lerp [-222.6 -583.9] ../../line5/path:/end: 0.493) line5 = (style (path.line [-428 -498] [-142.1 -938.8]) stroke: "#32db86" width: 11)]'
+		)
+		const { ast } = keptReferences(before, withoutRows(before, env, ['binding:line5']), env)
+		expect(print(ast)).toBe('{main = [point2 = ^point (vec2.lerp [-222.6 -583.9] [-142.1 -938.8] 0.493)]}')
+	})
+
+	it('is still a point, as it was cast to one, where all of it is what it came to', () => {
+		const before = parse('[p = ^point (vec2.add ../../l/path:/end: [1 1]) l = (path.line [0 0] [10 10])]')
+		const { ast } = keptReferences(before, withoutRows(before, env, ['binding:l']), env)
+		expect(print(ast)).toMatch(/^\{main = \[p = \^point /)
+	})
 })
 
 describe('rows that are open', () => {

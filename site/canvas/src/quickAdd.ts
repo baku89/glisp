@@ -15,9 +15,11 @@ import {
 	isGlispClosure,
 	isTypeValue,
 	isTypedHostFn,
+	type TypedHostFn,
 	LetAST,
 	MetaAST,
 	parse,
+	PathAST,
 	pushLetFrame,
 	resolveTypeSlot,
 	SymAST,
@@ -25,6 +27,7 @@ import {
 	typeFits,
 	type TypeValue,
 	unwrapLazy,
+	VecAST,
 } from '@glisp/lang'
 import { callOf, type Filter, filtersFor, functionsIn, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { reach, withParent } from '@glisp/tweeq/rowsClipboard'
@@ -32,7 +35,8 @@ import { defaultFor, referenceAt, withLayerAdded } from '@glisp/tweeq/structure'
 
 import { isPath, isStyled, type Vec } from './graphics'
 import { freeName, withAxesAdded, withGraphPaperAdded, withSolidAdded } from './rows'
-import { paintedIn } from './scene'
+import { type Place, placeOf, writtenAt, whereIs } from './place'
+import { attached, drawOf, gripAt, paintedIn, workedOutAt } from './scene'
 
 export interface Addable {
 	/** As it is written, like `path.circle`. */
@@ -99,7 +103,8 @@ const GUIDES: Readonly<
 		}
 	>
 > = {
-	point: { label: 'Point', stem: 'point', code: (x, y) => `^point [${x} ${y}]` },
+	// Onto a point that is selected, which it refers to, as it would be let go there.
+	point: { label: 'Point', stem: 'point', places: 1, code: (x, y) => `^point [${x} ${y}]` },
 	'vec2.lerp': {
 		label: 'Lerp',
 		stem: 'lerp',
@@ -122,6 +127,13 @@ const GUIDES: Readonly<
 		places: 1,
 		code: (x, y) => `(vec2.nudge [${x} ${y}] [50 0])`,
 	},
+	'vec2.reflect': {
+		label: 'Reflect',
+		stem: 'reflect',
+		places: 1,
+		// Across an upright line a little to the right of it, for its image to be seen apart from it.
+		code: (x, y) => `(vec2.reflect [${x} ${y}] (line.fromPoints [${x + 50} ${y - 50}] [${x + 50} ${y + 50}]))`,
+	},
 	'line.fromPoints': {
 		label: 'Line Through Points',
 		stem: 'line',
@@ -133,6 +145,8 @@ const GUIDES: Readonly<
 				: `(line.fromPoints [${x} ${y}] [${x} ${y}])`,
 	},
 	'line.at': { label: 'Line at an Angle', stem: 'line', places: 1, code: (x, y) => `(line.at [${x} ${y}] 90)` },
+	'line.horizontal': { label: 'Horizontal Line', stem: 'line', places: 1, code: (x, y) => `(line.horizontal [${x} ${y}])` },
+	'line.vertical': { label: 'Vertical Line', stem: 'line', places: 1, code: (x, y) => `(line.vertical [${x} ${y}])` },
 	'ray.fromPoints': {
 		label: 'Ray Through Points',
 		stem: 'ray',
@@ -150,14 +164,97 @@ const GUIDES: Readonly<
 	},
 }
 
-/** `root` with the row called `name` saying `code`, referring to the points at `rows` first. */
-function withGuide(root: LetAST, env: Env, name: string, code: string, rows: readonly string[]): LetAST {
-	const row = `binding:${name}`
-	const added = withLayerAdded(root, name, parse(code)) as LetAST
-	return rows.reduce<LetAST>((ast, of, i) => {
-		const next = referenceAt(ast, env, `${row}/arg${i}`, of)
+/**
+ * Of what is selected, the points, as what is not a function of the host but takes them first goes
+ * by: rows drawn as points, and parts that are wanted as points, as a vertex of a polyline is.
+ */
+function pointsSelected(root: LetAST, env: Env, selected: readonly string[]): string[] {
+	const drawn = paintedIn(root, env)
+	const points = new Set(drawn.filter(({ draw }) => draw === 'point').map(({ row }) => row))
+	const rows = new Set(drawn.map(({ row }) => row))
+	// What a part is wanted as, as a vertex of a polyline is a point but the size of a rect is not.
+	const isPoint = (path: string): boolean => {
+		const expected = reach(root, env, path)?.chain.at(-1)?.expected
+		return expected != null && drawOf(expected) === 'point'
+	}
+	return selected.filter(path => points.has(path) || (!rows.has(path) && isPoint(path)))
+}
+
+function withReferences(root: LetAST, env: Env, row: string, given: ReadonlyMap<number, string>): LetAST {
+	return [...given].reduce<LetAST>((ast, [i, of]) => {
+		const next = referredTo(ast, env, `${row}/arg${i}`, of) ?? (i === 0 ? castReferring(ast, env, row, of) : null)
 		return next instanceof LetAST ? next : ast
-	}, added)
+	}, root)
+}
+
+/**
+ * `root` with the row at `row`, a value cast as something, as `^point [x y]` is, being what is at
+ * `of` cast as that: what it is cast as can only be referred through as a whole.
+ */
+function castReferring(root: LetAST, env: Env, row: string, of: string): AST | null {
+	const written = reach(root, env, row)?.chain.at(-1)?.ast
+	const cast = written?.kind === 'meta' ? written.expr : written
+	if (!(cast instanceof CallAST) || cast.head.kind !== 'sym' || cast.head.name !== '^') return null
+	const referred = referenceAt(root, env, row, of)
+	const reference = referred && reach(referred, env, row)?.chain.at(-1)?.ast
+	if (!referred || !reference) return null
+	const [, ...rest] = cast.args
+	const bareReference = reference.kind === 'meta' ? reference.expr : reference
+	// Written in what it is cast as, a path starts a level further in, and so goes up one more.
+	const within =
+		bareReference instanceof PathAST && bareReference.segments[0] !== '/'
+			? new PathAST(['..', ...bareReference.segments])
+			: bareReference
+	return inPlace(referred, env, row, new CallAST(cast.head, [within, ...rest], cast.kwargs))
+}
+
+/**
+ * Of what is selected, what goes in which argument of `fn`: each in the first one left of its
+ * type, so that of several of a type, the one selected first comes first. Where every argument
+ * it has to be given is, and one more is left that is of what `fn` gives, that is where what it
+ * gives goes, as a point made the image of another across a line is: the one of its type selected
+ * last. Where the selection is, among the rest of what is selected, does not matter.
+ */
+function selectionFor(
+	root: AST,
+	env: Env,
+	fn: TypedHostFn,
+	selected: readonly string[]
+): { given: ReadonlyMap<number, string>; into: string | null } {
+	const says = (type: TypeValue | undefined): type is TypeValue => type !== undefined && type.typeName !== '_'
+	const values = selected.flatMap(path => {
+		const value = valueAt(root, env, path)
+		return value === undefined ? [] : [{ path, value }]
+	})
+	const given = new Map<number, string>()
+	const left: typeof values = []
+	for (const one of values) {
+		const arg = fn.paramTypes.findIndex((type, j) => !given.has(j) && says(type) && type.fits(one.value))
+		if (arg >= 0) given.set(arg, one.path)
+		else left.push(one)
+	}
+	// What none of it could be, as a ratio is not a point, starts as it would.
+	const needed = fn.paramTypes.every((type, j) => given.has(j) || !says(type) || !values.some(({ value }) => type.fits(value)))
+	const [extra] = left
+	const into = needed && left.length === 1 && says(fn.returnType) && fn.returnType.fits(extra!.value) ? extra!.path : null
+	return { given, into }
+}
+
+const errorsOf = (ast: AST, env: Env): number =>
+	errorsIn(ast, env) + evaluate(ast, env).diagnostics.filter(({ level }) => level === 'error').length
+
+/**
+ * `root` with `call` at `path`, in place of what was there, and referring to what is at each
+ * path of `given` for that argument: so that what was there goes on being what `call` makes of
+ * them. Null if it cannot, as where it would come back to itself.
+ */
+function withCallInto(root: LetAST, env: Env, path: string, call: AST, given: ReadonlyMap<number, string>): LetAST | null {
+	let next = inPlace(root, env, path, call)
+	for (const [i, of] of given) {
+		if (next === null) return null
+		next = referredTo(next, env, `${path}/arg${i}`, of)
+	}
+	return next instanceof LetAST && errorsOf(next, env) <= errorsOf(root, env) ? next : null
 }
 
 /** What says something of the canvas, of which there is one to see, wherever it is asked for. */
@@ -210,6 +307,111 @@ const isPlace = (type: ReturnType<typeof resolveTypeSlot>): boolean => {
 	return said === undefined || (said.kind === 'lit' && said.value === 'point')
 }
 
+/**
+ * `call` of `fn`, going through `at` by what it is not given: the first place is `at`, and each
+ * line goes through it, across and then up, for two of them to cross there.
+ */
+function placedAt(call: CallAST, fn: TypedHostFn, at: Vec, given: ReadonlyMap<number, string>, env: Env): CallAST {
+	const [x, y] = at
+	let placed = false
+	let lines = 0
+	const args = call.args.map((arg, j) => {
+		const type = fn.paramTypes[j]
+		if (type === undefined) return arg
+		if (drawOf(type) === 'line') {
+			const across = lines++ % 2 === 0
+			return given.has(j) ? arg : parse(`(line.${across ? 'horizontal' : 'vertical'} [${x} ${y}])`)
+		}
+		if (given.has(j) || placed || !isPlace(unwrapLazy(type))) return arg
+		placed = true
+		return toAst(at, env)
+	})
+	return new CallAST(call.head, args, call.kwargs)
+}
+
+const valueAt = (root: AST, env: Env, path: string): unknown => {
+	const worked = workedOut(root, env, path)
+	if (worked !== null) return worked.value
+	const slot = reach(root, env, path)?.chain.at(-1)
+	return slot === undefined ? undefined : evaluate(slot.ast, slot.env).value
+}
+
+/**
+ * The place at `path`, if it is worked out from a row rather than written, as the other corners of a
+ * rect are: where it is, and how it is worked out, as code. Null if `path` is not one.
+ */
+function workedOut(root: AST, env: Env, path: string): { value: Vec; place: Place; inside: string } | null {
+	const at = workedOutAt(path)
+	const grip = at && gripAt(root, env, at.row)
+	const handle = grip?.handles.find(({ name, code, at: where }) => name === at!.name && code !== undefined && where !== undefined)
+	if (!at || !grip || !handle) return null
+	const inside = grip.within === undefined ? at.row : `${at.row}/${grip.within}`
+	return { value: handle.at!, place: placeOf(handle.code!, inside), inside }
+}
+
+/** `root`, with what is at `source` referring to what is at `of`: a row, or a place worked out from one, as it is worked out. */
+function referredTo(root: AST, env: Env, source: string, of: string): AST | null {
+	const worked = workedOut(root, env, of)
+	return worked === null ? referenceAt(root, env, source, of) : writtenAt(root, env, source, worked.place.ast, worked.place.parts)
+}
+
+/**
+ * `root`, with the place at `into`, worked out from its row, coming to what `call` makes of what is
+ * at each path of `given`: by what its row says that only it goes by, and none of those, each way it
+ * is not that already. Null if what its row says cannot come to that, as a rect cannot be turned.
+ */
+function withCallOnto(root: LetAST, env: Env, into: string, call: AST, given: ReadonlyMap<number, string>): LetAST | null {
+	const target = workedOut(root, env, into)
+	if (target === null || !(call instanceof CallAST)) return null
+	const parts = new Map<string, string>()
+	const args = call.args.map((arg, i) => {
+		const of = given.get(i)
+		if (of === undefined) return arg
+		const worked = workedOut(root, env, of)
+		if (worked !== null) {
+			for (const [name, path] of worked.place.parts) parts.set(name, path)
+			return worked.place.ast
+		}
+		const name = `__given${i}`
+		parts.set(name, of)
+		return new SymAST(name)
+	})
+	const whole = new CallAST(call.head, args, call.kwargs)
+	const code: Place = { ast: new VecAST([new CallAST(new SymAST('first'), [whole]), new CallAST(new SymAST('last'), [whole])]), parts }
+	const at = whereIs(root, env, code)
+	if (at === null) return null
+	// What what it comes to goes by is not to be changed for it, which would go round in a circle.
+	const relative = (path: string): string | null => (path.startsWith(`${target.inside}/`) ? path.slice(target.inside.length + 1) : null)
+	const goneBy = new Set([...parts.values()].flatMap(path => relative(path) ?? []))
+	const isWritten = (path: string): boolean => {
+		const node = reach(root, env, `${target.inside}/${path}`)?.chain.at(-1)?.ast
+		const bare = node?.kind === 'meta' ? node.expr : node
+		return bare?.kind === 'lit'
+	}
+	const pick = (paths: readonly string[]): string | undefined =>
+		paths.find(path => isWritten(path) && ![...goneBy].some(by => by === path || by.startsWith(`${path}/`) || path.startsWith(`${by}/`)))
+	const next = attached(root, env, target.inside, target.place, { at, target: null, label: '', code }, pick)
+	return next instanceof LetAST ? next : null
+}
+const isVec = (value: unknown): value is Vec => Array.isArray(value) && value.length === 2 && value.every(n => typeof n === 'number')
+const written = (n: number): string => String(Math.round(n * 100) / 100)
+
+/**
+ * `call`, going into `into`, with what it is not given said so that it comes to where `into`
+ * already is: what is across a line from one point to another is so across the line halfway
+ * between them, square to the way from one to the other. Then neither moves, and either can.
+ */
+function keepingWhereItIs(name: string, call: AST, root: AST, env: Env, given: ReadonlyMap<number, string>, into: string): AST {
+	if (name !== 'vec2.reflect' || !(call instanceof CallAST) || !given.has(0) || given.has(1)) return call
+	const [from, to] = [valueAt(root, env, given.get(0)!), valueAt(root, env, into)]
+	if (!isVec(from) || !isVec(to) || (from[0] === to[0] && from[1] === to[1])) return call
+	const [mx, my] = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]
+	// Square to the way across, as long as that is, half of it each way from halfway.
+	const [px, py] = [-(to[1] - from[1]) / 2, (to[0] - from[0]) / 2]
+	const line = parse(`(line.fromPoints [${written(mx - px)} ${written(my - py)}] [${written(mx + px)} ${written(my + py)}])`)
+	return new CallAST(call.head, call.args.map((arg, i) => (i === 1 ? line : arg)), call.kwargs)
+}
+
 /** A call of a function the program has, starting where it says it is, or else as it would. */
 function callOfClosure(name: string, closure: GlispClosure, env: Env, at: Vec): CallAST {
 	const given = closure.ast.params.filter(({ optional, variadic }) => !optional && !variadic)
@@ -222,16 +424,21 @@ function callOfClosure(name: string, closure: GlispClosure, env: Env, at: Vec): 
 	)
 }
 
+/** What is drawn as a row of its own, there to see by and to refer to, rather than as a shape. */
+const GUIDE_DRAWS: ReadonlySet<string> = new Set(['point', 'line', 'ray', 'frame'])
+
 /**
- * Whether what `filter` gives is something drawn. What does not say is known by what it
- * comes to, which is only as good as what it starts as.
+ * How what `filter` gives is drawn, by what its type says: `path` for a shape, or one of
+ * `GUIDE_DRAWS`, or null if it is nothing to add to a canvas as it is. What does not say is
+ * known by what it comes to, which is only as good as what it starts as.
  */
-function draws(filter: Filter, root: LetAST, env: Env): boolean {
+function drawnBy(filter: Filter, root: LetAST, env: Env): string | null {
 	const type = filter.fn.returnType
-	if (type?.typeName === 'path' || type?.typeName === 'styled') return true
-	if (type?.typeName !== '_') return false
+	const draw = drawOf(type)
+	if (draw !== null) return draw === 'path' || GUIDE_DRAWS.has(draw) ? draw : null
+	if (type?.typeName !== '_') return null
 	const { value } = evaluate(callOf(filter, [], env), pushLetFrame(root, env))
-	return isPath(value) || isStyled(value)
+	return isPath(value) || isStyled(value) ? 'path' : null
 }
 
 /**
@@ -241,18 +448,30 @@ function draws(filter: Filter, root: LetAST, env: Env): boolean {
 export function addablesIn(root: LetAST, env: Env): readonly Addable[] {
 	const own = functionsOfProgram(root, env)
 	const seen = new Set(own.map(({ name }) => name))
-	const mine = own
-		.filter(filter => draws(filter, root, env))
-		.map((filter): Addable => ({ name: filter.name, label: filter.label, group: 'Project' }))
-	const given = functionsIn(env)
-		.filter(filter => !seen.has(filter.name) && draws(filter, root, env))
-		.map((filter): Addable => {
+	const mine = own.flatMap((filter): Addable[] => {
+		const draw = drawnBy(filter, root, env)
+		if (draw === null) return []
+		return [{ name: filter.name, label: filter.label, group: 'Project', ...(draw === 'path' ? {} : { alone: true }) }]
+	})
+	// Whatever the program can see that gives something drawn, by what it says it gives.
+	const found = functionsIn(env)
+		.filter(filter => !seen.has(filter.name))
+		.flatMap(filter => {
+			const draw = drawnBy(filter, root, env)
+			return draw === null ? [] : [{ filter, draw }]
+		})
+	const given = found
+		.filter(({ draw }) => draw === 'path')
+		.map(({ filter }): Addable => {
 			const group = groupOf(filter)
 			return { name: filter.name, label: filter.label, group, ...(group === 'Shapes' ? {} : { quiet: true }) }
 		})
-	const guides = Object.entries(GUIDES)
-		.filter(([name]) => !seen.has(name))
-		.map(([name, { label }]): Addable => ({ name, label, group: 'Guides', alone: true }))
+	// What is said of how some are put down comes first, in that order, then the rest as found.
+	const ofGuides = new Map(found.filter(({ draw }) => draw !== 'path').map(({ filter }) => [filter.name, filter.label]))
+	const guides = [
+		...Object.keys(GUIDES).filter(name => !seen.has(name) && (ofGuides.has(name) || !functionsIn(env).some(f => f.name === name))),
+		...[...ofGuides.keys()].filter(name => !(name in GUIDES)),
+	].map((name): Addable => ({ name, label: GUIDES[name]?.label ?? ofGuides.get(name)!, group: 'Guides', alone: true }))
 	const ofCanvas = OF_CANVAS.filter(({ name }) => !seen.has(name))
 	return [...mine, ...given, ...guides, ...ofCanvas]
 		.map((item, i) => [item, i] as const)
@@ -308,31 +527,40 @@ export function withAdded(
 	name: string,
 	[x, y]: Vec,
 	selected: readonly string[] = []
-): { ast: LetAST; row: string } | null {
+): { ast: LetAST; row: string; into?: true } | null {
 	const closure = closuresIn(root, env).find(([other]) => other === name)?.[1]
 	if (closure === undefined) {
-		const guide = GUIDES[name]
-		if (guide !== undefined) {
-			const called = freeName(root, guide.stem)
-			const points = new Set(paintedIn(root, env).filter(({ draw }) => draw === 'point').map(({ row }) => row))
-			const rows = selected.filter(row => points.has(row)).slice(0, guide.places ?? 0)
-			return { ast: withGuide(root, env, called, guide.code(x, y, rows.length), rows), row: `binding:${called}` }
-		}
 		if (name === 'solid') return withSolidAdded(root, SOLID_COLOR)
 		if (name === 'graphPaper') return withGraphPaperAdded(root, env)
 		if (name === 'axes') return withAxesAdded(root, env)
 	}
 	const filter = closure === undefined ? functionsIn(env).find(other => other.name === name) : undefined
-	if (closure === undefined && filter === undefined) return null
+	const guide = closure === undefined ? GUIDES[name] : undefined
+	if (closure === undefined && filter === undefined && guide === undefined) return null
+	// What is selected goes in what it fits, as it is referred to there.
+	const { given, into } =
+		filter !== undefined
+			? selectionFor(root, env, filter.fn, selected)
+			: { given: new Map(pointsSelected(root, env, selected).slice(0, guide?.places ?? 0).entries()), into: null }
 	const shape = SHAPES[name] ?? STARTS_AROUND[name]
+	// A guide that nothing says how to put down goes through where it was asked for, by its first place.
+	const placed = (call: CallAST): CallAST =>
+		filter !== undefined && GUIDE_DRAWS.has(drawOf(filter.fn.returnType) ?? '') ? placedAt(call, filter.fn, [x, y], given, env) : call
 	const call: AST =
 		closure !== undefined
 			? callOfClosure(name, closure, env, [x, y])
-			: shape
-				? parse(`(${name} ${shape(x, y)})`)
-				: callOf(filter!, [], env)
-	const called = freeName(root, stemOf(name))
-	return { ast: withLayerAdded(root, called, call), row: `binding:${called}` }
+			: guide !== undefined
+				? parse(guide.code(x, y, given.size))
+				: shape
+					? parse(`(${name} ${shape(x, y)})`)
+					: placed(callOf(filter!, [], env))
+	if (into !== null) {
+		const kept = keepingWhereItIs(name, call, root, env, given, into)
+		const next = workedOutAt(into) !== null ? withCallOnto(root, env, into, kept, given) : withCallInto(root, env, into, kept, given)
+		return next === null ? null : { ast: next, row: into, into: true }
+	}
+	const called = freeName(root, guide?.stem ?? stemOf(name))
+	return { ast: withReferences(withLayerAdded(root, called, call) as LetAST, env, `binding:${called}`, given), row: `binding:${called}` }
 }
 
 /** Something that can go in a place that wants a value: a function, or what is already there to refer to. */

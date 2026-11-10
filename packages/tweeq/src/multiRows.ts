@@ -9,6 +9,7 @@ import {
 	type AST,
 	type Env,
 	evaluate,
+	enterNode,
 	freeRefs,
 	infer,
 	LetAST,
@@ -79,6 +80,12 @@ export interface MultiArgument {
 	/** What the argument is, as a row of one of them shows it: a point, an angle, a number. */
 	readonly icon: string | null
 	readonly fields: readonly MultiField[]
+	/** Where the whole of it is in each row, which is what its row stands for, being selected. */
+	readonly places: readonly Place[]
+	/** What it is, said in a few words, where it has no numbers to show: what it is a call of. */
+	readonly summary: string | null
+	/** What all of the rows have written for it, if they all have the same, and it can be pulled out. */
+	readonly shared: AST | null
 }
 
 /** A function that some of the rows are calls of, as it is shown. */
@@ -168,16 +175,23 @@ const optionsAcross = (options: readonly NumberOptions[]): NumberOptions =>
  * the first of them first: a circle's center says it is a point, which a function of its own
  * taking any vector need not.
  */
-function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgument | null {
+function argumentOf(paths: readonly string[], slots: readonly Slot[], isExtractableIn: (slot: Slot) => boolean): MultiArgument | null {
 	const [slot] = slots
 	if (slot === undefined) return null
 	const results = slots.map(s => evaluate(s.ast, s.env).value)
 	const placesOf = (element: number | null): Place[] =>
 		paths.map((path, i) => ({ path: `${path}/${slots[i]!.key}`, element }))
 	const icon = slots.map(s => s.icon ?? iconOf(s.ast, s.env, s.expected)).find(each => each != null) ?? null
+	const places = placesOf(null)
+	const written = slots.map(s => bare(s.ast))
+	const isShared = written.every(each => print(each) === print(written[0]!))
+	const shared = isShared && slots.every(s => isExtractableIn(s)) ? written[0]! : null
+	const whole = { places, shared }
 
 	if (results.every(value => typeof value === 'number')) {
 		return {
+			...whole,
+			summary: null,
 			label: titleOf(slot),
 			icon,
 			fields: [
@@ -195,9 +209,16 @@ function argumentOf(paths: readonly string[], slots: readonly Slot[]): MultiArgu
 		}
 	}
 	const length = isNumbers(results[0]) ? results[0].length : 0
-	if (length === 0 || !results.every(r => isNumbers(r) && r.length === length)) return null
+	if (length === 0 || !results.every(r => isNumbers(r) && r.length === length)) {
+		// What has no numbers to show is a row of its own still, to be selected and pulled out as a whole.
+		const heads = written.map(each => (each.kind === 'call' ? (viewOf(each, slots[0]!.env).head?.label ?? print(each.head)) : null))
+		const summary = !isShared ? 'Mixed' : (heads[0] ?? print(written[0]!))
+		return { ...whole, summary, label: titleOf(slot), icon, fields: [] }
+	}
 	const areWritten = slots.every(s => bare(s.ast).kind === 'vec')
 	return {
+		...whole,
+		summary: null,
 		label: titleOf(slot),
 		icon,
 		fields: Array.from({ length }, (_, element): MultiField => {
@@ -237,7 +258,7 @@ export function inspectRows(
 		// Of one function, an argument is the same by where it is, whatever each is called.
 		const slots = others.map(row => (same ? row.slots[arg] : row.slots.find(other => titleOf(other) === titleOf(slot))))
 		if (slots.some(s => s === undefined)) return []
-		const argument = argumentOf(paths, slots as Slot[])
+		const argument = argumentOf(paths, slots as Slot[], slot => isExtractableAt(root, env, slot))
 		return argument === null ? [] : [argument]
 	})
 	const heads: MultiHead[] = [...new Map(others.map(row => [row.fn, { fn: row.fn, label: row.label, icon: row.icon }])).values()]
@@ -270,7 +291,7 @@ function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInsp
 			canExtract: written,
 			workedOut: howWorkedOut(all, null),
 		}
-		return { fn: '', label: 'Numbers', icon: null, doc: null, heads: [], args: [{ label: 'Value', icon: iconOf(all[0]!.ast, all[0]!.env, all[0]!.expected), fields: [field] }] }
+		return { fn: '', label: 'Numbers', icon: null, doc: null, heads: [], args: [{ label: 'Value', icon: iconOf(all[0]!.ast, all[0]!.env, all[0]!.expected), fields: [field], places: placesOf(null), summary: null, shared: null }] }
 	}
 	const length = isNumbers(values[0]) ? values[0].length : 0
 	if (length === 0 || !values.every(value => isNumbers(value) && value.length === length)) return null
@@ -285,7 +306,7 @@ function inspectValues(root: AST, env: Env, paths: readonly string[]): MultiInsp
 		canExtract: areWritten,
 		workedOut: howWorkedOut(all, element),
 	}))
-	return { fn: '', label: 'Vectors', icon: null, doc: null, heads: [], args: [{ label: 'Value', icon: iconOf(all[0]!.ast, all[0]!.env, all[0]!.expected), fields }] }
+	return { fn: '', label: 'Vectors', icon: null, doc: null, heads: [], args: [{ label: 'Value', icon: iconOf(all[0]!.ast, all[0]!.env, all[0]!.expected), fields, places: placesOf(null), summary: null, shared: null }] }
 }
 
 function elementTitle(slot: Slot, element: number): string | null {
@@ -540,22 +561,40 @@ export function extractedAt(
 	return { ast: new LetAST(bindings, next.body), name: free }
 }
 
-/** Whether all there is to something is what is written, with nothing to work out. */
-const isWrittenOut = (ast: AST): boolean => {
-	const it = bare(ast)
-	return it.kind === 'lit' || (it.kind === 'vec' && it.elements.every(isWrittenOut))
+/**
+ * Whether what is at `slot` can be given a name of its own at the top of `root`: anything written
+ * or worked out there, unless it is only a name already, is locked, or goes by where it is, as a
+ * relative path does, or a name that means something else, or nothing, from the top.
+ */
+export function isExtractableAt(root: AST, env: Env, slot: Slot): boolean {
+	const it = bare(slot.ast)
+	if (it.kind === 'sym' || it.kind === 'path' || isPinned(slot.ast)) return false
+	const { names, paths } = freeRefs(it)
+	if ([...paths].length > 0) return false
+	const top = enterNode(root, env)
+	return [...names].every(name => lookupBareName(name, slot.env)?.ast === lookupBareName(name, top)?.ast)
 }
 
 /**
- * `root` with what is written out at `path` given a name of its own in the program, which is
- * what is there from then on. Null if there is something other than that there, or it has one.
+ * `root` with what is at `path` given a name of its own in the program, which is what is there
+ * from then on. Null if it has one already, or cannot be moved from where it is.
  */
-export function extractedLiteralAt(root: AST, env: Env, path: string): { ast: AST; name: string } | null {
+export function extractedValueAt(root: AST, env: Env, path: string): { ast: AST; name: string } | null {
 	if (!path.includes('/')) return null
 	const place: Place = { path, element: null }
 	const slot = slotAt(root, env, place)
-	if (slot === undefined || !isWrittenOut(slot.ast) || isPinned(slot.ast)) return null
+	if (slot === undefined || !isExtractableAt(root, env, slot)) return null
 	return extractedAt(root, env, [place], bare(slot.ast), nameFor(root, env, [place]))
+}
+
+/** The one thing written at all of the places, if they all have the same, and it can be given a name. */
+export function sharedWrittenAt(root: AST, env: Env, places: readonly Place[]): AST | null {
+	if (places.length === 0 || places.some(({ element }) => element !== null)) return null
+	const slots = places.map(place => slotAt(root, env, place))
+	const [first] = slots
+	if (first === undefined || slots.some(slot => slot === undefined || !isExtractableAt(root, env, slot))) return null
+	const written = bare(first.ast)
+	return slots.every(slot => print(bare(slot!.ast)) === print(written)) ? written : null
 }
 
 /** Why `value` cannot be what is at the places, if there is a reason. */

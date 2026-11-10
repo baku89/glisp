@@ -377,6 +377,16 @@ describe('solve — what a parameter says of itself', () => {
 	it('changes the later, as ever, where nothing says otherwise', () => {
 		expect(moved('{a = (circle 10 2) b = 1 r = (+ ../a/radius: ../b)}', 20)).toBe('{a = (circle 10 2) b = 18 r = (+ ../a/radius: ../b)}')
 	})
+
+	it('goes into a call first, where that comes to what refers to it first', () => {
+		expect(moved('{a = (circle 10 2) b = 1 r = (+ (+ /a/center: /a/radius:) /b)}', 20)).toBe(
+			'{a = (circle 17 2) b = 1 r = (+ (+ /a/center: /a/radius:) /b)}'
+		)
+		// Not where a literal in it comes first, as that is what would change there.
+		expect(moved('{a = (circle 10 2) b = 1 r = (+ (+ /a/center: 3) /b)}', 20)).toBe(
+			'{a = (circle 10 2) b = 7 r = (+ (+ /a/center: 3) /b)}'
+		)
+	})
 })
 
 describe('solve — a path into what is pinned', () => {

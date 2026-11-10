@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { type AST, buildPrelude, LetAST, parse, print, type TypeValue, VecAST } from '@glisp/lang'
+import { type AST, buildPrelude, LetAST, parse, print, type TypeValue, typeFits, unwrapLazy, VecAST } from '@glisp/lang'
+import { hasOffer, type Offer, offersOf } from './offers'
 import {
 	AstEditor,
 	AstMultiInspector,
@@ -31,13 +32,14 @@ import { computed, nextTick, provide, ref, shallowRef, useTemplateRef, watch, wa
 import CanvasView from './CanvasView.vue'
 import { exportSvg } from './files'
 import { sourceOfProgram } from '@glisp/tweeq/programSource'
+import { inspectRows } from '@glisp/tweeq/multiRows'
 import FileTabs from './FileTabs.vue'
 import { useFileTabs } from './useFileTabs'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
 import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
-import { ARTBOARD_ICON, AXES_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, type Path, PathValue, SHOWN_WHOLE, withGraphics, isRect, type RectValue, type Vec } from './graphics'
+import { ARTBOARD_ICON, AXES_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, isStyled, lineType, type Path, PathValue, RAY_ICON, rayType, rectType, SHOWN_WHOLE, STRAIGHT_LINE_ICON, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
 import { alone, type Place } from './panelLayout'
@@ -65,7 +67,7 @@ import {
 	withAxesToggled,
 	withGraphPaperToggled,
 } from './rows'
-import { solidOf, canIsolate, hasRow, diveAt, drawsAt, axesCall, graphPaperCall, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, writtenAsNow, isOutlined, sceneOf } from './scene'
+import { solidOf, canIsolate, hasRow, diveAt, drawsAt, axesCall, graphPaperCall, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, writtenAsNow, isOutlined, sceneOf, referredOnto, type SnapPoint } from './scene'
 import {
 	actionTypesOver,
 	copyableType,
@@ -309,6 +311,8 @@ const dimensionsOn = useAppConfigStore().ref('glisp.canvas.dimensions', false)
 const snappingOn = useAppConfigStore().ref('glisp.canvas.snapping', true)
 /** It goes as well to where a line would be if it went on past its ends, which is most often not meant. */
 const snappingBeyond = useAppConfigStore().ref('glisp.canvas.snappingBeyond', false)
+/** Whether what is snapped to is referred to, as an expression, rather than only its numbers written. */
+const referringOn = useAppConfigStore().ref('glisp.canvas.referring', true)
 
 /** What is laid over the canvas to see by, as the program says. */
 const toggleAxes = (): void => {
@@ -535,6 +539,8 @@ const heldInInspector = ref<string | null>(null)
 const about = computed(() => rowsAbout(selected.value, keptRow.value ?? heldInInspector.value))
 /** What is picked out in the inspector of what it is about. */
 const pickedOut = computed(() => (about.value === selected.value ? [] : selected.value))
+/** The rows selected together in the inspector, each of them as a whole, for the code of all of them to be selected. */
+const selectedTogether = ref<readonly string[]>([])
 /** The rows of the arguments whose places are chosen on the canvas, with the tool that goes by parts. */
 const chosenParts = ref<readonly string[]>([])
 /** How the one thing selected is painted, for a tool to take that, if one thing is. */
@@ -597,6 +603,8 @@ const $canvas = useTemplateRef<{
 	rowAtPoint(x: number, y: number): string | null
 	leaveIsolated(): void
 	diveInto(row: string): boolean
+	hover(row: string | null): void
+	snapForPick(source: string, at: readonly [number, number] | null, lines?: boolean): SnapPoint | null
 	size(): readonly [number, number]
 }>('$canvas')
 const zoom = computed(() => $canvas.value?.zoom() ?? 1)
@@ -678,6 +686,17 @@ const inspected = computed(() =>
 const insideOf = (row: string): string =>
 	paintedRow(document.root.value, document.env.value, row)
 const insideRows = computed(() => about.value.map(insideOf))
+/**
+ * The rows the inspector shows of several: what is selected, or, among points, the points chosen
+ * where those are not one argument of each of them, as a point and a corner of a rect are two points.
+ */
+const inspectedRows = computed((): readonly string[] => {
+	const parts = chosenParts.value
+	if (tool.value !== 'points' || parts.length < 2) return insideRows.value
+	const inspection = inspectRows(document.root.value, document.env.value, insideRows.value)
+	const isAnArgument = inspection?.args.some(arg => parts.every(part => arg.places.some(({ path }) => path === part)))
+	return isAnArgument ? insideRows.value : parts
+})
 /** What the row selected is called, as what it is called is the row, not what is in it. */
 const selectedName = computed(() => {
 	const [row] = about.value
@@ -728,6 +747,16 @@ actions.setMenuExtras('file', [
 
 const selection = computed(() =>
 	selectedOf(document.root.value, document.env.value, selected.value)
+)
+/**
+ * What the actions are about: what is selected, or among points, the points chosen in it, which
+ * are what is done to next and are not what they are of, as a corner of a rect is not the rect.
+ */
+const subject = computed(() =>
+	tool.value === 'points' && chosenParts.value.length > 0
+		? // A point chosen is a place, even where it is all of a row, and not a row to arrange or export.
+			selectedOf(document.root.value, document.env.value, chosenParts.value).map(chosen => ({ ...chosen, isRow: false }))
+		: selection.value
 )
 /** What a hole can be filled from, when nothing selected fills it. */
 const rowsToChoose = computed(() => {
@@ -830,7 +859,7 @@ actions.provideContext({
 		at: rowOnScreenAt,
 		from: rowOnScreenAt,
 	}),
-	subject: () => selection.value,
+	subject: () => subject.value,
 	suggestions: () => {
 		const items = wraps.value
 		return items.length === 0 ? null : { heading: 'Wrap', items }
@@ -865,6 +894,7 @@ const onRows =
 	}
 
 // In the code, what the cursor is in is what is selected, and these are not anything being typed.
+// On the canvas, it is the places chosen with the tool that goes by parts, or else what is selected.
 useEventListener(
 	window,
 	'keydown',
@@ -890,6 +920,27 @@ useEventListener(
 	},
 	{ capture: true }
 )
+
+/** What a step goes by, outside of what is typed in: the places chosen with the tool that goes by parts, or else what is selected. */
+const rowsToStep = (): readonly string[] => (chosenParts.value.length > 0 ? chosenParts.value : selected.value)
+
+/** Steps `rows`, or works them out all the way. Whether anything changed. */
+function stepRows(rows: readonly string[], command: 'step' | 'all'): boolean {
+	const next = rows.length === 0 ? null : withSlotCommand(document.root.value, document.env.value, rows, command)
+	if (!(next instanceof LetAST)) return false
+	setProgram(next)
+	return true
+}
+
+// Anywhere else, unless a panel saw to it already, as one with a field selected does, or it is typed in.
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+	if (event.defaultPrevented) return
+	const command = slotCommandOfKey(event)
+	if (command !== 'step' && command !== 'all') return
+	if (/mac|ipod|iphone|ipad/i.test(navigator.userAgent) && !event.metaKey) return
+	if ((event.target as Element | null)?.closest?.('input, textarea, [contenteditable], .AstProgramCode')) return
+	if (stepRows(rowsToStep(), command)) event.preventDefault()
+})
 
 /** What takes all that is selected, whatever it is. */
 const rowsParam = { name: 'rows', type: rowType, many: true }
@@ -918,6 +969,11 @@ function slotAction(command: SlotCommand) {
 			if (command === 'copy') {
 				const text = copiedBySlotCommand(root(), document.env.value, rows, command)
 				void navigator.clipboard.writeText(text)
+				return
+			}
+			// Places chosen on the canvas are what is selected of what they are on.
+			if ((command === 'step' || command === 'all') && chosenParts.value.length > 0 && rows.join() === selected.value.join()) {
+				stepRows(chosenParts.value, command)
 				return
 			}
 			const next = withSlotCommand(root(), document.env.value, rows, command)
@@ -996,7 +1052,10 @@ watch(selected, rows => {
 
 // Deleting a path that a shape is made from leaves nothing there, rather than taking the shape.
 useHostDelete(() => {
-	if (heldInInspector.value === null || pickedOut.value.length === 0) return false
+	if (pickedOut.value.length === 0) return false
+	// So does deleting what a parameter that is pointed at for refers to, for another to be.
+	const cleared = heldInInspector.value !== null || pickedOut.value.every(row => isPointedAt(expectedAt(row)))
+	if (!cleared) return false
 	const next = withBlanks(document.root.value, document.env.value, pickedOut.value)
 	if (next instanceof LetAST) setProgram(next)
 	return true
@@ -1091,10 +1150,18 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 				...(quiet ? { quiet } : {}),
 				icon: iconOfFunction(name) ?? 'mdi:function-variant',
 				perform() {
-					const added = root && withAdded(root, env, name, quickAddPlace.value, selected.value)
+					// Points chosen within a shape stand for it, as a vertex picked with the white arrow does.
+					const parts = chosenParts.value
+					const given = [
+						...selected.value.filter(row => !parts.some(part => part.startsWith(`${row}/`))),
+						...parts,
+					]
+					const added = root && withAdded(root, env, name, quickAddPlace.value, given)
 					if (!added) return
 					tool.value = 'select'
-					setProgram(withPaintAdded(added.ast, env, added.row, toolAttributes.value.paint), [added.row])
+					// What went into one of what is selected leaves that as it is selected.
+					if (added.into) setProgram(added.ast)
+					else setProgram(withPaintAdded(added.ast, env, added.row, toolAttributes.value.paint), [added.row])
 				},
 			})),
 	]
@@ -1127,7 +1194,7 @@ function commandsFor(path: string): MenuItem[] {
 }
 
 const canvasMenu = ref<readonly [number, number] | null>(null)
-const canvasMenuItems = computed(() => (canvasMenu.value === null ? [] : selectionMenu.value))
+const canvasMenuItems = computed(() => (canvasMenu.value === null ? [] : actions.menuFor(subject.value)))
 
 /** A right click is on what is under it, along with what it is selected with. */
 function openCanvasMenu(x: number, y: number, row: string | null): void {
@@ -1286,6 +1353,7 @@ actions.register([
 			{ id: 'view_tool', label: 'Toggle Tool Options', icon: 'ph:palette', perform: () => panels.toggle('glisp.canvas.tool') },
 			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', bind: 'd', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
 			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
+			{ id: 'view_referring', label: 'Toggle References', icon: 'ph:link-simple', bind: 'l', perform: () => (referringOn.value = !referringOn.value) },
 			{ id: 'view_snapping_beyond', label: 'Toggle Snapping Beyond Lines', icon: 'ph:line-segments', perform: () => (snappingBeyond.value = !snappingBeyond.value) },
 			{ id: 'view_dots', label: 'Toggle Dots', icon: 'ph:dots-nine', perform: () => toggleGraphPaper('dots') },
 			{ id: 'view_lines', label: 'Toggle Lines', icon: 'ph:grid-four', perform: () => toggleGraphPaper('lines') },
@@ -1317,8 +1385,81 @@ const pickingFor = ref<string | null>(null)
 /** Where the list of what can be chosen is, if it is up. */
 const pickListAt = ref<readonly [number, number] | null>(null)
 const PICK_LIST_WIDTH = 280
+/** What is drawn as itself, and so can be chosen by pointing at it, where one is asked for. */
+const POINTED_AT: readonly TypeValue[] = [pathType, lineType, rayType, rectType]
+const isPointedAt = (expected: TypeValue | null | undefined): expected is TypeValue =>
+	expected != null &&
+	POINTED_AT.some(
+		type => type === expected || (type.typeName === expected.typeName && typeFits(type, expected) && typeFits(expected, type))
+	)
+/** What is asked for at the row `path`, if it is a parameter. */
+const expectedAt = (path: string): TypeValue | null =>
+	reach(document.root.value, document.env.value, path)?.chain.at(-1)?.expected ?? null
+/**
+ * Whether the row `row` can be what is at `source`: what it is, or what it is made from, as
+ * a style is of a path, is of the type asked for there.
+ */
+function canPick(source: string, row: string): boolean {
+	const expected = expectedAt(source)
+	const value = selectedRow(row)?.value
+	if (expected === null || value === undefined) return false
+	if (!expected.fits(value) && !(isStyled(value) && expected.fits(value.path))) return false
+	return $inspector.value?.canLink(source, row) ?? false
+}
+/**
+ * A number, or a place as two numbers: what a part of something pointed at can be, as a corner of it
+ * or one of its numbers is, chosen from what it offers.
+ */
+const isNumbers = (expected: TypeValue | null | undefined): boolean => {
+	if (expected == null || expected.typeName === '_') return false
+	if (expected.typeName === 'number') return true
+	const { shape } = unwrapLazy(expected)
+	return shape.kind === 'tuple' && expected.fits([0, 0]) && !expected.fits(0)
+}
+/** Where something pointed at is not what is asked for, what it has in it that is, to choose from. */
+const offerMenu = ref<{ readonly at: readonly [number, number]; readonly items: MenuItem[] } | null>(null)
+function offer(source: string, row: string, at: readonly [number, number]): boolean {
+	const expected = expectedAt(source)
+	const program = document.root.value
+	if (expected === null) return false
+	const asItems = (offers: readonly Offer[]): MenuItem[] =>
+		offers.map(({ label, written, children }) =>
+			children !== undefined
+				? { label, children: asItems(children) }
+				: {
+						label,
+						perform() {
+							if (written instanceof LetAST) setProgram(written)
+							pickingFor.value = null
+							pickListAt.value = null
+						},
+					}
+		)
+	const offers = offersOf(program, document.env.value, source, row, expected)
+	if (!hasOffer(offers)) return false
+	// Once what pointed at it has been let go, as that would otherwise be a press outside of it.
+	const open = () => setTimeout(() => (offerMenu.value = { at, items: asItems(offers) }), OFFER_AFTER_MS)
+	if (pointerHeld) window.addEventListener('pointerup', open, { once: true })
+	else open()
+	return true
+}
+/** How long after the pointer is let go what is offered comes up, for the click that ends it to be over. */
+const OFFER_AFTER_MS = 50
+/** Whether the pointer is being held down, anywhere. */
+let pointerHeld = false
+useEventListener(window, 'pointerdown', () => (pointerHeld = true), { capture: true })
+useEventListener(window, 'pointerup', () => (pointerHeld = false), { capture: true })
+/** What is snapped to on the canvas, while a row that takes a place is pulled from, to refer to when let go. */
+let pickedSnap: SnapPoint | null = null
+/** What is said to be under the pointer, while that is what it is over. */
+const PICKED_SNAP = '\0snap'
+/** Whether what is asked for is a place, as two numbers are. */
+const isPlaceAsked = (expected: TypeValue | null): boolean => isNumbers(expected) && expected!.typeName !== 'number'
+/** Whether what is asked for is a line, as it is to reflect across. */
+const isLineAsked = (expected: TypeValue): boolean =>
+	expected === lineType || (expected.typeName === lineType.typeName && typeFits(lineType, expected) && typeFits(expected, lineType))
 const valuePicker = {
-	wants: (expected: TypeValue | null) => expected?.typeName === 'path',
+	wants: (expected: TypeValue | null) => isPointedAt(expected) || isNumbers(expected),
 	isFor: (path: string) => pickingFor.value === path,
 	toggle(path: string, from: Element) {
 		const isOff = pickingFor.value === path
@@ -1326,19 +1467,64 @@ const valuePicker = {
 		const { left, top } = from.getBoundingClientRect()
 		pickListAt.value = isOff ? null : [left - PICK_LIST_WIDTH - 8, top]
 	},
+	// What is under the pointer, in a list of rows or drawn, that it could be, which is drawn as hovered.
+	over(path: string, at: readonly [number, number] | null): string | null {
+		// A place goes onto a place on what is drawn, as it would be dragged there, which is marked,
+		// and a line onto a line, as the axes are, which are not drawn as anything to point at.
+		const expected = expectedAt(path)
+		const lineAsked = expected !== null && isLineAsked(expected)
+		if (isPlaceAsked(expected) || lineAsked) {
+			const snap = $canvas.value?.snapForPick(path, at, lineAsked) ?? null
+			// Let go of, it is still what it was over, until it is picked.
+			if (at !== null) pickedSnap = snap
+			if (snap !== null) {
+				$canvas.value?.hover(null)
+				return PICKED_SNAP
+			}
+		}
+		// What is not itself what is asked for may have something in it that is, to choose from when let go.
+		const row = at === null ? null : (rowOnScreenAt(at[0], at[1])?.row ?? null)
+		$canvas.value?.hover(row)
+		return row
+	},
+	pick(path: string, row: string): boolean {
+		if (row === PICKED_SNAP) {
+			const snap = pickedSnap
+			pickedSnap = null
+			const next = snap === null ? null : referredOnto(document.root.value, document.env.value, path, snap)
+			if (!(next instanceof LetAST)) return false
+			setProgram(next)
+			return true
+		}
+		if (canPick(path, row)) return $inspector.value?.link(path, row) ?? false
+		return pointerAt !== null && offer(path, row, pointerAt)
+	},
+}
+/** A row pressed in the inspector, while choosing, is what is chosen, rather than selected. */
+function pickRowInInspector(row: string): boolean {
+	if (pickingFor.value === null) return true
+	if (row !== pickingFor.value) picked(row)
+	return false
 }
 /** What there is to choose from by name, which it can refer to. */
 const pickItems = computed<readonly QuickAddItem[]>(() => {
 	const source = pickingFor.value
 	if (source === null || pickListAt.value === null) return []
 	return sceneOf(document.root.value, document.env.value)
-		.filter(({ row, draw }) => isOutlined(draw) && $inspector.value?.canLink(source, row))
-		.map(({ row, value }) => ({
+		.filter(({ row }) => canPick(source, row))
+		.map(({ row, draw, value }) => ({
 			id: row,
 			name: '',
 			label: nameOfRow(row) ?? row,
 			group: 'Shapes',
-			icon: iconOfPath(new PathValue(value as Path)) ?? 'ph:path',
+			icon:
+				draw === 'line'
+					? STRAIGHT_LINE_ICON
+					: draw === 'ray'
+						? RAY_ICON
+						: isOutlined(draw)
+							? (iconOfPath(new PathValue(value as Path)) ?? 'ph:path')
+							: 'mdi:crop-free',
 			perform: () => picked(row),
 		}))
 })
@@ -1371,7 +1557,7 @@ useEventListener(
 	'pointerup',
 	() => {
 		const source = dropOn?.getAttribute('data-takes-drop')
-		if (source != null && dragged !== null) $inspector.value?.link(source, dragged.row)
+		if (source != null && dragged !== null && canPick(source, dragged.row)) $inspector.value?.link(source, dragged.row)
 		setDropOn(null)
 		dragged = null
 	},
@@ -1380,10 +1566,14 @@ useEventListener(
 /** It goes on being asked, if that is what it cannot refer to, as what it is in cannot be. */
 function picked(row: string): void {
 	const source = pickingFor.value
-	if (source !== null && $inspector.value?.link(source, row)) {
+	if (source === null) return
+	if (canPick(source, row) && $inspector.value?.link(source, row)) {
 		pickingFor.value = null
 		pickListAt.value = null
+		return
 	}
+	// What is not what is asked for offers what it has in it that is, where it was pointed at.
+	if (pointerAt !== null) offer(source, row, pointerAt)
 }
 watch(selected, () => {
 	pickingFor.value = null
@@ -1468,6 +1658,7 @@ function selectInTree(row: string | null): void {
 					:dimensions="dimensionsOn"
 					:snapping="snappingOn"
 					:snappingBeyond="snappingBeyond"
+					:referring="referringOn"
 					:addingAt="quickAddAt !== null && quickFillAt === null ? quickAddPlace : null"
 					v-model:keptRow="keptRow"
 					v-model:isolation="isolation"
@@ -1491,6 +1682,16 @@ function selectInTree(row: string | null): void {
 					:placeholder="quickFillAt === null ? 'Add…' : fillingBlank ? 'Fill…' : 'Replace or wrap…'"
 					@close="quickAddAt = null"
 				/>
+				<Popover
+					v-if="offerMenu !== null"
+					:reference="null"
+					:placement="offerMenu.at"
+					:open="true"
+					teleport=".TqViewport"
+					@update:open="$event || (offerMenu = null)"
+				>
+					<Menu :items="offerMenu.items" @close="offerMenu = null" />
+				</Popover>
 				<Popover
 					v-if="canvasMenu && canvasMenuItems.length > 0"
 					:reference="null"
@@ -1544,7 +1745,7 @@ function selectInTree(row: string | null): void {
 						<AstProgramCode
 							ref="$code"
 							:document="document"
-							:selected="selected"
+							:selected="selectedTogether.length > 1 ? selectedTogether : selected"
 							@problem="codeHasProblem = $event"
 							@select="selectOnCanvas"
 						/>
@@ -1587,9 +1788,9 @@ function selectInTree(row: string | null): void {
 						</span>
 					</template>
 					<AstMultiInspector
-						v-if="about.length > 1"
+						v-if="inspectedRows.length > 1"
 						:document="document"
-						:rows="insideRows"
+						:rows="inspectedRows"
 						:iconOfFunction="iconOfFunction"
 						:picked="chosenParts"
 					>
@@ -1604,8 +1805,10 @@ function selectInTree(row: string | null): void {
 						:alsoSelected="pickedOut.length > 0 ? pickedOut : chosenParts"
 						:iconOfValue="iconOfPath"
 						:fillBlank="fillBlank"
+						:pickRow="pickRowInInspector"
 						:diveInto="diveIntoRow"
 						@select="pickInInspector"
+						@selectTogether="selectedTogether = $event"
 						@kept="sayKept"
 						:copyAs="rows => svgOfRows(document.root.value, document.env.value, rows)"
 						:pasteAs="bindingsOfSvg"
@@ -1627,7 +1830,7 @@ function selectInTree(row: string | null): void {
 				<div
 					v-if="panelJoining"
 					class="panel-joining"
-					:class="[panelJoining.kind, { across: panelJoining.kind === 'stack' && panelJoining.width === 0 }]"
+					:class="[panelJoining.kind, { across: panelJoining.kind !== 'tab' && panelJoining.width === 0 }]"
 					:style="{
 						left: `${panelJoining.left}px`,
 						top: `${panelJoining.top}px`,
@@ -1662,6 +1865,16 @@ function selectInTree(row: string | null): void {
 						@click="snappingOn = !snappingOn"
 					>
 						<Icon icon="ph:magnet" />
+					</button>
+					<button
+						v-tooltip="{ content: 'References', shortcut: actions.shortcutOf('view_referring') }"
+						class="tool"
+						:class="{ active: referringOn }"
+						aria-label="References"
+						:aria-pressed="referringOn"
+						@click="referringOn = !referringOn"
+					>
+						<Icon icon="ph:link-simple" />
 					</button>
 				</ToolBar>
 			</div>
@@ -1712,7 +1925,7 @@ function selectInTree(row: string | null): void {
 	top: calc(-1 * var(--titlebar-area-height));
 	height: calc(100% + var(--titlebar-area-height));
 }
-/* Where a panel being held would join others. */
+/* Where a panel being held would join others: a line along which, or the header it would be a tab of. */
 .panel-joining {
 	position: absolute;
 	z-index: 50;

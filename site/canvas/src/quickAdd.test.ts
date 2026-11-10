@@ -1,4 +1,4 @@
-import { buildPrelude, check, type Env, evaluate, type LetAST, print } from '@glisp/lang'
+import { buildPrelude, check, type Env, evaluate, type LetAST, print, type AST } from '@glisp/lang'
 import { bounds } from 'pave/path/metrics'
 import { bound, parse } from './program.testing'
 import { describe, expect, it } from 'vitest'
@@ -7,7 +7,7 @@ import { type PathValue, withGraphics } from './graphics'
 import { filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
 import { addablesIn, fillersAt, matching, withAdded, withFilled } from './quickAdd'
 import { boundsOfRows } from './rows'
-import { boundsOfRows as boxOfRows, drawsAt, graphPaperOf, rowsWithin, sceneOf } from './scene'
+import { boundsOfRows as boxOfRows, drawsAt, graphPaperOf, gripAt, rowsWithin, sceneOf } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
 const EMPTY = parse('{a = 1}') as LetAST
@@ -27,9 +27,24 @@ describe('what can be added', () => {
 	})
 
 	it('is only what gives something drawn', () => {
-		for (const name of ['sin', 'color.rgb', 'mat2d.rotate', 'map', 'path.bounds']) {
+		for (const name of ['sin', 'color.rgb', 'mat2d.rotate', 'map', 'vec2.add']) {
 			expect(all.map(item => item.name)).not.toContain(name)
 		}
+	})
+
+	it('finds what gives a point, a line, a ray or a rect by its type, as a guide', () => {
+		const guides = all.filter(item => item.group === 'Guides' && item.alone).map(({ name }) => name)
+		expect(guides).toEqual(expect.arrayContaining(['line.project', 'ray.along', 'path.bounds', 'rect.new', 'line.intersection']))
+	})
+
+	it('puts down a guide nothing says how to put down through where it is asked for', () => {
+		const { ast } = withAdded(parse('[]') as LetAST, env, 'line.project', [200, 300])!
+		expect(print(ast)).toContain('project1 = (line.project (line.horizontal [200 300]) [200 300])')
+	})
+
+	it('finds what the program has that gives a line, as a guide of its own', () => {
+		const root = parse('{f = (=> [p: point]: line (line.horizontal p)) main = []}') as LetAST
+		expect(addablesIn(root, env).find(item => item.name === 'f')).toMatchObject({ group: 'Project', alone: true })
 	})
 
 	it('has each in a group of its own kind', () => {
@@ -122,11 +137,15 @@ describe('adding it', () => {
 		['vec2.lerp', 'lerp1 = (vec2.lerp [150 300] [250 300] 0.5)', 'point'],
 		['vec2.midpoint', 'midpoint1 = (vec2.midpoint [150 300] [250 300])', 'point'],
 		['vec2.nudge', 'nudge1 = (vec2.nudge [200 300] [50 0])', 'point'],
+		['vec2.reflect', 'reflect1 = (vec2.reflect [200 300] (line.fromPoints [250 250] [250 350]))', 'point'],
 		['line.fromPoints', 'line1 = (line.fromPoints [200 250] [200 350])', 'line'],
 		['line.at', 'line1 = (line.at [200 300] 90)', 'line'],
+		['line.horizontal', 'line1 = (line.horizontal [200 300])', 'line'],
+		['line.vertical', 'line1 = (line.vertical [200 300])', 'line'],
 		['ray.fromPoints', 'ray1 = (ray.fromPoints [200 300] [300 300])', 'ray'],
 		['ray.at', 'ray1 = (ray.at [200 300] 0)', 'ray'],
 		['rect', 'rect1 = (rect [150 250] [100 100])', 'frame'],
+		['line.intersection', 'intersection1 = (line.intersection (line.horizontal [200 300]) (line.vertical [200 300]))', 'point'],
 	])('adds %s as a guide where it is asked for', (name, written, draw) => {
 		const { ast, row } = added(name)
 		expect(print(ast)).toContain(written)
@@ -169,6 +188,21 @@ describe('adding it', () => {
 			expect(sceneOf(ast, env).find(shape => shape.row === row)).toMatchObject({ draw: 'point', value: [60, 20] })
 		})
 
+		it('is where two lines cross, by referring to them', () => {
+			const lines = parse('[a = (line.horizontal [0 10]) b = (line.vertical [20 0])]') as LetAST
+			const { ast, row } = withAdded(lines, env, 'line.intersection', [200, 300], ['binding:a', 'binding:b'])!
+			expect(print(ast)).toContain('intersection1 = (line.intersection a b)')
+			expect(sceneOf(ast, env).find(shape => shape.row === row)).toMatchObject({ draw: 'point', value: [20, 10] })
+			expect(print(withAdded(lines, env, 'line.intersection', [200, 300], ['binding:a'])!.ast)).toContain(
+				'intersection1 = (line.intersection a (line.vertical [200 300]))'
+			)
+		})
+
+		it('goes on past the ends of a straight path, by referring to it', () => {
+			const paths = parse('[l = (path.line [0 0] [100 0])]') as LetAST
+			expect(print(withAdded(paths, env, 'line.along', [200, 300], ['binding:l'])!.ast)).toContain('along1 = (line.along l)')
+		})
+
 		it('keeps the points as they are', () => {
 			const written = from('line.fromPoints', ['binding:a', 'binding:b'])
 			expect(written).toContain('a = ^point [0 0]')
@@ -183,7 +217,22 @@ describe('adding it', () => {
 
 		it('has no more of them than there is a place for', () => {
 			expect(from('line.at', ['binding:b', 'binding:a'])).toContain('line1 = (line.at b 90)')
-			expect(from('point', ['binding:a'])).toContain('point1 = ^point [200 300]')
+		})
+
+		it('puts a point onto the point selected, by referring to it', () => {
+			expect(from('point', ['binding:b'])).toContain('point1 = ^point b')
+			expect(from('point', ['binding:b', 'binding:a'])).toContain('point1 = ^point b')
+			expect(from('point', ['binding:c'])).toContain('point1 = ^point [200 300]')
+			const { ast, row } = withAdded(points, env, 'point', [200, 300], ['binding:b'])!
+			expect(sceneOf(ast, env).find(shape => shape.row === row)).toMatchObject({ draw: 'point', value: [10, 20] })
+		})
+
+		it('puts a point onto a place that is part of a shape, by referring to it', () => {
+			expect(from('point', ['binding:c/arg0'])).toContain('point1 = ^point ../c/center:')
+			const shapes = parse('[p = (path.polyline [0 0] [30 40] [50 0]) r = (path.rect [0 0] [10 20])]') as LetAST
+			const { ast, row } = withAdded(shapes, env, 'point', [200, 300], ['binding:p/arg1'])!
+			expect(sceneOf(ast, env).find(shape => shape.row === row)).toMatchObject({ draw: 'point', value: [30, 40] })
+			expect(print(withAdded(shapes, env, 'point', [200, 300], ['binding:r/arg1'])!.ast)).toContain('point1 = ^point [200 300]')
 		})
 
 		it('leaves out what is not a point', () => {
@@ -196,6 +245,64 @@ describe('adding it', () => {
 			expect(sceneOf(ast, env).find(({ row }) => row === 'binding:line1')!.value).toEqual([[0, 0], [10, 20]])
 			const moved = parse(print(ast).replace('[10 20]', '[30 0]'))
 			expect(sceneOf(moved, env).find(({ row }) => row === 'binding:line1')!.value).toEqual([[0, 0], [30, 0]])
+		})
+	})
+
+	describe('with what is selected being what it takes, and one more for what it gives', () => {
+		const drawn = parse('[l = (line.vertical [50 0]) arc = (path.arcThrough [0 0] [50 -30] [90 0]) a = ^point [0 0] b = ^point [10 20] c = ^point [3 3]]') as LetAST
+		const startOf = (ast: AST): unknown => gripAt(ast, env, 'binding:arc')!.handles.find(h => h.place === 0)!.at
+
+		it('has a point be the image of another across a line, whichever order they are selected in', () => {
+			for (const selected of [
+				['binding:arc/arg2', 'binding:l', 'binding:arc/arg0'],
+				['binding:l', 'binding:arc/arg2', 'binding:arc/arg0'],
+				['binding:arc/arg2', 'binding:arc/arg0', 'binding:l'],
+			]) {
+				const added = withAdded(drawn, env, 'vec2.reflect', [200, 300], selected)!
+				expect(added, selected.join()).toMatchObject({ row: 'binding:arc/arg0', into: true })
+				expect(print(added.ast)).not.toContain('reflect1')
+				const [x, y] = startOf(added.ast) as [number, number]
+				expect([x, y + 1]).toEqual([10, expect.closeTo(1)])
+				// And it goes on being that, as what it goes by moves.
+				expect((startOf(parse(print(added.ast).replace('[90 0]', '[70 0]'))) as number[])[0]).toBeCloseTo(30)
+			}
+		})
+
+		it('has a point be the image of another across the line halfway between them, with only the two selected, which stay where they are', () => {
+			const two = parse('[a = ^point [100 100] b = ^point [300 120]]') as LetAST
+			const added = withAdded(two, env, 'vec2.reflect', [200, 300], ['binding:a', 'binding:b'])!
+			expect(print(added.ast)).toContain('b = (vec2.reflect a (line.fromPoints [210 10] [190 210]))')
+			expect(sceneOf(added.ast, env).find(({ row }) => row === 'binding:b')!.value).toEqual([300, 120])
+		})
+
+		it('has a corner worked out from a rect be the image of another, by what only it goes by, the rect staying as it is', () => {
+			const rect = parse('[r = (path.rect [100 -80] [200 50])]') as LetAST
+			const cornersOf = (ast: AST) =>
+				Object.fromEntries(gripAt(ast, env, 'binding:r')!.handles.filter(({ corner }) => corner).map(({ name, at }) => [name, at]))
+			const added = withAdded(rect, env, 'vec2.reflect', [0, 0], ['binding:r/@top right', 'binding:r/@bottom right'])!
+			expect(added).toMatchObject({ row: 'binding:r/@bottom right', into: true })
+			// Its height goes by the image of its top right corner, and nothing else changes.
+			expect(print(added.ast)).toMatch(/r = \(path\.rect \[100 -80\] \[200 \(- \(last \(vec2\.reflect /)
+			expect(cornersOf(added.ast)).toEqual(cornersOf(rect))
+			// Across the x axis, it is as far below it as it is above.
+			const across = parse(print(added.ast).replace(/\(line\.fromPoints [^)]*\]\)/, '(line.horizontal [0 0])'))
+			expect(cornersOf(across)['bottom right']).toEqual([300, 80])
+		})
+
+		it('says nothing of a corner worked out that what it is worked out from cannot have be that', () => {
+			const rect = parse('[r = (path.rect [100 -80] [200 50]) l = (line.at [0 0] 30)]') as LetAST
+			// A rect cannot be turned, for its right side to be the image of itself across a line that is.
+			expect(withAdded(rect, env, 'vec2.reflect', [0, 0], ['binding:r/@top right', 'binding:l', 'binding:r/@bottom right'])).toBeNull()
+		})
+
+		it('has a point be halfway between two others', () => {
+			const added = withAdded(drawn, env, 'vec2.midpoint', [200, 300], ['binding:a', 'binding:b', 'binding:c'])!
+			expect(print(added.ast)).toContain('c = (vec2.midpoint a b)')
+		})
+
+		it('adds a row of its own, with only what it takes selected', () => {
+			const added = withAdded(drawn, env, 'vec2.reflect', [200, 300], ['binding:l', 'binding:a'])!
+			expect(print(added.ast)).toContain('reflect1 = (vec2.reflect a l)')
 		})
 	})
 

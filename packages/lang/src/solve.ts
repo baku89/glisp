@@ -362,12 +362,14 @@ function bodyEnv(closure: GlispClosure, call: CallAST, callEnv: Env): Env {
  * refers to a parameter that says to be changed first, and then a later one before an
  * earlier one, as what comes later is less of what a call is.
  */
+const isLiteralArg = (arg: AST) =>
+	arg.kind === 'meta' ? !isPinned(arg) && arg.expr.kind === 'lit' : arg.kind === 'lit'
+
 function argumentOrder(args: readonly AST[], env: Env): number[] {
-	const isLiteral = (arg: AST) =>
-		(arg.kind === 'meta' ? !isPinned(arg) && arg.expr.kind === 'lit' : arg.kind === 'lit')
+	const isLiteral = isLiteralArg
 	const later = args.map((_, i) => args.length - 1 - i)
 	const others = later.filter(i => !isLiteral(args[i]!))
-	const first = others.filter(i => refersToChangedFirst(args[i]!, env))
+	const first = others.filter(i => leadsToChangedFirst(args[i]!, env))
 	return [
 		...later.filter(i => isLiteral(args[i]!)),
 		...first,
@@ -391,6 +393,21 @@ function* stepsOf(
 		if ('message' in parent || 'message' in child) return
 		yield { parent: parent.ast, parentEnv: parent.env, ast: child.ast }
 	}
+}
+
+/**
+ * Whether working back through `arg` comes first to what is to be changed first: a path through such
+ * a parameter, or a call whose argument it would go into first does, as `(+ ../a/center:/0 ../a/radius:)`
+ * comes to the center. A literal in it comes first, and changes nothing else.
+ */
+function leadsToChangedFirst(arg: AST, env: Env, depth = 0): boolean {
+	if (depth > MAX_DEPTH) return false
+	if (arg.kind === 'meta') return !isPinned(arg) && leadsToChangedFirst(arg.expr, env, depth + 1)
+	if (arg.kind === 'path') return refersToChangedFirst(arg, env)
+	if (arg.kind !== 'call') return false
+	const inside = enterNode(arg, env)
+	const [first] = argumentOrder(arg.args, inside)
+	return first !== undefined && !isLiteralArg(arg.args[first]!) && leadsToChangedFirst(arg.args[first]!, inside, depth + 1)
 }
 
 /** Whether the path `arg` goes through a parameter whose type says to be changed first. */

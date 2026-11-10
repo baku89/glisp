@@ -6,7 +6,7 @@ import { commandsAt } from './multiInputs'
 import {
 	canExtractAt,
 	extractedAt,
-	extractedLiteralAt,
+	extractedValueAt,
 	misfitAt,
 	nameFor,
 	type Place,
@@ -88,6 +88,14 @@ describe('commands on what is selected', () => {
 		expect(labels('{v = [1 1]}', [at('binding:v', 0), at('binding:v', 1)])).toEqual(['Extract Parameter'])
 	})
 
+	it('pull out what is worked out the same at every place, as one name', () => {
+		expect(labels('{a = (=> [x: number]: number x) b = (=> [x: number]: number x)}', two)).toContain('Extract Parameter')
+		expect(labels('{a = (=> [x: number]: number x) b = (=> [x: number]: number (+ x 1))}', two)).not.toContain('Extract Parameter')
+		const document = useGlispDocument('{a = (f (+ 1 2)) b = (g (+ 1 2))}')
+		commandsAt(document, [at('binding:a/arg0'), at('binding:b/arg0')]).find(c => c.label === 'Extract Parameter')!.perform()
+		expect(print(document.root.value)).toMatch(/^\{(\w+) = \(\+ 1 2\) a = \(f \1\) b = \(g \1\)\}$/)
+	})
+
 	it('are nothing for values of different kinds, or for one alone', () => {
 		expect(labels('{a = 1 b = "x"}', two)).toEqual([])
 		expect(labels('{a = 1 b = 2}', [at('binding:a')])).toEqual([])
@@ -95,7 +103,8 @@ describe('commands on what is selected', () => {
 
 	it('swap vectors written out, as a position and a size are both two numbers', () => {
 		expect(labels('{a = [1] b = [2]}', two)).toEqual(['Swap', 'Merge'])
-		expect(labels('{a = [1 2] b = [1 2]}', two)).toEqual(['Merge'])
+		// Alike, they can be one thing by one name, as well as one binding.
+		expect(labels('{a = [1 2] b = [1 2]}', two)).toEqual(['Extract Parameter', 'Merge'])
 		const document = useGlispDocument('{a = [1 2] b = [3 4]}')
 		const [swap] = commandsAt(document, two)
 		expect(swap!.perform!()).toBeUndefined()
@@ -326,7 +335,7 @@ describe('a document in a batch', () => {
 describe('pulling out what is written, on its own', () => {
 	const env = buildPrelude()
 	const of = (src: string, path: string) => {
-		const result = extractedLiteralAt(parse(src), env, path)
+		const result = extractedValueAt(parse(src), env, path)
 		return result === null ? null : print(result.ast)
 	}
 
@@ -339,9 +348,18 @@ describe('pulling out what is written, on its own', () => {
 		expect(of('{a = (first [1 2])}', 'binding:a/arg0')).toMatch(/= \[1 2\] a = \(first \w+\)/)
 	})
 
-	it('has nothing to pull out of what is worked out, is locked, or has a name', () => {
-		expect(of('{a = (+ (+ 1 1) 2)}', 'binding:a/arg0')).toBeNull()
+	it('pulls out what is worked out as much, which is what it was where it is put', () => {
+		expect(of('{a = (+ (+ 1 1) 2)}', 'binding:a/arg0')).toMatch(/^\{(\w+) = \(\+ 1 1\) a = \(\+ \1 2\)\}$/)
+		expect(of('{b = 2 a = (+ (* b 3) 1)}', 'binding:a/arg0')).toMatch(/^\{b = 2 (\w+) = \(\* b 3\) a = \(\+ \1 1\)\}$/)
+	})
+
+	it('has nothing to pull out of what is a name already, is locked, has a name, or goes by where it is', () => {
+		expect(of('{b = 1 a = (+ b 2)}', 'binding:a/arg0')).toBeNull()
 		expect(of('{a = (+ 1 @2)}', 'binding:a/arg1')).toBeNull()
 		expect(of('{a = 1}', 'binding:a')).toBeNull()
+		// A path counts levels from where it is, and a name inside a block is not seen from the top.
+		expect(of('{a = (+ (* ../x 2) 1) x = 3}', 'binding:a/arg0')).toBeNull()
+		expect(of('{v = {c = 1 d = (+ (* c 2) 1)}}', 'binding:v/binding:d/arg0')).toBeNull()
+		expect(of('{v = {c = 1 d = (+ (* 3 2) 1)}}', 'binding:v/binding:d/arg0')).toMatch(/\(\* 3 2\) v = \{c = 1 d = \(\+ \w+ 1\)\}/)
 	})
 })

@@ -657,12 +657,12 @@ export function viewBetween(
 }
 
 /**
- * What `selected` is about: the row kept hold of, with only parts of that selected, which are
- * then what is picked out of it.
+ * What `selected` is about: the row kept hold of, for the parts of it that are selected, which are
+ * then what is picked out of it, along with whatever else is selected with them.
  */
 export const rowsAbout = (selected: readonly string[], kept: string | null): readonly string[] =>
-	kept !== null && selected.length > 0 && selected.every(row => row.startsWith(`${kept}/`))
-		? [kept]
+	kept !== null && selected.some(row => row.startsWith(`${kept}/`))
+		? [...new Set(selected.map(row => (row.startsWith(`${kept}/`) ? kept : row)))]
 		: selected
 
 /** The name of the binding that a row is, if it is one. */

@@ -75,13 +75,14 @@ import { dash } from 'pave/path/dash'
 import { bulge, twirl, wave } from 'pave/path/distortions'
 import { convexHull } from 'pave/path/hull'
 import { kaleidoscope, kaleidoscopeTile, mirror, reflect } from 'pave/path/mirror'
-import { chamfer, fillet, flatten, reverse, subdivide, zigzag } from 'pave/path/modifiers'
+import { chamfer, fillet, flatten, reverse, subdivide, trim, zigzag } from 'pave/path/modifiers'
+import { close } from 'pave/path/drawAppend'
 import { blend, blendSeries, repeatAlong, type RepeatAlongOptions } from 'pave/path/layout'
 import { pixelate, type PixelateAnchors, type PixelateMode } from 'pave/path/pixelate'
 import { raycast } from 'pave/path/raycast'
 import { Ray } from 'geome'
 import { shadow, shadowFrom } from 'pave/path/shadow'
-import { normal, ray as pathRay } from 'pave/path/location'
+import { normal, point as pointOnPath, ray as pathRay } from 'pave/path/location'
 import { offset, offsetStroke } from 'pave/path/offset'
 import { nearest } from 'pave/path/queries'
 import { fromD, toD } from 'pave/path/svg'
@@ -104,17 +105,19 @@ const number = evaluate(parse('number'), buildPrelude()).value as TypeValue
 const numberShownBy = (icon: string): TypeValue =>
 	withTypeMeta(number, new RecordAST([['icon', lit(icon)]]))
 /** How far round, in degrees, which is said wherever one is written or typed. */
-const degreesType = withTypeMeta(number, new RecordAST([['suffix', lit('°')]]))
+/** A number that is an angle, in degrees, going clockwise from the right, as the canvas goes down. */
 const angleType = withTypeMeta(
-	degreesType,
+	number,
 	new RecordAST([
+		['name', lit('angle')],
+		['suffix', lit('°')],
 		['icon', lit('ph:angle')],
 		['input', lit('angle')],
 	])
 )
 const cornerType = numberShownBy('tabler:border-radius')
 
-export type Path = Parameters<typeof transform>[0]
+export type Path = ReturnType<typeof transform>
 export type Vec = readonly [number, number]
 export type Mat = readonly [number, number, number, number, number, number]
 
@@ -197,14 +200,41 @@ const point = withTypeMeta(
 )
 
 /** The place `ratio` of the way from `a` to `b`, which comes to a point, to be drawn as one. */
-const makeLerp = makeTypedFn(
-	[point, point, percentType],
-	point,
-	(a, b, ratio) => {
-		const [[ax, ay], [bx, by], t] = [a as Vec, b as Vec, ratio as number]
-		return [ax + (bx - ax) * t, ay + (by - ay) * t]
-	},
-	['a', 'b', 'ratio']
+/**
+ * Taken to a place, it is the ratio that goes, to as far along as the place is: so that what is
+ * on the edge of something slides along it, and stays on it. Taken only across or only down, it
+ * is as far along as that says, which a level or upright edge says nothing of one way.
+ */
+/** How far from one place toward another: 0 to 1 is between them, and past that it goes on. */
+const ratioType = withTypeMeta(
+	{ ...number, default: 0.5 },
+	new RecordAST([
+		['softMin', lit(0)],
+		['softMax', lit(1)],
+		['scale', lit(100)],
+		['suffix', lit('%')],
+		['icon', lit('mdi:percent-outline')],
+	])
+)
+const makeLerp = withInverse(
+	makeTypedFn(
+		[point, point, ratioType],
+		point,
+		(a, b, ratio) => {
+			const [[ax, ay], [bx, by], t] = [a as Vec, b as Vec, ratio as number]
+			return [ax + (bx - ax) * t, ay + (by - ay) * t]
+		},
+		['a', 'b', 'ratio']
+	),
+	(index, result, args) => {
+		if (index !== 2 || !Array.isArray(result)) return undefined
+		const [a, b] = [args[0] as Vec, args[1] as Vec]
+		const along = sub(b, a)
+		const given = ([0, 1] as const).filter(i => result[i] !== UNSET)
+		const length = given.reduce<number>((sum, i) => sum + along[i] * along[i], 0)
+		if (given.length === 0 || length < 1e-12) return undefined
+		return given.reduce<number>((sum, i) => sum + ((result[i] as number) - a[i]) * along[i], 0) / length
+	}
 )
 
 /**
@@ -238,19 +268,6 @@ const makeNudge = makeTypedFn(
 	['point', 'by']
 )
 
-withMembers(vec2, {
-	add: makeTypedFn([translationType, translationType], vec2, (a, b) => Vec2.add(a as Vec, b as Vec), ['a', 'b']),
-	sub: makeTypedFn([translationType, translationType], vec2, (a, b) => Vec2.sub(a as Vec, b as Vec), ['a', 'b']),
-	scale: makeTypedFn(
-		[translationType, number],
-		vec2,
-		(a, s) => Vec2.scale(a as Vec, s as number),
-		['a', 'by']
-	),
-	lerp: withDoc(makeLerp, 'The place `ratio` of the way from `a` to `b`.', 'Lerp'),
-	midpoint: withDoc(makeMidpoint, 'The place halfway from `a` to `b`.', 'Midpoint'),
-	nudge: withDoc(makeNudge, 'A `point` moved `by` this much, as a place of its own.', 'Nudge'),
-})
 
 /** How far something goes each way. */
 const size = withTypeMeta(
@@ -281,6 +298,21 @@ const withDefault = (type: TypeValue, value: unknown): TypeValue => {
 	const plain = Object.create(type.plain ?? type, { default: { value } }) as TypeValue
 	return type.meta ? withTypeMeta(plain, type.meta) : plain
 }
+/**
+ * From one number to another, as a rect is from one place to another: what is a range along one
+ * way, as how much of a path is drawn. It is all of it, from 0 to 1, until it is said.
+ */
+export const rangeType = withDefault(
+	withTypeMeta(
+		makeTupleType([part([['title', 'Start']]), part([['title', 'End']])]),
+		new RecordAST([
+			['icon', lit('mdi:arrow-expand-horizontal')],
+			['name', lit('range')],
+		])
+	),
+	[0, 1]
+)
+
 /** How many times as large each way, shown as a percentage, and going by a ratio as a size does. */
 const scaleType = withTypeMeta(
 	withDefault(
@@ -505,7 +537,11 @@ export function iconOfPath(value: unknown): string | null {
 }
 
 export const pathType = said(
-	makeType('path', isPath, new PathValue({ curves: [] } as unknown as Path)),
+	{
+		// A rect is a path as well, as its outline, which whatever takes a path reads it as.
+		...makeType('path', value => isPath(value) || value instanceof RectValue, new PathValue({ curves: [] } as unknown as Path)),
+		includes: () => [rectType],
+	},
 	'path',
 	'mdi:vector-curve'
 )
@@ -970,7 +1006,7 @@ const makeClothoid = withOptional(
 const makeTransformed = makeTypedFn(
 	[pathType, mat2d],
 	pathType,
-	(path, matrix) => new PathValue(transform((path as PathValue).path, matrix as Mat)),
+	(path, matrix) => new PathValue(transform(pathOf(path), matrix as Mat)),
 	['path', 'by']
 )
 const stringType = evaluate(parse('string'), buildPrelude()).value as TypeValue
@@ -1014,7 +1050,7 @@ const makeRgb = makeTypedFn(
 	['red', 'green', 'blue']
 )
 const makeHsl = makeTypedFn(
-	[degreesType, number, number],
+	[angleType, number, number],
 	colorType,
 	(h, s, l) => toHex(new Color('hsl', [h as number, (s as number) * 100, (l as number) * 100])),
 	['hue', 'saturation', 'lightness']
@@ -1151,7 +1187,7 @@ const fromOklch = (l: number, c: number, h: number, alpha: number): string =>
 	)
 const makeOklch = withOptional(
 	makeTypedFn(
-		[number, number, degreesType, withDefault(number, 1)],
+		[number, number, angleType, withDefault(number, 1)],
 		colorType,
 		(l, c, h, alpha) => fromOklch(l as number, c as number, h as number, (alpha ?? 1) as number),
 		['lightness', 'chroma', 'hue', 'alpha']
@@ -1161,7 +1197,7 @@ const makeOklch = withOptional(
 /** As a relative color is in CSS: what `color` has, each of them moved by as much as is said. */
 const makeRelative = withOptional(
 	makeTypedFn(
-		[colorType, withDefault(number, 0), withDefault(number, 0), withDefault(degreesType, 0), withDefault(number, 0)],
+		[colorType, withDefault(number, 0), withDefault(number, 0), withDefault(angleType, 0), withDefault(number, 0)],
 		colorType,
 		(color, l, c, h, alpha) => {
 			const [ownL, ownC, ownH, ownAlpha] = oklchOf(color)
@@ -1204,7 +1240,7 @@ withMembers(colorType, {
 	complement: withDoc(makeComplement, 'A `color` with its hue on the other side, and as light as it was.', 'Complement'),
 	lightnessOf: withDoc(channelOf(0, number), 'How light a `color` looks, from 0 to 1.', 'Lightness of'),
 	chromaOf: withDoc(channelOf(1, number), 'How much of its hue a `color` has.', 'Chroma of'),
-	hueOf: withDoc(channelOf(2, degreesType), 'The hue of a `color`, in degrees.', 'Hue of'),
+	hueOf: withDoc(channelOf(2, angleType), 'The hue of a `color`, in degrees.', 'Hue of'),
 	alphaOf: withDoc(channelOf(3, number), 'How opaque a `color` is, from 0 to 1.', 'Alpha of'),
 })
 
@@ -1287,7 +1323,7 @@ const makeOffset = withOptional(
 		pathType,
 		(path, distance, join, miterLimit, tolerance) =>
 			new PathValue(
-				offset((path as PathValue).path, distance as number, {
+				offset(pathOf(path), distance as number, {
 					lineJoin: join as CanvasLineJoin,
 					miterLimit: miterLimit as number,
 					tolerance: toleranceOf(tolerance),
@@ -1304,7 +1340,7 @@ const makeOffsetStroke = withOptional(
 		pathType,
 		(path, width, cap, join, miterLimit, tolerance) =>
 			new PathValue(
-				offsetStroke((path as PathValue).path, width as number, {
+				offsetStroke(pathOf(path), width as number, {
 					lineCap: cap as CanvasLineCap,
 					lineJoin: join as CanvasLineJoin,
 					miterLimit: miterLimit as number,
@@ -1320,7 +1356,7 @@ const makeBlend = makeTypedFn(
 	[pathType, pathType, percentType],
 	pathType,
 	(a, b, ratio) =>
-		new PathValue(blend((a as PathValue).path, (b as PathValue).path, ratio as number)),
+		new PathValue(blend(pathOf(a), pathOf(b), ratio as number)),
 	['a', 'b', 'ratio']
 )
 
@@ -1333,7 +1369,7 @@ const combining = (
 	makeTypedFn(
 		[pathType, pathType],
 		pathType,
-		(...paths) => new PathValue(combine((paths as PathValue[]).map(({ path }) => path))),
+		(...paths) => new PathValue(combine(paths.map(pathOf))),
 		[...names],
 		pathType,
 		rest
@@ -1348,7 +1384,7 @@ const makeBounds = makeTypedFn(
 	[pathType],
 	rectType,
 	value => {
-		const [[left, top], [right, bottom]] = bounds((value as PathValue).path)
+		const [[left, top], [right, bottom]] = bounds(pathOf(value))
 		// A path with nothing on it has no bounds to speak of, and is nowhere.
 		if (!Number.isFinite(left)) return new RectValue([0, 0], [0, 0])
 		return new RectValue([left, top], [right - left, bottom - top])
@@ -1356,7 +1392,11 @@ const makeBounds = makeTypedFn(
 	['path']
 )
 
-const pathOf = (value: unknown): Path => (value as PathValue).path
+/** A path, as what is given where one is wanted: a path itself, or the outline of a rect, which a path takes as its own. */
+function pathOf(value: unknown): Path {
+	if (value instanceof RectValue) return rectangle(value.origin, add(value.origin, value.size))
+	return (value as PathValue).path
+}
 
 /** How a path is around the middle of it, and how far that goes. */
 const aroundOf = (path: Path): { middle: Vec; reach: number } => {
@@ -1385,7 +1425,7 @@ export const STRAIGHT_LINE_ICON = 'stroke:M1 23L23 1'
  * A straight line, going on for ever: a place on it, and which way it goes. Which way it goes
  * is the side of it that a mirror keeps, and how it comes about has handles of its own.
  */
-const lineType = withTypeMeta(
+export const lineType = withTypeMeta(
 	makeTupleType([
 		withTypeMeta(point, new RecordAST([['title', lit('Through')]])),
 		withTypeMeta(vec2, new RecordAST([['title', lit('Direction')]])),
@@ -1413,6 +1453,17 @@ const makeLineAt = withOptional(
 	),
 	['angle']
 )
+/**
+ * `line.at` with its angle given: the level line through a place, and the upright one. That is
+ * what it comes to one rung down.
+ */
+const lineAtAngle = (angle: number) =>
+	withExpansion(
+		makeTypedFn([point], lineType, through => [through as Vec, toward(angle, 1)], ['through']),
+		([through]) => (through === undefined ? null : new CallAST(parse('line.at'), [through, lit(angle)]))
+	)
+const makeLineHorizontal = lineAtAngle(0)
+const makeLineVertical = lineAtAngle(90)
 /** Where two lines cross, as a place: nothing, where they go the same way and never do. */
 const makeLineIntersection = makeTypedFn(
 	[lineType, lineType],
@@ -1427,10 +1478,61 @@ const makeLineIntersection = makeTypedFn(
 	},
 	['a', 'b']
 )
+/** The place on the line through `through`, going `direction`, nearest `at`. */
+const projectedOnto = (at: Vec, [through, direction]: StraightLine): Vec => {
+	const length = direction[0] * direction[0] + direction[1] * direction[1]
+	if (length === 0) return through
+	const [vx, vy] = sub(at, through)
+	const along = (vx * direction[0] + vy * direction[1]) / length
+	return [through[0] + direction[0] * along, through[1] + direction[1] * along]
+}
+/**
+ * The place on `line` nearest `point`: what is let go on a line stays on it, as near as it can be
+ * to where it was, however the line moves. Taken to a place, it is the point that goes, there; taken
+ * only across or only down, to where the line is that far across or down.
+ */
+const makeLineProject = withInverse(
+	makeTypedFn([lineType, point], point, (line, at) => projectedOnto(at as Vec, line as StraightLine), ['line', 'point']),
+	(index, result, args) => {
+		if (index !== 1 || !Array.isArray(result)) return undefined
+		const [through, direction] = args[0] as StraightLine
+		const given = ([0, 1] as const).filter(i => result[i] !== UNSET)
+		if (given.length === 2) return result
+		const [i] = given
+		if (i === undefined || Math.abs(direction[i]) < 1e-12) return undefined
+		const along = ((result[i] as number) - through[i]) / direction[i]
+		return [through[0] + direction[0] * along, through[1] + direction[1] * along]
+	}
+)
+/**
+ * The line the way `path` goes at the place `at` along it, both ways, for as far as there is:
+ * of a straight one, all of it and on past its ends.
+ */
+const makeLineAlong = withOptional(
+	makeTypedFn(
+		// From its start, by default: of a straight path, the line is the same wherever it is taken.
+		[pathType, number],
+		lineType,
+		(path, at) => {
+			const { origin, angle } = pathRay(pathOf(path), { offset: (at ?? 0) as number })
+			return [origin as Vec, toward(angle, 1)]
+		},
+		['path', 'at']
+	),
+	['at']
+)
 withMembers(lineType, {
 	fromPoints: withDoc(makeLineFromPoints, 'The line through `from` and `to`, going that way.', 'Line Through Points'),
 	at: withDoc(makeLineAt, 'The line `through` a place, going toward `angle`, in degrees.', 'Line at an Angle'),
+	horizontal: withDoc(makeLineHorizontal, 'The level line `through` a place, as `line.at` at 0 degrees.', 'Horizontal Line'),
+	vertical: withDoc(makeLineVertical, 'The upright line `through` a place, as `line.at` at 90 degrees.', 'Vertical Line'),
 	intersection: withDoc(makeLineIntersection, 'The place where the lines `a` and `b` cross, if they do.', 'Intersection'),
+	project: withDoc(makeLineProject, 'The place on `line` nearest `point`.', 'Project onto Line'),
+	along: withDoc(
+		makeLineAlong,
+		'The line the way `path` goes at the place `at` along it, going on both ways: of a straight path, the whole of it and past its ends.',
+		'Line Along a Path'
+	),
 })
 /** A line to start from, which says how it is one, for it to have handles to take hold of. */
 const lineOfType = withDefaultFrom(
@@ -1442,13 +1544,46 @@ const lineOfType = withDefaultFrom(
 		bindings: new Map([['line', { ast: host(lineType), env: null }]]),
 	}
 ).type
+/** `at`, across `line`: as far from it on the other side, straight across. */
+const reflectedAcross = (at: Vec, [through, direction]: StraightLine): Vec => {
+	const length = direction[0] * direction[0] + direction[1] * direction[1]
+	if (length === 0) return at
+	const [vx, vy] = sub(at, through)
+	const along = (vx * direction[0] + vy * direction[1]) / length
+	const [fx, fy] = [through[0] + direction[0] * along, through[1] + direction[1] * along]
+	return [2 * fx - at[0], 2 * fy - at[1]]
+}
+/**
+ * The point across `line` from `point`: its mirror image, which comes to a point. Taken to a
+ * place, it is the point that goes, as what is across a line is as far from it on the other side.
+ */
+const makeReflectPoint = withInverse(
+	makeTypedFn([point, lineOfType], point, (at, line) => reflectedAcross(at as Vec, line as StraightLine), ['point', 'line']),
+	(index, result, args) => (index === 0 ? reflectedAcross(result as Vec, args[1] as StraightLine) : undefined)
+)
+
+withMembers(vec2, {
+	add: makeTypedFn([translationType, translationType], vec2, (a, b) => Vec2.add(a as Vec, b as Vec), ['a', 'b']),
+	sub: makeTypedFn([translationType, translationType], vec2, (a, b) => Vec2.sub(a as Vec, b as Vec), ['a', 'b']),
+	scale: makeTypedFn(
+		[translationType, number],
+		vec2,
+		(a, s) => Vec2.scale(a as Vec, s as number),
+		['a', 'by']
+	),
+	lerp: withDoc(makeLerp, 'The place `ratio` of the way from `a` to `b`: past `b` above 1, and back past `a` below 0.', 'Lerp'),
+	midpoint: withDoc(makeMidpoint, 'The place halfway from `a` to `b`.', 'Midpoint'),
+	nudge: withDoc(makeNudge, 'A `point` moved `by` this much, as a place of its own.', 'Nudge'),
+	reflect: withDoc(makeReflectPoint, 'The `point` across `line`: its mirror image.', 'Reflect'),
+})
+
 /** An arrow from where it starts, as a ray goes one way only. */
 export const RAY_ICON = 'ph:arrow-up-right'
 /**
  * A ray, going on for ever one way: where it starts, and which way it goes, in degrees. It is
  * what geome calls a Ray, and comes to the matrix whose x-axis goes along it.
  */
-const rayType = withTypeMeta(
+export const rayType = withTypeMeta(
 	makeRecordType(
 		new Map([
 			['origin', withTypeMeta(point, new RecordAST([['title', lit('Origin')]]))],
@@ -1492,6 +1627,7 @@ withMembers(rayType, {
 	at: withDoc(makeRayAt, 'The ray from `origin`, going toward `angle`, in degrees.', 'Ray at an Angle'),
 	along: withDoc(makeRayAlong, 'The ray from the place `at` that far along `path`, going the way the path goes there.', 'Ray Along a Path'),
 })
+const booleanType = evaluate(parse('boolean'), buildPrelude()).value as TypeValue
 /** What is across a line, which has to go some way for there to be an other side. */
 const acrossIt = (fn: (path: Path, axis: readonly [Vec, Vec]) => Path) =>
 	(path: unknown, across: unknown): PathValue => {
@@ -1508,7 +1644,19 @@ const lineAlongside = (path: unknown): readonly unknown[] => {
 	return [new CallAST(parse('line.fromPoints'), [toAst([right, top], null), toAst([right, bottom], null)])]
 }
 const makeMirror = withInitial(
-	makeTypedFn([pathType, lineOfType], pathType, acrossIt(mirror), ['path', 'line']),
+	withOptional(
+		makeTypedFn(
+			[pathType, lineOfType, withDefault(booleanType, false)],
+			pathType,
+			// Flipped, it keeps the other side, as the line going the other way would, while the line stays as it is.
+			(path, across, flip) => {
+				const [through, direction] = across as StraightLine
+				return acrossIt(mirror)(path, flip === true ? [through, [-direction[0], -direction[1]]] : across)
+			},
+			['path', 'line', 'flip']
+		),
+		['flip']
+	),
 	lineAlongside
 )
 const makeReflect = withInitial(
@@ -1589,7 +1737,6 @@ const makeKaleidoscopeTile = withInitial(
 	}
 )
 const lengthOf = (value: number): TypeValue => withDefault(number, value)
-const booleanType = evaluate(parse('boolean'), buildPrelude()).value as TypeValue
 const makeZigzag = withOptional(
 	makeTypedFn(
 		[pathType, lengthOf(5), lengthOf(20), withDefault(booleanType, false), withDefault(number, 0)],
@@ -1935,6 +2082,26 @@ const makeFlatten = makeTypedFn(
 	['path', 'tolerance']
 )
 const makeReverse = makeTypedFn([pathType], pathType, path => new PathValue(reverse(pathOf(path))), ['path'])
+/** How far along a path a place on it is, from 0 at its start to 1 at its end, by length. */
+const unitOf = (path: Path, at: Vec): number => {
+	const total = pathLength(path)
+	const found = nearest(path, at)
+	if (found === null || total === 0) return 0
+	return Math.min(1, Math.max(0, pathLength(trim(path, 0, found.location, false)) / total))
+}
+const clampedUnit = (n: unknown): number => Math.min(1, Math.max(0, finite(n)))
+const makeTrim = withOptional(
+	makeTypedFn(
+		[pathType, withDefault(percentType, 0), withDefault(percentType, 1)],
+		pathType,
+		// From further along than it goes to, a closed path goes on round past where it starts.
+		(path, start, end) => new PathValue(trim(pathOf(path), clampedUnit(start ?? 0), clampedUnit(end ?? 1))),
+		['path', 'start', 'end']
+	),
+	['start', 'end']
+)
+/** Each open curve closed, by a straight line from where it ends back to where it starts. */
+const makeClose = makeTypedFn([pathType], pathType, path => new PathValue(close(pathOf(path))), ['path'])
 const makeConvexHull = makeTypedFn(
 	[],
 	pathType,
@@ -2205,7 +2372,7 @@ withMembers(pathType, {
 	offsetStroke: withDoc(makeOffsetStroke, 'The outline of a line along `path`, this `width`, ending by `cap` and going around corners by `join`.', 'Offset Stroke'),
 	roundCorners: withDoc(makeRoundCorners, 'The same `path`, with its corners rounded by `radius`.', 'Round Corners'),
 	chamfer: withDoc(makeChamfer, 'The same `path`, with its corners cut off `distance` back along each side.', 'Chamfer'),
-	mirror: withDoc(makeMirror, 'The `path`, and what it is across `line`, as one.', 'Mirror'),
+	mirror: withDoc(makeMirror, 'The `path`, and what it is across `line`, as one, on the side of `line` its way keeps, or the other side with `flip`.', 'Mirror'),
 	reflect: withDoc(makeReflect, 'What `path` is across `line`.', 'Reflect'),
 	kaleidoscope: withDoc(makeKaleidoscope, 'What of `path` is in the wedge from `angle` in degrees around `center`, reflected back and forth around it between as many mirrors as `count`.', 'Kaleidoscope'),
 	kaleidoscopeTile: withDoc(makeKaleidoscopeTile, 'What of `path` is in `cell`, reflected back and forth across its sides, as far as it takes to cover `area`. A `cell` is a rectangle, or a triangle of 60-60-60, 45-45-90 or 30-60-90 degrees, the only shapes whose reflections fit together.', 'Kaleidoscope Tile'),
@@ -2218,6 +2385,8 @@ withMembers(pathType, {
 	subdivide: withDoc(makeSubdivide, 'The same `path`, with each segment made into `division` of them.', 'Subdivide'),
 	flatten: withDoc(makeFlatten, 'The `path` in straight lines, as close to it as `tolerance`.', 'Flatten'),
 	reverse: withDoc(makeReverse, 'The same `path`, going the other way.', 'Reverse'),
+	trim: withDoc(makeTrim, 'The part of `path` from `start` to `end` of the way along it, by length. On a closed path, from past `end` goes round past its start.', 'Trim'),
+	close: withDoc(makeClose, 'The same `path`, with each of its curves that is open closed by a straight line from its last point back to its first.', 'Close'),
 	convexHull: withDoc(makeConvexHull, 'The least convex shape that all of them fit in, as a band around them would be.', 'Convex Hull'),
 	shadow: withDoc(makeShadow, 'What `path` passes over, going as far as `by`, as a shadow from a far off light.', 'Shadow'),
 	shadowFrom: withDoc(makeShadowFrom, 'The shadow of `path` from a `light` at a place, reaching `scale` times as far from it.', 'Shadow from a Light'),
@@ -2238,7 +2407,7 @@ withMembers(pathType, {
 	ellipse: withDoc(makeEllipse, 'An ellipse around `center`, with a `radius` along each of its axes, turned by `angle`, in degrees.', 'Ellipse'),
 	rect: withDoc(makeRect, 'A rectangle from its `origin`, of this `size`.', 'Rectangle'),
 	square: withDoc(makeSquare, 'A square from its `origin`, with sides of this `size`.', 'Square'),
-	qr: withDoc(makeQr, 'The QR code of `text`, from its `origin`, with sides of this `size` and no margin around it. `level` says how much of it can be lost and still read: L, M, Q or H. `anchors` puts them where it turns, at every module along it too, or at every one but in the three squares in its corners, which stay as squares.', 'QR Code'),
+	qr: withDoc(makeQr, 'The QR code of `text`, from its `origin`, this `size` across.', 'QR Code'),
 	line: withDoc(makeLine, 'A straight line from `start` to `end`.', 'Line'),
 	polyline: withDoc(makePolyline, 'Straight lines through each of the points, in turn.', 'Polyline'),
 	polygon: withDoc(makePolygon, 'Straight lines through each of the points, and back.', 'Polygon'),
@@ -2349,6 +2518,11 @@ export interface Handle {
 	readonly along?: boolean
 	/** It is drawn with a broken line, being there only to take hold of. */
 	readonly dashed?: boolean
+	/**
+	 * It is where the point that something comes to is, and looks like that point, a crosshair,
+	 * whatever taking it does: as a `lerp` is taken along the line it is on.
+	 */
+	readonly crosshair?: true
 	/** It pulls in toward what it is measured from, with outside being the other way. */
 	readonly inward?: boolean
 	/** What it turns around, when it goes by even angles, for the line that it is then on. */
@@ -2397,6 +2571,8 @@ export interface Handle {
 	readonly segment?: string
 	/** The two points it is between, if it is that. */
 	readonly ends?: readonly [Vec, Vec]
+	/** The parts it is between, as an edge of a polyline is between two of its points: chosen with it. */
+	readonly between?: readonly string[]
 	/** It is for the tool that goes by a path's points, and is in the way of all else. */
 	readonly ofPoints?: boolean
 	/** It does not end up where it is taken to, so it is not to refer to what it snapped to. */
@@ -2454,6 +2630,11 @@ export interface BoxAnswer {
 	readonly round?: boolean
 	/** It speaks for several rows, as what is selected or what is in a group, each change saying of which. */
 	readonly across?: boolean
+	/**
+	 * Scaled to nothing one way, it is only lined up that way, as places are, which can be pulled
+	 * apart again: so it can be, where anything else goes no smaller than a little.
+	 */
+	readonly flattens?: boolean
 }
 
 /**
@@ -2503,6 +2684,19 @@ const linesThrough = (points: readonly Vec[], closed: boolean): NonNullable<Snap
 	points.flatMap((from, i) => {
 		const to = points[i + 1] ?? (closed ? points[0] : undefined)
 		return to === undefined || points.length < 2 ? [] : [{ from, to, name: 'edge' }]
+	})
+
+/**
+ * The middle of each of the edges through `points`, as places, the `i`th being the argument at
+ * `i`: half of the way along, which is what the middle is, and not what moving it would change.
+ */
+const middlesThrough = (points: readonly Vec[], closed: boolean): NonNullable<Snaps['points']>[number][] =>
+	points.flatMap((from, i) => {
+		const j = points[i + 1] === undefined ? (closed ? 0 : undefined) : i + 1
+		if (j === undefined || points.length < 2 || j === i) return []
+		const to = points[j]!
+		const half = (axis: 0 | 1, p: (path: string) => string) => `(/ (+ ${p(`arg${i}/${axis}`)} ${p(`arg${j}/${axis}`)}) @2)`
+		return [{ at: [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2] as Vec, name: 'middle', code: (p: (path: string) => string) => `[${half(0, p)} ${half(1, p)}]` }]
 	})
 
 export const NO_GRIP: Grip = { handles: [], guides: [] }
@@ -2559,6 +2753,26 @@ export const under = (arg: number, grip: Grip): Grip => {
 	}
 }
 
+/**
+ * The handles of `grip`, which is of the argument at `arg`, as handles of the row around it: each
+ * place they are of is said from that row, so that it can be referred to from elsewhere. For a
+ * grip that merges them with its own, rather than standing in for the inner one, which `within` says.
+ */
+export const handlesUnder = (arg: number, grip: Grip): Handle[] => {
+	const prefix = grip.within ?? `arg${arg}`
+	return grip.handles.map(({ place, code, ...handle }) => {
+		const said: PlaceCode | undefined =
+			code !== undefined
+				? part => code(path => part(`${prefix}/${path}`))
+				: typeof place === 'number'
+					? part => part(`${prefix}/arg${place}`)
+					: place === 'self'
+						? part => part(prefix)
+						: undefined
+		return said === undefined ? handle : { ...handle, code: said }
+	})
+}
+
 /** A place that is all there is to something: the point itself. */
 export const gripOfPoint = (at: Vec): Grip => ({
 	marks: pointMarks([], at),
@@ -2568,6 +2782,7 @@ export const gripOfPoint = (at: Vec): Grip => ({
 	// All there is to it is where it is, wherever that goes.
 	box: {
 		even: false,
+		flattens: true,
 		scaled: (x, y, [ax, ay]) => [{ route: [], value: [ax + (at[0] - ax) * x, ay + (at[1] - ay) * y] }],
 		turned: (by, [ax, ay]) => {
 			const [cos, sin] = [Math.cos((by * Math.PI) / 180), Math.sin((by * Math.PI) / 180)]
@@ -3071,6 +3286,38 @@ const vertexHandle = (
 }
 
 /** A row of points, each of its own argument, that move together. */
+/**
+ * The edges between each of `points` and the next, and back to the first if `closed`: each to be
+ * taken by itself, for the tool that goes by points, which moves the two it is between alike.
+ */
+const edgesThrough = (points: readonly Vec[], closed: boolean): Handle[] =>
+	points.flatMap((from, i): Handle[] => {
+		const j = i + 1 < points.length ? i + 1 : closed && points.length > 2 ? 0 : null
+		if (j === null) return []
+		const to = points[j]!
+		return [
+			{
+				kind: 'offset',
+				name: 'edge',
+				ofPoints: true,
+				ends: [from, to],
+				between: [`arg${i}`, `arg${j}`],
+				parts: [[i], [j]],
+				path: line(from, to),
+				to: (at, was) => {
+					const delta = sub(at, was)
+					return [change(i, add(from, delta)), change(j, add(to, delta))]
+				},
+			},
+		]
+	})
+
+/** `grip` with the edges between `points` too, after them, for the points to be reached for first. */
+const withEdges = (grip: Grip, points: readonly Vec[], closed: boolean): Grip => ({
+	...grip,
+	handles: [...grip.handles, ...edgesThrough(points, closed)],
+})
+
 const pointsGrip = (
 	points: readonly Vec[],
 	guides: readonly Path[] = [],
@@ -3541,7 +3788,8 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 					{ kind: 'offset', name: 'top', code: rectPlace(2, 0), angle: 90, at: [middle[0], s[1]], means: sideMeans(sides.top, heightBy.top), to: (to, _, how) => sideTo(sides.top, to[1], how) },
 					{ kind: 'offset', name: 'right', code: rectPlace(1, 2), angle: 0, at: [e[0], middle[1]], means: sideMeans(sides.right, widthBy.right), to: (to, _, how) => sideTo(sides.right, to[0], how) },
 					{ kind: 'offset', name: 'bottom', code: rectPlace(2, 1), angle: 90, at: [middle[0], e[1]], means: sideMeans(sides.bottom, heightBy.bottom), to: (to, _, how) => sideTo(sides.bottom, to[1], how) },
-					{ kind: 'point', corner: true, name: 'top left', place: 0, angle: 45, at: s, constrained: keeps, means: cornerMeans(sides.left, sides.top, widthBy.left, heightBy.top), to: (to, _, how) => cornerTo(sides.left, sides.top, to, how) },
+					// Its origin is a place it is given, and looks like one, though it is a corner too.
+					{ kind: 'point', corner: true, crosshair: true, name: 'top left', place: 0, angle: 45, at: s, constrained: keeps, means: cornerMeans(sides.left, sides.top, widthBy.left, heightBy.top), to: (to, _, how) => cornerTo(sides.left, sides.top, to, how) },
 					{ kind: 'point', corner: true, name: 'top right', code: rectPlace(1, 0), angle: -45, at: [e[0], s[1]], means: cornerMeans(sides.right, sides.top, widthBy.right, heightBy.top), to: (to, _, how) => cornerTo(sides.right, sides.top, to, how) },
 					{ kind: 'point', corner: true, name: 'bottom left', code: rectPlace(0, 1), angle: -45, at: [s[0], e[1]], means: cornerMeans(sides.left, sides.bottom, widthBy.left, heightBy.bottom), to: (to, _, how) => cornerTo(sides.left, sides.bottom, to, how) },
 					{ kind: 'point', corner: true, name: 'bottom right', code: rectPlace(1, 1), angle: 45, at: e, means: cornerMeans(sides.right, sides.bottom, widthBy.right, heightBy.bottom), to: (to, _, how) => cornerTo(sides.right, sides.bottom, to, how) },
@@ -3680,9 +3928,9 @@ const makers: Map<unknown, Maker> = new Map<unknown, Maker>([
 			}
 		},
 	],
-	[makePolyline, args => pointsGrip(args as Vec[], [], { lines: linesThrough(args as Vec[], false) })],
+	[makePolyline, args => withEdges(pointsGrip(args as Vec[], [], { points: middlesThrough(args as Vec[], false), lines: linesThrough(args as Vec[], false) }), args as Vec[], false)],
 	[makeAnchors, args => anchorsGrip(args[0] as unknown[], args[1] === true)],
-	[makePolygon, args => pointsGrip(args as Vec[], [], { lines: linesThrough(args as Vec[], true) })],
+	[makePolygon, args => withEdges(pointsGrip(args as Vec[], [], { points: middlesThrough(args as Vec[], true), lines: linesThrough(args as Vec[], true) }), args as Vec[], true)],
 	[
 		makeCubic,
 		args => {
@@ -4272,7 +4520,7 @@ const movingAll = (grips: readonly (Grip | null)[]) => (delta: Vec): readonly Ch
 const outFromPath =
 	(per: number, moved: (path: Path) => Path | null): Maker =>
 	([path, distance], inner) => {
-		const source = (path as PathValue).path
+		const source = pathOf(path)
 		const [[, top], [right, bottom]] = bounds(source)
 		const shape = inner(0)
 		const found = nearest(source, [right, (top + bottom) / 2])
@@ -4322,7 +4570,7 @@ makers.set(makeBlend, ([a, b, ratio], inner) => {
 	const shapes = [inner(0), inner(1)]
 	return {
 		guides: [line(from, to)],
-		sources: [(a as PathValue).path, (b as PathValue).path],
+		sources: [pathOf(a), pathOf(b)],
 		handles: [
 			{
 				kind: 'offset',
@@ -4352,7 +4600,7 @@ makers.set(makeQr, makers.get(makeSquare)!)
 const transformed = makers.get(makeTransformed)!
 makers.set(makeTransformed, (args, inner, proportional, free) => ({
 	...transformed(args, inner, proportional, free),
-	sources: [(args[0] as PathValue).path],
+	sources: [pathOf(args[0])],
 }))
 
 makers.set(makeBounds, ([path], inner) => {
@@ -4360,7 +4608,7 @@ makers.set(makeBounds, ([path], inner) => {
 	return {
 		guides: [],
 		handles: [],
-		sources: [(path as PathValue).path],
+		sources: [pathOf(path)],
 		...(shape?.move === undefined ? {} : { move: movingAll([shape]) }),
 	}
 })
@@ -4387,6 +4635,24 @@ const fromCorner: Maker = ([path, amount], inner) => {
 	}
 }
 makers.set(makeRoundCorners, fromCorner)
+// Where it starts and ends, each taken along the path it is of, which is shown as it was.
+makers.set(makeTrim, ([path, start, end], inner) => {
+	const whole = pathOf(path)
+	const shape = inner(0)
+	const along = (arg: 1 | 2, name: string, unit: number): Handle => ({
+		kind: 'point',
+		name,
+		fine: true,
+		at: pointOnPath(whole, unit) as Vec,
+		to: to => [change(arg, unitOf(whole, to))],
+	})
+	return {
+		guides: [],
+		sources: [whole],
+		handles: [along(1, 'start', clampedUnit(start ?? 0)), along(2, 'end', clampedUnit(end ?? 1))],
+		...(shape?.move === undefined ? {} : { move: movingAll([shape]) }),
+	}
+})
 makers.set(makeChamfer, fromCorner)
 
 /** A path as it was, and where it is taken from: a line across it, or the center of a change. */
@@ -4413,29 +4679,25 @@ const showingPath =
 	}
 
 /** The place that the argument `arg` is, which is a place on what is drawn, to be snapped to and selected. */
+/** The handle of an argument that is a place, which looks like the place it is: a crosshair. */
 const pointHandle = (arg: number, at: Vec): Handle => ({
 	kind: 'point',
 	at,
 	place: arg,
+	crosshair: true,
 	to: to => [change(arg, to)],
 })
 
 /** How far a line is drawn each way, as it goes on past anywhere to look. */
 const LINE_REACH = 20000
+/** How long the head is that says which way `lerp` goes, at most. */
+const LERP_HEAD = 12
 /** A line, as far as it can be seen, and which side of it a mirror keeps. */
 export const lineGuide = (through: Vec, direction: Vec): Path => {
 	const [x, y] = direction
 	const by = LINE_REACH / (Math.hypot(x, y) || 1)
 	return line([through[0] - x * by, through[1] - y * by], [through[0] + x * by, through[1] + y * by])
 }
-const flipHandle = (at: Vec, direction: Vec, flipped: () => Change[]): Handle => ({
-	kind: 'button',
-	name: 'flip',
-	at,
-	// Pointing the way it is mirrored: from the side that is kept, to where its copy goes.
-	angle: degrees([direction[1], 0 - direction[0]]),
-	to: flipped,
-})
 // It stays between its two, and is taken along the way from one to the other.
 makers.set(makeMidpoint, ([from, to]) => {
 	const [a, b] = [from as Vec, to as Vec]
@@ -4449,22 +4711,37 @@ makers.set(makeLerp, ([from, to, ratio]) => {
 	const [a, b, t] = [from as Vec, to as Vec, ratio as number]
 	const along = sub(b, a)
 	const length = along[0] * along[0] + along[1] * along[1]
+	const angle = (Math.atan2(along[1], along[0]) * 180) / Math.PI
+	const at: Vec = [a[0] + along[0] * t, a[1] + along[1] * t]
+	// A head halfway, clear of the handles at either end, for which way it goes from `a` to `b` to
+	// be seen, as small as it has to be to fit.
+	const head = Math.min(LERP_HEAD, Math.sqrt(length) / 4)
+	const middle: Vec = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+	const tip = add(middle, toward(angle, head / 2))
+	const back = (turn: number): Vec => add(tip, toward(angle + 180 + turn, head))
 	return {
-		guides: [line(a, b)],
+		guides: [
+			// As far as it is, if that is past either of them.
+			line(t < 0 ? at : a, t > 1 ? at : b),
+			...(length === 0 ? [] : [polyline(back(-30), tip, back(30))]),
+		],
 		handles: [
 			{
-				// It comes to a point, and looks like one, whatever taking it does.
-				kind: 'translate',
+				// It goes from 0 to 1 between them, which what is fine enough for a place is not fine
+				// enough for, and on past either, along the line through them, which it points along.
+				kind: 'arrow',
 				name: 'ratio',
-				at: [a[0] + along[0] * t, a[1] + along[1] * t],
-				// It goes from 0 to 1, which what is fine enough for a place is not fine enough for.
+				at,
+				angle,
 				fine: true,
-				to: at => {
+				to: to => {
 					if (length === 0) return []
-					const [x, y] = sub(at, a)
-					return [change(2, Math.max(0, Math.min(1, (x * along[0] + y * along[1]) / length)))]
+					const [x, y] = sub(to, a)
+					return [change(2, (x * along[0] + y * along[1]) / length)]
 				},
 			},
+			{ ...pointHandle(0, a), name: 'a', linesUpWith: b },
+			{ ...pointHandle(1, b), name: 'b', linesUpWith: a },
 		],
 		move: delta => [change(0, add(a, delta)), change(1, add(b, delta))],
 	}
@@ -4486,22 +4763,35 @@ makers.set(makeLineFromPoints, ([from, to]) => {
 		handles: [
 			{ ...pointHandle(0, start), linesUpWith: end },
 			{ ...pointHandle(1, end), linesUpWith: start },
-			flipHandle([(start[0] + end[0]) / 2, (start[1] + end[1]) / 2], sub(end, start), () => [
-				change(0, end),
-				change(1, start),
-			]),
 		],
 		// All of it, for anything to go along it, and for where it crosses another line to be a place.
 		snaps: { lines: [{ from: start, to: end, name: 'line', endless: true }] },
 		move: delta => [change(0, add(start, delta)), change(1, add(end, delta))],
 	}
 })
+// It has only the place it goes through, with its way given, so that is all there is to take hold of.
+for (const [make, angle] of [[makeLineHorizontal, 0], [makeLineVertical, 90]] as const) {
+	makers.set(make, ([through]) => {
+		const p = through as Vec
+		const direction = toward(angle, GIZMO_SIZE)
+		return {
+			guides: [lineGuide(p, direction)],
+			snaps: { lines: [{ from: p, to: add(p, direction), name: 'line', endless: true }] },
+			// The place it goes through looks like a point, as it is all there is of where it is.
+			handles: [pointHandle(0, p)],
+			move: delta => [change(0, add(p, delta))],
+		}
+	})
+}
+/** How far either way the arc goes that the angle of a line is turned along, in degrees. */
+const LINE_AT_SWEEP = 45
 makers.set(makeLineAt, ([through, angle]) => {
 	const p = through as Vec
 	const turned = (angle ?? 0) as number
 	const direction = toward(turned, GIZMO_SIZE)
 	return {
-		guides: [lineGuide(p, direction)],
+		// Around where it goes through, by where its angle is taken hold of, the way that turns it, as a dial goes round.
+		guides: [lineGuide(p, direction), arc(p, GIZMO_SIZE, turned - LINE_AT_SWEEP, turned + LINE_AT_SWEEP)],
 		snaps: { lines: [{ from: p, to: add(p, direction), name: 'line', endless: true }] },
 		handles: [
 			pointHandle(0, p),
@@ -4514,9 +4804,19 @@ makers.set(makeLineAt, ([through, angle]) => {
 				angle: turned,
 				to: (to, _, how) => [change(1, angleHeld(p, turned, to, how))],
 			},
-			flipHandle(sub(p, direction), direction, () => [change(1, turned + 180)]),
 		],
 		move: delta => [change(0, add(p, delta))],
+	}
+})
+// It goes with the path it is along, which has the handles: all it has of its own is where it goes.
+makers.set(makeLineAlong, ([path, at]) => {
+	const { origin, angle } = pathRay(pathOf(path), { offset: (at ?? 0) as number })
+	const p = origin as Vec
+	const reach = toward(angle, GIZMO_SIZE)
+	return {
+		guides: [lineGuide(p, reach)],
+		snaps: { lines: [{ from: p, to: add(p, reach), name: 'line', endless: true }] },
+		handles: [],
 	}
 })
 /** A ray, from where it starts to as far as it can be seen. */
@@ -4563,9 +4863,6 @@ const gripOfLine = ([through, direction]: StraightLine, arg: number): Grip => {
 		handles: [
 			{ kind: 'point', at: through, to: to => [change(arg, [to, direction])] },
 			{ kind: 'point', at: end, to: to => [change(arg, [through, sub(to, through)])] },
-			flipHandle([(through[0] + end[0]) / 2, (through[1] + end[1]) / 2], direction, () => [
-				change(arg, [through, [-direction[0], -direction[1]]]),
-			]),
 		],
 		move: delta => [change(arg, [add(through, delta), direction])],
 	}
@@ -4577,16 +4874,34 @@ const gripOfLine = ([through, direction]: StraightLine, arg: number): Grip => {
 const acrossLine = (keepsASide: boolean): Maker => (args, inner, proportional, free) => {
 	const own = inner(1) ?? gripOfLine(args[1] as StraightLine, 1)
 	const shape = inner(0)
+	const handles = handlesUnder(1, own)
 	return {
 		...showingPath(() => ({
 			guides: own.guides,
-			handles: keepsASide ? own.handles : own.handles.filter(({ kind }) => kind !== 'button'),
+			handles: keepsASide ? handles : handles.filter(({ kind }) => kind !== 'button'),
 		}))(args, inner, proportional, free),
 		...(shape?.move === undefined ? {} : { move: movingAll([shape, own]) }),
 	}
 }
 makers.set(makeMirror, acrossLine(true))
 makers.set(makeReflect, acrossLine(false))
+// The point is taken hold of where it is or where its image is, which takes it along across the line.
+makers.set(makeReflectPoint, (args, inner) => {
+	const [at, across] = [args[0] as Vec, args[1] as StraightLine]
+	const own = inner(1) ?? gripOfLine(across, 1)
+	const image = reflectedAcross(at, across)
+	return {
+		guides: own.guides,
+		handles: [
+			// What goes in is marked as where it is taken from, apart from what comes of it.
+			{ ...pointHandle(0, at), linesUpWith: image },
+			// The image is what the row comes to, for anything else to refer to.
+			{ kind: 'translate', name: 'image', place: 'self', at: image, linesUpWith: at, to: to => [change(0, reflectedAcross(to, across))] },
+			...handlesUnder(1, own).filter(({ kind }) => kind !== 'button'),
+		],
+		move: delta => [change(0, add(at, delta)), ...(own.move?.(delta) ?? [])],
+	}
+})
 
 /** How many mirrors there are, by how far the second of them is from the first, on a ring. */
 const mirrorDial = (arg: number, c: Vec, ring: number, count: number, first: number): Handle => ({
@@ -4716,11 +5031,62 @@ const aroundCenter = showingPath(([, center, radius]) => ({
 makers.set(makeTwirl, aroundCenter)
 makers.set(makeBulge, aroundCenter)
 
-for (const fn of [makeZigzag, makeDash, makeSubdivide, makeFlatten, makeReverse]) {
+for (const fn of [makeZigzag, makeDash, makeSubdivide, makeFlatten, makeReverse, makeClose]) {
 	makers.set(fn, showingPath())
 }
 // A wave is measured from a place, which the path would otherwise go through the wave from.
-makers.set(makeWave, showingPath(undefined, [5]))
+makers.set(
+	makeWave,
+	showingPath(([, amplitude, wavelength, phase, angle, origin]) => {
+		const [a, length, shift, turned, o] = [
+			amplitude as number,
+			wavelength as number,
+			(phase ?? 0) as number,
+			(angle ?? 0) as number,
+			(origin ?? [0, 0]) as Vec,
+		]
+		// Along the way it goes, and across it, which it is pushed by.
+		const along = toward(turned, 1)
+		const across: Vec = [-along[1], along[0]]
+		const at = (x: number, y: number): Vec => [o[0] + along[0] * x + across[0] * y, o[1] + along[1] * x + across[1] * y]
+		const local = (to: Vec): Vec => {
+			const [dx, dy] = sub(to, o)
+			return [dx * along[0] + dy * along[1], dx * across[0] + dy * across[1]]
+		}
+		// The first crest from where it is measured: where it is pushed furthest, a quarter of the way.
+		const crestAlong = (0.25 - shift / 360) * length
+		const crest = at(crestAlong, a)
+		const reach = at(length, 0)
+		return {
+			guides: [lineGuide(o, along), line(at(crestAlong, 0), crest)],
+			handles: [
+				{ ...pointHandle(5, o) },
+				// How far it is pushed, across, and where the crest is, along: the phase.
+				{
+					kind: 'point',
+					name: 'crest',
+					at: crest,
+					to: to => {
+						const [x, y] = local(to)
+						const turnedBy = Math.round(((((0.25 - x / length) * 360 + 180) % 360) + 360) % 360 * 1000) / 1000 - 180
+						// Only as far along as it was taken, so that a crest pulled straight out says nothing of its phase.
+						return Math.abs(turnedBy - shift) < 1e-6 ? [change(1, y)] : [change(1, y), change(3, turnedBy)]
+					},
+				},
+				// How long a wave is, and the way it goes, from where it is measured.
+				{
+					kind: 'direction',
+					name: 'wavelength',
+					rotates: true,
+					at: reach,
+					pivot: o,
+					angle: turned,
+					to: (to, _, how) => [change(2, Math.max(dist(o, to), 1e-3)), change(4, angleHeld(o, turned, to, how))],
+				},
+			],
+		}
+	}, [5])
+)
 
 /**
  * A matrix taken hold of where it takes `from`, rather than where it takes the origin, which may
@@ -5064,7 +5430,7 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 	[makeShadow, inProportion(makeShadow, { vectors: [1] })],
 	[makeShadowFrom, inProportion(makeShadowFrom, { places: [1] })],
 	[makeRay, inProportion(makeRay, { places: [1, 2] })],
-	...[makeSubdivide, makeFlatten, makeReverse].map(fn => [fn, asItsPaths([0])] as const),
+	...[makeSubdivide, makeFlatten, makeReverse, makeClose, makeTrim].map(fn => [fn, asItsPaths([0])] as const),
 	...[makeBlend, makeBlendSteps].map(fn => [fn, asItsPaths([0, 1])] as const),
 	...[makeUnite, makeSubtract, makeIntersect, makeExclude, makeConvexHull].map(fn => [fn, asItsPaths()] as const),
 	[makeBounds, (_, inner) => answeredTogether([inner(0)?.box], { keepsAxes: false, turns: false })],
@@ -5182,12 +5548,12 @@ export const BOX_ANSWERS: ReadonlyMap<unknown, Asked> = new Map<unknown, Asked>(
 			turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
 		}),
 	],
+	// Not round, as a circle around its center is: turning it turns the places it goes through.
 	...[makeCircleFromDiameter, makeCircleThrough].map(
 		(fn): [unknown, (args: readonly unknown[]) => BoxAnswer] => [
 			fn,
 			args => ({
 				even: true,
-				round: true,
 				scaled: (x, y, about) => args.map((at, i) => change(i, scaledPlace(at as Vec, x, y, about))),
 				turned: (degrees, about) => args.map((at, i) => change(i, turnedPlace(at as Vec, degrees, about))),
 			}),
@@ -5377,10 +5743,22 @@ const axesType = said(
 	AXES_ICON
 )
 
+/**
+ * Where the axes go through, which is locked as it is written by default: what refers to it, a
+ * shape snapped to the origin, does not move the axes when it is moved itself.
+ */
+const axesOrigin = (() => {
+	const plain = Object.create(point.plain ?? point, {
+		default: { value: [0, 0] },
+		defaultAst: { value: parse('@[0 0]') },
+	}) as TypeValue
+	return point.meta ? withTypeMeta(plain, point.meta) : plain
+})()
+
 const makeAxes = withDoc(
 	withOptional(
 		makeTypedFn(
-			[withDefault(point, [0, 0]), colorOf(AXES_COLOR), numberOf(AXES_WIDTH)],
+			[axesOrigin, colorOf(AXES_COLOR), numberOf(AXES_WIDTH)],
 			axesType,
 			(origin, color, width) => new AxesValue(origin as Vec, color as string, Math.max(0, width as number)),
 			['origin', 'color', 'width']
@@ -5390,6 +5768,21 @@ const makeAxes = withDoc(
 	'Draws the two lines through `origin`, across the whole of the canvas, on and on, in a `color` and a `width`.',
 	'Axes'
 )
+// Nothing to take hold of: only its origin, and the two lines through it, to snap to.
+makers.set(makeAxes, ([at]) => {
+	const origin = (at ?? [0, 0]) as Vec
+	return {
+		guides: [],
+		handles: [],
+		snaps: {
+			points: [{ at: origin, name: 'origin', code: p => `[${p('arg0/0')} ${p('arg0/1')}]` }],
+			lines: [
+				{ from: origin, to: add(origin, [GIZMO_SIZE, 0]), name: 'x axis', endless: true },
+				{ from: origin, to: add(origin, [0, GIZMO_SIZE]), name: 'y axis', endless: true },
+			],
+		},
+	}
+})
 
 /** What shows up on a solid of `color`. */
 export const inkOn = (color: string): string =>
@@ -5401,6 +5794,8 @@ const BINDINGS: Readonly<Record<string, unknown>> = {
 	ray: rayType,
 	rect: rectType,
 	percent: percentType,
+	angle: angleType,
+	range: rangeType,
 	color: colorType,
 	style: makeStyled,
 	spray: makeSpray,
@@ -5432,6 +5827,8 @@ const ABOUT: Readonly<Record<string, { readonly label: string; readonly doc: str
 	rect: { label: 'Rect', doc: 'An area on the canvas: where its top left corner is, and its size.' },
 	percent: { label: 'Percent', doc: 'How much of something, from 0 to 1, shown as a percentage.' },
 	color: { label: 'Color', doc: 'A color, written as CSS and SVG would read it.' },
+	range: { label: 'Range', doc: 'From one number to another, as a rect is from one place to another, but along one way only: `[start end]`.' },
+	angle: { label: 'Angle', doc: 'A number that is an angle, in degrees: clockwise from pointing right, as the canvas goes down.' },
 	artboard: {
 		label: 'Artboard',
 		doc: 'A page of the canvas, over an `area` filled with `fill`, holding `layers` that are measured from its top left corner, and cut off at its edge if it `clip`s. It is exported by itself as that area.',

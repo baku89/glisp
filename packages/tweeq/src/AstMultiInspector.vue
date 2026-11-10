@@ -3,6 +3,7 @@ import { type MenuItem } from 'tweeq/Menu'
 import { ParameterTree, ParameterTreeItem } from 'tweeq/ParameterGrid'
 import { ScrollArea } from 'tweeq/ScrollArea'
 
+import AstMultiArgument from './AstMultiArgument.vue'
 import FunctionAbout from './FunctionAbout.vue'
 import { MULTI_SELECT_HOST, useMultiSelectStore } from 'tweeq/stores/multiSelect'
 import { computed, nextTick, provide, ref, shallowRef, watch } from 'vue'
@@ -18,7 +19,9 @@ import {
 	type Merge,
 	merged,
 	MERGES,
+	type MultiArgument,
 	type MultiField,
+	nameFor,
 	withValuesAt,
 } from './multiRows'
 import { SELECTION, type Selection, useDeleteInInspector } from './selection'
@@ -58,7 +61,14 @@ watch(
 		if (picked.length === 0 || (before && picked.join() === before[0].join() && inspection.value === before[1])) return
 		// Once the fields are there to be selected, which is after what they are of has been drawn.
 		await nextTick()
-		multiSelect.selectWhere(data => placesOf(data).some(isPicked(picked)))
+		// A place picked as a whole is its row, as one thing, and not each number of it as well: a
+		// number is selected by itself only where that one number is what is picked.
+		const rows = new Set<unknown>(inspection.value?.args.map(arg => arg.places) ?? [])
+		multiSelect.selectWhere(data =>
+			rows.has(data)
+				? placesOf(data).length > 0 && placesOf(data).every(isPicked(picked))
+				: placesOf(data).some(({ path, element }) => element !== null && picked.includes(`${path}/${element}`))
+		)
 	},
 	{ immediate: true }
 )
@@ -93,6 +103,26 @@ function extract(field: MultiField, how: Merge): void {
 	if (result?.ast.kind === 'let') props.document.setRoot(result.ast)
 }
 
+/** The whole of an argument, by one name, where all of the rows have the same written for it. */
+function extractWhole(arg: MultiArgument): void {
+	const root = props.document.root.value
+	const env = props.document.env.value
+	const result = arg.shared === null ? null : extractedAt(root, env, arg.places, arg.shared, nameFor(root, env, arg.places))
+	problem.value = result === null ? 'that cannot be pulled out from here' : null
+	if (result?.ast.kind === 'let') props.document.setRoot(result.ast)
+}
+
+/**
+ * What the row of an argument offers for the whole of it. Of one number, that is what its field
+ * offers, as the row and the field are the same thing; of several, it is the whole vector.
+ */
+const argumentItems = (arg: MultiArgument): MenuItem[] =>
+	arg.fields.length === 1 && arg.fields[0]!.places.every(({ element }) => element === null)
+		? extractItems(arg.fields[0]!)
+		: arg.shared !== null
+			? [{ label: 'Extract Parameter', icon: 'mdi:variable', perform: () => extractWhole(arg) }]
+			: []
+
 const extractItems = (field: MultiField): MenuItem[] =>
 	field.canExtract
 		? [
@@ -125,16 +155,18 @@ const extractItems = (field: MultiField): MenuItem[] =>
 			:icons="inspection.heads.flatMap(head => { const icon = iconOfFunction?.(head.fn) ?? head.icon; return icon === null ? [] : [icon] })"
 		/>
 		<ParameterTree name="glisp.inspector" :labelWidth="110">
-			<ParameterTreeItem
+			<AstMultiArgument
 				v-for="arg in inspection.args"
 				:key="arg.label"
-				:label="arg.label"
-				:icon="arg.icon ?? undefined"
-				:expandable="arg.fields.length > 1"
+				:arg="arg"
+				:items="argumentItems(arg)"
 				:open="opened[arg.label] ?? false"
+				:picked="arg.places.length > 0 && arg.places.every(isPicked(picked ?? []))"
 				@update:open="opened[arg.label] = $event"
 			>
-				<div class="fields">
+				<!-- What has no numbers says what it is, and is selected and pulled out by its row. -->
+				<span v-if="arg.fields.length === 0" class="summary" :class="{ mixed: arg.shared === null }">{{ arg.summary }}</span>
+				<div v-else class="fields">
 					<MixedNumber
 						v-for="field in arg.fields"
 						:key="field.name"
@@ -164,7 +196,7 @@ const extractItems = (field: MultiField): MenuItem[] =>
 						/>
 					</ParameterTreeItem>
 				</template>
-			</ParameterTreeItem>
+			</AstMultiArgument>
 		</ParameterTree>
 		</template>
 		<!-- What a host has to say of them too, in rows of its own. -->
@@ -189,6 +221,15 @@ const extractItems = (field: MultiField): MenuItem[] =>
 	display: flex;
 	gap: var(--tq-gap-related);
 	min-width: 0;
+}
+.summary {
+	overflow: hidden;
+	color: var(--tq-color-text);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.summary.mixed {
+	color: var(--tq-color-text-mute);
 }
 .problem {
 	margin-top: var(--tq-gap-control);

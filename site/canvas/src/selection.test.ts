@@ -62,7 +62,8 @@ describe('what can be exported', () => {
 		expect(actionTypes.fits(of('page'), rectType)).toBe(true)
 		expect(actionTypes.fits(of('fit'), rectType)).toBe(true)
 		expect(actionTypes.narrower(pathType, rectType)).toBe(false)
-		expect(actionTypes.narrower(rectType, pathType)).toBe(false)
+		// A rect is a path as well, as its outline, which a path takes as its own.
+		expect(actionTypes.narrower(rectType, pathType)).toBe(true)
 	})
 
 	it('has an area and a path narrower than what takes either', () => {

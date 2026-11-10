@@ -242,8 +242,12 @@ class Step {
 				)
 			},
 		})
+		if (next === null) return null
+		const along = (from: AST, to: AST) => this.passedAlong.has(from) && this.passedAlong.add(to)
+		// What referred to an argument of the call, from within another, refers to where that is now.
+		const referring = withOwnReferences(next, fn.paramNames ?? [], args, this.env, along)
 		// A copy of what was passed along is as much passed along.
-		return next === null ? null : apart(next, (from, to) => this.passedAlong.has(from) && this.passedAlong.add(to))
+		return apart(referring, along)
 	}
 
 	private resolveTail(ast: AST): AST {
@@ -500,6 +504,97 @@ interface Scope {
  * that a body or a host puts in twice, `[side side]` from a square. Each is then a place of its
  * own to work back to, a width and a height, and changing one is not changing the other.
  */
+/** Where `target` is in `call`, each place, as the segments of a path from the call: its argument, and in that. */
+function placesIn(call: CallAST, names: readonly string[], target: AST): (string | number)[][] {
+	const found: (string | number)[][] = []
+	const within = (node: AST, at: (string | number)[]): void => {
+		if (node === target) found.push(at)
+		else if (node.kind === 'vec') node.elements.forEach((element, i) => within(element, [...at, i]))
+	}
+	call.args.forEach((arg, j) => {
+		const name = names[j]
+		if (name !== undefined) within(arg, [`${name}:`])
+	})
+	for (const [name, arg] of call.kwargs ?? []) within(arg, [`${name}:`])
+	return found
+}
+
+/**
+ * `next`, which a call with `args` for `names` has been expanded to, with what in its arguments
+ * referred to one of them by a path going up to the call, as a corner can to a size, referring to
+ * where that argument is in `next`: and what went up past it going up as much further as it is in.
+ */
+function withOwnReferences(
+	next: AST,
+	names: readonly string[],
+	args: readonly (AST | undefined)[],
+	env: Env,
+	along: (from: AST, to: AST) => void
+): AST {
+	if (next.kind !== 'call') return next
+	const head = evaluate(next.head, env).value
+	const nextNames = isTypedHostFn(head) ? (head.paramNames ?? []) : []
+	const moved = new Map<string, (string | number)[][]>()
+	const deeper = new Map<AST, number>()
+	args.forEach((arg, i) => {
+		const name = names[i]
+		if (arg === undefined || name === undefined) return
+		const places = placesIn(next, nextNames, arg)
+		if (places.length === 0) return
+		moved.set(`${name}:`, places)
+		deeper.set(arg, places[0]!.length - 1)
+	})
+	if (moved.size === 0) return next
+	// Of several places it went to, as a side goes to both of a size, the one across or down as what
+	// refers to it is: the y of a place halving the height, rather than the width.
+	const placeFor = (places: (string | number)[][], lane: number | null) =>
+		places.find(place => place.at(-1) === lane) ?? places[0]!
+	const walk = (node: AST, level: number, extra: number, lane: number | null = null): AST => {
+		const further = deeper.get(node) ?? extra
+		const rebuilt = ((): AST => {
+			switch (node.kind) {
+				case 'path': {
+					const ups = node.segments.findIndex(segment => segment !== '..')
+					const climbs = ups < 0 ? node.segments.length : ups
+					if (climbs === 0) return node
+					const toCall = level - further - 1
+					const key = node.segments[climbs]
+					const places = typeof key === 'string' ? moved.get(key) : undefined
+					if (climbs === toCall && places !== undefined) {
+						const to = placeFor(places, lane)
+						return new PathAST([...new Array<'..'>(level - 1).fill('..'), ...to, ...node.segments.slice(climbs + 1)])
+					}
+					return climbs >= toCall && further > 0
+						? new PathAST([...new Array<'..'>(further).fill('..'), ...node.segments])
+						: node
+				}
+				case 'vec': {
+					// Which element of an argument it is in, across or down.
+					const elements = node.elements.map((element, i) => walk(element, level + 1, further, level === 1 ? i : lane))
+					return elements.every((e, i) => e === node.elements[i]) ? node : new VecAST(elements)
+				}
+				case 'call': {
+					const args = node.args.map(arg => walk(arg, level + 1, further, lane))
+					const kwargs = mapValues(node.kwargs, value => walk(value, level + 1, further, lane))
+					const same = args.every((a, i) => a === node.args[i]) && (node.kwargs === undefined || [...node.kwargs].every(([k, v]) => kwargs!.get(k) === v))
+					return same ? node : new CallAST(node.head, args, kwargs)
+				}
+				case 'meta': {
+					const expr = walk(node.expr, level, further, lane)
+					return expr === node.expr ? node : new MetaAST(node.metadata, expr)
+				}
+				default:
+					return node
+			}
+		})()
+		if (rebuilt !== node) along(node, rebuilt)
+		return rebuilt
+	}
+	const args2 = next.args.map(arg => walk(arg, 1, 0))
+	const kwargs2 = mapValues(next.kwargs, value => walk(value, 1, 0))
+	return new CallAST(next.head, args2, kwargs2)
+}
+
 function apart(ast: AST, copiedFrom: (from: AST, to: AST) => void = () => {}): AST {
 	const seen = new WeakSet<AST>()
 	const walk = (node: AST): AST => {

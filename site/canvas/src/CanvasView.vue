@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { AST, LetAST } from '@glisp/lang'
 import { type GlispDocument } from '@glisp/tweeq'
-import { layersOf } from '@glisp/tweeq/structure'
+import { reach } from '@glisp/tweeq/rowsClipboard'
+import { capitalCase, layersOf, titleOf } from '@glisp/tweeq/structure'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
 import { mat2d, vec2 } from 'linearly'
 import { toPath2D } from 'pave/path/canvas'
@@ -14,9 +15,14 @@ import Dimensions from './Dimensions.vue'
 import {
 	type Modulation,
 	modulationAt,
-	withPointInserted,
+	type PathAnchor,
+	endOf,
+	penEndAt,
+	withAnchorAdded,
+	withAnchorsClosed,
+	withAnchorsJoined,
 	withPointRemoved,
-	withPointsClosed,
+	withPointInserted,
 } from './modulate'
 import { evenFrom, otherControl, type Change, type AxesValue, type Grip, type GraphPaperValue, type Handle, type Mat, NO_PAINT, type Paint, type Path, type Vec, inkOn, onlyShapes } from './graphics'
 import { dotTile, graphPaperPositions, graphPaperStep } from './graphPaper'
@@ -38,6 +44,7 @@ import {
 	type PlaceDrawn,
 	gripAt,
 	gripOfRows,
+	alignedByReference,
 	diveAt,
 	diveIntoRow,
 	innerPathsOf,
@@ -48,12 +55,17 @@ import {
 	linked,
 	nameFor,
 	axesThrough,
+	axesCrossing,
+	alignmentsNear,
+	placeOnRow,
+	type AnchorLined,
 	nearestSnap,
+	lineSnappedTo,
+	withAcquired,
 	alongSnapped,
 	movedOnto,
 	pulledOnto,
 	drawnOnto,
-	rowsHeldBy,
 	isPlaceOf,
 	closingPulled,
 	penGuided,
@@ -82,6 +94,7 @@ import {
 	type ShapeAttributes,
 	type ShapeTool,
 	type SnapPoint,
+	snappableIn,
 	snapPointsOf,
 	evenlyFrom,
 	facesWhenDrawn,
@@ -93,6 +106,8 @@ import {
 	pencilledAs,
 	rowsOfHandle,
 	isGuide,
+	isDirectlyIn,
+	numbersChanged,
 	isOutlined,
 	lineOfShape,
 	withGuideHandles,
@@ -109,9 +124,12 @@ import {
 	gripOfPointsOrNot,
 	partKeyOf,
 	placePartOf,
+	WORKED_OUT,
 	gripWithoutSegments,
 	pointsWithin,
 	canRefer,
+	lineNear,
+	cornersInOrder,
 	penKind,
 } from './scene'
 import { artboardDrawn, boardAt, canvasLayersOf, nameForArtboard, presetNamed, sizeOf, withArtboardAdded, withLayersTakenIn, withLayerWhere, withLayerOnto } from './artboards'
@@ -140,6 +158,8 @@ const props = defineProps<{
 	snapping?: boolean
 	/** It goes as well to where a line would be if it went on past its ends. */
 	snappingBeyond?: boolean
+	/** Whether what is snapped to is referred to, rather than only its numbers written: on unless it says. */
+	referring?: boolean
 	/** Where something is about to be added, to say so while it is being chosen. */
 	addingAt?: Vec | null
 }>()
@@ -189,6 +209,18 @@ const view = shallowRef<mat2d>(storedView() ?? mat2d.fromTranslation([...props.o
 /** The row of what the pointer is over, which is about to be selected. */
 const hovered = ref<string | null>(null)
 const hoveredHandle = ref<number | null>(null)
+/**
+ * Among points, the points of what the pointer is over that is not selected yet, and the one it
+ * is on, if any: what a click there would choose, along with selecting what it is of.
+ */
+const peeked = shallowRef<{
+	readonly row: string
+	readonly handles: readonly { readonly handle: Handle; readonly row: string }[]
+	readonly mat: mat2d
+	readonly index: number | null
+} | null>(null)
+/** A point chosen by the click that selects what it is of, to be chosen once that is selected. */
+let chosenOnSelect: string | null = null
 /** The handle being dragged, which is all there is to see of the pointer meanwhile. */
 const draggedHandle = ref<number | null>(null)
 /**
@@ -206,9 +238,14 @@ const taken = computed(() => rowsAbout(props.selected, keptRow.value))
  */
 const boxTurn = shallowRef(0)
 watch(taken, (rows, before) => {
-	if (rows[0] !== keptRow.value) keptRow.value = null
+	if (keptRow.value !== null && !rows.includes(keptRow.value)) keptRow.value = null
 	if (rows.join() !== before.join()) boxTurn.value = 0
 })
+/** A place on the canvas turned round its origin by `angle` degrees, as a box's sides are. */
+const turnedOnCanvas = ([x, y]: Vec, angle: number): Vec => {
+	const [cos, sin] = [Math.cos((angle * Math.PI) / 180), Math.sin((angle * Math.PI) / 180)]
+	return [x * cos - y * sin, x * sin + y * cos]
+}
 /** Two places on screen on the line that something going by even angles is on. */
 const evenLine = shallowRef<readonly [Vec, Vec] | null>(null)
 /** What is being referred to, or would be if pressed here: which is said in the color of that. */
@@ -276,13 +313,16 @@ function snapsFor(rows: readonly Moving[]): {
 	for (const { row, grip: held } of rows) {
 		for (const changed of changedBy(row, held.move?.(TRIAL) ?? [])) moving.add(changed)
 	}
+	// Only what is moved snaps, and not what changes along with it, as what it refers to may.
+	const taken = rows.map(({ row }) => row)
+	const isTaken = (row: string) => taken.some(own => row === own || row.startsWith(`${own}/`))
 	return {
 		own: snapPointsOf(
 			root.value,
 			env.value,
-			shapes.filter(shape => moving.has(shape.row))
+			shapes.filter(shape => moving.has(shape.row) && isTaken(shape.row))
 		).filter(point => point.to === undefined),
-		others: snapPointsOf(root.value, env.value, shapes, moving),
+		others: snapPointsOf(root.value, env.value, snappableIn(root.value, env.value), moving),
 	}
 }
 
@@ -314,6 +354,8 @@ function snappedMove(
 		if (better) best = { own: point, snap, distance, delta: [snap.at[0] - at[0], snap.at[1] - at[1]] }
 	}
 	snapMark.value = best?.snap ?? null
+	// Moved as a whole, it goes by its numbers and refers to nothing.
+	linking.value = null
 	return best === null
 		? { to: [x, y], by: null }
 		: { to: toScreen([ax + best.delta[0], ay + best.delta[1]], view.value), by: { own: best.own, snap: best.snap } }
@@ -324,9 +366,25 @@ const SNAP_REACH = 8
 /** How far, on screen, what snapped can end up from where it snapped to, and still be on it. */
 const SNAP_MISS = 0.5
 
-/** The nearest of `points` within reach of `at` in the program's coordinates, unless turned off. */
-const snapNear = (points: readonly SnapPoint[], at: Vec): SnapPoint | null =>
-	props.snapping ? nearestSnap(points, at, SNAP_REACH / view.value[0], props.snappingBeyond) : null
+/**
+ * The lines snapped to since the pointer went down, which go on past their ends from then on,
+ * for where they would go and where they would cross to be snapped to as well.
+ */
+let acquired: SnapPoint[] = []
+
+/**
+ * The nearest of `points` within reach of `at` in the program's coordinates, unless turned off.
+ * A line it is on is acquired, from then on.
+ */
+function snapNear(points: readonly SnapPoint[], at: Vec): SnapPoint | null {
+	if (!props.snapping) return null
+	const reach_ = SNAP_REACH / view.value[0]
+	// Lined up with a place on something else, across or down, as much as on it.
+	const snap = nearestSnap(withAcquired([...points, ...alignmentsNear(points, at, reach_)], acquired), at, reach_, props.snappingBeyond)
+	const line = snap === null ? null : lineSnappedTo(points, snap)
+	if (line !== null && line.endless !== true && line.goesOn !== true && !acquired.includes(line)) acquired = [...acquired, line]
+	return snap
+}
 
 /** Everywhere there is to snap to, on what `root` draws. */
 function snapPoints(
@@ -334,7 +392,7 @@ function snapPoints(
 	except?: ReadonlySet<string>
 ): SnapPoint[] {
 	const { env } = props.document
-	return snapPointsOf(root, env.value, sceneOf(root, env.value), except)
+	return snapPointsOf(root, env.value, snappableIn(root, env.value), except)
 }
 
 const snapAt = (points: readonly SnapPoint[], x: number, y: number): SnapPoint | null =>
@@ -515,14 +573,15 @@ function typeDimension(dimension: Dimension, value: number): void {
 		commit({ ast: next, problem: null })
 		return
 	}
-	// A number in place of what it was worked out from is that gone, not that changed.
-	if (dimension.expression) {
+	const { root, env } = props.document
+	const { row, base } = held.value
+	// What it is worked out from changes for it to come to that, as a handle has it, and the
+	// expression stays. Only what cannot be worked back is the number in its place.
+	const next = apply(row, dimensionChanges(root.value, env.value, row, dimension, value, base))
+	if (dimension.expression && next.ast === null) {
 		typeExpression(dimension, String(value))
 		return
 	}
-	const { root, env } = props.document
-	const { row, base } = held.value
-	const next = apply(row, dimensionChanges(root.value, env.value, row, dimension, value, base))
 	typed = next.ast
 	commit(next)
 }
@@ -601,6 +660,9 @@ const HANDLE_EDGE_PAST = 1
 const CORNER_HALF = 3.5
 const HIT_WIDTH = 10
 const HOVER_WIDTH = 3
+/** How far around a handle the pointer is on it is lit up, and how faintly. */
+const HANDLE_HOVER_RADIUS = 10
+const HANDLE_HOVER_ALPHA = 0.2
 const DASH = [3, 2]
 const RANGE_OPACITY = 0.1
 const BOX_ALPHA = 0.6
@@ -628,6 +690,10 @@ const insideIsolated = computed(() => {
 /** The handles of all that is selected, and whose each of them is. */
 /** The points and segments of what is selected that have been chosen, by row, for what is done to them next. */
 const chosenPoints = shallowRef<readonly string[]>([])
+// Others chosen are another box, which starts upright, as one around other rows does.
+watch(chosenPoints, (now, before) => {
+	if ([...now].sort().join() !== [...before].sort().join()) boxTurn.value = 0
+})
 const partsChosen = computed((): PartsOfRow[] => {
 	const rows = [...new Set(chosenPoints.value.map(rowOfChosen))]
 	return rows.map(row => ({
@@ -641,21 +707,17 @@ const grippedAtAll = computed(() => {
 	const all = gripOfRows(props.document.root.value, props.document.env.value, taken.value)
 	return props.drawing ? gripWithoutSegments(all) : gripOfPointsOrNot(all, props.byPoints === true)
 })
-const gripped = computed((): (NonNullable<typeof grippedAtAll.value> & { readonly around?: readonly [Vec, Vec] | null }) | null =>
-	props.byPoints ? withBoxOfParts(grippedAtAll.value, partsChosen.value) : withGuideHandles(
-		withBoxHandles(
-			grippedAtAll.value,
-			[...scene.value, ...hiddenSelected.value],
-			taken.value,
-			boxTurn.value
-		),
-		props.document.root.value,
-		props.document.env.value,
-		scene.value,
-		taken.value,
-		row => !isOutside(row, isolation.value)
-	)
-)
+const gripped = computed((): (NonNullable<typeof grippedAtAll.value> & { readonly around?: readonly [Vec, Vec] | null; readonly angle?: number }) | null => {
+	// A guide's handles are there to take hold of whatever is selected, among points as well.
+	const guided = (held: Parameters<typeof withGuideHandles>[0]) =>
+		withGuideHandles(held, props.document.root.value, props.document.env.value, scene.value, taken.value, row => isDirectlyIn(row, isolated.value))
+	if (props.byPoints) {
+		const parts = withBoxOfParts(grippedAtAll.value, partsChosen.value, boxTurn.value)
+		const withGuides = guided(parts)
+		return withGuides === null || parts?.around === undefined ? withGuides : { ...withGuides, around: parts.around, angle: parts.angle }
+	}
+	return guided(withBoxHandles(grippedAtAll.value, [...scene.value, ...hiddenSelected.value], taken.value, boxTurn.value))
+})
 const grip = computed(() => gripped.value?.grip ?? null)
 /**
  * The handles that are what is selected of the rows they are of, such as a parameter picked in
@@ -680,7 +742,7 @@ const pickedHandles = computed((): ReadonlySet<number> => {
 /** The corners of the box around what is selected, which goes with one that has a way it is turned. */
 const selectedBox = computed(() => {
 	// With a tool that goes by points, the only box is the one around those.
-	if (props.byPoints) return gripped.value?.around ? cornersOfBox(gripped.value.around, 0) : null
+	if (props.byPoints) return gripped.value?.around ? cornersOfBox(gripped.value.around, gripped.value.angle ?? 0) : null
 	const angle = grip.value?.box?.angle ?? 0
 	const box = boundsOfRows([...scene.value, ...hiddenSelected.value], taken.value, angle)
 	return box === null ? null : cornersOfBox(box, angle)
@@ -735,6 +797,10 @@ useZUI($canvas, delta => {
 defineExpose({
 	diveInto,
 	leaveIsolated,
+	/** Have a row drawn as if the pointer were over it, as when something is pulled onto it from elsewhere. */
+	hover(row: string | null): void {
+		hovered.value = row
+	},
 	/** The row of what is drawn at a place on the screen, if anything is. */
 	rowAtPoint(clientX: number, clientY: number): string | null {
 		// Not through what floats over it.
@@ -742,6 +808,28 @@ defineExpose({
 		if (!canvas || window.document.elementFromPoint(clientX, clientY) !== canvas) return null
 		const box = canvas.getBoundingClientRect()
 		return rowOfShapeAt(clientX - box.left, clientY - box.top)
+	},
+	/**
+	 * What there is to snap to at a place on the screen that what is at `source` can refer to, marked
+	 * there as it is while drawing: not on what it is of, which would come back to itself. Nothing,
+	 * and no mark, with `null` for where.
+	 */
+	snapForPick(source: string, at: readonly [number, number] | null, lines = false): SnapPoint | null {
+		const canvas = $canvas.value
+		if (at === null || !canvas || window.document.elementFromPoint(at[0], at[1]) !== canvas) {
+			snapMark.value = null
+			return null
+		}
+		const box = canvas.getBoundingClientRect()
+		const own = new Set(scene.value.flatMap(({ row }) => (source === row || source.startsWith(`${row}/`) ? [row] : [])))
+		// A line asked for is one of the lines to snap to, as a whole, rather than a place on it.
+		const near = lines
+			? lineNear(snapPoints(props.document.root.value, own), fromScreen(at[0] - box.left, at[1] - box.top), SNAP_REACH / view.value[0])
+			: snapAt(snapPoints(props.document.root.value, own).filter(canRefer), at[0] - box.left, at[1] - box.top)
+		snapMark.value = near
+		// What is picked is referred to, which is the point of picking it.
+		linking.value = near
+		return near
 	},
 	/** Whether a place on the screen is the canvas itself, and not what floats over it. */
 	isAt(clientX: number, clientY: number): boolean {
@@ -850,7 +938,9 @@ function drawHandle(
 	paper: string,
 	dragged = false,
 	/** Selected, which it stays as, rather than only being reached for. */
-	picked = false
+	picked = false,
+	/** Where its place is on screen from, if it is not of what is selected. */
+	mat: mat2d = onScreen.value
 ): void {
 	context.strokeStyle = accent
 	context.lineWidth = active ? HOVER_WIDTH : 1
@@ -877,7 +967,7 @@ function drawHandle(
 		context.setLineDash([])
 		return
 	}
-	const [x, y] = toScreen(handle.at!)
+	const [x, y] = toScreen(handle.at!, mat)
 	context.save()
 	context.translate(x, y)
 	if (dragged) context.scale(HELD_SCALE, HELD_SCALE)
@@ -973,14 +1063,24 @@ function drawHandle(
 		edged(POINTER)
 		context.stroke(POINTER)
 	} else {
-		// Which way an arrow pulls is for when it is reached for, along with the cursor.
-		if (handle.kind === 'translate' || (handle.kind === 'arrow' && active)) {
+		// Which way an arrow pulls is for when it is reached for, along with the cursor. What is at a
+		// point that something comes to looks like that point, whatever taking it does.
+		const crossed = handle.kind === 'translate' || handle.crosshair === true
+		if (crossed || (handle.kind === 'arrow' && active)) {
 			context.save()
-			// A crosshair is square with the axes it is the origin of, if they are turned.
-			context.rotate(facing(handle.kind === 'arrow' ? (handle.angle ?? 0) : (handle.turn ?? 0)))
 			context.lineWidth = 1
-			if (handle.kind === 'arrow') edged(ARROW)
-			context.stroke(handle.kind === 'arrow' ? ARROW : CROSS)
+			if (crossed) {
+				// Square with the axes it is the origin of, if they are turned.
+				context.save()
+				context.rotate(facing(handle.turn ?? 0))
+				context.stroke(CROSS)
+				context.restore()
+			}
+			if (handle.kind === 'arrow' && active) {
+				context.rotate(facing(handle.angle ?? 0))
+				edged(ARROW)
+				context.stroke(ARROW)
+			}
 			context.restore()
 		}
 		context.lineWidth = 1
@@ -988,7 +1088,7 @@ function drawHandle(
 		if (handle.vertex !== undefined) {
 			// What a path goes through is square, as what only pulls it from a distance is not.
 			context.rect(-VERTEX_HALF, -VERTEX_HALF, VERTEX_HALF * 2, VERTEX_HALF * 2)
-		} else if (handle.corner) {
+		} else if (handle.corner && !crossed) {
 			// A point at a corner says which way out the corner is, which is square with the box it is of.
 			context.rotate(facing(handle.kind === 'point' ? (handle.angle ?? 45) - 45 : 0))
 			context.rect(-CORNER_HALF, -CORNER_HALF, CORNER_HALF * 2, CORNER_HALF * 2)
@@ -1025,12 +1125,14 @@ function drawExtended(context: CanvasRenderingContext2D, [ax, ay]: Vec, [bx, by]
  */
 function drawSnap(
 	context: CanvasRenderingContext2D,
-	{ at, label, line, beyond, endless, target, code }: SnapPoint,
+	{ at, label, line, beyond, endless, target, code, crossed }: SnapPoint,
 	accent: string
 ): void {
 	const [x, y] = toScreen(at, view.value)
 	context.save()
 	context.strokeStyle = accent
+	// Where lines would cross if they went on: they are shown going on, to there.
+	for (const [from, to] of crossed ?? []) drawExtended(context, toScreen(from, view.value), toScreen(to, view.value))
 	if (line && endless) {
 		// All of it goes on, so none of it is drawn as the part that is there.
 		drawExtended(context, toScreen(line[0], view.value), toScreen(line[1], view.value))
@@ -1059,6 +1161,67 @@ function drawSnap(
 	context.fillStyle = accent
 	context.fillText(label, left, top)
 	context.restore()
+}
+
+/** Where the pointer is on the canvas, on screen, for what is said beside it. */
+const pointerOnCanvas = shallowRef<Vec | null>(null)
+/** How far from the pointer, right and down, what a handle is called is said. */
+const NAME_FROM_POINTER: Vec = [14, 18]
+/** How far from a point chosen, right and up, what it is called is said. */
+const NAME_FROM_POINT: Vec = [9, -9]
+
+/**
+ * What the handle at `i` is: what it is called, as a corner is, or else the parameter it is the
+ * place of, as the inspector says it. Null if it is neither.
+ */
+function nameOfHandle(i: number): string | null {
+	const handle = grip.value?.handles[i]
+	const row = gripped.value?.rowOf[i]
+	if (handle === undefined || row === undefined) return null
+	// What is a parameter is said as that, and what is worked out by what it is called.
+	const isParameter = typeof handle.place === 'number' || handle.vertex !== undefined
+	if (!isParameter && handle.name !== undefined && handle.name !== 'box') return capitalCase(handle.name)
+	const { root, env } = props.document
+	const [path] = rowsOfHandle(root.value, env.value, row, handle)
+	const slot = path === undefined ? undefined : reach(root.value, env.value, path)?.chain.at(-1)
+	return slot === undefined ? null : titleOf(slot)
+}
+
+/** `text` at `at` on screen, on the paper, to be read over anything. */
+function drawName(context: CanvasRenderingContext2D, text: string, [x, y]: Vec, accent: string, paper: string): void {
+	context.save()
+	context.font = SNAP_LABEL_FONT
+	context.textBaseline = 'middle'
+	context.lineJoin = 'round'
+	context.lineWidth = 3
+	context.strokeStyle = paper
+	context.strokeText(text, x, y)
+	context.fillStyle = accent
+	context.fillText(text, x, y)
+	context.restore()
+}
+
+/**
+ * With the tool that goes by points, what the handle under the pointer, or held, is, beside the
+ * pointer, and what each that is chosen is, beside it.
+ */
+function drawHandleNames(context: CanvasRenderingContext2D, accent: string, paper: string): void {
+	const handles = grip.value?.handles ?? []
+	const near = draggedHandle.value ?? hoveredHandle.value
+	// Only of one chosen alone: of several, what each is would be in the way of seeing them.
+	const chosen = handles.flatMap((handle, i) => (handle.at !== undefined && isChosenAt(i) ? [i] : []))
+	for (const i of chosen.length === 1 ? chosen : []) {
+		const handle = handles[i]!
+		if (i === near) continue
+		const name = nameOfHandle(i)
+		if (name === null) continue
+		const [x, y] = toScreen(handle.at!)
+		drawName(context, name, [x + NAME_FROM_POINT[0], y + NAME_FROM_POINT[1]], accent, paper)
+	}
+	const pointer = pointerOnCanvas.value
+	const name = near === null ? null : nameOfHandle(near)
+	if (pointer === null || name === null) return
+	drawName(context, name, [pointer[0] + NAME_FROM_POINTER[0], pointer[1] + NAME_FROM_POINTER[1]], accent, paper)
 }
 
 /** What is being changed, beside the pointer, to read as it goes. */
@@ -1314,7 +1477,11 @@ function draw(): void {
 	const handled = new Set(gripped.value?.rowOf ?? [])
 	for (const shape of scene.value) {
 		const marked = isMarked(shape)
-		if (!marked && !isGuide(shape.draw)) continue
+		// A guide is always there only where it is directly in the sketch that is shown, and where it
+		// is further in, only as what it is in is selected.
+		const isShownGuide =
+			isGuide(shape.draw) && (isDirectlyIn(shape.row, isolated.value) || taken.value.some(of => isWithin(shape.row, of)))
+		if (!marked && !isShownGuide) continue
 		const alpha = isOutside(shape.row, isolation.value) ? OUTSIDE_ALPHA : 1
 		context.globalAlpha = alpha
 		const outline = lineOfShape(shape)
@@ -1408,6 +1575,18 @@ function draw(): void {
 	// Over the lines that go through them, which would otherwise cross what is filled in them.
 	for (const [i, handle] of grip.value?.handles.entries() ?? []) {
 		const dragged = draggedHandle.value
+		// Among points, what the pointer is on is lit up around it, as what is chosen is filled, to
+		// be told apart from that.
+		if (props.byPoints && dragged === null && i === hoveredHandle.value && handle.at !== undefined) {
+			const [hx, hy] = toScreen(handle.at)
+			context.save()
+			context.globalAlpha = HANDLE_HOVER_ALPHA
+			context.fillStyle = accent
+			context.beginPath()
+			context.arc(hx, hy, HANDLE_HOVER_RADIUS, 0, Math.PI * 2)
+			context.fill()
+			context.restore()
+		}
 		drawHandle(
 			context,
 			handle,
@@ -1419,7 +1598,24 @@ function draw(): void {
 		)
 	}
 
+	// The points of what is not selected yet, of which the one the pointer is on is what a click chooses.
+	const peek = props.byPoints && !props.drawing && draggedHandle.value === null ? peeked.value : null
+	for (const [i, { handle }] of peek?.handles.entries() ?? []) {
+		const [hx, hy] = toScreen(handle.at!, peek!.mat)
+		if (i === peek!.index) {
+			context.save()
+			context.globalAlpha = HANDLE_HOVER_ALPHA
+			context.fillStyle = accent
+			context.beginPath()
+			context.arc(hx, hy, HANDLE_HOVER_RADIUS, 0, Math.PI * 2)
+			context.fill()
+			context.restore()
+		}
+		drawHandle(context, handle, i === peek!.index, accent, paper, false, false, peek!.mat)
+	}
+
 	drawReadout(context, ink, color('--tq-color-text-mute'), color('--tq-color-border'), paper)
+	if (props.byPoints && !props.drawing) drawHandleNames(context, accent, paper)
 
 	const reachOfBrush = isBrush(props.drawing) ? BRUSHES[props.drawing].reach?.(brushContext()) : undefined
 	if (brushPointer.value !== null && reachOfBrush !== undefined) {
@@ -1525,9 +1721,15 @@ watch(hoveredHandle, index => {
 	bending = requestAnimationFrame(step)
 })
 
+/** Where the pointer is, only while what a handle is is said beside it, for that to go with it. */
+const pointerByName = computed(() =>
+	props.byPoints && (hoveredHandle.value !== null || draggedHandle.value !== null) ? pointerOnCanvas.value : null
+)
+
 watchEffect(() => {
 	void [
 		hoverBend.value,
+		pointerByName.value,
 		linking.value,
 		draggedHandle.value,
 		evenLine.value,
@@ -1547,6 +1749,7 @@ watchEffect(() => {
 		isolation.value,
 		insideIsolated.value,
 		hoveredHandle.value,
+		peeked.value,
 		pickedHandles.value,
 		range.value,
 		penLine.value,
@@ -1731,6 +1934,33 @@ function shapeAt(x: number, y: number, outsideToo = false): Shape | null {
 	return found
 }
 
+/**
+ * Among points, the points of what is drawn at a place on screen, if it is not selected, and the
+ * nearest of them within reach: or of what they were of, while the pointer is still near one.
+ */
+function peekAt(x: number, y: number): typeof peeked.value {
+	if (!props.byPoints || props.drawing || props.picking) return null
+	const isTaken = (row: string) => taken.value.some(of => row === of || row.startsWith(`${of}/`))
+	const under = shapeAt(x, y)?.row
+	const row = under !== undefined && !isTaken(under) ? under : peeked.value?.row
+	if (row === undefined || isTaken(row)) return null
+	const { root, env } = props.document
+	const found = gripOfPointsOrNot(gripOfRows(root.value, env.value, [row]), true)
+	if (found === null) return null
+	const mat = gripView(found.grip.transform)
+	const handles = found.grip.handles.flatMap((handle, i) =>
+		handle.at !== undefined && partOf(handle) !== undefined ? [{ handle, row: found.rowOf[i]! }] : []
+	)
+	let index: number | null = null
+	let away = HANDLE_REACH
+	for (const [i, { handle }] of handles.entries()) {
+		const [hx, hy] = toScreen(handle.at!, mat)
+		const distance = Math.hypot(hx - x, hy - y)
+		if (distance <= away) [index, away] = [i, distance]
+	}
+	return under === row || index !== null ? { row, handles, mat, index } : null
+}
+
 /** Which handle is at a place on screen: what has a place of its own before a line. */
 function handleAt(x: number, y: number): number | null {
 	const handles = grip.value?.handles ?? []
@@ -1841,13 +2071,23 @@ const chosenKey = (row: string, part: string): string => `${row}\n${part}`
 const rowOfChosen = (key: string): string => key.slice(0, key.lastIndexOf('\n'))
 const partOfChosen = (key: string): string => key.slice(key.lastIndexOf('\n') + 1)
 const partOf = partKeyOf
+/** What choosing the handle at `i` chooses: the part it is, or the parts it is between, as an edge's points. */
+const chosenKeysAt = (i: number): string[] => {
+	const handle = grip.value!.handles[i]!
+	const row = gripped.value!.rowOf[i]!
+	const part = partOf(handle)
+	return handle.between?.map(between => chosenKey(row, between)) ?? (part === undefined ? [] : [chosenKey(row, part)])
+}
 const isChosenAt = (i: number): boolean => {
-	const part = partOf(grip.value!.handles[i]!)
-	return part !== undefined && chosenPoints.value.includes(chosenKey(gripped.value!.rowOf[i]!, part))
+	const keys = chosenKeysAt(i)
+	return keys.length > 0 && keys.every(key => chosenPoints.value.includes(key))
 }
 // Only as far as what they are of goes, as a press on something inside comes to a new list of the same.
 watch([taken, () => props.byPoints], () => {
-	chosenPoints.value = props.byPoints ? chosenPoints.value.filter(key => taken.value.includes(rowOfChosen(key))) : []
+	const kept = chosenPoints.value.filter(key => taken.value.includes(rowOfChosen(key)))
+	const also = chosenOnSelect !== null && taken.value.includes(rowOfChosen(chosenOnSelect)) ? [chosenOnSelect] : []
+	chosenOnSelect = null
+	chosenPoints.value = props.byPoints ? [...kept, ...also] : []
 })
 
 /**
@@ -1886,6 +2126,8 @@ const chosenRows = computed((): readonly string[] => {
 				const place = placePartOf(handle)
 				const row = all.rowOf[i]!
 				if (place === undefined || !chosenPoints.value.includes(chosenKey(row, place))) return []
+				// A place worked out has no row of its own: it is said by its name, for what is added to go by it.
+				if (place.startsWith(WORKED_OUT)) return [`${row}/${place}`]
 				return rowsOfHandle(root.value, env.value, row, handle)
 			})
 		),
@@ -1899,7 +2141,8 @@ watch(chosenRows, (rows, before) => {
 function chosenInsideBox(x: number, y: number, adding: boolean): number | null {
 	const around = gripped.value?.around
 	if (!props.byPoints || adding || !around) return null
-	const [px, py] = fromScreen(x, y)
+	// Along the sides of the box, as it is turned.
+	const [px, py] = turnedOnCanvas(fromScreen(x, y), -(gripped.value?.angle ?? 0))
 	const [[left, top], [right, bottom]] = around
 	if (px < left || px > right || py < top || py > bottom) return null
 	const at = grip.value!.handles.findIndex((_, i) => isChosenAt(i))
@@ -1950,9 +2193,18 @@ let pressed:
 			together: ReturnType<typeof chosenByRow> | null
 			/** What it can snap to, none of which is in itself. */
 			points: readonly SnapPoint[]
+			/** The other places of what it is a place of, which it lines up with, across or down. */
+			siblings: readonly Vec[]
+			/**
+			 * With Shift, a click adds to what is selected: its part, or all of what it is of, where
+			 * that was not selected, as a guide's handles are there whatever is.
+			 */
+			adding: 'part' | 'whole' | null
 	  }
 	| { kind: 'pan'; from: [number, number] }
 	| { kind: 'pen'; from: Vec; at?: Vec }
+	/** An anchor put at an end of `row`, as it was in `base`, being pulled out to curve. */
+	| { kind: 'extend'; from: Vec; base: AST; row: string; end: 'start' | 'end'; at: Vec }
 	| { kind: 'closing'; from: Vec; first: Anchor; at?: Vec }
 	| { kind: 'pencil'; points: readonly SnapPoint[] }
 	| { kind: 'brush' }
@@ -1990,22 +2242,33 @@ let spaceDown = false
 const typing = (event: Event): boolean =>
 	(event.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable], .monaco-editor') != null
 
+/**
+ * Whether only the numbers of what is snapped to are written, rather than referring to it: CMD (or
+ * CTRL) held says the other of what References says, for the one gesture.
+ */
+const valueOnlyBy = (held: boolean): boolean => (props.referring === false ? !held : held)
+
 // What is held down says at once, without having to move, how a shape goes.
 useEventListener(window, ['keydown', 'keyup'], (event: KeyboardEvent) => {
-	const valueOnly = event.metaKey || event.ctrlKey
+	const held = event.metaKey || event.ctrlKey
+	const valueOnly = valueOnlyBy(held)
 	const isModifier = ['Shift', 'Alt', 'Meta', 'Control'].includes(event.key)
 	if (isModifier && pressed?.kind === 'draw' && pressed.drawing) {
 		drawPressed(event.shiftKey, valueOnly, event.altKey)
 	}
-	if (isModifier && pressed?.kind === 'handle') dragHandle(event.altKey, valueOnly, event.shiftKey)
+	if (isModifier && pressed?.kind === 'handle') dragHandle(event.altKey, held, event.shiftKey)
 	if (isModifier && pressed?.kind === 'pen' && pressed.at !== undefined) {
-		pullPen(pressed.at[0], pressed.at[1], event.altKey, valueOnly, event.shiftKey)
+		pullPen(pressed.at[0], pressed.at[1], event.altKey, held, event.shiftKey)
 	}
 	if (isModifier && pressed?.kind === 'closing' && pressed.at !== undefined) {
-		pullClosing(pressed.at[0], pressed.at[1], event.altKey, valueOnly, event.shiftKey)
+		pullClosing(pressed.at[0], pressed.at[1], event.altKey, held, event.shiftKey)
 	}
 	if (isModifier && pressed === null && props.drawing === 'pen' && pen !== null && penPointer !== null) {
 		hoverPen(penPointer[0], penPointer[1], event.shiftKey, valueOnly)
+	}
+	// Before anything is drawn, the mark says at once whether it would be referred to.
+	if (isModifier && pressed === null && props.drawing && props.drawing !== 'pen' && snapMark.value !== null) {
+		linking.value = !valueOnly && canRefer(snapMark.value) ? snapMark.value : null
 	}
 })
 
@@ -2023,10 +2286,97 @@ useEventListener(
 		emit('attribute', 'sides', sides)
 		// What is drawn goes by the attributes as they come back down, after the change has gone up.
 		await nextTick()
-		drawPressed(event.shiftKey, event.metaKey || event.ctrlKey, event.altKey)
+		drawPressed(event.shiftKey, valueOnlyBy(event.metaKey || event.ctrlKey), event.altKey)
 	},
 	{ capture: true }
 )
+
+/** How far an arrow key moves what is selected: 1, 10 with SHIFT, and 0.1 with OPT, as in Figma or Illustrator. */
+const nudgeStep = (event: KeyboardEvent): number => (event.shiftKey ? 10 : event.altKey ? 0.1 : 1)
+
+const NUDGES: Readonly<Record<string, Vec>> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+
+/**
+ * `delta` on screen, as far on the canvas, going the way it goes on screen, by `step` there: up is
+ * up as it is shown, however the view goes.
+ */
+function onCanvasBy([dx, dy]: Vec, step: number, mat: mat2d = view.value): Vec {
+	const [ox, oy] = fromScreen(0, 0, mat)
+	const [ax, ay] = fromScreen(1, 0, mat)
+	const [bx, by] = fromScreen(0, 1, mat)
+	const across = Math.hypot(ax - ox, ay - oy) || 1
+	const down = Math.hypot(bx - ox, by - oy) || 1
+	return [((ax - ox) / across) * dx * step + ((bx - ox) / down) * dy * step, ((ay - oy) / across) * dx * step + ((by - oy) / down) * dy * step]
+}
+
+/**
+ * What is selected moved by `delta` on screen: the places chosen with the tool that goes by parts,
+ * together, or else each of what is selected, as a drag moves it, with what it is put on.
+ */
+function nudged(delta: Vec, step: number, held: { readonly even: boolean; readonly valueOnly: boolean } = { even: false, valueOnly: false }): boolean {
+	const { root, env } = props.document
+	const fine = step / 1000
+	if (props.byPoints && chosenPoints.value.length > 0) {
+		const by = onCanvasBy(delta, step)
+		const changes = chosenByRow().flatMap(({ row, handle, parts }) => {
+			const was = handle.at
+			return was === undefined ? [] : handle.to(add(was, by), was, { moving: parts }).map(change => ({ ...change, row }))
+		})
+		const first = changes[0]?.row
+		if (first === undefined) return false
+		commit(apply(first, roundedChanges(changes, fine)))
+		return true
+	}
+	if (taken.value.length === 0) return false
+	const drawnRows = new Set(taken.value.flatMap(row => rowsPaintedBy(root.value, env.value, row)))
+	const moving = [...drawnRows]
+	/** `from`, with each of `rows` moved, as far as each can be. */
+	const movedIn = (from: AST, rows: readonly string[]): ReturnType<typeof apply> => {
+		let next: ReturnType<typeof apply> = { ast: from, problem: null }
+		for (const row of rows) {
+			const found = gripOfRow(row)
+			if (next.ast === null || found?.move === undefined) continue
+			next = apply(row, roundedChanges(found.move(onCanvasBy(delta, step, gripView(found.transform))), fine), next.ast)
+		}
+		return next
+	}
+	// A pen in the middle of drawing writes what it draws again from where it began, with each
+	// anchor: so what is moved goes there too, and the path being drawn moves by its anchors.
+	if (pen !== null && pen.name !== '') {
+		const own = `binding:${pen.name}`
+		const others = movedIn(pen.base, moving.filter(row => row !== own && !row.startsWith(`${own}/`)))
+		const itself = moving.some(row => row === own || row.startsWith(`${own}/`))
+		if (others.ast === pen.base && !itself) return false
+		if (others.ast?.kind === 'let') pen.base = others.ast
+		if (itself) {
+			const by = onCanvasBy(delta, step)
+			const shifted = (at: Vec): Vec => [roundedTo(at[0] + by[0], fine), roundedTo(at[1] + by[1], fine)]
+			// What it was put down on stays where it is, and so it refers to it no more.
+			pen.anchors = pen.anchors.map(({ snap: _, ...anchor }) => ({
+				...anchor,
+				at: shifted(anchor.at),
+				...(anchor.out === undefined ? {} : { out: shifted(anchor.out) }),
+				...(anchor.into === undefined ? {} : { into: shifted(anchor.into) }),
+			}))
+		}
+		writePen(false)
+		// What would be drawn next goes from where the last anchor is now, to where the pointer still is.
+		if (penPointer !== null) hoverPen(penPointer[0], penPointer[1], held.even, held.valueOnly)
+		return true
+	}
+	const next = movedIn(root.value, moving)
+	if (next.ast === root.value) return false
+	commit(next)
+	return true
+}
+
+// The arrow keys move what is selected, unless something else has them: what is typed in, or a list in a panel.
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+	const delta = NUDGES[event.key]
+	if (delta === undefined || event.defaultPrevented || event.metaKey || event.ctrlKey || pressed !== null) return
+	if (typing(event) || (event.target as Element | null)?.closest?.('.AstEditor, .AstProgramCode')) return
+	if (nudged(delta, nudgeStep(event), { even: event.shiftKey, valueOnly: event.metaKey || event.ctrlKey })) event.preventDefault()
+})
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
 	if (event.code !== 'Space' || typing(event)) return
@@ -2040,6 +2390,15 @@ useEventListener(window, 'keyup', (event: KeyboardEvent) => {
 	if (pressed === null) cursor.value = baseCursor.value
 })
 
+/**
+ * A right click, which brings up a menu: but CTRL with a click is one too, on a Mac, and among
+ * points that is choosing one more, which is all it does.
+ */
+function onContextMenu(event: MouseEvent): void {
+	if (props.byPoints && event.ctrlKey && event.button === 0) return
+	emit('menu', event.clientX, event.clientY, rowOfShapeAt(event.offsetX, event.offsetY))
+}
+
 function onPointerDown(event: PointerEvent): void {
 	problem.value = null
 	held.value = null
@@ -2048,6 +2407,8 @@ function onPointerDown(event: PointerEvent): void {
 	if (event.timeStamp - lastPress > CLICKS_WITHIN_MS) beforeClicks = props.selected
 	lastPress = event.timeStamp
 	const { offsetX: x, offsetY: y } = event
+	// What was snapped to before is nothing more to go by, a new drag being something else.
+	acquired = []
 	if (props.picking) {
 		const shape = shapeAt(x, y, true)
 		if (shape !== null) emit('pick', shape.row)
@@ -2068,7 +2429,7 @@ function onPointerDown(event: PointerEvent): void {
 	if (shaping !== null) {
 		penLine.value = null
 	} else if (props.drawing === 'pen') {
-		penDown(x, y, event.metaKey || event.ctrlKey, event.shiftKey)
+		penDown(x, y, valueOnlyBy(event.metaKey || event.ctrlKey), event.shiftKey)
 		return
 	} else if (isBrush(props.drawing)) {
 		pressBrush(props.drawing, x, y)
@@ -2086,7 +2447,7 @@ function onPointerDown(event: PointerEvent): void {
 		pressed = { kind: 'pencil', points }
 		return
 	} else if (drawsThrough()) {
-		circleDown(x, y, event.metaKey || event.ctrlKey)
+		circleDown(x, y, valueOnlyBy(event.metaKey || event.ctrlKey))
 		return
 	} else if (props.drawing === 'artboard') {
 		const base = props.document.root.value
@@ -2113,7 +2474,9 @@ function onPointerDown(event: PointerEvent): void {
 		return
 	}
 
-	const hit = shaping ?? handleAt(x, y) ?? chosenInsideBox(x, y, event.shiftKey)
+	// Among points, CTRL (or CMD) chooses one more or one less as well as SHIFT does.
+	const adding = event.shiftKey || (props.byPoints === true && (event.ctrlKey || event.metaKey))
+	const hit = shaping ?? handleAt(x, y) ?? chosenInsideBox(x, y, adding)
 	// SHIFT on what is a guide is selecting one more or one less, as it is on anything drawn,
 	// and only goes on being about the handle where that means something of its own.
 	const isChoosing =
@@ -2130,19 +2493,20 @@ function onPointerDown(event: PointerEvent): void {
 		taken.value.includes(gripped.value!.rowOf[hit]!)
 	const index = isChoosing || isOneOfSeveral ? null : hit
 	if (props.byPoints) {
-		// A press on a part is choosing it, and one that was already stays so, to be dragged.
-		const part = hit === null ? undefined : partOf(grip.value!.handles[hit]!)
-		const key = part === undefined ? undefined : chosenKey(gripped.value!.rowOf[hit!]!, part)
+		// A press on a part is choosing it, and one that was already stays so, to be dragged. An edge
+		// is choosing the points it is between.
+		const keys = hit === null ? [] : chosenKeysAt(hit)
 		const chosen = chosenPoints.value
-		if (key === undefined) {
-			if (hit === null && !event.shiftKey) chosenPoints.value = []
-		} else if (event.shiftKey) {
-			chosenPoints.value = chosen.includes(key) ? chosen.filter(it => it !== key) : [...chosen, key]
-		} else if (!chosen.includes(key)) {
-			chosenPoints.value = [key]
+		const isChosen = keys.length > 0 && keys.every(key => chosen.includes(key))
+		if (keys.length === 0) {
+			if (hit === null && !adding) chosenPoints.value = []
+		} else if (adding) {
+			chosenPoints.value = isChosen ? chosen.filter(it => !keys.includes(it)) : [...chosen, ...keys.filter(key => !chosen.includes(key))]
+		} else if (!isChosen) {
+			chosenPoints.value = keys
 		}
 	}
-	if (index !== null && grip.value !== null && (!props.byPoints || !event.shiftKey)) {
+	if (index !== null && grip.value !== null && (!props.byPoints || !adding)) {
 		const handle = grip.value.handles[index]!
 		const owner = gripped.value!.rowOf[index]!
 		if (handle.kind === 'button') {
@@ -2150,7 +2514,8 @@ function onPointerDown(event: PointerEvent): void {
 			return
 		}
 		// A guide's are there whatever is selected, and taking one is selecting what it is of.
-		if (!taken.value.includes(owner)) emit('select', [owner])
+		const whole = !taken.value.includes(owner)
+		if (whole) emit('select', event.shiftKey ? [...props.selected, owner] : [owner])
 		const mat = onScreen.value
 		const from = fromScreen(x, y, mat)
 		const at = handle.at ?? from
@@ -2159,6 +2524,7 @@ function onPointerDown(event: PointerEvent): void {
 			kind: 'handle',
 			row: owner,
 			handle,
+			adding: event.shiftKey ? (whole ? 'whole' : 'part') : null,
 			mat,
 			from,
 			// It stays where it was taken, wherever on it that was.
@@ -2167,6 +2533,16 @@ function onPointerDown(event: PointerEvent): void {
 			base: props.document.root.value,
 			boxTurn: boxTurn.value,
 			together: props.byPoints && chosenPoints.value.length > 1 && partOf(handle) !== undefined ? chosenByRow() : null,
+			// A point of something lines up with its others, as one being drawn with a pen does.
+			siblings:
+				handle.kind === 'point' && typeof handle.place === 'number'
+					? grip.value.handles.flatMap((other, i) =>
+							// Not what is the same place, which lining up with would be referring to itself.
+							other !== handle && other.place !== handle.place && other.kind === 'point' && typeof other.place === 'number' && other.at !== undefined && gripped.value!.rowOf[i] === owner
+								? [other.at]
+								: []
+						)
+					: [],
 			points:
 				grip.value.transform.join() === '1,0,0,1,0,0' && handle.at !== undefined
 					? snapPoints(
@@ -2181,6 +2557,16 @@ function onPointerDown(event: PointerEvent): void {
 	// What is reached for is what is drawn, however far in, and it stays where it is.
 	if (props.byPoints) {
 		if (hit !== null) return
+		// A point of what is not selected yet is chosen as that is selected, with one click.
+		const peek = peekAt(x, y)
+		const point = peek?.index == null ? undefined : peek.handles[peek.index]
+		const part = point && partOf(point.handle)
+		if (peek && point && part !== undefined) {
+			chosenOnSelect = chosenKey(point.row, part)
+			emit('select', adding ? [...props.selected, peek.row] : [peek.row])
+			peeked.value = null
+			return
+		}
 		const row = shapeAt(x, y)?.row
 		if (row !== undefined) {
 			if (row !== taken.value[0] || taken.value.length > 1) emit('select', [row])
@@ -2192,21 +2578,22 @@ function onPointerDown(event: PointerEvent): void {
 	const shape = heldRow === null ? null : { row: heldRow }
 	if (shape !== null) {
 		const already = taken.value.includes(shape.row)
-		const rows = event.shiftKey
+		// With Shift, it is one more of what is selected, after the parts of others that are.
+		const chosen = event.shiftKey
 			? already
-				? taken.value.filter(row => row !== shape.row)
-				: [...taken.value, shape.row]
+				? props.selected.filter(row => row !== shape.row && !row.startsWith(`${shape.row}/`))
+				: [...props.selected, shape.row]
 			: already
 				? taken.value
 				: [shape.row]
-		if (rows !== props.selected) emit('select', rows)
+		if (chosen !== props.selected) emit('select', chosen)
+		const rows = rowsAbout(chosen, keptRow.value)
 		// A press both selects and takes hold of what it selected.
 		// A group has no place of its own, so that moving it is moving all that is drawn in it.
 		const { root, env } = props.document
 		const drawnRows = new Set(rows.flatMap(row => rowsPaintedBy(root.value, env.value, row)))
-		// What it is put on goes along, first, for it to be moved without anything having to change shape.
-		const held = rowsHeldBy(root.value, env.value, drawnRows)
-		const moving = [...held, ...drawnRows].flatMap(row => {
+		// What it refers to is worked back to, as where it is, rather than changing shape: see solve.
+		const moving = [...drawnRows].flatMap(row => {
 			const found = gripOfRow(row)
 			return found === null ? [] : [{ row, grip: found }]
 		})
@@ -2231,7 +2618,7 @@ function onPointerDown(event: PointerEvent): void {
 
 	const base = event.shiftKey ? taken.value : []
 	if (!event.shiftKey && taken.value.length > 0) emit('select', [])
-	pressed = { kind: 'range', base, last: base, chosen: event.shiftKey ? chosenPoints.value : [] }
+	pressed = { kind: 'range', base, last: base, chosen: adding ? chosenPoints.value : [] }
 	range.value = { from: [x, y], to: [x, y] }
 }
 
@@ -2268,11 +2655,72 @@ const closesPen = (x: number, y: number): boolean => {
 }
 
 /** What a pen would do here to what is selected, rather than drawing something new. */
-function modulationHere(x: number, y: number): Modulation | null {
-	const [row, other] = taken.value
-	if (pen !== null || extending !== null || row === undefined || other !== undefined) return null
+function modulationHere(x: number, y: number): (Modulation & { readonly row: string }) | null {
+	if (pen !== null || extending !== null) return null
 	const { root, env } = props.document
-	return modulationAt(root.value, env.value, row, fromScreen(x, y), SNAP_REACH / view.value[0])
+	const at = fromScreen(x, y)
+	const reach_ = SNAP_REACH / view.value[0]
+	const [row, other] = taken.value
+	const here = row === undefined || other !== undefined ? null : modulationAt(root.value, env.value, row, at, reach_)
+	if (here !== null) return { ...here, row: row! }
+	// An end of anything open, selected or not, is where a pen goes on from, as a curve's is.
+	const open = openEndAt(x, y, row)
+	return open === null ? null : { kind: 'continue', end: open.end, at: open.at, row: open.row }
+}
+
+/**
+ * The open end of a row near a place on screen, the row `first` before any other, and never
+ * one in `except`. Only what has an open end near, by what is drawn of it, is asked, there
+ * being much to ask of each.
+ */
+function openEndAt(
+	x: number,
+	y: number,
+	first?: string,
+	except: readonly string[] = []
+): { row: string; end: 'start' | 'end'; at: Vec } | null {
+	const { root, env } = props.document
+	const at = fromScreen(x, y)
+	const reach_ = SNAP_REACH / view.value[0]
+	const nearEnd = ({ row, draw, value }: { row: string; draw: string; value: unknown }): boolean => {
+		if (except.includes(row)) return false
+		const curve = draw === 'path' ? (value as { curves?: readonly { closed: boolean; vertices: readonly { point: Vec }[] }[] } | null)?.curves?.[0] : undefined
+		if (curve === undefined || curve.closed || curve.vertices.length < 2) return false
+		const ends = [curve.vertices[0]!.point, curve.vertices.at(-1)!.point]
+		return ends.some(([ex, ey]) => Math.hypot(ex - at[0], ey - at[1]) <= reach_)
+	}
+	const near = scene.value.filter(nearEnd).map(({ row }) => row).reverse()
+	for (const shape of [...(first !== undefined && near.includes(first) ? [first] : []), ...near]) {
+		const end = penEndAt(root.value, env.value, shape, at, reach_)
+		if (end !== null) return { row: shape, ...end }
+	}
+	return null
+}
+
+/**
+ * What the pen has drawn, gone on into the open end of `row` it was taken up to: before its start,
+ * in the order it was drawn, or after its end, the other way round, as one path. That is it done.
+ */
+function joinPen({ row, end }: { row: string; end: 'start' | 'end' }): void {
+	if (pen === null) return
+	const anchors = pen.anchors
+	const inOf = ({ at, out, into }: Anchor): Vec | undefined => into ?? (out && [at[0] * 2 - out[0], at[1] * 2 - out[1]])
+	// Its own handles, as it was drawn, but where it is open, which goes nowhere.
+	const added: PathAnchor[] = anchors.map((anchor, i) => {
+		const [into, out] = [inOf(anchor), anchor.out]
+		const forward = { at: anchor.at, ...(i === 0 || into === undefined ? {} : { in: into }), ...(out === undefined ? {} : { out }) }
+		if (end === 'start') return forward
+		// Going the other way, what came in goes out, and what went out comes in.
+		return { at: anchor.at, ...(i === 0 || into === undefined ? {} : { out: into }), ...(out === undefined ? {} : { in: out }) }
+	})
+	const next = withAnchorsJoined(pen.base, props.document.env.value, row, end, end === 'start' ? added : [...added].reverse(), pointerStep())
+	if (next === null || next.ast.kind !== 'let') return
+	props.document.setRoot(next.ast)
+	emit('select', [next.row])
+	penPulled.value = null
+	drawingOnto.value = null
+	pen = null
+	penLine.value = null
 }
 
 const MODULATION_LABEL: Readonly<Record<Modulation['kind'], string>> = {
@@ -2295,22 +2743,28 @@ function penNext(
 	x: number,
 	y: number,
 	even: boolean
-): { at: Vec; snap: SnapPoint | null; lines: readonly (readonly [Vec, Vec])[] } {
+): { at: Vec; snap: SnapPoint | null; lines: readonly (readonly [Vec, Vec])[]; lined: readonly AnchorLined[] } {
 	const near = even ? null : snapAt(snapPoints(pen?.base), x, y)
 	const to = roundedPlace(x, y)
 	// A place is more of a place than being in line with one. A line is less of one.
-	if (near !== null && near.line === undefined) return { at: near.at, snap: near, lines: [] }
+	if (near !== null && near.line === undefined) return { at: near.at, snap: near, lines: [], lined: [] }
 	const tolerance = props.snapping ? SNAP_REACH / view.value[0] : 0
 	const guided = pen === null ? null : penGuided(pen.anchors, to, tolerance, even, pointerStep())
 	if (guided !== null) return { ...guided, snap: null }
-	return { at: near?.at ?? to, snap: near, lines: [] }
+	return { at: near?.at ?? to, snap: near, lines: [], lined: [] }
 }
 
 /** What a pen shows of where it would go next, at this place on screen. */
 function hoverPen(x: number, y: number, even: boolean, valueOnly: boolean): void {
 	penPointer = [x, y]
 	const closes = closesPen(x, y)
-	const modulation = modulationHere(x, y)
+	// Taken up to an open end of something else, it would go on into that.
+	const joins =
+		pen !== null && pen.anchors.length > 0 && !closes
+			? openEndAt(x, y, undefined, pen.name === '' ? [] : [`binding:${pen.name}`])
+			: null
+	const modulation =
+		modulationHere(x, y) ?? (joins === null ? null : { kind: 'continue' as const, end: joins.end, at: joins.at, row: joins.row })
 	cursor.value = closes || modulation !== null ? 'pointer' : 'crosshair'
 	const next = closes || modulation !== null ? null : penNext(x, y, even)
 	const near = next?.snap ?? null
@@ -2321,10 +2775,27 @@ function hoverPen(x: number, y: number, even: boolean, valueOnly: boolean): void
 		(pen?.anchors.length ?? 0) > 0
 	linking.value = near !== null && canRefer(near) && !toPath && !valueOnly ? near : null
 	snapMark.value =
-		modulation === null ? near : { at: modulation.at, target: null, label: MODULATION_LABEL[modulation.kind] }
-	const last = pen?.anchors.at(-1)
+		modulation === null
+			? near
+			: { at: modulation.at, target: null, label: joins !== null && modulationHere(x, y) === null ? 'join' : MODULATION_LABEL[modulation.kind] }
+	// Going on from an end of something, it is drawn from there, and closes on the other end of it.
+	const { root, env } = props.document
+	const going = extending === null ? null : endOf(root.value, env.value, extending.row, extending.end)
+	const closing =
+		extending === null ? null : penEndAt(root.value, env.value, extending.row, fromScreen(x, y), SNAP_REACH / view.value[0])
+	const closesOther = extending !== null && closing !== null && closing.end !== extending.end ? closing.at : null
+	if (extending !== null) {
+		const snapped = snapAt(snapPoints(root.value, new Set([extending.row])), x, y)
+		snapMark.value = closesOther !== null ? { at: closesOther, target: null, label: 'close' } : snapped
+		cursor.value = closesOther !== null ? 'pointer' : 'crosshair'
+	}
+	const last = pen?.anchors.at(-1)?.at ?? going
+	// What it would close on, go on from or join is where the line goes to, as much as any snap.
+	const target =
+		closesOther ??
+		(closes ? pen!.anchors[0]!.at : (modulation?.at ?? next?.at ?? (extending === null ? null : (snapMark.value?.at ?? null))))
 	penLine.value = last
-		? [toScreen(last.at, view.value), next === null ? [x, y] : toScreen(next.at, view.value), next?.lines ?? []]
+		? [toScreen(last, view.value), target === null ? [x, y] : toScreen(target, view.value), next?.lines ?? []]
 		: null
 }
 
@@ -2339,21 +2810,18 @@ function penDown(x: number, y: number, valueOnly: boolean, even: boolean): void 
 			SNAP_REACH / view.value[0]
 		)
 		const otherEnd = extending.end === 'end' ? 'start' : 'end'
-		if (here?.kind === 'continue' && here.end === otherEnd) {
-			setModulated(withPointsClosed(root.value, env.value, extending.row))
+		const reached = penEndAt(root.value, env.value, extending.row, fromScreen(x, y), SNAP_REACH / view.value[0])
+		if ((here?.kind === 'continue' && here.end === otherEnd) || reached?.end === otherEnd) {
+			setModulated(withAnchorsClosed(root.value, env.value, extending.row))
 			extending = null
 			return
 		}
-		const count = gripAt(root.value, env.value, extending.row)?.handles.length ?? 0
-		const next = withPointInserted(
-			root.value,
-			env.value,
-			extending.row,
-			extending.end === 'end' ? count : 0,
-			snapAt(snapPoints(root.value, new Set([extending.row])), x, y)?.at ?? fromScreen(x, y),
-			pointerStep()
-		)
+		const base = root.value
+		const at = snapAt(snapPoints(base, new Set([extending.row])), x, y)?.at ?? fromScreen(x, y)
+		const next = withAnchorAdded(base, env.value, extending.row, extending.end, at, null, pointerStep())
 		if (next !== null) {
+			// Pulled out from where it was put, it curves, as one does that a pen draws.
+			pressed = { kind: 'extend', from: [x, y], base, row: extending.row, end: extending.end, at }
 			extending = { ...extending, row: next.row }
 			setModulated(next)
 		}
@@ -2361,8 +2829,11 @@ function penDown(x: number, y: number, valueOnly: boolean, even: boolean): void 
 	}
 	const modulation = modulationHere(x, y)
 	if (modulation !== null) {
-		const row = taken.value[0]!
-		if (modulation.kind === 'continue') extending = { row, end: modulation.end }
+		const { row } = modulation
+		if (modulation.kind === 'continue') {
+			extending = { row, end: modulation.end }
+			if (!taken.value.includes(row)) emit('select', [row])
+		}
 		else if (modulation.kind === 'remove') {
 			setModulated(withPointRemoved(root.value, env.value, row, modulation.index))
 		} else {
@@ -2372,6 +2843,14 @@ function penDown(x: number, y: number, valueOnly: boolean, even: boolean): void 
 		}
 		snapMark.value = null
 		return
+	}
+	// Taken up to an open end of something else, it goes on into that, as one.
+	if (pen !== null && pen.anchors.length > 0) {
+		const open = openEndAt(x, y, undefined, pen.name === '' ? [] : [`binding:${pen.name}`])
+		if (open !== null) {
+			joinPen(open)
+			return
+		}
 	}
 	if (closesPen(x, y)) {
 		// Closed as it is, until it is let go of, for how it comes back to be pulled.
@@ -2384,13 +2863,14 @@ function penDown(x: number, y: number, valueOnly: boolean, even: boolean): void 
 		const base = props.document.root.value
 		pen = { base, name: '', anchors: [] }
 	}
-	const { at, snap } = penNext(x, y, even)
+	const { at, snap, lined } = penNext(x, y, even)
 	if (pen.anchors.length === 0) beginOnto(at)
 	pen.anchors = [
 		...pen.anchors,
 		{
 			at,
 			...(snap !== null && !valueOnly ? { snap } : {}),
+			...(snap === null && !valueOnly && lined.length > 0 ? { lined } : {}),
 		},
 	]
 	writePen(false)
@@ -2656,14 +3136,28 @@ function nearestHandleOf(row: string, kind: Handle['kind'], to: Vec): number | n
 	return nearest
 }
 
-/** The handle being dragged, to where the pointer has got. */
-function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void {
+/** The handle being dragged, to where the pointer has got, with CMD (or CTRL) `held` or not. */
+function dragHandle(symmetric: boolean, held: boolean, even: boolean): void {
 	if (pressed?.kind !== 'handle' || pressed.at === null) return
-	const { row, handle, mat, from, offset, at, base, points, together } = pressed
+	const valueOnly = valueOnlyBy(held)
+	const { row, handle, mat, from, offset, at, base, points, together, siblings } = pressed
 	const [px, py] = fromScreen(at[0], at[1], mat)
 	const wanted: Vec = [px + offset[0], py + offset[1]]
+	// Lined up with where it goes by, or with the other places of what it is a place of, it refers to
+	// that for it, as it does to a place it is put on.
+	const linesUpWith = [...(handle.linesUpWith === undefined ? [] : [handle.linesUpWith]), ...siblings].map(by => ({
+		at: by,
+		code: valueOnly ? null : placeOnRow(base, props.document.env.value, row, by),
+	}))
 	const found = snapNear(
-		handle.linesUpWith === undefined ? points : [...points, ...axesThrough(handle.linesUpWith, wanted)],
+		[
+			...points,
+			...linesUpWith.flatMap(by => axesThrough(by.at, wanted, by.code)),
+			// Where going across from one meets going down from another, which refers to both.
+			...linesUpWith.flatMap(across =>
+				linesUpWith.filter(down => down !== across && down.at[0] !== across.at[0] && down.at[1] !== across.at[1]).map(down => axesCrossing(across, down))
+			),
+		],
 		wanted
 	)
 
@@ -2678,9 +3172,17 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 					const was = other.at ?? from
 					return other.to(add(was, delta), was, { moving: parts }).map(change => ({ ...change, row: of }))
 				})
-			: handle.to(pulledTo, from, { symmetric, even, smooth: valueOnly })
+			: handle.to(pulledTo, from, { symmetric, even, smooth: held })
 		const rounded = roundedChanges(changes, finest)
-		return { pulledTo, rounded, next: apply(row, rounded, base) }
+		const next = apply(row, rounded, base)
+		// As about its middle, without OPT, where that changes fewer of the numbers written: as what
+		// is written to be about its middle already is, which keeping a side where it was would undo.
+		if (together || symmetric || next.ast === null) return { pulledTo, rounded, next }
+		const aboutMiddle = roundedChanges(handle.to(pulledTo, from, { symmetric: true, even, smooth: held }), finest)
+		const instead = apply(row, aboutMiddle, base)
+		return instead.ast !== null && numbersChanged(base, instead.ast) < numbersChanged(base, next.ast)
+			? { pulledTo, rounded: aboutMiddle, next: instead }
+			: { pulledTo, rounded, next }
 	}
 	// What can only go one way does not get to what it snapped to, unless that is along its way:
 	// and then it goes to where its way meets the line it snapped to, or else it does not snap.
@@ -2690,7 +3192,7 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 		const off = (at: Vec | null): boolean => at === null || Math.hypot(at[0] - snap!.at[0], at[1] - snap!.at[1]) > SNAP_MISS / view.value[0]
 		let landed = landedAt(attempt.next.ast, row, handle, attempt.pulledTo)
 		const met = landed !== null && off(landed) ? alongSnapped(found, landed, SNAP_REACH / view.value[0]) : null
-		const onLine = met !== null && (met.beyond !== true || props.snappingBeyond) ? met : null
+		const onLine = met !== null && (met.beyond !== true || props.snappingBeyond || found.goesOn === true) ? met : null
 		if (onLine !== null) {
 			snap = onLine
 			attempt = pulled(onLine.at)
@@ -2714,6 +3216,11 @@ function dragHandle(symmetric: boolean, valueOnly: boolean, even: boolean): void
 				: pulledOnto(next.ast, base, props.document.env.value, row, handle, snap)
 		if (referring !== null) next.ast = referring
 		link = referring === null ? null : snap
+	}
+	// Places in a box squashed flat are lined up, and referring to the one that stayed, they stay so.
+	if (next.ast !== null && handle.name === 'box' && handle.across === true && !valueOnly) {
+		const aligned = alignedByReference(next.ast, base, props.document.env.value, props.selected)
+		if (aligned !== null) next.ast = aligned
 	}
 	linking.value = link
 	commit(next)
@@ -2834,8 +3341,21 @@ function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): vo
 			? [toScreen(start, view.value), toScreen(evenlyFrom(start, to), view.value)]
 			: null
 	const shape = props.attributes?.shape
+	// A box drawn back up or left goes from what it ends on that way, as it would drawn forwards.
+	const ordered =
+		(tool === 'rect' || tool === 'roundRect') && !even && !fromCenter && !valueOnly && (snap !== null || end !== null)
+			? cornersInOrder({ at: start, snap }, { at: to, snap: end })
+			: null
+	const reordered = ordered !== null && (ordered.from.snap !== snap || ordered.to.snap !== end)
+	const begun = !reordered
+		? null
+		: ordered.from.snap === null
+			? drawn(base, name, tool, ordered.from.at, ordered.to.at, false, pointerStep(), false, false, shape)
+			: drawnFrom(base, env.value, name, tool, ordered.from.snap, ordered.to.at, false, pointerStep(), false, shape)
 	// Command has it only be the same value, for now, rather than refer to that.
-	const started = byDiameter
+	const started = begun !== null
+		? begun
+		: byDiameter
 		? drawnThrough(base, env.value, name, [{ at: start, snap: valueOnly ? null : snap }, { at: to, snap: valueOnly ? null : end }], pointerStep())
 		: snap === null || valueOnly
 			? drawn(base, name, tool, snap?.at ?? fromScreen(fromX, fromY), to, even, pointerStep(), false, fromCenter, shape)
@@ -2843,7 +3363,8 @@ function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): vo
 	// What it is drawn to, it is drawn to as much as from what it starts at.
 	// Its numbers are rounded to the step, which can leave its corner a little short of what it was
 	// drawn to, and no further than the step each way.
-	const ended = end === null || valueOnly || byDiameter ? null : drawnOnto(started, env.value, `binding:${name}`, end, pointerStep() * 1.5)
+	const ending = reordered ? ordered.to.snap : end
+	const ended = ending === null || valueOnly || byDiameter ? null : drawnOnto(started, env.value, `binding:${name}`, ending, pointerStep() * 1.5)
 	// The mark says that it refers to what it was drawn to, when it does, as a handle's does.
 	linking.value = ended?.kind === 'let' ? end : null
 	props.document.setRoot(painted(ended?.kind === 'let' ? ended : started, name))
@@ -2859,6 +3380,7 @@ function drawPressed(even: boolean, valueOnly: boolean, fromCenter: boolean): vo
 
 function onPointerMove(event: PointerEvent): void {
 	const { offsetX: x, offsetY: y } = event
+	pointerOnCanvas.value = [x, y]
 	if (pressed === null) {
 		const shaping = shapingHandleAt(x, y)
 		if (shaping !== null) {
@@ -2872,7 +3394,7 @@ function onPointerMove(event: PointerEvent): void {
 		if (props.drawing === 'pen') {
 			hovered.value = null
 			hoveredHandle.value = null
-			hoverPen(x, y, event.shiftKey, event.metaKey || event.ctrlKey)
+			hoverPen(x, y, event.shiftKey, valueOnlyBy(event.metaKey || event.ctrlKey))
 			return
 		}
 		if (isBrush(props.drawing)) {
@@ -2891,8 +3413,9 @@ function onPointerMove(event: PointerEvent): void {
 			hovered.value = null
 			hoveredHandle.value = null
 			cursor.value = 'crosshair'
-			const next = circleAt(x, y, event.metaKey || event.ctrlKey)
+			const next = circleAt(x, y, valueOnlyBy(event.metaKey || event.ctrlKey))
 			snapMark.value = next.snap ?? null
+			linking.value = next.snap != null && canRefer(next.snap) ? next.snap : null
 			writeCircling(next)
 			return
 		}
@@ -2901,7 +3424,7 @@ function onPointerMove(event: PointerEvent): void {
 			hoveredHandle.value = null
 			cursor.value = 'crosshair'
 			const near = snapAt(snapPoints(), x, y)
-			linking.value = near !== null && canRefer(near) && !event.metaKey && !event.ctrlKey ? near : null
+			linking.value = near !== null && canRefer(near) && !valueOnlyBy(event.metaKey || event.ctrlKey) ? near : null
 			snapMark.value = near
 			penLine.value = null
 			return
@@ -2910,6 +3433,7 @@ function onPointerMove(event: PointerEvent): void {
 		const shape = index === null ? rowHeldAt(x, y) : null
 		hoveredHandle.value = index
 		hovered.value = shape
+		peeked.value = index === null ? peekAt(x, y) : null
 		cursor.value = props.picking
 			? 'crosshair'
 			: spaceDown
@@ -2960,6 +3484,7 @@ function onPointerMove(event: PointerEvent): void {
 			pencilStroke.value = stroke
 			writePencil(stroke, pencilTip ?? undefined)
 			snapMark.value = snapAt(pressed.points, x, y)
+			linking.value = null
 			break
 		}
 		case 'pen': {
@@ -2967,6 +3492,17 @@ function onPointerMove(event: PointerEvent): void {
 			if (pen === null || Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) break
 			pressed.at = [x, y]
 			pullPen(x, y, event.altKey, event.metaKey || event.ctrlKey, event.shiftKey)
+			break
+		}
+		case 'extend': {
+			const [fromX, fromY] = pressed.from
+			if (extending === null || Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) break
+			const { env } = props.document
+			const next = withAnchorAdded(pressed.base, env.value, pressed.row, pressed.end, pressed.at, fromScreen(x, y), pointerStep())
+			if (next !== null) {
+				extending = { ...extending, row: next.row }
+				setModulated(next)
+			}
 			break
 		}
 		case 'closing': {
@@ -2980,7 +3516,7 @@ function onPointerMove(event: PointerEvent): void {
 			const [fromX, fromY] = pressed.at
 			if (!pressed.drawing && Math.hypot(x - fromX, y - fromY) < MOVE_THRESHOLD) return
 			pressed.to = [x, y]
-			drawPressed(event.shiftKey, event.metaKey || event.ctrlKey, event.altKey)
+			drawPressed(event.shiftKey, valueOnlyBy(event.metaKey || event.ctrlKey), event.altKey)
 			break
 		}
 		case 'handle': {
@@ -3018,7 +3554,7 @@ function onPointerMove(event: PointerEvent): void {
 			}
 			// The place it was taken by, put on another, goes on being there: unless it is only to be as much, with Command.
 			let link: SnapPoint | null = null
-			if (snappedBy !== null && !event.shiftKey && !event.metaKey && !event.ctrlKey && next.ast !== null) {
+			if (snappedBy !== null && !event.shiftKey && !valueOnlyBy(event.metaKey || event.ctrlKey) && next.ast !== null) {
 				const { own } = snappedBy
 				// A place that is only a handle says nothing of whose it is, but where it was, and what it is called.
 				const [was, rowEnv] = [pressed.base, props.document.env.value]
@@ -3094,8 +3630,9 @@ useEventListener(window, 'pointerup', event => {
 		held.value = null
 	}
 	const wasHandle = pressed?.kind === 'handle'
-	// Letting go of a handle, dragged or not, is about the part of the row it is: unless it took others along.
-	const clicked = pressed?.kind === 'handle' && pressed.together === null ? pressed : null
+	// Letting go of a handle, dragged or not, is about the part of the row it is: unless it took others
+	// along, or is of a box around several, which is no one part of any.
+	const clicked = pressed?.kind === 'handle' && pressed.together === null && pressed.handle.across !== true ? pressed : null
 	// A click on one of several, not having moved them, is about that one.
 	if (pressed?.kind === 'move' && pressed.collapse && !pressed.moving) {
 		emit('select', [pressed.row])
@@ -3154,8 +3691,14 @@ useEventListener(window, 'pointerup', event => {
 		const { root, env } = props.document
 		const parts = rowsOfHandle(root.value, env.value, clicked.row, clicked.handle)
 		if (parts.length > 0) {
-			keptRow.value = clicked.row
-			emit('select', parts)
+			// With Shift and not pulled, it is one more of what is selected, or one less.
+			const adding = clicked.at === null ? clicked.adding : null
+			const had = parts.every(part => props.selected.includes(part))
+			if (adding === null || (adding === 'part' && keptRow.value === null)) keptRow.value = clicked.row
+			if (adding === null) emit('select', parts)
+			else if (adding === 'part') {
+				emit('select', had ? props.selected.filter(row => !parts.includes(row)) : [...props.selected, ...parts.filter(part => !props.selected.includes(part))])
+			}
 		}
 	}
 	if (wasHandle) {
@@ -3184,9 +3727,9 @@ useEventListener(window, 'pointerup', event => {
 			:style="{ cursor }"
 			@pointerdown="onPointerDown"
 			@dblclick="onDoubleClick"
-			@contextmenu.prevent="emit('menu', $event.clientX, $event.clientY, rowOfShapeAt($event.offsetX, $event.offsetY))"
+			@contextmenu.prevent="onContextMenu"
 			@pointermove="onPointerMove"
-			@pointerleave="(hovered = null), (hoveredHandle = null), (penLine = null), (snapMark = null), (brushPointer = null)"
+			@pointerleave="(hovered = null), (hoveredHandle = null), (peeked = null), (penLine = null), (snapMark = null), (brushPointer = null)"
 			@auxclick.prevent
 		/>
 		<Dimensions

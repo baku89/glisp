@@ -2,7 +2,7 @@ import { buildPrelude, type Env, parse, print } from '@glisp/lang'
 import { describe, expect, it } from 'vitest'
 
 import { withGraphics } from './graphics'
-import { modulationAt, withPointInserted, withPointRemoved, withPointsClosed } from './modulate'
+import { modulationAt, penEndAt, withAnchorAdded, withAnchorsClosed, withAnchorsJoined, withPointInserted, withPointRemoved, withPointsClosed } from './modulate'
 
 const env: Env = withGraphics(buildPrelude())
 const row = 'binding:c'
@@ -101,5 +101,49 @@ describe('what it does', () => {
 
 	it('rounds as asked', () => {
 		expect(print(withPointInserted(parse(line), env, row, 1, [5.123, 5.678], 0.1)!.ast)).toContain('[5.1 5.7]')
+	})
+})
+
+describe('going on from an end with a pen', () => {
+	const cubic = '{c = (path.cubic [0 0] [10 -10] [20 -10] [30 0])}'
+	const anchors = '{c = (path.anchors [[0 0] {at: [10 0] in: [5 -5]}])}'
+	const added = (src: string, end: 'start' | 'end', where: [number, number], pulled: [number, number] | null) =>
+		print(withAnchorAdded(parse(src), env, row, end, where, pulled)!.ast)
+
+	it('is at either end of what is open, and not of what goes round', () => {
+		expect(penEndAt(parse(poly), env, row, [10, 11], 2)).toEqual({ end: 'end', at: [10, 10] })
+		expect(penEndAt(parse(cubic), env, row, [1, 0], 2)).toEqual({ end: 'start', at: [0, 0] })
+		expect(penEndAt(parse(anchors), env, row, [10, 1], 2)).toEqual({ end: 'end', at: [10, 0] })
+		expect(penEndAt(parse(gon), env, row, [0, 0], 2)).toBeNull()
+		expect(penEndAt(parse(poly), env, row, [5, 0], 2)).toBeNull()
+	})
+
+	it('adds a point to points, which stay points', () => {
+		expect(added(poly, 'end', [0, 10], null)).toBe('{c = (path.polyline [0 0] [10 0] [10 10] [0 10])}')
+		expect(added(line, 'start', [-10, 0], null)).toBe('{c = (path.polyline [-10 0] [0 0] [10 0])}')
+	})
+
+	it('comes to a path of anchors where it curves, whatever it was, as straight as it was where it has no handles', () => {
+		expect(added(poly, 'end', [0, 10], [-5, 10])).toBe('{c = (path.anchors [[0 0] [10 0] [10 10] {at: [0 10] in: [5 10]}])}')
+		expect(added(cubic, 'end', [40, 10], null)).toBe('{c = (path.anchors [{at: [0 0] out: [10 -10]} {at: [30 0] in: [20 -10]} [40 10]])}')
+		expect(added(anchors, 'start', [-10, 0], [-10, 5])).toBe('{c = (path.anchors [{at: [-10 0] out: [-10 -5]} [0 0] {at: [10 0] in: [5 -5]}])}')
+	})
+
+	it('goes round, from one end to the other', () => {
+		expect(print(withAnchorsClosed(parse(anchors), env, row)!.ast)).toBe('{c = (path.anchors [[0 0] {at: [10 0] in: [5 -5]}] closed: true)}')
+	})
+})
+
+describe('what a pen draws up to an end of something open', () => {
+	it('goes on into it, as one, points staying points', () => {
+		const joined = (end: 'start' | 'end') =>
+			print(withAnchorsJoined(parse(poly), env, row, end, end === 'start' ? [{ at: [-20, 0] }, { at: [-10, 5] }] : [{ at: [20, 10] }])!.ast)
+		expect(joined('start')).toBe('{c = (path.polyline [-20 0] [-10 5] [0 0] [10 0] [10 10])}')
+		expect(joined('end')).toBe('{c = (path.polyline [0 0] [10 0] [10 10] [20 10])}')
+	})
+
+	it('is all of it a path of anchors, where what is joined on curves', () => {
+		const next = withAnchorsJoined(parse(line), env, row, 'start', [{ at: [-20, 0], out: [-20, -10] }])!
+		expect(print(next.ast)).toBe('{c = (path.anchors [{at: [-20 0] out: [-20 -10]} [0 0] [10 0]])}')
 	})
 })

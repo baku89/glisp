@@ -269,8 +269,11 @@ describe('rowsAbout', () => {
 	it('is the row kept hold of, while only parts of it are selected', () => {
 		expect(rowsAbout([part, 'binding:l/arg1'], 'binding:l')).toEqual(['binding:l'])
 	})
+	it('is the row kept hold of for its parts, along with what else is selected', () => {
+		expect(rowsAbout([part, 'binding:m', 'binding:l/arg1'], 'binding:l')).toEqual(['binding:l', 'binding:m'])
+	})
 	it('is what is selected, otherwise', () => {
-		const other = [part, 'binding:m/arg0']
+		const other = ['binding:m/arg0']
 		expect(rowsAbout(other, 'binding:l')).toBe(other)
 		expect(rowsAbout(['binding:l'], 'binding:l')).toEqual(['binding:l'])
 		expect(rowsAbout(['binding:line/arg0'], 'binding:l')).toEqual(['binding:line/arg0'])

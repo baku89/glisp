@@ -27,7 +27,7 @@ import {
 	withParent,
 	withSlotCommand,
 } from './rowsClipboard'
-import { extractedLiteralAt } from './multiRows'
+import { extractedValueAt } from './multiRows'
 import type { MenuItem } from 'tweeq/Menu'
 import {
 	ALSO_SELECTED,
@@ -306,9 +306,9 @@ provide(LINKER, {
 	can: (source, target) => linked(source, target) !== null,
 	link: linkReference,
 	canCopy: path => writtenOf(path) !== null,
-	canExtract: path => extractedLiteralAt(props.document.root.value, props.document.env.value, path) !== null,
+	canExtract: path => extractedValueAt(props.document.root.value, props.document.env.value, path) !== null,
 	extract(path) {
-		const result = extractedLiteralAt(props.document.root.value, props.document.env.value, path)
+		const result = extractedValueAt(props.document.root.value, props.document.env.value, path)
 		if (result?.ast.kind === 'let') props.document.setRoot(result.ast)
 	},
 	copy: copyReference,

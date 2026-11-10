@@ -1,7 +1,7 @@
-import { type AST, buildPrelude, check, type Env, evaluate, LetAST, print, Session, type TypedHostFn } from '@glisp/lang'
+import { type AST, buildPrelude, check, type Env, evaluate, LetAST, print, Session, type TypedHostFn, typeFits, type TypeValue } from '@glisp/lang'
 import { bound, parse } from './program.testing'
 import { filtersFor, wrappedAt } from '@glisp/tweeq/filters'
-import { extractedLiteralAt } from '@glisp/tweeq/multiRows'
+import { extractedValueAt } from '@glisp/tweeq/multiRows'
 import { copiedRows, pastedArguments, pastedRows, reach } from '@glisp/tweeq/rowsClipboard'
 import { withSlotCommand } from '@glisp/tweeq/rowsClipboard'
 import { aboutType, actionsOf, defaultFor, renameBindingAt, isAngleInput, isSizeInput, isTranslatable, numberOptionsAt, referenceAt, summaryOf, viewOf } from '@glisp/tweeq/structure'
@@ -11,7 +11,7 @@ import { transform } from 'pave/path/modifiers'
 import { fromD, toD } from 'pave/path/svg'
 import { describe, expect, it } from 'vitest'
 
-import { BOX_ANSWERS, type PathValue, withGraphics } from './graphics'
+import { BOX_ANSWERS, isRect, type PathValue, withGraphics } from './graphics'
 import { isPlaceOf, boundsOfRows, boxHandlesOf, changed, gripAt, boxMeasured, gripOfPointsOrNot, gripOfRows, hasSizeMeasured, innerPathsOf, boxWithCornerAt, numbersDifferent, placeOfNumbers, pointsWithin, placePartOf, whatStayed, withBoxMeasured, withBoxOfParts, linked, pathOfRow, rowsInside, sceneOf, snapPointsOf, valueOfRow, withBoxHandles, withPaint } from './scene'
 
 const env: Env = withGraphics(buildPrelude())
@@ -137,6 +137,7 @@ describe('what can be turned as it is written', () => {
 		`(path.bulge ${R} [20 10] 30 0.4)`,
 		`(path.dash ${R} [10 5])`,
 		`(path.reverse ${R})`,
+		`(path.close ${R})`,
 		`(path.unite ${R} (path.circle [40 20] 10))`,
 		`(path.subtract ${R} (path.circle [40 20] 10))`,
 		`(path.blend ${R} (path.polygon [50 50] [60 50] [60 60]) 0.5)`,
@@ -195,7 +196,7 @@ describe('what can be turned as it is written', () => {
 
 describe('what goes on being what it was to a parameter, with no parameter around it', () => {
 	const R = '(path.rect [0 0] [10 10])'
-	const extracted = (src: string, path: string) => print(extractedLiteralAt(parse(src), env, path)!.ast)
+	const extracted = (src: string, path: string) => print(extractedValueAt(parse(src), env, path)!.ast)
 	const actionOf = (src: string, row: string, id: string) => {
 		const root = parse(src)
 		const slot = viewOf(root, env).slots.find(({ key }) => key === row)!
@@ -218,7 +219,7 @@ describe('what goes on being what it was to a parameter, with no parameter aroun
 
 	it('is the same to what refers to it, and goes on being drawn', () => {
 		const root = parse(`{c = ${R}}`)
-		const { ast } = extractedLiteralAt(root, env, 'binding:c/arg0')!
+		const { ast } = extractedValueAt(root, env, 'binding:c/arg0')!
 		expect(bounds(pathOfRow(ast, env, 'binding:c')!.path)).toEqual(bounds(pathOfRow(root, env, 'binding:c')!.path))
 		expect(sceneOf(ast, env).map(({ draw }) => draw)).toContain('path')
 	})
@@ -329,6 +330,19 @@ describe('what is around a path', () => {
 		const { value, diagnostics } = evaluate(parse('^percent 0.25'), env)
 		expect(value).toBe(0.25)
 		expect(diagnostics).toEqual([])
+	})
+
+	it('has angle be a type a program can say, as a number in degrees', () => {
+		const { value, diagnostics } = evaluate(parse('^angle 45'), env)
+		expect(value).toBe(45)
+		expect(diagnostics).toEqual([])
+	})
+
+	it('has what turns, and a hue, take an angle', () => {
+		for (const src of ['(line.at [0 0] 30)', '(color.hsl 120 0.5 0.5)', '(color.oklch 0.5 0.1 120)']) {
+			const slot = viewOf(parse(src), env).slots.find(({ ast }) => ast.kind === 'lit' && (ast.value === 30 || ast.value === 120))!
+			expect(slot.expected?.meta?.get('name'), src).toMatchObject({ value: 'angle' })
+		}
 	})
 
 	it('has percent be shown as one, while it is from 0 to 1', () => {
@@ -522,6 +536,7 @@ describe('what else goes around a path', () => {
 		`(path.subdivide ${Q} 2)`,
 		`(path.flatten ${Q} 1)`,
 		`(path.reverse ${Q})`,
+		`(path.close ${Q})`,
 		`(path.convexHull ${Q})`,
 	]
 
@@ -1067,7 +1082,7 @@ describe('what is moved, where it refers to a place on something else', () => {
 		const next = linked(root, env, 'binding:b', 0, middle)!
 		const moved = changed(next, env, 'binding:b', gripAt(next, env, 'binding:b')!.move!([10, 5]))
 		expect(moved.problem).toBe(null)
-		expect(print(moved.ast!)).toContain('@2) (/ (+')
+		expect(print(moved.ast!)).toContain('(vec2.midpoint ../../a/start: ../../a/end:)')
 		expect(print(moved.ast!)).toContain('(path.line [50 60] [170 100])')
 	})
 
@@ -1088,13 +1103,13 @@ describe('what is across a line', () => {
 
 	it('takes a line, and has no ends of its own', () => {
 		const { paramNames } = evaluate(parse('path.mirror'), env).value as TypedHostFn
-		expect(paramNames).toEqual(['path', 'line'])
+		expect(paramNames).toEqual(['path', 'line', 'flip'])
 	})
 
 	it('has the handles of how the line comes about', () => {
-		expect(across('(line.fromPoints [10 0] [10 10])').handles.map(({ kind }) => kind)).toEqual(['point', 'point', 'button'])
-		expect(across('(line.at [10 0] 90)').handles.map(({ kind }) => kind)).toEqual(['point', 'direction', 'button'])
-		expect(across('[[10 0] [0 10]]').handles.map(({ kind }) => kind)).toEqual(['point', 'point', 'button'])
+		expect(across('(line.fromPoints [10 0] [10 10])').handles.map(({ kind }) => kind)).toEqual(['point', 'point'])
+		expect(across('(line.at [10 0] 90)').handles.map(({ kind }) => kind)).toEqual(['point', 'direction'])
+		expect(across('[[10 0] [0 10]]').handles.map(({ kind }) => kind)).toEqual(['point', 'point'])
 	})
 
 	it('writes to what the line is made of', () => {
@@ -1102,18 +1117,20 @@ describe('what is across a line', () => {
 		expect(start!.to([20, 0], [10, 0])).toEqual([{ route: [1, 0], value: [20, 0] }])
 	})
 
-	it('turns over what a mirror keeps, by a press', () => {
-		const flip = across('(line.fromPoints [10 0] [10 10])').handles.find(({ kind }) => kind === 'button')!
-		expect(flip.to(flip.at!, flip.at!)).toEqual([
-			{ route: [1, 0], value: [10, 10] },
-			{ route: [1, 1], value: [10, 0] },
-		])
-		// The arrow points the way it is mirrored, away from the side that is kept.
-		expect(flip.angle).toBe(0)
+	it('keeps the side of the line its way says', () => {
 		const [[, top], [, bottom]] = on(`(path.mirror (path.rect [0 0] [10 2]) (line.fromPoints [10 5] [0 5]))`)
 		expect(top).toBeCloseTo(0)
 		expect(bottom).toBeCloseTo(10)
 		expect(on(`(path.mirror (path.rect [0 0] [10 2]) (line.fromPoints [0 5] [10 5]))`)[0][1]).toBe(Infinity)
+	})
+
+	it('keeps the other side with flip, the line staying as it is', () => {
+		const [[, top], [, bottom]] = on(`(path.mirror (path.rect [0 0] [10 2]) (line.fromPoints [0 5] [10 5]) flip: true)`)
+		expect(top).toBeCloseTo(0)
+		expect(bottom).toBeCloseTo(10)
+		expect(on(`(path.mirror (path.rect [0 0] [10 2]) (line.fromPoints [10 5] [0 5]) flip: true)`)[0][1]).toBe(Infinity)
+		// Its handles are still those of the line.
+		expect(grip(`(path.mirror ${RECT} (line.fromPoints [10 0] [10 10]) flip: true)`).handles.map(({ kind }) => kind)).toEqual(['point', 'point'])
 	})
 
 	it('has nothing to turn over in a reflection, where both sides are kept', () => {
@@ -1287,6 +1304,7 @@ describe('what each thing says to the box around it', () => {
 			`(path.subdivide ${R} 3)`,
 			`(path.flatten ${E})`,
 			`(path.reverse ${R})`,
+			`(path.close ${R})`,
 			`(path.convexHull ${R} (path.rect [50 50] [5 5]))`,
 			`(path.unite ${R} (path.rect [10 10] [50 50]))`,
 			`(path.subtract ${R} (path.rect [10 5] [5 5]))`,
@@ -1431,6 +1449,7 @@ describe('going one step on what is in a modifier', () => {
 
 	it('goes by what it is given, when it comes back as itself', () => {
 		expect(stepped('{a = (style (path.circle [10 10] 5) fill: "#000000")}')).toContain('(style (path.ellipse [10 10] [5 5]) fill: ')
+		expect(stepped('{a = (path.square [0 0] 10)}')).toContain('(path.rect [0 0] [10 10])')
 	})
 
 	it('works out the modifier, when there is nothing left in it to step', () => {
@@ -1623,6 +1642,26 @@ describe('the points of a path', () => {
 		expect(boxed.around).toEqual([[10, 0], [20, 10]])
 	})
 
+	it('have their box go on being turned as they have been, and pulled along its own sides', () => {
+		const root = parse('{a = (path.line [0 0] [10 10]) b = (path.circle [10 0] 5)}')
+		const parts = gripOfPointsOrNot(gripOfRows(root, env, ['binding:a', 'binding:b']), true)!
+		const chosen = [{ row: 'binding:a', parts: ['arg0', 'arg1'] }, { row: 'binding:b', parts: ['arg0'] }]
+		const boxed = withBoxOfParts(parts, chosen, 45)!
+		expect(boxed.angle).toBe(45)
+		const [[left, top], [right, bottom]] = boxed.around!
+		// Along the line, and across it to where the circle's center is.
+		expect([left, top, right, bottom].map(n => Math.round(n * 1000) / 1000)).toEqual([0, -7.071, 14.142, 0])
+		// The side across from the first point, pulled out along the line, takes the end out along it too.
+		const side = boxed.grip.handles.find(
+			({ across, at, corner }) => across && !corner && at !== undefined && Math.abs(at[0] - 12.5) < 1e-6 && Math.abs(at[1] - 7.5) < 1e-6
+		)!
+		const changes = side.to([side.at![0] + 5, side.at![1] + 5], side.at!)
+		const moved = changed(root, env, 'binding:a', changes).ast!
+		const [, end] = gripAt(moved, env, 'binding:a')!.handles.filter(({ place }) => typeof place === 'number').map(({ at }) => at!)
+		expect(end![0]).toBeCloseTo(end![1])
+		expect(end![0]).toBeGreaterThan(10)
+	})
+
 	it('are not there for the tool that goes by the whole of things, and are all there is for the one that goes by them', () => {
 		const data = 'M0,0 C10,0 10,10 20,10 L30,0'
 		const root = parse(`{c = (style ${d(data)} fill: "#000")}`)
@@ -1726,12 +1765,13 @@ describe('the points of a path', () => {
 
 	it('are found by where they are on the canvas, for each row, along with the places of what is not a path', () => {
 		const root = parse(`{a = ${d('M0,0 L10,0 L10,10')} b = ${d('M100,100 L105,105')} c = (path.rect [0 0] [5 5])}`)
-		// The rectangle's corner is a place, its origin, and is gone round like a point.
+		// The rectangle's corner is a place, its origin, and is gone round like a point, and so are
+		// its other corners, which are worked out from it, by their names.
 		expect(pointsWithin(root, env, ['binding:a', 'binding:b', 'binding:c'], [-1, -1], [10, 5])).toEqual([
 			{ row: 'binding:a', points: ['0:0', '0:1'] },
-			{ row: 'binding:c', points: ['arg0'] },
+			{ row: 'binding:c', points: ['arg0', '@top right', '@bottom left', '@bottom right'] },
 		])
-		expect(pointsWithin(root, env, ['binding:c'], [1, 1], [10, 10])).toEqual([])
+		expect(pointsWithin(root, env, ['binding:c'], [1, 1], [10, 10])).toEqual([{ row: 'binding:c', points: ['@bottom right'] }])
 		expect(pointsWithin(root, env, ['binding:a', 'binding:b'], [110, 110], [8, 8])).toEqual([
 			{ row: 'binding:a', points: ['0:2'] },
 			{ row: 'binding:b', points: ['0:0', '0:1'] },
@@ -1864,6 +1904,23 @@ describe('the points of a path', () => {
 	})
 })
 
+describe('a path closed', () => {
+	it('goes back from its last point to its first, and moves as what it closes does', () => {
+		const root = parse('{c = (path.close (path.polyline [0 0] [10 0] [10 10]))}')
+		const { value } = evaluate(parse('(path.close (path.polyline [0 0] [10 0] [10 10]))'), env)
+		expect(toD((value as PathValue).path)).toBe('M 0,0 L 10,0 L 10,10 Z')
+		// What it closes is shown as it was, and gone into to be changed, as with any filter of a path.
+		const grip = gripAt(root, env, 'binding:c')!
+		expect(grip.sources).toHaveLength(1)
+		expect(print(changed(root, env, 'binding:c', grip.move!([5, 5])).ast!)).toContain('(path.close (path.polyline [5 5] [15 5] [15 15]))')
+	})
+
+	it('leaves what is closed as it is', () => {
+		const { value } = evaluate(parse('(path.close (path.rect [0 0] [10 10]))'), env)
+		expect(toD((value as PathValue).path)).toBe(toD((evaluate(parse('(path.rect [0 0] [10 10])'), env).value as PathValue).path))
+	})
+})
+
 describe('pasted onto an input of a type of the canvas', () => {
 	const root = parse(`{
 		shape = (style (path.circle [3 4] 10) fill: "red")
@@ -1907,6 +1964,23 @@ describe('a matrix', () => {
 	})
 })
 
+describe('a square stepped to a rect', () => {
+	const about = (wrapped: (call: string) => string) =>
+		`{main = [a = ${wrapped('(path.square [(- /main/x/origin:/0 (/ ../../../size: 2)) (- /main/x/origin:/1 (/ ../../../size: 2))] 120)')} x = (axes @[10 20])]}`
+
+	it.each([
+		['by itself', (call: string) => call],
+		['in a style', (call: string) => `(style ${call} fill: "#000000")`],
+	])('goes on being about its middle, %s, by what it was written to go by', (_, wrapped) => {
+		const root = parse(about(wrapped))
+		const next = withSlotCommand(root, env, ['binding:a'], 'step')!
+		expect(print(next)).toContain('(path.rect [(- /main/x/origin:/0 (/ ../../../size:/0 2)) (- /main/x/origin:/1 (/ ../../../size:/1 2))] [120 120])')
+		const [was, now] = [evaluate(root, env), evaluate(next, env)]
+		expect(now.diagnostics).toEqual([])
+		expect(JSON.stringify(now.value)).toBe(JSON.stringify(was.value))
+	})
+})
+
 describe('what a type is, said where a value of it is inspected', () => {
 	const about = (row: string) => {
 		const root = parse('{r = (path.rect [0 0] [10 10]) t = (path.transform (path.circle [0 0] 3) [1 0 0 1 0 0])}')
@@ -1928,6 +2002,74 @@ describe('what a type is, said where a value of it is inspected', () => {
 	})
 })
 
+describe('a path trimmed', () => {
+	const LINE = '(path.line [0 0] [100 0])'
+	const lengthOf = (src: string) => {
+		const [[left], [right]] = bounds((evaluate(parse(src), env).value as PathValue).path)
+		return right - left
+	}
+
+	it('is the part of it from start to end of the way along it, all of it with neither said', () => {
+		expect(lengthOf(`(path.trim ${LINE} 0.25 0.75)`)).toBeCloseTo(50)
+		expect(lengthOf(`(path.trim ${LINE})`)).toBeCloseTo(100)
+		expect(lengthOf(`(path.trim ${LINE} end: 0.1)`)).toBeCloseTo(10)
+	})
+
+	it('has its start and end shown as percentages, from 0 to 1', () => {
+		const [, start, end] = viewOf(parse(`(path.trim ${LINE} 0.25 0.75)`), env).slots
+		expect(numberOptionsAt(start!)).toMatchObject({ min: 0, max: 1, suffix: '%' })
+		expect(numberOptionsAt(end!)).toMatchObject({ min: 0, max: 1, suffix: '%' })
+	})
+
+	it('has its start and end taken along the path, as far along as where they are let go', () => {
+		const held = grip(`(path.trim ${LINE} 0.25 0.75)`)
+		const [start, end] = held.handles
+		expect(start!.at![0]).toBeCloseTo(25)
+		expect(end!.at![0]).toBeCloseTo(75)
+		const [change] = end!.to([40, 30], end!.at!)
+		expect(change!.route).toEqual([2])
+		expect(change!.value as number).toBeCloseTo(0.4)
+	})
+})
+
+describe('a rect, where a path is wanted', () => {
+	it('is taken as its outline, by what takes a path', () => {
+		const offset = evaluate(parse('(path.offset (rect [0 0] [10 10]) 5)'), env)
+		expect(offset.diagnostics).toEqual([])
+		expect(bounds((offset.value as PathValue).path)).toEqual([[-5, -5], [15, 15]])
+		expect(lengthOf('(path.trim (rect [0 0] [100 100]) 0 0.25)')).toBeCloseTo(100)
+	})
+
+	it('fits a path when the program is checked, and stays a rect as one', () => {
+		const rect = evaluate(parse('rect'), env).value as TypeValue
+		const path = evaluate(parse('path'), env).value as TypeValue
+		expect(typeFits(rect, path)).toBe(true)
+		expect(typeFits(path, rect)).toBe(false)
+		const cast = evaluate(parse('^path (rect [0 0] [10 10])'), env)
+		expect(cast.diagnostics).toEqual([])
+		expect(isRect(cast.value)).toBe(true)
+	})
+
+	function lengthOf(src: string): number {
+		const [[left], [right]] = bounds((evaluate(parse(src), env).value as PathValue).path)
+		return right - left
+	}
+})
+
+describe('a range', () => {
+	it('is a type a program can say, from 0 to 1 until it is said', () => {
+		expect(evaluate(parse('^range [0.2 0.6]'), env).value).toEqual([0.2, 0.6])
+		expect((evaluate(parse('range'), env).value as TypeValue).default).toEqual([0, 1])
+	})
+
+	it('goes into what takes its two numbers, spread', () => {
+		const spread = evaluate(parse('{r = ^range [0.25 0.75] (path.trim (path.line [0 0] [100 0]) ...r)}'), env)
+		expect(spread.diagnostics).toEqual([])
+		const [[left], [right]] = bounds((spread.value as PathValue).path)
+		expect(right - left).toBeCloseTo(50)
+	})
+})
+
 describe('a type that is called', () => {
 	it('has each of its parts wanted as what its constructor takes, as a rect has a point and a size', () => {
 		const root = parse('{a = (artboard (rect [-4 -2] [773 648]) [])}')
@@ -1936,5 +2078,47 @@ describe('a type that is called', () => {
 		expect(aboutType(origin!.expected, origin!.env)?.label).toBe('Point')
 		expect(aboutType(size!.expected, size!.env)?.label).toBe('Size')
 		expect(isTranslatable(origin!.expected)).toBe(true)
+	})
+})
+
+describe('the handles of a wave', () => {
+	const src = '{c = (path.wave (path.line [0 0] [100 0]) 5 40)}'
+	const root = parse(src)
+	const handles = gripAt(root, env, 'binding:c')!.handles
+	const named = (name: string) => handles.find(handle => handle.name === name)!
+	const pulled = (name: string, to: Vec) => print(changed(root, env, 'binding:c', named(name).to(to, named(name).at!)).ast!)
+
+	it('are where it is measured from, its first crest, and a wavelength along', () => {
+		expect(handles.find(({ place }) => place === 5)!.at).toEqual([0, 0])
+		const crest = named('crest').at!
+		expect(crest[0]).toBeCloseTo(10)
+		expect(crest[1]).toBeCloseTo(5)
+		expect(named('wavelength').at![0]).toBeCloseTo(40)
+	})
+
+	it('have its crest pulled across be how far it goes, and along be its phase', () => {
+		expect(pulled('crest', [10, 8])).toContain('(path.wave (path.line [0 0] [100 0]) 8 40)')
+		expect(pulled('crest', [20, 5])).toContain('(path.wave (path.line [0 0] [100 0]) 5 40 -90)')
+	})
+
+	it('have a wave as long, and going the way, as the handle is from where it is measured', () => {
+		expect(pulled('wavelength', [0, 60])).toContain('(path.wave (path.line [0 0] [100 0]) 5 60 angle: 90)')
+	})
+})
+
+describe('what turns a circle', () => {
+	const turners = (src: string) => {
+		const root = parse(`{c = ${src}}`)
+		const boxed = withBoxHandles(gripOfRows(root, env, ['binding:c']), sceneOf(root, env), ['binding:c'])!
+		return boxed.grip.handles.filter(({ outsideCorner }) => outsideCorner).length
+	}
+
+	it('is there where it goes through places, which turning it turns', () => {
+		expect(turners('(path.circleFromDiameter [0 0] [10 0])')).toBe(4)
+		expect(turners('(path.circleThrough [0 0] [10 0] [5 5])')).toBe(4)
+	})
+
+	it('is not there for one around its center, which would come to the same', () => {
+		expect(turners('(path.circle [0 0] 5)')).toBe(0)
 	})
 })

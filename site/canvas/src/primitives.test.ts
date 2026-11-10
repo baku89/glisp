@@ -637,7 +637,8 @@ describe('drawn out from the center', () => {
 		const source = (tool: ShapeTool) =>
 			print(bound(drawnFrom(from, env, 'x', tool, snap, [80, 70], false, 0.01, true)).at(-1)![1])
 		expect(source('ellipse')).toMatch(/^\(path\.ellipse \.\.\/o\/center: \[30 20\]\)$/)
-		expect(source('rect')).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 20\)\] \[60 40\]\)$/)
+		// Half its own size back from there each way, so that its middle stays there as it grows.
+		expect(source('rect')).toMatch(/^\(path\.rect \[\(- .*\/0 \(\/ .*size:\/0 2\)\) \(- .*\/1 \(\/ .*size:\/1 2\)\)\] \[60 40\]\)$/)
 	})
 })
 
@@ -915,7 +916,7 @@ describe('a place that no argument says', () => {
 
 		it('stays on it, drawn left and up from what is its origin', () => {
 			const { next } = drawnOn('(path.rect [100 100] [50 50])', 'top left', [70, 60])
-			expect(print(bound(next).at(-1)![1])).toMatch(/^\(path\.rect \[\(- .*\/0 30\) \(- .*\/1 40\)\] \[30 40\]\)$/)
+			expect(print(bound(next).at(-1)![1])).toMatch(/^\(path\.rect \[\(- .*\/0 .*size:\/0\) \(- .*\/1 .*size:\/1\)\] \[30 40\]\)$/)
 			const moved = parse(print(next).replace('[100 100] [50 50]', '[200 300] [50 50]')) as LetAST
 			expect(cornerOf(moved)).toEqual([170, 260])
 		})
@@ -1199,6 +1200,19 @@ describe('what pulls one side of a box', () => {
 		expect(grips).toContainEqual([false, true])
 		expect(grips).toContainEqual([true, false])
 		expect(grips.every(([corner, grip]) => corner !== grip)).toBe(true)
+	})
+
+	it('moves all of it across, of a box that is flat that way, rather than scaling nothing', () => {
+		const scaled = () => [{ route: [0], value: 'scaled' }]
+		const move = (delta: Vec) => [{ route: [0], value: delta }]
+		const handles = boxHandlesOf([[0, 5], [10, 5]], { even: false, scaled }, move)
+		const top = handles.find(({ corner, at }) => !corner && at![0] === 5)!
+		// Up and down, a line lying flat moves; along it, it still grows.
+		expect(top.to([5, 12], [5, 5])).toEqual([{ route: [0], value: [0, 7] }])
+		const right = handles.find(({ corner, at }) => !corner && at![0] === 10)!
+		expect(right.to([20, 5], [10, 5])).toEqual([{ route: [0], value: 'scaled' }])
+		// With nothing to move it by, it is as it was.
+		expect(boxHandlesOf([[0, 5], [10, 5]], { even: false, scaled }).find(({ corner, at }) => !corner && at![0] === 5)!.to([5, 12], [5, 5])).toEqual(scaled())
 	})
 
 	it('is what an ellipse has on its axes', () => {
