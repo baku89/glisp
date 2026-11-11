@@ -33,6 +33,7 @@ import CanvasView from './CanvasView.vue'
 import { exportSvg } from './files'
 import { sourceOfProgram } from '@glisp/tweeq/programSource'
 import { inspectRows } from '@glisp/tweeq/multiRows'
+import { listenForAgent } from './mcpBridge'
 import FileTabs from './FileTabs.vue'
 import { useFileTabs } from './useFileTabs'
 import FloatPanel from './FloatPanel.vue'
@@ -550,6 +551,23 @@ const paintOfSelected = computed(() =>
 const paintable = computed(() =>
 	about.value.flatMap(row => rowsPaintedBy(document.root.value, document.env.value, row)).filter(row => {
 		const [root, env] = [document.root.value, document.env.value]
+// From the dev server, an agent can read and edit what is open, through its MCP server: each edit one step to undo.
+if (import.meta.env.DEV) {
+	listenForAgent(
+		{
+			document,
+			selected: () => selected.value,
+			chosen: () => chosenParts.value,
+			edit: (next, rows) => {
+				document.hold()
+				setProgram(next, rows)
+				document.release()
+			},
+			paint: () => toolAttributes.value.paint,
+		},
+		import.meta.env.BASE_URL
+	)
+}
 		// What holds many, each with a color of its own, has nothing to say of them as one.
 		if (Array.isArray(valueOfRow(root, env, row))) return false
 		// Only a path has a fill or a line, whether it is a row of its own or a part of one: a number

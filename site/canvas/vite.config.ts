@@ -6,6 +6,8 @@ import { defineConfig, type Plugin } from 'vite'
 import glsl from 'vite-plugin-glsl'
 import { type ManifestOptions, VitePWA } from 'vite-plugin-pwa'
 
+import { mcpServer } from './mcpServer'
+
 // Pages serves this repository under a path of its own, which the deploy says.
 const base = `${process.env.SITE_BASE ?? ''}/canvas/`
 
@@ -84,6 +86,7 @@ export default defineConfig({
 		vue(),
 		glsl(),
 		installableInDev(),
+		mcpServer(base),
 		VitePWA({
 			registerType: 'autoUpdate',
 			injectRegister: 'auto',
