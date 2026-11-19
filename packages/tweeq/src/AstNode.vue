@@ -27,6 +27,7 @@ import { iconOf } from './icons'
 import { editMenuItems, missingMenuItems, referenceMenuItems, slotMenuItems, withCopyItems } from './menu'
 import {
 	COMMANDS_FOR,
+	MORE_COMMANDS_FOR,
 	HOST_KEY, ALSO_SELECTED, ISOLATED, LAYERS, LINKER, LOCKED, VALUE_PICKER, ROW_PICKER, ROW_DIVER, OPEN_ROW, QUIETLY, RATIO_KEEPER, RENAMER, REVEALER, SELECTION, SHOWN_WHOLE, SOLVER, TITLED, VALUE_ICON } from './selection'
 import {
 	actionsOf,
@@ -566,6 +567,7 @@ function paste(next: AST): void {
 
 const hostKey = inject(HOST_KEY, undefined)
 const commandsFor = inject(COMMANDS_FOR, undefined)
+const moreCommandsFor = inject(MORE_COMMANDS_FOR, undefined)
 
 const referenceItems = computed<MenuItem[]>(() =>
 	linker === null || isFunction.value || locked.value
@@ -575,8 +577,8 @@ const referenceItems = computed<MenuItem[]>(() =>
 			: referenceMenuItems(linker, props.path, paste)
 )
 
-const slotMenu = computed(() =>
-	withCopyItems(
+const slotMenu = computed(() => {
+	const items = withCopyItems(
 		slotMenuItems(
 			props.entry,
 			(parent, action) => {
@@ -587,7 +589,9 @@ const slotMenu = computed(() =>
 		),
 		referenceItems.value
 	)
-)
+	const more = props.entry.absent || isFunction.value ? [] : (moreCommandsFor?.(props.path) ?? [])
+	return more.length === 0 ? items : [...items, ...(items.length > 0 ? [{ separator: true as const }] : []), ...more]
+})
 
 // What a menu offers is made once it is opened, as working it out for each row as it is drawn
 // would come to more than drawing it.

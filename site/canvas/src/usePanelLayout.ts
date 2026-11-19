@@ -7,6 +7,8 @@ import {
 	acrossLine,
 	activated,
 	boxesOf,
+	type Closed,
+	closedFrom,
 	fillerOf,
 	fitted,
 	type Group,
@@ -29,6 +31,7 @@ import {
 	placeAt,
 	placed,
 	raised,
+	reopened,
 	roomOf,
 	settled,
 	type Side,
@@ -39,6 +42,7 @@ import {
 	tabbed,
 	thicknessOf,
 	withFull,
+	without,
 } from './panelLayout'
 
 /** A press does nothing but press, until it has gone this far. */
@@ -110,6 +114,12 @@ export interface PanelDock {
 	toggle(name: string): void
 	/** Whether it can be seen now, in full. */
 	isShown(name: string): boolean
+	/** Takes it away altogether, until it is asked for again. */
+	close(name: string): void
+	/** Whether it has been taken away. */
+	isClosed(name: string): boolean
+	/** Puts it back where it was closed from, if it was closed, and shows it. */
+	reopen(name: string): void
 	/**
 	 * Takes hold of a panel. By a tab of several, that is it alone. Otherwise it is its group, and
 	 * all that go with it if that is at their top, unless `alone` says otherwise.
@@ -130,11 +140,17 @@ export function usePanelLayout(
 	key: string,
 	defaults: PanelLayout,
 	/** What can be there besides the defaults, as the toolbars are, with where each goes at first. */
-	others: () => ReadonlyMap<string, Place> = () => new Map()
+	others: () => ReadonlyMap<string, Place> = () => new Map(),
+	/** What is closed until it is first asked for, each with where it then opens. */
+	closedAtFirst: Readonly<Record<string, Closed>> = {}
 ): PanelDock {
 	const kept = useAppConfigStore().ref<unknown>(key, null)
+	/** What has been closed, each with where it was. */
+	const gone = useAppConfigStore().ref<Readonly<Record<string, Closed>>>(`${key}.closed`, closedAtFirst)
 	const layout = computed<PanelLayout>({
-		get: () => normalized(kept.value, defaults, others()),
+		// What starts out closed is known of like the rest, and goes where it says if nothing else does.
+		get: () =>
+			normalized(kept.value, defaults, new Map([...Object.entries(closedAtFirst), ...others()]), Object.keys(gone.value)),
 		set: value => (kept.value = value),
 	})
 
@@ -239,7 +255,21 @@ export function usePanelLayout(
 		layout.value = activated(layout.value, name)
 	}
 
+	/** Puts what was closed back where it was closed from. */
+	function restore(name: string): void {
+		const was = gone.value[name]
+		if (was === undefined) return
+		const rest = layout.value
+		gone.value = Object.fromEntries(Object.entries(gone.value).filter(([other]) => other !== name))
+		layout.value = reopened(rest, name, was)
+		const mate = was.beside ?? was.after ?? was.before
+		if (mate === undefined || isFixed(mate) || stackOf(layout.value, mate) !== stackOf(layout.value, name)) return
+		const width = handles.value.get(mate)?.width.value
+		if (width !== undefined) setWidth(name, width)
+	}
+
 	function show(name: string): void {
+		restore(name)
 		activate(name)
 		setOpen(name, true)
 	}
@@ -430,6 +460,16 @@ export function usePanelLayout(
 			else show(name)
 		},
 		isShown,
+		close(name) {
+			const was = closedFrom(layout.value, name)
+			if (was === null) return
+			// What is left is written down as it is, as what is closed is no longer among what is kept.
+			const rest = without(layout.value, [name])
+			gone.value = { ...gone.value, [name]: was }
+			layout.value = rest
+		},
+		isClosed: name => name in gone.value,
+		reopen: show,
 		grab,
 		taken(side) {
 			const onEdge = layout.value.filter(stack => stack.side === side && stack.inset === 0)

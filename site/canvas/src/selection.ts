@@ -19,6 +19,7 @@ import {
 	rectType,
 	type StyledValue,
 } from './graphics'
+import { blockAt } from './nodeGraph'
 import { isMadeFromPaths, nameOfRow } from './rows'
 import { holdsRows, valueOfRow } from './scene'
 
@@ -31,6 +32,8 @@ export interface Selected {
 	readonly isRow: boolean
 	/** It is made from a path by a call, which says nothing of what it comes to. */
 	readonly isMadeFromPaths?: boolean
+	/** It is written as a block, which has nodes to show. */
+	readonly isBlock?: boolean
 }
 
 /** A block with nothing to return comes to `()`, so that a group is told by what is written. */
@@ -52,6 +55,7 @@ export const selectedOf = (root: AST, env: Env, rows: readonly string[]): Select
 		commands: expressionCommandsAt(root, env, row),
 		isRow: row.split('/').every(key => /^(binding|element):/.test(key)),
 		isMadeFromPaths: isMadeFromPaths(root, env, row),
+		isBlock: blockAt(root, env, row) !== null,
 	}))
 
 export const numberType = evaluate(parse('number'), buildPrelude()).value as TypeValue
@@ -67,6 +71,10 @@ export const drawingType = makeType(
 	value => isPath(value) || isStyled(value) || value === GROUP,
 	GROUP
 )
+/** What is written as a block, which a value does not say of itself. */
+export const blockType = makeType('block', () => false, null)
+/** What is written as anything else, which a block can be put around. */
+export const blocklessType = makeType('expression', () => false, null)
 /** A row of its own, whatever it comes to. */
 export const rowType = makeType('row', () => false, null)
 /** What can be exported: what is drawn, or an area to export whatever is in. */
@@ -90,6 +98,8 @@ const fits = (selected: Selected, type: TypeValue): boolean => {
 	const command = commandOf.get(type)
 	if (command) return selected.commands.has(command)
 	if (type === rowType) return selected.isRow
+	if (type === blockType) return selected.isBlock === true
+	if (type === blocklessType) return selected.isBlock === false
 	if (type === ungroupableType) {
 		return selected.isRow && (selected.value === GROUP || selected.isMadeFromPaths === true)
 	}
@@ -126,7 +136,7 @@ export const actionTypesOver = (source: RowSource): ActionTypes<TypeValue, Selec
 				? withinExportable.includes(a)
 				: b === drawingType
 					? a === pathType || a === groupType
-					: a === b || (!commandOf.has(a) && a !== rowType && typeFits(a, b))),
+					: a === b || (!commandOf.has(a) && a !== rowType && a !== blockType && a !== blocklessType && typeFits(a, b))),
 	input({ type }) {
 		if (type === numberType) return { field: { type: 'number' }, initial: 100 }
 		if (!source.rows().some(row => fits(row, type))) return null

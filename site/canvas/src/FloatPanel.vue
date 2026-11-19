@@ -307,6 +307,7 @@ function grabHeader(event: PointerEvent): void {
 
 <template>
 	<aside
+		v-if="!dock.isClosed(name)"
 		ref="$root"
 		class="FloatPanel"
 		:class="[
@@ -379,6 +380,14 @@ function grabHeader(event: PointerEvent): void {
 						ghost
 						:aria-label="`Minimize ${label}`"
 						@click="dock.setOpen(name, false)"
+					/>
+					<InputButton
+						v-if="!folded"
+						class="toggle close"
+						icon="ph:x"
+						ghost
+						:aria-label="`Close ${label}`"
+						@click="dock.close(name)"
 					/>
 				</header>
 				<div
@@ -1036,6 +1045,18 @@ else that blurs. */
 }
 .toggle {
 	flex: none;
+}
+/* Closing is at the far end, whichever side it folds away to, next to that where it can be. */
+.close,
+.left .close {
+	order: 1;
+}
+.header > .toggle:not(.close),
+.left .close {
+	margin-inline-start: auto;
+}
+.left .header > .toggle:not(.close) {
+	margin-inline-start: 0;
 }
 .fitting .content {
 	flex: 0 1 auto;

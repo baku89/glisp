@@ -478,7 +478,8 @@ const withoutIn = (group: Group, names: readonly string[]): Group | null => {
 	return { tabs, active: tabs.includes(group.active) ? group.active : first }
 }
 
-const without = (layout: PanelLayout, names: readonly string[]): PanelLayout =>
+/** `layout` with none of `names` in it, and nothing left that had only those. */
+export const without = (layout: PanelLayout, names: readonly string[]): PanelLayout =>
 	layout
 		.map(stack => ({ ...stack, groups: stack.groups.flatMap(group => withoutIn(group, names) ?? []) }))
 		.filter(stack => stack.groups.length > 0)
@@ -630,9 +631,13 @@ export function joinAt(
 export function normalized(
 	kept: unknown,
 	defaults: PanelLayout,
-	others: ReadonlyMap<string, Place> = new Map()
+	others: ReadonlyMap<string, Place> = new Map(),
+	/** What has been closed, and so is nowhere until it is opened again. */
+	gone: readonly string[] = []
 ): PanelLayout {
-	const known = [...defaults.flatMap(({ groups }) => namesOf(groups)), ...others.keys()]
+	const known = [...defaults.flatMap(({ groups }) => namesOf(groups)), ...others.keys()].filter(
+		name => !gone.includes(name)
+	)
 	const seen = new Set<string>()
 	const stacks: Stack[] = []
 	for (const raw of Array.isArray(kept) ? (kept as unknown[]) : []) {
@@ -651,9 +656,55 @@ export function normalized(
 		if (groups.length > 0) stacks.push({ ...stack, groups })
 	}
 	const missing = [...others].flatMap(([name, place]): Stack[] =>
-		seen.has(name) ? [] : [{ ...place, groups: [alone(name)], full: false }]
+		seen.has(name) || gone.includes(name) ? [] : [{ ...place, groups: [alone(name)], full: false }]
 	)
-	return [...without(defaults, [...seen]), ...missing, ...stacks]
+	return [...without(defaults, [...seen, ...gone]), ...missing, ...stacks]
+}
+
+/** Where a panel that has been closed was, to go back to when it is opened again. */
+export interface Closed extends Place {
+	/** A panel that it was a tab alongside. */
+	readonly beside?: string
+	/** A panel that it was joined after, or else one that it was joined before. */
+	readonly after?: string
+	readonly before?: string
+}
+
+/** Where the panel is, as what closing it is to remember. */
+export function closedFrom(layout: PanelLayout, name: string): Closed | null {
+	const stack = stackOf(layout, name)
+	const group = groupOf(layout, name)
+	if (stack === undefined || group === undefined) return null
+	const { side, inset, along } = stack
+	const beside = group.tabs.find(tab => tab !== name)
+	const at = stack.groups.indexOf(group)
+	const [after, before] = [stack.groups[at - 1]?.active, stack.groups[at + 1]?.active]
+	return {
+		side,
+		inset,
+		along,
+		...(beside === undefined ? {} : { beside }),
+		...(after === undefined ? {} : { after }),
+		...(before === undefined ? {} : { before }),
+	}
+}
+
+/**
+ * `layout` with the panel back where it was closed from: a tab of what it was a tab alongside,
+ * or joined to what it was joined to, as far as those are still there, or else at its place.
+ */
+export function reopened(layout: PanelLayout, name: string, was: Closed): PanelLayout {
+	const here = [alone(name)]
+	const has = (other: string | undefined): other is string => other !== undefined && stackOf(layout, other) !== undefined
+	if (has(was.beside)) return tabbed(layout, here, was.beside)
+	const neighbor = has(was.after) ? was.after : has(was.before) ? was.before : null
+	if (neighbor !== null) {
+		const stack = stackOf(layout, neighbor)!
+		const at = stack.groups.findIndex(({ tabs }) => tabs.includes(neighbor))
+		return joined(layout, here, neighbor, neighbor === was.after ? at + 1 : at)
+	}
+	const { side, inset, along } = was
+	return placed(layout, here, { side, inset, along })
 }
 
 function isGroup(value: unknown): value is Group {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type AST, buildPrelude, LetAST, parse, print, type TypeValue, typeFits, unwrapLazy, VecAST } from '@glisp/lang'
+import { type AST, buildPrelude, type Env, LetAST, parse, print, type TypeValue, typeFits, unwrapLazy, VecAST } from '@glisp/lang'
 import { hasOffer, type Offer, offersOf } from './offers'
 import {
 	AstEditor,
@@ -39,7 +39,23 @@ import { useFileTabs } from './useFileTabs'
 import FloatPanel from './FloatPanel.vue'
 import { iconOfFunction, SHAPE_ICONS } from './functionIcons'
 import QuickAdd, { type QuickAddItem } from './QuickAdd.vue'
-import { addablesIn, fillersAt, withAdded, withFilled } from './quickAdd'
+import { addablesIn, fillersAt, nodeOf, nodesIn, withAdded, withFilled } from './quickAdd'
+import NodeGraph from './NodeGraph.vue'
+import {
+	blockAt,
+	connected,
+	disconnected,
+	graphOf,
+	type GraphNode,
+	rowOfNode,
+	withBlockAround,
+	withBlockAt,
+	withNode,
+	withNodesAt,
+	withoutNodes,
+	withResult,
+} from './nodeGraph'
+import { keptReferences } from '@glisp/tweeq/keptReferences'
 import { ARTBOARD_ICON, AXES_ICON, type ArtboardValue, isArtboard, iconOfPath, inkOn, isStyled, lineType, type Path, PathValue, RAY_ICON, rayType, rectType, SHOWN_WHOLE, STRAIGHT_LINE_ICON, withGraphics, isRect, type RectValue, type Vec } from './graphics'
 import PaintControls from './PaintControls.vue'
 import ToolPanel from './ToolPanel.vue'
@@ -57,6 +73,7 @@ import {
 	crumbsOf,
 	boundsOfRows,
 	exportedRows,
+	freeName,
 	grouped,
 	nameOfRow,
 	rowCalled,
@@ -71,6 +88,8 @@ import {
 import { solidOf, canIsolate, hasRow, diveAt, drawsAt, axesCall, graphPaperCall, isOfCanvasAt, isWithin, paintAt, paintedRow, pathOfRow, rowsPaintedBy, rowsToTake, valueOfRow, withPaintOfRows, withLayersFromOrder, writtenAsNow, isOutlined, sceneOf, referredOnto, type SnapPoint } from './scene'
 import {
 	actionTypesOver,
+	blocklessType,
+	blockType,
 	copyableType,
 	exportableType,
 	ungroupableType,
@@ -278,6 +297,8 @@ const toolPanelOpen = useAppConfigStore().ref('glisp.canvas.tool.open', true)
 const PROJECT_PANEL = 'glisp.canvas.project'
 const CODE_PANEL = 'glisp.canvas.code'
 const INSPECTOR_PANEL = 'glisp.canvas.inspector'
+const NODES_PANEL = 'glisp.canvas.nodes'
+const TOOL_PANEL = 'glisp.canvas.tool'
 /** Where the panels are, which they go by, and which is kept across reloads. */
 const $stage = useTemplateRef<HTMLElement>('$stage')
 const panels = usePanelLayout($stage, 'glisp.canvas.panels', [
@@ -289,7 +310,7 @@ const panels = usePanelLayout($stage, 'glisp.canvas.panels', [
 		full: false,
 	},
 	{ groups: [alone(INSPECTOR_PANEL)], side: 'right', inset: 0, along: 0, full: false },
-	{ groups: [alone('glisp.canvas.tool')], side: 'left', inset: 0, along: 'end', full: false },
+	{ groups: [alone(TOOL_PANEL)], side: 'left', inset: 0, along: 'end', full: false },
 	{ groups: [alone(barPanel(MAIN_BAR))], side: 'bottom', inset: 0, along: 'middle', full: false },
 ], () => {
 	// The other bars, of tools taken off of one, are panels too, which go where they were let go of.
@@ -300,6 +321,9 @@ const panels = usePanelLayout($stage, 'glisp.canvas.panels', [
 			id === MAIN_BAR ? [] : [[barPanel(id), { side: x < 0.5 ? 'left' : 'right', inset: Math.round(Math.max(1, (x < 0.5 ? x : 1 - x) * width - 24)), along: Math.round(Math.max(0, y * height - 24)) }]]
 		)
 	)
+}, {
+	// The nodes of a block are over the canvas once they are asked for, away from the edges.
+	[NODES_PANEL]: { side: 'left', inset: 340, along: 120 },
 })
 provide(PANEL_DOCK, panels)
 const panelJoining = panels.joining
@@ -361,6 +385,9 @@ const origin = [
 const CODE_HEIGHT = 480
 const codeOpen = useAppConfigStore().ref('glisp.canvas.code.open', projectOpen.value)
 const inspectorOpen = useAppConfigStore().ref('glisp.canvas.inspector.open', true)
+const nodesOpen = useAppConfigStore().ref('glisp.canvas.nodes.open', true)
+const NODES_WIDTH = 560
+const NODES_HEIGHT = 380
 
 const programOf = (root: { kind: string }): LetAST | null =>
 	root instanceof LetAST ? root : null
@@ -745,11 +772,128 @@ function renameRow(row: string, name: string): void {
 	}
 }
 
+const inspectedIsBlock = computed(
+	() => inspected.value !== null && blockAt(document.root.value, document.env.value, inspected.value) !== null
+)
 const inspection = computed(() =>
 	inspected.value === null
 		? null
 		: inspectionOf(document.root.value, document.env.value, inspected.value)
 )
+
+/** The block whose nodes are shown, by its row. */
+const graphPath = ref<string | null>(null)
+const graphBlock = computed(() =>
+	graphPath.value === null ? null : blockAt(document.root.value, document.env.value, graphPath.value)
+)
+const graph = computed(() => (graphBlock.value === null ? null : graphOf(graphBlock.value.block, graphBlock.value.env)))
+/** The nodes whose rows are selected. */
+const graphSelected = computed(() => {
+	const [path, nodes] = [graphPath.value, graph.value?.nodes ?? []]
+	return path === null ? [] : nodes.map(({ key }) => key).filter(key => selected.value.includes(rowOfNode(path, key)))
+})
+const graphName = computed(() => (graphPath.value === null ? null : nameOfRow(graphPath.value)))
+const iconOfNode = (node: GraphNode): string | null => (node.fn === null ? null : iconOfFunction(node.fn))
+
+function openNodes(path: string): void {
+	graphPath.value = path
+	panels.show(NODES_PANEL)
+}
+
+/** The program with the block whose nodes are shown now what `edit` makes of it. */
+function editGraph(edit: (block: LetAST, env: Env) => LetAST | null, rows?: readonly string[]): void {
+	const [path, found] = [graphPath.value, graphBlock.value]
+	if (path === null || found === null) return
+	const block = edit(found.block, found.env)
+	const next = block === null ? null : withBlockAt(document.root.value, document.env.value, path, block)
+	if (next instanceof LetAST) setProgram(next, rows)
+}
+
+function wireNodes(
+	from: string,
+	to: { key: string; input: string | null } | null,
+	was: { key: string; input: string | null } | null
+): void {
+	editGraph((block, env) => {
+		const free = was === null ? block : disconnected(block, env, was.key, was.input)
+		if (free === null || to === null) return free
+		return connected(free, env, from, to.key, to.input)
+	})
+}
+
+/** Without the nodes, and with what referred to them now what they came to. */
+function removeNodes(keys: readonly string[]): void {
+	const [path, found, root] = [graphPath.value, graphBlock.value, document.root.value]
+	if (path === null || found === null) return
+	const without = withBlockAt(root, document.env.value, path, withoutNodes(found.block, found.env, keys))
+	if (without === null) return
+	const { ast } = keptReferences(root, without, document.env.value)
+	if (ast instanceof LetAST) setProgram(ast, [])
+}
+
+/** Where a node is being added, in the graph and on screen. */
+const graphAdd = ref<{ readonly at: Vec; readonly screen: Vec } | null>(null)
+const graphAddItems = computed<readonly QuickAddItem[]>(() => {
+	const [adding, path, root] = [graphAdd.value, graphPath.value, programOf(document.root.value)]
+	if (adding === null || path === null || root === null) return []
+	const env = document.env.value
+	return nodesIn(root, env).map(({ name, label, group }) => ({
+		id: `node_${name}`,
+		name,
+		label,
+		group,
+		icon: iconOfFunction(name) ?? (group === 'Values' ? 'ph:circle-dashed' : 'mdi:function-variant'),
+		perform() {
+			const node = nodeOf(root, env, name)
+			if (node === null) return
+			const called = freeName(root, node.stem)
+			editGraph(block => withNode(block, called, node.ast, adding.at), [rowOfNode(path, `binding:${called}`)])
+		},
+	}))
+})
+
+function openNodeMenu(key: string, [x, y]: Vec): void {
+	const node = graph.value?.nodes.find(other => other.key === key)
+	if (node === undefined) return
+	offerMenu.value = {
+		at: [x, y],
+		items: [
+			...(node.name === null || node.result
+				? []
+				: [{ label: 'Set as Result', icon: 'ph:flag', perform: () => setResult(key) }]),
+			...(node.result ? [] : [{ label: 'Delete', icon: 'mdi:delete-outline', perform: () => removeNodes([key]) }]),
+		],
+	}
+}
+
+function setResult(key: string): void {
+	const root = document.root.value
+	editGraph(block => withResult(block, key, freeName(root, 'result')))
+}
+
+/** What there is to do with a row in the inspector about blocks: to show its nodes, or to give it some. */
+const blockCommandsFor = (row: string): MenuItem[] =>
+	blockAt(document.root.value, document.env.value, row) !== null
+		? [{ label: 'Open in Node Editor', icon: 'ph:graph', perform: () => openNodes(row) }]
+		: [{ label: 'Put in a Block', icon: 'mdi:code-braces', perform: () => putInBlock(row) }]
+
+/** What is at a row in a block of its own, with its nodes showing. */
+function putInBlock(row: string): void {
+	const root = document.root.value
+	const next = withBlockAround(root, document.env.value, row, freeName(root, 'value'))
+	if (!(next instanceof LetAST)) return
+	setProgram(next)
+	openNodes(row)
+}
+
+/** The panels, as what can be closed and brought back. */
+const WINDOWS = [
+	{ id: 'window_project', panel: PROJECT_PANEL, label: 'Project' },
+	{ id: 'window_code', panel: CODE_PANEL, label: 'Code' },
+	{ id: 'window_inspector', panel: INSPECTOR_PANEL, label: 'Inspector' },
+	{ id: 'window_tool', panel: TOOL_PANEL, label: 'Tool Options' },
+	{ id: 'window_nodes', panel: NODES_PANEL, label: 'Node Editor' },
+] as const
 
 const actions = useActionsStore()
 
@@ -1124,9 +1268,13 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 	const filling = quickFillAt.value
 	const program = programOf(document.root.value)
 	if (filling !== null) {
+		const isBlock = blockAt(document.root.value, document.env.value, filling) !== null
+		const block: QuickAddItem[] = fillingBlank.value || isBlock
+			? []
+			: [{ id: 'fill_block', name: 'block', label: 'Block', group: 'Wrap', icon: 'mdi:code-braces', action: 'wrap', perform: () => putInBlock(filling) }]
 		return program === null
 			? []
-			: fillersAt(program, document.env.value, filling)
+			: [...block, ...fillersAt(program, document.env.value, filling)
 					.filter(filler => !fillingBlank.value || filler.group !== 'Wrap')
 					.map(filler => ({
 					id: `fill_${filler.value ? 'value_' : ''}${filler.name}`,
@@ -1139,7 +1287,7 @@ const quickAddItems = computed<readonly QuickAddItem[]>(() => {
 						const next = withFilled(program, document.env.value, filling, filler, quickAddPlace.value)
 						if (next instanceof LetAST) setProgram(next)
 					},
-				}))
+				}))]
 	}
 	const env = document.env.value
 	const root = program
@@ -1345,6 +1493,20 @@ actions.register([
 			{ id: 'object_exit_isolation', label: 'Exit Isolation', icon: 'mdi:arrow-collapse-up', perform: () => $canvas.value?.leaveIsolated() },
 			{ id: 'object_swap_paint', label: 'Swap Fill and Stroke', icon: 'mdi:swap-horizontal', bind: 'shift+x', perform: swapPaints },
 			{ id: 'object_group', label: 'Group', icon: 'mdi:group', bind: 'command+g', params: [rowsParam], perform: onRows(() => group()) },
+			{
+				id: 'object_open_nodes',
+				label: 'Open in Node Editor',
+				icon: 'ph:graph',
+				params: [{ name: 'block', type: blockType }],
+				perform: ({ row }: Selected) => openNodes(row),
+			},
+			{
+				id: 'object_put_in_block',
+				label: 'Put in a Block',
+				icon: 'mdi:code-braces',
+				params: [{ name: 'expression', type: blocklessType }],
+				perform: ({ row }: Selected) => putInBlock(row),
+			},
 			{ id: 'object_ungroup', label: 'Ungroup', icon: 'mdi:ungroup', bind: 'command+shift+g', params: [{ name: 'groups', type: ungroupableType, many: true }], perform: onRows(ungroup) },
 		],
 	},
@@ -1365,10 +1527,6 @@ actions.register([
 			},
 			{ id: 'view_zoom_in', label: 'Zoom In', icon: 'mdi:magnify-plus-outline', bind: 'command+=', perform: () => $canvas.value?.zoomBy(ZOOM_STEP) },
 			{ id: 'view_zoom_out', label: 'Zoom Out', icon: 'mdi:magnify-minus-outline', bind: 'command+-', perform: () => $canvas.value?.zoomBy(1 / ZOOM_STEP) },
-			{ id: 'view_project', label: 'Toggle Project', icon: 'ph:tree-view', perform: () => panels.toggle(PROJECT_PANEL) },
-			{ id: 'view_code', label: 'Toggle Code', icon: 'ph:code', perform: () => panels.toggle(CODE_PANEL) },
-			{ id: 'view_inspector', label: 'Toggle Inspector', icon: 'ph:sliders-horizontal', perform: () => panels.toggle(INSPECTOR_PANEL) },
-			{ id: 'view_tool', label: 'Toggle Tool Options', icon: 'ph:palette', perform: () => panels.toggle('glisp.canvas.tool') },
 			{ id: 'view_dimensions', label: 'Toggle Dimensions', icon: 'ph:ruler', bind: 'd', perform: () => (dimensionsOn.value = !dimensionsOn.value) },
 			{ id: 'view_snapping', label: 'Toggle Snapping', icon: 'ph:magnet', bind: 'command+u', perform: () => (snappingOn.value = !snappingOn.value) },
 			{ id: 'view_referring', label: 'Toggle References', icon: 'ph:link-simple', bind: 'l', perform: () => (referringOn.value = !referringOn.value) },
@@ -1378,6 +1536,19 @@ actions.register([
 			{ id: 'view_axes', label: 'Toggle Axes', icon: AXES_ICON, perform: toggleAxes },
 			{ id: 'view_solid', label: 'Set Solid', icon: 'ph:paint-bucket', perform: setSolid },
 		],
+	},
+	{
+		id: 'window',
+		order: 60,
+		icon: 'ph:app-window',
+		// Each is there or is not, which the mark beside it says, as closing one takes it away.
+		children: WINDOWS.map(({ id, panel, label }) => ({
+			id,
+			label,
+			icon: 'mdi:check',
+			describe: () => ({ icon: panels.isClosed(panel) ? '' : 'mdi:check' }),
+			perform: () => (panels.isClosed(panel) ? panels.reopen(panel) : panels.close(panel)),
+		})),
 	},
 	{
 		id: 'tool',
@@ -1787,6 +1958,15 @@ function selectInTree(row: string | null): void {
 						>
 							<Icon icon="ph:arrow-up-left" />
 						</button>
+						<button
+							v-if="inspectedIsBlock"
+							v-tooltip="'Open in Node Editor'"
+							class="outer"
+							aria-label="Open in Node Editor"
+							@click="openNodes(inspected!)"
+						>
+							<Icon icon="ph:graph" />
+						</button>
 						<span class="panel-title">
 							<Icon class="panel-icon" icon="ph:sliders-horizontal" />
 							<template v-if="inspection">
@@ -1823,6 +2003,7 @@ function selectInTree(row: string | null): void {
 						:alsoSelected="pickedOut.length > 0 ? pickedOut : chosenParts"
 						:iconOfValue="iconOfPath"
 						:fillBlank="fillBlank"
+						:moreCommandsFor="blockCommandsFor"
 						:pickRow="pickRowInInspector"
 						:diveInto="diveIntoRow"
 						@select="pickInInspector"
@@ -1836,6 +2017,47 @@ function selectInTree(row: string | null): void {
 						<PaintControls v-if="paintable.length > 0" :document="document" :rows="paintable" />
 					</AstEditor>
 				</FloatPanel>
+				<FloatPanel
+					v-model:open="nodesOpen"
+					:name="NODES_PANEL"
+					:width="NODES_WIDTH"
+					:height="NODES_HEIGHT"
+					label="Node Editor"
+					icon="ph:graph"
+				>
+					<template #header>
+						<span class="panel-title">
+							<Icon class="panel-icon" icon="ph:graph" />
+							<span class="name">{{ graph === null ? 'Node Editor' : (graphName ?? 'Block') }}</span>
+						</span>
+					</template>
+					<div class="tab-content">
+						<NodeGraph
+							v-if="graph !== null"
+							:key="graphPath ?? ''"
+							:graph="graph"
+							:selected="graphSelected"
+							:iconOf="iconOfNode"
+							@select="selectOnCanvas($event.map(key => rowOfNode(graphPath!, key)))"
+							@move="places => editGraph(block => withNodesAt(block, places))"
+							@wire="wireNodes"
+							@result="setResult"
+							@remove="removeNodes"
+							@add="(at, screen) => (graphAdd = { at, screen })"
+							@menu="openNodeMenu"
+						/>
+						<p v-else class="nothing-selected">
+							No block is open. Select one and choose Open in Node Editor, or put something in a block.
+						</p>
+					</div>
+				</FloatPanel>
+				<QuickAdd
+					v-if="graphAdd !== null"
+					:items="graphAddItems"
+					:at="graphAdd.screen"
+					placeholder="Add a node…"
+					@close="graphAdd = null"
+				/>
 				<ToolPanel
 					v-model:open="toolPanelOpen"
 					:document="toolDocument"

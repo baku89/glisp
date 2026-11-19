@@ -50,7 +50,7 @@ export interface Addable {
 }
 
 /** In the order they are listed, with what is more to do with drawing first. */
-const GROUPS = ['Wrap', 'Project', 'Shapes', 'Guides', 'Canvas', 'Path', 'Color', 'Vector', 'Matrix', 'Math', 'List', 'Text', 'Other'] as const
+const GROUPS = ['Wrap', 'Values', 'Project', 'Shapes', 'Guides', 'Canvas', 'Path', 'Color', 'Vector', 'Matrix', 'Math', 'List', 'Text', 'Other'] as const
 
 const MODULES: Readonly<Record<string, (typeof GROUPS)[number]>> = {
 	color: 'Color',
@@ -662,4 +662,43 @@ export function withFilled(root: LetAST, env: Env, path: string, filler: Filler,
 	const shape = SHAPES[filter.name]
 	const call: AST = shape ? parse(`(${filter.name} ${shape(x, y)})`) : callOf(filter, [], env)
 	return inPlace(root, env, path, call)
+}
+
+/** What a node starts as that is no call: a value, to go on from. */
+const NODE_VALUES: Readonly<Record<string, { readonly label: string; readonly code: string }>> = {
+	number: { label: 'Number', code: '0' },
+	vector: { label: 'Vector', code: '[0 0]' },
+	text: { label: 'Text', code: '""' },
+	boolean: { label: 'Boolean', code: 'true' },
+}
+const VALUE = 'value:'
+
+/**
+ * All that a node of a block can be: a value, or anything `root` can see that can be called,
+ * whatever it gives, as a node is not only what is drawn.
+ */
+export function nodesIn(root: LetAST, env: Env): readonly Addable[] {
+	const own = functionsOfProgram(root, env)
+	const taken = new Set(own.map(({ name }) => name))
+	return [
+		...Object.entries(NODE_VALUES).map(([name, { label }]): Addable => ({ name: `${VALUE}${name}`, label, group: 'Values' })),
+		...own.map(({ name, label }): Addable => ({ name, label, group: 'Project' })),
+		...functionsIn(env)
+			.filter(({ name }) => !taken.has(name))
+			.map((filter): Addable => ({ name: filter.name, label: filter.label, group: groupOf(filter) })),
+	]
+		.map((item, i) => [item, i] as const)
+		.sort(([a, i], [b, j]) => rankOfGroup(a.group) - rankOfGroup(b.group) || i - j)
+		.map(([item]) => item)
+}
+
+/** What the node `name` of `nodesIn` starts as, and what to call it by. */
+export function nodeOf(root: LetAST, env: Env, name: string): { readonly ast: AST; readonly stem: string } | null {
+	if (name.startsWith(VALUE)) {
+		const kind = name.slice(VALUE.length)
+		const value = NODE_VALUES[kind]
+		return value === undefined ? null : { ast: parse(value.code), stem: kind }
+	}
+	const filter = [...functionsOfProgram(root, env), ...functionsIn(env)].find(other => other.name === name)
+	return filter === undefined ? null : { ast: callOf(filter, [], env), stem: stemOf(name) }
 }

@@ -144,6 +144,10 @@ export const HOST_KEY: InjectionKey<(event: KeyboardEvent) => boolean> = Symbol(
 export const COMMANDS_FOR: InjectionKey<(path: string) => MenuItem[]> =
 	Symbol('glisp-commands-for')
 
+/** What the app around an editor has for the slot at a path besides, which goes after what is offered here. */
+export const MORE_COMMANDS_FOR: InjectionKey<(path: string) => MenuItem[]> =
+	Symbol('glisp-more-commands-for')
+
 /** An icon for what a row comes to, if a host has one, such as the shape itself. */
 export const VALUE_ICON: InjectionKey<(value: unknown) => string | null> =
 	Symbol('glisp-value-icon')

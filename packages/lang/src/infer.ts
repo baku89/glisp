@@ -670,10 +670,11 @@ function inferNode(ast: AST, env: Env): TypeValue | null {
 			return inferVec(ast, enterNode(ast, env))
 		case 'record':
 			return inferRecord(ast, enterNode(ast, env))
-		case 'let':
-			return ast.body === null
-				? unitType
-				: infer(ast.body, pushLetFrame(ast, env))
+		case 'let': {
+			// With nothing after its bindings, it comes to the last of them.
+			const ends = ast.body ?? ast.bindings.at(-1)?.[1]
+			return ends === undefined ? unitType : infer(ends, pushLetFrame(ast, env))
+		}
 		case 'meta': {
 			const type = infer(ast.expr, env)
 			return type === null ? null : withTypeMeta(type, ast.metadata)

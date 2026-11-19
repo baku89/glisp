@@ -5,6 +5,7 @@ import {
 	activated,
 	alone,
 	boxesOf,
+	closedFrom,
 	fitted,
 	joinAt,
 	joined,
@@ -15,12 +16,14 @@ import {
 	placeAt,
 	placed,
 	raised,
+	reopened,
 	roomOf,
 	settled,
 	stamped,
 	type Stack,
 	tabbed,
 	withFull,
+	without,
 } from './panelLayout'
 
 const STAGE = { width: 1000, height: 800 }
@@ -450,5 +453,41 @@ describe('fitting what is joined', () => {
 		const sizes = measured({ a: 100, b: 200 })
 		expect(roomOf(layout, sizes, 'a')).toBe(800 - 200 - 8 - 40)
 		expect(roomOf(layout, sizes, 'b')).toBe(800 - 148)
+	})
+})
+
+describe('closing a panel', () => {
+	const tabs: PanelLayout = [
+		{ ...stack([]), groups: [{ tabs: ['a', 'b'], active: 'a' }], side: 'left' },
+		stack(['c', 'd', 'e']),
+		stack(['f'], { inset: 120, along: 80 }),
+	]
+	const back = (name: string, from: PanelLayout = tabs, to: PanelLayout = without(from, [name])) =>
+		reopened(to, name, closedFrom(from, name)!)
+
+	it('leaves the rest as it was, with another tab showing in its place', () => {
+		expect(without(tabs, ['a'])[0]!.groups).toEqual([{ tabs: ['b'], active: 'b' }])
+		expect(names(without(tabs, ['f']))).toEqual([['a', 'b'], ['c', 'd', 'e']])
+	})
+
+	it('comes back as a tab of what it was a tab alongside, showing', () => {
+		expect(back('a').find(({ side }) => side === 'left')!.groups).toEqual([{ tabs: ['b', 'a'], active: 'a' }])
+	})
+
+	it('comes back joined where it was among what it was joined to', () => {
+		expect(names(back('d'))).toContainEqual(['c', 'd', 'e'])
+		expect(names(back('c'))).toContainEqual(['c', 'd', 'e'])
+		expect(names(back('e'))).toContainEqual(['c', 'd', 'e'])
+	})
+
+	it('comes back at its place, alone, if it was alone or what it was with has gone', () => {
+		expect(back('f').at(-1)).toMatchObject({ side: 'right', inset: 120, along: 80, groups: [alone('f')] })
+		expect(back('a', tabs, without(tabs, ['a', 'b'])).at(-1)).toMatchObject({ side: 'left', inset: 0, groups: [alone('a')] })
+	})
+
+	it('is nowhere in what is kept, nor put back by what there is by default', () => {
+		const defaults = [stack(['a']), stack(['b'], { side: 'left' })]
+		expect(names(normalized(null, defaults, new Map(), ['b']))).toEqual([['a']])
+		expect(names(normalized([stack(['a', 'b'])], defaults, new Map(), ['b']))).toEqual([['a']])
 	})
 })

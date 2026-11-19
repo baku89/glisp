@@ -38,6 +38,7 @@ import {
 	ROW_PICKER,
 	ROW_DIVER,
 	COMMANDS_FOR,
+	MORE_COMMANDS_FOR,
 	HOST_KEY,
 	LINKER,
 	VALUE_PICKER,
@@ -86,6 +87,8 @@ const props = defineProps<{
 	/** How something is chosen for where nothing is, rather than written there. */
 	fillBlank?: (path: string, from: Element) => void
 	commandsFor?: (path: string) => MenuItem[]
+	/** What the app has for the slot at a path besides, after what is offered here. */
+	moreCommandsFor?: (path: string) => MenuItem[]
 	/** Rows selected along with the one that is, from elsewhere, such as a canvas. */
 	alsoSelected?: readonly string[]
 	/** The rows gone through to one gone into, from elsewhere, such as a canvas. */
@@ -301,6 +304,7 @@ provide(HOST_KEY, event => props.hostKey?.(event) ?? false)
 if (props.valuePicker) provide(VALUE_PICKER, props.valuePicker)
 if (props.fillBlank) provide(BLANK_FILLER, (path, from) => props.fillBlank?.(path, from))
 if (props.commandsFor) provide(COMMANDS_FOR, path => props.commandsFor!(path))
+if (props.moreCommandsFor) provide(MORE_COMMANDS_FOR, path => props.moreCommandsFor!(path))
 
 provide(LINKER, {
 	can: (source, target) => linked(source, target) !== null,

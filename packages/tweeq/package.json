@@ -12,7 +12,8 @@
     "./numberField": "./src/numberField.ts",
     "./programSource": "./src/programSource.ts",
     "./rowsClipboard": "./src/rowsClipboard.ts",
-    "./structure": "./src/structure.ts"
+    "./structure": "./src/structure.ts",
+    "./typeColor": "./src/typeColor.ts"
   },
   "dependencies": {
     "@glisp/lang": "*"

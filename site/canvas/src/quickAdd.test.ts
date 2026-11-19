@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { type PathValue, withGraphics } from './graphics'
 import { filtersFor, functionsOfProgram, wrappedAt } from '@glisp/tweeq/filters'
-import { addablesIn, fillersAt, matching, withAdded, withFilled } from './quickAdd'
+import { addablesIn, fillersAt, matching, nodeOf, nodesIn, withAdded, withFilled } from './quickAdd'
 import { boundsOfRows } from './rows'
 import { boundsOfRows as boxOfRows, drawsAt, graphPaperOf, gripAt, rowsWithin, sceneOf } from './scene'
 
@@ -521,5 +521,21 @@ describe('what is a function of the program', () => {
 
 	it('is not what does not take it', () => {
 		expect(filtersFor([5], env, functionsOfProgram(root, env)).map(({ name }) => name)).not.toContain('g')
+	})
+})
+
+describe('what a node can be', () => {
+	it('is a value, or anything that can be called, drawn or not', () => {
+		const nodes = nodesIn(EMPTY, env)
+		expect(nodes.slice(0, 4).map(({ label }) => label)).toEqual(['Number', 'Vector', 'Text', 'Boolean'])
+		for (const name of ['sin', 'path.circle', 'vec2.add']) expect(nodes.map(node => node.name)).toContain(name)
+	})
+
+	it('starts as the value, or as a call that is given what it needs', () => {
+		expect(print(nodeOf(EMPTY, env, 'value:vector')!.ast)).toBe('[0 0]')
+		const sin = nodeOf(EMPTY, env, 'sin')!
+		expect(sin.stem).toBe('sin')
+		expect(check(sin.ast, env).filter(({ level }) => level === 'error')).toEqual([])
+		expect(nodeOf(EMPTY, env, 'no.such')).toBeNull()
 	})
 })

@@ -17,6 +17,16 @@ describe('literals', () => {
 	})
 })
 
+describe('a let-block', () => {
+	it('is of the type of its last entry, named or not, as that is what it comes to', () => {
+		expect(infer(parse('{a = 1 (+ a 1)}'), env)?.typeName).toBe('number')
+		expect(infer(parse('{x = 2 y = (* x 3)}'), env)?.typeName).toBe('number')
+		expect(infer(parse('{()}'), env)?.typeName).toBe('unit')
+		expect(check(parse('(+ 1 {x = 2 y = (* x 3)})'), env)).toEqual([])
+		expect(evaluate(parse('(+ 1 {x = 2 y = (* x 3)})'), env).value).toBe(7)
+	})
+})
+
 const typeOf = (src: string): string | null =>
 	infer(parse(src), env)?.typeName ?? null
 const problems = (src: string): string[] =>
@@ -289,7 +299,7 @@ describe('infer — forms', () => {
 		expect(typeOf('{a = [1 "s"] a.1}')).toBe('string')
 		expect(typeOf('[1 ./0]')).toBe('[number number]')
 		expect(typeOf('{r = {x: 1} r.x}')).toBe('number')
-		expect(typeOf('{a = 1}')).toBe('unit')
+		expect(typeOf('{a = 1}')).toBe('number')
 		expect(typeOf('{a = b b = a a}')).toBeNull()
 	})
 
